@@ -1,0 +1,22 @@
+/* pages/settings/settings.wxss */
+page {
+  background: #F2F4F8;
+  font-family: -apple-system, 'PingFang SC', sans-serif;
+}
+
+.container {
+  padding: 24rpx 24rpx 40rpx;
+}
+
+/* 给每个 cell-group 之间留间距 */
+t-cell-group {
+  margin-bottom: 24rpx;
+}
+
+.version-info {
+  text-align: center;
+  font-size: 24rpx;
+  color: #C4C9D4;
+  padding: 40rpx 0;
+  line-height: 1.8;
+}

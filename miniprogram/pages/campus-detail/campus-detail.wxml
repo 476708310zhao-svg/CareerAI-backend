@@ -1,0 +1,120 @@
+<!-- pages/campus-detail/campus-detail.wxml -->
+
+<!-- 加载中 -->
+<view class="loading-page" wx:if="{{!detail}}">
+  <view class="spinner"></view>
+  <text class="loading-txt">加载中...</text>
+</view>
+
+<view class="page" wx:if="{{detail}}">
+
+  <!-- ════ 头部横幅 ════ -->
+  <view class="hero">
+    <view class="hero-inner">
+      <view class="logo-wrap">
+        <image wx:if="{{detail.companyLogo}}" src="{{detail.companyLogo}}" class="logo-img" mode="aspectFit"/>
+        <view wx:else class="logo-placeholder">
+          <text class="logo-char">{{detail.company.slice(0,2)}}</text>
+        </view>
+      </view>
+      <view class="hero-info">
+        <view class="hero-name-row">
+          <text class="hero-company">{{detail.company}}</text>
+          <view class="hot-dot" wx:if="{{detail.isHot}}">HOT</view>
+        </view>
+        <text class="hero-position">{{detail.positionName || detail.positionType}}</text>
+        <view class="hero-badges">
+          <view class="badge" style="background:{{detail._typeStyle.bg}};color:{{detail._typeStyle.color}};border-color:{{detail._typeStyle.border}}">{{detail.recruitType}}</view>
+          <view class="badge" style="background:{{detail._testStyle.bg}};color:{{detail._testStyle.color}}">{{detail.writtenTest}}</view>
+          <view class="badge grad-badge">{{detail.gradYear}}届</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- ════ 关键信息卡 ════ -->
+  <view class="info-card">
+    <view class="kv-grid">
+      <view class="kv-item">
+        <text class="kv-key">行业</text>
+        <text class="kv-val">{{detail.industry || '-'}}</text>
+      </view>
+      <view class="kv-item">
+        <text class="kv-key">岗位类型</text>
+        <text class="kv-val">{{detail.positionType}}</text>
+      </view>
+      <view class="kv-item">
+        <text class="kv-key">工作地点</text>
+        <text class="kv-val">{{detail._locStr}}</text>
+      </view>
+      <view class="kv-item">
+        <text class="kv-key">所在地区</text>
+        <text class="kv-val">{{detail.region}}</text>
+      </view>
+      <view class="kv-item">
+        <text class="kv-key">开始时间</text>
+        <text class="kv-val">{{detail.startDate || '-'}}</text>
+      </view>
+      <view class="kv-item">
+        <text class="kv-key">截止时间</text>
+        <text class="kv-val {{detail.deadlineDate === '尽快投递' ? 'urgent' : ''}}">{{detail.deadlineDate || '-'}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- ════ 备注信息 ════ -->
+  <view class="section-card" wx:if="{{detail.notes}}">
+    <view class="section-title">
+      <text class="section-icon">💬</text>
+      <text>求职建议</text>
+    </view>
+    <text class="notes-txt">{{detail.notes}}</text>
+  </view>
+
+  <!-- ════ 投递信息 ════ -->
+  <view class="section-card">
+    <view class="section-title">
+      <text class="section-icon">🔗</text>
+      <text>投递信息</text>
+    </view>
+    <view class="link-row" wx:if="{{detail.announceUrl}}">
+      <text class="link-label">公告链接</text>
+      <text class="link-url">{{detail.announceUrl}}</text>
+    </view>
+    <view class="link-row" wx:if="{{detail.applyUrl}}">
+      <text class="link-label">投递链接</text>
+      <text class="link-url">{{detail.applyUrl}}</text>
+    </view>
+    <view class="copy-btn" wx:if="{{detail.applyUrl}}" bindtap="copyApplyUrl">复制投递链接</view>
+  </view>
+
+  <!-- ════ 截止提醒订阅卡 ════ -->
+  <view class="remind-card" bindtap="subscribeReminder">
+    <view class="remind-left">
+      <text class="remind-icon">{{isSubscribed ? '🔔' : '🔕'}}</text>
+      <view class="remind-info">
+        <text class="remind-title">{{isSubscribed ? '已订阅截止提醒' : '订阅截止日期提醒'}}</text>
+        <text class="remind-sub">{{isSubscribed ? '截止前7天和当天将提醒你' : '截止前7天 · 截止当天 · 岗位更新'}}</text>
+      </view>
+    </view>
+    <view class="remind-action {{isSubscribed ? 'subscribed' : ''}}">
+      <text>{{isSubscribed ? '已订阅' : (subscribing ? '订阅中...' : '订阅')}}</text>
+    </view>
+  </view>
+
+  <!-- ════ 数据来源 ════ -->
+  <view class="source-bar">
+    <text class="source-txt">{{detail.viewCount}} 人浏览 · 数据综合整理自公开信息</text>
+  </view>
+
+  <view style="height:180rpx;"></view>
+
+  <!-- ════ 底部投递按钮 ════ -->
+  <view class="bottom-bar">
+    <view class="bottom-actions">
+      <view class="collect-btn {{isFavorited ? 'collected' : ''}}" bindtap="toggleFavorite">{{isFavorited ? '已收藏' : '收藏'}}</view>
+      <view class="apply-btn" bindtap="goApply">立即投递</view>
+    </view>
+  </view>
+
+</view>

@@ -1,0 +1,189 @@
+<!-- pages/company-detail/company-detail.wxml -->
+<view class="container" wx:if="{{company}}">
+
+  <!-- 公司头部信息 -->
+  <view class="company-header">
+    <image class="company-logo" src="{{company.logo}}" mode="aspectFit"></image>
+    <view class="header-info">
+      <view class="name-row">
+        <text class="company-name">{{company.name}}</text>
+        <view class="rating-badge" wx:if="{{company.rating}}">{{company.rating}}</view>
+      </view>
+      <text class="company-meta">{{company.industry}} · {{company.size}}人 · {{company.headquarters}}</text>
+      <view class="tag-row">
+        <block wx:for="{{company.tags}}" wx:key="*this">
+          <text class="tag">{{item}}</text>
+        </block>
+      </view>
+    </view>
+  </view>
+
+  <!-- 公司简介 -->
+  <view class="section-card">
+    <view class="section-title">公司简介</view>
+    <view wx:if="{{introLoading}}" class="intro-loading">
+      <text class="intro-loading-text">✨ AI 正在生成简介...</text>
+    </view>
+    <text wx:else class="desc-text">{{company.description || '暂无公司介绍'}}</text>
+    <view class="info-row">
+      <view class="info-item">
+        <text class="info-label">成立时间</text>
+        <text class="info-value">{{company.founded}}</text>
+      </view>
+      <view class="info-item">
+        <text class="info-label">总部</text>
+        <text class="info-value">{{company.headquarters}}</text>
+      </view>
+      <view class="info-item">
+        <text class="info-label">规模</text>
+        <text class="info-value">{{company.size}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- Tab 切换 -->
+  <view class="tab-bar">
+    <block wx:for="{{tabs}}" wx:key="*this">
+      <view
+        class="tab-item {{currentTab === index ? 'active' : ''}}"
+        bindtap="switchTab"
+        data-index="{{index}}"
+      >{{item}}</view>
+    </block>
+  </view>
+
+  <!-- Tab 内容: 职位 (JSearch API) -->
+  <view wx:if="{{currentTab === 0}}" class="tab-content">
+    <view wx:if="{{jobsLoading}}" class="loading-hint">正在搜索最新岗位...</view>
+    <block wx:for="{{company.jobs}}" wx:key="id">
+      <view class="job-card" bindtap="goToJobDetail" data-id="{{item.id}}">
+        <view class="job-top">
+          <text class="job-title">{{item.title}}</text>
+          <text class="job-salary">{{item.salary}}</text>
+        </view>
+        <view class="job-bottom">
+          <text class="job-tag">{{item.type}}</text>
+          <text class="job-tag">{{item.location}}</text>
+          <text class="api-badge" wx:if="{{item.isReal}}">Real-time</text>
+        </view>
+      </view>
+    </block>
+    <view wx:if="{{!jobsLoading && company.jobs.length === 0}}" class="empty">暂无在招职位</view>
+  </view>
+
+  <!-- Tab 内容: 面经 (DeepSeek AI) -->
+  <view wx:if="{{currentTab === 1}}" class="tab-content">
+    <view class="ai-exp-bar">
+      <view class="ai-exp-btn {{expLoading ? 'disabled' : ''}}" bindtap="aiGenerateExperience">
+        <text wx:if="{{!expLoading}}">AI 生成最新面经</text>
+        <text wx:else>生成中...</text>
+      </view>
+    </view>
+    <block wx:for="{{company.experiences}}" wx:key="id">
+      <view class="exp-card" bindtap="goToExperienceDetail" data-id="{{item.id}}">
+        <view class="exp-title-row">
+          <text class="exp-title">{{item.title}}</text>
+          <text class="ai-tag" wx:if="{{item.isAI}}">AI</text>
+        </view>
+        <view class="exp-meta">
+          <text class="exp-type">{{item.type}} {{item.round}}</text>
+          <text class="exp-likes">{{item.likesCount}} 赞</text>
+          <text class="exp-date">{{item.createdAt}}</text>
+        </view>
+      </view>
+    </block>
+    <view wx:if="{{company.experiences.length === 0}}" class="empty">暂无面经分享</view>
+  </view>
+
+  <!-- Tab 内容: 薪资 -->
+  <view wx:if="{{currentTab === 2}}" class="tab-content">
+    <block wx:for="{{company.salaries}}" wx:key="position">
+      <view class="salary-card">
+        <view class="salary-top">
+          <text class="salary-position">{{item.position}}</text>
+          <text class="salary-avg">{{item.avgSalary}}</text>
+        </view>
+        <view class="salary-bar-track">
+          <view class="salary-bar-fill" style="width: 70%;"></view>
+        </view>
+        <view class="salary-bottom">
+          <text class="salary-range">范围: {{item.range}}</text>
+          <text class="salary-samples">{{item.samples}}份样本</text>
+        </view>
+      </view>
+    </block>
+    <view wx:if="{{company.salaries.length === 0}}" class="empty">暂无薪资数据</view>
+  </view>
+
+  <!-- Tab 内容: AI洞察 -->
+  <view wx:if="{{currentTab === 3}}" class="tab-content">
+    <!-- 加载中 -->
+    <view wx:if="{{insightLoading}}" class="insight-loading">
+      <view class="insight-spin"></view>
+      <text class="insight-loading-txt">✨ AI 正在生成公司洞察...</text>
+    </view>
+    <!-- 已生成 -->
+    <view wx:elif="{{insight}}">
+      <view class="insight-card">
+        <view class="insight-card-header">
+          <text class="insight-icon">🏢</text>
+          <text class="insight-card-title">公司背景</text>
+        </view>
+        <text class="insight-card-body">{{insight.background}}</text>
+      </view>
+      <view class="insight-card">
+        <view class="insight-card-header">
+          <text class="insight-icon">🎯</text>
+          <text class="insight-card-title">面试风格</text>
+        </view>
+        <text class="insight-card-body">{{insight.interview_style}}</text>
+      </view>
+      <view class="insight-card">
+        <view class="insight-card-header">
+          <text class="insight-icon">❓</text>
+          <text class="insight-card-title">高频面试题</text>
+        </view>
+        <view class="insight-qlist">
+          <view wx:for="{{insight.frequent_questions}}" wx:key="*this" class="insight-q-item">
+            <text class="insight-q-num">Q{{index + 1}}</text>
+            <text class="insight-q-txt">{{item}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="insight-card">
+        <view class="insight-card-header">
+          <text class="insight-icon">💡</text>
+          <text class="insight-card-title">求职建议</text>
+        </view>
+        <view class="insight-tips">
+          <view wx:for="{{insight.tips}}" wx:key="*this" class="insight-tip-item">
+            <text class="insight-tip-check">✓</text>
+            <text class="insight-tip-txt">{{item}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="insight-refresh-row" bindtap="refreshInsight">
+        <text class="insight-refresh-txt">↺ 重新生成</text>
+      </view>
+    </view>
+    <!-- 未生成 -->
+    <view wx:else class="insight-empty">
+      <view class="insight-gen-btn" bindtap="fetchAIInsightBtn">
+        <text>✨ 生成 AI 公司洞察</text>
+      </view>
+      <text class="insight-empty-sub">面试风格 · 高频题 · 求职建议</text>
+    </view>
+  </view>
+
+  <!-- 底部占位 -->
+  <view style="height: 140rpx;"></view>
+
+  <!-- 底部操作栏 -->
+  <view class="footer-bar">
+    <view class="fav-btn" bindtap="toggleFavorite">
+      <text>{{company.isFavorited ? '已收藏' : '收藏'}}</text>
+    </view>
+    <c-button class="share-btn" open-type="share">分享</c-button>
+  </view>
+
+</view>

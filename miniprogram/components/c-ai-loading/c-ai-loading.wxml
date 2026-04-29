@@ -1,0 +1,9 @@
+<view class="ai-loading" wx:if="{{loading}}">
+  <view class="ai-spinner"></view>
+  <view class="ai-loading-dots">
+    <view class="dot {{step >= 0 ? 'active' : ''}}"></view>
+    <view class="dot {{step >= 1 ? 'active' : ''}}"></view>
+    <view class="dot {{step >= 2 ? 'active' : ''}}"></view>
+  </view>
+  <text class="ai-loading-tip">{{tip}}</text>
+</view>

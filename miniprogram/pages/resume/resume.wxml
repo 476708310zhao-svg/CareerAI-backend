@@ -1,0 +1,468 @@
+<!-- pages/resume/resume.wxml -->
+<view class="container">
+
+  <!-- 1. 顶部 Tab 切换 -->
+  <view class="tabs">
+    <view class="tab-item {{currentTab === 0 ? 'active' : ''}}" bindtap="switchTab" data-index="0">在线简历</view>
+    <view class="tab-item {{currentTab === 1 ? 'active' : ''}}" bindtap="switchTab" data-index="1">附件简历</view>
+  </view>
+
+  <!-- ======================== TAB 1: 在线简历 ======================== -->
+  <view class="tab-content" wx:if="{{currentTab === 0}}">
+
+    <!-- 简历选择栏（多份简历管理 T-5）-->
+    <view class="resume-switcher" wx:if="{{isLoggedIn}}">
+      <view class="switcher-left" bindtap="showResumeManager">
+        <text class="switcher-name">{{currentResumeName}}</text>
+        <text class="switcher-count">{{serverResumes.length}} 份</text>
+        <view wx:if="{{isVip}}" class="switcher-vip-badge">VIP·无限</view>
+        <text class="switcher-arrow">›</text>
+      </view>
+      <view class="switcher-btn" bindtap="createResume">+ 新建</view>
+    </view>
+
+    <!-- 简历管理面板 -->
+    <view class="resume-manager-mask" wx:if="{{showResumeManager}}" bindtap="hideResumeManager"></view>
+    <view class="resume-manager-panel {{showResumeManager ? 'show' : ''}}">
+      <view class="rmp-header">
+        <text class="rmp-title">我的简历</text>
+        <text class="rmp-close" bindtap="hideResumeManager">✕</text>
+      </view>
+      <scroll-view class="rmp-list" scroll-y>
+        <view wx:for="{{serverResumes}}" wx:key="id"
+              class="rmp-item {{item.id === currentResumeId ? 'active' : ''}}"
+              bindtap="selectResume" data-id="{{item.id}}" data-name="{{item.name}}">
+          <view class="rmp-item-info">
+            <text class="rmp-item-name">{{item.name}}</text>
+            <text class="rmp-item-time">{{item.updated_at}}</text>
+          </view>
+          <view class="rmp-item-del" catchtap="deleteServerResume" data-id="{{item.id}}">删除</view>
+        </view>
+        <view wx:if="{{!serverResumes.length}}" class="rmp-empty">暂无简历，点击"新建"创建一份</view>
+      </scroll-view>
+      <view class="rmp-footer">
+        <text class="rmp-tip" wx:if="{{!isVip}}">免费用户1份 · 升级VIP可无限创建</text>
+        <text class="rmp-tip rmp-tip-vip" wx:else>VIP用户 · 无限创建简历</text>
+      </view>
+    </view>
+
+    <!-- 完整度进度条 -->
+    <view class="progress-card">
+      <view class="prog-header">
+        <text class="prog-label">简历完整度</text>
+        <view class="prog-right">
+          <view class="export-btn {{exportLoading ? 'export-loading' : ''}}" bindtap="exportResume">
+            <text>{{exportLoading ? '导出中...' : '↓ 导出'}}</text>
+          </view>
+          <text class="prog-val">{{onlineResume.score}}%</text>
+        </view>
+      </view>
+      <view class="progress-track">
+        <view class="progress-fill" style="width: {{onlineResume.score}}%"></view>
+      </view>
+      <text class="prog-tip" wx:if="{{onlineResume.score < 80}}">完善更多信息可提升匹配成功率</text>
+    </view>
+
+    <!-- 隐藏画布（用于导出为图片） -->
+    <canvas type="2d" id="resumeExportCanvas" style="position:fixed;left:-9999rpx;top:-9999rpx;width:750rpx;height:1rpx;"></canvas>
+
+    <!-- 基本信息 -->
+    <view class="section-card">
+      <view class="card-header">
+        <view class="left-border">基本信息</view>
+        <view class="edit-icon" bindtap="editBasicInfo">编辑</view>
+      </view>
+      <view wx:if="{{onlineResume.basicInfo.name}}" class="info-grid">
+        <view class="info-item">
+          <text class="label">姓名</text>
+          <text class="value">{{onlineResume.basicInfo.name}}</text>
+        </view>
+        <view class="info-item">
+          <text class="label">求职意向</text>
+          <text class="value">{{onlineResume.basicInfo.title || '未填写'}}</text>
+        </view>
+        <view class="info-item">
+          <text class="label">电话</text>
+          <text class="value">{{onlineResume.basicInfo.phone || '未填写'}}</text>
+        </view>
+        <view class="info-item">
+          <text class="label">邮箱</text>
+          <text class="value">{{onlineResume.basicInfo.email || '未填写'}}</text>
+        </view>
+      </view>
+      <view wx:else class="empty-hint" bindtap="editBasicInfo">点击填写基本信息</view>
+    </view>
+
+    <!-- 个人优势 -->
+    <view class="section-card">
+      <view class="card-header">
+        <view class="left-border">个人优势</view>
+        <view class="ai-group">
+          <view class="ai-btn review" bindtap="handleAiReview">AI审核</view>
+          <view class="ai-btn polish" bindtap="handleAiPolish">AI润色</view>
+        </view>
+      </view>
+      <view class="summary-box" wx:if="{{onlineResume.summary}}" bindtap="editSummary">
+        <text>{{onlineResume.summary}}</text>
+        <text class="tap-edit">点击编辑</text>
+      </view>
+      <view wx:else class="empty-hint" bindtap="editSummary">点击填写个人优势</view>
+    </view>
+
+    <!-- 岗位匹配分析 + NLP 优化 -->
+    <view class="section-card">
+      <view class="card-header">
+        <view class="left-border">岗位匹配分析</view>
+      </view>
+      <view class="match-box">
+        <input class="match-input" placeholder="输入目标岗位（如 Software Engineer）" bindinput="onTargetJobInput" value="{{targetJobInput}}" />
+        <view class="ai-btn match" bindtap="handleAiMatch">AI匹配</view>
+      </view>
+      <view class="nlp-row">
+        <view class="nlp-btn {{nlpLoading ? 'nlp-btn-loading' : ''}}" bindtap="handleNlpOptimize">
+          <text class="nlp-btn-icon">🧠</text>
+          <text class="nlp-btn-txt">NLP 智能优化建议</text>
+          <text wx:if="{{nlpLoading}}" class="nlp-btn-sub">分析中...</text>
+          <text wx:else class="nlp-btn-sub">ATS关键词 · 动词升级 · 优先改进</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 工作经历 -->
+    <view class="section-card">
+      <view class="card-header">
+        <view class="left-border">工作经历</view>
+        <view class="add-btn" bindtap="addWorkExp">+ 添加</view>
+      </view>
+
+      <block wx:if="{{onlineResume.workExp.length > 0}}">
+        <block wx:for="{{onlineResume.workExp}}" wx:key="id">
+          <view class="exp-item" bindtap="editWorkExp" data-index="{{index}}">
+            <view class="exp-dot"></view>
+            <view class="exp-content">
+              <view class="exp-row">
+                <text class="exp-company">{{item.company}}</text>
+                <view class="exp-actions">
+                  <view class="ai-btn-sm" catchtap="handleAiPolishWork" data-index="{{index}}">AI润色</view>
+                </view>
+              </view>
+              <view class="exp-sub">
+                <text>{{item.role}}</text>
+                <text class="exp-time">{{item.time}}</text>
+              </view>
+              <text class="exp-desc" wx:if="{{item.desc}}">{{item.desc}}</text>
+            </view>
+          </view>
+        </block>
+      </block>
+      <view wx:else class="empty-hint" bindtap="addWorkExp">点击添加工作经历</view>
+    </view>
+
+    <!-- 教育经历 -->
+    <view class="section-card">
+      <view class="card-header">
+        <view class="left-border">教育经历</view>
+        <view class="add-btn" bindtap="addEdu">+ 添加</view>
+      </view>
+      <block wx:if="{{onlineResume.education.length > 0}}">
+        <block wx:for="{{onlineResume.education}}" wx:key="id">
+          <view class="edu-item" bindtap="editEdu" data-index="{{index}}">
+            <view class="edu-header">
+              <text class="edu-school">{{item.school}}</text>
+              <text class="edu-time">{{item.time}}</text>
+            </view>
+            <text class="edu-sub">{{item.degree}} · {{item.major}}</text>
+          </view>
+        </block>
+      </block>
+      <view wx:else class="empty-hint" bindtap="addEdu">点击添加教育经历</view>
+    </view>
+
+    <!-- 技能标签 -->
+    <view class="section-card">
+      <view class="card-header">
+        <view class="left-border">技能标签</view>
+        <view class="add-btn" bindtap="openSkillsEdit">+ 添加</view>
+      </view>
+      <view wx:if="{{onlineResume.skills.length > 0}}" class="skills-wrap">
+        <block wx:for="{{onlineResume.skills}}" wx:key="*this">
+          <view class="skill-tag">
+            <text>{{item}}</text>
+            <text class="skill-del" catchtap="removeSkill" data-index="{{index}}">×</text>
+          </view>
+        </block>
+      </view>
+      <view wx:else class="empty-hint" bindtap="openSkillsEdit">点击添加技能标签</view>
+    </view>
+
+    <!-- 项目经历 -->
+    <view class="section-card">
+      <view class="card-header">
+        <view class="left-border">项目经历</view>
+        <view class="header-actions">
+          <view class="ai-gen-btn" bindtap="goToProjectBuilder">✨ AI生成</view>
+          <view class="add-btn" bindtap="addProject">+ 添加</view>
+        </view>
+      </view>
+      <block wx:if="{{onlineResume.projects.length > 0}}">
+        <block wx:for="{{onlineResume.projects}}" wx:key="id">
+          <view class="exp-item" bindtap="editProject" data-index="{{index}}">
+            <view class="exp-dot"></view>
+            <view class="exp-content">
+              <view class="exp-row">
+                <text class="exp-company">{{item.name}}</text>
+                <text class="exp-time">{{item.time}}</text>
+              </view>
+              <text class="exp-sub-role" wx:if="{{item.role}}">{{item.role}}</text>
+              <text class="exp-desc" wx:if="{{item.desc}}">{{item.desc}}</text>
+            </view>
+          </view>
+        </block>
+      </block>
+      <view wx:else class="empty-hint" bindtap="addProject">点击添加项目经历</view>
+    </view>
+
+    <view style="height: 160rpx;"></view>
+  </view>
+
+  <!-- ======================== TAB 2: 附件简历 ======================== -->
+  <view class="tab-content" wx:if="{{currentTab === 1}}">
+    <view class="resume-list">
+      <block wx:for="{{resumeList}}" wx:key="id">
+        <view class="resume-card" bindtap="handleAction" data-index="{{index}}">
+          <view class="card-left">
+            <image class="file-icon" src="/images/application.png"></image>
+            <view class="info">
+              <text class="name">{{item.name}}</text>
+              <text class="date">更新于 {{item.date}}</text>
+            </view>
+          </view>
+          <view class="tag default" wx:if="{{item.isDefault}}">默认</view>
+        </view>
+      </block>
+      <view wx:if="{{resumeList.length === 0}}" class="empty-hint" style="padding: 80rpx 0;">暂无附件简历</view>
+    </view>
+
+    <view style="height: 150rpx;"></view>
+    <view class="footer-btn">
+      <c-button bindtap="handleUpload">上传新简历</c-button>
+    </view>
+  </view>
+
+  <!-- ======================== 在线简历底部操作栏 ======================== -->
+  <view class="resume-action-bar" wx:if="{{currentTab === 0}}">
+    <view class="resume-act-btn secondary" bindtap="copyResumeText">
+      <text class="resume-act-icon">📋</text>
+      <text class="resume-act-txt">复制文本</text>
+    </view>
+    <view class="resume-act-btn secondary" bindtap="exportResume">
+      <text class="resume-act-icon">🖼</text>
+      <text class="resume-act-txt">{{exportLoading ? '生成中' : '导出图片'}}</text>
+    </view>
+    <c-button class="resume-act-btn" open-type="share">
+      <text class="resume-act-icon">🔗</text>
+      <text class="resume-act-txt">分享</text>
+    </c-button>
+  </view>
+
+  <!-- 隐藏的 Canvas（用于导出简历图片）-->
+  <canvas type="2d" id="resume-export-canvas" class="export-canvas"></canvas>
+
+  <!-- ======================== NLP 优化结果面板 ======================== -->
+  <view class="nlp-mask" wx:if="{{showNlpPanel}}" bindtap="closeNlpPanel"></view>
+  <view class="nlp-panel {{showNlpPanel ? 'show' : ''}}">
+    <view class="nlp-panel-header">
+      <view class="nlp-panel-left">
+        <text class="nlp-panel-title">NLP 智能优化报告</text>
+        <view wx:if="{{nlpAtsScore > 0}}" class="nlp-ats-badge {{nlpAtsScore >= 80 ? 'nlp-ats-good' : nlpAtsScore >= 60 ? 'nlp-ats-ok' : 'nlp-ats-low'}}">
+          ATS {{nlpAtsScore}}分
+        </view>
+      </view>
+      <text class="nlp-panel-close" bindtap="closeNlpPanel">✕</text>
+    </view>
+    <scroll-view class="nlp-panel-body" scroll-y>
+      <text class="nlp-result-text" user-select>{{nlpResult}}</text>
+    </scroll-view>
+    <view class="nlp-panel-footer">
+      <c-button bindtap="closeNlpPanel">知道了</c-button>
+    </view>
+  </view>
+
+  <!-- ======================== 统一弹窗容器（微信每页只允许一个 page-container）======================== -->
+  <page-container
+    show="{{showEditBasic || showEditSummary || showEditWork || showEditEdu || showEditSkills || showEditProject || showAiResult}}"
+    round position="bottom"
+    custom-style="{{_modalStyle}}"
+    bind:clickoverlay="_closeActiveModal">
+
+    <!-- 编辑基本信息 -->
+    <view wx:if="{{showEditBasic}}" class="edit-modal">
+      <view class="edit-modal-header">
+        <text class="edit-modal-title">编辑基本信息</text>
+        <view class="close-btn" bindtap="cancelEditBasic">×</view>
+      </view>
+      <view class="edit-form">
+        <view class="form-item">
+          <text class="form-label">姓名</text>
+          <input class="form-input" value="{{editBasicForm.name}}" bindinput="onBasicInput" data-field="name" placeholder="请输入姓名" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">求职意向</text>
+          <input class="form-input" value="{{editBasicForm.title}}" bindinput="onBasicInput" data-field="title" placeholder="如 Frontend Developer" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">电话</text>
+          <input class="form-input" value="{{editBasicForm.phone}}" bindinput="onBasicInput" data-field="phone" placeholder="请输入手机号" type="number" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">邮箱</text>
+          <input class="form-input" value="{{editBasicForm.email}}" bindinput="onBasicInput" data-field="email" placeholder="请输入邮箱" />
+        </view>
+      </view>
+      <c-button class="save-btn" bindtap="saveBasicInfo">保存</c-button>
+    </view>
+
+    <!-- 编辑个人优势 -->
+    <view wx:if="{{showEditSummary}}" class="edit-modal">
+      <view class="edit-modal-header">
+        <text class="edit-modal-title">编辑个人优势</text>
+        <view class="close-btn" bindtap="cancelEditSummary">X</view>
+      </view>
+      <textarea class="edit-textarea" value="{{editSummaryText}}" bindinput="onSummaryInput" placeholder="描述你的核心竞争力、专业技能和职业亮点..." maxlength="500" auto-height></textarea>
+      <c-button class="save-btn" bindtap="saveSummary">保存</c-button>
+    </view>
+
+    <!-- 编辑工作经历 -->
+    <view wx:if="{{showEditWork}}" class="edit-modal">
+      <view class="edit-modal-header">
+        <text class="edit-modal-title">{{editWorkIndex >= 0 ? '编辑' : '添加'}}工作经历</text>
+        <view class="close-btn" bindtap="cancelEditWork">×</view>
+      </view>
+      <view class="edit-form">
+        <view class="form-item">
+          <text class="form-label">公司名称</text>
+          <input class="form-input" value="{{editWorkForm.company}}" bindinput="onWorkInput" data-field="company" placeholder="请输入公司名称" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">职位</text>
+          <input class="form-input" value="{{editWorkForm.role}}" bindinput="onWorkInput" data-field="role" placeholder="请输入职位名称" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">时间</text>
+          <input class="form-input" value="{{editWorkForm.time}}" bindinput="onWorkInput" data-field="time" placeholder="如 2022.06 - 至今" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">工作描述</text>
+          <textarea class="form-textarea" value="{{editWorkForm.desc}}" bindinput="onWorkInput" data-field="desc" placeholder="描述你的工作职责和成果..." maxlength="500" auto-height></textarea>
+        </view>
+      </view>
+      <view class="edit-modal-footer">
+        <c-button type="danger" class="del-btn" wx:if="{{editWorkIndex >= 0}}" bindtap="deleteWorkExp">删除</c-button>
+        <c-button class="save-btn" bindtap="saveWorkExp">保存</c-button>
+      </view>
+    </view>
+
+    <!-- 编辑教育经历 -->
+    <view wx:if="{{showEditEdu}}" class="edit-modal">
+      <view class="edit-modal-header">
+        <text class="edit-modal-title">{{editEduIndex >= 0 ? '编辑' : '添加'}}教育经历</text>
+        <view class="close-btn" bindtap="cancelEditEdu">×</view>
+      </view>
+      <view class="edit-form">
+        <view class="form-item">
+          <text class="form-label">学校名称</text>
+          <input class="form-input" value="{{editEduForm.school}}" bindinput="onEduInput" data-field="school" placeholder="请输入学校名称" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">学历</text>
+          <input class="form-input" value="{{editEduForm.degree}}" bindinput="onEduInput" data-field="degree" placeholder="如：本科 / 硕士 / 博士" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">专业</text>
+          <input class="form-input" value="{{editEduForm.major}}" bindinput="onEduInput" data-field="major" placeholder="请输入专业名称" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">时间</text>
+          <input class="form-input" value="{{editEduForm.time}}" bindinput="onEduInput" data-field="time" placeholder="如 2020.09 - 2024.06" />
+        </view>
+      </view>
+      <view class="edit-modal-footer">
+        <c-button type="danger" class="del-btn" wx:if="{{editEduIndex >= 0}}" bindtap="deleteEdu">删除</c-button>
+        <c-button class="save-btn" bindtap="saveEdu">保存</c-button>
+      </view>
+    </view>
+
+    <!-- 编辑技能标签 -->
+    <view wx:if="{{showEditSkills}}" class="edit-modal">
+      <view class="edit-modal-header">
+        <text class="edit-modal-title">编辑技能标签</text>
+        <view class="close-btn" bindtap="closeSkillsEdit">×</view>
+      </view>
+      <view class="skills-edit-wrap">
+        <block wx:for="{{onlineResume.skills}}" wx:key="*this">
+          <view class="skill-tag editable">
+            <text>{{item}}</text>
+            <text class="skill-del" catchtap="removeSkill" data-index="{{index}}">×</text>
+          </view>
+        </block>
+      </view>
+      <view class="skill-input-row">
+        <input class="skill-input" value="{{skillInput}}" bindinput="onSkillInput" bindconfirm="addSkill" placeholder="输入技能后按回车添加" />
+        <view class="add-skill-btn" bindtap="addSkill">添加</view>
+      </view>
+      <c-button class="save-btn" style="margin-top: 20rpx;" bindtap="closeSkillsEdit">完成</c-button>
+    </view>
+
+    <!-- 编辑项目经历 -->
+    <view wx:if="{{showEditProject}}" class="edit-modal">
+      <view class="edit-modal-header">
+        <text class="edit-modal-title">{{editProjectIndex >= 0 ? '编辑' : '添加'}}项目经历</text>
+        <view class="close-btn" bindtap="cancelEditProject">×</view>
+      </view>
+      <view class="edit-form">
+        <view class="form-item">
+          <text class="form-label">项目名称</text>
+          <input class="form-input" value="{{editProjectForm.name}}" bindinput="onProjectInput" data-field="name" placeholder="请输入项目名称" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">担任角色</text>
+          <input class="form-input" value="{{editProjectForm.role}}" bindinput="onProjectInput" data-field="role" placeholder="如：前端开发 / 项目负责人" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">时间</text>
+          <input class="form-input" value="{{editProjectForm.time}}" bindinput="onProjectInput" data-field="time" placeholder="如 2023.01 - 2023.06" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">项目描述</text>
+          <textarea class="form-textarea" value="{{editProjectForm.desc}}" bindinput="onProjectInput" data-field="desc" placeholder="描述项目背景、你的贡献和成果..." maxlength="500" auto-height></textarea>
+        </view>
+      </view>
+      <view class="edit-modal-footer">
+        <c-button type="danger" class="del-btn" wx:if="{{editProjectIndex >= 0}}" bindtap="deleteProject">删除</c-button>
+        <c-button class="save-btn" bindtap="saveProject">保存</c-button>
+      </view>
+    </view>
+
+    <!-- AI 结果 -->
+    <view wx:if="{{showAiResult}}" class="ai-modal">
+      <view class="ai-header">
+        <text class="ai-title">{{aiResultTitle}}</text>
+        <view class="close-btn" bindtap="closeAiResult">×</view>
+      </view>
+      <scroll-view scroll-y class="ai-content-scroll">
+        <text class="ai-text" user-select>{{aiResultContent}}</text>
+      </scroll-view>
+      <view class="ai-footer">
+        <block wx:if="{{isPolishMode}}">
+          <c-button type="secondary" class="ai-modal-cancel" bindtap="closeAiResult">取消</c-button>
+          <c-button class="ai-modal-confirm" bindtap="applyPolish">一键采纳</c-button>
+        </block>
+        <block wx:else>
+          <c-button bindtap="closeAiResult">知道了</c-button>
+        </block>
+      </view>
+    </view>
+
+  </page-container>
+
+</view>

@@ -1,0 +1,150 @@
+<!-- pages/ai-assistant/ai-assistant.wxml -->
+<view class="page">
+
+  <!-- 顶部栏（自定义导航，含状态栏占位） -->
+  <view class="top-bar" style="padding-top: {{statusBarHeight}}px;">
+    <view class="top-title">
+      <text class="top-icon">✦</text>
+      <text class="top-name">AI 求职助手</text>
+    </view>
+    <view class="clear-btn" bindtap="onClear" hover-class="btn-hover">
+      <text class="clear-txt">清空</text>
+    </view>
+  </view>
+
+  <!-- 消息列表 -->
+  <scroll-view
+    class="msg-scroll"
+    scroll-y
+    scroll-into-view="{{scrollId}}"
+    scroll-with-animation
+    style="margin-bottom: {{keyboardHeight > 0 ? keyboardHeight + 'px' : '0'}};"
+  >
+    <view class="msg-list">
+      <block wx:for="{{messages}}" wx:key="id">
+
+        <!-- 时间分隔 -->
+        <view wx:if="{{item.showTime}}" class="time-stamp">{{item.timeLabel}}</view>
+
+        <view class="msg-row {{item.role === 'user' ? 'user-row' : 'ai-row'}}">
+
+          <!-- AI 头像 -->
+          <view wx:if="{{item.role === 'ai'}}" class="ai-avatar">
+            <text class="ai-avatar-icon">✦</text>
+          </view>
+
+          <view class="bubble-wrap">
+
+            <!-- 气泡主体 -->
+            <view class="bubble {{item.role === 'user' ? 'user-bubble' : item.isError ? 'error-bubble' : 'ai-bubble'}}">
+
+              <!-- 用户消息、streaming 中、error：plain text -->
+              <text
+                wx:if="{{item.role === 'user' || item.isStreaming || item.isError}}"
+                class="bubble-text"
+                user-select
+              >{{item.displayText}}</text>
+
+              <!-- 完成的 AI 消息：rich-text 渲染 Markdown -->
+              <rich-text
+                wx:else
+                class="bubble-text bubble-rich"
+                nodes="{{item.htmlContent}}"
+              ></rich-text>
+
+            </view>
+
+            <!-- 错误重试按钮 -->
+            <view wx:if="{{item.isError && item.retryText}}" class="retry-row">
+              <view
+                class="retry-btn"
+                bindtap="onRetry"
+                data-text="{{item.retryText}}"
+                hover-class="btn-hover"
+              >
+                <text class="retry-txt">↻ 重新发送</text>
+              </view>
+            </view>
+
+            <!-- 首条欢迎消息：2×2 快捷指令网格 -->
+            <view wx:if="{{item.isWelcome && index === 0}}" class="quick-grid">
+              <view
+                wx:for="{{quickActions}}"
+                wx:for-item="qa"
+                wx:key="*this"
+                class="quick-card {{(loading || streaming) ? 'quick-disabled' : ''}}"
+                bindtap="onQuickAction"
+                data-text="{{qa}}"
+                hover-class="card-hover"
+              >
+                <text class="quick-text">{{qa}}</text>
+              </view>
+            </view>
+
+            <!-- 后续 AI 回复建议 chips（仅最新 AI 消息且空闲时显示） -->
+            <view
+              wx:if="{{item.suggestions && item.suggestions.length && index === latestAiIdx && !loading && !streaming}}"
+              class="suggestions"
+            >
+              <view
+                wx:for="{{item.suggestions}}"
+                wx:for-item="sug"
+                wx:key="*this"
+                class="sug-chip"
+                bindtap="onSuggestion"
+                data-text="{{sug}}"
+                hover-class="chip-hover"
+              >{{sug}}</view>
+            </view>
+
+          </view>
+        </view>
+      </block>
+
+      <!-- 等待首个 token 时的加载动画（loading = true 且无 streaming） -->
+      <view wx:if="{{loading && !streaming}}" class="msg-row ai-row">
+        <view class="ai-avatar"><text class="ai-avatar-icon">✦</text></view>
+        <view class="bubble ai-bubble loading-bubble">
+          <view class="dot-wrap">
+            <view class="dot"></view>
+            <view class="dot"></view>
+            <view class="dot"></view>
+          </view>
+        </view>
+      </view>
+
+      <!-- Perf fix: 底部固定锚点，scroll-into-view 永远定位到此 -->
+      <view id="scroll-anchor" style="height: 24rpx;"></view>
+    </view>
+  </scroll-view>
+
+  <!-- 输入栏 -->
+  <view class="input-bar" style="padding-bottom: calc(24rpx + {{safeBottom}}px);">
+    <view class="input-wrap">
+      <input
+        class="input"
+        placeholder="输入你的求职需求..."
+        placeholder-class="input-ph"
+        value="{{inputText}}"
+        bindinput="onInputChange"
+        bindconfirm="onSend"
+        bindkeyboardheightchange="onKeyboardHeight"
+        confirm-type="send"
+        maxlength="300"
+        adjust-position="{{false}}"
+      />
+    </view>
+    <view class="input-right">
+      <text wx:if="{{inputLen > 260}}" class="char-count {{inputLen >= 285 ? 'char-warn' : ''}}">{{inputLen}}/300</text>
+      <!-- 停止/发送统一按钮 -->
+      <view
+        class="send-btn {{streaming ? 'stop-btn' : (inputText && !loading ? 'active' : 'inactive')}}"
+        bindtap="onSendOrStop"
+        hover-class="btn-hover"
+      >
+        <text class="send-icon">{{streaming ? '■' : '↑'}}</text>
+      </view>
+    </view>
+  </view>
+
+</view>

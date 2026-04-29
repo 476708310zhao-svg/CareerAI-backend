@@ -1,0 +1,443 @@
+page, .page {
+  background-color: var(--bg-page);
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+}
+
+/* ── 搜索框 ── */
+.search-wrap {
+  margin: calc(env(safe-area-inset-top) + 16rpx) 32rpx 20rpx;
+  height: 80rpx;
+  background: var(--bg-raised);
+  border-radius: var(--r-xl);
+  display: flex;
+  align-items: center;
+  padding: 0 24rpx;
+  border: 1.5rpx solid var(--border);
+}
+.search-icon {
+  width: 32rpx;
+  height: 32rpx;
+  opacity: 0.4;
+  margin-right: 16rpx;
+}
+.search-text {
+  font-size: 30rpx;
+  color: var(--text-muted);
+}
+
+/* ── Banner 轮播 ── */
+.banner-wrap {
+  margin: 0 32rpx 32rpx;
+}
+.banner-swiper {
+  width: 100%;
+  height: 300rpx;
+  border-radius: 24rpx;
+  overflow: hidden;
+}
+.banner-item {
+  width: 100%;
+  height: 100%;
+  border-radius: 24rpx;
+  overflow: hidden;
+  position: relative;
+}
+.banner-bg-image {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+}
+.banner-gradient {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.banner-text-layer {
+  position: relative;
+  z-index: 1;
+  padding: 36rpx;
+  display: flex;
+  flex-direction: column;
+}
+.banner-icon  { font-size: 56rpx; margin-bottom: 10rpx; }
+.banner-title { color: #fff; font-size: 36rpx; font-weight: 800; letter-spacing: -0.5rpx; }
+.banner-sub   { color: rgba(255,255,255,0.8); font-size: 24rpx; margin-top: 8rpx; }
+
+/* ── 通用区块 ── */
+.section {
+  margin-bottom: 24rpx;
+}
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 32rpx 24rpx;
+}
+.section-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.5rpx;
+}
+.section-more {
+  font-size: 26rpx;
+  color: var(--brand);
+  font-weight: 500;
+}
+
+/* ── 新闻列表项 ── */
+.news-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 20rpx 24rpx;
+  margin: 0 32rpx 16rpx;
+  border: 1.5rpx solid var(--border-light);
+  border-radius: var(--r-lg);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--trans-fast), opacity var(--trans-fast);
+}
+.news-item:active {
+  transform: scale(0.988);
+  opacity: 0.86;
+}
+.news-content {
+  flex: 1;
+  margin-right: 20rpx;
+  overflow: hidden;
+}
+.news-category {
+  display: block;
+  font-size: 22rpx;
+  font-weight: 600;
+  color: var(--brand);
+  margin-bottom: 8rpx;
+  letter-spacing: 0.5rpx;
+}
+.news-category.tip  { color: var(--success); }
+.news-category.news { color: var(--brand); }
+.news-category.data { color: var(--danger); }
+.news-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.55;
+  margin-bottom: 12rpx;
+}
+.news-meta {
+  display: flex;
+  align-items: center;
+}
+.news-source {
+  font-size: 22rpx;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+.news-dot {
+  font-size: 22rpx;
+  color: var(--text-muted);
+  margin: 0 8rpx;
+  opacity: 0.4;
+}
+.news-salary {
+  font-size: 22rpx;
+  color: var(--brand);
+  font-weight: 500;
+}
+.news-time {
+  font-size: 22rpx;
+  color: var(--text-muted);
+}
+.news-thumb {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  flex-shrink: 0;
+}
+.news-thumb-placeholder {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(145deg, #eaf2ff 0%, #f6f0ff 100%);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 1rpx 0 rgba(255,255,255,0.9), 0 12rpx 28rpx rgba(37,99,235,0.12);
+}
+.news-thumb-placeholder.tip  { background: linear-gradient(145deg, #e9fff4 0%, #eef7ff 100%); }
+.news-thumb-placeholder.data { background: linear-gradient(145deg, #fff2ed 0%, #fff7df 100%); }
+.news-thumb-placeholder.policy { background: linear-gradient(145deg, #fff6e8 0%, #eef4ff 100%); }
+.news-thumb-aura {
+  position: absolute;
+  right: -18rpx;
+  top: -18rpx;
+  width: 76rpx;
+  height: 76rpx;
+  border-radius: 50%;
+  background: rgba(37,99,235,0.14);
+}
+.news-thumb-placeholder.tip .news-thumb-aura { background: rgba(16,185,129,0.16); }
+.news-thumb-placeholder.data .news-thumb-aura { background: rgba(245,101,101,0.16); }
+.news-thumb-placeholder.policy .news-thumb-aura { background: rgba(250,140,22,0.18); }
+.news-icon-card {
+  position: relative;
+  width: 58rpx;
+  height: 68rpx;
+  border-radius: 12rpx;
+  background: rgba(255,255,255,0.9);
+  box-shadow: 0 10rpx 22rpx rgba(30,41,59,0.12);
+  padding: 16rpx 12rpx 0;
+  box-sizing: border-box;
+}
+.news-icon-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: #2563eb;
+  margin-bottom: 10rpx;
+}
+.news-thumb-placeholder.tip .news-icon-dot { background: #10b981; }
+.news-thumb-placeholder.data .news-icon-dot { background: #f56565; }
+.news-thumb-placeholder.policy .news-icon-dot { background: #fa8c16; }
+.news-icon-line {
+  height: 6rpx;
+  border-radius: 999rpx;
+  background: #cbd5e1;
+  margin-bottom: 7rpx;
+}
+.news-icon-line.main {
+  width: 34rpx;
+  background: #64748b;
+}
+.news-icon-line.short {
+  width: 24rpx;
+}
+
+/* ── 功能入口网格 ── */
+.feature-grid {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 16rpx 16rpx 4rpx;
+  margin: 0 32rpx 24rpx;
+  border: 1.5rpx solid var(--border-light);
+  border-radius: var(--r-lg);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-sm);
+}
+.feature-item {
+  width: 25%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20rpx;
+  transition: opacity var(--trans-fast);
+}
+.feature-item:active { opacity: 0.65; }
+.feature-icon-wrap {
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: var(--r-md);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 10rpx;
+  position: relative;
+  border: 1rpx solid var(--border);
+}
+.feature-icon {
+  width: 44rpx;
+  height: 44rpx;
+}
+.feature-badge {
+  position: absolute;
+  top: -4rpx;
+  right: -8rpx;
+  background: var(--danger);
+  color: #FFF;
+  font-size: 18rpx;
+  font-weight: 700;
+  padding: 2rpx 10rpx;
+  border-radius: 16rpx;
+  border: 3rpx solid var(--bg-panel);
+}
+.feature-name {
+  font-size: 23rpx;
+  color: var(--text-body);
+  font-weight: 500;
+}
+
+/* ── 热门企业 ── */
+.company-scroll-list {
+  display: inline-flex;
+  padding: 0 32rpx 6rpx;
+  gap: 14rpx;
+}
+.company-card {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  width: 154rpx;
+  padding: 18rpx 12rpx 14rpx;
+  border: 1.5rpx solid var(--border-light);
+  border-radius: 22rpx;
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--trans-fast), opacity var(--trans-fast);
+}
+.company-card:active {
+  transform: scale(0.96);
+  opacity: 0.82;
+}
+.company-avatar {
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12rpx;
+  overflow: hidden;
+}
+.company-logo {
+  width: 100%;
+  height: 100%;
+}
+.company-initial {
+  font-size: 36rpx;
+  font-weight: 800;
+  color: #FFFFFF;
+}
+.company-name {
+  width: 100%;
+  font-size: 24rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+  margin-bottom: 4rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.company-desc {
+  width: 100%;
+  font-size: 20rpx;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 骨架屏 ── */
+.skeleton .news-content { gap: 12rpx; }
+.skeleton-line {
+  height: 28rpx;
+  background: var(--skeleton-base);
+  border-radius: 8rpx;
+  margin-bottom: 16rpx;
+  animation: shimmer 1.5s ease-in-out infinite;
+  background: linear-gradient(90deg, var(--skeleton-base) 25%, var(--skeleton-shine) 50%, var(--skeleton-base) 75%);
+  background-size: 400% 100%;
+}
+.skeleton-line.long  { width: 80%; }
+.skeleton-line.short { width: 50%; }
+.skeleton-thumb {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: var(--r-sm);
+  background: var(--skeleton-base);
+  flex-shrink: 0;
+}
+
+.opacity-hover { opacity: 0.6; }
+
+/* ── 职位卡片（今日热门） ── */
+.job-card {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 32rpx;
+  margin: 0 32rpx 16rpx;
+  background: var(--bg-panel);
+  border: 1.5rpx solid var(--border-light);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  transition: opacity var(--trans-fast);
+}
+.job-card:active { opacity: 0.72; }
+.job-card-body {
+  flex: 1;
+  min-width: 0;
+  margin-right: 20rpx;
+}
+.job-card-loc {
+  display: block;
+  font-size: 22rpx;
+  font-weight: 600;
+  color: var(--brand);
+  margin-bottom: 6rpx;
+  letter-spacing: 0.2rpx;
+}
+.job-card-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.job-card-meta {
+  display: flex;
+  align-items: center;
+}
+.job-card-co {
+  font-size: 24rpx;
+  color: var(--text-muted);
+}
+.job-card-dot {
+  font-size: 24rpx;
+  color: var(--text-muted);
+  margin: 0 8rpx;
+  opacity: 0.4;
+}
+.job-card-sal {
+  font-size: 24rpx;
+  color: var(--text-muted);
+}
+.job-card-logo-wrap {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 18rpx;
+  background: #f8fafc;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1.5rpx solid var(--border-light);
+}
+.job-card-logo {
+  width: 78rpx;
+  height: 78rpx;
+}
+.job-card-logo-initial {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: var(--brand);
+}
+
+/* ── 快讯类型 policy ── */
+.news-category.policy { color: #FA8C16; }

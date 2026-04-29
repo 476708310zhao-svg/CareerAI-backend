@@ -1,0 +1,422 @@
+/* pages/ai-report/ai-report.wxss */
+page { background: var(--bg-raised); padding-bottom: 40rpx; }
+
+/* 头部总分 */
+.score-card {
+  background: linear-gradient(135deg, #0D1B3E, var(--brand));
+  padding: 50rpx 40rpx;
+  display: flex;
+  align-items: center;
+  color: #fff;
+}
+.score-circle {
+  width: 160rpx; height: 160rpx;
+  border: 8rpx solid rgba(255,255,255,0.3);
+  border-radius: 50%;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  margin-right: 30rpx;
+  background: rgba(255,255,255,0.15);
+  flex-shrink: 0;
+}
+.score-val { font-size: 56rpx; font-weight: 800; line-height: 1; }
+.score-label { font-size: 20rpx; opacity: 0.8; margin-top: 4rpx; }
+.role-info { flex: 1; }
+.role-title { font-size: 36rpx; font-weight: bold; display: block; margin-bottom: 6rpx; }
+.company-name { font-size: 26rpx; opacity: 0.9; display: block; margin-bottom: 10rpx; }
+.score-badge {
+  display: inline-block;
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: var(--r-lg);
+  font-weight: bold;
+  margin-bottom: 8rpx;
+}
+.score-desc { font-size: 22rpx; opacity: 0.85; display: block; line-height: 1.4; }
+
+/* Tab 切换 */
+.report-tabs {
+  display: flex;
+  background: var(--bg-panel);
+  border-bottom: 1rpx solid #eee;
+}
+.rtab {
+  flex: 1;
+  text-align: center;
+  padding: 24rpx 0;
+  font-size: 28rpx;
+  color: var(--text-secondary);
+  position: relative;
+}
+.rtab.active {
+  color: var(--brand);
+  font-weight: bold;
+}
+.rtab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60rpx;
+  height: 6rpx;
+  background: var(--brand);
+  border-radius: 3rpx;
+}
+
+/* 通用板块 */
+.section { background: var(--bg-panel); padding: 30rpx; margin-top: 20rpx; }
+.section-title { font-size: 32rpx; font-weight: bold; margin-bottom: 30rpx; border-left: 8rpx solid var(--brand); padding-left: 16rpx; line-height: 1; }
+
+/* 维度分析 - 增强版 */
+.dim-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 28rpx;
+  justify-content: space-between;
+}
+.dim-left {
+  width: 160rpx;
+  flex-shrink: 0;
+}
+.dim-name { font-size: 26rpx; color: var(--text-body); display: block; font-weight: 500; }
+.dim-level { font-size: 20rpx; display: block; margin-top: 4rpx; }
+.dim-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  margin-left: 16rpx;
+}
+.progress-bg {
+  flex: 1;
+  height: 20rpx;
+  background: #f0f0f0;
+  border-radius: 10rpx;
+  overflow: hidden;
+}
+.progress-bar {
+  height: 100%;
+  border-radius: 10rpx;
+  transition: width 0.8s ease-out;
+}
+.dim-score { font-size: 28rpx; font-weight: bold; width: 60rpx; text-align: right; margin-left: 12rpx; }
+
+/* 雷达图Canvas版 */
+.radar-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 20rpx 0;
+}
+.radar-canvas {
+  width: 560rpx;
+  height: 560rpx;
+  border-radius: 16rpx;
+}
+
+/* 优劣势分析卡 */
+.analysis-card {
+  display: flex;
+  align-items: flex-start;
+  padding: 24rpx;
+  border-radius: var(--r-md);
+  margin-bottom: 20rpx;
+}
+.analysis-card.good { background: #f6ffed; border: 1rpx solid #b7eb8f; }
+.analysis-card.bad { background: #fff2e8; border: 1rpx solid #ffbb96; }
+.analysis-card.tip { background: #e6f7ff; border: 1rpx solid #91d5ff; }
+.analysis-icon {
+  width: 48rpx; height: 48rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: bold;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+.analysis-card.good .analysis-icon { background: #52c41a; color: #fff; }
+.analysis-card.bad .analysis-icon { background: #fa8c16; color: #fff; }
+.analysis-card.tip .analysis-icon { background: var(--brand); color: #fff; }
+.analysis-body { flex: 1; }
+.analysis-label { font-size: 28rpx; font-weight: bold; color: var(--text-body); display: block; margin-bottom: 8rpx; }
+.analysis-text { font-size: 26rpx; color: var(--text-secondary); line-height: 1.6; }
+
+/* 综合评语 */
+.summary-box { background: #F9FAFB; padding: 24rpx; border-radius: var(--r-sm); color: var(--text-body); line-height: 1.6; font-size: 28rpx; border: 1rpx solid #E6F4FF; }
+
+/* 问答复盘 */
+.qa-item { margin-bottom: 40rpx; border-bottom: 1rpx dashed #eee; padding-bottom: 30rpx; }
+.qa-item:last-child { border-bottom: none; margin-bottom: 0; }
+.qa-header { display: flex; align-items: flex-start; margin-bottom: 16rpx; }
+.q-tag { background: var(--brand); color: #fff; font-size: 22rpx; padding: 4rpx 12rpx; border-radius: 6rpx; margin-right: 12rpx; height: fit-content; flex-shrink: 0; }
+.q-text { font-size: 30rpx; font-weight: bold; color: var(--text-body); line-height: 1.4; flex: 1; }
+.q-score {
+  font-size: 22rpx;
+  color: #fff;
+  padding: 4rpx 14rpx;
+  border-radius: var(--r-lg);
+  margin-left: 12rpx;
+  flex-shrink: 0;
+  font-weight: bold;
+}
+.a-box { margin-bottom: 16rpx; background: #fafafa; padding: 16rpx; border-radius: 8rpx; }
+.a-label { color: var(--text-muted); font-size: 24rpx; display: block; margin-bottom: 6rpx; }
+.a-text { color: var(--text-secondary); font-size: 28rpx; line-height: 1.5; }
+.feedback-box { background: #fffbe6; padding: 16rpx; border-radius: 8rpx; }
+.fb-label { color: #fa8c16; font-size: 24rpx; font-weight: bold; display: block; margin-bottom: 4rpx; }
+.fb-text { color: #d48806; font-size: 26rpx; line-height: 1.5; }
+
+/* 底部操作栏 */
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  padding: 20rpx 30rpx;
+  background: var(--bg-panel);
+  box-shadow: 0 -4rpx 16rpx rgba(0,0,0,0.05);
+  z-index: 100;
+}
+.btn-secondary {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx 0;
+  border: 2rpx solid var(--brand);
+  color: var(--brand);
+  border-radius: 50rpx;
+  font-size: 28rpx;
+  font-weight: bold;
+  margin-right: 20rpx;
+}
+.btn-primary {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx 0;
+  background: linear-gradient(90deg, var(--brand), var(--brand-dark));
+  color: #fff;
+  border-radius: 50rpx;
+  font-size: 28rpx;
+  font-weight: bold;
+}
+
+/* Loading */
+.loading-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 300rpx;
+}
+.loading-spinner {
+  width: 60rpx; height: 60rpx;
+  border: 6rpx solid #f0f0f0;
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 30rpx;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 28rpx; color: var(--text-muted); }
+
+/* ── 重点提升方向 ──────────────────────────── */
+.improve-list {}
+.improve-item {
+  display: flex;
+  align-items: center;
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid #f5f5f5;
+}
+.improve-item:last-child { border-bottom: none; }
+.improve-rank {
+  width: 54rpx;
+  height: 54rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  font-weight: bold;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+.improve-body { flex: 1; }
+.improve-name { font-size: 28rpx; font-weight: 600; color: var(--text-body); display: block; }
+.improve-tip { font-size: 22rpx; color: var(--text-muted); display: block; margin-top: 6rpx; }
+.improve-score { font-size: 38rpx; font-weight: 800; flex-shrink: 0; margin-left: 20rpx; }
+
+/* ── 改进建议高亮 ──────────────────────────── */
+.fb-text-wrap { display: block; }
+.fb-seg { font-size: 26rpx; color: #d48806; line-height: 1.7; }
+.fb-highlight { color: #d4380d; font-weight: bold; }
+
+/* ── 题目收藏按钮 ───────────────────────────────── */
+.q-bookmark {
+  font-size: 34rpx;
+  color: #D1D5DB;
+  margin-left: 10rpx;
+  flex-shrink: 0;
+  line-height: 1;
+  padding: 4rpx 8rpx;
+}
+.q-bookmark.saved { color: #FBBF24; }
+
+/* ── 对标分析 ──────────────────────────────────── */
+.percentile-card {
+  background: linear-gradient(135deg, #EEF2FF, #F0F4FF);
+  border-radius: var(--r-lg);
+  padding: 28rpx;
+  margin-bottom: 20rpx;
+  border: 1.5rpx solid #C7D2FE;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20rpx;
+  align-items: center;
+}
+
+.pct-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 120rpx;
+}
+
+.pct-big {
+  font-size: 64rpx;
+  font-weight: 800;
+  color: var(--brand);
+  line-height: 1;
+}
+
+.pct-sub {
+  font-size: 20rpx;
+  color: var(--text-secondary);
+  margin-top: 6rpx;
+  text-align: center;
+}
+
+.pct-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.pct-avg-label {
+  font-size: 20rpx;
+  color: var(--text-muted);
+}
+
+.pct-avg-val {
+  font-size: 44rpx;
+  font-weight: 800;
+  color: var(--text-body);
+  line-height: 1.2;
+}
+
+.pct-bar-wrap {
+  width: 100%;
+  margin-top: 4rpx;
+}
+
+.pct-bar-track {
+  position: relative;
+  height: 14rpx;
+  background: #DBEAFE;
+  border-radius: 7rpx;
+  margin-bottom: 8rpx;
+}
+
+.pct-bar-avg {
+  position: absolute;
+  top: -6rpx;
+  transform: translateX(-50%);
+  width: 4rpx;
+  height: 26rpx;
+  background: var(--text-muted);
+  border-radius: 2rpx;
+}
+
+.pct-bar-me {
+  position: absolute;
+  top: -8rpx;
+  transform: translateX(-50%);
+  width: 6rpx;
+  height: 30rpx;
+  background: var(--brand);
+  border-radius: 3rpx;
+}
+
+.pct-bar-labels {
+  position: relative;
+  height: 32rpx;
+  margin-top: 6rpx;
+}
+.pct-bar-label-avg {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 18rpx;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.pct-bar-label-me {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 18rpx;
+  color: var(--brand);
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+/* 维度对比表 */
+.bench-list {
+  background: var(--bg-panel);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  border: 1.5rpx solid #F1F5F9;
+}
+
+.bench-head {
+  display: flex;
+  background: #F8F9FC;
+  padding: 16rpx 0;
+  border-bottom: 1.5rpx solid #F1F5F9;
+}
+
+.bench-row {
+  display: flex;
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid #F8F9FC;
+}
+
+.bench-row:last-child { border-bottom: none; }
+
+.bench-col-name {
+  flex: 2;
+  font-size: 24rpx;
+  color: var(--text-body);
+  padding-left: 20rpx;
+}
+
+.bench-head .bench-col-name {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.bench-col {
+  flex: 1;
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.bench-head .bench-col {
+  font-weight: 700;
+  color: var(--text-body);
+}
+
+.bench-me { font-weight: 700; }
+.bench-avg { color: var(--text-muted); }
+.bench-diff.pos { color: #059669; font-weight: 700; }
+.bench-diff.neg { color: #DC2626; font-weight: 700; }

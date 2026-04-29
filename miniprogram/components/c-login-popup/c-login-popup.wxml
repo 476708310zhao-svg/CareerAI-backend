@@ -1,0 +1,66 @@
+<!-- components/c-login-popup/c-login-popup.wxml -->
+<view class="popup-root" wx:if="{{show}}">
+
+  <!-- 遮罩层 -->
+  <view class="backdrop" bindtap="onBackdropTap" />
+
+  <!-- 底部卡片 -->
+  <view class="sheet" catchtap="onSheetTap">
+
+    <!-- 顶部拖拽条 -->
+    <view class="handle-bar" />
+
+    <!-- 标题 -->
+    <view class="sheet-header">
+      <text class="sheet-title">微信快捷登录</text>
+      <text class="sheet-subtitle">设置昵称与头像，开始你的求职之旅</text>
+    </view>
+
+    <!-- 头像选择 -->
+    <view class="avatar-section">
+      <button
+        class="avatar-btn"
+        open-type="chooseAvatar"
+        bindchooseavatar="onChooseAvatar"
+      >
+        <image class="avatar-img" src="{{avatarUrl}}" mode="aspectFill" />
+        <view class="avatar-edit-badge">
+          <text class="edit-icon">✎</text>
+        </view>
+      </button>
+      <text class="avatar-tip">点击更换头像</text>
+    </view>
+
+    <!-- 昵称输入 -->
+    <view class="input-row">
+      <text class="input-label">昵称</text>
+      <input
+        class="nickname-input"
+        type="nickname"
+        placeholder="点击填写昵称（可选用微信昵称）"
+        placeholder-class="input-placeholder"
+        value="{{nickname}}"
+        bindinput="onNicknameInput"
+        bindblur="onNicknameBlur"
+        maxlength="20"
+        confirm-type="done"
+      />
+    </view>
+
+    <!-- 确认按钮 -->
+    <button
+      class="confirm-btn"
+      bindtap="onConfirm"
+      disabled="{{loading}}"
+    >
+      {{loading ? '登录中...' : '一键登录'}}
+    </button>
+
+    <!-- 隐私协议 -->
+    <view class="privacy-row">
+      <text class="privacy-text">登录即代表同意</text>
+      <text class="privacy-link">《用户协议与隐私政策》</text>
+    </view>
+
+  </view>
+</view>

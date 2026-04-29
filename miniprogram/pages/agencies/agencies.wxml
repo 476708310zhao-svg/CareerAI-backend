@@ -1,0 +1,191 @@
+<!-- pages/agencies/agencies.wxml -->
+<view class="page">
+
+  <!-- ── 顶部固定区 ── -->
+  <view class="fixed-header" id="fixed-header">
+
+    <!-- 类型 Tab -->
+    <scroll-view scroll-x class="type-scroll">
+      <view class="type-inner">
+        <block wx:for="{{typeList}}" wx:key="*this">
+          <view
+            class="type-pill {{currentType === item ? 'active' : ''}}"
+            bindtap="switchType"
+            data-type="{{item}}"
+          >{{item}}</view>
+        </block>
+      </view>
+    </scroll-view>
+
+    <!-- 搜索栏 -->
+    <view class="search-bar">
+      <view class="search-wrap">
+        <icon type="search" size="14" color="#9CA3AF"></icon>
+        <input
+          class="search-input"
+          placeholder="搜索机构名称、擅长方向..."
+          placeholder-class="ph"
+          value="{{keyword}}"
+          bindinput="onKeywordInput"
+          bindconfirm="onSearch"
+          confirm-type="search"
+        />
+        <view class="search-clear" wx:if="{{keyword}}" bindtap="clearSearch">✕</view>
+      </view>
+    </view>
+
+    <!-- 排序 + 对比按钮行 -->
+    <view class="toolbar-row">
+      <view class="sort-btn" bindtap="showSortSheet">
+        <text class="sort-label">{{currentSortLabel}}</text>
+        <text class="sort-arrow">▾</text>
+      </view>
+      <view class="stat-center">
+        <text class="stat-txt">共 {{total}} 家</text>
+        <text class="stat-kw" wx:if="{{keyword}}">· {{keyword}}</text>
+      </view>
+      <view
+        class="compare-toggle {{compareMode ? 'active' : ''}}"
+        bindtap="toggleCompareMode"
+      >
+        <text>{{compareMode ? '退出对比' : '机构对比'}}</text>
+      </view>
+    </view>
+
+  </view>
+
+  <!-- 占位 -->
+  <view class="spacer"></view>
+
+  <!-- ── 机构列表 ── -->
+  <view class="list">
+    <block wx:for="{{list}}" wx:key="id">
+      <view
+        class="agency-card {{compareMode && compareSel[item.id] ? 'selected' : ''}} {{compareMode ? 'compare-mode' : ''}}"
+        bindtap="onCardTap"
+        data-id="{{item.id}}"
+      >
+
+        <!-- 对比模式复选框 -->
+        <view class="check-box" wx:if="{{compareMode}}">
+          <view class="check-inner {{compareSel[item.id] ? 'checked' : ''}}">
+            <text wx:if="{{compareSel[item.id]}}" class="check-mark">✓</text>
+          </view>
+        </view>
+
+        <!-- 卡片头部：logo + 名称 + 类型 + 认证标识 -->
+        <view class="card-head">
+          <view class="logo-wrap">
+            <image
+              wx:if="{{item.logoDomain && !item.logoFailed}}"
+              class="logo-img"
+              src="https://logo.clearbit.com/{{item.logoDomain}}"
+              mode="aspectFill"
+              binderror="onLogoError"
+              data-idx="{{index}}"
+            />
+            <view wx:else class="logo-placeholder" style="background:{{item.logoColor}};">
+              <text class="logo-text">{{item.initial}}</text>
+            </view>
+          </view>
+
+          <view class="card-info">
+            <view class="name-row">
+              <text class="agency-name">{{item.name}}</text>
+              <view class="verified-badge" wx:if="{{item.isVerified}}">
+                <text class="verified-text">已认证</text>
+              </view>
+            </view>
+            <view class="meta-row">
+              <view class="type-tag">{{item.type}}</view>
+              <text class="city-text" wx:if="{{item.city}}">{{item.city}}</text>
+            </view>
+          </view>
+
+          <!-- 评分区 -->
+          <view class="rating-block">
+            <view class="r-score-row">
+              <text class="r-star">★</text>
+              <text class="r-num" wx:if="{{item.ratingAvg > 0}}">{{item.ratingAvg}}</text>
+              <text class="r-num r-none" wx:else>暂无</text>
+            </view>
+            <text class="r-cnt">{{item.reviewCount > 0 ? item.reviewCount + '条' : '暂无评测'}}</text>
+          </view>
+        </view>
+
+        <!-- 描述 -->
+        <text class="desc">{{item.description}}</text>
+
+        <!-- 专长标签 -->
+        <view class="spec-tags" wx:if="{{item.specialties && item.specialties.length}}">
+          <block wx:for="{{item.specialties}}" wx:for-item="tag" wx:key="*this">
+            <view class="spec-tag" wx:if="{{index < 4}}">{{tag}}</view>
+          </block>
+          <view class="spec-more" wx:if="{{item.specialties.length > 4}}">+{{item.specialties.length - 4}}</view>
+        </view>
+
+        <!-- 底部：AI 测评标识 + 箭头（非对比模式显示） -->
+        <view class="card-footer" wx:if="{{!compareMode}}">
+          <view class="ai-badge" wx:if="{{item.aiEval}}">
+            <text class="ai-badge-txt">✦ AI已测评</text>
+          </view>
+          <view wx:else class="ai-badge pending">
+            <text class="ai-badge-txt">AI测评待生成</text>
+          </view>
+          <text class="arrow">查看详情 →</text>
+        </view>
+
+        <!-- 对比模式底部提示 -->
+        <view class="card-footer compare-hint" wx:if="{{compareMode}}">
+          <text class="compare-hint-txt">{{compareSel[item.id] ? '已选中，点击取消' : '点击选择对比'}}</text>
+        </view>
+
+      </view>
+    </block>
+
+    <!-- 加载中 -->
+    <view wx:if="{{loading}}" class="loading-tip">
+      <view class="spinner"></view>
+      <text>加载中...</text>
+    </view>
+
+    <!-- 加载更多 -->
+    <view
+      wx:if="{{!loading && hasMore && list.length > 0}}"
+      class="load-more-btn"
+      bindtap="loadMore"
+    >加载更多</view>
+
+    <!-- 没有更多 -->
+    <view wx:if="{{!loading && !hasMore && list.length > 0}}" class="no-more">
+      — 已加载全部 {{total}} 家机构 —
+    </view>
+
+    <!-- 空状态 -->
+    <view wx:if="{{!loading && list.length === 0}}" class="empty">
+      <text class="empty-emoji">🏢</text>
+      <text class="empty-txt" wx:if="{{keyword}}">未找到「{{keyword}}」相关机构</text>
+      <text class="empty-txt" wx:else>暂无该类型机构</text>
+      <view class="empty-hint" wx:if="{{keyword}}" bindtap="clearSearch">清除搜索</view>
+    </view>
+  </view>
+
+  <view style="height: {{compareMode ? '160rpx' : '60rpx'}};"></view>
+
+  <!-- ── 对比悬浮栏 ── -->
+  <view class="compare-bar" wx:if="{{compareMode}}">
+    <view class="compare-bar-left">
+      <view class="compare-dots">
+        <view class="compare-dot {{compareIds.length >= 1 ? 'filled' : ''}}"></view>
+        <view class="compare-dot {{compareIds.length >= 2 ? 'filled' : ''}}"></view>
+        <view class="compare-dot {{compareIds.length >= 3 ? 'filled' : ''}}"></view>
+      </view>
+      <text class="compare-count">{{compareIds.length < 2 ? '再选' + (2 - compareIds.length) + '家可对比' : '已选 ' + compareIds.length + ' 家'}}</text>
+    </view>
+    <view
+      class="compare-go-btn {{compareIds.length < 2 ? 'disabled' : ''}}"
+      bindtap="startCompare"
+    >开始对比</view>
+  </view>
+
+</view>

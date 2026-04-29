@@ -1,0 +1,166 @@
+<!-- pages/job-projects/job-projects.wxml -->
+<view class="page">
+
+  <!-- Hero -->
+  <view class="hero">
+    <view class="hero-left">
+      <text class="hero-title">求职项目</text>
+      <text class="hero-sub">按求职方向分组管理，一目了然</text>
+    </view>
+    <view class="hero-icon-wrap"><text class="hero-icon">🗂️</text></view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-wrap" wx:if="{{!projects.length}}">
+    <text class="empty-icon">🗂️</text>
+    <text class="empty-title">还没有求职项目</text>
+    <text class="empty-sub">按方向创建项目，分别跟踪北美Tech、国内校招等</text>
+    <view class="empty-btn" bindtap="showAddModal">+ 创建第一个项目</view>
+  </view>
+
+  <!-- 项目列表 -->
+  <view class="project-list" wx:else>
+    <view wx:for="{{projects}}" wx:key="id" class="project-card">
+
+      <!-- 项目头部（可点击展开） -->
+      <view class="proj-header" bindtap="toggleDetail" data-idx="{{index}}">
+        <view class="proj-cat-icon" style="background:{{item._cat.bg}}">
+          <text class="proj-icon-txt">{{item._cat.icon}}</text>
+        </view>
+        <view class="proj-info">
+          <view class="proj-name-row">
+            <text class="proj-name">{{item.name}}</text>
+            <view class="proj-cat-badge" style="color:{{item._cat.color}};background:{{item._cat.bg}}">
+              {{item._cat.label}}
+            </view>
+          </view>
+          <text class="proj-desc" wx:if="{{item.description}}">{{item.description}}</text>
+          <view class="proj-stats">
+            <text class="proj-stat">📋 {{item._appCount}} 个投递</text>
+            <text class="proj-stat proj-stat-interview" wx:if="{{item._interviewCount > 0}}">📅 {{item._interviewCount}} 面试</text>
+            <text class="proj-stat proj-stat-offer" wx:if="{{item._offerCount > 0}}">🎉 {{item._offerCount}} Offer</text>
+          </view>
+        </view>
+        <text class="proj-arrow">{{currentProjectIdx === index ? '▲' : '▼'}}</text>
+      </view>
+
+      <!-- 项目展开详情 -->
+      <view wx:if="{{currentProjectIdx === index}}" class="proj-detail">
+
+        <!-- 日期信息 -->
+        <view class="proj-dates" wx:if="{{item.startDate || item.deadline}}">
+          <view wx:if="{{item.startDate}}" class="proj-date-item">
+            <text class="proj-date-key">开始</text>
+            <text class="proj-date-val">{{item.startDate}}</text>
+          </view>
+          <view wx:if="{{item.deadline}}" class="proj-date-item">
+            <text class="proj-date-key">目标截止</text>
+            <text class="proj-date-val">{{item.deadline}}</text>
+          </view>
+        </view>
+
+        <!-- 目标公司 -->
+        <view class="proj-companies" wx:if="{{item.targetCompanies && item.targetCompanies.length}}">
+          <text class="proj-sec-label">🎯 目标公司</text>
+          <view class="company-tags">
+            <view wx:for="{{item.targetCompanies}}" wx:key="*this" wx:for-item="co" class="co-tag">{{co}}</view>
+          </view>
+        </view>
+
+        <!-- 快捷操作 -->
+        <view class="proj-actions">
+          <view class="proj-action-btn" bindtap="goToApplications" data-id="{{item.id}}" data-name="{{item.name}}">
+            <text class="pab-icon">📋</text>
+            <text class="pab-txt">查看投递</text>
+          </view>
+          <view class="proj-action-btn" bindtap="goToJobs">
+            <text class="pab-icon">🔍</text>
+            <text class="pab-txt">找职位</text>
+          </view>
+          <view class="proj-action-btn" bindtap="goToResume">
+            <text class="pab-icon">📄</text>
+            <text class="pab-txt">查看简历</text>
+          </view>
+          <view class="proj-action-btn proj-edit-btn" bindtap="openEdit" data-idx="{{index}}">
+            <text class="pab-icon">✏️</text>
+            <text class="pab-txt">编辑</text>
+          </view>
+          <view class="proj-action-btn proj-del-btn" bindtap="deleteProject" data-id="{{item.id}}">
+            <text class="pab-icon">🗑</text>
+            <text class="pab-txt">删除</text>
+          </view>
+        </view>
+      </view>
+
+    </view>
+  </view>
+
+  <!-- FAB -->
+  <view class="fab" bindtap="showAddModal">
+    <text class="fab-plus">＋</text>
+  </view>
+
+  <!-- 底部占位 -->
+  <view style="height:120rpx;"></view>
+
+  <!-- 新建/编辑 Modal -->
+  <view class="modal-mask" wx:if="{{showModal}}" bindtap="hideModal">
+    <view class="modal-card" catchtap="noop">
+      <view class="modal-handle"></view>
+      <text class="modal-title">{{editId ? '编辑求职项目' : '新建求职项目'}}</text>
+
+      <view class="form-item">
+        <text class="form-label">项目名称 <text class="req">*</text></text>
+        <input class="fi" placeholder="如：2026 秋招冲刺" value="{{form.name}}" bindinput="onFormInput" data-field="name" />
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">求职方向</text>
+        <view class="cat-grid">
+          <view wx:for="{{categories}}" wx:key="id"
+                class="cat-item {{form.categoryId === item.id ? 'cat-selected' : ''}}"
+                style="{{form.categoryId === item.id ? 'border-color:' + item.color + ';background:' + item.bg : ''}}"
+                bindtap="selectCategory" data-id="{{item.id}}">
+            <text class="cat-icon">{{item.icon}}</text>
+            <text class="cat-label" style="{{form.categoryId === item.id ? 'color:' + item.color : ''}}">{{item.label}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">项目说明（选填）</text>
+        <input class="fi" placeholder="如：冲刺大厂PM岗，目标春招" value="{{form.description}}" bindinput="onFormInput" data-field="description" />
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">目标公司（逗号分隔）</text>
+        <input class="fi" placeholder="如：字节跳动、腾讯、Google" value="{{form.targetCompanies}}" bindinput="onFormInput" data-field="targetCompanies" />
+      </view>
+
+      <view class="form-row">
+        <view class="form-item half">
+          <text class="form-label">开始日期</text>
+          <picker mode="date" value="{{form.startDate}}" bindchange="onStartDatePick">
+            <view class="fi fi-picker">
+              <text class="{{form.startDate ? 'fi-val' : 'fi-ph'}}">{{form.startDate || '选择'}}</text>
+            </view>
+          </picker>
+        </view>
+        <view class="form-item half">
+          <text class="form-label">目标截止</text>
+          <picker mode="date" value="{{form.deadline}}" bindchange="onDeadlinePick">
+            <view class="fi fi-picker">
+              <text class="{{form.deadline ? 'fi-val' : 'fi-ph'}}">{{form.deadline || '选择'}}</text>
+            </view>
+          </picker>
+        </view>
+      </view>
+
+      <view class="modal-btns">
+        <c-button type="secondary" class="btn-cancel" bindtap="hideModal">取消</c-button>
+        <c-button class="btn-save" bindtap="saveProject">{{editId ? '保存修改' : '创建项目'}}</c-button>
+      </view>
+    </view>
+  </view>
+
+</view>

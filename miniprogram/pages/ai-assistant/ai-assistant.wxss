@@ -1,0 +1,279 @@
+/* pages/ai-assistant/ai-assistant.wxss */
+page { background: #F2F2F7; }
+
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #F2F2F7;
+}
+
+/* ── 顶部栏 ── */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 32rpx;
+  padding-right: 32rpx;
+  padding-bottom: 16rpx;
+  background: #FFFFFF;
+  border-bottom: 1rpx solid #F0F0F0;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+.top-title {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  height: 88rpx;
+}
+.top-icon {
+  font-size: 28rpx;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  color: transparent;
+}
+.top-name {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #1C1C1E;
+  letter-spacing: 0.5px;
+}
+.clear-btn {
+  padding: 10rpx 24rpx;
+  border-radius: 24rpx;
+  background: #F2F2F7;
+}
+.clear-txt { font-size: 26rpx; color: #8E8E93; }
+
+/* ── 消息滚动区 ── */
+.msg-scroll {
+  flex: 1;
+  overflow: hidden;
+  transition: margin-bottom 0.25s;
+}
+.msg-list { padding: 24rpx 24rpx 0; }
+
+/* ── 时间戳 ── */
+.time-stamp {
+  text-align: center;
+  font-size: 22rpx;
+  color: #C7C7CC;
+  margin: 8rpx 0 20rpx;
+}
+
+/* ── 消息行 ── */
+.msg-row {
+  display: flex;
+  margin-bottom: 32rpx;
+  align-items: flex-end;
+}
+.ai-row   { flex-direction: row; }
+.user-row { flex-direction: row-reverse; }
+
+/* ── AI 头像 ── */
+.ai-avatar {
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 20rpx;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 18rpx;
+  margin-bottom: 4rpx;
+  box-shadow: 0 4rpx 16rpx rgba(102, 126, 234, 0.35);
+}
+.ai-avatar-icon { font-size: 28rpx; color: #fff; }
+
+/* ── 气泡容器 ── */
+.bubble-wrap {
+  max-width: 80%;
+  display: flex;
+  flex-direction: column;
+}
+.ai-row   .bubble-wrap { align-items: flex-start; }
+.user-row .bubble-wrap { align-items: flex-end; }
+
+/* ── 气泡 ── */
+.bubble {
+  padding: 24rpx 28rpx;
+  border-radius: 24rpx;
+  word-break: break-word;
+}
+.ai-bubble {
+  background: #FFFFFF;
+  border-bottom-left-radius: 8rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.07);
+}
+.user-bubble {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-bottom-right-radius: 8rpx;
+  box-shadow: 0 4rpx 16rpx rgba(102, 126, 234, 0.3);
+}
+.error-bubble {
+  background: #FFF2F2;
+  border: 1.5rpx solid #FFD0D0;
+  border-bottom-left-radius: 8rpx;
+}
+
+/* ── 气泡文本（<text> 和 <rich-text> 共用） ── */
+.bubble-text {
+  font-size: 28rpx;
+  line-height: 1.75;
+  color: #1C1C1E;
+  display: block;
+}
+.user-bubble  .bubble-text { color: #FFFFFF; }
+.error-bubble .bubble-text { color: #FF3B30; }
+
+/* rich-text 块宽度撑满气泡 */
+.bubble-rich { width: 100%; }
+
+/* ── 错误重试按钮 ── */
+.retry-row {
+  margin-top: 12rpx;
+  display: flex;
+  align-items: center;
+}
+.retry-btn {
+  display: flex;
+  align-items: center;
+  background: #FFF2F2;
+  border: 1.5rpx solid #FFD0D0;
+  border-radius: 20rpx;
+  padding: 10rpx 22rpx;
+}
+.retry-txt {
+  font-size: 24rpx;
+  color: #FF453A;
+  font-weight: 600;
+}
+
+/* ── 2×2 快捷指令网格 ── */
+.quick-grid {
+  margin-top: 20rpx;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
+  width: 100%;
+}
+.quick-card {
+  background: #F0EFFF;
+  border: 1.5rpx solid #D8D5FF;
+  border-radius: 20rpx;
+  padding: 22rpx 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.quick-card.quick-disabled { opacity: 0.45; }
+.quick-text {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #6C5CE7;
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* ── 后续建议 chips ── */
+.suggestions {
+  margin-top: 16rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+.sug-chip {
+  background: #EEF0FF;
+  color: #5B5FC7;
+  font-size: 24rpx;
+  font-weight: 500;
+  padding: 10rpx 20rpx;
+  border-radius: 20rpx;
+  border: 1rpx solid #D0D4FF;
+}
+.chip-hover { opacity: 0.65; }
+
+/* ── 加载动画 ── */
+.loading-bubble { padding: 22rpx 28rpx; }
+.dot-wrap {
+  display: flex;
+  gap: 10rpx;
+  align-items: center;
+  height: 32rpx;
+}
+.dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #BDBDBD;
+  animation: bounce 1.2s infinite ease-in-out;
+}
+.dot:nth-child(1) { animation-delay: 0s;   }
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0.8); opacity: 0.4; }
+  40%           { transform: scale(1.2); opacity: 1;   }
+}
+
+/* ── 输入栏 ── */
+.input-bar {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 24rpx 24rpx;
+  background: #FFFFFF;
+  border-top: 1rpx solid #E5E5EA;
+  gap: 16rpx;
+}
+.input-wrap {
+  flex: 1;
+  background: #F2F2F7;
+  border-radius: 44rpx;
+  padding: 0 28rpx;
+  height: 76rpx;
+  display: flex;
+  align-items: center;
+}
+.input {
+  width: 100%;
+  font-size: 28rpx;
+  color: #1C1C1E;
+  line-height: 76rpx;
+}
+.input-ph { color: #AEAEB2; }
+
+.input-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rpx;
+  flex-shrink: 0;
+}
+.char-count { font-size: 20rpx; color: #AEAEB2; line-height: 1; }
+.char-warn  { color: #FF9500; }
+
+/* ── 发送 / 停止按钮 ── */
+.send-btn {
+  width: 76rpx;
+  height: 76rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.send-btn.active   {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 4rpx 14rpx rgba(102, 126, 234, 0.4);
+}
+.send-btn.inactive { background: #C7C7CC; }
+.send-btn.stop-btn {
+  background: linear-gradient(135deg, #FF6B6B 0%, #EE5A24 100%);
+  box-shadow: 0 4rpx 14rpx rgba(238, 90, 36, 0.4);
+}
+.send-icon {
+  font-size: 30rpx;
+  color: #fff;
+  font-weight: 700;
+}
+.btn-hover { opacity: 0.7; }

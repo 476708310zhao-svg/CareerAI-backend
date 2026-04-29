@@ -1,0 +1,258 @@
+<!-- pages/career-planner/career-planner.wxml -->
+<view class="page">
+
+  <!-- ══ 输入步骤 ══ -->
+  <view wx:if="{{step === 'input'}}">
+
+    <!-- 顶部 Banner -->
+    <view class="hero">
+      <text class="hero-icon">🗺️</text>
+      <text class="hero-title">求职路线规划器</text>
+      <text class="hero-sub">输入目标与背景，AI 定制 3/6/12 个月求职路线图</text>
+    </view>
+
+    <!-- 预填提示 -->
+    <view class="prefill-tip" wx:if="{{profileFilled}}">
+      <text class="prefill-icon">✨</text>
+      <text class="prefill-txt">已根据你的个人资料预填，可直接修改后生成</text>
+    </view>
+
+    <!-- 来自岗位详情 -->
+    <view class="from-job-tip" wx:if="{{fromJobDetail}}">
+      <text class="fj-icon">💼</text>
+      <text class="fj-txt">已载入该岗位信息，AI 将为该职位定制路线</text>
+    </view>
+
+    <!-- 表单卡片 -->
+    <view class="form-card">
+
+      <view class="field">
+        <view class="field-label"><text class="label-icon">🎯</text>目标岗位<text class="required"> *</text></view>
+        <input class="field-input" placeholder="如：产品经理、数据分析师、前端工程师"
+               value="{{position}}" bindinput="onPositionInput" maxlength="40" />
+      </view>
+
+      <view class="field-divider"></view>
+
+      <view class="field">
+        <view class="field-label"><text class="label-icon">📍</text>目标城市<text class="optional">（选填）</text></view>
+        <input class="field-input" placeholder="如：北京、上海、深圳（不填默认不限）"
+               value="{{location}}" bindinput="onLocationInput" maxlength="30" />
+      </view>
+
+      <view class="field-divider"></view>
+
+      <view class="field">
+        <view class="field-label-row">
+          <view class="field-label"><text class="label-icon">📋</text>个人背景<text class="required"> *</text></view>
+          <text class="char-count">{{background.length}}/400</text>
+        </view>
+        <text class="field-hint">学校/专业、毕业年份、实习经历、技能水平</text>
+        <textarea class="field-textarea"
+                  placeholder="例：英国曼彻斯特大学计算机硕士，2025年毕业，有互联网后端实习，熟悉 Python/Java，无产品经验"
+                  value="{{background}}" bindinput="onBackgroundInput"
+                  maxlength="400" auto-height />
+      </view>
+
+      <c-button class="gen-btn" bindtap="onGenerate">✨ 立即生成求职规划</c-button>
+    </view>
+
+    <!-- 提示 -->
+    <view class="tips-card">
+      <text class="tips-title">💡 填写越详细，规划越精准</text>
+      <view class="tips-list">
+        <view class="tips-item"><text class="ti-dot">·</text><text class="ti-txt">说明当前技能水平（初级 / 中级 / 熟练）</text></view>
+        <view class="tips-item"><text class="ti-dot">·</text><text class="ti-txt">提及已有的实习或项目经历</text></view>
+        <view class="tips-item"><text class="ti-dot">·</text><text class="ti-txt">注明目标行业偏好（互联网 / 金融 / 外企）</text></view>
+      </view>
+    </view>
+
+    <!-- 历史规划 -->
+    <view class="history-section" wx:if="{{savedPlans.length > 0}}">
+      <view class="history-head" bindtap="toggleHistory">
+        <text class="history-head-title">📁 历史规划（{{savedPlans.length}}）</text>
+        <text class="history-toggle-icon">{{showHistory ? '▲' : '▼'}}</text>
+      </view>
+
+      <view class="history-list" wx:if="{{showHistory}}">
+        <view wx:for="{{savedPlans}}" wx:key="id"
+              class="history-card" bindtap="onHistoryTap" data-idx="{{index}}">
+          <view class="hc-left">
+            <text class="hc-position">{{item.position}}</text>
+            <text class="hc-meta">{{item.location || '不限地区'}} · {{item.createdAt}}</text>
+          </view>
+          <text class="hc-arrow">›</text>
+        </view>
+        <view class="history-clear" bindtap="clearHistory">
+          <text class="hc-clear-txt">清空历史</text>
+        </view>
+      </view>
+    </view>
+
+    <view style="height: 40rpx;"></view>
+  </view>
+
+  <!-- ══ 加载步骤 ══ -->
+  <view wx:if="{{step === 'loading'}}" class="loading-page">
+    <view class="loading-anim">
+      <view class="pulse-ring"></view>
+      <view class="pulse-core">AI</view>
+    </view>
+    <text class="loading-tip">{{loadingTip}}</text>
+    <view class="loading-steps">
+      <view class="lstep {{loadingStep >= 0 ? 'done' : ''}}">📊 分析岗位</view>
+      <text class="lstep-arrow">›</text>
+      <view class="lstep {{loadingStep >= 2 ? 'done' : ''}}">🗺️ 制定路线</view>
+      <text class="lstep-arrow">›</text>
+      <view class="lstep {{loadingStep >= 5 ? 'done' : ''}}">📚 推荐资源</view>
+    </view>
+    <text class="loading-note">预计 15–30 秒，请耐心等待</text>
+  </view>
+
+  <!-- ══ 结果步骤 ══ -->
+  <view wx:if="{{step === 'result' && plan}}" class="result-page">
+
+    <!-- 结果标题栏 -->
+    <view class="result-header">
+      <view class="result-header-left">
+        <text class="result-title">{{position}}</text>
+        <text class="result-meta" wx:if="{{location}}">📍 {{location}}</text>
+      </view>
+      <view class="result-regen" bindtap="onRegenerate">
+        <text class="regen-icon">↺</text>
+        <text class="regen-txt">重新规划</text>
+      </view>
+    </view>
+
+    <!-- 能力差距 -->
+    <view class="sec-card">
+      <view class="sec-header">
+        <text class="sec-icon">📊</text>
+        <text class="sec-title">岗位需求与能力分析</text>
+      </view>
+
+      <view class="two-col">
+        <view class="col-box">
+          <text class="col-title blue">核心技能要求</text>
+          <view class="tag-wrap">
+            <view wx:for="{{plan.gap_analysis.core_skills}}" wx:key="*this" class="tag blue-tag">{{item}}</view>
+          </view>
+        </view>
+        <view class="col-sep"></view>
+        <view class="col-box">
+          <text class="col-title green">留学生优势</text>
+          <view class="tag-wrap">
+            <view wx:for="{{plan.gap_analysis.strengths}}" wx:key="*this" class="tag green-tag">{{item}}</view>
+          </view>
+        </view>
+      </view>
+
+      <view class="gap-block">
+        <text class="gap-label">⚡ 需要补足的差距</text>
+        <view wx:for="{{plan.gap_analysis.gaps}}" wx:key="*this" class="gap-row">
+          <text class="gap-dot">·</text><text class="gap-txt">{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 路线图 -->
+    <view class="sec-card">
+      <view class="sec-header">
+        <text class="sec-icon">🗺️</text>
+        <text class="sec-title">求职路线图</text>
+      </view>
+
+      <!-- Phase Tabs + 节点 Tab -->
+      <view class="phase-tabs">
+        <view wx:for="{{plan.phases}}" wx:key="duration"
+              class="phase-tab {{!activeMilestones && activePhaseIdx === index ? 'active' : ''}}"
+              bindtap="onPhaseTab" data-idx="{{index}}">
+          {{item.duration}}
+        </view>
+        <view wx:if="{{plan.milestones && plan.milestones.length}}"
+              class="phase-tab {{activeMilestones ? 'active milestone-tab' : ''}}"
+              bindtap="onMilestonesTab">
+          📅 节点
+        </view>
+      </view>
+
+      <!-- Phase 内容 -->
+      <view wx:if="{{!activeMilestones && plan.phases[activePhaseIdx]}}" class="phase-body">
+        <view class="phase-goal">🎯 {{plan.phases[activePhaseIdx].goal}}</view>
+
+        <view class="detail-block">
+          <text class="db-title">🛠 需掌握技能</text>
+          <view class="pill-wrap">
+            <view wx:for="{{plan.phases[activePhaseIdx].skills}}" wx:key="*this" class="pill">{{item}}</view>
+          </view>
+        </view>
+
+        <view class="detail-block">
+          <text class="db-title">💻 项目建议</text>
+          <view wx:for="{{plan.phases[activePhaseIdx].projects}}" wx:key="*this" class="arrow-item">
+            <text class="arrow">→</text><text class="arrow-txt">{{item}}</text>
+          </view>
+        </view>
+
+        <view class="detail-block">
+          <text class="db-title">📄 简历策略</text>
+          <text class="db-text">{{plan.phases[activePhaseIdx].resume}}</text>
+        </view>
+
+        <view class="detail-block">
+          <text class="db-title">🎤 面试准备</text>
+          <text class="db-text">{{plan.phases[activePhaseIdx].interview}}</text>
+        </view>
+
+        <view class="detail-block">
+          <text class="db-title">🔍 求职策略</text>
+          <text class="db-text">{{plan.phases[activePhaseIdx].job_search}}</text>
+        </view>
+      </view>
+
+      <!-- 月度里程碑时间线 -->
+      <view wx:if="{{activeMilestones && plan.milestones}}" class="milestone-body">
+        <view wx:for="{{plan.milestones}}" wx:key="month" class="ms-item">
+          <!-- 时间轴左侧 -->
+          <view class="ms-axis">
+            <view class="ms-dot"></view>
+            <view class="ms-line" wx:if="{{index < plan.milestones.length - 1}}"></view>
+          </view>
+          <!-- 内容 -->
+          <view class="ms-content">
+            <view class="ms-header-row">
+              <text class="ms-month">第 {{item.month}} 个月</text>
+              <text class="ms-focus">{{item.focus}}</text>
+            </view>
+            <view class="ms-actions">
+              <view wx:for="{{item.actions}}" wx:key="*this" wx:for-item="action" class="ms-action-row">
+                <text class="ms-action-dot">✓</text>
+                <text class="ms-action-txt">{{action}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 推荐资源 -->
+    <view class="sec-card">
+      <view class="sec-header">
+        <text class="sec-icon">📚</text>
+        <text class="sec-title">推荐学习资源</text>
+      </view>
+      <view wx:for="{{plan.resources}}" wx:key="category" class="res-group">
+        <text class="res-cat">{{item.category}}</text>
+        <view wx:for="{{item.items}}" wx:key="*this" wx:for-item="res"
+              class="res-row" bindtap="onCopyResource" data-text="{{res}}">
+          <text class="res-txt">{{res}}</text>
+          <text class="res-copy">复制</text>
+        </view>
+      </view>
+    </view>
+
+    <view style="height: 40rpx;"></view>
+
+  </view>
+
+</view>

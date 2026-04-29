@@ -1,0 +1,171 @@
+<!-- pages/favorites/favorites.wxml -->
+<view class="container">
+
+  <!-- Tab 栏 -->
+  <view class="tab-bar">
+    <block wx:for="{{tabs}}" wx:key="*this">
+      <view class="tab-item {{currentTab === index ? 'active' : ''}}" bindtap="switchTab" data-index="{{index}}">
+        {{item}}
+        <text class="tab-count" wx:if="{{index === 0}}">({{favorites.job.length}})</text>
+        <text class="tab-count" wx:if="{{index === 1}}">({{favorites.experience.length}})</text>
+        <text class="tab-count" wx:if="{{index === 2}}">({{favorites.company.length}})</text>
+        <text class="tab-count" wx:if="{{index === 3}}">({{favorites.agency.length}})</text>
+        <text class="tab-count" wx:if="{{index === 4}}">({{favorites.campus.length}})</text>
+      </view>
+    </block>
+  </view>
+
+  <!-- 工具栏：排序 + 批量删除 -->
+  <view class="toolbar" wx:if="{{currentList.length > 0}}">
+    <view class="sort-group">
+      <view class="sort-btn {{sortOrder === 'desc' ? 'active' : ''}}" bindtap="setSortOrder" data-order="desc">最新</view>
+      <view class="sort-btn {{sortOrder === 'asc' ? 'active' : ''}}" bindtap="setSortOrder" data-order="asc">最早</view>
+    </view>
+    <view class="batch-btn {{batchMode ? 'on' : ''}}" bindtap="toggleBatchMode">
+      {{batchMode ? '取消' : '批量删除'}}
+    </view>
+  </view>
+
+  <!-- 批量删除确认栏 -->
+  <view class="batch-bar" wx:if="{{batchMode}}">
+    <text class="batch-hint">已选 {{selectedIds.length}} 项</text>
+    <view class="select-all-btn" bindtap="toggleSelectAll">{{allSelected ? '取消全选' : '全选'}}</view>
+    <view class="batch-del-btn {{selectedIds.length > 0 ? 'active' : ''}}" bindtap="batchDelete">删除</view>
+  </view>
+
+  <!-- 列表内容 -->
+  <view class="fav-list">
+
+    <!-- 职位 -->
+    <block wx:if="{{currentTab === 0}}">
+      <block wx:for="{{currentList}}" wx:key="targetId">
+        <view class="fav-card {{batchMode && selectedIds.indexOf(item.targetId) !== -1 ? 'selected' : ''}}"
+              bindtap="{{batchMode ? 'toggleSelect' : 'goToDetail'}}"
+              data-item="{{item}}"
+              data-targetid="{{item.targetId}}">
+          <view class="select-circle" wx:if="{{batchMode}}">
+            <view class="select-dot" wx:if="{{selectedIds.indexOf(item.targetId) !== -1}}"></view>
+          </view>
+          <image class="fav-logo" src="{{item.logo || '/images/default-company.png'}}" mode="aspectFit" lazy-load></image>
+          <view class="fav-info">
+            <text class="fav-title">{{item.title}}</text>
+            <text class="fav-subtitle">{{item.subtitle}}</text>
+            <text class="fav-date">收藏于 {{item.createdAt}}</text>
+          </view>
+          <view class="fav-right" wx:if="{{!batchMode}}">
+            <text class="fav-salary" wx:if="{{item.salary}}">{{item.salary}}</text>
+            <view class="remove-btn" catchtap="removeFavorite" data-type="job" data-targetid="{{item.targetId}}">取消</view>
+          </view>
+        </view>
+      </block>
+      <!-- 职位空状态 -->
+      <empty-state wx:if="{{favorites.job.length === 0}}"
+        emoji="📌" title="还没有收藏的职位"
+        desc="在职位页浏览时，点击收藏按钮即可保存"
+        btn-text="去浏览职位" bind:action="goToJobs">
+      </empty-state>
+    </block>
+
+    <!-- 面经 -->
+    <block wx:elif="{{currentTab === 1}}">
+      <block wx:for="{{currentList}}" wx:key="targetId">
+        <view class="fav-card {{batchMode && selectedIds.indexOf(item.targetId) !== -1 ? 'selected' : ''}}"
+              bindtap="{{batchMode ? 'toggleSelect' : 'goToDetail'}}"
+              data-item="{{item}}"
+              data-targetid="{{item.targetId}}">
+          <view class="select-circle" wx:if="{{batchMode}}">
+            <view class="select-dot" wx:if="{{selectedIds.indexOf(item.targetId) !== -1}}"></view>
+          </view>
+          <view class="fav-info full">
+            <text class="fav-title">{{item.title}}</text>
+            <text class="fav-subtitle">{{item.subtitle}}</text>
+            <text class="fav-date">收藏于 {{item.createdAt}}</text>
+          </view>
+          <view class="remove-btn" catchtap="removeFavorite" data-type="experience" data-targetid="{{item.targetId}}" wx:if="{{!batchMode}}">取消</view>
+        </view>
+      </block>
+      <empty-state wx:if="{{favorites.experience.length === 0}}"
+        emoji="📖" title="还没有收藏的面经"
+        desc="在题库页浏览时，收藏感兴趣的面试经验"
+        btn-text="去浏览面经" bind:action="goToExperiences">
+      </empty-state>
+    </block>
+
+    <!-- 公司 -->
+    <block wx:elif="{{currentTab === 2}}">
+      <block wx:for="{{currentList}}" wx:key="targetId">
+        <view class="fav-card {{batchMode && selectedIds.indexOf(item.targetId) !== -1 ? 'selected' : ''}}"
+              bindtap="{{batchMode ? 'toggleSelect' : 'goToDetail'}}"
+              data-item="{{item}}"
+              data-targetid="{{item.targetId}}">
+          <view class="select-circle" wx:if="{{batchMode}}">
+            <view class="select-dot" wx:if="{{selectedIds.indexOf(item.targetId) !== -1}}"></view>
+          </view>
+          <image class="fav-logo" src="{{item.logo || '/images/default-company.png'}}" mode="aspectFit" lazy-load></image>
+          <view class="fav-info">
+            <text class="fav-title">{{item.title}}</text>
+            <text class="fav-subtitle">{{item.subtitle}}</text>
+            <text class="fav-date">收藏于 {{item.createdAt}}</text>
+          </view>
+          <view class="remove-btn" catchtap="removeFavorite" data-type="company" data-targetid="{{item.targetId}}" wx:if="{{!batchMode}}">取消</view>
+        </view>
+      </block>
+      <empty-state wx:if="{{favorites.company.length === 0}}"
+        emoji="🏢" title="还没有收藏的公司"
+        desc="在公司详情页点击收藏，方便随时查看"
+        btn-text="去浏览公司" bind:action="goToJobs">
+      </empty-state>
+    </block>
+
+    <!-- 机构 -->
+    <block wx:elif="{{currentTab === 3}}">
+      <block wx:for="{{currentList}}" wx:key="targetId">
+        <view class="fav-card {{batchMode && selectedIds.indexOf(item.targetId) !== -1 ? 'selected' : ''}}"
+              bindtap="{{batchMode ? 'toggleSelect' : 'goToDetail'}}"
+              data-item="{{item}}"
+              data-targetid="{{item.targetId}}">
+          <view class="select-circle" wx:if="{{batchMode}}">
+            <view class="select-dot" wx:if="{{selectedIds.indexOf(item.targetId) !== -1}}"></view>
+          </view>
+          <view class="fav-info full">
+            <text class="fav-title">{{item.title}}</text>
+            <text class="fav-subtitle">{{item.subtitle}}</text>
+            <text class="fav-date">收藏于 {{item.createdAt}}</text>
+          </view>
+          <view class="remove-btn" catchtap="removeFavorite" data-type="agency" data-targetid="{{item.targetId}}" wx:if="{{!batchMode}}">取消</view>
+        </view>
+      </block>
+      <empty-state wx:if="{{favorites.agency.length === 0}}"
+        emoji="🧭" title="还没有收藏的机构"
+        desc="在机构详情页点击收藏，方便后续对比筛选"
+        btn-text="去浏览机构" bind:action="goToJobs">
+      </empty-state>
+    </block>
+
+    <!-- 校招 -->
+    <block wx:elif="{{currentTab === 4}}">
+      <block wx:for="{{currentList}}" wx:key="targetId">
+        <view class="fav-card {{batchMode && selectedIds.indexOf(item.targetId) !== -1 ? 'selected' : ''}}"
+              bindtap="{{batchMode ? 'toggleSelect' : 'goToDetail'}}"
+              data-item="{{item}}"
+              data-targetid="{{item.targetId}}">
+          <view class="select-circle" wx:if="{{batchMode}}">
+            <view class="select-dot" wx:if="{{selectedIds.indexOf(item.targetId) !== -1}}"></view>
+          </view>
+          <view class="fav-info full">
+            <text class="fav-title">{{item.title}}</text>
+            <text class="fav-subtitle">{{item.subtitle}}</text>
+            <text class="fav-date">收藏于 {{item.createdAt}}</text>
+          </view>
+          <view class="remove-btn" catchtap="removeFavorite" data-type="campus" data-targetid="{{item.targetId}}" wx:if="{{!batchMode}}">取消</view>
+        </view>
+      </block>
+      <empty-state wx:if="{{favorites.campus.length === 0}}"
+        emoji="🗓️" title="还没有收藏的校招"
+        desc="看到感兴趣的校招日程后，可以先收藏再统一投递"
+        btn-text="去浏览职位" bind:action="goToJobs">
+      </empty-state>
+    </block>
+
+  </view>
+</view>

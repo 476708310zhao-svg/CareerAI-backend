@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "求职项目管理",
+  "usingComponents": {
+    "c-button": "/components/c-button/c-button"
+  }
+}

@@ -1,0 +1,60 @@
+/* pages/privacy/privacy.wxss */
+.container {
+  padding: 32rpx 36rpx;
+  background: var(--bg-page);
+  min-height: 100vh;
+}
+
+.title-block {
+  background: var(--bg-panel);
+  border-radius: var(--r-lg);
+  padding: 36rpx 30rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+}
+
+.main-title {
+  font-size: 34rpx;
+  font-weight: 800;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 12rpx;
+}
+
+.update-date {
+  font-size: 24rpx;
+  color: var(--text-muted);
+}
+
+.section {
+  background: var(--bg-panel);
+  border-radius: var(--r-lg);
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+}
+
+.section-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--brand);
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.section-body {
+  font-size: 26rpx;
+  color: var(--text-body);
+  line-height: 1.8;
+  display: block;
+}
+
+.footer {
+  text-align: center;
+  padding: 32rpx 0 48rpx;
+}
+
+.footer-text {
+  font-size: 22rpx;
+  color: var(--text-muted);
+}

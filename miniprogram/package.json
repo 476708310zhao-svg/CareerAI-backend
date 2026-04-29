@@ -1,0 +1,24 @@
+{
+  "name": "miniprogram",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/476708310zhao-svg/-AI-.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/476708310zhao-svg/-AI-/issues"
+  },
+  "homepage": "https://github.com/476708310zhao-svg/-AI-#readme",
+  "dependencies": {
+    "tdesign-miniprogram": "^1.13.2"
+  }
+}

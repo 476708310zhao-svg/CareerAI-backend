@@ -1,0 +1,76 @@
+/* ══ c-tag 标签/徽章组件 ════════════════════════════════════════════
+ *
+ * 用法：
+ *   <c-tag type="primary">全职</c-tag>
+ *   <c-tag type="success" size="small">已通过</c-tag>
+ *
+ * type: default | primary | success | warning | danger | info
+ * size: default | small | large
+ *
+ * ★ 所有视觉值来自 app.wxss 设计令牌
+ *   改主色标签 → --brand
+ *   改文字颜色 → 对应 --text-* 变量
+ * ════════════════════════════════════════════════════════════════════ */
+
+.ct {
+  display: inline-flex;
+  align-items: center;
+  font-size: 22rpx;
+  font-weight: 500;
+  padding: 6rpx 16rpx;
+  border-radius: var(--r-xs);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* ── 类型 ────────────────────────────────────────────────────────── */
+
+.ct--default {
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  border: 1rpx solid var(--border-light);
+}
+
+.ct--primary {
+  background: rgba(43, 92, 230, 0.10);
+  color: var(--brand);
+  border: 1rpx solid rgba(43, 92, 230, 0.20);
+}
+
+.ct--success {
+  background: rgba(16, 185, 129, 0.10);
+  color: var(--success);
+  border: 1rpx solid rgba(16, 185, 129, 0.22);
+}
+
+.ct--warning {
+  background: rgba(245, 158, 11, 0.10);
+  color: var(--warning);
+  border: 1rpx solid rgba(245, 158, 11, 0.22);
+}
+
+.ct--danger {
+  background: rgba(239, 68, 68, 0.10);
+  color: var(--danger);
+  border: 1rpx solid rgba(239, 68, 68, 0.22);
+}
+
+.ct--info {
+  background: rgba(43, 92, 230, 0.06);
+  color: var(--text-secondary);
+  border: 1rpx solid var(--border);
+}
+
+/* ── 尺寸 ────────────────────────────────────────────────────────── */
+
+.ct--small {
+  font-size: 20rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 6rpx;
+}
+
+.ct--large {
+  font-size: 26rpx;
+  padding: 8rpx 20rpx;
+  border-radius: var(--r-sm);
+}

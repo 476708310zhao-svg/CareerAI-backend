@@ -1,0 +1,8 @@
+<button
+  class="c-btn c-btn--{{type}} c-btn--sz-{{size}} {{block ? 'c-btn--block' : 'c-btn--auto'}} {{disabled ? 'c-btn--disabled' : ''}}"
+  disabled="{{disabled}}"
+  open-type="{{openType}}"
+>
+  <view wx:if="{{loading}}" class="c-btn__spin"></view>
+  <slot></slot>
+</button>

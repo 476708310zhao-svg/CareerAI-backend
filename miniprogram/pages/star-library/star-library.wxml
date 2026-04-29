@@ -1,0 +1,153 @@
+<!-- pages/star-library/star-library.wxml -->
+<view class="page">
+
+  <!-- Hero -->
+  <view class="hero">
+    <view class="hero-left">
+      <text class="hero-title">STAR 模板库</text>
+      <text class="hero-sub">{{filtered.length}} 个行为面试模板 · AI 一键个性化</text>
+    </view>
+    <view class="hero-icon-wrap"><text class="hero-icon">⭐</text></view>
+  </view>
+
+  <!-- Search -->
+  <view class="search-wrap">
+    <view class="search-box">
+      <text class="search-icon">🔍</text>
+      <input class="search-input" placeholder="搜索模板标题或标签" value="{{searchKey}}" bindinput="onSearch" />
+    </view>
+  </view>
+
+  <!-- Role filter chips -->
+  <scroll-view scroll-x class="role-scroll" enhanced scroll-with-animation>
+    <view class="role-chips">
+      <view wx:for="{{roleFilters}}" wx:key="id"
+            class="role-chip {{activeRole === item.id ? 'active' : ''}}"
+            style="{{activeRole === item.id ? 'background:' + item.color + '20;color:' + item.color + ';border-color:' + item.color : ''}}"
+            bindtap="setRole" data-role="{{item.id}}">
+        {{item.label}}
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- Template list -->
+  <view class="tpl-list">
+
+    <!-- Empty -->
+    <view class="empty-wrap" wx:if="{{!filtered.length}}">
+      <text class="empty-icon">🔍</text>
+      <text class="empty-title">没有匹配的模板</text>
+    </view>
+
+    <view wx:for="{{filtered}}" wx:key="id" class="tpl-card">
+
+      <!-- Card header -->
+      <view class="tpl-header" bindtap="toggleExpand" data-id="{{item.id}}">
+        <view class="tpl-header-left">
+          <view class="tpl-role-badge" style="background:{{item.roleColor}}20;color:{{item.roleColor}}">{{item.roleLabel}}</view>
+          <text class="tpl-title">{{item.title}}</text>
+          <view class="tpl-tags">
+            <view wx:for="{{item.tags}}" wx:key="*this" wx:for-item="tag" class="tpl-tag">{{tag}}</view>
+          </view>
+        </view>
+        <view class="tpl-header-right">
+          <view class="tpl-save-btn" catchtap="saveTemplate" data-id="{{item.id}}">
+            <text>{{savedIds.indexOf(item.id) >= 0 ? '★' : '☆'}}</text>
+          </view>
+          <text class="tpl-arrow">{{expandedId === item.id ? '▲' : '▼'}}</text>
+        </view>
+      </view>
+
+      <!-- Expanded STAR content -->
+      <view wx:if="{{expandedId === item.id}}" class="tpl-body">
+
+        <view class="star-row">
+          <view class="star-label s-label">S</view>
+          <view class="star-content">
+            <text class="star-title-txt">情境</text>
+            <text class="star-body-txt" user-select>{{item.situation}}</text>
+          </view>
+        </view>
+        <view class="star-row">
+          <view class="star-label t-label">T</view>
+          <view class="star-content">
+            <text class="star-title-txt">任务</text>
+            <text class="star-body-txt" user-select>{{item.task}}</text>
+          </view>
+        </view>
+        <view class="star-row">
+          <view class="star-label a-label">A</view>
+          <view class="star-content">
+            <text class="star-title-txt">行动</text>
+            <text class="star-body-txt" user-select>{{item.action}}</text>
+          </view>
+        </view>
+        <view class="star-row">
+          <view class="star-label r-label">R</view>
+          <view class="star-content">
+            <text class="star-title-txt">结果</text>
+            <text class="star-body-txt" user-select>{{item.result}}</text>
+          </view>
+        </view>
+
+        <!-- Action buttons -->
+        <view class="tpl-actions">
+          <view class="tpl-act-btn" catchtap="copyTemplate" data-id="{{item.id}}">
+            <text class="tpl-act-icon">📋</text><text class="tpl-act-txt">复制全文</text>
+          </view>
+          <view class="tpl-act-btn ai-btn" catchtap="openCustomise" data-id="{{item.id}}">
+            <text class="tpl-act-icon">✨</text><text class="tpl-act-txt">AI 个性化</text>
+          </view>
+          <view class="tpl-act-btn" catchtap="practiceSTAR" data-role="{{item.role}}">
+            <text class="tpl-act-icon">🎤</text><text class="tpl-act-txt">练习面试</text>
+          </view>
+        </view>
+
+      </view>
+    </view>
+
+  </view>
+
+  <!-- Bottom spacer -->
+  <view style="height:80rpx;"></view>
+
+  <!-- AI Personalise Modal -->
+  <view class="modal-mask" wx:if="{{showCustomModal}}" bindtap="closeCustomise">
+    <view class="modal-card" catchtap="noop">
+      <view class="modal-handle"></view>
+      <text class="modal-title">✨ AI 个性化改写</text>
+      <text class="modal-sub">基于模板「{{customTarget.title}}」</text>
+
+      <view class="form-item">
+        <text class="form-label">描述你的真实经历背景 <text class="req">*</text></text>
+        <textarea
+          class="fi fi-ta"
+          placeholder="例如：我在某电商公司实习，负责仓库库存管理，发现了某问题并解决了它…"
+          value="{{customInput}}"
+          bindinput="onCustomInput"
+          maxlength="600"
+          auto-height
+        />
+      </view>
+
+      <view wx:if="{{!customResult}}">
+        <c-button class="btn-gen {{customLoading ? 'loading' : ''}}" bindtap="generateCustom">
+          {{customLoading ? 'AI 生成中...' : '✨ 生成个性化版本'}}
+        </c-button>
+      </view>
+
+      <!-- Result -->
+      <view wx:if="{{customResult}}" class="custom-result">
+        <view class="cr-header">
+          <text class="cr-title">个性化 STAR</text>
+          <view class="cr-copy" bindtap="copyCustomResult">复制</view>
+        </view>
+        <text class="cr-body" user-select>{{customResult}}</text>
+        <c-button type="secondary" class="btn-regen" bindtap="generateCustom">重新生成</c-button>
+      </view>
+
+      <c-button type="secondary" class="btn-close-modal" bindtap="closeCustomise">关闭</c-button>
+    </view>
+  </view>
+
+</view>

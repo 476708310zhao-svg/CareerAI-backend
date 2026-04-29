@@ -1,0 +1,258 @@
+<!-- pages/experiences/experiences.wxml -->
+<view class="page">
+
+  <!-- ── 顶部固定区 ── -->
+  <view class="fixed-header">
+
+    <!-- 来源切换 Tab（下划线样式） -->
+    <view class="source-tabs">
+      <view
+        class="source-tab {{sourceTab === 'local' ? 'active' : ''}}"
+        bindtap="switchSource" data-source="local"
+      >
+        <text class="source-name">精选题库</text>
+        <text class="source-badge">{{allQuestions.length}}</text>
+      </view>
+      <view
+        class="source-tab {{sourceTab === 'leetcode' ? 'active' : ''}}"
+        bindtap="switchSource" data-source="leetcode"
+      >
+        <text class="source-name">LeetCode</text>
+        <text class="source-badge lc" wx:if="{{lcDisplayCount}}">{{lcDisplayCount}}</text>
+        <text class="source-badge" wx:else>在线</text>
+      </view>
+      <view
+        class="source-tab {{sourceTab === 'topics' ? 'active' : ''}}"
+        bindtap="switchSource" data-source="topics"
+      >
+        <text class="source-name">话题</text>
+        <text class="source-badge topic">{{topics.length}}</text>
+      </view>
+      <view
+        class="source-tab {{sourceTab === 'picks' ? 'active' : ''}}"
+        bindtap="switchSource" data-source="picks"
+      >
+        <text class="source-name">精华区</text>
+        <text class="source-badge picks">🔥</text>
+      </view>
+      <view class="tab-indicator" style="left: {{sourceTab === 'local' ? '0%' : (sourceTab === 'leetcode' ? '25%' : (sourceTab === 'topics' ? '50%' : '75%'))}}"></view>
+    </view>
+
+    <!-- 搜索栏 -->
+    <view class="search-bar">
+      <view class="search-wrap">
+        <icon type="search" size="14" color="#9CA3AF"></icon>
+        <input
+          class="search-input"
+          placeholder="{{sourceTab === 'leetcode' ? '搜索题号或关键词' : '搜索题目关键词'}}"
+          placeholder-class="ph"
+          value="{{searchKeyword}}"
+          bindinput="onSearchInput"
+          bindconfirm="onSearchConfirm"
+          confirm-type="search"
+        />
+        <view class="search-clear" wx:if="{{searchKeyword}}" bindtap="clearSearch">✕</view>
+      </view>
+    </view>
+
+    <!-- 分类标签栏 -->
+    <scroll-view scroll-x class="cat-scroll" wx:if="{{sourceTab === 'local'}}">
+      <view class="cat-inner">
+        <block wx:for="{{categories}}" wx:key="id">
+          <view
+            class="cat-pill {{currentCat === item.id ? 'active' : ''}}"
+            bindtap="switchCategory"
+            data-id="{{item.id}}"
+          >{{item.name}}</view>
+        </block>
+      </view>
+    </scroll-view>
+
+    <!-- 难度筛选 -->
+    <view class="diff-bar" wx:if="{{sourceTab !== 'topics'}}">
+      <view class="diff-pill {{currentDiff === '' ? 'active' : ''}}"     bindtap="switchDifficulty" data-diff="">全部</view>
+      <view class="diff-pill easy {{currentDiff === 'EASY' ? 'active' : ''}}"   bindtap="switchDifficulty" data-diff="EASY">简单</view>
+      <view class="diff-pill mid  {{currentDiff === 'MEDIUM' ? 'active' : ''}}" bindtap="switchDifficulty" data-diff="MEDIUM">中等</view>
+      <view class="diff-pill hard {{currentDiff === 'HARD' ? 'active' : ''}}"   bindtap="switchDifficulty" data-diff="HARD">困难</view>
+    </view>
+
+    <!-- 精华区筛选栏 -->
+    <view class="feat-bar" wx:if="{{sourceTab === 'local'}}">
+      <view class="feat-pill {{featuredFilter === '' ? 'active' : ''}}" bindtap="switchFeatured" data-val="">全部</view>
+      <view class="feat-pill feat-featured {{featuredFilter === 'featured' ? 'active' : ''}}" bindtap="switchFeatured" data-val="featured">🌟 精华</view>
+      <view class="feat-pill feat-hot {{featuredFilter === 'hot' ? 'active' : ''}}" bindtap="switchFeatured" data-val="hot">🔥 高赞</view>
+    </view>
+
+    <!-- AI 出题栏（在 fixed-header 内部，紧贴难度筛选下方） -->
+    <view class="ai-bar" wx:if="{{sourceTab === 'local' && currentCat !== 'all'}}">
+      <view class="ai-bar-left">
+        <view class="ai-icon-box">
+          <text class="ai-icon-txt">AI</text>
+        </view>
+        <view class="ai-bar-text">
+          <text class="ai-bar-title">智能出题</text>
+          <text class="ai-bar-desc">DeepSeek AI 生成最新真题</text>
+        </view>
+      </view>
+      <view class="ai-gen-btn {{aiLoading ? 'disabled' : ''}}" bindtap="aiGenerateQuestions">
+        <text wx:if="{{!aiLoading}}">生成题目</text>
+        <text wx:else>生成中...</text>
+      </view>
+    </view>
+
+  </view>
+
+  <!-- 占位（高度由 JS 动态设置，适配 fixed-header 实际高度） -->
+  <view style="height: {{spacerHeight}}px;"></view>
+
+  <!-- 话题讨论网格 -->
+  <view class="topics-grid" wx:if="{{sourceTab === 'topics' && !currentTopic}}">
+    <view class="topics-header">
+      <text class="topics-header-title">热门话题</text>
+      <text class="topics-header-desc">选择感兴趣的话题，查看精选面试题</text>
+    </view>
+    <block wx:for="{{topics}}" wx:key="id">
+      <view class="topic-card" bindtap="selectTopic" data-idx="{{index}}">
+        <text class="topic-card-icon">{{item.icon}}</text>
+        <view class="topic-card-info">
+          <text class="topic-card-title">{{item.title}}</text>
+          <text class="topic-card-desc">{{item.desc}}</text>
+        </view>
+        <text class="topic-card-arrow">›</text>
+      </view>
+    </block>
+  </view>
+
+  <!-- 话题返回栏 -->
+  <view class="topic-back-bar" wx:if="{{sourceTab === 'topics' && currentTopic}}">
+    <view class="topic-back-btn" bindtap="clearTopic">‹ 话题列表</view>
+    <text class="topic-back-name">{{currentTopic.icon}} {{currentTopic.title}}</text>
+  </view>
+
+  <!-- 精华区子 Tab -->
+  <view class="picks-tabs" wx:if="{{sourceTab === 'picks'}}">
+    <view class="picks-tab {{picksTab === 'hot' ? 'active' : ''}}" bindtap="switchPicksTab" data-tab="hot">🔥 高赞榜</view>
+    <view class="picks-tab {{picksTab === 'editor' ? 'active' : ''}}" bindtap="switchPicksTab" data-tab="editor">🌟 编辑精选</view>
+    <view class="picks-tab {{picksTab === 'trending' ? 'active' : ''}}" bindtap="switchPicksTab" data-tab="trending">🏢 热点公司</view>
+  </view>
+
+  <!-- 热点公司选择器 -->
+  <view class="trending-section" wx:if="{{sourceTab === 'picks' && picksTab === 'trending' && !selectedTrendingCompany}}">
+    <scroll-view scroll-x class="trending-scroll">
+      <view class="trending-inner">
+        <block wx:for="{{trendingCompanies}}" wx:key="id">
+          <view class="trending-card" bindtap="selectTrendingCompany" data-idx="{{index}}">
+            <view class="trending-card-top">
+              <text class="trending-icon">{{item.icon}}</text>
+              <view class="trending-badge-box">{{item.badge}}</view>
+            </view>
+            <text class="trending-name">{{item.name}}</text>
+            <text class="trending-heat">{{item.heat}}</text>
+          </view>
+        </block>
+      </view>
+    </scroll-view>
+    <view class="trending-hint">
+      <text class="trending-hint-txt">👆 点击公司，查看热门面试题</text>
+    </view>
+  </view>
+
+  <!-- 已选公司返回栏 -->
+  <view class="trending-back-bar" wx:if="{{sourceTab === 'picks' && picksTab === 'trending' && selectedTrendingCompany}}">
+    <view class="trending-back-btn" bindtap="clearTrendingCompany">‹ 公司列表</view>
+    <text class="trending-back-name">{{selectedTrendingCompany.icon}} {{selectedTrendingCompany.name}}</text>
+  </view>
+
+  <!-- LeetCode 统计卡 -->
+  <view class="lc-stats-card" wx:if="{{sourceTab === 'leetcode' && lcStats}}">
+    <view class="lc-stat {{currentDiff === '' ? 'selected' : ''}}" bindtap="switchDifficulty" data-diff="">
+      <text class="lc-stat-num">{{lcStats.total}}</text>
+      <text class="lc-stat-label">全部</text>
+    </view>
+    <view class="lc-stat easy {{currentDiff === 'EASY' ? 'selected' : ''}}" bindtap="switchDifficulty" data-diff="EASY">
+      <text class="lc-stat-num">{{lcStats.easy}}</text>
+      <text class="lc-stat-label">简单</text>
+    </view>
+    <view class="lc-stat mid {{currentDiff === 'MEDIUM' ? 'selected' : ''}}" bindtap="switchDifficulty" data-diff="MEDIUM">
+      <text class="lc-stat-num">{{lcStats.medium}}</text>
+      <text class="lc-stat-label">中等</text>
+    </view>
+    <view class="lc-stat hard {{currentDiff === 'HARD' ? 'selected' : ''}}" bindtap="switchDifficulty" data-diff="HARD">
+      <text class="lc-stat-num">{{lcStats.hard}}</text>
+      <text class="lc-stat-label">困难</text>
+    </view>
+  </view>
+
+  <!-- 统计条 -->
+  <view class="stat-bar" wx:if="{{(sourceTab !== 'topics' || currentTopic) && !(sourceTab === 'picks' && picksTab === 'trending' && !selectedTrendingCompany)}}">
+    <text class="stat-txt">
+      {{sourceTab === 'leetcode'
+        ? 'LeetCode · 已加载 ' + displayList.length + ' / ' + (lcStats.total || '3000+') + ' 题'
+        : '精选题库 · 共 ' + displayList.length + ' 题'}}
+    </text>
+    <text class="stat-kw" wx:if="{{searchKeyword}}">搜索：{{searchKeyword}}</text>
+  </view>
+
+  <!-- ── 题目列表 ── -->
+  <view class="q-list" wx:if="{{(sourceTab !== 'topics' || currentTopic) && !(sourceTab === 'picks' && picksTab === 'trending' && !selectedTrendingCompany)}}">
+    <block wx:for="{{displayList}}" wx:key="id">
+      <view class="q-card" bindtap="goToDetail" data-item="{{item}}">
+
+        <!-- 第一行：序号 + 标题 + 难度（右上角） -->
+        <view class="q-head">
+          <view class="q-num {{item.source === 'leetcode' ? 'lc-num' : ''}}">
+            {{item.source === 'leetcode' ? item.lcId : (index + 1)}}
+          </view>
+          <view class="q-title">{{item.title}}</view>
+          <view class="q-diff {{item.difficulty === '困难' ? 'hard' : (item.difficulty === '中等' ? 'mid' : 'easy')}}">{{item.difficulty}}</view>
+        </view>
+
+        <!-- 第二行：标签（AI / LeetCode / 精华） -->
+        <view class="q-tags" wx:if="{{item.isAI || item.source === 'leetcode' || (item.isFeatured && sourceTab !== 'leetcode')}}">
+          <view class="q-ai-tag" wx:if="{{item.isAI}}">✦ AI生成</view>
+          <view class="q-lc-tag" wx:if="{{item.source === 'leetcode'}}">LeetCode</view>
+          <view class="q-feat-tag" wx:if="{{item.isFeatured && sourceTab !== 'leetcode'}}">🌟 精华</view>
+        </view>
+
+        <!-- 第三行：预览 -->
+        <text class="q-preview" wx:if="{{item.answer}}">{{item.answer}}</text>
+
+        <!-- 底部：热度 + 操作 -->
+        <view class="q-footer">
+          <view class="q-heat">
+            <view class="heat-dot"></view>
+            <text class="heat-txt">{{item.source === 'leetcode' ? ('通过率 ' + item.acRate) : ((item.views || 0) + ' 浏览')}}</text>
+          </view>
+          <text class="q-action">{{item.source === 'leetcode' ? '查看' : '练习'}} →</text>
+        </view>
+
+      </view>
+    </block>
+
+    <!-- LeetCode 加载更多 -->
+    <view wx:if="{{sourceTab === 'leetcode' && lcLoading}}" class="loading-tip">
+      <view class="spinner"></view>
+      <text>加载中...</text>
+    </view>
+    <view
+      wx:if="{{sourceTab === 'leetcode' && lcHasMore && !lcLoading && leetcodeList.length > 0}}"
+      class="load-more-btn"
+      bindtap="loadMoreLeetCode"
+    >
+      加载更多（已加载 {{leetcodeList.length}} / {{lcStats.total || '3000+'}} 题）
+    </view>
+    <view wx:if="{{sourceTab === 'leetcode' && !lcHasMore && leetcodeList.length > 0}}" class="tip">
+      — 已加载全部 {{leetcodeList.length}} 题 —
+    </view>
+
+    <!-- 空状态 -->
+    <view wx:if="{{displayList.length === 0 && !lcLoading}}" class="empty">
+      <text class="empty-emoji">📋</text>
+      <text class="empty-txt" wx:if="{{searchKeyword}}">未找到「{{searchKeyword}}」相关题目</text>
+      <text class="empty-txt" wx:else>暂无该分类题目</text>
+      <view class="empty-hint" wx:if="{{searchKeyword}}" bindtap="clearSearch">清除搜索</view>
+    </view>
+  </view>
+
+  <view style="height: 48rpx;"></view>
+</view>

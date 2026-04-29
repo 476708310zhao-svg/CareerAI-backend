@@ -1,0 +1,5 @@
+<!-- components/loading-spinner/loading-spinner.wxml -->
+<view class="ls-wrap" wx:if="{{show}}">
+  <view class="ls-ring"></view>
+  <text class="ls-text" wx:if="{{text}}">{{text}}</text>
+</view>

@@ -1,0 +1,241 @@
+/* pages/profile-edit/profile-edit.wxss */
+page {
+  background: var(--bg-raised);
+  font-family: -apple-system, 'PingFang SC', sans-serif;
+}
+
+.container { padding: 0 24rpx 100rpx; }
+
+/* ── Hero Card: 头像 + 进度 ── */
+.hero-card {
+  background: linear-gradient(135deg, var(--brand) 0%, #4F7CF7 100%);
+  border-radius: var(--r-lg);
+  padding: 32rpx 28rpx 28rpx;
+  margin: 24rpx 0 8rpx;
+  box-shadow: 0 8rpx 32rpx rgba(43,92,230,0.25);
+}
+
+.hero-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  margin-bottom: 28rpx;
+}
+
+.avatar-wrapper {
+  position: relative;
+  width: 120rpx;
+  height: 120rpx;
+  flex-shrink: 0;
+}
+.avatar {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  border: 3rpx solid rgba(255,255,255,0.6);
+}
+.camera-badge {
+  position: absolute;
+  bottom: 0; right: 0;
+  background: rgba(0,0,0,0.45);
+  width: 42rpx; height: 42rpx;
+  border-radius: 50%;
+  text-align: center;
+  line-height: 42rpx;
+  font-size: 20rpx;
+  border: 2rpx solid rgba(255,255,255,0.5);
+}
+
+.hero-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  min-width: 0;
+}
+.hero-name {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hero-school {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.72);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 进度条区域 */
+.progress-wrap { display: flex; flex-direction: column; gap: 12rpx; }
+.progress-label { font-size: 24rpx; color: rgba(255,255,255,0.85); font-weight: 600; }
+.progress-tip   { font-size: 22rpx; color: rgba(255,255,255,0.6); }
+
+/* ── 分区标题 ── */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  font-size: 27rpx;
+  font-weight: 700;
+  color: #1F2937;
+  padding: 32rpx 4rpx 14rpx;
+}
+.section-accent {
+  width: 6rpx;
+  height: 32rpx;
+  background: linear-gradient(180deg, var(--brand), #7BA4F8);
+  border-radius: 4rpx;
+  flex-shrink: 0;
+}
+.section-note {
+  font-size: 22rpx;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* ── 表单卡片 ── */
+.form-card {
+  background: var(--bg-panel);
+  border-radius: var(--r-lg);
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+  overflow: hidden;
+}
+.form-card.pad { padding: 24rpx 28rpx; }
+
+.form-item {
+  display: flex;
+  align-items: center;
+  padding: 28rpx 28rpx;
+  gap: 16rpx;
+}
+.form-divider {
+  height: 1rpx;
+  background: var(--bg-raised);
+  margin: 0 28rpx;
+}
+.label-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  width: 110rpx;
+  flex-shrink: 0;
+}
+.label-icon { font-size: 28rpx; }
+.label {
+  font-size: 28rpx;
+  color: var(--text-body);
+  font-weight: 600;
+}
+.input {
+  flex: 1;
+  font-size: 28rpx;
+  color: #0F172A;
+  text-align: right;
+  height: 48rpx;
+  line-height: 48rpx;
+}
+
+/* ── 子标题 ── */
+.sub-label {
+  display: block;
+  font-size: 23rpx;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 14rpx;
+  text-transform: uppercase;
+  letter-spacing: 1rpx;
+}
+.sub-label.mt { margin-top: 28rpx; }
+
+/* ── 通用 Chip ── */
+.chip-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 12rpx;
+  overflow-x: auto;
+}
+.chip-row.wrap {
+  flex-wrap: wrap;
+  overflow-x: visible;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 10rpx 26rpx;
+  border-radius: 30rpx;
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  background: #F3F4F6;
+  border: 2rpx solid transparent;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.chip-active {
+  background: #EEF4FD;
+  color: var(--brand);
+  border-color: #BFDBFE;
+  font-weight: 600;
+}
+
+/* ── 已选标签 ── */
+.selected-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-bottom: 4rpx;
+}
+.selected-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  background: #EEF4FD;
+  color: var(--brand);
+  border: 2rpx solid #BFDBFE;
+  border-radius: 28rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  padding: 8rpx 16rpx 8rpx 20rpx;
+}
+.tag-remove {
+  font-size: 28rpx;
+  color: #93C5FD;
+  line-height: 1;
+  padding: 0 2rpx;
+}
+
+/* ── 自定义输入行 ── */
+.custom-input-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 20rpx;
+  background: #F9FAFB;
+  border-radius: var(--r-md);
+  padding: 10rpx 16rpx 10rpx 20rpx;
+  border: 1rpx solid var(--border-light);
+}
+.custom-input {
+  flex: 1;
+  font-size: 26rpx;
+  color: var(--text-primary);
+  height: 48rpx;
+  line-height: 48rpx;
+}
+.custom-add-btn {
+  font-size: 24rpx;
+  color: var(--brand);
+  font-weight: 700;
+  padding: 8rpx 24rpx;
+  background: #EEF4FD;
+  border-radius: var(--r-lg);
+  white-space: nowrap;
+}
+
+/* ── 保存按钮 ── */
+.save-btn { margin-top: 48rpx; }

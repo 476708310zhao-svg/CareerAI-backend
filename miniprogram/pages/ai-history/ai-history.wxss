@@ -1,0 +1,389 @@
+/* pages/ai-history/ai-history.wxss — White-based premium redesign */
+page {
+  background: var(--bg-page);
+  font-family: -apple-system, 'PingFang SC', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  min-height: 100vh;
+  padding: 0 24rpx 48rpx;
+}
+
+/* ─── Top Action Bar — clean white strip ──────────────────────── */
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 28rpx 0 20rpx;
+  border-bottom: 1.5rpx solid #F1F5F9;
+  margin-bottom: 8rpx;
+}
+
+.record-count {
+  font-size: 24rpx;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.clear-btn {
+  font-size: 24rpx;
+  color: #EF4444;
+  background: #FEF2F2;
+  padding: 8rpx 22rpx;
+  border-radius: var(--r-lg);
+  border: 1.5rpx solid #FECACA;
+  font-weight: 500;
+}
+
+/* ─── Loading ──────────────────────────────────────────────────── */
+.loading-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120rpx 0;
+  gap: 20rpx;
+}
+
+.loading-dot {
+  width: 48rpx;
+  height: 48rpx;
+  border: 5rpx solid var(--border-light);
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  font-size: 26rpx;
+  color: var(--text-muted);
+}
+
+/* ─── Record Card ─────────────────────────────────────────────── */
+.record-card {
+  background: var(--bg-panel);
+  border-radius: var(--r-lg);
+  padding: 24rpx 24rpx 20rpx;
+  margin-bottom: 16rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+  border: 1.5rpx solid rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  transition: transform 0.12s;
+}
+
+.record-card:active {
+  transform: scale(0.984);
+  background: #FAFBFF;
+}
+
+/* ─── Card Header ─────────────────────────────────────────────── */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 18rpx;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.job-role {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 5rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.company-name {
+  font-size: 25rpx;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 5rpx;
+}
+
+.time {
+  font-size: 22rpx;
+  color: var(--text-muted);
+}
+
+/* ─── Score Badge ─────────────────────────────────────────────── */
+.score-badge {
+  display: flex;
+  align-items: baseline;
+  padding: 10rpx 20rpx;
+  border-radius: var(--r-md);
+  flex-shrink: 0;
+  margin-left: 20rpx;
+}
+
+.score-badge.high { color: #059669; background: #ECFDF5; }
+.score-badge.mid  { color: #F59E0B; background: #FFFBEB; }
+.score-badge.low  { color: #EF4444; background: #FEF2F2; }
+.score-badge.none { color: var(--text-muted); background: var(--bg-page); }
+
+.score-num {
+  font-size: 40rpx;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.score-unit {
+  font-size: 22rpx;
+  margin-left: 4rpx;
+  font-weight: 600;
+}
+
+/* ─── Tags Row ────────────────────────────────────────────────── */
+.tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-bottom: 20rpx;
+}
+
+.tag {
+  font-size: 22rpx;
+  color: var(--text-secondary);
+  background: var(--bg-page);
+  padding: 5rpx 14rpx;
+  border-radius: 8rpx;
+}
+
+/* ─── Card Footer ─────────────────────────────────────────────── */
+.card-footer {
+  border-top: 1.5rpx solid #F1F5F9;
+  padding-top: 18rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.duration {
+  font-size: 23rpx;
+  color: var(--text-muted);
+}
+
+.btn {
+  font-size: 26rpx;
+  color: var(--brand);
+  font-weight: 700;
+  background: #EEF2FF;
+  padding: 8rpx 24rpx;
+  border-radius: 20rpx;
+}
+
+
+/* ── 页面 Tab 切换 ───────────────────────────── */
+.page-tabs {
+  display: flex;
+  background: var(--bg-panel);
+  border-bottom: 1rpx solid #EFEFEF;
+  margin-bottom: 4rpx;
+}
+.ptab {
+  flex: 1;
+  text-align: center;
+  padding: 24rpx 0;
+  font-size: 28rpx;
+  color: var(--text-secondary);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+}
+.ptab.active {
+  color: var(--brand);
+  font-weight: bold;
+}
+.ptab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60rpx;
+  height: 6rpx;
+  background: var(--brand);
+  border-radius: 3rpx;
+}
+.ptab-badge {
+  background: #EF4444;
+  color: #fff;
+  font-size: 18rpx;
+  font-weight: bold;
+  padding: 2rpx 10rpx;
+  border-radius: var(--r-lg);
+  min-width: 32rpx;
+  text-align: center;
+}
+
+/* ── 错题本卡片 ───────────────────────────────── */
+.bq-card {
+  background: var(--bg-panel);
+  border-radius: var(--r-md);
+  margin: 0 24rpx 20rpx;
+  padding: 24rpx 28rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+}
+.bq-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16rpx;
+  gap: 12rpx;
+}
+.bq-source {
+  font-size: 22rpx;
+  color: var(--text-secondary);
+  background: #F3F4F6;
+  padding: 4rpx 14rpx;
+  border-radius: var(--r-lg);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bq-score-badge {
+  font-size: 22rpx;
+  font-weight: bold;
+  padding: 4rpx 14rpx;
+  border-radius: var(--r-lg);
+  flex-shrink: 0;
+}
+.bq-score-badge.high { background: #f6ffed; color: #52c41a; }
+.bq-score-badge.mid  { background: #fffbe6; color: #faad14; }
+.bq-score-badge.low  { background: #fff2f0; color: #f5222d; }
+.bq-del {
+  font-size: 36rpx;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  padding: 0 8rpx;
+  line-height: 1;
+}
+.bq-q {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: var(--text-primary);
+  line-height: 1.5;
+  display: block;
+  margin-bottom: 16rpx;
+}
+.bq-section {
+  background: #F9FAFB;
+  border-radius: 10rpx;
+  padding: 16rpx;
+  margin-bottom: 12rpx;
+}
+.bq-fb-section {
+  background: #FFFBE6;
+  margin-bottom: 0;
+}
+.bq-label {
+  font-size: 22rpx;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 6rpx;
+}
+.bq-fb-section .bq-label {
+  color: #fa8c16;
+  font-weight: bold;
+}
+.bq-a {
+  font-size: 26rpx;
+  color: var(--text-body);
+  line-height: 1.6;
+}
+.bq-fb {
+  font-size: 26rpx;
+  color: #d48806;
+  line-height: 1.6;
+}
+.bq-empty-icon {
+  font-size: 80rpx;
+  margin-bottom: 20rpx;
+}
+
+/* ── 复习计划 ─────────────────────────────────────── */
+.review-banner {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  background: #FFFBEB;
+  border: 1.5rpx solid #FCD34D;
+  border-radius: var(--r-md);
+  margin: 16rpx 0 8rpx;
+  padding: 20rpx 24rpx;
+}
+
+.review-banner-icon {
+  font-size: 36rpx;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.review-banner-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.review-banner-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #92400E;
+}
+
+.review-banner-desc {
+  font-size: 22rpx;
+  color: #B45309;
+}
+
+.bq-card.bq-due {
+  border: 1.5rpx solid #FCD34D;
+  box-shadow: 0 2rpx 12rpx rgba(245, 158, 11, 0.15);
+}
+
+.bq-review-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1.5rpx solid #F1F5F9;
+}
+
+.bq-due-tag {
+  font-size: 22rpx;
+  font-weight: 700;
+  color: #D97706;
+  background: #FEF3C7;
+  padding: 4rpx 16rpx;
+  border-radius: var(--r-lg);
+  border: 1rpx solid #FCD34D;
+}
+
+.bq-next-date {
+  font-size: 22rpx;
+  color: var(--text-muted);
+}
+
+.bq-review-btn {
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #059669;
+  background: #ECFDF5;
+  border: 1.5rpx solid #A7F3D0;
+  padding: 6rpx 20rpx;
+  border-radius: var(--r-lg);
+}

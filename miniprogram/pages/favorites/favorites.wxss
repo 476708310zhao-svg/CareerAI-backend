@@ -1,0 +1,265 @@
+/* pages/favorites/favorites.wxss — White-based premium redesign */
+page {
+  background: var(--bg-page);
+  font-family: -apple-system, 'PingFang SC', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Tab Bar ─────────────────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  background: var(--bg-panel);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 1.5rpx solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 28rpx 0;
+  font-size: 27rpx;
+  color: var(--text-muted);
+  position: relative;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.tab-item.active {
+  color: var(--brand);
+  font-weight: 700;
+}
+
+.tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 44rpx;
+  height: 5rpx;
+  background: var(--brand);
+  border-radius: 3rpx 3rpx 0 0;
+}
+
+.tab-count {
+  font-size: 20rpx;
+  color: var(--text-muted);
+  margin-left: 4rpx;
+}
+
+.tab-item.active .tab-count {
+  color: #93C5FD;
+}
+
+/* ─── List Container ──────────────────────────────────────────── */
+.fav-list {
+  padding: 20rpx 24rpx 48rpx;
+}
+
+/* ─── Favorite Card ───────────────────────────────────────────── */
+.fav-card {
+  display: flex;
+  align-items: flex-start;
+  background: var(--bg-panel);
+  border-radius: var(--r-lg);
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+  border: 1.5rpx solid rgba(0, 0, 0, 0.06);
+  transition: transform 0.12s;
+}
+
+.fav-card:active {
+  transform: scale(0.984);
+  background: #FAFBFF;
+}
+
+/* Company logo */
+.fav-logo {
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 18rpx;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+  border: 1.5rpx solid rgba(0, 0, 0, 0.06);
+  background: var(--bg-page);
+}
+
+/* Info column */
+.fav-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.fav-info.full {
+  flex: 1;
+  min-width: 0;
+  margin-right: 16rpx;
+}
+
+.fav-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 8rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.fav-subtitle {
+  font-size: 25rpx;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 10rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.fav-date {
+  font-size: 22rpx;
+  color: var(--text-muted);
+}
+
+/* Right column */
+.fav-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 14rpx;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.fav-salary {
+  font-size: 28rpx;
+  font-weight: 800;
+  color: #059669;
+}
+
+/* Remove button */
+.remove-btn {
+  font-size: 22rpx;
+  color: #EF4444;
+  padding: 6rpx 18rpx;
+  border: 1.5rpx solid #FECACA;
+  border-radius: var(--r-lg);
+  background: #FEF2F2;
+  flex-shrink: 0;
+}
+
+/* ─── Toolbar ─────────────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 24rpx;
+  background: var(--bg-panel);
+  border-bottom: 1rpx solid #F1F5F9;
+}
+
+.sort-group {
+  display: flex;
+  background: var(--bg-raised);
+  border-radius: var(--r-md);
+  padding: 4rpx;
+  gap: 4rpx;
+}
+
+.sort-btn {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  padding: 8rpx 22rpx;
+  border-radius: var(--r-sm);
+  font-weight: 500;
+}
+
+.sort-btn.active {
+  background: var(--bg-panel);
+  color: var(--brand);
+  font-weight: 700;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+}
+
+.batch-btn {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  padding: 8rpx 22rpx;
+  border-radius: var(--r-md);
+  border: 1.5rpx solid var(--border-light);
+}
+
+.batch-btn.on {
+  color: #EF4444;
+  border-color: #FECACA;
+  background: #FEF2F2;
+}
+
+/* ─── Batch Bar ───────────────────────────────────────────────── */
+.batch-bar {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 24rpx;
+  background: #EEF2FF;
+  gap: 16rpx;
+}
+
+.batch-hint {
+  flex: 1;
+  font-size: 26rpx;
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.select-all-btn {
+  font-size: 24rpx;
+  color: var(--brand);
+  padding: 8rpx 20rpx;
+  border: 1.5rpx solid var(--brand);
+  border-radius: var(--r-md);
+}
+
+.batch-del-btn {
+  font-size: 24rpx;
+  color: var(--text-muted);
+  padding: 8rpx 24rpx;
+  border-radius: var(--r-md);
+  background: var(--border-light);
+}
+
+.batch-del-btn.active {
+  color: var(--bg-panel);
+  background: #EF4444;
+}
+
+/* ─── Select Circle ───────────────────────────────────────────── */
+.select-circle {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  border: 2rpx solid #D1D5DB;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-panel);
+}
+
+.select-dot {
+  width: 24rpx;
+  height: 24rpx;
+  border-radius: 50%;
+  background: var(--brand);
+}
+
+.fav-card.selected {
+  background: #F0F4FF;
+  border-color: #BFDBFE;
+}
+

@@ -1,0 +1,44 @@
+/* ══ c-section-card 区块卡片组件 ════════════════════════════════════
+ *
+ * 用法：
+ *   <c-section-card title="工作经历">
+ *     <view slot="action"><c-button size="small">添加</c-button></view>
+ *     <!-- 内容 -->
+ *   </c-section-card>
+ *
+ * ★ 所有视觉值来自 app.wxss 设计令牌
+ *   改卡片背景 → --bg-panel
+ *   改卡片圆角 → --r-lg
+ *   改标题颜色 → --text-primary
+ *   改左边框颜色 → --brand
+ * ════════════════════════════════════════════════════════════════════ */
+
+.sc-wrap {
+  background: var(--bg-panel);
+  border-radius: var(--r-lg);
+  padding: 28rpx 28rpx 24rpx;
+  margin-bottom: 20rpx;
+  border: 1.5rpx solid var(--border);
+}
+
+.sc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+
+.sc-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  padding-left: 16rpx;
+  border-left: 5rpx solid var(--brand);
+  line-height: 1.2;
+}
+
+.sc-action {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}

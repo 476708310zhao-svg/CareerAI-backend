@@ -1,4 +1,7 @@
 .env
+.env.*
+!.env.example
+
 node_modules/
 uploads/
 db/*.db
@@ -6,3 +9,9 @@ db/*.db-shm
 db/*.db-wal
 *.log
 *.bak
+
+miniprogram/node_modules/
+miniprogram/project.private.config.json
+miniprogram/*.key
+miniprogram/*.pem
+miniprogram/dist/

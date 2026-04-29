@@ -1,0 +1,818 @@
+/* pages/resume/resume.wxss */
+page {
+  background: var(--bg-raised);
+  font-family: -apple-system, sans-serif;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- 多份简历选择栏 --- */
+.resume-switcher {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-panel);
+  margin: 20rpx 30rpx 0;
+  border-radius: 16rpx;
+  padding: 20rpx 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+}
+.switcher-left {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  flex: 1;
+}
+.switcher-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  max-width: 280rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.switcher-count {
+  font-size: 22rpx;
+  color: var(--text-secondary);
+  background: var(--bg-raised);
+  padding: 4rpx 10rpx;
+  border-radius: 20rpx;
+}
+.switcher-arrow {
+  font-size: 32rpx;
+  color: var(--text-secondary);
+}
+.switcher-vip-badge {
+  font-size: 18rpx;
+  font-weight: 700;
+  color: #92400e;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border: 1rpx solid #f59e0b;
+  padding: 3rpx 10rpx;
+  border-radius: 16rpx;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.rmp-tip-vip {
+  color: #b45309;
+  font-weight: 600;
+}
+.switcher-btn {
+  font-size: 24rpx;
+  color: var(--brand);
+  background: rgba(37,99,235,0.08);
+  padding: 10rpx 22rpx;
+  border-radius: 20rpx;
+  font-weight: 600;
+}
+
+/* --- 简历管理面板遮罩 --- */
+.resume-manager-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 200;
+}
+.resume-manager-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-panel);
+  border-radius: 32rpx 32rpx 0 0;
+  z-index: 201;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+.resume-manager-panel.show {
+  transform: translateY(0);
+}
+.rmp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30rpx 36rpx 20rpx;
+  border-bottom: 1rpx solid var(--border-subtle);
+}
+.rmp-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.rmp-close {
+  font-size: 36rpx;
+  color: var(--text-secondary);
+  padding: 0 10rpx;
+}
+.rmp-list {
+  flex: 1;
+  padding: 16rpx 0;
+}
+.rmp-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 36rpx;
+  border-bottom: 1rpx solid var(--border-subtle);
+}
+.rmp-item.active {
+  background: rgba(37,99,235,0.05);
+}
+.rmp-item-info {
+  flex: 1;
+}
+.rmp-item-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 6rpx;
+}
+.rmp-item-time {
+  font-size: 22rpx;
+  color: var(--text-secondary);
+}
+.rmp-item-del {
+  font-size: 24rpx;
+  color: #ef4444;
+  padding: 8rpx 20rpx;
+}
+.rmp-empty {
+  text-align: center;
+  padding: 60rpx 30rpx;
+  color: var(--text-secondary);
+  font-size: 26rpx;
+}
+.rmp-footer {
+  padding: 20rpx 36rpx 30rpx;
+  border-top: 1rpx solid var(--border-subtle);
+}
+.rmp-tip {
+  font-size: 22rpx;
+  color: var(--text-secondary);
+}
+
+/* --- Tab 切换 --- */
+.tabs {
+  background: var(--bg-panel);
+  display: flex;
+  padding: 0 30rpx;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.02);
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 30rpx 0;
+  font-size: 28rpx;
+  color: var(--text-secondary);
+  position: relative;
+}
+
+.tab-item.active {
+  color: var(--brand);
+  font-weight: bold;
+  font-size: 30rpx;
+}
+
+.tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40rpx;
+  height: 6rpx;
+  background: var(--brand);
+  border-radius: 4rpx;
+}
+
+/* --- 通用内容区 --- */
+.tab-content {
+  padding: 30rpx;
+}
+
+/* --- 完整度卡片 --- */
+.progress-card {
+  background: var(--bg-panel);
+  border-radius: var(--r-lg);
+  padding: 30rpx;
+  margin-bottom: 24rpx;
+}
+
+.prog-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.prog-label { font-size: 30rpx; font-weight: bold; }
+.prog-val   { color: var(--brand); font-weight: bold; }
+.prog-right { display: flex; align-items: center; gap: 16rpx; }
+.export-btn {
+  font-size: 22rpx; font-weight: 600; color: #6D28D9;
+  background: #F5F3FF; border: 1rpx solid #DDD6FE;
+  padding: 6rpx 20rpx; border-radius: 9999rpx;
+}
+.export-btn.export-loading { opacity: 0.6; }
+
+.progress-track {
+  height: 12rpx;
+  background: var(--border-faint);
+  border-radius: 10rpx;
+  overflow: hidden;
+  margin-bottom: 16rpx;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-hover), var(--brand));
+  border-radius: 10rpx;
+  transition: width var(--trans-slow);
+}
+
+.prog-tip { font-size: 24rpx; color: #fa8c16; }
+
+/* --- 通用 Section 卡片 --- */
+.section-card {
+  background: var(--bg-panel);
+  border-radius: var(--r-lg);
+  padding: 30rpx;
+  margin-bottom: 24rpx;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+}
+
+.left-border {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: var(--text-primary);
+  padding-left: 20rpx;
+  border-left: 8rpx solid var(--brand);
+  line-height: 1;
+}
+
+.edit-icon, .add-btn {
+  color: var(--brand);
+  font-size: 28rpx;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.ai-gen-btn {
+  font-size: 24rpx;
+  color: #6D28D9;
+  background: #F5F3FF;
+  border: 1rpx solid #DDD6FE;
+  border-radius: 9999rpx;
+  padding: 6rpx 18rpx;
+  font-weight: 600;
+}
+
+.empty-hint {
+  text-align: center;
+  color: #D1D5DB;
+  font-size: 26rpx;
+  padding: 30rpx 0;
+}
+
+/* 基本信息 Grid */
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30rpx;
+}
+
+.info-item { display: flex; flex-direction: column; }
+.info-item .label { font-size: 24rpx; color: var(--text-muted); margin-bottom: 8rpx; }
+.info-item .value { font-size: 28rpx; color: var(--text-body); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 个人优势 & AI 按钮 */
+.ai-group { display: flex; gap: 12rpx; }
+.ai-btn {
+  font-size: 22rpx;
+  padding: 8rpx 18rpx;
+  border-radius: 30rpx;
+  color: #fff;
+}
+.ai-btn.review { background: linear-gradient(135deg, var(--brand), #6366F1); }
+.ai-btn.polish { background: linear-gradient(135deg, var(--brand), #6366F1); }
+
+.summary-box {
+  background: #F9FAFB;
+  padding: 20rpx;
+  border-radius: var(--r-sm);
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  position: relative;
+}
+
+.tap-edit {
+  display: block;
+  text-align: right;
+  font-size: 22rpx;
+  color: var(--brand);
+  margin-top: 10rpx;
+}
+
+/* 工作经历 */
+.exp-item {
+  display: flex;
+  position: relative;
+  padding-bottom: 40rpx;
+}
+.exp-item:last-child { padding-bottom: 0; }
+
+.exp-dot {
+  width: 16rpx;
+  height: 16rpx;
+  background: var(--brand);
+  border-radius: 50%;
+  margin-top: 10rpx;
+  margin-right: 24rpx;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.exp-item:not(:last-child) .exp-dot::after {
+  content: '';
+  position: absolute;
+  top: 20rpx;
+  left: 7rpx;
+  width: 2rpx;
+  height: 150rpx;
+  background: var(--border-light);
+}
+
+.exp-content { flex: 1; }
+.exp-row { display: flex; justify-content: space-between; margin-bottom: 8rpx; }
+.exp-company { font-size: 30rpx; font-weight: bold; color: var(--text-body); }
+.exp-actions { display: flex; gap: 20rpx; color: var(--text-muted); font-size: 28rpx; }
+
+.exp-sub {
+  display: flex;
+  justify-content: space-between;
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  margin-bottom: 16rpx;
+}
+
+.exp-time { color: var(--text-muted); }
+
+.exp-desc {
+  display: block;
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  background: #F9FAFB;
+  padding: 16rpx;
+  border-radius: var(--r-sm);
+  line-height: 1.5;
+}
+
+/* --- 附件简历 --- */
+.resume-card {
+  background: var(--bg-panel); padding: 30rpx; border-radius: var(--r-lg); margin-bottom: 24rpx;
+  display: flex; justify-content: space-between; align-items: center;
+  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.03);
+}
+.card-left { display: flex; align-items: center; }
+.file-icon { width: 80rpx; height: 80rpx; margin-right: 24rpx; }
+.info { display: flex; flex-direction: column; }
+.name { font-size: 30rpx; font-weight: bold; color: var(--text-body); margin-bottom: 8rpx; }
+.date { font-size: 24rpx; color: var(--text-muted); }
+.tag { font-size: 22rpx; color: var(--brand); background: #eef4fd; padding: 4rpx 12rpx; border-radius: 8rpx; }
+.footer-btn { position: fixed; bottom: 50rpx; left: 0; width: 100%; padding: 0 30rpx; box-sizing: border-box; }
+/* upload-btn 由 c-button 提供样式 */
+
+/* ======================== 编辑弹窗通用 ======================== */
+.edit-modal {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 30rpx;
+  box-sizing: border-box;
+}
+
+.edit-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid var(--border-subtle);
+}
+
+.edit-modal-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.close-btn {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F3F4F6;
+  border-radius: 50%;
+  font-size: 32rpx;
+  color: var(--text-secondary);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.edit-form {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.form-item {
+  margin-bottom: 28rpx;
+}
+
+.form-label {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  margin-bottom: 10rpx;
+  display: block;
+}
+
+.form-input {
+  background: var(--bg-raised);
+  border-radius: var(--r-sm);
+  padding: 20rpx;
+  font-size: 28rpx;
+  color: var(--text-body);
+}
+
+.form-textarea {
+  background: var(--bg-raised);
+  border-radius: var(--r-sm);
+  padding: 20rpx;
+  font-size: 28rpx;
+  color: var(--text-body);
+  width: 100%;
+  min-height: 150rpx;
+  box-sizing: border-box;
+}
+
+.edit-textarea {
+  flex: 1;
+  background: var(--bg-raised);
+  border-radius: var(--r-sm);
+  padding: 20rpx;
+  font-size: 28rpx;
+  color: var(--text-body);
+  min-height: 200rpx;
+  margin-bottom: 24rpx;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.save-btn { margin-top: 16rpx; }
+.del-btn  { margin-bottom: 16rpx; }
+
+.edit-modal-footer {
+  padding-top: 10rpx;
+}
+
+/* ======================== AI 弹窗样式 ======================== */
+.ai-modal {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 30rpx;
+  box-sizing: border-box;
+}
+
+.ai-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+  border-bottom: 1rpx solid var(--border-subtle);
+  padding-bottom: 20rpx;
+}
+
+.ai-title {
+  font-size: 34rpx;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.ai-content-scroll {
+  flex: 1;
+  background: #f9faff;
+  border-radius: var(--r-md);
+  padding: 30rpx;
+  box-sizing: border-box;
+  margin-bottom: 30rpx;
+}
+
+.ai-text {
+  font-size: 28rpx;
+  color: var(--text-body);
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.ai-footer {
+  display: flex;
+  gap: 20rpx;
+}
+
+.ai-modal-cancel  { flex: 1; }
+.ai-modal-confirm { flex: 2; }
+
+/* 岗位匹配 */
+.match-box {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.match-input {
+  flex: 1;
+  background: var(--bg-raised);
+  border-radius: var(--r-sm);
+  padding: 16rpx 20rpx;
+  font-size: 26rpx;
+}
+
+.ai-btn.match {
+  background: linear-gradient(135deg, var(--brand), #6366F1);
+  white-space: nowrap;
+}
+
+/* 工作经历润色小按钮 */
+.ai-btn-sm {
+  font-size: 20rpx;
+  padding: 4rpx 14rpx;
+  border-radius: var(--r-lg);
+  background: linear-gradient(135deg, var(--brand), #6366F1);
+  color: #fff;
+  white-space: nowrap;
+}
+
+/* ======================== 教育经历 ======================== */
+.edu-item {
+  padding: 20rpx 0;
+  border-bottom: 1.5rpx solid var(--border-faint);
+}
+.edu-item:last-child { border-bottom: none; }
+
+.edu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+.edu-school {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.edu-time {
+  font-size: 22rpx;
+  color: var(--text-muted);
+}
+.edu-sub {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+/* ======================== 技能标签 ======================== */
+.skills-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+}
+.skill-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  background: #EEF2FF;
+  color: var(--brand);
+  font-size: 24rpx;
+  padding: 8rpx 18rpx;
+  border-radius: 30rpx;
+  font-weight: 500;
+}
+.skill-del {
+  font-size: 28rpx;
+  color: #93C5FD;
+  line-height: 1;
+  margin-left: 4rpx;
+}
+
+/* 技能编辑弹窗 */
+.skills-edit-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+  min-height: 80rpx;
+  background: #F9FAFB;
+  border-radius: var(--r-md);
+  padding: 20rpx;
+  margin-bottom: 24rpx;
+}
+.skill-input-row {
+  display: flex;
+  gap: 16rpx;
+  align-items: center;
+}
+.skill-input {
+  flex: 1;
+  background: var(--bg-page);
+  border-radius: var(--r-sm);
+  padding: 18rpx 20rpx;
+  font-size: 28rpx;
+  border: 1.5rpx solid var(--border-light);
+}
+.add-skill-btn {
+  background: var(--brand);
+  color: #fff;
+  font-size: 26rpx;
+  padding: 18rpx 28rpx;
+  border-radius: var(--r-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ======================== 项目经历 ======================== */
+.exp-sub-role {
+  display: block;
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  margin-bottom: 12rpx;
+}
+
+/* ======================== 底部操作栏 ======================== */
+.resume-action-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  background: var(--bg-panel);
+  padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
+  box-shadow: var(--shadow-up);
+  z-index: 100;
+}
+
+.resume-act-btn { flex: 1; gap: 10rpx; }
+.resume-act-icon { font-size: 30rpx; line-height: 1; }
+.resume-act-txt  { font-size: 28rpx; font-weight: 700; }
+
+/* ======================== NLP 智能优化 ======================== */
+.nlp-row {
+  margin-top: 20rpx;
+}
+
+.nlp-btn {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  background: linear-gradient(135deg, #f0f4ff, #e8edff);
+  border: 1.5rpx solid #c7d2fe;
+  border-radius: 18rpx;
+  padding: 22rpx 28rpx;
+}
+
+.nlp-btn-loading {
+  opacity: 0.7;
+}
+
+.nlp-btn-icon {
+  font-size: 36rpx;
+  flex-shrink: 0;
+}
+
+.nlp-btn-txt {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--brand);
+}
+
+.nlp-btn-sub {
+  font-size: 20rpx;
+  color: var(--text-muted);
+  display: block;
+  margin-left: auto;
+}
+
+/* NLP 结果面板 */
+.nlp-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 200;
+}
+
+.nlp-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-panel);
+  border-radius: 32rpx 32rpx 0 0;
+  z-index: 201;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+}
+
+.nlp-panel.show {
+  transform: translateY(0);
+}
+
+.nlp-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30rpx 36rpx 20rpx;
+  border-bottom: 1rpx solid var(--border-subtle);
+}
+
+.nlp-panel-left {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.nlp-panel-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.nlp-ats-badge {
+  font-size: 20rpx;
+  font-weight: 700;
+  padding: 5rpx 14rpx;
+  border-radius: 20rpx;
+}
+
+.nlp-ats-good  { background: #dcfce7; color: #16a34a; }
+.nlp-ats-ok    { background: #fef9c3; color: #b45309; }
+.nlp-ats-low   { background: #fee2e2; color: #dc2626; }
+
+.nlp-panel-close {
+  font-size: 36rpx;
+  color: var(--text-secondary);
+  padding: 0 10rpx;
+}
+
+.nlp-panel-body {
+  flex: 1;
+  padding: 24rpx 36rpx;
+  overflow-y: auto;
+}
+
+.nlp-result-text {
+  font-size: 28rpx;
+  color: var(--text-body);
+  line-height: 1.9;
+  white-space: pre-wrap;
+  display: block;
+}
+
+.nlp-panel-footer {
+  padding: 16rpx 36rpx calc(16rpx + env(safe-area-inset-bottom));
+  border-top: 1rpx solid var(--border-subtle);
+}
+
+/* ======================== 导出 Canvas（隐藏）======================== */
+.export-canvas {
+  position: fixed;
+  top: -9999px;
+  left: -9999px;
+  width: 750px;
+  height: 1200px;
+  pointer-events: none;
+}

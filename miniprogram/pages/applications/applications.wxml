@@ -1,0 +1,341 @@
+<!-- pages/applications/applications.wxml -->
+<view class="container">
+
+  <!-- Hero Header -->
+  <view class="hero">
+    <view class="hero-inner">
+      <view class="hero-left">
+        <text class="hero-title">我的网申</text>
+        <text class="hero-sub">追踪每一个求职机会</text>
+      </view>
+      <view class="hero-icon-wrap">
+        <text class="hero-icon">📋</text>
+      </view>
+    </view>
+
+    <!-- Stats Bar -->
+    <view class="hero-stats">
+      <view class="stat-item" bindtap="setFilter" data-tab="all">
+        <text class="stat-num">{{stats.total}}</text>
+        <text class="stat-label">累计投递</text>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-item" bindtap="setFilter" data-tab="pending">
+        <text class="stat-num orange">{{stats.pending}}</text>
+        <text class="stat-label">待初筛</text>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-item" bindtap="setFilter" data-tab="interview">
+        <text class="stat-num blue">{{stats.interviewing}}</text>
+        <text class="stat-label">面试中</text>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-item" bindtap="setFilter" data-tab="offer">
+        <text class="stat-num green">{{stats.offer}}</text>
+        <text class="stat-label">已录用</text>
+      </view>
+    </view>
+
+    <!-- 进度条 + 转化率 -->
+    <view class="hero-bar-wrap" wx:if="{{stats.total > 0}}">
+      <view class="pd-bar-track">
+        <view class="pd-bar-seg pd-bar-pending"   style="flex: {{stats.pending}};"></view>
+        <view class="pd-bar-seg pd-bar-interview" style="flex: {{stats.interviewing}};"></view>
+        <view class="pd-bar-seg pd-bar-offer"     style="flex: {{stats.offer}};"></view>
+        <view class="pd-bar-seg pd-bar-rejected"  style="flex: {{stats.rejected}};"></view>
+      </view>
+      <view class="hero-rates">
+        <text class="hero-rate-txt">面试率 <text class="hero-rate-val blue">{{stats.interviewRate}}%</text></text>
+        <text class="hero-rate-sep">·</text>
+        <text class="hero-rate-txt">录用率 <text class="hero-rate-val green">{{stats.offerRate}}%</text></text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 搜索 + 排序 -->
+  <view class="search-sort-row">
+    <view class="search-wrap">
+      <text class="search-icon-txt">🔍</text>
+      <input class="search-input" placeholder="搜索公司或职位" value="{{searchKeyword}}" bindinput="onSearchInput" />
+      <text wx:if="{{searchKeyword}}" class="search-clear" catchtap="clearSearch">✕</text>
+    </view>
+    <view class="sort-btn" catchtap="toggleSort">
+      <text class="sort-icon">{{sortBy === 'date' ? '📅' : '⏰'}}</text>
+      <text class="sort-txt">{{sortBy === 'date' ? '投递时间' : '截止日期'}}</text>
+    </view>
+  </view>
+
+  <!-- Filter Tabs -->
+  <view class="filter-row">
+    <view class="filter-tab {{filterTab === 'all' ? 'active' : ''}}" bindtap="setFilter" data-tab="all">全部</view>
+    <view class="filter-tab {{filterTab === 'pending' ? 'active' : ''}}" bindtap="setFilter" data-tab="pending">待初筛</view>
+    <view class="filter-tab {{filterTab === 'interview' ? 'active' : ''}}" bindtap="setFilter" data-tab="interview">面试中</view>
+    <view class="filter-tab {{filterTab === 'offer' ? 'active' : ''}}" bindtap="setFilter" data-tab="offer">已录用</view>
+    <view class="filter-tab {{filterTab === 'rejected' ? 'active' : ''}}" bindtap="setFilter" data-tab="rejected">已结束</view>
+  </view>
+
+  <!-- Offer AI 对比横幅 -->
+  <view class="offer-compare-banner" wx:if="{{stats.offer >= 2}}" bindtap="goToOfferCompare">
+    <view class="ocb-left">
+      <text class="ocb-icon">🤖</text>
+      <view class="ocb-info">
+        <text class="ocb-title">你有 {{stats.offer}} 个 Offer！</text>
+        <text class="ocb-sub">AI 帮你对比 TC、签证、发展路径</text>
+      </view>
+    </view>
+    <text class="ocb-arrow">›</text>
+  </view>
+
+  <!-- Application List -->
+  <view class="list-area">
+
+    <!-- Loading -->
+    <loading-spinner wx:if="{{loading}}" text="同步进度中..."></loading-spinner>
+
+    <!-- List -->
+    <block wx:elif="{{filteredApps.length > 0}}">
+      <view
+        wx:for="{{filteredApps}}"
+        wx:key="id"
+        class="app-card"
+        bindtap="viewApplication"
+        data-id="{{item.id}}"
+      >
+        <!-- Left accent bar -->
+        <view class="accent-bar accent-{{item.statusCode}}"></view>
+
+        <!-- Card content -->
+        <view class="card-body">
+          <!-- Avatar -->
+          <view class="company-avatar" style="background: {{item.avatarColor}};">
+            <text class="avatar-text">{{item.avatarInitial}}</text>
+          </view>
+
+          <!-- Info -->
+          <view class="info-col">
+            <text class="job-title">{{item.job_title}}</text>
+            <text class="company-name">{{item.company}}</text>
+            <view class="meta-row">
+              <text wx:if="{{item.city}}" class="meta-chip">📍 {{item.city}}</text>
+              <text wx:if="{{item.salary && item.salary !== '面议'}}" class="meta-chip salary-chip">💰 {{item.salary}}</text>
+            </view>
+            <text wx:if="{{item.notes}}" class="notes-preview">📝 {{item.notes}}</text>
+            <view wx:if="{{item.deadline}}" class="deadline-row {{item.deadlineUrgent ? 'urgent' : ''}}">
+              <text class="deadline-text">⏰ 截止 {{item.deadline}}</text>
+            </view>
+          </view>
+
+          <!-- Status + date -->
+          <view class="right-col">
+            <view wx:if="{{isVip}}" class="vip-priority-badge">VIP优先</view>
+            <view class="status-badge {{item.statusCode}}" catchtap="quickUpdateStatus" data-id="{{item.id}}">{{item.statusText}}</view>
+            <text class="date-text">{{item.applied_at}}</text>
+          </view>
+        </view>
+
+        <!-- Pipeline -->
+        <view class="pipeline">
+          <view class="p-stage {{item.stageLevel >= 1 ? 'reached' : ''}}">
+            <view class="p-dot"></view>
+            <text class="p-label">投递</text>
+          </view>
+          <view class="p-line {{item.stageLevel >= 2 ? 'active' : ''}}"></view>
+          <view class="p-stage {{item.stageLevel >= 2 ? 'reached' : ''}}">
+            <view class="p-dot"></view>
+            <text class="p-label">初筛</text>
+          </view>
+          <view class="p-line {{item.stageLevel >= 3 ? 'active' : ''}}"></view>
+          <view class="p-stage {{item.stageLevel >= 3 ? 'reached' : ''}}">
+            <view class="p-dot"></view>
+            <text class="p-label">面试</text>
+          </view>
+          <view class="p-line {{item.stageLevel >= 4 ? 'active' : ''}}"></view>
+          <view class="p-stage {{item.stageLevel >= 4 ? 'reached' : ''}}">
+            <view class="p-dot"></view>
+            <text class="p-label">Offer</text>
+          </view>
+        </view>
+
+        <!-- Offer 详情行（仅 offer 状态且已录入） -->
+        <view wx:if="{{item.statusCode === 'offer' && item.offer && (item.offer.offerBase || item.offer.offerBonus || item.offer.offerRsu)}}" class="offer-panel" catchtap="openOfferModal" data-id="{{item.id}}">
+          <view class="offer-panel-inner">
+            <view wx:if="{{item.offer.offerBase}}"  class="offer-chip offer-base">💰 Base {{item.offer.offerBase}}</view>
+            <view wx:if="{{item.offer.offerBonus}}" class="offer-chip offer-bonus">🎁 Bonus {{item.offer.offerBonus}}</view>
+            <view wx:if="{{item.offer.offerRsu}}"   class="offer-chip offer-rsu">📈 RSU {{item.offer.offerRsu}}</view>
+          </view>
+          <text class="offer-edit-hint">编辑</text>
+        </view>
+        <view wx:elif="{{item.statusCode === 'offer'}}" class="offer-empty-bar" catchtap="openOfferModal" data-id="{{item.id}}">
+          <text class="offer-empty-icon">🎉</text>
+          <text class="offer-empty-txt">点击录入 Offer 详情（Base / Bonus / RSU）</text>
+        </view>
+
+        <!-- 备注快捷行 -->
+        <view class="note-bar" catchtap="openNoteModal" data-id="{{item.id}}">
+          <text class="note-bar-icon">📝</text>
+          <text class="note-bar-txt">{{item.notes || '添加备注…'}}</text>
+          <text class="note-bar-edit">编辑</text>
+        </view>
+      </view>
+
+      <view class="footer-tip">共 {{filteredApps.length}} 条记录</view>
+    </block>
+
+    <!-- Empty state -->
+    <empty-state wx:else
+      emoji="📭"
+      title="{{filterTab === 'all' ? '暂无申请记录' : '该状态暂无记录'}}"
+      desc="记录每次投递，追踪求职进度"
+      btn-text="{{filterTab === 'all' ? '+ 添加第一条记录' : ''}}"
+      bind:action="showAddModal">
+    </empty-state>
+
+  </view>
+
+  <!-- FAB -->
+  <view class="fab" bindtap="showAddModal">
+    <text class="fab-plus">＋</text>
+  </view>
+
+  <!-- Add Modal -->
+  <view class="modal-mask" wx:if="{{showModal}}" bindtap="hideAddModal">
+    <view class="modal-card" catchtap="noop">
+      <!-- 拖动条 -->
+      <view class="modal-handle"></view>
+      <text class="modal-title">{{editId ? '编辑投递记录' : '添加投递记录'}}</text>
+
+      <!-- 公司 + 职位（两列） -->
+      <view class="form-row">
+        <view class="form-item half">
+          <text class="form-label">公司名称 <text class="form-required">*</text></text>
+          <input class="form-input" placeholder="如：字节跳动" placeholder-style="color:#C4C9D4;font-size:26rpx;" value="{{form.company}}" bindinput="onFormInput" data-field="company" />
+        </view>
+        <view class="form-item half">
+          <text class="form-label">职位名称 <text class="form-required">*</text></text>
+          <input class="form-input" placeholder="如：产品经理" placeholder-style="color:#C4C9D4;font-size:26rpx;" value="{{form.job_title}}" bindinput="onFormInput" data-field="job_title" />
+        </view>
+      </view>
+
+      <!-- 城市 + 薪资（两列） -->
+      <view class="form-row">
+        <view class="form-item half">
+          <text class="form-label">城市</text>
+          <input class="form-input" placeholder="如：北京" placeholder-style="color:#C4C9D4;font-size:26rpx;" value="{{form.city}}" bindinput="onFormInput" data-field="city" />
+        </view>
+        <view class="form-item half">
+          <text class="form-label">薪资范围</text>
+          <input class="form-input" placeholder="如：15k-20k" placeholder-style="color:#C4C9D4;font-size:26rpx;" value="{{form.salary}}" bindinput="onFormInput" data-field="salary" />
+        </view>
+      </view>
+
+      <!-- 截止日期 -->
+      <view class="form-item">
+        <text class="form-label">截止日期（可选）</text>
+        <picker mode="date" value="{{form.deadline}}" start="2024-01-01" end="2030-12-31" bindchange="onDeadlinePick" catchtap="noop">
+          <view class="form-input picker-input">
+            <text class="picker-icon">📅</text>
+            <text class="{{form.deadline ? 'picker-val' : 'picker-placeholder'}}">{{form.deadline || '点击选择截止日期'}}</text>
+            <text wx:if="{{form.deadline}}" class="picker-clear" catchtap="clearDeadline">✕</text>
+          </view>
+        </picker>
+      </view>
+
+      <!-- 当前状态 -->
+      <view class="form-item">
+        <text class="form-label">当前状态</text>
+        <view class="status-grid">
+          <view class="sg-item {{form.status === 'pending' ? 'sg-active sg-pending' : ''}}" bindtap="selectStatus" data-code="pending">
+            <view class="sg-dot dot-pending"></view>
+            <text class="sg-txt">待初筛</text>
+          </view>
+          <view class="sg-item {{form.status === 'interview' ? 'sg-active sg-interview' : ''}}" bindtap="selectStatus" data-code="interview">
+            <view class="sg-dot dot-interview"></view>
+            <text class="sg-txt">面试中</text>
+          </view>
+          <view class="sg-item {{form.status === 'offer' ? 'sg-active sg-offer' : ''}}" bindtap="selectStatus" data-code="offer">
+            <view class="sg-dot dot-offer"></view>
+            <text class="sg-txt">已录用</text>
+          </view>
+          <view class="sg-item {{form.status === 'rejected' ? 'sg-active sg-rejected' : ''}}" bindtap="selectStatus" data-code="rejected">
+            <view class="sg-dot dot-rejected"></view>
+            <text class="sg-txt">已结束</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 备注 -->
+      <view class="form-item">
+        <text class="form-label">备注（可选）</text>
+        <textarea class="form-textarea" placeholder="面试邀约链接、HR联系方式、备忘等..." placeholder-style="color:#C4C9D4;font-size:26rpx;" value="{{form.notes}}" bindinput="onFormInput" data-field="notes" maxlength="200"></textarea>
+      </view>
+
+      <view class="modal-btns">
+        <c-button type="secondary" class="modal-btn-cancel" bindtap="hideAddModal">取消</c-button>
+        <c-button class="modal-btn-save" bindtap="saveApplication">保存记录</c-button>
+      </view>
+    </view>
+  </view>
+
+  <!-- Offer 详情弹窗 -->
+  <view class="modal-mask" wx:if="{{showOfferModal}}" bindtap="closeOfferModal">
+    <view class="modal-card" catchtap="noop">
+      <view class="modal-handle"></view>
+      <text class="modal-title">🎉 Offer 详情</text>
+
+      <view class="form-row">
+        <view class="form-item half">
+          <text class="form-label">Base 薪资</text>
+          <input class="form-input" placeholder="如：180k" value="{{offerForm.offerBase}}" bindinput="onOfferInput" data-field="offerBase" />
+        </view>
+        <view class="form-item half">
+          <text class="form-label">Bonus</text>
+          <input class="form-input" placeholder="如：15% / 27k" value="{{offerForm.offerBonus}}" bindinput="onOfferInput" data-field="offerBonus" />
+        </view>
+      </view>
+
+      <view class="form-row">
+        <view class="form-item half">
+          <text class="form-label">RSU/期权</text>
+          <input class="form-input" placeholder="如：40k/4年" value="{{offerForm.offerRsu}}" bindinput="onOfferInput" data-field="offerRsu" />
+        </view>
+        <view class="form-item half">
+          <text class="form-label">面试官</text>
+          <input class="form-input" placeholder="姓名/花名" value="{{offerForm.interviewers}}" bindinput="onOfferInput" data-field="interviewers" />
+        </view>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">面试/OC 时间</text>
+        <input class="form-input" placeholder="如：2026-04-20 两周内回复" value="{{offerForm.interviewTime}}" bindinput="onOfferInput" data-field="interviewTime" />
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">OC 细节</text>
+        <input class="form-input" placeholder="电话 OC / 谈判情况" value="{{offerForm.ocDetails}}" bindinput="onOfferInput" data-field="ocDetails" />
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">面试反馈 / 备注</text>
+        <textarea class="form-textarea" placeholder="面试感受、HR说的话等..." value="{{offerForm.feedback}}" bindinput="onOfferInput" data-field="feedback" maxlength="300"></textarea>
+      </view>
+
+      <view class="modal-btns">
+        <c-button type="secondary" class="modal-btn-cancel" bindtap="closeOfferModal">取消</c-button>
+        <c-button class="modal-btn-save" bindtap="saveOfferDetail">保存 Offer</c-button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 备注编辑弹窗 -->
+  <view class="modal-mask" wx:if="{{showNoteModal}}" bindtap="closeNoteModal">
+    <view class="modal-card" catchtap="noop">
+      <text class="modal-title">编辑备注</text>
+      <textarea class="form-textarea note-textarea" placeholder="记录面试时间、HR联系方式、面试感受等..." value="{{noteContent}}" bindinput="onNoteInput" maxlength="200" auto-focus></textarea>
+      <view class="modal-btns">
+        <c-button type="secondary" class="modal-btn-cancel" bindtap="closeNoteModal">取消</c-button>
+        <c-button class="modal-btn-save" bindtap="saveNote">保存</c-button>
+      </view>
+    </view>
+  </view>
+
+</view>

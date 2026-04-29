@@ -1,0 +1,10 @@
+{
+  "navigationBarTitleText": "岗位推荐",
+  "enablePullDownRefresh": true,
+  "onReachBottomDistance": 100,
+  "backgroundTextStyle": "dark",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/empty-state",
+    "loading-spinner": "/components/loading-spinner/loading-spinner"
+  }
+}

@@ -1,0 +1,186 @@
+<!-- pages/interview-dialog/interview-dialog.wxml -->
+<view class="container">
+
+<!-- 顶部进度条 -->
+<view class="progress-header" wx:if="{{!isFinished}}">
+  <view class="progress-meta">
+    <text class="progress-type">{{interviewType ? (interviewType === 'behavior' ? '行为面试' : (interviewType === 'technical' ? '技术面试' : (interviewType === 'case' ? '案例面试' : '产品面试'))) : 'AI面试'}}</text>
+    <text class="progress-sep"> · </text>
+    <text class="progress-pos">{{position || '综合面试'}}</text>
+    <text wx:if="{{company && company !== '未指定公司'}}" class="progress-company"> @ {{company}}</text>
+  </view>
+  <view class="progress-info">
+    <text class="progress-label">答题进度</text>
+    <text class="progress-count">{{questionCount}} / {{maxQDisplay}}</text>
+  </view>
+  <view class="progress-track">
+    <view class="progress-fill" style="width: {{questionCount > 0 ? (questionCount / maxQDisplay * 100) : 0}}%;"></view>
+  </view>
+</view>
+
+<!-- 已完成横幅 -->
+<view class="finished-header" wx:if="{{isFinished}}">
+  <view class="finished-icon">✓</view>
+  <text class="finished-title">面试已完成</text>
+  <text class="finished-sub">共回答 {{interviewRecords.length}} 道题</text>
+</view>
+
+<!-- 聊天滚动区域 -->
+<scroll-view
+  scroll-y
+  class="chat-list"
+  scroll-into-view="{{toView}}"
+  scroll-with-animation
+>
+  <view class="padding-top"></view>
+
+  <block wx:for="{{chatList}}" wx:key="index">
+
+    <!-- AI 问题消息 -->
+    <view wx:if="{{item.type === 'ai'}}" id="msg-{{index}}" class="message-group ai-group">
+      <view class="avatar ai-avatar"><text class="ai-avatar-text">AI</text></view>
+      <view class="content-wrapper">
+        <view class="bubble ai-bubble">
+          <text user-select>{{item.content}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- AI 点评消息 -->
+    <view wx:if="{{item.type === 'feedback'}}" id="msg-{{index}}" class="message-group ai-group">
+      <view class="avatar ai-avatar"><text class="ai-avatar-text">AI</text></view>
+      <view class="content-wrapper">
+        <view class="bubble feedback-bubble">
+          <text class="feedback-tag">点评</text>
+          <text user-select>{{item.content}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 用户消息 -->
+    <view wx:if="{{item.type === 'user'}}" id="msg-{{index}}" class="message-group user-group">
+      <view class="content-wrapper">
+        <view class="bubble user-bubble">
+          <text user-select>{{item.content}}</text>
+        </view>
+      </view>
+      <view class="avatar user-avatar"><text class="user-avatar-text">我</text></view>
+    </view>
+
+    <!-- 系统完成消息 -->
+    <view wx:if="{{item.type === 'summary'}}" id="msg-{{index}}" class="system-message">
+      <view class="system-card">
+        <view class="system-icon">🎉</view>
+        <text class="system-text">面试结束，AI评估报告已生成</text>
+        <c-button class="check-report-btn" block="{{false}}" bindtap="openReport">查看完整面试报告 →</c-button>
+      </view>
+    </view>
+
+  </block>
+
+  <!-- Loading -->
+  <view wx:if="{{loading}}" class="loading-wrap">
+    <view class="loading-dots">
+      <view class="dot"></view><view class="dot"></view><view class="dot"></view>
+    </view>
+  </view>
+
+  <view class="padding-bottom"></view>
+</scroll-view>
+
+<!-- 底部输入栏 -->
+<view class="footer-bar">
+  <block wx:if="{{!isFinished}}">
+    <!-- 语音录入按钮 -->
+    <view class="mic-btn {{isRecording ? 'recording' : ''}} {{voiceLoading ? 'voice-loading' : ''}}"
+          bindtap="toggleVoice">
+      <text wx:if="{{voiceLoading}}" class="mic-icon">⏳</text>
+      <text wx:elif="{{isRecording}}" class="mic-icon">⏹</text>
+      <text wx:else class="mic-icon">🎙</text>
+    </view>
+    <textarea
+      class="input-box"
+      value="{{userAnswer}}"
+      bindinput="onAnswerInput"
+      placeholder="{{isRecording ? '🔴 录音中…点击⏹停止' : voiceLoading ? '🔄 识别中…' : '输入或点击🎙语音回答'}}"
+      maxlength="2000"
+      auto-height="true"
+      show-confirm-bar="{{false}}"
+      cursor-spacing="20"
+      disable-default-padding="true"
+    />
+    <view class="send-btn {{!userAnswer || loading ? 'disabled' : ''}}" bindtap="submitAnswer">发送</view>
+  </block>
+  <block wx:else>
+    <view class="finished-bar">
+      <c-button type="secondary" class="action-btn" bindtap="restartInterview">重新面试</c-button>
+      <c-button class="action-btn" bindtap="openReport">查看报告</c-button>
+    </view>
+  </block>
+</view>
+
+<!-- 面试报告弹窗 -->
+<view class="modal-mask" wx:if="{{showReport}}">
+  <view class="modal-content">
+    <view class="modal-header">
+      <text class="modal-title">面试评估报告</text>
+      <view class="close-icon" bindtap="closeReport">✕</view>
+    </view>
+
+    <scroll-view scroll-y class="report-scroll">
+      <view class="report-inner">
+
+        <!-- 综合得分卡 -->
+        <view class="score-card">
+          <text class="score-label">综合得分</text>
+          <view class="score-row">
+            <text class="score-num">{{reportScore || '--'}}</text>
+            <text class="score-unit">/ 100</text>
+          </view>
+          <view class="score-bar-track">
+            <view class="score-bar-fill" style="width: {{reportScore || 0}}%;"></view>
+          </view>
+          <view class="score-stars">
+            <text wx:for="{{scoreStars}}" wx:key="*this" class="star {{item ? 'lit' : ''}}">★</text>
+          </view>
+        </view>
+
+        <!-- 综合评价 -->
+        <view class="report-section">
+          <view class="section-head">🏆 综合评价</view>
+          <view class="section-body">
+            <text user-select>{{finalSummary || '暂无总结数据'}}</text>
+          </view>
+        </view>
+
+        <!-- 问答详情 -->
+        <view class="report-section">
+          <view class="section-head">📝 问答与点评</view>
+          <block wx:for="{{interviewRecords}}" wx:key="idx">
+            <view class="record-card">
+              <view class="record-row">
+                <text class="label q-label">问</text>
+                <text class="text-content strong">{{item.question}}</text>
+              </view>
+              <view class="record-row">
+                <text class="label a-label">答</text>
+                <text class="text-content">{{item.answer}}</text>
+              </view>
+              <view class="record-row feedback-box">
+                <text class="label f-label">评</text>
+                <text class="text-content feedback-text">{{item.feedback || '暂无点评'}}</text>
+              </view>
+            </view>
+          </block>
+        </view>
+
+      </view>
+    </scroll-view>
+
+    <view class="modal-footer">
+      <c-button type="secondary" bindtap="closeReport">关闭</c-button>
+    </view>
+  </view>
+</view>
+
+</view>

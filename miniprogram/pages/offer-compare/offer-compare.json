@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "Offer 决策助手",
+  "usingComponents": {
+    "c-button": "/components/c-button/c-button"
+  }
+}

@@ -1,0 +1,117 @@
+<!-- pages/ai-history/ai-history.wxml -->
+<view class="container">
+
+  <!-- 页面 Tab 切换 -->
+  <view class="page-tabs">
+    <view class="ptab {{activeTab === 'history' ? 'active' : ''}}" bindtap="switchTab" data-tab="history">面试记录</view>
+    <view class="ptab {{activeTab === 'bookmarks' ? 'active' : ''}}" bindtap="switchTab" data-tab="bookmarks">
+      错题本
+      <text class="ptab-badge" wx:if="{{bookmarks.length > 0}}">{{bookmarks.length}}</text>
+    </view>
+  </view>
+
+  <!-- ===== 面试记录 Tab ===== -->
+  <block wx:if="{{activeTab === 'history'}}">
+
+  <!-- 顶部操作栏 -->
+  <view class="top-bar" wx:if="{{records.length > 0}}">
+    <text class="record-count">共 {{records.length}} 条记录</text>
+    <view class="clear-btn" bindtap="clearHistory">清空记录</view>
+  </view>
+
+  <!-- 加载中 -->
+  <loading-spinner wx:if="{{isLoading}}"></loading-spinner>
+
+  <!-- 记录列表 -->
+  <block wx:for="{{records}}" wx:key="id">
+    <view class="record-card" bindtap="viewReport" data-id="{{item.id}}" data-reportkey="{{item.reportKey}}">
+
+      <view class="card-header">
+        <view class="header-left">
+          <text class="job-role">{{item.role}}</text>
+          <text class="company-name" wx:if="{{item.company}}">{{item.company}}</text>
+          <text class="time">{{item.time}}</text>
+        </view>
+        <view class="score-badge {{item.score >= 80 ? 'high' : (item.score >= 60 ? 'mid' : 'low')}}" wx:if="{{item.score > 0}}">
+          <text class="score-num">{{item.score}}</text>
+          <text class="score-unit">分</text>
+        </view>
+        <view class="score-badge none" wx:if="{{item.score === 0}}">
+          <text class="score-num">--</text>
+        </view>
+      </view>
+
+      <!-- 技能标签 -->
+      <view class="tags-row" wx:if="{{item.tags.length > 0}}">
+        <block wx:for="{{item.tags}}" wx:key="*this" wx:for-item="tag">
+          <text class="tag">{{tag}}</text>
+        </block>
+      </view>
+
+      <view class="card-footer">
+        <text class="duration">面试时长: {{item.duration}}</text>
+        <view class="btn">查看报告 ></view>
+      </view>
+
+    </view>
+  </block>
+
+  <!-- 空状态 -->
+  <empty-state wx:if="{{!isLoading && records.length === 0}}"
+    emoji="🎙️" title="暂无面试记录"
+    desc="完成一次AI模拟面试后，记录会出现在这里"
+    btn-text="开始面试" bind:action="goToInterview">
+  </empty-state>
+
+  </block>
+
+  <!-- ===== 错题本 Tab ===== -->
+  <block wx:if="{{activeTab === 'bookmarks'}}">
+
+    <view class="top-bar" wx:if="{{bookmarks.length > 0}}">
+      <text class="record-count">共 {{bookmarks.length}} 道题</text>
+      <view class="clear-btn" bindtap="clearBookmarks">清空错题本</view>
+    </view>
+
+    <!-- 今日待复习提示 -->
+    <view class="review-banner" wx:if="{{dueCount > 0}}">
+      <text class="review-banner-icon">🔔</text>
+      <view class="review-banner-body">
+        <text class="review-banner-title">今日待复习 {{dueCount}} 题</text>
+        <text class="review-banner-desc">及时复习能强化记忆，提高面试通过率</text>
+      </view>
+    </view>
+
+    <block wx:for="{{bookmarks}}" wx:key="qid">
+      <view class="bq-card {{item.isDue ? 'bq-due' : ''}}">
+        <view class="bq-header">
+          <text class="bq-source">{{item.source || '模拟面试'}}</text>
+          <view class="bq-score-badge {{item.score >= 80 ? 'high' : (item.score >= 60 ? 'mid' : 'low')}}">{{item.score}}分</view>
+          <view class="bq-del" catchtap="removeBookmark" data-qid="{{item.qid}}">×</view>
+        </view>
+        <text class="bq-q">{{item.question}}</text>
+        <view class="bq-section">
+          <text class="bq-label">我的回答</text>
+          <text class="bq-a">{{item.answer}}</text>
+        </view>
+        <view class="bq-section bq-fb-section">
+          <text class="bq-label">AI建议</text>
+          <text class="bq-fb">{{item.feedback}}</text>
+        </view>
+        <!-- 复习计划行 -->
+        <view class="bq-review-row">
+          <view class="bq-due-tag" wx:if="{{item.isDue}}">待复习</view>
+          <text class="bq-next-date" wx:else>{{item.nextReviewDate}} 复习</text>
+          <view class="bq-review-btn" catchtap="markReviewed" data-qid="{{item.qid}}">已复习 ✓</view>
+        </view>
+      </view>
+    </block>
+
+    <empty-state wx:if="{{bookmarks.length === 0}}"
+      emoji="📚" title="错题本为空"
+      desc="在AI面试报告的问答复盘中点击 ☆ 收藏题目">
+    </empty-state>
+
+  </block>
+
+</view>

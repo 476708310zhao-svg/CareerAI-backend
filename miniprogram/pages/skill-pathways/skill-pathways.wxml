@@ -1,0 +1,212 @@
+<!-- pages/skill-pathways/skill-pathways.wxml -->
+<view class="page">
+
+  <!-- Hero -->
+  <view class="hero">
+    <view class="hero-left">
+      <text class="hero-title">技能成长路径</text>
+      <text class="hero-sub">选择目标方向，AI 定制专属学习路线图</text>
+    </view>
+    <view class="hero-icon-wrap"><text class="hero-icon">🗺️</text></view>
+  </view>
+
+  <!-- History -->
+  <view class="history-bar" wx:if="{{history.length > 0}}" bindtap="toggleHistory">
+    <text class="hbar-txt">📚 历史规划（{{history.length}}条）</text>
+    <text class="hbar-arrow">{{showHistory ? '▲' : '▼'}}</text>
+  </view>
+  <view class="history-list" wx:if="{{showHistory}}">
+    <view wx:for="{{history}}" wx:key="id" class="hist-item" bindtap="loadHistory" data-idx="{{index}}">
+      <text class="hist-role">{{item.role}}</text>
+      <text class="hist-meta">{{item.level}} · {{item.timeline}} · {{item.date}}</text>
+    </view>
+  </view>
+
+  <!-- ── INPUT ── -->
+  <view class="input-wrap" wx:if="{{step === 'input'}}">
+
+    <!-- Role selector -->
+    <view class="section-card">
+      <text class="section-title">🎯 选择目标方向 <text class="req">*</text></text>
+      <view class="role-grid">
+        <view wx:for="{{roles}}" wx:key="id"
+              class="role-card {{selectedRole === item.id ? 'selected' : ''}}"
+              style="{{selectedRole === item.id ? 'border-color:' + item.color + ';background:' + item.bg : ''}}"
+              bindtap="selectRole" data-id="{{item.id}}">
+          <text class="role-icon">{{item.icon}}</text>
+          <text class="role-label" style="{{selectedRole === item.id ? 'color:' + item.color : ''}}">{{item.label}}</text>
+          <text class="role-desc">{{item.desc}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Current level -->
+    <view class="section-card">
+      <text class="section-title">📍 当前状态</text>
+      <view class="level-list">
+        <view wx:for="{{levels}}" wx:key="id"
+              class="level-item {{selectedLevel === item.id ? 'selected' : ''}}"
+              bindtap="selectLevel" data-id="{{item.id}}">
+          <view class="level-radio {{selectedLevel === item.id ? 'active' : ''}}"></view>
+          <view class="level-text">
+            <text class="level-name">{{item.label}}</text>
+            <text class="level-desc">{{item.desc}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Timeline -->
+    <view class="section-card">
+      <text class="section-title">⏱ 规划周期</text>
+      <view class="timeline-row">
+        <view wx:for="{{timelines}}" wx:key="id"
+              class="timeline-btn {{selectedTimeline === item.id ? 'active' : ''}}"
+              bindtap="selectTimeline" data-id="{{item.id}}">
+          <text class="tl-label">{{item.label}}</text>
+          <text class="tl-desc">{{item.desc}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Background (optional) -->
+    <view class="section-card">
+      <text class="section-title">👤 背景信息（选填）</text>
+      <textarea class="fi fi-ta" placeholder="如：电子工程本科在读，会Python基础，有1段运营实习…" value="{{background}}" bindinput="onBgInput" auto-height maxlength="400" />
+    </view>
+
+    <view class="gen-btn-wrap">
+      <c-button class="gen-btn" bindtap="onGenerate">🗺️ 生成专属路线图</c-button>
+    </view>
+
+  </view>
+
+  <!-- ── LOADING ── -->
+  <view class="loading-card" wx:elif="{{step === 'loading'}}">
+    <view class="loading-map">
+      <view class="map-dot d1"></view>
+      <view class="map-line"></view>
+      <view class="map-dot d2"></view>
+      <view class="map-line"></view>
+      <view class="map-dot d3 active"></view>
+    </view>
+    <text class="loading-title">{{loadingTip}}</text>
+    <view class="loading-steps">
+      <view class="lstep {{loadingStep >= 0 ? 'done' : 'active'}}">岗位分析</view>
+      <view class="lstep-arr">›</view>
+      <view class="lstep {{loadingStep >= 1 ? 'done' : loadingStep === 1 ? 'active' : ''}}">技能匹配</view>
+      <view class="lstep-arr">›</view>
+      <view class="lstep {{loadingStep >= 2 ? 'done' : loadingStep === 2 ? 'active' : ''}}">月度规划</view>
+      <view class="lstep-arr">›</view>
+      <view class="lstep {{loadingStep >= 3 ? 'done' : loadingStep === 3 ? 'active' : ''}}">项目建议</view>
+    </view>
+  </view>
+
+  <!-- ── RESULT ── -->
+  <view class="result-wrap" wx:elif="{{step === 'result' && result}}">
+
+    <!-- Header card -->
+    <view class="result-header" style="background:linear-gradient(135deg,{{result._role.color}},{{result._role.color}}CC)">
+      <view class="rh-left">
+        <text class="rh-icon">{{result._role.icon}}</text>
+        <view class="rh-text">
+          <text class="rh-title">{{result._role.label}}</text>
+          <text class="rh-meta">{{result._level.label}} · {{result._time.label}}规划</text>
+        </view>
+      </view>
+      <view class="rh-copy" bindtap="copyPlan">复制全文</view>
+    </view>
+
+    <!-- Summary -->
+    <view class="summary-card">
+      <text class="summary-txt" user-select>{{result.summary}}</text>
+    </view>
+
+    <!-- Core Skills -->
+    <view class="section-card" wx:if="{{result.coreSkills && result.coreSkills.length}}">
+      <text class="sec-title">🛠 核心技能清单</text>
+      <view wx:for="{{result.coreSkills}}" wx:key="name" class="skill-item">
+        <view class="skill-left">
+          <view class="priority-badge p-{{item.priority}}">
+            {{item.priority === 'must' ? '必须' : item.priority === 'good' ? '重要' : '加分'}}
+          </view>
+          <view class="skill-info">
+            <text class="skill-name">{{item.name}}</text>
+            <text class="skill-desc">{{item.desc}}</text>
+            <view class="skill-resources" wx:if="{{item.resources && item.resources.length}}">
+              <text wx:for="{{item.resources}}" wx:key="*this" wx:for-item="res" class="skill-res">📌 {{res}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Month Plan timeline -->
+    <view class="section-card" wx:if="{{result.monthPlan && result.monthPlan.length}}">
+      <text class="sec-title">📅 月度行动计划</text>
+      <view wx:for="{{result.monthPlan}}" wx:key="month" class="phase-item">
+        <view class="phase-dot {{index === 0 ? 'first' : ''}}"></view>
+        <view class="phase-line" wx:if="{{index < result.monthPlan.length - 1}}"></view>
+        <view class="phase-content">
+          <view class="phase-header">
+            <text class="phase-month">{{item.month}}</text>
+            <text class="phase-title">{{item.title}}</text>
+          </view>
+          <view class="phase-tasks">
+            <view wx:for="{{item.tasks}}" wx:key="*this" wx:for-item="task" class="phase-task">
+              <text class="task-check">○</text>
+              <text class="task-txt" user-select>{{task}}</text>
+            </view>
+          </view>
+          <view class="phase-milestone">
+            <text class="milestone-icon">🏁</text>
+            <text class="milestone-txt" user-select>{{item.milestone}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Recommended Projects -->
+    <view class="section-card" wx:if="{{result.projects && result.projects.length}}">
+      <text class="sec-title">🚀 推荐实战项目</text>
+      <view wx:for="{{result.projects}}" wx:key="title" class="project-item">
+        <view class="project-num">{{index + 1}}</view>
+        <view class="project-body">
+          <text class="project-name">{{item.title}}</text>
+          <text class="project-desc" user-select>{{item.desc}}</text>
+          <view class="project-outcome">
+            <text class="outcome-label">简历产出</text>
+            <text class="outcome-txt" user-select>{{item.outcome}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Certs -->
+    <view class="section-card" wx:if="{{result.certs && result.certs.length}}">
+      <text class="sec-title">🏆 推荐认证 / 证书</text>
+      <view wx:for="{{result.certs}}" wx:key="name" class="cert-item">
+        <text class="cert-name">{{item.name}}</text>
+        <text class="cert-why" user-select>{{item.why}}</text>
+      </view>
+    </view>
+
+    <!-- Tips -->
+    <view class="section-card" wx:if="{{result.tips && result.tips.length}}">
+      <text class="sec-title">💡 留学生求职技巧</text>
+      <view wx:for="{{result.tips}}" wx:key="*this" class="tip-item">
+        <view class="tip-dot"></view>
+        <text class="tip-txt" user-select>{{item}}</text>
+      </view>
+    </view>
+
+    <!-- Actions -->
+    <view class="result-actions">
+      <c-button type="secondary" bindtap="restart">重新规划</c-button>
+    </view>
+
+  </view>
+
+  <view style="height:80rpx;"></view>
+
+</view>

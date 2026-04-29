@@ -1,0 +1,82 @@
+<!-- pages/news/news.wxml -->
+<view class="page">
+
+  <!-- 搜索栏 -->
+  <view class="search-bar">
+    <view class="search-inner">
+      <text class="si-icon">🔍</text>
+      <input
+        class="si-input"
+        placeholder="搜索资讯标题或关键词"
+        placeholder-style="color:#9CA3AF;"
+        value="{{searchKeyword}}"
+        bindinput="onSearchInput"
+        bindconfirm="onSearchConfirm"
+        confirm-type="search"
+      />
+      <view class="si-clear" wx:if="{{searchKeyword}}" catchtap="clearSearch">✕</view>
+    </view>
+  </view>
+
+  <!-- 分类 Tab -->
+  <scroll-view scroll-x class="tab-wrap" scroll-with-animation>
+    <view class="tab-row">
+      <block wx:for="{{tabs}}" wx:key="id">
+        <view class="tab {{currentTab === item.id ? 'active' : ''}}" bindtap="switchTab" data-id="{{item.id}}">
+          {{item.name}}
+        </view>
+      </block>
+    </view>
+  </scroll-view>
+
+  <!-- 搜索结果提示 -->
+  <view class="search-hint" wx:if="{{isSearching}}">
+    找到 {{displayList.length}} 条「{{searchKeyword}}」相关资讯
+  </view>
+
+  <!-- 资讯列表 -->
+  <scroll-view scroll-y class="list-wrap" enable-back-to-top>
+
+    <!-- 置顶 featured 卡（第一条） -->
+    <view wx:if="{{displayList.length > 0}}" class="featured-card cat-{{displayList[0].type}}" bindtap="viewDetail" data-id="{{displayList[0].id}}">
+      <view class="fc-badges">
+        <text class="fc-badge cat-badge-{{displayList[0].type}}">{{typeLabel[displayList[0].type]}}</text>
+        <text class="fc-personal" wx:if="{{displayList[0].isPersonal}}">为你推荐</text>
+      </view>
+      <text class="fc-title">{{displayList[0].title}}</text>
+      <text class="fc-desc">{{displayList[0].desc}}</text>
+      <view class="fc-footer">
+        <text class="fc-time">{{displayList[0].time}}</text>
+        <view class="fc-btn">阅读全文 →</view>
+      </view>
+    </view>
+
+    <!-- 普通卡片列表（从第二条开始） -->
+    <block wx:for="{{displayList}}" wx:key="id" wx:if="{{index > 0}}">
+      <view class="news-card" bindtap="viewDetail" data-id="{{item.id}}">
+        <view class="nc-accent cat-accent-{{item.type}}"></view>
+        <view class="nc-body">
+          <view class="nc-top">
+            <text class="nc-badge cat-badge-{{item.type}}">{{typeLabel[item.type]}}</text>
+            <text class="nc-personal" wx:if="{{item.isPersonal}}">为你推荐</text>
+            <text class="nc-time">{{item.time}}</text>
+          </view>
+          <text class="nc-title">{{item.title}}</text>
+          <text class="nc-desc">{{item.desc}}</text>
+          <view class="nc-footer">
+            <text class="nc-read">阅读全文 →</text>
+          </view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 空状态 -->
+    <view wx:if="{{displayList.length === 0}}" class="empty-wrap">
+      <text class="empty-emoji">📭</text>
+      <text class="empty-txt">{{isSearching ? '未找到相关资讯' : '暂无该分类资讯'}}</text>
+    </view>
+
+    <view class="list-end" wx:if="{{displayList.length > 0}}">— 已展示全部资讯 —</view>
+  </scroll-view>
+
+</view>

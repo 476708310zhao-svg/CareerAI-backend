@@ -1,0 +1,285 @@
+/* pages/interview-setup/interview-setup.wxss — White-based premium redesign */
+page {
+  background: var(--bg-page);
+  font-family: -apple-system, 'PingFang SC', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  padding: 0 24rpx;
+  padding-bottom: 40rpx;
+}
+
+/* ─── 个性化预填提示 ──────────────────────────────────────────── */
+.profile-hint {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  background: #EEF4FD;
+  border-radius: var(--r-md);
+  padding: 16rpx 24rpx;
+  margin-bottom: 8rpx;
+}
+.hint-icon { font-size: 28rpx; }
+.hint-text { font-size: 24rpx; color: var(--brand); font-weight: 500; flex: 1; }
+
+/* ─── Page Header — clean white, NO gradient ──────────────────── */
+.page-header {
+  background: var(--bg-panel);
+  margin: 0 -24rpx;
+  padding: 48rpx 32rpx 36rpx;
+  border-bottom: 1.5rpx solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+  margin-bottom: 8rpx;
+}
+
+.page-title {
+  font-size: 40rpx;
+  font-weight: 800;
+  color: var(--text-primary);
+  display: block;
+  letter-spacing: -0.5rpx;
+  margin-bottom: 8rpx;
+}
+
+.page-subtitle {
+  font-size: 26rpx;
+  color: var(--text-muted);
+  display: block;
+}
+
+/* ─── Section Card ─────────────────────────────────────────────── */
+.section {
+  background: var(--bg-panel);
+  border-radius: var(--r-lg);
+  padding: 28rpx 26rpx 32rpx;
+  margin-top: 20rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+  border: 1.5rpx solid rgba(0, 0, 0, 0.06);
+}
+
+.section-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 22rpx;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.section-title::before {
+  content: '';
+  display: block;
+  width: 5rpx;
+  height: 28rpx;
+  background: var(--brand);
+  border-radius: 3rpx;
+  flex-shrink: 0;
+}
+
+.optional {
+  font-size: 22rpx;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* ─── Interview Type Grid ──────────────────────────────────────── */
+.type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16rpx;
+}
+
+.type-card {
+  position: relative;
+  border: 1.5rpx solid rgba(0, 0, 0, 0.07);
+  border-radius: 18rpx;
+  padding: 28rpx 18rpx 24rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: var(--bg-page);
+  transition: all 0.15s;
+}
+
+.type-card:active {
+  transform: scale(0.96);
+}
+
+.type-card.active {
+  border-color: var(--brand);
+  background: #EEF2FF;
+  box-shadow: 0 4rpx 16rpx rgba(43, 92, 230, 0.12);
+}
+
+.type-icon {
+  font-size: 52rpx;
+  margin-bottom: 14rpx;
+  line-height: 1;
+}
+
+.type-name {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6rpx;
+}
+
+.type-card.active .type-name {
+  color: var(--brand);
+}
+
+.type-desc {
+  font-size: 22rpx;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.check-mark {
+  position: absolute;
+  top: 12rpx;
+  right: 14rpx;
+  width: 32rpx;
+  height: 32rpx;
+  background: var(--brand);
+  color: var(--bg-panel);
+  font-size: 20rpx;
+  font-weight: 700;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ─── Input Box ────────────────────────────────────────────────── */
+.input-box {
+  background: var(--bg-page);
+  border-radius: 14rpx;
+  padding: 22rpx 24rpx;
+  font-size: 28rpx;
+  color: var(--text-primary);
+  margin-bottom: 20rpx;
+  border: 1.5rpx solid rgba(0, 0, 0, 0.07);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ─── Quick Tags ───────────────────────────────────────────────── */
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+}
+
+.quick-tag {
+  font-size: 24rpx;
+  padding: 10rpx 24rpx;
+  border-radius: 32rpx;
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  border: 1.5rpx solid rgba(0, 0, 0, 0.07);
+  transition: all 0.15s;
+}
+
+.quick-tag:active {
+  transform: scale(0.95);
+}
+
+.quick-tag.active {
+  background: #EEF2FF;
+  color: var(--brand);
+  border-color: var(--brand);
+  font-weight: 600;
+}
+
+/* ─── Difficulty List ──────────────────────────────────────────── */
+.difficulty-list {
+  display: flex;
+  gap: 16rpx;
+}
+
+.diff-item {
+  flex: 1;
+  border: 1.5rpx solid rgba(0, 0, 0, 0.07);
+  border-radius: var(--r-md);
+  padding: 22rpx 12rpx;
+  text-align: center;
+  background: var(--bg-page);
+  transition: all 0.15s;
+}
+
+.diff-item:active {
+  transform: scale(0.95);
+}
+
+.diff-item.active {
+  border-color: var(--brand);
+  background: #EEF2FF;
+  box-shadow: 0 4rpx 14rpx rgba(43, 92, 230, 0.10);
+}
+
+.diff-name {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 5rpx;
+}
+
+.diff-item.active .diff-name {
+  color: var(--brand);
+}
+
+.diff-desc {
+  font-size: 22rpx;
+  color: var(--text-muted);
+  display: block;
+}
+
+/* ─── Question Count List ──────────────────────────────────────── */
+.count-list {
+  display: flex;
+  gap: 16rpx;
+}
+
+.count-item {
+  flex: 1;
+  text-align: center;
+  padding: 24rpx 8rpx;
+  border: 1.5rpx solid rgba(0, 0, 0, 0.07);
+  border-radius: var(--r-md);
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--bg-page);
+  transition: all 0.15s;
+}
+
+.count-item:active {
+  transform: scale(0.95);
+}
+
+.count-item.active {
+  border-color: var(--brand);
+  background: #EEF2FF;
+  color: var(--brand);
+  box-shadow: 0 4rpx 14rpx rgba(43, 92, 230, 0.10);
+}
+
+/* ─── Footer Button Bar ────────────────────────────────────────── */
+.footer-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  padding: 20rpx 32rpx;
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  background: var(--bg-panel);
+  box-shadow: 0 -2rpx 16rpx rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+  border-top: 1.5rpx solid rgba(0, 0, 0, 0.05);
+}
+
+/* start-btn 由 c-button 提供样式 */

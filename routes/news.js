@@ -49,10 +49,11 @@ router.get('/', async (req, res) => {
       timeout: 8000,
     });
 
-    const articles = (data.articles || [])
-      .filter(a => a.title && a.title !== '[Removed]')
-      .map((a, i) => ({
-        id:         'api_' + i + '_' + Date.now(),
+    const ts = Date.now();
+    const articles = (data.articles || []).reduce((acc, a, i) => {
+      if (!a.title || a.title === '[Removed]') return acc;
+      acc.push({
+        id:         'api_' + i + '_' + ts,
         title:      a.title,
         desc:       a.description || a.title,
         content:    buildContent(a),
@@ -61,7 +62,9 @@ router.get('/', async (req, res) => {
         time:       relativeTime(a.publishedAt),
         type:       guessType(a.title + ' ' + (a.description || ''), tab),
         isPersonal: false,
-      }));
+      });
+      return acc;
+    }, []);
 
     _cache[cacheKey] = { data: articles, time: now };
     res.json({ source: 'api', articles });

@@ -1,0 +1,92 @@
+/* ══ c-button 统一按钮组件 ══════════════════════════════════════════
+ *
+ * ★ 所有视觉值均来自 app.wxss 设计令牌
+ *   改颜色 → 修改 app.wxss 中 --brand
+ *   改圆角 → 修改 app.wxss 中 --r-pill
+ *   改高度 → 修改 app.wxss 中 --btn-height
+ *
+ * ════════════════════════════════════════════════════════════════════ */
+
+.c-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: var(--r-pill);
+  font-size: var(--btn-font-size);
+  font-weight: 600;
+  height: var(--btn-height);
+  box-sizing: border-box;
+  overflow: hidden;
+  letter-spacing: 1rpx;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.c-btn::after { border: none; }
+
+/* ── 宽度 ────────────────────────────────────────────── */
+.c-btn--block { width: 100%; }
+.c-btn--auto  { width: auto; padding: 0 40rpx; }
+
+/* ── 类型 ────────────────────────────────────────────── */
+
+.c-btn--primary {
+  background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+  color: #fff;
+  box-shadow: 0 6rpx 20rpx var(--brand-shadow);
+}
+.c-btn--primary:not(.c-btn--disabled):active {
+  opacity: 0.85;
+  transform: scale(0.985);
+}
+
+.c-btn--secondary {
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  border: 1.5rpx solid var(--border);
+}
+.c-btn--secondary:not(.c-btn--disabled):active { opacity: 0.7; }
+
+.c-btn--danger {
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--danger);
+  border: 1.5rpx solid rgba(239, 68, 68, 0.25);
+}
+.c-btn--danger:not(.c-btn--disabled):active { opacity: 0.7; }
+
+.c-btn--ghost {
+  background: var(--bg-panel);
+  color: var(--brand);
+  border: 1.5rpx solid var(--brand);
+}
+.c-btn--ghost:not(.c-btn--disabled):active { opacity: 0.7; }
+
+/* ── 尺寸 ────────────────────────────────────────────── */
+
+.c-btn--sz-small {
+  height: var(--btn-height-sm);
+  font-size: var(--btn-font-size-sm);
+  border-radius: calc(var(--btn-height-sm) / 2);
+}
+.c-btn--sz-small.c-btn--auto { padding: 0 28rpx; }
+
+/* ── 禁用 ────────────────────────────────────────────── */
+.c-btn--disabled {
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+/* ── Loading 转圈 ──────────────────────────────────────── */
+.c-btn__spin {
+  width: 30rpx;
+  height: 30rpx;
+  border: 3rpx solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  margin-right: 12rpx;
+  animation: cspinner 0.7s linear infinite;
+}
+@keyframes cspinner {
+  to { transform: rotate(360deg); }
+}

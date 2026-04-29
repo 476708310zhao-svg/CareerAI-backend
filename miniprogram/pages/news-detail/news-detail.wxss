@@ -1,0 +1,119 @@
+/* pages/news-detail/news-detail.wxss */
+page { background: var(--bg-raised); }
+
+/* ── Hero Header ── */
+.hero {
+  padding: 48rpx 32rpx 36rpx;
+  position: relative;
+  overflow: hidden;
+}
+.cat-hero-news   { background: linear-gradient(135deg, #FA8C16 0%, #ffd591 100%); }
+.cat-hero-tip    { background: linear-gradient(135deg, var(--brand) 0%, #6366F1 100%); }
+.cat-hero-data   { background: linear-gradient(135deg, #059669 0%, #34d399 100%); }
+.cat-hero-policy { background: linear-gradient(135deg, #6C5CE7 0%, #a78bfa 100%); }
+
+.hero-badges {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 20rpx;
+}
+.hero-badge {
+  font-size: 22rpx;
+  padding: 6rpx 18rpx;
+  border-radius: 10rpx;
+  font-weight: 700;
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+}
+.hero-personal {
+  font-size: 22rpx;
+  background: rgba(255,255,255,0.9);
+  color: #6C5CE7;
+  padding: 6rpx 16rpx;
+  border-radius: 10rpx;
+  font-weight: 700;
+}
+
+.hero-title {
+  display: block;
+  font-size: 40rpx;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.4;
+  margin-bottom: 28rpx;
+  text-shadow: 0 2rpx 8rpx rgba(0,0,0,0.12);
+}
+
+.hero-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.hero-time {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.8);
+}
+/* hero-share-btn 由 c-button ghost 提供，覆盖颜色适配白色背景区 */
+.hero-share-btn {
+  --c-btn-color: rgba(255,255,255,0.9);
+  border-color: rgba(255,255,255,0.4) !important;
+  background: rgba(255,255,255,0.2) !important;
+  color: rgba(255,255,255,0.9) !important;
+  height: 56rpx;
+  font-size: 24rpx;
+}
+
+/* ── 分割线 ── */
+.divider {
+  height: 16rpx;
+  background: var(--bg-raised);
+}
+
+/* ── 正文区域 ── */
+.article-wrap {
+  background: var(--bg-panel);
+  margin: 0;
+  padding: 36rpx 32rpx 120rpx;
+}
+
+.article-body {
+  font-size: 30rpx;
+  color: #1F2937;
+  line-height: 1.8;
+}
+
+.article-text {
+  white-space: pre-wrap;
+  word-break: break-all;
+  display: block;
+}
+
+/* ── 底部操作栏 ── */
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 32rpx;
+  background: var(--bg-panel);
+  box-shadow: 0 -2rpx 12rpx rgba(0,0,0,0.06);
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+}
+
+.back-btn {
+  font-size: 28rpx;
+  color: var(--text-secondary);
+  padding: 14rpx 0;
+}
+
+.share-btn { height: 72rpx; font-size: 28rpx; }
+
+/* ── category badge colors ── */
+.cat-badge-news   { background: rgba(255,255,255,0.25); color: #fff; }
+.cat-badge-tip    { background: rgba(255,255,255,0.25); color: #fff; }
+.cat-badge-data   { background: rgba(255,255,255,0.25); color: #fff; }
+.cat-badge-policy { background: rgba(255,255,255,0.25); color: #fff; }

@@ -1,0 +1,130 @@
+<!-- pages/daily-brief/daily-brief.wxml -->
+<view class="page">
+
+  <!-- 顶部日期 Header -->
+  <view class="date-header">
+    <view class="date-left">
+      <text class="greeting">{{greeting}}！</text>
+      <text class="today-date">{{todayStr}}</text>
+    </view>
+    <view class="header-icon-box">
+      <text class="header-icon">☀️</text>
+    </view>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="loading-card" wx:if="{{phase === 'loading'}}">
+    <view class="loading-rings">
+      <view class="ring r1"></view>
+      <view class="ring r2"></view>
+      <view class="ring-icon">📋</view>
+    </view>
+    <text class="loading-tip">{{loadingTip}}</text>
+  </view>
+
+  <!-- 空态：手动触发 -->
+  <view class="idle-card" wx:if="{{phase === 'idle'}}">
+    <text class="idle-emoji">📋</text>
+    <text class="idle-title">今日求职日报</text>
+    <text class="idle-desc">AI 分析你的求职进展，生成今日总结和明日行动计划</text>
+    <view class="gen-btn" bindtap="retryGenerate">生成今日日报</view>
+  </view>
+
+  <!-- 结果 -->
+  <view wx:if="{{phase === 'done' && result}}">
+
+    <!-- 今日总结 -->
+    <view class="summary-banner">
+      <view class="summary-banner-head">
+        <text class="summary-banner-title">今日求职总结</text>
+        <view class="refresh-btn" bindtap="refresh">刷新</view>
+      </view>
+      <text class="summary-txt">{{result.todaySummary}}</text>
+    </view>
+
+    <!-- 数据亮点 -->
+    <view class="section" wx:if="{{result.highlights && result.highlights.length > 0}}">
+      <view class="section-title">📊 今日数据</view>
+      <view class="highlights-row">
+        <block wx:for="{{result.highlights}}" wx:key="label">
+          <view class="highlight-card">
+            <text class="hl-icon">{{item.icon}}</text>
+            <text class="hl-value">{{item.value}}</text>
+            <text class="hl-label">{{item.label}}</text>
+          </view>
+        </block>
+      </view>
+    </view>
+
+    <!-- 今日聚焦 -->
+    <view class="section">
+      <view class="section-title">🎯 今日聚焦</view>
+      <view class="focus-card">
+        <view class="focus-icon-wrap">
+          <text class="focus-icon">⚡</text>
+        </view>
+        <text class="focus-txt">{{result.focusArea}}</text>
+      </view>
+    </view>
+
+    <!-- 明日计划 -->
+    <view class="section">
+      <view class="section-title">📅 明日行动计划</view>
+      <block wx:for="{{result.tomorrowPlan}}" wx:key="task">
+        <view class="plan-item">
+          <view class="plan-time-wrap">
+            <text class="plan-time">{{item.time}}</text>
+          </view>
+          <view class="plan-body">
+            <text class="plan-task">{{item.task}}</text>
+            <view class="plan-priority {{item.priority}}">
+              <text wx:if="{{item.priority === 'high'}}">高优先</text>
+              <text wx:elif="{{item.priority === 'medium'}}">中优先</text>
+              <text wx:else>低优先</text>
+            </view>
+          </view>
+        </view>
+      </block>
+    </view>
+
+    <!-- AI 建议 -->
+    <view class="section">
+      <view class="section-title">🤖 AI 专属建议</view>
+      <view class="advice-card">
+        <view class="advice-ai-tag">AI</view>
+        <text class="advice-txt">{{result.aiAdvice}}</text>
+      </view>
+    </view>
+
+    <!-- 激励语 -->
+    <view class="motivation-card" wx:if="{{result.motivation}}">
+      <text class="motivation-txt">💬 {{result.motivation}}</text>
+    </view>
+
+    <!-- 统计摘要 -->
+    <view class="stats-summary" wx:if="{{stats}}">
+      <view class="stats-title">求职状态总览</view>
+      <view class="stats-grid">
+        <view class="stat-item">
+          <text class="stat-num">{{stats.totalApps}}</text>
+          <text class="stat-label">总投递</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-num">{{stats.pendingApps}}</text>
+          <text class="stat-label">待回复</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-num">{{stats.interviewApps}}</text>
+          <text class="stat-label">面试中</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-num {{stats.offerApps > 0 ? 'offer' : ''}}">{{stats.offerApps}}</text>
+          <text class="stat-label">Offer</text>
+        </view>
+      </view>
+    </view>
+
+  </view>
+
+  <view style="height: 80rpx;"></view>
+</view>

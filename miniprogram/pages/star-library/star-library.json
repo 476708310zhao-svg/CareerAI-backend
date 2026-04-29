@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "STAR 模板库",
+  "usingComponents": {
+    "c-button": "/components/c-button/c-button"
+  }
+}

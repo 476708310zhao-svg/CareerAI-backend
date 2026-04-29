@@ -1,0 +1,44 @@
+<!-- pages/about/about.wxml -->
+<view class="container">
+  <!-- Logo 区域 -->
+  <view class="logo-section">
+    <image class="app-logo" src="/images/home-active.png" mode="aspectFit"></image>
+    <text class="app-name">留学生求职助手</text>
+    <text class="app-version">Version {{version}}</text>
+  </view>
+
+  <!-- 简介 -->
+  <view class="intro-card">
+    <text class="intro-text">专为海外留学生打造的一站式求职平台，整合智能推荐、AI面试、薪资查询等核心功能，助你高效拿到心仪Offer。</text>
+  </view>
+
+  <!-- 核心功能 -->
+  <view class="section-title">核心功能</view>
+  <view class="feature-list">
+    <block wx:for="{{features}}" wx:key="title">
+      <view class="feature-item">
+        <image class="feature-icon" src="{{item.icon}}" mode="aspectFit"></image>
+        <view class="feature-info">
+          <text class="feature-title">{{item.title}}</text>
+          <text class="feature-desc">{{item.desc}}</text>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <!-- 联系方式 -->
+  <view class="section-title">联系我们</view>
+  <view class="contact-card" bindtap="copyEmail">
+    <text class="contact-label">邮箱</text>
+    <view class="contact-row">
+      <text class="contact-value">support@jobassistant.com</text>
+      <text class="copy-hint">点击复制</text>
+    </view>
+  </view>
+
+  <!-- 版权 -->
+  <view class="copyright">
+    <text>Copyright 2026 留学生求职助手</text>
+    <text>All Rights Reserved</text>
+  </view>
+</view>

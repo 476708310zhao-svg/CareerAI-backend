@@ -1,0 +1,122 @@
+<!-- pages/my-experiences/my-experiences.wxml -->
+<view class="container">
+
+  <!-- 1. 顶部固定区 -->
+  <view class="header-fixed">
+    <view class="search-bar">
+      <view class="search-box">
+        <icon type="search" size="14" color="#999"></icon>
+        <input placeholder="搜索面经 / 关键词" placeholder-class="ph" bindinput="onSearchInput" confirm-type="search" />
+      </view>
+    </view>
+    <view class="tabs">
+      <view class="tab {{currentTab === 0 ? 'active' : ''}}" bindtap="switchTab" data-index="0">我的收藏</view>
+      <view class="tab {{currentTab === 1 ? 'active' : ''}}" bindtap="switchTab" data-index="1">我发布的</view>
+    </view>
+  </view>
+
+  <view style="height: 180rpx;"></view>
+
+  <!-- 2. 列表内容 -->
+  <view class="list-container">
+    <block wx:if="{{ (currentTab === 0 && collectionList.length > 0) || (currentTab === 1 && myPostList.length > 0) }}">
+      <block wx:for="{{currentTab === 0 ? collectionList : myPostList}}" wx:key="id">
+        <view class="article-card" bindtap="viewArticle" bindlongpress="handleMyPostAction" data-id="{{item.id}}" data-index="{{index}}">
+          <view class="card-header">
+            <view class="author-info">
+              <image src="{{item.avatar}}" class="avatar" lazy-load></image>
+              <text class="author-name">{{item.author}}</text>
+              <text class="type-badge" wx:if="{{item.type}}">{{item.type}}</text>
+            </view>
+            <text class="post-date">{{item.date}}</text>
+          </view>
+          <text class="title">{{item.title}}</text>
+          <text class="summary">{{item.summary}}</text>
+          <view class="tags-row" wx:if="{{item.tags && item.tags.length > 0}}">
+            <block wx:for="{{item.tags}}" wx:key="*this" wx:for-item="tag">
+              <text class="tag"># {{tag}}</text>
+            </block>
+          </view>
+          <view class="card-footer">
+            <view class="stat-item">
+              <text class="stat-num">{{item.read}}</text>
+              <text> 阅读</text>
+            </view>
+            <view class="stat-item">
+              <text class="stat-num">{{item.likes}}</text>
+              <text> 赞</text>
+            </view>
+            <view class="more-action" wx:if="{{currentTab === 1}}">···</view>
+          </view>
+        </view>
+      </block>
+      <view class="footer-tip">没有更多内容了</view>
+    </block>
+
+    <!-- 空状态 -->
+    <view wx:else class="empty-state">
+      <image src="/images/experience.png" class="empty-img"></image>
+      <text class="empty-main">{{currentTab === 0 ? '暂无收藏的面经' : '还没有发布过面经'}}</text>
+      <text class="empty-sub">{{currentTab === 0 ? '在面经广场收藏感兴趣的内容' : '分享你的求职经验帮助更多人'}}</text>
+      <view class="empty-btn" wx:if="{{currentTab === 1}}" bindtap="goToPublish">发布第一篇面经</view>
+    </view>
+  </view>
+
+  <!-- 3. 悬浮按钮组 -->
+  <view class="fab-group">
+    <view class="fab-btn-ai {{aiLoading ? 'disabled' : ''}}" bindtap="aiGenerateExp">
+      <text class="fab-text">AI</text>
+    </view>
+    <view class="fab-btn" bindtap="goToPublish">
+      <text class="plus">+</text>
+    </view>
+  </view>
+
+  <!-- 4. 发布弹窗 -->
+  <page-container show="{{showPublish}}" round position="bottom"
+    custom-style="height: 80vh; background: #fff; border-radius: 24rpx 24rpx 0 0;"
+    bind:clickoverlay="closePublish">
+    <view class="publish-modal">
+      <view class="publish-header">
+        <text class="publish-title">{{_editIndex >= 0 ? '编辑面经' : '发布面经'}}</text>
+        <view class="close-btn" bindtap="closePublish">X</view>
+      </view>
+
+      <scroll-view scroll-y class="publish-form">
+        <view class="form-item">
+          <text class="form-label">标题 *</text>
+          <input class="form-input" value="{{publishForm.title}}" bindinput="onPublishInput" data-field="title" placeholder="输入面经标题" maxlength="50" />
+        </view>
+
+        <view class="form-item">
+          <text class="form-label">公司</text>
+          <input class="form-input" value="{{publishForm.company}}" bindinput="onPublishInput" data-field="company" placeholder="面试/笔试的公司名称" />
+        </view>
+
+        <view class="form-item">
+          <text class="form-label">类型</text>
+          <picker mode="selector" range="{{publishTypes}}" bindchange="onTypeChange">
+            <view class="form-input picker-display">
+              <text>{{publishForm.type}}</text>
+              <text class="picker-arrow">></text>
+            </view>
+          </picker>
+        </view>
+
+        <view class="form-item">
+          <text class="form-label">标签</text>
+          <input class="form-input" value="{{publishForm.tags}}" bindinput="onPublishInput" data-field="tags" placeholder="用顿号分隔，如：算法、前端、校招" />
+        </view>
+
+        <view class="form-item">
+          <text class="form-label">正文内容 *</text>
+          <textarea class="form-textarea" value="{{publishForm.content}}" bindinput="onPublishInput" data-field="content" placeholder="分享你的面试/笔试经历、题目、感受和建议..." maxlength="2000" auto-height></textarea>
+          <text class="char-hint">{{publishForm.content.length || 0}}/2000</text>
+        </view>
+      </scroll-view>
+
+      <c-button bindtap="submitPublish">{{_editIndex >= 0 ? '保存修改' : '发布'}}</c-button>
+    </view>
+  </page-container>
+
+</view>

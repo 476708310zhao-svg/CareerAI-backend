@@ -1,0 +1,219 @@
+<!-- pages/project-builder/project-builder.wxml -->
+<view class="page">
+
+  <!-- ══ 输入步骤 ══ -->
+  <view wx:if="{{step === 'input'}}">
+
+    <!-- Hero -->
+    <view class="hero">
+      <text class="hero-icon">🚀</text>
+      <text class="hero-title">AI 项目生成器</text>
+      <text class="hero-sub">选择方向，AI 为你生成可量化的简历项目经历</text>
+    </view>
+
+    <!-- 预填提示 -->
+    <view class="prefill-tip" wx:if="{{profileFilled}}">
+      <text>✨ 已根据你的个人资料预填，可直接修改后生成</text>
+    </view>
+
+    <!-- 1. 选择方向 -->
+    <view class="form-section">
+      <view class="section-label"><text class="label-num">01</text>选择项目方向<text class="required"> *</text></view>
+      <view class="track-grid">
+        <view wx:for="{{tracks}}" wx:key="id"
+              class="track-card {{selectedTrack === item.id ? 'track-selected' : ''}}"
+              style="{{selectedTrack === item.id ? 'border-color:' + item.color + ';background:' + item.bg : ''}}"
+              bindtap="selectTrack" data-id="{{item.id}}">
+          <text class="track-icon">{{item.icon}}</text>
+          <text class="track-label" style="{{selectedTrack === item.id ? 'color:' + item.color : ''}}">{{item.label}}</text>
+          <text class="track-desc">{{item.desc}}</text>
+          <view class="track-check" wx:if="{{selectedTrack === item.id}}"
+                style="background:{{item.color}}">✓</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 2. 级别 -->
+    <view class="form-section">
+      <view class="section-label"><text class="label-num">02</text>求职阶段</view>
+      <view class="chip-row">
+        <view wx:for="{{seniorities}}" wx:key="*this"
+              class="chip {{selectedSeniority === item ? 'chip-active' : ''}}"
+              bindtap="selectSeniority" data-val="{{item}}">
+          {{item}}
+        </view>
+      </view>
+    </view>
+
+    <!-- 3. 目标岗位 -->
+    <view class="form-section">
+      <view class="section-label"><text class="label-num">03</text>目标岗位<text class="optional">（选填，更精准）</text></view>
+      <input class="text-input" placeholder="如：数据分析师、前端工程师、产品经理"
+             value="{{role}}" bindinput="onRoleInput" maxlength="40" />
+    </view>
+
+    <!-- 4. 背景 -->
+    <view class="form-section">
+      <view class="section-label-row">
+        <view class="section-label no-margin"><text class="label-num">04</text>个人背景<text class="optional">（选填）</text></view>
+        <text class="char-count">{{background.length}}/300</text>
+      </view>
+      <text class="field-hint">学校/专业、技能水平，AI 会据此调整项目难度</text>
+      <textarea class="text-area" placeholder="如：伦敦大学CS硕士，熟悉Python/SQL，无实习经历"
+                value="{{background}}" bindinput="onBackgroundInput"
+                maxlength="300" auto-height />
+    </view>
+
+    <c-button class="gen-btn" bindtap="onGenerate">✨ 立即生成项目</c-button>
+
+    <!-- 历史记录 -->
+    <view class="history-section" wx:if="{{savedProjects.length > 0}}">
+      <view class="history-head" bindtap="toggleHistory">
+        <text class="history-title">📁 历史项目（{{savedProjects.length}}）</text>
+        <text class="history-toggle">{{showHistory ? '▲' : '▼'}}</text>
+      </view>
+      <view wx:if="{{showHistory}}" class="history-list">
+        <view wx:for="{{savedProjects}}" wx:key="id"
+              class="history-card" bindtap="onHistoryTap" data-idx="{{index}}">
+          <view class="hc-icon-wrap">
+            <text class="hc-icon">{{item.trackIcon}}</text>
+          </view>
+          <view class="hc-info">
+            <text class="hc-title">{{item.title}}</text>
+            <text class="hc-meta">{{item.trackLabel}} · {{item.seniority}} · {{item.createdAt}}</text>
+          </view>
+          <text class="hc-arrow">›</text>
+        </view>
+        <view class="history-clear-btn" bindtap="clearHistory">
+          <text class="history-clear-txt">清空历史</text>
+        </view>
+      </view>
+    </view>
+
+    <view style="height: 40rpx;"></view>
+  </view>
+
+  <!-- ══ 加载步骤 ══ -->
+  <view wx:if="{{step === 'loading'}}" class="loading-page">
+    <view class="loading-anim">
+      <view class="pulse-ring"></view>
+      <view class="pulse-core">AI</view>
+    </view>
+    <text class="loading-tip">{{loadingTip}}</text>
+    <view class="loading-steps">
+      <view class="lstep {{loadingStep >= 0 ? 'done' : ''}}">🎯 选题</view>
+      <text class="lstep-sep">›</text>
+      <view class="lstep {{loadingStep >= 2 ? 'done' : ''}}">🔍 设计</view>
+      <text class="lstep-sep">›</text>
+      <view class="lstep {{loadingStep >= 4 ? 'done' : ''}}">📊 量化</view>
+    </view>
+    <text class="loading-note">预计 10–20 秒，请耐心等待</text>
+  </view>
+
+  <!-- ══ 结果步骤 ══ -->
+  <view wx:if="{{step === 'result' && project}}" class="result-page">
+
+    <!-- 结果头部 -->
+    <view class="result-header">
+      <view class="result-title-row">
+        <text class="result-project-title">{{project.title}}</text>
+        <view class="result-duration" wx:if="{{project.duration}}">
+          <text class="duration-txt">⏱ {{project.duration}}</text>
+        </view>
+      </view>
+      <view class="result-track-row">
+        <view class="result-track-badge">
+          <text class="result-track-icon">{{currentTrackIcon}}</text>
+          <text class="result-track-label" style="color:{{currentTrackColor}}">{{currentTrackLabel}}</text>
+        </view>
+        <view class="result-actions-top">
+          <view class="top-btn" bindtap="onRegenerate">
+            <text class="top-btn-icon">↺</text>
+            <text class="top-btn-txt">换一个</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 项目背景 -->
+    <view class="result-card">
+      <view class="card-label-row">
+        <text class="card-label-icon">📌</text>
+        <text class="card-label-txt">项目背景</text>
+      </view>
+      <text class="card-body-text">{{project.background}}</text>
+    </view>
+
+    <!-- 研究方法 -->
+    <view class="result-card">
+      <view class="card-label-row">
+        <text class="card-label-icon">🔍</text>
+        <text class="card-label-txt">研究方法</text>
+      </view>
+      <text class="card-body-text">{{project.methodology}}</text>
+    </view>
+
+    <!-- 数据来源 + 技术栈（并排） -->
+    <view class="result-card two-col-card">
+      <view class="half-col">
+        <view class="card-label-row">
+          <text class="card-label-icon">📊</text>
+          <text class="card-label-txt">数据来源</text>
+        </view>
+        <view class="tag-list">
+          <view wx:for="{{project.data_sources}}" wx:key="*this" class="data-tag">{{item}}</view>
+        </view>
+      </view>
+      <view class="col-divider"></view>
+      <view class="half-col">
+        <view class="card-label-row">
+          <text class="card-label-icon">🛠</text>
+          <text class="card-label-txt">技术栈</text>
+        </view>
+        <view class="tag-list">
+          <view wx:for="{{project.tech_stack}}" wx:key="*this" class="tech-tag">{{item}}</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 关键成果 -->
+    <view class="result-card">
+      <view class="card-label-row">
+        <text class="card-label-icon">🎯</text>
+        <text class="card-label-txt">关键成果</text>
+        <text class="card-label-sub">含可量化数字</text>
+      </view>
+      <view class="results-list">
+        <view wx:for="{{project.key_results}}" wx:key="*this" class="result-item">
+          <view class="result-num-badge">{{index + 1}}</view>
+          <text class="result-item-txt">{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 简历一行版 -->
+    <view class="result-card resume-bullet-card" bindtap="copyBullet">
+      <view class="card-label-row">
+        <text class="card-label-icon">📝</text>
+        <text class="card-label-txt">简历一行版</text>
+        <text class="bullet-copy-hint">点击复制</text>
+      </view>
+      <text class="resume-bullet-text">{{project.resume_bullet}}</text>
+    </view>
+
+    <!-- 操作按钮组 -->
+    <view class="action-group">
+      <view class="action-btn action-copy" bindtap="copyAll">
+        <text class="action-btn-icon">📋</text>
+        <text class="action-btn-txt">复制全文</text>
+      </view>
+      <view class="action-btn action-resume" bindtap="addToResume">
+        <text class="action-btn-icon">📄</text>
+        <text class="action-btn-txt">加入简历</text>
+      </view>
+    </view>
+
+    <view style="height: 40rpx;"></view>
+  </view>
+
+</view>

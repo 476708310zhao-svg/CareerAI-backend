@@ -1,0 +1,3 @@
+<view class="ct ct--{{type || 'default'}} ct--{{size || 'default'}}">
+  <slot></slot>
+</view>

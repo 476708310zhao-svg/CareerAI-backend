@@ -1,0 +1,218 @@
+<!-- pages/vip/vip.wxml -->
+<view class="container">
+
+  <!-- ── 顶部渐变背景 + 会员卡 ── -->
+  <view class="page-header">
+    <view class="deco-circle dc1"></view>
+    <view class="deco-circle dc2"></view>
+    <view class="deco-circle dc3"></view>
+
+    <!-- VIP 卡片 -->
+    <view class="vip-card">
+      <view class="card-glow"></view>
+      <view class="card-shimmer"></view>
+
+      <view class="card-top">
+        <view>
+          <view class="card-title-row">
+            <text class="card-crown">👑</text>
+            <text class="card-title">求职黑卡 PRO</text>
+          </view>
+          <view class="card-badge-row">
+            <text class="card-badge-txt">VIP MEMBER</text>
+            <view class="card-ai-chip">12项AI功能</view>
+          </view>
+        </view>
+        <view class="card-status-pill {{userVipInfo.isVip ? 'active' : ''}}">
+          <text>{{userVipInfo.isVip ? '✓ 已开通' : '未开通'}}</text>
+        </view>
+      </view>
+
+      <view class="card-bottom">
+        <view>
+          <text class="card-name">{{userName || 'Welcome'}}</text>
+          <text class="card-sub" wx:if="{{!userVipInfo.isVip}}">普通用户 · 立即升级解锁12项AI特权</text>
+          <text class="card-sub vip-on" wx:else>会员有效期至 {{userVipInfo.expireDate}}</text>
+        </view>
+        <view class="card-dots">
+          <view class="dot"></view><view class="dot"></view><view class="dot"></view><view class="dot"></view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 头部统计栏 -->
+    <view class="header-stats">
+      <view class="hstat">
+        <text class="hstat-num">12</text>
+        <text class="hstat-label">AI 功能</text>
+      </view>
+      <view class="hstat-divider"></view>
+      <view class="hstat">
+        <text class="hstat-num">∞</text>
+        <text class="hstat-label">模拟面试</text>
+      </view>
+      <view class="hstat-divider"></view>
+      <view class="hstat">
+        <text class="hstat-num">5x</text>
+        <text class="hstat-label">简历版本</text>
+      </view>
+      <view class="hstat-divider"></view>
+      <view class="hstat">
+        <text class="hstat-num">VIP</text>
+        <text class="hstat-label">专属顾问</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- ── VIP 用例展示 ── -->
+  <view class="block-header">
+    <text class="block-title">🏆 真实用户案例</text>
+    <text class="block-sub">他们用 VIP 拿到了理想 Offer</text>
+  </view>
+  <scroll-view scroll-x class="cases-scroll">
+    <view class="cases-inner">
+      <block wx:for="{{useCases}}" wx:key="name">
+        <view class="case-card">
+          <view class="case-card-top">
+            <view class="case-avatar-wrap">
+              <text class="case-avatar">{{item.avatar}}</text>
+            </view>
+            <view class="case-tag">{{item.tag}}</view>
+          </view>
+          <text class="case-name">{{item.name}}</text>
+          <text class="case-role">{{item.role}}</text>
+          <view class="case-divider"></view>
+          <text class="case-story">{{item.story}}</text>
+          <view class="case-metric-row">
+            <view class="case-metric">
+              <text class="case-metric-label">{{item.metric}}</text>
+              <text class="case-metric-value">{{item.value}}</text>
+            </view>
+          </view>
+        </view>
+      </block>
+    </view>
+  </scroll-view>
+
+  <!-- ── AI 功能全矩阵 ── -->
+  <view class="block-header">
+    <text class="block-title">🤖 12项 AI 智能功能</text>
+    <text class="block-sub">{{userVipInfo.isVip ? 'VIP全部解锁，点击直达' : '升级VIP即可全部解锁'}}</text>
+  </view>
+  <view class="ai-matrix">
+    <block wx:for="{{aiFeatures}}" wx:key="name">
+      <view
+        class="ai-feat-card {{userVipInfo.isVip ? 'unlocked' : 'locked'}}"
+        bindtap="goToFeature"
+        data-url="{{item.url}}"
+      >
+        <view class="ai-feat-top">
+          <text class="ai-feat-icon">{{item.icon}}</text>
+          <view class="ai-feat-badge {{item.badge === 'NEW' ? 'badge-new' : (item.badge === '热门' ? 'badge-hot' : '')}}" wx:if="{{item.badge}}">{{item.badge}}</view>
+        </view>
+        <text class="ai-feat-name">{{item.name}}</text>
+        <text class="ai-feat-desc">{{item.desc}}</text>
+        <view class="ai-feat-lock" wx:if="{{!userVipInfo.isVip}}">
+          <text class="lock-icon">🔒</text>
+        </view>
+        <view class="ai-feat-arrow" wx:else>→</view>
+      </view>
+    </block>
+  </view>
+
+  <!-- ── 权益对比 ── -->
+  <view class="compare-section">
+    <view class="compare-toggle" bindtap="toggleCompare">
+      <text class="compare-toggle-txt">{{showCompare ? '收起' : '查看'}}免费版 vs VIP 详细对比</text>
+      <text class="compare-arrow-icon">{{showCompare ? '▲' : '▼'}}</text>
+    </view>
+
+    <view class="compare-table" wx:if="{{showCompare}}">
+      <view class="compare-head">
+        <text class="col-feature">功能</text>
+        <text class="col-free">免费版</text>
+        <text class="col-vip">VIP</text>
+      </view>
+      <block wx:for="{{compareList}}" wx:key="feature">
+        <view class="compare-row {{index % 2 === 0 ? 'row-even' : ''}}">
+          <text class="col-feature">{{item.feature}}</text>
+          <text class="col-free">{{item.free}}</text>
+          <text class="col-vip gold">✓ {{item.vip}}</text>
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <!-- ── 套餐选择 ── -->
+  <view class="plans-section" wx:if="{{!userVipInfo.isVip}}">
+    <view class="block-header">
+      <text class="block-title">💎 选择开通方案</text>
+      <text class="block-sub">支付功能即将上线</text>
+    </view>
+
+    <view class="plan-list">
+      <block wx:for="{{priceList}}" wx:key="id">
+        <view
+          class="plan-item {{selectedPlan === index ? 'selected' : ''}}"
+          bindtap="selectPlan"
+          data-index="{{index}}"
+        >
+          <view class="plan-tip" wx:if="{{item.tip}}">{{item.tip}}</view>
+
+          <view class="plan-left">
+            <text class="plan-name">{{item.name}}</text>
+            <text class="plan-sub">{{item.day}} · ¥{{item.perDay}}/天</text>
+            <view class="plan-save" wx:if="{{selectedPlan === index}}">省 ¥{{item.save}}</view>
+          </view>
+
+          <view class="plan-right">
+            <view class="plan-price-row">
+              <text class="plan-unit">¥</text>
+              <text class="plan-num">{{item.price}}</text>
+            </view>
+            <text class="plan-original">¥{{item.original}}</text>
+          </view>
+
+          <view class="plan-check" wx:if="{{selectedPlan === index}}">✓</view>
+        </view>
+      </block>
+    </view>
+
+    <view class="restore-link" bindtap="restorePurchase">已购买？点击恢复</view>
+  </view>
+
+  <!-- ── 已开通状态 ── -->
+  <view class="vip-active-card" wx:if="{{userVipInfo.isVip}}">
+    <view class="vac-inner">
+      <text class="vac-emoji">👑</text>
+      <view>
+        <text class="vac-title">VIP 已激活</text>
+        <text class="vac-sub">有效期至 {{userVipInfo.expireDate}}</text>
+      </view>
+    </view>
+    <text class="vac-hint">全部12项AI功能已解锁，点击上方功能入口直达使用</text>
+  </view>
+
+  <!-- 免责说明 -->
+  <view class="disclaimer">
+    <text class="disclaimer-txt">· 价格为人民币 · 订阅周期到期后自动停止 · 退订请联系客服</text>
+  </view>
+
+  <view style="height: 180rpx;"></view>
+
+  <!-- ── 底部支付栏 ── -->
+  <view class="footer-bar" wx:if="{{!userVipInfo.isVip}}">
+    <view class="footer-price">
+      <text class="fp-label">合计</text>
+      <view class="fp-num-row">
+        <text class="fp-unit">¥</text>
+        <text class="fp-num">{{priceList[selectedPlan].price}}</text>
+      </view>
+    </view>
+    <view class="pay-btn {{isPaying ? 'paying' : ''}}" bindtap="handlePay">
+      <text class="pay-btn-txt">立即开通 VIP</text>
+      <text class="pay-btn-sub">{{isPaying ? '处理中...' : '解锁12项AI功能'}}</text>
+    </view>
+  </view>
+
+</view>

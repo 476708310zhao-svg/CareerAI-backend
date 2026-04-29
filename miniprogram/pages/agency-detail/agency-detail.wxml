@@ -1,0 +1,524 @@
+<!-- pages/agency-detail/agency-detail.wxml -->
+<view class="page">
+
+  <!-- ── 机构基本信息卡 ── -->
+  <view class="info-card" wx:if="{{agency}}">
+
+    <!-- 渐变横幅头部 -->
+    <view class="info-head">
+      <view class="logo-wrap">
+        <image wx:if="{{agency.logo}}" class="logo-img" src="{{agency.logo}}" mode="aspectFill"/>
+        <view wx:else class="logo-placeholder">
+          <text class="logo-text">{{agency.name.slice(0,2)}}</text>
+        </view>
+      </view>
+      <view class="info-main">
+        <view class="name-row">
+          <text class="agency-name">{{agency.name}}</text>
+          <view class="verified-badge" wx:if="{{agency.isVerified}}">
+            <text>已认证</text>
+          </view>
+          <view class="unofficial-badge" wx:if="{{!agency.isVerified}}">
+            <text>非官方数据</text>
+          </view>
+        </view>
+        <view class="meta-row">
+          <view class="type-tag">{{agency.type}}</view>
+          <text class="city" wx:if="{{agency.city}}">{{agency.city}}</text>
+        </view>
+        <view class="meta-row" wx:if="{{agency.website}}">
+          <text class="website-txt">🔗 {{agency.website}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 信息主体 -->
+    <view class="info-body">
+
+      <!-- 简介 -->
+      <text class="desc-text">{{agency.description}}</text>
+
+      <!-- 价格标签行（有数据时显示） -->
+      <view class="price-tag-row" wx:if="{{agency.priceRange && (agency.priceRange.china || agency.priceRange.northAmerica || agency.priceRange.uk)}}">
+        <text class="price-row-label">参考价格</text>
+        <view class="price-pills">
+          <view class="price-pill" wx:if="{{agency.priceRange.china}}">
+            <text class="price-pill-region">国内</text>
+            <text class="price-pill-val">{{agency.priceRange.china}}</text>
+          </view>
+          <view class="price-pill" wx:if="{{agency.priceRange.northAmerica}}">
+            <text class="price-pill-region">北美</text>
+            <text class="price-pill-val">{{agency.priceRange.northAmerica}}</text>
+          </view>
+          <view class="price-pill" wx:if="{{agency.priceRange.uk}}">
+            <text class="price-pill-region">英国</text>
+            <text class="price-pill-val">{{agency.priceRange.uk}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 专长标签 -->
+      <view class="spec-tags" wx:if="{{agency.specialties && agency.specialties.length}}">
+        <block wx:for="{{agency.specialties}}" wx:for-item="tag" wx:key="*this">
+          <view class="spec-tag">{{tag}}</view>
+        </block>
+      </view>
+
+      <!-- 四维评分条 -->
+      <view class="score-section" wx:if="{{agency.reviewCount > 0}}">
+        <view class="score-overview">
+          <text class="score-big">{{agency.ratingAvg}}</text>
+          <view class="score-right">
+            <view class="stars-row">
+              <block wx:for="{{starList}}" wx:key="*this">
+                <text class="star {{item === 'full' ? 'full' : (item === 'half' ? 'half' : 'empty')}}">★</text>
+              </block>
+            </view>
+            <text class="review-count">{{agency.reviewCount}} 条用户评测</text>
+          </view>
+        </view>
+        <view class="dim-bars">
+          <view class="dim-row">
+            <text class="dim-label">实际效果</text>
+            <view class="bar-track">
+              <view class="bar-fill" style="width:{{(agency.ratingDims.effect / 5 * 100) + '%'}}"></view>
+            </view>
+            <text class="dim-val">{{agency.ratingDims.effect || '-'}}</text>
+          </view>
+          <view class="dim-row">
+            <text class="dim-label">性价比</text>
+            <view class="bar-track">
+              <view class="bar-fill" style="width:{{(agency.ratingDims.value / 5 * 100) + '%'}}"></view>
+            </view>
+            <text class="dim-val">{{agency.ratingDims.value || '-'}}</text>
+          </view>
+          <view class="dim-row">
+            <text class="dim-label">服务态度</text>
+            <view class="bar-track">
+              <view class="bar-fill" style="width:{{(agency.ratingDims.service / 5 * 100) + '%'}}"></view>
+            </view>
+            <text class="dim-val">{{agency.ratingDims.service || '-'}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="score-empty" wx:else>
+        <text class="score-empty-txt">暂无评分，成为第一位评测者</text>
+      </view>
+
+    </view>
+  </view>
+
+  <!-- ── 免责声明横幅 ── -->
+  <view class="legal-banner" wx:if="{{agency && !agency.isVerified}}">
+    <view class="legal-banner-main">
+      <text class="legal-icon">ℹ️</text>
+      <text class="legal-txt">本页信息来源于公开资料及用户投稿，非该机构官方发布，不构成消费建议。</text>
+    </view>
+    <view class="legal-claim-btn" bindtap="claimAgency">
+      <text class="legal-claim-txt">机构代表？申请认领/纠错 →</text>
+    </view>
+  </view>
+
+  <!-- ── Tab 切换 ── -->
+  <view class="tab-bar">
+    <view class="tab {{activeTab === 'ai' ? 'active' : ''}}" bindtap="switchTab" data-tab="ai">
+      <text>AI 综合测评</text>
+      <view class="tab-dot" wx:if="{{agency.aiEval}}"></view>
+    </view>
+    <view class="tab {{activeTab === 'reviews' ? 'active' : ''}}" bindtap="switchTab" data-tab="reviews">
+      <text>用户评测</text>
+      <view class="tab-badge" wx:if="{{agency.reviewCount > 0}}">{{agency.reviewCount}}</view>
+    </view>
+    <view class="tab-indicator" style="left:{{activeTab === 'ai' ? '0%' : '50%'}}"></view>
+  </view>
+
+  <!-- ══════════════════════════════════════════════════
+       Tab A：AI 综合测评
+  ══════════════════════════════════════════════════ -->
+  <view wx:if="{{activeTab === 'ai'}}">
+
+    <!-- 生成中 loading -->
+    <view class="ai-loading-card" wx:if="{{aiLoading}}">
+      <view class="spinner"></view>
+      <text class="ai-loading-txt">DeepSeek 分析中，预计 15~30 秒...</text>
+    </view>
+
+    <!-- 未登录 / 生成失败时的提示 -->
+    <view class="ai-trigger-card" wx:if="{{!agency.aiEval && !aiLoading}}">
+      <view class="ai-intro-header">
+        <view class="ai-intro-badge">AI</view>
+        <view class="ai-intro-info">
+          <text class="ai-intro-title">AI 深度测评</text>
+          <text class="ai-intro-sub">由 DeepSeek 基于公开信息生成 · 覆盖北美 / 英国 / 中国市场</text>
+        </view>
+      </view>
+      <view class="ai-intro-dims">
+        <view class="ai-dim-pill">机构简介</view>
+        <view class="ai-dim-pill">服务内容</view>
+        <view class="ai-dim-pill">价格区间</view>
+        <view class="ai-dim-pill">适用人群</view>
+        <view class="ai-dim-pill">优势 / 不足</view>
+        <view class="ai-dim-pill">就业效果</view>
+        <view class="ai-dim-pill">同类对比</view>
+      </view>
+      <view class="ai-trigger-btn" bindtap="generateAiEval">登录后生成测评</view>
+    </view>
+
+    <!-- AI 测评内容 -->
+    <view class="ai-eval-wrap" wx:if="{{agency.aiEval && !aiLoading}}">
+
+      <!-- 更新时间 -->
+      <view class="eval-meta-row">
+        <text class="eval-meta-txt">AI 测评时间：{{agency.aiEvalAt}}</text>
+        <view class="regen-btn" bindtap="generateAiEval">重新生成</view>
+      </view>
+
+      <!-- 总体评分 + 推荐 -->
+      <view class="eval-score-card">
+        <view class="eval-score-left">
+          <text class="eval-score-num">{{agency.aiEval.score}}</text>
+          <text class="eval-score-sub">/ 10</text>
+          <text class="eval-score-label">AI 综合评分</text>
+        </view>
+        <view class="eval-recommend {{agency.aiEval.recommended ? 'yes' : 'no'}}">
+          <text class="recommend-icon">{{agency.aiEval.recommended ? '👍' : '👎'}}</text>
+          <text class="recommend-txt">{{agency.aiEval.recommended ? '推荐' : '不推荐'}}</text>
+        </view>
+      </view>
+      <view class="eval-recommend-reason" wx:if="{{agency.aiEval.recommendReason}}">
+        <text class="reason-label">推荐理由</text>
+        <text class="reason-txt">{{agency.aiEval.recommendReason}}</text>
+      </view>
+
+      <!-- 1. 机构简介 -->
+      <view class="eval-section">
+        <view class="eval-section-title">
+          <text class="section-num">01</text>
+          <text class="section-name">机构简介</text>
+        </view>
+        <view class="eval-kv-list" wx:if="{{agency.aiEval.intro}}">
+          <view class="kv-row"><text class="kv-key">成立时间</text><text class="kv-val">{{agency.aiEval.intro.founded || '-'}}</text></view>
+          <view class="kv-row"><text class="kv-key">总部地点</text><text class="kv-val">{{agency.aiEval.intro.headquarters || '-'}}</text></view>
+          <view class="kv-row"><text class="kv-key">主要业务</text><text class="kv-val">{{agency.aiEval.intro.mainBusiness || '-'}}</text></view>
+          <view class="kv-row"><text class="kv-key">主要客群</text><text class="kv-val">{{agency.aiEval.intro.targetClients || '-'}}</text></view>
+        </view>
+      </view>
+
+      <!-- 2. 服务内容 -->
+      <view class="eval-section">
+        <view class="eval-section-title">
+          <text class="section-num">02</text>
+          <text class="section-name">服务内容</text>
+        </view>
+        <view wx:if="{{agency.aiEval.services}}">
+          <view class="service-tags" wx:if="{{agency.aiEval.services.formats}}">
+            <block wx:for="{{agency.aiEval.services.formats}}" wx:key="*this">
+              <view class="service-tag">{{item}}</view>
+            </block>
+          </view>
+          <view class="eval-kv-list">
+            <view class="kv-row"><text class="kv-key">课程内容</text><text class="kv-val">{{agency.aiEval.services.courseContent || '-'}}</text></view>
+            <view class="kv-row"><text class="kv-key">辅导强度</text><text class="kv-val">{{agency.aiEval.services.intensity || '-'}}</text></view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 3. 价格区间 -->
+      <view class="eval-section">
+        <view class="eval-section-title">
+          <text class="section-num">03</text>
+          <text class="section-name">价格区间</text>
+        </view>
+        <view class="price-grid" wx:if="{{agency.aiEval.pricing}}">
+          <view class="price-item">
+            <text class="price-region">中国</text>
+            <text class="price-val">{{agency.aiEval.pricing.china || '无'}}</text>
+          </view>
+          <view class="price-item">
+            <text class="price-region">北美</text>
+            <text class="price-val">{{agency.aiEval.pricing.northAmerica || '无'}}</text>
+          </view>
+          <view class="price-item">
+            <text class="price-region">英国</text>
+            <text class="price-val">{{agency.aiEval.pricing.uk || '无'}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 4. 适用人群 -->
+      <view class="eval-section">
+        <view class="eval-section-title">
+          <text class="section-num">04</text>
+          <text class="section-name">适用人群</text>
+        </view>
+        <view class="user-tags" wx:if="{{agency.aiEval.targetUsers}}">
+          <block wx:for="{{agency.aiEval.targetUsers}}" wx:key="*this">
+            <view class="user-tag">{{item}}</view>
+          </block>
+        </view>
+      </view>
+
+      <!-- 5. 优势亮点 -->
+      <view class="eval-section">
+        <view class="eval-section-title">
+          <text class="section-num">05</text>
+          <text class="section-name">优势亮点</text>
+        </view>
+        <view class="point-list" wx:if="{{agency.aiEval.strengths}}">
+          <block wx:for="{{agency.aiEval.strengths}}" wx:key="*this">
+            <view class="point-item green">
+              <text class="point-icon">✓</text>
+              <text class="point-txt">{{item}}</text>
+            </view>
+          </block>
+        </view>
+      </view>
+
+      <!-- 6. 存在问题 -->
+      <view class="eval-section">
+        <view class="eval-section-title">
+          <text class="section-num">06</text>
+          <text class="section-name">存在的问题</text>
+        </view>
+        <view class="point-list" wx:if="{{agency.aiEval.weaknesses}}">
+          <block wx:for="{{agency.aiEval.weaknesses}}" wx:key="*this">
+            <view class="point-item red">
+              <text class="point-icon">!</text>
+              <text class="point-txt">{{item}}</text>
+            </view>
+          </block>
+        </view>
+      </view>
+
+      <!-- 7. 就业效果 -->
+      <view class="eval-section">
+        <view class="eval-section-title">
+          <text class="section-num">07</text>
+          <text class="section-name">实际就业效果</text>
+        </view>
+        <text class="plain-text">{{agency.aiEval.employmentEffect || '-'}}</text>
+      </view>
+
+      <!-- 8. 同类对比 -->
+      <view class="eval-section">
+        <view class="eval-section-title">
+          <text class="section-num">08</text>
+          <text class="section-name">与同类机构对比</text>
+        </view>
+        <view class="compare-list" wx:if="{{agency.aiEval.comparisons}}">
+          <block wx:for="{{agency.aiEval.comparisons}}" wx:key="name">
+            <view class="compare-item">
+              <text class="compare-name">{{item.name}}</text>
+              <text class="compare-diff">{{item.difference}}</text>
+            </view>
+          </block>
+        </view>
+      </view>
+
+      <!-- 免责声明 -->
+      <view class="disclaimer">
+        <text class="disclaimer-title">⚠ AI 综合分析 · 免责声明</text>
+        <text class="disclaimer-body">以上内容由 AI 基于公开信息自动生成，并非该机构官方声明，不构成购买建议。平台不对内容准确性承担法律责任。如机构认为内容存在错误，可通过页面顶部"申请纠错"入口联系我们。</text>
+      </view>
+
+    </view>
+  </view>
+
+  <!-- ══════════════════════════════════════════════════
+       Tab B：用户评测
+  ══════════════════════════════════════════════════ -->
+  <view wx:if="{{activeTab === 'reviews'}}">
+
+    <!-- 评测列表 -->
+    <view class="review-list">
+      <block wx:for="{{reviews}}" wx:key="id">
+        <view class="review-card">
+          <view class="review-head">
+            <view class="reviewer-info">
+              <view class="avatar-wrap">
+                <image wx:if="{{item.userAvatar}}" class="avatar-img" src="{{item.userAvatar}}" mode="aspectFill"/>
+                <view wx:else class="avatar-placeholder">
+                  <text>{{item.userName.slice(0,1)}}</text>
+                </view>
+              </view>
+              <view class="reviewer-detail">
+                <text class="reviewer-name">{{item.userName}}</text>
+                <text class="review-time">{{item.createdAt}}</text>
+              </view>
+            </view>
+            <!-- 综合评分星 -->
+            <view class="review-rating">
+              <block wx:for="{{[1,2,3,4,5]}}" wx:for-item="s" wx:key="*this">
+                <text class="star {{s <= item.ratingOverall ? 'full' : 'empty'}}">★</text>
+              </block>
+              <text class="rating-num-sm">{{item.ratingOverall}}</text>
+            </view>
+          </view>
+
+          <!-- 分项评分小标签 -->
+          <view class="dim-tags">
+            <view class="dim-tag" wx:if="{{item.ratingEffect}}">效果 {{item.ratingEffect}}</view>
+            <view class="dim-tag" wx:if="{{item.ratingValue}}">性价比 {{item.ratingValue}}</view>
+            <view class="dim-tag" wx:if="{{item.ratingService}}">服务 {{item.ratingService}}</view>
+          </view>
+
+          <!-- 标题 -->
+          <text class="review-title" wx:if="{{item.title}}">{{item.title}}</text>
+
+          <!-- 内容 -->
+          <text class="review-content">{{item.content}}</text>
+
+          <!-- 优缺点 -->
+          <view class="pros-cons" wx:if="{{item.pros || item.cons}}">
+            <view class="pros" wx:if="{{item.pros}}">
+              <text class="pros-label">👍 优点</text>
+              <text class="pros-txt">{{item.pros}}</text>
+            </view>
+            <view class="cons" wx:if="{{item.cons}}">
+              <text class="cons-label">👎 不足</text>
+              <text class="cons-txt">{{item.cons}}</text>
+            </view>
+          </view>
+
+          <!-- 点赞 + 删除 -->
+          <view class="review-footer">
+            <view class="like-btn" bindtap="likeReview" data-id="{{item.id}}">
+              <text class="like-icon">👍</text>
+              <text class="like-cnt">{{item.likesCount}}</text>
+            </view>
+            <view class="delete-btn" wx:if="{{item.userId === myUserId}}" bindtap="deleteReview" data-id="{{item.id}}">
+              删除
+            </view>
+          </view>
+        </view>
+      </block>
+
+      <!-- 加载更多 -->
+      <view wx:if="{{reviewsLoading}}" class="loading-tip">
+        <view class="spinner"></view><text>加载中...</text>
+      </view>
+      <view wx:if="{{!reviewsLoading && reviewsHasMore && reviews.length > 0}}" class="load-more-btn" bindtap="loadMoreReviews">
+        加载更多评测
+      </view>
+      <view wx:if="{{!reviewsLoading && !reviewsHasMore && reviews.length > 0}}" class="no-more">
+        — 已加载全部评测 —
+      </view>
+
+      <!-- 空状态 -->
+      <view wx:if="{{!reviewsLoading && reviews.length === 0}}" class="empty">
+        <text class="empty-emoji">💬</text>
+        <text class="empty-txt">还没有用户评测</text>
+        <text class="empty-sub">成为第一个评测者，帮助更多留学生</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 页面底部占位 -->
+  <view style="height: 160rpx;"></view>
+
+  <!-- ── 底部固定操作栏 ── -->
+  <view class="bottom-bar">
+    <view class="collect-btn {{isFavorited ? 'collected' : ''}}" bindtap="toggleFavorite">
+      <text class="collect-icon">{{isFavorited ? '❤️' : '🤍'}}</text>
+      <text class="collect-txt">{{isFavorited ? '已收藏' : '收藏'}}</text>
+    </view>
+    <view class="write-review-btn" bindtap="openReviewModal">写评测</view>
+  </view>
+
+  <!-- ══════════════════════════════════════════════════
+       写评测弹窗
+  ══════════════════════════════════════════════════ -->
+  <view class="modal-mask" wx:if="{{reviewModalVisible}}" bindtap="closeReviewModal"></view>
+  <view class="review-modal {{reviewModalVisible ? 'show' : ''}}">
+    <view class="modal-header">
+      <text class="modal-title">写评测</text>
+      <view class="modal-close" bindtap="closeReviewModal">✕</view>
+    </view>
+
+    <!-- 综合评分 -->
+    <view class="modal-section">
+      <text class="modal-label">综合评分 <text class="required">*</text></text>
+      <view class="star-selector">
+        <block wx:for="{{[1,2,3,4,5]}}" wx:for-item="s" wx:key="*this">
+          <text
+            class="star-sel {{s <= reviewForm.ratingOverall ? 'selected' : ''}}"
+            bindtap="setRating"
+            data-dim="ratingOverall"
+            data-val="{{s}}"
+          >★</text>
+        </block>
+        <text class="star-hint">{{ratingLabels[reviewForm.ratingOverall - 1] || '请评分'}}</text>
+      </view>
+    </view>
+
+    <!-- 分项评分 -->
+    <view class="modal-section">
+      <text class="modal-label">分项评分（可选）</text>
+      <view class="dim-score-row">
+        <text class="dim-score-lbl">实际效果</text>
+        <view class="star-selector">
+          <block wx:for="{{[1,2,3,4,5]}}" wx:for-item="s" wx:key="*this">
+            <text class="star-sel sm {{s <= reviewForm.ratingEffect ? 'selected' : ''}}" bindtap="setRating" data-dim="ratingEffect" data-val="{{s}}">★</text>
+          </block>
+        </view>
+      </view>
+      <view class="dim-score-row">
+        <text class="dim-score-lbl">性价比</text>
+        <view class="star-selector">
+          <block wx:for="{{[1,2,3,4,5]}}" wx:for-item="s" wx:key="*this">
+            <text class="star-sel sm {{s <= reviewForm.ratingValue ? 'selected' : ''}}" bindtap="setRating" data-dim="ratingValue" data-val="{{s}}">★</text>
+          </block>
+        </view>
+      </view>
+      <view class="dim-score-row">
+        <text class="dim-score-lbl">服务态度</text>
+        <view class="star-selector">
+          <block wx:for="{{[1,2,3,4,5]}}" wx:for-item="s" wx:key="*this">
+            <text class="star-sel sm {{s <= reviewForm.ratingService ? 'selected' : ''}}" bindtap="setRating" data-dim="ratingService" data-val="{{s}}">★</text>
+          </block>
+        </view>
+      </view>
+    </view>
+
+    <!-- 标题 -->
+    <view class="modal-section">
+      <text class="modal-label">评测标题（可选）</text>
+      <input class="modal-input" placeholder="一句话概括你的体验" value="{{reviewForm.title}}" bindinput="onFormInput" data-field="title" maxlength="50"/>
+    </view>
+
+    <!-- 内容 -->
+    <view class="modal-section">
+      <text class="modal-label">评测内容 <text class="required">*</text>（至少 10 字）</text>
+      <textarea class="modal-textarea" placeholder="分享你的真实体验..." value="{{reviewForm.content}}" bindinput="onFormInput" data-field="content" maxlength="1000" auto-height/>
+      <text class="char-count">{{reviewForm.content.length}} / 1000</text>
+    </view>
+
+    <!-- 优缺点 -->
+    <view class="modal-section">
+      <text class="modal-label">优点（可选）</text>
+      <input class="modal-input" placeholder="值得肯定的地方" value="{{reviewForm.pros}}" bindinput="onFormInput" data-field="pros" maxlength="200"/>
+    </view>
+    <view class="modal-section">
+      <text class="modal-label">不足（可选）</text>
+      <input class="modal-input" placeholder="可以改进的地方" value="{{reviewForm.cons}}" bindinput="onFormInput" data-field="cons" maxlength="200"/>
+    </view>
+
+    <!-- 匿名 -->
+    <view class="modal-section anon-row">
+      <text class="modal-label">匿名发布</text>
+      <switch checked="{{reviewForm.isAnonymous}}" bindchange="toggleAnonymous" color="#2B5CE6"/>
+    </view>
+
+    <!-- 用户须知 -->
+    <view class="review-notice">
+      <text>提交即表示您的评测内容真实有效，平台有权对违规内容（虚假陈述、恶意攻击）进行删除处理。</text>
+    </view>
+
+    <!-- 提交 -->
+    <view class="modal-submit {{submitLoading ? 'disabled' : ''}}" bindtap="submitReview">
+      <text wx:if="{{!submitLoading}}">提交评测</text>
+      <text wx:else>提交中...</text>
+    </view>
+  </view>
+
+</view>

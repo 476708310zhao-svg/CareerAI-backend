@@ -1,0 +1,389 @@
+/* pages/question-detail/question-detail.wxss */
+page {
+  background: var(--bg-raised);
+  font-family: -apple-system, 'PingFang SC', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: var(--text-primary);
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  padding: 20rpx 24rpx 0;
+}
+
+/* ── 标题卡片 ──────────────────────────────────────────────────── */
+.title-card {
+  background: var(--bg-panel);
+  border-radius: var(--r-lg);
+  padding: 32rpx 28rpx;
+  margin-bottom: 16rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-bottom: 20rpx;
+}
+
+.diff-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6rpx 18rpx;
+  border-radius: 10rpx;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.diff-badge.easy  { background: #ECFDF5; color: #059669; }
+.diff-badge.mid   { background: #FFF8E6; color: #D97706; }
+.diff-badge.hard  { background: #FEF2F2; color: #DC2626; }
+
+.cat-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6rpx 16rpx;
+  border-radius: 10rpx;
+  background: #EEF2FF;
+  color: var(--brand);
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.lc-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6rpx 16rpx;
+  border-radius: 10rpx;
+  background: #FFF7ED;
+  color: #EA580C;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.ai-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6rpx 16rpx;
+  border-radius: 10rpx;
+  background: #F5F3FF;
+  color: #7C3AED;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.q-title {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.q-title-en {
+  display: block;
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  margin-top: 10rpx;
+  line-height: 1.5;
+}
+
+/* ── LeetCode 统计 ─────────────────────────────────────────────── */
+.lc-stats-card {
+  background: var(--bg-panel);
+  border-radius: var(--r-lg);
+  padding: 28rpx;
+  margin-bottom: 16rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: flex-start;
+  gap: 24rpx;
+}
+
+.lc-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.lc-stat-label {
+  font-size: 22rpx;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.lc-stat-val {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.lc-stat-divider {
+  width: 1.5rpx;
+  background: #F1F5F9;
+  align-self: stretch;
+}
+
+.lc-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+}
+
+.lc-tag {
+  display: inline-block;
+  font-size: 20rpx;
+  color: var(--text-secondary);
+  background: var(--bg-raised);
+  padding: 4rpx 14rpx;
+  border-radius: 8rpx;
+}
+
+.lc-tag-empty {
+  font-size: 22rpx;
+  color: var(--text-muted);
+}
+
+/* ── 参考答案 ──────────────────────────────────────────────────── */
+.answer-card {
+  background: var(--bg-panel);
+  border-radius: var(--r-lg);
+  padding: 32rpx 28rpx;
+  margin-bottom: 16rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.answer-header {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 20rpx;
+}
+
+.answer-icon-box {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 14rpx;
+  background: #FFFBEB;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.answer-icon {
+  font-size: 28rpx;
+  line-height: 1;
+}
+
+.answer-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.answer-text {
+  font-size: 28rpx;
+  color: var(--text-body);
+  line-height: 1.8;
+  display: block;
+}
+
+/* ── LeetCode 提示 ─────────────────────────────────────────────── */
+.lc-hint-card {
+  background: #FFF7ED;
+  border-radius: var(--r-lg);
+  padding: 28rpx;
+  margin-bottom: 16rpx;
+  display: flex;
+  align-items: flex-start;
+  gap: 16rpx;
+  border: 1.5rpx solid #FED7AA;
+}
+
+.lc-hint-icon {
+  font-size: 36rpx;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 4rpx;
+}
+
+.lc-hint-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.lc-hint-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #C2410C;
+}
+
+.lc-hint-desc {
+  font-size: 24rpx;
+  color: #92400E;
+  line-height: 1.6;
+}
+
+/* ── 面试要点 ──────────────────────────────────────────────────── */
+.tips-card {
+  background: var(--bg-panel);
+  border-radius: var(--r-lg);
+  padding: 32rpx 28rpx;
+  margin-bottom: 16rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.tips-header {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 20rpx;
+}
+
+.tips-icon-box {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 14rpx;
+  background: #EEF2FF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tips-icon {
+  font-size: 28rpx;
+  line-height: 1;
+}
+
+.tips-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.tips-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.tip-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14rpx;
+}
+
+.tip-dot {
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  background: var(--brand);
+  flex-shrink: 0;
+  margin-top: 12rpx;
+}
+
+.tip-text {
+  font-size: 26rpx;
+  color: var(--text-body);
+  line-height: 1.6;
+  flex: 1;
+}
+
+/* ── 底部操作栏 ─────────────────────────────────────────────────── */
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  background: var(--bg-panel);
+  padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
+  box-shadow: 0 -4rpx 24rpx rgba(0, 0, 0, 0.08);
+  z-index: 100;
+}
+
+.bottom-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  border-radius: 48rpx;
+  padding: 22rpx 0;
+}
+
+.bottom-btn.secondary {
+  flex: 0 0 160rpx;
+  background: var(--bg-raised);
+  border: 1.5rpx solid var(--border-light);
+}
+
+.bottom-btn.primary {
+  flex: 1;
+  background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+  box-shadow: 0 6rpx 20rpx rgba(43, 92, 230, 0.3);
+}
+
+.bottom-btn:active {
+  opacity: 0.85;
+  transform: scale(0.98);
+}
+
+.btn-icon {
+  font-size: 30rpx;
+  line-height: 1;
+}
+
+.btn-txt {
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.bottom-btn.secondary .btn-txt { color: var(--text-body); }
+.bottom-btn.primary   .btn-txt { color: var(--bg-panel); }
+.bottom-btn.secondary .btn-icon { font-size: 32rpx; }
+
+/* ── 已做标记按钮 ────────────────────────────────────────────── */
+.bottom-btn.secondary {
+  flex: 0 0 130rpx;
+}
+
+.bottom-btn.done-btn {
+  flex: 0 0 170rpx;
+  background: var(--bg-raised);
+  border: 1.5rpx solid var(--border-light);
+}
+
+.bottom-btn.done-btn.done-on {
+  background: #ECFDF5;
+  border-color: #059669;
+}
+
+.bottom-btn.done-btn .btn-txt { color: var(--text-body); }
+.bottom-btn.done-btn.done-on .btn-txt { color: #059669; font-weight: 700; }
+.bottom-btn.done-btn.done-on .btn-icon { color: #059669; }
+
+/* ── 已完成角标 ──────────────────────────────────────────────── */
+.done-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 16rpx;
+  padding: 6rpx 18rpx;
+  background: #ECFDF5;
+  color: #059669;
+  font-size: 22rpx;
+  font-weight: 700;
+  border-radius: 10rpx;
+  border: 1.5rpx solid #A7F3D0;
+}

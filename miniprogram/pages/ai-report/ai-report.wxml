@@ -1,0 +1,211 @@
+<!-- pages/ai-report/ai-report.wxml -->
+<view class="container" wx:if="{{report}}">
+
+  <!-- 1. 头部总分卡片（渐变背景） -->
+  <view class="score-card">
+    <view class="score-circle" style="border-color: {{report.scoreColor}}40;">
+      <text class="score-val" style="color: #fff;">{{report.totalScore}}</text>
+      <text class="score-label">综合得分</text>
+    </view>
+    <view class="role-info">
+      <text class="role-title">{{report.role}}</text>
+      <text class="company-name" wx:if="{{report.company}}">{{report.company}}</text>
+      <view class="score-badge" style="background: {{report.scoreColor}}30; color: {{report.scoreColor}};">
+        {{report.scoreLevel}}
+      </view>
+      <text class="score-desc">{{report.scoreDesc}}</text>
+    </view>
+  </view>
+
+  <!-- 2. Tab 切换 -->
+  <view class="report-tabs">
+    <view class="rtab {{activeTab === 0 ? 'active' : ''}}" bindtap="switchTab" data-index="0">能力分析</view>
+    <view class="rtab {{activeTab === 1 ? 'active' : ''}}" bindtap="switchTab" data-index="1">问答复盘</view>
+  </view>
+
+  <!-- Tab 0: 能力分析 -->
+  <view wx:if="{{activeTab === 0}}">
+
+    <!-- 3. 五维能力分析（彩色进度条） -->
+    <view class="section">
+      <view class="section-title">五维能力分析</view>
+      <view class="dimension-list">
+        <block wx:for="{{report.dimensions}}" wx:key="name">
+          <view class="dim-item">
+            <view class="dim-left">
+              <text class="dim-name">{{item.name}}</text>
+              <text class="dim-level" style="color: {{item.color}};">{{item.level}}</text>
+            </view>
+            <view class="dim-right">
+              <view class="progress-bg">
+                <view class="progress-bar" style="width: {{item.barWidth}}%; background: {{item.color}};"></view>
+              </view>
+              <text class="dim-score" style="color: {{item.color}};">{{item.score}}</text>
+            </view>
+          </view>
+        </block>
+      </view>
+    </view>
+
+    <!-- 4. 雷达图（Canvas版） -->
+    <view class="section">
+      <view class="section-title">能力雷达</view>
+      <view class="radar-wrap">
+        <canvas type="2d" id="radarCanvas" class="radar-canvas"></canvas>
+      </view>
+    </view>
+
+    <!-- 重点提升方向 -->
+    <view class="section" wx:if="{{report.improveItems && report.improveItems.length > 0}}">
+      <view class="section-title">重点提升方向</view>
+      <view class="improve-list">
+        <view class="improve-item" wx:for="{{report.improveItems}}" wx:key="name">
+          <view class="improve-rank" style="background: {{item.color}}20; color: {{item.color}};">
+            {{index + 1}}
+          </view>
+          <view class="improve-body">
+            <text class="improve-name">{{item.name}}</text>
+            <text class="improve-tip">当前 {{item.score}} 分，优先重点练习此项</text>
+          </view>
+          <text class="improve-score" style="color: {{item.color}};">{{item.score}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 5. 优势与不足 -->
+    <view class="section" wx:if="{{report.strengths || report.weaknesses}}">
+      <view class="section-title">优劣势分析</view>
+
+      <view class="analysis-card good" wx:if="{{report.strengths}}">
+        <view class="analysis-icon">+</view>
+        <view class="analysis-body">
+          <text class="analysis-label">核心优势</text>
+          <text class="analysis-text">{{report.strengths}}</text>
+        </view>
+      </view>
+
+      <view class="analysis-card bad" wx:if="{{report.weaknesses}}">
+        <view class="analysis-icon">!</view>
+        <view class="analysis-body">
+          <text class="analysis-label">待改进</text>
+          <text class="analysis-text">{{report.weaknesses}}</text>
+        </view>
+      </view>
+
+      <view class="analysis-card tip" wx:if="{{report.suggestion}}">
+        <view class="analysis-icon">*</view>
+        <view class="analysis-body">
+          <text class="analysis-label">备考建议</text>
+          <text class="analysis-text">{{report.suggestion}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 6. 对标分析 -->
+    <view class="section" wx:if="{{report.benchmark}}">
+      <view class="section-title">对标分析</view>
+
+      <!-- 百分位卡片 -->
+      <view class="percentile-card">
+        <view class="pct-left">
+          <text class="pct-big">{{report.benchmark.percentile}}%</text>
+          <text class="pct-sub">超过了同岗位求职者</text>
+        </view>
+        <view class="pct-right">
+          <text class="pct-avg-label">同岗位平均分</text>
+          <text class="pct-avg-val">{{report.benchmark.avgScore}}</text>
+        </view>
+        <view class="pct-bar-wrap">
+          <view class="pct-bar-track">
+            <view class="pct-bar-avg" style="left: {{report.benchmark.avgScore}}%;"></view>
+            <view class="pct-bar-me" style="left: {{report.totalScore}}%;"></view>
+          </view>
+          <view class="pct-bar-labels">
+            <text class="pct-bar-label-avg" style="left: {{report.benchmark.avgScore}}%;">平均</text>
+            <text class="pct-bar-label-me" style="left: {{report.totalScore}}%;">你</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 维度对比 -->
+      <view class="bench-list">
+        <view class="bench-head">
+          <text class="bench-col-name">维度</text>
+          <text class="bench-col">你的得分</text>
+          <text class="bench-col">行业均值</text>
+          <text class="bench-col">差距</text>
+        </view>
+        <block wx:for="{{report.benchmark.dims}}" wx:key="name">
+          <view class="bench-row">
+            <text class="bench-col-name">{{item.name}}</text>
+            <text class="bench-col bench-me" style="color: {{item.color}};">{{item.myScore}}</text>
+            <text class="bench-col bench-avg">{{item.avgScore}}</text>
+            <text class="bench-col bench-diff {{item.diff >= 0 ? 'pos' : 'neg'}}">{{item.diff >= 0 ? '+' : ''}}{{item.diff}}</text>
+          </view>
+        </block>
+      </view>
+    </view>
+
+    <!-- 7. AI 综合评语 -->
+    <view class="section">
+      <view class="section-title">AI 面试官点评</view>
+      <view class="summary-box">
+        {{report.summary}}
+      </view>
+    </view>
+  </view>
+
+  <!-- Tab 1: 问答复盘 -->
+  <view wx:if="{{activeTab === 1}}">
+    <view class="section">
+      <view class="section-title">问答详细复盘 ({{report.qaList.length}}题)</view>
+      <block wx:for="{{report.qaList}}" wx:key="index">
+        <view class="qa-item">
+          <view class="qa-header">
+            <text class="q-tag">Q{{index+1}}</text>
+            <text class="q-text">{{item.q}}</text>
+            <view class="q-score" style="background: {{item.score >= 80 ? '#52c41a' : (item.score >= 60 ? '#faad14' : '#f5222d')}};">
+              {{item.score}}分
+            </view>
+            <view class="q-bookmark {{qaBookmarkSet[item.qid] ? 'saved' : ''}}"
+                  catchtap="toggleQaBookmark"
+                  data-qid="{{item.qid}}"
+                  data-question="{{item.q}}"
+                  data-answer="{{item.a}}"
+                  data-feedback="{{item.feedback}}"
+                  data-score="{{item.score}}"
+                  data-source="{{report.role}}">
+              {{qaBookmarkSet[item.qid] ? '★' : '☆'}}
+            </view>
+          </view>
+          <view class="a-box">
+            <text class="a-label">你的回答：</text>
+            <text class="a-text">{{item.a}}</text>
+          </view>
+          <view class="feedback-box">
+            <text class="fb-label">改进建议：</text>
+            <view class="fb-text-wrap">
+              <block wx:for="{{item.feedbackSegments}}" wx:for-item="seg" wx:for-index="si" wx:key="si">
+                <text class="fb-seg {{seg.hl ? 'fb-highlight' : ''}}">{{seg.text}}</text>
+              </block>
+            </view>
+          </view>
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <!-- 底部操作栏 -->
+  <view class="bottom-bar">
+    <view class="btn-secondary" bindtap="retryInterview">再次面试</view>
+    <view class="btn-primary" bindtap="saveAsImage">保存截图</view>
+  </view>
+
+  <view style="height: 140rpx;"></view>
+</view>
+
+<!-- Loading -->
+<view wx:if="{{loading}}" class="loading-page">
+  <view class="loading-spinner"></view>
+  <text class="loading-text">正在生成面试报告...</text>
+</view>

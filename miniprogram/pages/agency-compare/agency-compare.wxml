@@ -1,0 +1,120 @@
+<!-- pages/agency-compare/agency-compare.wxml -->
+<view class="page">
+
+  <!-- 加载中 -->
+  <view wx:if="{{loading}}" class="loading-wrap">
+    <view class="spinner"></view>
+    <text class="loading-txt">正在加载对比数据...</text>
+  </view>
+
+  <block wx:if="{{!loading && agencies.length > 0}}">
+
+    <!-- ── 机构头部卡片 ── -->
+    <view class="header-section">
+      <view class="header-grid cols{{colCount}}">
+        <!-- 空白标签列 -->
+        <view class="header-label-col"></view>
+        <!-- 每家机构 -->
+        <block wx:for="{{agencies}}" wx:key="id">
+          <view
+            class="agency-head-cell"
+            bindtap="goDetail"
+            data-id="{{item.id}}"
+          >
+            <view class="agency-logo-wrap">
+              <image wx:if="{{item.logo}}" class="agency-logo" src="{{item.logo}}" mode="aspectFill"/>
+              <view wx:else class="agency-logo-placeholder">
+                <text class="agency-logo-text">{{item.name.slice(0,2)}}</text>
+              </view>
+            </view>
+            <text class="agency-head-name">{{item.name}}</text>
+            <view class="agency-head-type">{{item.type}}</view>
+            <view class="agency-head-detail-btn">查看详情</view>
+          </view>
+        </block>
+      </view>
+    </view>
+
+    <!-- ── 对比表格 ── -->
+    <view class="table-section">
+      <block wx:for="{{rows}}" wx:for-item="row" wx:key="label">
+        <view class="table-row {{index % 2 === 0 ? 'even' : 'odd'}}">
+
+          <!-- 行标签 -->
+          <view class="row-label-col">
+            <text class="row-label">{{row.label}}</text>
+          </view>
+
+          <!-- 各机构数据列 -->
+          <block wx:for="{{row.cells}}" wx:for-item="cell" wx:key="*this">
+            <view class="data-col {{cell.isBest ? 'best' : ''}}">
+
+              <!-- 评分类型 -->
+              <block wx:if="{{row.type === 'rating' || row.type === 'dim_rating'}}">
+                <view wx:if="{{cell.display === '暂无'}}" class="no-data">暂无</view>
+                <block wx:else>
+                  <text class="score-num {{cell.isBest ? 'best-score' : ''}}">{{cell.display}}</text>
+                  <view class="stars-row">
+                    <block wx:for="{{cell.stars}}" wx:for-item="s" wx:key="*this">
+                      <text class="star {{s}}">★</text>
+                    </block>
+                  </view>
+                </block>
+              </block>
+
+              <!-- 数量类型 -->
+              <block wx:elif="{{row.type === 'number'}}">
+                <text class="num-val {{cell.isBest ? 'best-score' : ''}}">{{cell.display}}</text>
+              </block>
+
+              <!-- 标签类型 -->
+              <block wx:elif="{{row.type === 'tags'}}">
+                <view wx:if="{{cell.tags.length === 0}}" class="no-data">—</view>
+                <view wx:else class="tag-list">
+                  <block wx:for="{{cell.tags}}" wx:for-item="tag" wx:key="*this">
+                    <view class="mini-tag">{{tag}}</view>
+                  </block>
+                </view>
+              </block>
+
+              <!-- 价格类型 -->
+              <block wx:elif="{{row.type === 'price'}}">
+                <text class="price-txt">{{cell.display}}</text>
+              </block>
+
+              <!-- 布尔类型 -->
+              <block wx:elif="{{row.type === 'bool'}}">
+                <view class="bool-badge {{cell.isTrue ? 'verified' : 'unverified'}}">
+                  <text>{{cell.display}}</text>
+                </view>
+              </block>
+
+              <!-- 普通文本 -->
+              <block wx:else>
+                <text class="plain-txt">{{cell.display}}</text>
+              </block>
+
+            </view>
+          </block>
+
+        </view>
+      </block>
+    </view>
+
+    <!-- ── 底部操作 ── -->
+    <view class="footer-section">
+      <text class="footer-tip">点击机构名称可查看详情页</text>
+      <view class="footer-btns">
+        <block wx:for="{{agencies}}" wx:key="id">
+          <view
+            class="footer-detail-btn"
+            bindtap="goDetail"
+            data-id="{{item.id}}"
+          >查看{{item.name}}</view>
+        </block>
+      </view>
+    </view>
+
+  </block>
+
+</view>

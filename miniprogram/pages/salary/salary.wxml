@@ -1,0 +1,512 @@
+<!-- pages/salary/salary.wxml -->
+<view class="container">
+
+  <!-- ── 顶部 Hero ── -->
+  <view class="hero">
+    <view class="hero-text">
+      <text class="hero-title">薪资洞察</text>
+      <text class="hero-sub">市场参考数据 · 用户真实共享</text>
+    </view>
+    <view class="region-toggle">
+      <view class="region-btn {{region === 'NA' ? 'active' : ''}}" bindtap="setRegion" data-region="NA">
+        <text class="region-text">🇺🇸 北美</text>
+      </view>
+      <view class="region-btn {{region === 'CN' ? 'active' : ''}}" bindtap="setRegion" data-region="CN">
+        <text class="region-text">🇨🇳 国内</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- ── Tab 切换 ── -->
+  <view class="tab-header">
+    <view class="tab-item {{selectedTab === 0 ? 'active' : ''}}" bindtap="switchTab" data-index="0">查职位薪酬</view>
+    <view class="tab-item {{selectedTab === 1 ? 'active' : ''}}" bindtap="switchTab" data-index="1">查公司薪酬</view>
+    <view class="tab-item {{selectedTab === 2 ? 'active' : ''}}" bindtap="switchTab" data-index="2">公司对比</view>
+  </view>
+
+  <!-- ── 搜索表单（tab 0/1）── -->
+  <view class="form-card" wx:if="{{selectedTab !== 2}}">
+    <view class="input-group">
+      <view class="input-icon-box"><text class="input-icon-txt">💼</text></view>
+      <input
+        class="form-input"
+        placeholder="{{region === 'NA' ? 'Job Title (e.g. Software Engineer)' : '职位名称（如 前端工程师）'}}"
+        placeholder-class="ph"
+        value="{{jobTitle}}"
+        bindinput="onInput"
+        data-field="jobTitle"
+      />
+    </view>
+
+    <view class="input-group" wx:if="{{selectedTab === 0}}">
+      <view class="input-icon-box"><text class="input-icon-txt">📍</text></view>
+      <input
+        class="form-input"
+        placeholder="{{region === 'NA' ? 'Location (e.g. San Francisco)' : '城市（如 北京）'}}"
+        placeholder-class="ph"
+        value="{{location}}"
+        bindinput="onInput"
+        data-field="location"
+      />
+    </view>
+
+    <view class="input-group" wx:if="{{selectedTab === 1}}">
+      <view class="input-icon-box"><text class="input-icon-txt">🏢</text></view>
+      <input
+        class="form-input"
+        placeholder="{{region === 'NA' ? 'Company Name (e.g. Google)' : '公司名称（如 字节跳动）'}}"
+        placeholder-class="ph"
+        value="{{company}}"
+        bindinput="onInput"
+        data-field="company"
+      />
+    </view>
+
+    <c-button class="search-btn" bindtap="handleSearch" disabled="{{loading}}" loading="{{loading}}">
+      {{loading ? (loadingTip || '分析中...') : '查询薪资'}}
+    </c-button>
+  </view>
+
+  <!-- ── 公司横向对比面板 ── -->
+  <view wx:if="{{selectedTab === 2}}" class="cmp-panel">
+
+    <!-- 职位输入 -->
+    <view class="cmp-form-card">
+      <view class="cmp-row">
+        <view class="input-icon-box"><text class="input-icon-txt">💼</text></view>
+        <input
+          class="form-input"
+          placeholder="{{region === 'NA' ? '对比职位（如 Software Engineer）' : '对比职位（如 软件工程师）'}}"
+          placeholder-class="ph"
+          value="{{cmpJobTitle}}"
+          bindinput="onCmpInput"
+          data-field="cmpJobTitle"
+        />
+      </view>
+      <view class="cmp-row">
+        <view class="input-icon-box"><text class="input-icon-txt">🏢</text></view>
+        <input
+          class="form-input"
+          placeholder="输入公司名称，回车添加"
+          placeholder-class="ph"
+          value="{{cmpCompanyInput}}"
+          bindinput="onCmpInput"
+          data-field="cmpCompanyInput"
+          confirm-type="done"
+          bindconfirm="addCmpCompany"
+        />
+        <view class="cmp-add-btn" bindtap="addCmpCompany">
+          <text class="cmp-add-txt">添加</text>
+        </view>
+      </view>
+
+      <!-- 快捷公司标签 -->
+      <view class="cmp-quick-wrap">
+        <view
+          wx:for="{{cmpQuickCompanies}}"
+          wx:key="*this"
+          class="cmp-quick-tag {{cmpList.length >= 5 ? 'cmp-quick-disabled' : ''}}"
+          bindtap="addCmpCompany"
+          data-company="{{item}}"
+        >+ {{item}}</view>
+      </view>
+    </view>
+
+    <!-- 对比结果 -->
+    <view class="cmp-result-card" wx:if="{{cmpList.length > 0}}">
+      <view class="cmp-result-head">
+        <text class="section-title" style="margin-bottom:0;">
+          {{cmpJobTitle || (region === 'NA' ? 'Software Engineer' : '软件工程师')}} · 薪酬对比
+        </text>
+        <text class="cmp-clear-btn" bindtap="clearCmpList">清空</text>
+      </view>
+
+      <!-- 每家公司一行 -->
+      <view class="cmp-chart">
+        <view wx:for="{{cmpList}}" wx:key="company" class="cmp-item">
+          <!-- 公司名 + 排名 -->
+          <view class="cmp-label-row">
+            <view class="cmp-rank {{item.isTop ? 'cmp-rank-top' : ''}}">{{item.rank}}</view>
+            <text class="cmp-company-name {{item.isTop ? 'cmp-name-top' : ''}}">{{item.company}}</text>
+            <text class="cmp-estimated-tag" wx:if="{{item.isEstimated}}">估算</text>
+            <text class="cmp-remove" bindtap="removeCmpCompany" data-company="{{item.company}}">✕</text>
+          </view>
+          <!-- 范围条 + 中位数条 -->
+          <view class="cmp-bar-track">
+            <view class="cmp-range-bar" style="left:{{item.rangeL}}%; width:{{item.rangeW}}%;"></view>
+            <view class="cmp-median-bar {{item.isTop ? 'cmp-bar-top' : ''}}" style="width:{{item.barW}}%;"></view>
+          </view>
+          <!-- 数值行 -->
+          <view class="cmp-val-row">
+            <text class="cmp-range-txt">{{item.minStr}} – {{item.maxStr}}</text>
+            <text class="cmp-median-txt {{item.isTop ? 'cmp-median-top' : ''}}">中位 {{item.medianStr}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 图例 -->
+      <view class="cmp-legend">
+        <view class="cmp-legend-item">
+          <view class="cmp-legend-dot cmp-dot-range"></view>
+          <text class="cmp-legend-txt">薪资范围</text>
+        </view>
+        <view class="cmp-legend-item">
+          <view class="cmp-legend-dot cmp-dot-median"></view>
+          <text class="cmp-legend-txt">中位薪资</text>
+        </view>
+        <text class="cmp-unit-note">单位：{{region === 'NA' ? 'USD/yr' : 'CNY/yr'}}</text>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="cmp-empty" wx:if="{{cmpList.length === 0 && !cmpLoading}}">
+      <text class="cmp-empty-icon">🏢</text>
+      <text class="cmp-empty-txt">添加 2–5 家公司开始对比</text>
+      <text class="cmp-empty-sub">支持输入或点击快捷标签添加</text>
+    </view>
+
+    <!-- 加载中 -->
+    <view class="cmp-loading" wx:if="{{cmpLoading}}">
+      <text>查询中...</text>
+    </view>
+  </view>
+
+  <!-- ── 历史查询记录 ── -->
+  <view wx:if="{{selectedTab !== 2 && !result && !loading && historyList.length > 0}}" class="history-section">
+    <view class="history-header">
+      <text class="section-label">🕐 最近查询</text>
+      <text class="history-clear" bindtap="clearHistory">清除</text>
+    </view>
+    <scroll-view scroll-x class="history-scroll">
+      <view class="history-list">
+        <view
+          wx:for="{{historyList}}"
+          wx:key="index"
+          class="history-chip"
+          bindtap="onHistoryTap"
+          data-item="{{item}}"
+        >
+          <text class="history-tag">{{item.selectedTab === 0 ? '职位' : '公司'}}</text>
+          <text class="history-main">{{item.jobTitle}}{{item.company ? ' · ' + item.company : ''}}</text>
+          <text class="history-loc" wx:if="{{item.location}}">{{item.location}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- ── 热门快查（tab 0/1）── -->
+  <view wx:if="{{selectedTab !== 2 && !result && !loading}}" class="preset-section">
+    <text class="section-label">🔥 热门{{selectedTab === 0 ? '岗位' : '公司'}}快查</text>
+
+    <view wx:if="{{selectedTab === 0}}" class="role-grid">
+      <view
+        wx:for="{{presetRoles}}"
+        wx:key="name"
+        class="role-card"
+        bindtap="onPresetSelect"
+        data-title="{{item.name}}"
+      >
+        <view class="role-top">
+          <text class="role-emoji">{{item.emoji}}</text>
+          <text class="role-range">{{region === 'NA' ? item.naRange : item.cnRange}}</text>
+        </view>
+        <text class="role-name">{{item.name}}</text>
+      </view>
+    </view>
+
+    <view wx:else class="tag-container">
+      <view
+        wx:for="{{hotCompanies}}"
+        wx:key="*this"
+        class="company-tag"
+        bindtap="onQuickSearch"
+        data-value="{{item}}"
+      >{{item}}</view>
+    </view>
+
+    <!-- 邀请分享入口（无结果时展示） -->
+    <view class="invite-share-bar" bindtap="openShareModal">
+      <text class="invite-icon">📊</text>
+      <text class="invite-txt">分享你的真实薪资，帮助更多求职者</text>
+      <text class="invite-arrow">→</text>
+    </view>
+  </view>
+
+  <!-- ── 结果卡片 ── -->
+  <view class="result-card" wx:if="{{result}}">
+
+    <!-- 职位 + 地区 -->
+    <view class="result-header">
+      <text class="res-title">{{result.title}}</text>
+      <view class="res-loc-row">
+        <text class="res-loc">📍 {{result.location}}</text>
+      </view>
+    </view>
+
+    <!-- 中位薪资大数字 -->
+    <view class="salary-hero">
+      <text class="salary-label">年薪中位数</text>
+      <view class="salary-row">
+        <text class="salary-val">{{result.medianStr}}</text>
+        <text class="salary-unit">/yr</text>
+      </view>
+      <view class="salary-range-row">
+        <text class="salary-min">{{result.minStr}}</text>
+        <view class="salary-range-bar">
+          <view class="salary-range-fill"></view>
+          <view class="salary-dot" style="left: {{result.percent}};"></view>
+        </view>
+        <text class="salary-max">{{result.maxStr}}</text>
+      </view>
+    </view>
+
+    <!-- 数据来源标注 -->
+    <view class="data-source-row">
+      <view class="source-badge {{result.isMock ? 'source-ref' : result.dataSource === 'community' ? 'source-community' : result.dataSource === 'ai' ? 'source-ai' : 'source-api'}}">
+        <text class="source-dot"></text>
+        <text class="source-txt">
+          {{result.isMock ? '参考估算数据' : result.dataSource === 'community' ? '用户真实数据（' + result.sampleSize + '条）' : result.dataSource === 'ai' ? 'AI智能估算' : '市场公开数据'}}
+        </text>
+      </view>
+      <view class="share-link" bindtap="openShareModal">
+        <text class="share-link-txt">📝 分享我的薪资</text>
+      </view>
+    </view>
+    <view wx:if="{{result.marketNote}}" class="market-note">
+      <text class="market-note-txt">💡 {{result.marketNote}}</text>
+    </view>
+
+    <!-- 用户真实共享数据 -->
+    <view class="user-stats-card" wx:if="{{userStats}}">
+      <view class="user-stats-head">
+        <text class="user-stats-title">👥 用户共享数据</text>
+        <text class="user-stats-count">{{userStats.count}} 人已分享</text>
+      </view>
+      <view class="user-stats-row">
+        <view class="user-stat-item">
+          <text class="ust-label">最低</text>
+          <text class="ust-val ust-low">{{userStats.minStr}}</text>
+        </view>
+        <view class="user-stat-divider"></view>
+        <view class="user-stat-item">
+          <text class="ust-label">平均总包</text>
+          <text class="ust-val ust-avg">{{userStats.avgStr}}</text>
+        </view>
+        <view class="user-stat-divider"></view>
+        <view class="user-stat-item">
+          <text class="ust-label">最高</text>
+          <text class="ust-val ust-high">{{userStats.maxStr}}</text>
+        </view>
+      </view>
+      <!-- 真实分位点（T-7修复：来自服务端真实众包数据计算）-->
+      <view class="user-pct-row" wx:if="{{userStats.hasPercentile}}">
+        <view class="user-pct-item">
+          <text class="upct-label">P25</text>
+          <text class="upct-val">{{userStats.p25Str}}</text>
+        </view>
+        <view class="user-pct-item upct-mid">
+          <text class="upct-label">P50 中位数</text>
+          <text class="upct-val upct-highlight">{{userStats.p50Str}}</text>
+        </view>
+        <view class="user-pct-item">
+          <text class="upct-label">P75</text>
+          <text class="upct-val">{{userStats.p75Str}}</text>
+        </view>
+      </view>
+      <text class="user-stats-note">以上数据来自用户匿名投稿，分位点基于真实数据计算</text>
+    </view>
+
+    <!-- 分位点（VIP 解锁）-->
+    <view class="percentile-section" wx:if="{{result.percentiles}}">
+      <text class="section-title">薪资分位点</text>
+      <!-- VIP: 显示完整数据 -->
+      <block wx:if="{{isVip}}">
+        <view class="pct-grid">
+          <view class="pct-item">
+            <text class="pct-label">P10</text>
+            <text class="pct-val">{{result.percentiles.p10}}</text>
+          </view>
+          <view class="pct-item">
+            <text class="pct-label">P25</text>
+            <text class="pct-val">{{result.percentiles.p25}}</text>
+          </view>
+          <view class="pct-item pct-mid">
+            <text class="pct-label">P50</text>
+            <text class="pct-val">{{result.percentiles.p50}}</text>
+          </view>
+          <view class="pct-item">
+            <text class="pct-label">P75</text>
+            <text class="pct-val">{{result.percentiles.p75}}</text>
+          </view>
+          <view class="pct-item">
+            <text class="pct-label">P90</text>
+            <text class="pct-val">{{result.percentiles.p90}}</text>
+          </view>
+        </view>
+        <view class="pct-track">
+          <view class="pct-fill" style="left: 10%; width: 80%;"></view>
+          <view class="pct-dot-node" style="left: 10%;"></view>
+          <view class="pct-dot-node" style="left: 25%;"></view>
+          <view class="pct-dot-node pct-dot-mid" style="left: 50%;"></view>
+          <view class="pct-dot-node" style="left: 75%;"></view>
+          <view class="pct-dot-node" style="left: 90%;"></view>
+        </view>
+      </block>
+      <!-- 非 VIP: 仅显示 P50，其余加锁 -->
+      <block wx:else>
+        <view class="pct-grid">
+          <view class="pct-item pct-locked"><text class="pct-label">P10</text><text class="pct-val pct-blur">****</text></view>
+          <view class="pct-item pct-locked"><text class="pct-label">P25</text><text class="pct-val pct-blur">****</text></view>
+          <view class="pct-item pct-mid"><text class="pct-label">P50</text><text class="pct-val">{{result.percentiles.p50}}</text></view>
+          <view class="pct-item pct-locked"><text class="pct-label">P75</text><text class="pct-val pct-blur">****</text></view>
+          <view class="pct-item pct-locked"><text class="pct-label">P90</text><text class="pct-val pct-blur">****</text></view>
+        </view>
+        <view class="vip-lock-bar" bindtap="goVip">
+          <text class="vlb-icon">🔒</text>
+          <text class="vlb-txt">升级 VIP 解锁 P10/P25/P75/P90 完整分位点</text>
+          <text class="vlb-btn">解锁</text>
+        </view>
+      </block>
+    </view>
+
+    <!-- 薪资分布柱状图 -->
+    <view class="chart-section">
+      <text class="section-title">薪资分布</text>
+      <view class="bar-chart">
+        <block wx:for="{{result.distributionBars}}" wx:key="index">
+          <view class="bar-col">
+            <view class="bar-fill {{item.isMedian ? 'bar-hl' : ''}}" style="height: {{item.height}}rpx;"></view>
+            <text class="bar-label">{{item.label}}</text>
+          </view>
+        </block>
+      </view>
+    </view>
+
+    <!-- TC 总包组成（北美，VIP 解锁）-->
+    <view class="tc-section" wx:if="{{result.tcBreakdown && region === 'NA'}}">
+      <text class="section-title">总包组成 (TC)</text>
+      <block wx:if="{{isVip}}">
+        <view class="tc-bar-wrap">
+          <view class="tc-seg seg-base"   style="width: {{result.tcBreakdown.basePercent}}%;"></view>
+          <view class="tc-seg seg-bonus"  style="width: {{result.tcBreakdown.bonusPercent}}%;"></view>
+          <view class="tc-seg seg-equity" style="width: {{result.tcBreakdown.equityPercent}}%;"></view>
+        </view>
+        <view class="tc-legend">
+          <view class="tc-item"><view class="tc-dot dot-base"></view><text class="tc-text">Base  {{result.tcBreakdown.baseStr}}</text></view>
+          <view class="tc-item"><view class="tc-dot dot-bonus"></view><text class="tc-text">Bonus {{result.tcBreakdown.bonusStr}}</text></view>
+          <view class="tc-item"><view class="tc-dot dot-eq"></view><text class="tc-text">RSU   {{result.tcBreakdown.equityStr}}</text></view>
+        </view>
+      </block>
+      <view wx:else class="vip-lock-bar" bindtap="goVip">
+        <text class="vlb-icon">🔒</text>
+        <text class="vlb-txt">VIP 专属：Base / Bonus / RSU 详细拆分</text>
+        <text class="vlb-btn">解锁</text>
+      </view>
+    </view>
+
+    <!-- 市场主流区间 -->
+    <view class="market-ref" wx:if="{{result.marketRange}}">
+      <text class="ref-label">市场主流区间 (P25–P75)</text>
+      <text class="ref-val">{{result.marketRange}}/yr</text>
+    </view>
+
+    <!-- 薪资涨幅趋势图（VIP 解锁）-->
+    <view class="trend-section" wx:if="{{result.trendPoints}}">
+      <view class="trend-head">
+        <text class="section-title" style="margin-bottom:0;">📈 薪资涨幅趋势</text>
+        <view wx:if="{{isVip}}" class="trend-summary-badge {{result.trendSummary[0] === '+' ? 'badge-up' : 'badge-dn'}}">
+          <text>{{result.trendStartYear}}→{{result.trendEndYear}}  {{result.trendSummary}}</text>
+        </view>
+      </view>
+      <block wx:if="{{isVip}}">
+        <view class="trend-chart">
+          <view
+            wx:for="{{result.trendPoints}}"
+            wx:key="year"
+            class="trend-col"
+          >
+            <text class="trend-yoy {{item.isUp ? 'yoy-up' : 'yoy-dn'}}">{{item.yoyStr}}</text>
+            <text class="trend-val {{item.isCurrent ? 'trend-val-cur' : ''}}">{{item.salaryStr}}</text>
+            <view class="trend-bar-wrap">
+              <view
+                class="trend-bar {{item.isCurrent ? 'tbar-cur' : (item.isUp ? 'tbar-up' : 'tbar-dn')}}"
+                style="height: {{item.height}}rpx;"
+              ></view>
+            </view>
+            <text class="trend-year {{item.isCurrent ? 'trend-year-cur' : ''}}">{{item.year}}</text>
+          </view>
+        </view>
+        <text class="trend-note">* 基于行业平均增长率估算，仅供参考</text>
+      </block>
+      <view wx:else class="vip-lock-bar" bindtap="goVip">
+        <text class="vlb-icon">🔒</text>
+        <text class="vlb-txt">VIP 专属：5年薪资涨幅趋势图</text>
+        <text class="vlb-btn">解锁</text>
+      </view>
+    </view>
+
+    <view class="reset-btn" bindtap="resetSearch">🔄 重新查询</view>
+  </view>
+
+  <view style="height: 60rpx;"></view>
+</view>
+
+<!-- ── 分享薪资弹窗 ── -->
+<view class="modal-mask" wx:if="{{shareModalVisible}}" bindtap="closeShareModal"></view>
+<view class="share-modal" wx:if="{{shareModalVisible}}">
+  <view class="modal-header">
+    <text class="modal-title">📊 分享真实薪资</text>
+    <text class="modal-close" bindtap="closeShareModal">✕</text>
+  </view>
+  <text class="modal-subtitle">数据匿名处理，帮助更多求职者了解市场行情</text>
+
+  <view class="share-form">
+    <!-- 职位 -->
+    <view class="sf-row">
+      <text class="sf-label">职位 *</text>
+      <input class="sf-input" placeholder="如 前端工程师" placeholder-style="color:#C4C9D4;"
+        value="{{shareForm.position}}" bindinput="onShareInput" data-field="position" />
+    </view>
+
+    <!-- 公司 -->
+    <view class="sf-row">
+      <text class="sf-label">公司（可选）</text>
+      <input class="sf-input" placeholder="如 字节跳动（不填则匿名）" placeholder-style="color:#C4C9D4;"
+        value="{{shareForm.company}}" bindinput="onShareInput" data-field="company" />
+    </view>
+
+    <!-- 年限 -->
+    <view class="sf-row">
+      <text class="sf-label">工作年限</text>
+      <input class="sf-input" placeholder="如 3（年）" placeholder-style="color:#C4C9D4;" type="number"
+        value="{{shareForm.yearsOfExperience}}" bindinput="onShareInput" data-field="yearsOfExperience" />
+    </view>
+
+    <!-- 基础薪资 -->
+    <view class="sf-row">
+      <text class="sf-label">基础薪资 * <text class="sf-unit">{{region === 'NA' ? '(USD/yr)' : '(CNY/yr)'}}</text></text>
+      <input class="sf-input" placeholder="如 200000" placeholder-style="color:#C4C9D4;" type="digit"
+        value="{{shareForm.baseSalary}}" bindinput="onShareInput" data-field="baseSalary" />
+    </view>
+
+    <!-- 奖金 -->
+    <view class="sf-row">
+      <text class="sf-label">年终奖 <text class="sf-unit">（可选）</text></text>
+      <input class="sf-input" placeholder="税前年均" placeholder-style="color:#C4C9D4;" type="digit"
+        value="{{shareForm.bonus}}" bindinput="onShareInput" data-field="bonus" />
+    </view>
+
+    <!-- 股票 -->
+    <view class="sf-row" wx:if="{{region === 'NA'}}">
+      <text class="sf-label">RSU/股票 <text class="sf-unit">（可选，年均）</text></text>
+      <input class="sf-input" placeholder="年均归属市值" placeholder-style="color:#C4C9D4;" type="digit"
+        value="{{shareForm.stock}}" bindinput="onShareInput" data-field="stock" />
+    </view>
+  </view>
+
+  <view class="modal-notice">提交即表明数据真实有效，平台会对异常数据进行过滤处理。</view>
+
+  <c-button class="modal-submit-btn" bindtap="submitSalaryShare" disabled="{{shareLoading}}" loading="{{shareLoading}}">
+    {{shareLoading ? '提交中...' : '匿名提交'}}
+  </c-button>
+</view>

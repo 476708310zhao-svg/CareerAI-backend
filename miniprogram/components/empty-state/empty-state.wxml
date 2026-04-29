@@ -1,0 +1,7 @@
+<!-- components/empty-state/empty-state.wxml -->
+<view class="empty-state">
+  <text class="es-emoji">{{emoji}}</text>
+  <text class="es-title">{{title}}</text>
+  <text class="es-desc" wx:if="{{desc}}">{{desc}}</text>
+  <view class="es-btn" wx:if="{{btnText}}" bindtap="_onBtnTap">{{btnText}}</view>
+</view>

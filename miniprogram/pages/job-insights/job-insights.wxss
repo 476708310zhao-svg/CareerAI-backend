@@ -1,0 +1,515 @@
+/* pages/job-insights/job-insights.wxss */
+page {
+  background: var(--bg-raised);
+  font-family: -apple-system, 'PingFang SC', sans-serif;
+}
+
+/* ── Hero ────────────────────────────────────────────────────── */
+.hero {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 40rpx 32rpx 24rpx;
+  background: var(--bg-panel);
+  border-bottom: 1.5rpx solid rgba(0,0,0,0.05);
+}
+
+.hero-icon-box {
+  width: 88rpx;
+  height: 88rpx;
+  background: linear-gradient(135deg, #0F172A, #1E40AF);
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.hero-icon { font-size: 48rpx; }
+
+.hero-text { flex: 1; }
+
+.hero-title {
+  display: block;
+  font-size: 36rpx;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 6rpx;
+}
+
+.hero-desc {
+  font-size: 26rpx;
+  color: var(--text-muted);
+}
+
+/* ── Section ─────────────────────────────────────────────────── */
+.section {
+  padding: 28rpx 28rpx 8rpx;
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 18rpx;
+}
+
+/* ── 周期选择 ─────────────────────────────────────────────────── */
+.period-row {
+  display: flex;
+  gap: 16rpx;
+}
+
+.period-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--bg-panel);
+  border: 2rpx solid rgba(0,0,0,0.07);
+  border-radius: 18rpx;
+  padding: 20rpx 0;
+  transition: all 0.15s;
+}
+
+.period-btn.active {
+  background: linear-gradient(135deg, #EEF2FF, #E0E7FF);
+  border-color: var(--brand);
+}
+
+.period-label {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.period-btn.active .period-label { color: var(--brand); }
+
+.period-desc {
+  font-size: 22rpx;
+  color: var(--text-muted);
+  margin-top: 4rpx;
+}
+
+/* ── 生成按钮 ─────────────────────────────────────────────────── */
+.gen-wrap {
+  padding: 20rpx 28rpx 8rpx;
+}
+
+.gen-btn {
+  background: linear-gradient(135deg, #1E40AF, #2B5CE6);
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 700;
+  text-align: center;
+  padding: 28rpx 0;
+  border-radius: 20rpx;
+  box-shadow: 0 6rpx 24rpx rgba(43,92,230,0.3);
+}
+
+/* ── 加载中 ───────────────────────────────────────────────────── */
+.loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80rpx 40rpx;
+}
+
+.loading-rings {
+  position: relative;
+  width: 120rpx;
+  height: 120rpx;
+  margin-bottom: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 5rpx solid transparent;
+}
+
+.r1 {
+  width: 120rpx;
+  height: 120rpx;
+  border-top-color: #1E40AF;
+  animation: spin 1.2s linear infinite;
+}
+
+.r2 {
+  width: 88rpx;
+  height: 88rpx;
+  border-top-color: #60A5FA;
+  animation: spin 0.8s linear infinite reverse;
+}
+
+.ring-icon {
+  font-size: 40rpx;
+  z-index: 1;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-tip {
+  font-size: 28rpx;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* ── 总结卡 ───────────────────────────────────────────────────── */
+.summary-card {
+  margin: 28rpx 28rpx 8rpx;
+  background: linear-gradient(135deg, #0F172A, #1E3A8A);
+  border-radius: 24rpx;
+  padding: 32rpx;
+  box-shadow: 0 8rpx 32rpx rgba(15,23,42,0.25);
+}
+
+.summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18rpx;
+}
+
+.summary-period {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.65);
+  font-weight: 600;
+}
+
+.refresh-btn {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.75);
+  background: rgba(255,255,255,0.15);
+  border-radius: 20rpx;
+  padding: 8rpx 20rpx;
+}
+
+.summary-txt {
+  font-size: 28rpx;
+  color: #fff;
+  line-height: 1.7;
+  font-weight: 500;
+}
+
+/* ── 热门岗位 ─────────────────────────────────────────────────── */
+.job-card {
+  background: var(--bg-panel);
+  border-radius: 18rpx;
+  border: 1.5rpx solid rgba(0,0,0,0.05);
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+}
+
+.job-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10rpx;
+}
+
+.job-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.job-growth {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #059669;
+  background: #ECFDF5;
+  border-radius: 20rpx;
+  padding: 6rpx 16rpx;
+}
+
+.job-salary {
+  display: block;
+  font-size: 26rpx;
+  color: #D97706;
+  font-weight: 600;
+  margin-bottom: 8rpx;
+}
+
+.job-highlight {
+  display: block;
+  font-size: 25rpx;
+  color: var(--text-secondary);
+  margin-bottom: 14rpx;
+  line-height: 1.5;
+}
+
+.job-companies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+}
+
+.co-tag {
+  font-size: 22rpx;
+  color: var(--brand);
+  background: #EEF2FF;
+  border-radius: 8rpx;
+  padding: 6rpx 16rpx;
+  font-weight: 500;
+}
+
+/* ── 热门公司 ─────────────────────────────────────────────────── */
+.company-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.company-card {
+  width: calc(50% - 8rpx);
+  background: var(--bg-panel);
+  border-radius: 18rpx;
+  border: 1.5rpx solid rgba(0,0,0,0.05);
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+.company-icon {
+  font-size: 44rpx;
+  display: block;
+  margin-bottom: 10rpx;
+}
+
+.company-name {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8rpx;
+}
+
+.company-trend {
+  display: inline-block;
+  font-size: 21rpx;
+  color: #fff;
+  background: linear-gradient(135deg, #E11D48, #F43F5E);
+  border-radius: 20rpx;
+  padding: 4rpx 14rpx;
+  margin-bottom: 10rpx;
+  font-weight: 600;
+}
+
+.company-note {
+  display: block;
+  font-size: 22rpx;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ── 面试难度 ─────────────────────────────────────────────────── */
+.diff-summary-card {
+  background: #F8FAFF;
+  border-radius: 14rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 16rpx;
+  border: 1.5rpx solid #E0E7FF;
+}
+
+.diff-overall {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.diff-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16rpx;
+  background: var(--bg-panel);
+  border-radius: 14rpx;
+  border: 1.5rpx solid rgba(0,0,0,0.05);
+  padding: 20rpx 24rpx;
+  margin-bottom: 12rpx;
+}
+
+.diff-item-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  flex-shrink: 0;
+  width: 140rpx;
+}
+
+.diff-type {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.diff-level {
+  font-size: 20rpx;
+  font-weight: 700;
+  border-radius: 8rpx;
+  padding: 4rpx 12rpx;
+  text-align: center;
+}
+
+.diff-level.easy  { background: #ECFDF5; color: #059669; }
+.diff-level.mid   { background: #FFF8E6; color: #D97706; }
+.diff-level.hard  { background: #FEF2F2; color: #DC2626; }
+
+.diff-item-right {
+  flex: 1;
+  min-width: 0;
+}
+
+.diff-change {
+  display: block;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6rpx;
+}
+
+.diff-tip {
+  display: block;
+  font-size: 23rpx;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ── 薪资趋势 ─────────────────────────────────────────────────── */
+.salary-summary-card {
+  background: #FFFBEB;
+  border-radius: 14rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 16rpx;
+  border: 1.5rpx solid #FCD34D;
+}
+
+.salary-overall {
+  font-size: 26rpx;
+  color: #92400E;
+  line-height: 1.6;
+}
+
+.salary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-panel);
+  border-radius: 14rpx;
+  border: 1.5rpx solid rgba(0,0,0,0.05);
+  padding: 20rpx 24rpx;
+  margin-bottom: 12rpx;
+}
+
+.salary-row-left { flex: 1; min-width: 0; }
+
+.salary-role {
+  display: block;
+  font-size: 27rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4rpx;
+}
+
+.salary-note {
+  display: block;
+  font-size: 22rpx;
+  color: var(--text-muted);
+}
+
+.salary-row-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6rpx;
+  flex-shrink: 0;
+}
+
+.salary-range {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #D97706;
+}
+
+.salary-yoy {
+  font-size: 22rpx;
+  font-weight: 700;
+  border-radius: 8rpx;
+  padding: 3rpx 12rpx;
+}
+
+.salary-yoy.up   { background: #ECFDF5; color: #059669; }
+.salary-yoy.down { background: #FEF2F2; color: #DC2626; }
+
+/* ── 小贴士 ───────────────────────────────────────────────────── */
+.tips-card {
+  background: var(--bg-panel);
+  border-radius: 18rpx;
+  border: 1.5rpx solid rgba(0,0,0,0.05);
+  padding: 8rpx 24rpx 16rpx;
+}
+
+.tip-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 18rpx;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid rgba(0,0,0,0.04);
+}
+
+.tip-item:last-child { border-bottom: none; }
+
+.tip-dot {
+  width: 40rpx;
+  height: 40rpx;
+  background: linear-gradient(135deg, #1E40AF, #2B5CE6);
+  color: #fff;
+  font-size: 22rpx;
+  font-weight: 700;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tip-txt {
+  flex: 1;
+  font-size: 26rpx;
+  color: var(--text-body);
+  line-height: 1.6;
+}
+
+/* ── 历史记录 ─────────────────────────────────────────────────── */
+.history-item {
+  background: var(--bg-panel);
+  border-radius: 14rpx;
+  border: 1.5rpx solid rgba(0,0,0,0.05);
+  padding: 20rpx 24rpx;
+  margin-bottom: 12rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.history-period {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.history-summary {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-date {
+  font-size: 22rpx;
+  color: var(--text-muted);
+}

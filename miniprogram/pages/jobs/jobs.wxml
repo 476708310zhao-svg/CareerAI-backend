@@ -1,0 +1,242 @@
+<!-- pages/jobs/jobs.wxml -->
+<view class="page">
+  <view wx:if="{{isMockData}}" class="mock-tip">
+    网络暂时不可用，当前展示示例岗位
+  </view>
+
+  <view class="fixed-header">
+    <view class="search-bar">
+      <view class="search-wrap">
+        <text class="search-icon">⌕</text>
+        <input
+          class="search-input"
+          placeholder="搜索职位、公司、关键词"
+          placeholder-class="ph"
+          value="{{searchKeyword}}"
+          confirm-type="search"
+          bindconfirm="searchJobs"
+        />
+        <view class="search-clear" wx:if="{{searchKeyword}}" catchtap="clearSearch">×</view>
+      </view>
+      <view class="filter-btn {{filterActive ? 'active' : ''}}" bindtap="openFilter">
+        <text class="filter-icon">⚙</text>
+        <text class="filter-txt">筛选</text>
+        <view class="filter-dot" wx:if="{{filterActive}}"></view>
+      </view>
+    </view>
+
+    <view class="history-row" wx:if="{{searchHistory.length > 0 && !searchKeyword}}">
+      <text class="row-label">最近</text>
+      <block wx:for="{{searchHistory}}" wx:key="*this">
+        <view class="history-tag" bindtap="onHistoryTap" data-kw="{{item}}">{{item}}</view>
+      </block>
+      <view class="history-clear" catchtap="clearHistory">清空</view>
+    </view>
+
+    <scroll-view scroll-x class="quick-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
+      <view class="quick-inner">
+        <text class="row-label">热门</text>
+        <block wx:for="{{hotPositions}}" wx:key="*this">
+          <view class="quick-tag {{activeTag === item ? 'active' : ''}}" bindtap="onQuickSearch" data-value="{{item}}">{{item}}</view>
+        </block>
+        <view class="quick-sep"></view>
+        <text class="row-label co-label">名企</text>
+        <block wx:for="{{hotCompanies}}" wx:key="*this">
+          <view class="quick-tag co {{activeTag === item ? 'active co' : ''}}" bindtap="onQuickSearch" data-value="{{item}}">{{item}}</view>
+        </block>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view class="spacer {{searchHistory.length > 0 && !searchKeyword ? 'spacer-history' : ''}}"></view>
+
+  <view class="match-bar">
+    <view class="match-toggle {{matchMode ? 'match-on' : ''}}" bindtap="toggleMatchMode">
+      <text class="match-toggle-icon">✨</text>
+      <text class="match-toggle-txt">智能匹配</text>
+      <view class="match-toggle-badge" wx:if="{{matchMode}}">ON</view>
+    </view>
+    <scroll-view scroll-x class="match-kw-scroll" wx:if="{{matchMode && matchKeywords.length > 0}}" enhanced="{{true}}" show-scrollbar="{{false}}">
+      <view class="match-kw-inner">
+        <block wx:for="{{matchKeywords}}" wx:key="*this">
+          <view class="match-kw-pill">{{item}}</view>
+        </block>
+      </view>
+    </scroll-view>
+    <view class="match-incomplete" bindtap="goToProfile" wx:if="{{matchMode && profileComplete < 60}}">
+      <text class="match-incomplete-txt">完善资料 →</text>
+    </view>
+    <view class="match-no-profile" wx:if="{{matchMode && matchKeywords.length === 0}}">
+      <text class="match-no-txt">先完善画像，推荐会更准</text>
+      <view class="match-setup-btn" bindtap="goToProfile">去完善</view>
+    </view>
+  </view>
+
+  <page-container
+    show="{{filterVisible}}"
+    round
+    position="bottom"
+    custom-style="height: auto; background: #fff; border-radius: 32rpx 32rpx 0 0;"
+    bind:clickoverlay="closeFilter"
+  >
+    <view class="filter-panel">
+      <view class="filter-panel-title">筛选岗位</view>
+      <view class="filter-section-label">工作类型</view>
+      <view class="filter-chips">
+        <view class="fchip {{filterType === 'FULLTIME' ? 'active' : ''}}" bindtap="onFilterTypeSelect" data-val="FULLTIME">全职</view>
+        <view class="fchip {{filterType === 'PARTTIME' ? 'active' : ''}}" bindtap="onFilterTypeSelect" data-val="PARTTIME">兼职</view>
+        <view class="fchip {{filterType === 'CONTRACTOR' ? 'active' : ''}}" bindtap="onFilterTypeSelect" data-val="CONTRACTOR">合同工</view>
+        <view class="fchip {{filterType === 'INTERN' ? 'active' : ''}}" bindtap="onFilterTypeSelect" data-val="INTERN">实习</view>
+      </view>
+
+      <view class="filter-section-label">发布时间</view>
+      <view class="filter-chips">
+        <view class="fchip {{filterDate === 'today' ? 'active' : ''}}" bindtap="onFilterDateSelect" data-val="today">今天</view>
+        <view class="fchip {{filterDate === 'week' ? 'active' : ''}}" bindtap="onFilterDateSelect" data-val="week">近 3 天</view>
+        <view class="fchip {{filterDate === 'month' ? 'active' : ''}}" bindtap="onFilterDateSelect" data-val="month">近一个月</view>
+      </view>
+
+      <view class="filter-actions">
+        <view class="filter-reset" bindtap="resetFilter">重置</view>
+        <view class="filter-confirm" bindtap="applyFilter">查看结果</view>
+      </view>
+    </view>
+  </page-container>
+
+  <view class="result-bar" wx:if="{{!loading && jobs.length > 0}}">
+    <view class="result-copy">
+      <text class="result-count">{{jobs.length}}+ 个职位</text>
+      <text class="result-kw">{{searchKeyword || '全部职位'}}</text>
+    </view>
+    <view class="view-toggle">
+      <view class="vt-btn {{viewMode === 'list' ? 'vt-active' : ''}}" bindtap="switchView" data-mode="list">
+        <text class="vt-icon">☰</text><text class="vt-txt">列表</text>
+      </view>
+      <view class="vt-btn {{viewMode === 'map' ? 'vt-active' : ''}}" bindtap="switchView" data-mode="map">
+        <text class="vt-icon">⌖</text><text class="vt-txt">地图</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="map-wrap" wx:if="{{viewMode === 'map'}}">
+    <map
+      id="job-map"
+      class="job-map"
+      latitude="{{mapCenter.latitude}}"
+      longitude="{{mapCenter.longitude}}"
+      scale="{{mapCenter.scale}}"
+      markers="{{mapMarkers}}"
+      bindmarkertap="onMarkerTap"
+      bindtap="onMapTap"
+      show-location="{{false}}"
+    ></map>
+
+    <view class="map-empty" wx:if="{{mapMarkers.length === 0}}">
+      <text class="map-empty-icon">⌖</text>
+      <text class="map-empty-txt">暂无可定位岗位</text>
+      <text class="map-empty-sub">当前职位缺少城市坐标，先在列表查看更稳妥</text>
+    </view>
+
+    <view class="map-legend">
+      <text class="map-legend-dot">⌖</text>
+      <text class="map-legend-txt">点击城市标记查看岗位</text>
+    </view>
+
+    <view class="map-city-mask" wx:if="{{mapShowPanel}}" bindtap="closeMapPanel"></view>
+    <view class="map-city-panel {{mapShowPanel ? 'show' : ''}}">
+      <view class="mcp-header">
+        <view class="mcp-title-row">
+          <text class="mcp-city">{{mapSelectedCity}}</text>
+          <text class="mcp-count">{{mapCityJobs.length}} 个职位</text>
+        </view>
+        <text class="mcp-close" bindtap="closeMapPanel">×</text>
+      </view>
+      <scroll-view class="mcp-list" scroll-y>
+        <view wx:for="{{mapCityJobs}}" wx:key="id" class="mcp-card" bindtap="navigateToDetail" data-id="{{item.id}}">
+          <view class="mcp-card-left">
+            <view class="mcp-logo-wrap">
+              <image wx:if="{{item.logo && !item.logoFailed}}" class="mcp-logo" src="{{item.logo}}" mode="aspectFit" lazy-load></image>
+              <text wx:else class="mcp-logo-initial">{{item.companyInitial || 'C'}}</text>
+            </view>
+            <view class="mcp-info">
+              <text class="mcp-title">{{item.title}}</text>
+              <text class="mcp-company">{{item.company}}</text>
+              <view class="mcp-tags">
+                <text class="mcp-tag mcp-salary" wx:if="{{item.salary !== 'Negotiable'}}">{{item.salary}}</text>
+                <text class="mcp-tag">{{item.type}}</text>
+                <text class="mcp-tag mcp-opt" wx:if="{{item.optFriendly}}">OPT 友好</text>
+              </view>
+            </view>
+          </view>
+          <text class="mcp-arrow">›</text>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+
+  <view class="list" wx:if="{{viewMode === 'list'}}">
+    <empty-state
+      wx:if="{{!loading && jobs.length === 0}}"
+      emoji="🔎"
+      title="暂无相关职位"
+      desc="换个关键词，或者点热门标签试试"
+    ></empty-state>
+
+    <view wx:for="{{jobs}}" wx:key="id" class="card" bindtap="navigateToDetail" data-id="{{item.id}}">
+      <view class="card-top">
+        <view class="logo-wrap">
+          <image wx:if="{{item.logo && !item.logoFailed}}" src="{{item.logo}}" class="logo-img" mode="aspectFit" lazy-load binderror="onLogoError" data-index="{{index}}"></image>
+          <text wx:else class="logo-initial">{{item.companyInitial || 'C'}}</text>
+        </view>
+        <view class="card-info">
+          <text class="card-title">{{item.title}}</text>
+          <text class="card-company">{{item.company}}</text>
+        </view>
+        <view class="card-save {{item.isSaved ? 'saved' : ''}}" catchtap="toggleSave" data-index="{{index}}">
+          <text class="save-icon">{{item.isSaved ? '♥' : '♡'}}</text>
+        </view>
+      </view>
+
+      <view class="card-salary-row">
+        <text class="card-salary" wx:if="{{item.salary !== 'Negotiable'}}">{{item.salary}}</text>
+        <text class="card-salary muted" wx:else>薪资面议</text>
+        <text class="card-time">{{item.postedAt}}</text>
+      </view>
+
+      <view class="card-tags">
+        <text class="ctag loc">{{item.city}}{{item.state ? ', ' + item.state : ''}}</text>
+        <text class="ctag type">{{item.type}}</text>
+        <text class="ctag opt" wx:if="{{item.optFriendly}}">OPT 友好</text>
+        <text class="ctag match-high" wx:if="{{matchMode && item.matchScore >= 6}}">高匹配</text>
+        <text class="ctag match-mid" wx:elif="{{matchMode && item.matchScore >= 2}}">匹配</text>
+      </view>
+
+      <view class="card-match-row" wx:if="{{matchMode && item.matchReason}}">
+        <text class="match-reason-txt">{{item.matchReason}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{loading && jobs.length === 0}}" class="skeleton-list">
+      <view wx:for="{{[1,2,3,4,5]}}" wx:key="*this" class="skeleton-card">
+        <view class="sk-top">
+          <view class="sk-logo shimmer"></view>
+          <view class="sk-info">
+            <view class="sk-line sk-title shimmer"></view>
+            <view class="sk-line sk-sub shimmer"></view>
+          </view>
+        </view>
+        <view class="sk-salary-row">
+          <view class="sk-line sk-salary shimmer"></view>
+          <view class="sk-line sk-time shimmer"></view>
+        </view>
+        <view class="sk-tags">
+          <view class="sk-tag shimmer"></view>
+          <view class="sk-tag shimmer"></view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{!hasMore && jobs.length > 0}}" class="tip">已显示全部结果</view>
+    <view class="safe-tail"></view>
+  </view>
+</view>

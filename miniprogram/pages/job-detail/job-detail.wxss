@@ -1,0 +1,476 @@
+/* pages/job-detail/job-detail.wxss */
+page {
+  background: var(--bg-raised);
+  font-family: -apple-system, 'PingFang SC', sans-serif;
+}
+
+/* ====== 头部卡片 ====== */
+.head-card {
+  margin: 24rpx;
+  background: var(--bg-panel);
+  border-radius: var(--r-lg);
+  padding: 36rpx;
+  box-shadow: var(--shadow-md);
+}
+
+.head-top {
+  display: flex;
+  align-items: center;
+  margin-bottom: 28rpx;
+}
+
+.head-logo {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: var(--r-lg);
+  border: 1.5rpx solid var(--border);
+  margin-right: 24rpx;
+  background: var(--bg-raised);
+  flex-shrink: 0;
+}
+
+.head-info { flex: 1; min-width: 0; }
+
+.head-company {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 6rpx;
+}
+
+.head-title {
+  font-size: 36rpx;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.35;
+  display: block;
+}
+
+/* 薪资行 */
+.salary-row {
+  background: var(--success-bg-solid);
+  border-radius: var(--r-sm);
+  padding: 22rpx 28rpx;
+  margin-bottom: 24rpx;
+  display: flex;
+  align-items: baseline;
+  border: 1rpx solid var(--success-bg);
+}
+
+.salary-val {
+  font-size: 36rpx;
+  font-weight: 800;
+  color: var(--success-text);
+}
+
+.salary-unit {
+  font-size: 22rpx;
+  color: var(--success-text);
+  margin-left: 6rpx;
+}
+
+/* 信息标签 */
+.info-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+}
+
+.info-tag {
+  display: flex;
+  align-items: center;
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  background: var(--bg-raised);
+  padding: 8rpx 20rpx;
+  border-radius: 10rpx;
+}
+
+.info-tag-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  margin-right: 10rpx;
+  flex-shrink: 0;
+}
+.info-tag-dot.loc { background: var(--brand); }
+.info-tag-dot.type { background: #D97706; }
+.info-tag-dot.time { background: var(--text-muted); }
+.info-tag.visa { background: #F0FDF4; color: #16A34A; border-color: #BBF7D0; font-weight: 500; }
+
+/* ====== 描述卡片 ====== */
+.desc-card {
+  margin: 0 24rpx 24rpx;
+  background: var(--bg-panel);
+  border-radius: var(--r-lg);
+  padding: 36rpx;
+  box-shadow: var(--shadow-md);
+}
+
+.desc-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 24rpx;
+  padding-left: 18rpx;
+  border-left: 8rpx solid var(--brand);
+  line-height: 1;
+}
+
+.desc-body {
+  font-size: 28rpx;
+  color: var(--text-body);
+  line-height: 1.85;
+  white-space: pre-wrap;
+  display: block;
+}
+
+/* ====== 底部操作栏 ====== */
+.footer {
+  position: fixed;
+  bottom: 0; left: 0;
+  width: 100%;
+  background: var(--bg-panel);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  padding: 16rpx 24rpx;
+  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
+  box-shadow: var(--shadow-up);
+  box-sizing: border-box;
+  gap: 16rpx;
+}
+
+/* 图标组——紧凑，不允许撑大 */
+.footer-icons {
+  display: flex;
+  gap: 8rpx;
+  flex-shrink: 0;
+  width: 160rpx;
+  max-width: 160rpx;
+}
+
+.f-icon {
+  width: 72rpx;
+  height: 72rpx;
+  min-width: 72rpx;
+  max-width: 72rpx;
+  border-radius: 50%;
+  background: #F3F4F6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.f-icon.active { background: #FFFBEB; }
+
+.f-icon-txt {
+  font-size: 32rpx;
+  color: var(--text-muted);
+  line-height: 1;
+}
+.f-icon.active .f-icon-txt { color: #D97706; }
+
+.share-btn {
+  background: #F3F4F6 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  width: 72rpx !important;
+  height: 72rpx !important;
+  min-width: 0 !important;
+  max-width: 72rpx !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.share-btn::after { border: none !important; }
+
+/* 核心按钮——占满剩余空间 */
+.f-btn {
+  flex: 1;
+  min-width: 0;
+  height: 84rpx;
+  border-radius: 42rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.f-btn-ai {
+  background: #EFF6FF;
+  color: var(--brand);
+  border: 2rpx solid #BFDBFE;
+  box-sizing: border-box;
+  flex: 1;
+}
+
+.ai-badge {
+  width: 36rpx; height: 36rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(135deg, var(--brand), #6366F1);
+  color: #fff;
+  font-size: 16rpx;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 6rpx;
+  flex-shrink: 0;
+}
+
+.f-btn-apply {
+  background: linear-gradient(135deg, var(--brand), #6366F1);
+  color: #fff;
+  box-shadow: 0 6rpx 16rpx rgba(43,92,230,0.3);
+  flex: 1.2;
+}
+
+/* 点击反馈 */
+.f-icon:active, .share-btn:active { transform: scale(0.88); opacity: 0.7; }
+.f-btn:active { transform: scale(0.97); opacity: 0.85; }
+
+/* ====== Loading ====== */
+.loading-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 240rpx;
+}
+
+.spinner {
+  width: 48rpx; height: 48rpx;
+  border: 5rpx solid #F1F3F7;
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 20rpx;
+}
+
+.loading-txt { font-size: 26rpx; color: var(--text-muted); }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ====== 一键投递弹窗 ====== */
+.apply-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 500;
+}
+
+.apply-panel {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--bg-panel);
+  border-radius: 32rpx 32rpx 0 0;
+  z-index: 501;
+  padding: 32rpx 36rpx calc(32rpx + env(safe-area-inset-bottom));
+  transform: translateY(100%);
+  transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.apply-panel.show {
+  transform: translateY(0);
+}
+
+.ap-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28rpx;
+}
+
+.ap-title {
+  font-size: 34rpx;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.ap-close {
+  font-size: 36rpx;
+  color: var(--text-muted);
+  padding: 0 8rpx;
+}
+
+.ap-job-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  background: var(--bg-raised);
+  border-radius: 18rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 24rpx;
+}
+
+.ap-job-logo {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 14rpx;
+  flex-shrink: 0;
+  background: #f0f0f0;
+}
+
+.ap-job-info { flex: 1; min-width: 0; }
+
+.ap-job-title {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ap-job-company {
+  font-size: 22rpx;
+  color: var(--text-secondary);
+}
+
+.ap-resume-card {
+  background: #f8faff;
+  border: 1.5rpx solid #c7d2fe;
+  border-radius: 18rpx;
+  padding: 24rpx 28rpx;
+  margin-bottom: 28rpx;
+}
+
+.ap-resume-label {
+  display: block;
+  font-size: 20rpx;
+  color: var(--brand);
+  font-weight: 600;
+  margin-bottom: 16rpx;
+  letter-spacing: 1rpx;
+}
+
+.ap-rname {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 8rpx;
+}
+
+.ap-rsub {
+  display: block;
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  margin-bottom: 8rpx;
+}
+
+.ap-rcontact {
+  display: block;
+  font-size: 22rpx;
+  color: var(--text-muted);
+  margin-bottom: 8rpx;
+}
+
+.ap-rskills {
+  display: block;
+  font-size: 22rpx;
+  color: var(--text-secondary);
+}
+
+.ap-resume-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  font-size: 24rpx;
+  color: var(--text-muted);
+}
+
+.ap-resume-link {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.ap-btns {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+}
+
+.ap-btn-cancel {
+  flex: 1;
+  height: 88rpx;
+  border-radius: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 600;
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  border: 1.5rpx solid rgba(0,0,0,0.08);
+}
+
+.ap-btn-submit {
+  flex: 2;
+  height: 88rpx;
+  border-radius: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), #6366F1);
+  box-shadow: 0 6rpx 20rpx rgba(37,99,235,0.35);
+}
+
+.ap-tip {
+  display: block;
+  font-size: 20rpx;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* ── 求职路线规划入口 ── */
+.roadmap-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 16rpx 24rpx 0;
+  padding: 24rpx 26rpx;
+  background: linear-gradient(135deg, #EEF2FF 0%, #F5F3FF 100%);
+  border-radius: var(--r-lg);
+  border: 1.5rpx solid #C7D2FE;
+  gap: 16rpx;
+}
+.roadmap-cta:active { opacity: 0.75; }
+
+.roadmap-cta-left {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  flex: 1;
+  min-width: 0;
+}
+.roadmap-cta-icon  { font-size: 44rpx; flex-shrink: 0; }
+.roadmap-cta-info  { flex: 1; min-width: 0; }
+.roadmap-cta-title {
+  display: block;
+  font-size: 28rpx; font-weight: 700; color: #1e3a8a;
+  margin-bottom: 6rpx;
+}
+.roadmap-cta-sub {
+  display: block;
+  font-size: 22rpx; color: #4338CA;
+  line-height: 1.5;
+}
+.roadmap-cta-arrow {
+  font-size: 40rpx; color: var(--brand);
+  flex-shrink: 0;
+}

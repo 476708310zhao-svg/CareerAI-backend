@@ -1,0 +1,11 @@
+<view class="sc-wrap">
+  <!-- 卡片头部：左边框标题 + 右侧操作区 -->
+  <view class="sc-header" wx:if="{{title}}">
+    <text class="sc-title">{{title}}</text>
+    <view class="sc-action">
+      <slot name="action"></slot>
+    </view>
+  </view>
+  <!-- 卡片内容区 -->
+  <slot></slot>
+</view>

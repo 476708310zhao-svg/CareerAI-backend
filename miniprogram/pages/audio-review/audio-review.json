@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "录音复盘",
+  "usingComponents": {
+    "c-button": "/components/c-button/c-button"
+  }
+}

@@ -1,0 +1,154 @@
+<page-meta page-style="background-color: #FFFFFF;"></page-meta>
+
+<view class="page">
+
+  <!-- 搜索框 -->
+  <view class="search-wrap" bindtap="goToJobSearch">
+    <image src="/images/search.png" class="search-icon"></image>
+    <text class="search-text">搜索职位、公司或面经</text>
+  </view>
+
+  <!-- Banner 轮播 -->
+  <view class="banner-wrap" wx:if="{{bannerList.length > 0}}">
+    <swiper class="banner-swiper" autoplay circular interval="4000" indicator-dots indicator-color="rgba(255,255,255,0.5)" indicator-active-color="#ffffff" bindchange="onBannerChange">
+      <block wx:for="{{bannerList}}" wx:key="id">
+        <swiper-item>
+          <view wx:if="{{item.image_url}}" class="banner-item" bindtap="navigateToPage" data-url="{{item.url}}" hover-class="opacity-hover">
+            <image src="{{apiBase}}{{item.image_url}}" class="banner-bg-image" mode="aspectFill"></image>
+          </view>
+          <view wx:else class="banner-item banner-gradient" bindtap="navigateToPage" data-url="{{item.url}}" hover-class="opacity-hover"
+            style="background:{{item.gradient}};">
+            <view class="banner-text-layer">
+              <text class="banner-icon">{{item.icon}}</text>
+              <text class="banner-title">{{item.title}}</text>
+              <text class="banner-sub">{{item.subtitle}}</text>
+            </view>
+          </view>
+        </swiper-item>
+      </block>
+    </swiper>
+  </view>
+
+  <!-- 金刚区 -->
+  <view class="feature-grid">
+    <block wx:for="{{features}}" wx:key="id">
+      <view class="feature-item" bindtap="navigateToPage" data-url="{{item.url}}" hover-class="opacity-hover">
+        <view class="feature-icon-wrap" style="background: {{item.bg}};">
+          <image src="{{item.icon}}" class="feature-icon" mode="aspectFit"></image>
+          <view wx:if="{{item.badge}}" class="feature-badge">{{item.badge}}</view>
+        </view>
+        <text class="feature-name">{{item.name}}</text>
+      </view>
+    </block>
+  </view>
+
+  <!-- 热门企业 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">热门企业</text>
+      <view bindtap="viewMoreCompanies" hover-class="opacity-hover">
+        <text class="section-more">查看全部 ›</text>
+      </view>
+    </view>
+    <scroll-view scroll-x enhanced show-scrollbar="{{false}}" style="white-space:nowrap;">
+      <view class="company-scroll-list">
+        <block wx:for="{{hotCompanies}}" wx:key="id">
+          <view class="company-card" bindtap="goToCompanyDetail" data-id="{{item.id}}" data-name="{{item.name}}" hover-class="opacity-hover">
+            <view class="company-avatar" style="background:{{item.logoFailed ? item.color : '#f5f5f7'}};">
+              <image
+                wx:if="{{!item.logoFailed}}"
+                src="{{item.logo}}"
+                class="company-logo"
+                mode="aspectFit"
+                binderror="onCompanyLogoError"
+                data-idx="{{index}}"
+              />
+              <text wx:else class="company-initial">{{item.initial}}</text>
+            </view>
+            <text class="company-name">{{item.name}}</text>
+            <text class="company-desc">{{item.description}}</text>
+          </view>
+        </block>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 今日热门 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">今日热门</text>
+      <view bindtap="viewMoreJobs" hover-class="opacity-hover">
+        <text class="section-more">查看更多 ›</text>
+      </view>
+    </view>
+
+    <!-- 骨架屏 -->
+    <block wx:if="{{loadingJobs && recommendJobs.length === 0}}">
+      <view wx:for="{{[1,2,3]}}" wx:key="*this" class="job-card skeleton">
+        <view class="job-card-body">
+          <view class="skeleton-line" style="width:110rpx;height:22rpx;margin-bottom:14rpx;border-radius:6rpx;"></view>
+          <view class="skeleton-line long"></view>
+          <view class="skeleton-line short" style="margin-top:10rpx;"></view>
+        </view>
+        <view class="skeleton-thumb" style="width:88rpx;height:88rpx;border-radius:16rpx;flex-shrink:0;"></view>
+      </view>
+    </block>
+
+    <!-- 职位列表 -->
+    <block wx:for="{{recommendJobs}}" wx:key="id">
+      <view class="job-card" bindtap="goToJobDetail" data-id="{{item.id}}" data-title="{{item.title}}" hover-class="opacity-hover">
+        <view class="job-card-body">
+          <text class="job-card-loc">{{item.city}}{{item.state ? ', ' + item.state : ''}}</text>
+          <text class="job-card-title">{{item.title}}</text>
+          <view class="job-card-meta">
+            <text class="job-card-co">{{item.company}}</text>
+            <text class="job-card-dot">·</text>
+            <text class="job-card-sal">{{item.salary}}</text>
+          </view>
+        </view>
+        <view class="job-card-logo-wrap">
+          <image wx:if="{{item.logo && !item.logoFailed}}" src="{{item.logo}}" class="job-card-logo" mode="aspectFit" lazy-load binderror="onLogoError" data-index="{{index}}"></image>
+          <text wx:else class="job-card-logo-initial">{{item.companyInitial || 'C'}}</text>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <!-- 求职快讯 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">求职快讯</text>
+      <view bindtap="goToNews" hover-class="opacity-hover">
+        <text class="section-more">更多 ›</text>
+      </view>
+    </view>
+
+    <block wx:for="{{newsFeed}}" wx:key="id">
+      <view class="news-item" bindtap="viewNewsDetail" data-item="{{item}}" hover-class="opacity-hover">
+        <view class="news-content">
+          <text class="news-category {{item.type}}">{{item.type === 'tip' ? '技巧' : item.type === 'news' ? '资讯' : item.type === 'policy' ? '政策' : '数据'}}</text>
+          <text class="news-title">{{item.title}}</text>
+          <view class="news-meta">
+            <text class="news-source">{{item.source || '求职助手'}}</text>
+            <text class="news-dot">·</text>
+            <text class="news-time">{{item.time}}</text>
+          </view>
+        </view>
+        <image wx:if="{{item.image}}" src="{{item.image}}" class="news-thumb" mode="aspectFill"></image>
+        <view wx:else class="news-thumb-placeholder {{item.type}}">
+          <view class="news-thumb-aura"></view>
+          <view class="news-icon-card">
+            <view class="news-icon-dot"></view>
+            <view class="news-icon-line main"></view>
+            <view class="news-icon-line"></view>
+            <view class="news-icon-line short"></view>
+          </view>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <!-- 底部留白 -->
+  <view style="height: 32rpx;"></view>
+
+</view>

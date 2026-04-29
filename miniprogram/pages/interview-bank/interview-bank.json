@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "面试题库",
+  "usingComponents": {
+    "c-button": "/components/c-button/c-button"
+  }
+}

@@ -1,0 +1,161 @@
+<!-- pages/profile/profile.wxml -->
+<view class="container">
+
+  <!-- ── 顶部用户信息 ── -->
+  <view class="user-header">
+    <!-- 装饰圆 -->
+    <view class="deco-circle deco1"></view>
+    <view class="deco-circle deco2"></view>
+
+    <!-- 未登录 -->
+    <block wx:if="{{!isLogin}}">
+      <view class="user-info" bindtap="onLogin">
+        <view class="avatar-wrap">
+          <image class="avatar" src="/images/default-avatar.png" mode="aspectFill"></image>
+          <view class="avatar-badge">登录</view>
+        </view>
+        <view class="info-text">
+          <text class="nickname">点击登录 / 注册</text>
+          <text class="school">完善资料，获取精准推荐</text>
+        </view>
+        <view class="arrow-btn">›</view>
+      </view>
+    </block>
+
+    <!-- 已登录 -->
+    <block wx:else>
+      <view class="user-info" bindtap="goToEditProfile">
+        <view class="avatar-wrap">
+          <image class="avatar" src="{{userInfo.avatarUrl}}" mode="aspectFill"></image>
+        </view>
+        <view class="info-text">
+          <view class="name-row">
+            <text class="nickname">{{userInfo.nickName}}</text>
+            <view class="vip-badge" wx:if="{{isVip}}">PRO</view>
+          </view>
+          <text class="school">{{userInfo.school || '点击完善学校信息'}}{{userInfo.major ? ' · ' + userInfo.major : ''}}</text>
+        </view>
+        <view class="edit-btn">编辑</view>
+      </view>
+    </block>
+
+    <!-- 统计数据条（悬浮在 header 底部） -->
+    <view class="stats-card">
+      <view class="stat-item" bindtap="goToApplications">
+        <text class="stat-num">{{stats.applications}}</text>
+        <text class="stat-label">已投递</text>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-item" bindtap="goToInterviews">
+        <text class="stat-num">{{stats.interviews}}</text>
+        <text class="stat-label">面试</text>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-item" bindtap="goToFavorites">
+        <text class="stat-num">{{stats.favorites}}</text>
+        <text class="stat-label">收藏</text>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-item">
+        <text class="stat-num">{{stats.viewed}}</text>
+        <text class="stat-label">被查看</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- ── VIP Banner ── -->
+  <view class="vip-banner" bindtap="goToVip">
+    <view class="vip-left">
+      <view class="vip-title-row">
+        <text class="vip-crown">👑</text>
+        <text class="vip-title">升级求职黑卡会员</text>
+      </view>
+      <text class="vip-desc">解锁 AI 简历优化 · 无限次模拟面试</text>
+    </view>
+    <view class="vip-btn">立即开通</view>
+  </view>
+
+  <!-- ── 求职工具 ── -->
+  <view class="menu-group">
+    <view class="group-title">求职工具</view>
+
+    <view class="menu-item" bindtap="goToMessages">
+      <view class="menu-icon-box" style="background:#EEF2FF;">
+        <text class="menu-emoji">🔔</text>
+      </view>
+      <text class="menu-name">消息通知</text>
+      <view class="menu-arrow"></view>
+    </view>
+
+    <view class="menu-item" bindtap="goToFavorites">
+      <view class="menu-icon-box" style="background:#FFF1F2;">
+        <text class="menu-emoji">🔖</text>
+      </view>
+      <text class="menu-name">我的收藏</text>
+      <view class="menu-arrow"></view>
+    </view>
+
+    <view class="menu-item" bindtap="goToResumes">
+      <view class="menu-icon-box" style="background:#F0FDF4;">
+        <text class="menu-emoji">📄</text>
+      </view>
+      <text class="menu-name">我的简历</text>
+      <view class="menu-arrow"></view>
+    </view>
+
+    <view class="menu-item" bindtap="goToAIInterview">
+      <view class="menu-icon-box" style="background:#FAF5FF;">
+        <text class="menu-emoji">🤖</text>
+      </view>
+      <text class="menu-name">AI 模拟面试记录</text>
+      <view class="tag-new">NEW</view>
+      <view class="menu-arrow"></view>
+    </view>
+
+    <view class="menu-item" bindtap="goToMyExperiences">
+      <view class="menu-icon-box" style="background:#FFFBEB;">
+        <text class="menu-emoji">📝</text>
+      </view>
+      <text class="menu-name">我的笔经面经</text>
+      <view class="menu-arrow"></view>
+    </view>
+  </view>
+
+  <!-- ── 常用功能 ── -->
+  <view class="menu-group">
+    <view class="group-title">常用功能</view>
+
+    <view class="menu-item" bindtap="goToFeedback">
+      <view class="menu-icon-box" style="background:#F0F9FF;">
+        <text class="menu-emoji">💬</text>
+      </view>
+      <text class="menu-name">意见反馈</text>
+      <view class="menu-arrow"></view>
+    </view>
+
+    <view class="menu-item" bindtap="goToAbout">
+      <view class="menu-icon-box" style="background:#F8FAFC;">
+        <text class="menu-emoji">ℹ️</text>
+      </view>
+      <text class="menu-name">关于我们</text>
+      <view class="menu-arrow"></view>
+    </view>
+
+    <view class="menu-item" bindtap="goToSettings">
+      <view class="menu-icon-box" style="background:#F4F6F9;">
+        <text class="menu-emoji">⚙️</text>
+      </view>
+      <text class="menu-name">设置</text>
+      <view class="menu-arrow"></view>
+    </view>
+  </view>
+
+  <view style="height: 60rpx;"></view>
+</view>
+
+<!-- 登录弹窗：点击头像 / 我的资料触发 -->
+<c-login-popup
+  show="{{showLoginPopup}}"
+  bind:close="onLoginPopupClose"
+  bind:success="onLoginSuccess"
+/>

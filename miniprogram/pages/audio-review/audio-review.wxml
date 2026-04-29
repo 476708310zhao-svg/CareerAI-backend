@@ -1,0 +1,179 @@
+<!-- pages/audio-review/audio-review.wxml -->
+<view class="page">
+
+  <!-- Hero -->
+  <view class="hero">
+    <view class="hero-left">
+      <text class="hero-title">录音复盘</text>
+      <text class="hero-sub">录下你的面试练习，AI 给出专项反馈</text>
+    </view>
+    <view class="hero-icon-wrap"><text class="hero-icon">🎙️</text></view>
+  </view>
+
+  <!-- History toggle -->
+  <view class="history-bar" wx:if="{{history.length > 0}}" bindtap="toggleHistory">
+    <text class="hbar-txt">📚 历史记录（{{history.length}}条）</text>
+    <text class="hbar-arrow">{{showHistory ? '▲' : '▼'}}</text>
+  </view>
+  <view class="history-list" wx:if="{{showHistory && history.length}}">
+    <view wx:for="{{history}}" wx:key="id" class="hist-item">
+      <view class="hist-left">
+        <text class="hist-date">{{item.date}}</text>
+        <text class="hist-q" wx:if="{{item.question}}">{{item.question}}</text>
+        <text class="hist-score">综合 {{item.analysis.overall}} 分</text>
+      </view>
+      <view class="hist-score-pill {{item.analysis.overall >= 80 ? 'good' : item.analysis.overall >= 60 ? 'mid' : 'low'}}">
+        {{item.analysis.overall}}
+      </view>
+    </view>
+  </view>
+
+  <!-- ── PHASE: idle / recorded ── -->
+  <view class="main-content" wx:if="{{phase === 'idle' || phase === 'recorded'}}">
+
+    <!-- Optional context question -->
+    <view class="section-card">
+      <text class="section-title">🎯 面试题目（选填）</text>
+      <input class="fi" placeholder="输入练习的面试题目，AI 反馈更精准" value="{{question}}" bindinput="onQuestionInput" />
+    </view>
+
+    <!-- Recorder card -->
+    <view class="recorder-card">
+      <view class="rec-visual {{phase === 'recording' ? 'active' : phase === 'recorded' ? 'done' : ''}}">
+        <view class="rec-ring outer"></view>
+        <view class="rec-ring inner"></view>
+        <text class="rec-mic-icon">{{phase === 'recorded' ? '✓' : '🎙'}}</text>
+      </view>
+
+      <text class="rec-status-txt" wx:if="{{phase === 'idle'}}">点击开始录音</text>
+      <text class="rec-status-txt recording-txt" wx:elif="{{phase === 'recording'}}">录音中</text>
+      <text class="rec-status-txt done-txt" wx:else>录音完成 · {{recordSeconds}}s</text>
+
+      <!-- Progress bar -->
+      <view class="rec-progress-track">
+        <view class="rec-progress-fill {{phase === 'recording' ? 'active' : ''}}" style="width:{{audioProgress}}%"></view>
+      </view>
+      <text class="rec-hint">{{phase === 'recording' ? '已录 ' + recordSeconds + 's · 最长 ' + maxSeconds + 's · 再次点击停止' : phase === 'recorded' ? '可播放回听，再点击重录' : '建议1-2分钟'}}</text>
+
+      <!-- Main record button -->
+      <view class="rec-btn {{phase === 'recording' ? 'stop-btn' : ''}}" bindtap="{{phase === 'recording' ? 'stopRecord' : 'startRecord'}}">
+        <text wx:if="{{phase === 'idle'}}">▶ 开始录音</text>
+        <text wx:elif="{{phase === 'recording'}}">⏹ 停止录音</text>
+        <text wx:else>🔄 重新录音</text>
+      </view>
+
+      <!-- Playback + discard (only in recorded) -->
+      <view class="rec-sub-row" wx:if="{{phase === 'recorded'}}">
+        <view class="rec-sub-btn" bindtap="playback">🔊 播放回听</view>
+        <view class="rec-sub-btn danger" bindtap="discard">🗑 丢弃</view>
+      </view>
+    </view>
+
+    <!-- Transcript section -->
+    <view class="section-card" wx:if="{{phase === 'recorded'}}">
+      <view class="sec-header">
+        <text class="section-title">📝 转录文字</text>
+        <text class="sec-hint">可手动编辑</text>
+      </view>
+      <textarea
+        class="fi fi-ta"
+        placeholder="点击下方「转录」自动填充，或手动粘贴文字"
+        value="{{transcript}}"
+        bindinput="onTranscriptInput"
+        auto-height
+        maxlength="3000"
+      />
+      <view class="transcript-actions">
+        <view class="trans-btn primary" bindtap="transcribeAudio">🎙 语音转文字</view>
+        <view class="trans-btn {{!transcript ? 'disabled' : ''}}" bindtap="analyseManual">✨ 直接分析</view>
+      </view>
+    </view>
+
+  </view>
+
+  <!-- ── PHASE: transcribing / analysing ── -->
+  <view class="loading-card" wx:elif="{{phase === 'transcribing' || phase === 'analysing'}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-title">{{phase === 'transcribing' ? '🎙 语音识别中…' : '🤖 AI 深度分析中…'}}</text>
+    <text class="loading-sub">{{phase === 'transcribing' ? '正在将录音转为文字' : '正在分析表达流畅度、内容质量和自信度'}}</text>
+    <view class="loading-steps">
+      <view class="lstep {{phase === 'transcribing' || phase === 'analysing' ? 'done' : ''}}">语音上传</view>
+      <view class="lstep-arrow">›</view>
+      <view class="lstep active">文字转录</view>
+      <view class="lstep-arrow">›</view>
+      <view class="lstep {{phase === 'analysing' ? 'active' : ''}}">AI 分析</view>
+    </view>
+  </view>
+
+  <!-- ── PHASE: done ── -->
+  <view class="result-wrap" wx:elif="{{phase === 'done' && analysis}}">
+
+    <!-- Overall score -->
+    <view class="score-hero">
+      <text class="sh-label">综合得分</text>
+      <view class="sh-score-row">
+        <text class="sh-num">{{analysis.overall}}</text>
+        <text class="sh-unit">/ 100</text>
+      </view>
+      <text class="sh-summary">{{analysis.summary}}</text>
+    </view>
+
+    <!-- 3 dimension cards -->
+    <view class="dim-grid">
+      <view class="dim-card">
+        <text class="dim-icon">💬</text>
+        <text class="dim-name">流畅度</text>
+        <view class="dim-bar-track">
+          <view class="dim-bar-fill" style="width:{{analysis.fluency.score}}%;background:#3B82F6"></view>
+        </view>
+        <text class="dim-score">{{analysis.fluency.score}}</text>
+        <text class="dim-comment">{{analysis.fluency.comment}}</text>
+      </view>
+      <view class="dim-card">
+        <text class="dim-icon">📋</text>
+        <text class="dim-name">内容质量</text>
+        <view class="dim-bar-track">
+          <view class="dim-bar-fill" style="width:{{analysis.content.score}}%;background:#8B5CF6"></view>
+        </view>
+        <text class="dim-score">{{analysis.content.score}}</text>
+        <text class="dim-comment">{{analysis.content.comment}}</text>
+      </view>
+      <view class="dim-card">
+        <text class="dim-icon">💪</text>
+        <text class="dim-name">自信度</text>
+        <view class="dim-bar-track">
+          <view class="dim-bar-fill" style="width:{{analysis.confidence.score}}%;background:#F59E0B"></view>
+        </view>
+        <text class="dim-score">{{analysis.confidence.score}}</text>
+        <text class="dim-comment">{{analysis.confidence.comment}}</text>
+      </view>
+    </view>
+
+    <!-- Tips card -->
+    <view class="tips-card">
+      <text class="tips-title">🚀 改进建议</text>
+      <view wx:for="{{analysis.tips}}" wx:key="*this" class="tip-item">
+        <view class="tip-dot"></view>
+        <text class="tip-txt" user-select>{{item}}</text>
+      </view>
+    </view>
+
+    <!-- Transcript -->
+    <view class="transcript-card" wx:if="{{transcript}}">
+      <view class="tc-header">
+        <text class="tc-title">📝 转录文字</text>
+        <view class="tc-copy" bindtap="copyTranscript">复制</view>
+      </view>
+      <text class="tc-body" user-select>{{transcript}}</text>
+    </view>
+
+    <!-- Action buttons -->
+    <view class="result-actions">
+      <c-button type="secondary" bindtap="restart">重新录制</c-button>
+    </view>
+
+  </view>
+
+  <view style="height:80rpx;"></view>
+
+</view>

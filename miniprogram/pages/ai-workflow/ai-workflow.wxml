@@ -1,0 +1,121 @@
+<!-- pages/ai-workflow/ai-workflow.wxml -->
+<view class="page">
+
+  <!-- 顶部栏 -->
+  <view class="top-bar">
+    <view class="top-title">
+      <text class="top-icon">✦</text>
+      <text class="top-name">AI 求职助手</text>
+    </view>
+    <view class="clear-btn" bindtap="onClear" hover-class="clear-hover">
+      <text class="clear-txt">清空</text>
+    </view>
+  </view>
+
+  <!-- 消息列表 -->
+  <scroll-view
+    class="msg-scroll"
+    scroll-y
+    scroll-into-view="{{scrollId}}"
+    scroll-with-animation
+    style="margin-bottom: {{keyboardHeight > 0 ? keyboardHeight + 'px' : '0'}};"
+  >
+    <view class="msg-list">
+      <block wx:for="{{messages}}" wx:key="id">
+
+        <!-- 时间戳（仅超过5分钟间隔才显示） -->
+        <view wx:if="{{item.showTime}}" class="time-stamp">{{item.timeLabel}}</view>
+
+        <view id="msg-{{index}}" class="msg-row {{item.role === 'user' ? 'user-row' : 'ai-row'}}">
+
+          <!-- AI 头像 -->
+          <view wx:if="{{item.role === 'ai'}}" class="ai-avatar">
+            <text class="ai-avatar-icon">✦</text>
+          </view>
+
+          <view class="bubble-wrap">
+            <!-- 气泡 -->
+            <view class="bubble {{item.role === 'user' ? 'user-bubble' : item.type === 'error' ? 'error-bubble' : 'ai-bubble'}}">
+              <text class="bubble-text" user-select>{{item.text}}</text>
+            </view>
+
+            <!-- 操作卡片（带图标） -->
+            <view wx:if="{{item.actions && item.actions.length}}" class="action-cards">
+              <view
+                wx:for="{{item.actions}}"
+                wx:for-item="action"
+                wx:key="module"
+                class="action-card"
+                bindtap="onActionTap"
+                data-module="{{action.module}}"
+                data-params="{{action.params}}"
+                hover-class="card-hover"
+              >
+                <text class="action-icon">{{action.icon}}</text>
+                <text class="action-label">{{action.label}}</text>
+                <text class="action-arrow">→</text>
+              </view>
+            </view>
+
+            <!-- 快捷建议（只在最新 AI 消息上可点） -->
+            <view wx:if="{{item.suggestions && item.suggestions.length && index === latestAiIdx}}" class="suggestions">
+              <view
+                wx:for="{{item.suggestions}}"
+                wx:for-item="sug"
+                wx:key="*this"
+                class="sug-chip {{loading ? 'sug-disabled' : ''}}"
+                bindtap="onSuggestionTap"
+                data-text="{{sug}}"
+                hover-class="chip-hover"
+              >{{sug}}</view>
+            </view>
+          </view>
+
+        </view>
+      </block>
+
+      <!-- 加载中 -->
+      <view wx:if="{{loading}}" class="msg-row ai-row">
+        <view class="ai-avatar"><text class="ai-avatar-icon">✦</text></view>
+        <view class="bubble ai-bubble loading-bubble">
+          <view class="dot-wrap">
+            <view class="dot"></view>
+            <view class="dot"></view>
+            <view class="dot"></view>
+          </view>
+        </view>
+      </view>
+
+      <view style="height:24rpx;"></view>
+    </view>
+  </scroll-view>
+
+  <!-- 输入栏 -->
+  <view class="input-bar">
+    <view class="input-wrap">
+      <input
+        class="input"
+        placeholder="输入你的求职需求..."
+        placeholder-class="input-ph"
+        value="{{inputText}}"
+        bindinput="onInputChange"
+        bindconfirm="onSend"
+        bindkeyboardheightchange="onKeyboardHeight"
+        confirm-type="send"
+        maxlength="200"
+        adjust-position="{{false}}"
+      />
+    </view>
+    <view class="input-right">
+      <text wx:if="{{inputLen > 0}}" class="char-count {{inputLen >= 180 ? 'char-warn' : ''}}">{{inputLen}}/200</text>
+      <view
+        class="send-btn {{inputText && !loading ? 'active' : 'disabled'}}"
+        bindtap="onSend"
+        hover-class="{{inputText && !loading ? 'send-hover' : ''}}"
+      >
+        <text class="send-icon">↑</text>
+      </view>
+    </view>
+  </view>
+
+</view>

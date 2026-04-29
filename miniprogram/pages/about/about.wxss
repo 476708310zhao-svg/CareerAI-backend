@@ -1,0 +1,160 @@
+/* pages/about/about.wxss — Premium Redesign */
+page {
+  background: #F2F4F8;
+  font-family: -apple-system, 'PingFang SC', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container { padding: 0 24rpx 40rpx; }
+
+/* Logo section */
+.logo-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 72rpx 0 48rpx;
+}
+
+.logo-wrap {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 40rpx;
+  background: linear-gradient(135deg, #0D1B3E, var(--brand));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24rpx;
+  box-shadow: 0 12rpx 32rpx rgba(43,92,230,0.35);
+}
+
+.app-logo {
+  width: 96rpx;
+  height: 96rpx;
+}
+
+.app-name {
+  font-size: 36rpx;
+  font-weight: 800;
+  color: #0F172A;
+  margin-bottom: 8rpx;
+}
+
+.app-version {
+  font-size: 24rpx;
+  color: var(--text-muted);
+  background: #F3F4F6;
+  padding: 5rpx 18rpx;
+  border-radius: var(--r-lg);
+}
+
+/* Cards */
+.intro-card {
+  background: var(--bg-panel);
+  border-radius: var(--r-lg);
+  padding: 28rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.05);
+  border: 1.5rpx solid #F1F3F7;
+}
+
+.intro-text {
+  font-size: 27rpx;
+  color: var(--text-secondary);
+  line-height: 1.75;
+}
+
+.section-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #0F172A;
+  padding: 0 0 16rpx;
+  padding-left: 18rpx;
+  border-left: 6rpx solid var(--brand);
+  margin-bottom: 16rpx;
+}
+
+.feature-list {
+  background: var(--bg-panel);
+  border-radius: var(--r-lg);
+  padding: 8rpx 0;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.05);
+  border: 1.5rpx solid #F1F3F7;
+  overflow: hidden;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 28rpx;
+  border-bottom: 1rpx solid var(--bg-raised);
+}
+
+.feature-item:last-child { border-bottom: none; }
+
+.feature-icon {
+  width: 64rpx;
+  height: 64rpx;
+  margin-right: 24rpx;
+  flex-shrink: 0;
+  border-radius: var(--r-md);
+}
+
+.feature-info { flex: 1; }
+
+.feature-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #0F172A;
+  display: block;
+  margin-bottom: 5rpx;
+}
+
+.feature-desc {
+  font-size: 24rpx;
+  color: var(--text-muted);
+  display: block;
+}
+
+.contact-card {
+  background: var(--bg-panel);
+  border-radius: var(--r-lg);
+  padding: 28rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.05);
+  border: 1.5rpx solid #F1F3F7;
+}
+
+.contact-label {
+  font-size: 24rpx;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.contact-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.contact-value {
+  font-size: 28rpx;
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.copy-hint {
+  font-size: 22rpx;
+  color: #C4C9D4;
+}
+
+.copyright {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40rpx 0;
+  font-size: 22rpx;
+  color: #C4C9D4;
+  line-height: 1.9;
+}

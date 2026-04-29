@@ -1,0 +1,169 @@
+<!-- pages/campus/campus.wxml -->
+<view class="page">
+
+  <!-- ════ 固定头部 ════ -->
+  <view class="fixed-header" id="fixed-header">
+
+    <!-- 搜索栏 + 筛选按钮 -->
+    <view class="search-row">
+      <view class="search-wrap">
+        <icon type="search" size="14" color="#9CA3AF"/>
+        <input
+          class="search-input"
+          placeholder="搜索公司、岗位、行业..."
+          placeholder-class="ph"
+          value="{{keyword}}"
+          bindinput="onSearchInput"
+          bindconfirm="onSearchConfirm"
+          confirm-type="search"
+        />
+        <view class="clear-btn" wx:if="{{keyword}}" bindtap="clearSearch">✕</view>
+      </view>
+      <view class="filter-toggle-btn {{filterExpanded ? 'active' : ''}}" bindtap="toggleFilter">
+        <text class="filter-icon">≡</text>
+        <text>筛选</text>
+      </view>
+    </view>
+
+    <!-- 招聘类型 Tab -->
+    <scroll-view scroll-x class="tab-scroll">
+      <view class="tab-inner">
+        <block wx:for="{{recruitTypeList}}" wx:key="*this">
+          <view
+            class="tab-pill {{currentRecruitType === item ? 'active-recruit' : ''}}"
+            bindtap="switchRecruitType"
+            data-val="{{item}}"
+          >{{item}}</view>
+        </block>
+      </view>
+    </scroll-view>
+
+    <!-- 地区 Tab -->
+    <scroll-view scroll-x class="tab-scroll">
+      <view class="tab-inner">
+        <block wx:for="{{regionList}}" wx:key="*this">
+          <view
+            class="tab-pill {{currentRegion === item ? 'active-region' : ''}}"
+            bindtap="switchRegion"
+            data-val="{{item}}"
+          >{{item}}</view>
+        </block>
+      </view>
+    </scroll-view>
+
+    <!-- 扩展筛选面板 -->
+    <view class="filter-panel" wx:if="{{filterExpanded}}">
+      <view class="filter-section">
+        <text class="filter-label">岗位方向</text>
+        <view class="filter-pills">
+          <block wx:for="{{typeList}}" wx:key="*this">
+            <view class="fp {{currentType === item ? 'fp-active' : ''}}" bindtap="switchType" data-val="{{item}}">{{item}}</view>
+          </block>
+        </view>
+      </view>
+      <view class="filter-section">
+        <text class="filter-label">笔试要求</text>
+        <view class="filter-pills">
+          <block wx:for="{{writtenTestList}}" wx:key="*this">
+            <view class="fp {{currentWrittenTest === item ? 'fp-active' : ''}}" bindtap="switchWrittenTest" data-val="{{item}}">{{item}}</view>
+          </block>
+        </view>
+      </view>
+      <view class="filter-section filter-row-inline">
+        <text class="filter-label">毕业届次</text>
+        <view class="grad-year-btn" bindtap="showGradYearPicker">
+          <text>{{currentGradYear ? currentGradYear + '届' : '全部届次'}}</text>
+          <text class="chevron">▾</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 统计条 -->
+    <view class="stat-row">
+      <text class="stat-txt">共 {{total}} 条</text>
+      <view class="active-filters">
+        <view class="filter-tag" wx:if="{{currentRecruitType !== '全部'}}">{{currentRecruitType}}</view>
+        <view class="filter-tag" wx:if="{{currentRegion !== '全部'}}">{{currentRegion}}</view>
+        <view class="filter-tag" wx:if="{{currentType !== '全部'}}">{{currentType}}</view>
+        <view class="filter-tag" wx:if="{{currentWrittenTest !== '全部'}}">{{currentWrittenTest}}</view>
+        <view class="filter-tag" wx:if="{{currentGradYear}}">{{currentGradYear}}届</view>
+      </view>
+    </view>
+
+  </view>
+
+  <!-- 占位 -->
+  <view style="height:{{spacerHeight}}px;"></view>
+
+  <!-- ════ 列表 ════ -->
+  <view class="list">
+    <block wx:for="{{list}}" wx:key="id">
+      <view class="card" bindtap="goToDetail" data-id="{{item.id}}">
+
+        <!-- 头部：logo + 公司/岗位/标签 -->
+        <view class="card-head">
+          <view class="logo-wrap">
+            <image wx:if="{{item.companyLogo}}" class="logo-img" src="{{item.companyLogo}}" mode="aspectFill" lazy-load binderror="onLogoImgError" data-index="{{index}}"/>
+            <view wx:else class="logo-placeholder">
+              <text class="logo-char">{{item.company.slice(0,2)}}</text>
+            </view>
+          </view>
+          <view class="card-main">
+            <view class="head-top">
+              <text class="company-name">{{item.company}}</text>
+              <view class="hot-dot" wx:if="{{item.isHot}}">HOT</view>
+            </view>
+            <text class="position-name">{{item.positionName || item.positionType}}</text>
+            <view class="badge-row">
+              <view class="badge type-badge" style="background:{{item._typeStyle.bg}};color:{{item._typeStyle.color}};border-color:{{item._typeStyle.border}}">{{item.recruitType}}</view>
+              <view class="badge test-badge" style="background:{{item._testStyle.bg}};color:{{item._testStyle.color}}">{{item.writtenTest}}</view>
+              <view class="badge grad-badge">{{item.gradYear}}届</view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 信息网格 -->
+        <view class="info-grid">
+          <view class="info-item">
+            <text class="ii-label">行业</text>
+            <text class="ii-val">{{item.industry || '-'}}</text>
+          </view>
+          <view class="info-item">
+            <text class="ii-label">地点</text>
+            <text class="ii-val">{{item._locLabel}}</text>
+          </view>
+          <view class="info-item">
+            <text class="ii-label">截止</text>
+            <text class="ii-val {{item.deadlineDate === '尽快投递' ? 'urgent' : ''}}">{{item._deadlineShort}}</text>
+          </view>
+          <view class="info-item">
+            <text class="ii-label">开放</text>
+            <text class="ii-val">{{item.startDate ? item.startDate.slice(0,7) : '-'}}</text>
+          </view>
+        </view>
+
+        <!-- 备注 -->
+        <text class="notes" wx:if="{{item.notes}}">💬 {{item.notes}}</text>
+
+        <!-- 底部 -->
+        <view class="card-footer">
+          <view class="region-chip">{{item.region}}</view>
+          <view class="apply-btn" catchtap="goApply" data-url="{{item.applyUrl}}">立即投递 →</view>
+        </view>
+
+      </view>
+    </block>
+
+    <view wx:if="{{loading}}" class="loading-tip">
+      <view class="spinner"></view><text>加载中...</text>
+    </view>
+    <view wx:if="{{!loading && !hasMore && list.length > 0}}" class="no-more">— 已加载全部 {{total}} 条 —</view>
+    <view wx:if="{{!loading && list.length === 0}}" class="empty">
+      <text class="empty-emoji">📋</text>
+      <text class="empty-txt">暂无符合条件的招聘信息</text>
+      <text class="empty-sub">尝试调整筛选条件</text>
+    </view>
+  </view>
+
+  <view style="height:60rpx;"></view>
+</view>

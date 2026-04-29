@@ -1,0 +1,188 @@
+<!-- pages/project-review/project-review.wxml -->
+<view class="page">
+
+  <!-- Hero -->
+  <view class="hero">
+    <view class="hero-left">
+      <text class="hero-title">AI 项目优化</text>
+      <text class="hero-sub">粘贴项目经历，AI 拆解重写 · 秒变亮点</text>
+    </view>
+    <view class="hero-icon-wrap"><text class="hero-icon">✨</text></view>
+  </view>
+
+  <!-- History toggle -->
+  <view class="history-bar" wx:if="{{history.length > 0}}" bindtap="toggleHistory">
+    <text class="hbar-txt">📚 优化历史（{{history.length}}条）</text>
+    <text class="hbar-arrow">{{showHistory ? '▲' : '▼'}}</text>
+  </view>
+  <view class="history-list" wx:if="{{showHistory}}">
+    <view wx:for="{{history}}" wx:key="id" class="hist-item" bindtap="loadHistory" data-idx="{{index}}">
+      <view class="hist-left">
+        <text class="hist-date">{{item.date}} {{item.role ? '· ' + item.role : ''}}</text>
+        <text class="hist-raw">{{item.raw}}…</text>
+      </view>
+      <view class="hist-score-pill {{item.score >= 80 ? 'good' : item.score >= 60 ? 'mid' : 'low'}}">{{item.score}}</view>
+    </view>
+  </view>
+
+  <!-- ── STEP: input ── -->
+  <view class="input-wrap" wx:if="{{step === 'input'}}">
+
+    <view class="form-card">
+      <text class="form-title">📝 粘贴你的项目描述</text>
+      <textarea
+        class="fi fi-ta"
+        placeholder="把简历上的项目经历粘贴到这里，或直接描述你参与的项目…（至少30字）"
+        value="{{raw}}"
+        bindinput="onRawInput"
+        maxlength="2000"
+        auto-height
+      />
+      <text class="char-count">{{raw.length}} / 2000</text>
+    </view>
+
+    <view class="form-card">
+      <text class="form-title">🎯 可选设置（填写后优化更精准）</text>
+      <view class="form-item">
+        <text class="form-label">目标岗位</text>
+        <input class="fi" placeholder="如：产品经理、Data Analyst、咨询分析师" value="{{targetRole}}" bindinput="onRoleInput" />
+      </view>
+      <view class="form-item">
+        <text class="form-label">重点优化方向</text>
+        <input class="fi" placeholder="如：量化数据结果、突出技术栈、强化领导力" value="{{highlights}}" bindinput="onHighlightsInput" />
+      </view>
+    </view>
+
+    <view class="gen-btn-wrap">
+      <c-button class="gen-btn" bindtap="onGenerate">✨ 开始 AI 优化</c-button>
+    </view>
+
+  </view>
+
+  <!-- ── STEP: loading ── -->
+  <view class="loading-card" wx:elif="{{step === 'loading'}}">
+    <view class="loading-orb">
+      <view class="orb-ring r1"></view>
+      <view class="orb-ring r2"></view>
+      <text class="orb-icon">✨</text>
+    </view>
+    <text class="loading-title">{{loadingTip}}</text>
+    <view class="loading-steps">
+      <view class="lstep {{loadingStep >= 0 ? 'done' : ''}}">解析内容</view>
+      <view class="lstep-arr">›</view>
+      <view class="lstep {{loadingStep >= 1 ? 'done' : loadingStep === 0 ? 'active' : ''}}">分析结构</view>
+      <view class="lstep-arr">›</view>
+      <view class="lstep {{loadingStep >= 2 ? 'done' : loadingStep === 1 ? 'active' : ''}}">量化建议</view>
+      <view class="lstep-arr">›</view>
+      <view class="lstep {{loadingStep >= 3 ? 'done' : loadingStep === 2 ? 'active' : ''}}">生成改写</view>
+    </view>
+  </view>
+
+  <!-- ── STEP: result ── -->
+  <view class="result-wrap" wx:elif="{{step === 'result' && result}}">
+
+    <!-- Score card -->
+    <view class="score-card">
+      <view class="sc-left">
+        <text class="sc-label">项目质量评分</text>
+        <text class="sc-comment">{{result.scoreComment}}</text>
+      </view>
+      <view class="sc-right">
+        <view class="sc-ring {{result.score >= 80 ? 'green' : result.score >= 60 ? 'amber' : 'red'}}">
+          <text class="sc-num">{{result.score}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Strengths + Weaknesses -->
+    <view class="sw-grid">
+      <view class="sw-card strengths">
+        <text class="sw-title">✅ 优点</text>
+        <view wx:for="{{result.strengths}}" wx:key="*this" class="sw-item">
+          <view class="sw-dot green-dot"></view>
+          <text class="sw-txt">{{item}}</text>
+        </view>
+      </view>
+      <view class="sw-card weaknesses">
+        <text class="sw-title">⚠️ 待改进</text>
+        <view wx:for="{{result.weaknesses}}" wx:key="*this" class="sw-item">
+          <view class="sw-dot red-dot"></view>
+          <text class="sw-txt">{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- STAR breakdown -->
+    <view class="section-card">
+      <text class="sec-title">🔍 STAR 拆解</text>
+      <view class="star-row">
+        <view class="star-lbl s-lbl">S</view>
+        <view class="star-body">
+          <text class="star-name">情境</text>
+          <text class="star-txt" user-select>{{result.star.situation || '（未提供）'}}</text>
+        </view>
+      </view>
+      <view class="star-row">
+        <view class="star-lbl t-lbl">T</view>
+        <view class="star-body">
+          <text class="star-name">任务</text>
+          <text class="star-txt" user-select>{{result.star.task || '（未提供）'}}</text>
+        </view>
+      </view>
+      <view class="star-row">
+        <view class="star-lbl a-lbl">A</view>
+        <view class="star-body">
+          <text class="star-name">行动</text>
+          <text class="star-txt" user-select>{{result.star.action || '（未提供）'}}</text>
+        </view>
+      </view>
+      <view class="star-row">
+        <view class="star-lbl r-lbl">R</view>
+        <view class="star-body">
+          <text class="star-name">结果</text>
+          <text class="star-txt" user-select>{{result.star.result || '（未提供）'}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Quantification suggestions -->
+    <view class="section-card" wx:if="{{result.metrics && result.metrics.length}}">
+      <text class="sec-title">📊 量化建议</text>
+      <view wx:for="{{result.metrics}}" wx:key="*this" class="metric-item">
+        <text class="metric-icon">💡</text>
+        <text class="metric-txt" user-select>{{item}}</text>
+      </view>
+    </view>
+
+    <!-- Rewrite -->
+    <view class="section-card rewrite-card">
+      <view class="rewrite-header">
+        <text class="sec-title">🚀 优化版本</text>
+        <view class="copy-btn" bindtap="copyRewrite">复制全文</view>
+      </view>
+      <text class="rewrite-body" user-select>{{result.rewrite}}</text>
+    </view>
+
+    <!-- Bullet points -->
+    <view class="section-card" wx:if="{{result.bullets && result.bullets.length}}">
+      <view class="rewrite-header">
+        <text class="sec-title">📋 简历 Bullet Points</text>
+        <view class="copy-btn" bindtap="copyBullets">复制</view>
+      </view>
+      <view wx:for="{{result.bullets}}" wx:key="*this" class="bullet-item">
+        <text class="bullet-dot">•</text>
+        <text class="bullet-txt" user-select>{{item}}</text>
+      </view>
+    </view>
+
+    <!-- Actions -->
+    <view class="result-actions">
+      <c-button type="secondary" bindtap="restart">重新输入</c-button>
+      <c-button bindtap="optimiseAgain">再次优化↑</c-button>
+    </view>
+
+  </view>
+
+  <view style="height:80rpx;"></view>
+
+</view>

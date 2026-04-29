@@ -1,0 +1,165 @@
+<!-- pages/job-insights/job-insights.wxml -->
+<view class="page">
+
+  <!-- 顶部 Hero -->
+  <view class="hero">
+    <view class="hero-icon-box">
+      <text class="hero-icon">📈</text>
+    </view>
+    <view class="hero-text">
+      <text class="hero-title">求职趋势洞察</text>
+      <text class="hero-desc">AI 分析招聘市场，掌握求职先机</text>
+    </view>
+  </view>
+
+  <!-- 周期选择 -->
+  <view class="section">
+    <view class="section-title">选择时间范围</view>
+    <view class="period-row">
+      <block wx:for="{{periods}}" wx:key="id">
+        <view
+          class="period-btn {{period === item.id ? 'active' : ''}}"
+          bindtap="selectPeriod"
+          data-id="{{item.id}}"
+        >
+          <text class="period-label">{{item.label}}</text>
+          <text class="period-desc">{{item.desc}}</text>
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <!-- 生成按钮 (idle) -->
+  <view class="gen-wrap" wx:if="{{phase !== 'loading'}}">
+    <view class="gen-btn" bindtap="generate">
+      <text wx:if="{{phase === 'idle'}}">✨ 生成趋势报告</text>
+      <text wx:else>🔄 重新生成</text>
+    </view>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="loading-card" wx:if="{{phase === 'loading'}}">
+    <view class="loading-rings">
+      <view class="ring r1"></view>
+      <view class="ring r2"></view>
+      <view class="ring-icon">📊</view>
+    </view>
+    <text class="loading-tip">{{loadingTip}}</text>
+  </view>
+
+  <!-- 结果区 -->
+  <view wx:if="{{phase === 'done' && result}}">
+
+    <!-- 总结卡 -->
+    <view class="summary-card">
+      <view class="summary-header">
+        <text class="summary-period">{{result.period}} · 市场总结</text>
+        <view class="refresh-btn" bindtap="refresh">刷新</view>
+      </view>
+      <text class="summary-txt">{{result.summary}}</text>
+    </view>
+
+    <!-- 热门岗位 -->
+    <view class="section">
+      <view class="section-title">🔥 热门岗位</view>
+      <block wx:for="{{result.hotJobs}}" wx:key="title">
+        <view class="job-card">
+          <view class="job-card-head">
+            <text class="job-title">{{item.title}}</text>
+            <view class="job-growth">{{item.growth}}</view>
+          </view>
+          <text class="job-salary">💰 {{item.avgSalary}}</text>
+          <text class="job-highlight">{{item.highlight}}</text>
+          <view class="job-companies">
+            <block wx:for="{{item.companies}}" wx:key="*this" wx:for-item="co">
+              <view class="co-tag">{{co}}</view>
+            </block>
+          </view>
+        </view>
+      </block>
+    </view>
+
+    <!-- 热门公司 -->
+    <view class="section">
+      <view class="section-title">🏢 热门招聘公司</view>
+      <view class="company-grid">
+        <block wx:for="{{result.hotCompanies}}" wx:key="name">
+          <view class="company-card">
+            <text class="company-icon">{{item.icon}}</text>
+            <text class="company-name">{{item.name}}</text>
+            <view class="company-trend">{{item.trend}}</view>
+            <text class="company-note">{{item.note}}</text>
+          </view>
+        </block>
+      </view>
+    </view>
+
+    <!-- 面试难度趋势 -->
+    <view class="section">
+      <view class="section-title">🎯 面试难度趋势</view>
+      <view class="diff-summary-card">
+        <text class="diff-overall">{{result.difficultyTrend.overall}}</text>
+      </view>
+      <block wx:for="{{result.difficultyTrend.items}}" wx:key="type">
+        <view class="diff-item">
+          <view class="diff-item-left">
+            <text class="diff-type">{{item.type}}</text>
+            <view class="diff-level {{item.level === '较难' || item.level === '困难' ? 'hard' : (item.level === '中等' ? 'mid' : 'easy')}}">{{item.level}}</view>
+          </view>
+          <view class="diff-item-right">
+            <text class="diff-change">{{item.change}}</text>
+            <text class="diff-tip">{{item.tip}}</text>
+          </view>
+        </view>
+      </block>
+    </view>
+
+    <!-- 薪资趋势 -->
+    <view class="section">
+      <view class="section-title">💰 薪资趋势</view>
+      <view class="salary-summary-card">
+        <text class="salary-overall">{{result.salaryTrend.overall}}</text>
+      </view>
+      <block wx:for="{{result.salaryTrend.items}}" wx:key="role">
+        <view class="salary-row">
+          <view class="salary-row-left">
+            <text class="salary-role">{{item.role}}</text>
+            <text class="salary-note">{{item.note}}</text>
+          </view>
+          <view class="salary-row-right">
+            <text class="salary-range">{{item.range}}</text>
+            <view class="salary-yoy {{item.yoy && item.yoy.startsWith('+') ? 'up' : 'down'}}">{{item.yoy}}</view>
+          </view>
+        </view>
+      </block>
+    </view>
+
+    <!-- 小贴士 -->
+    <view class="section">
+      <view class="section-title">💡 求职小贴士</view>
+      <view class="tips-card">
+        <block wx:for="{{result.tips}}" wx:key="*this">
+          <view class="tip-item">
+            <view class="tip-dot">{{index + 1}}</view>
+            <text class="tip-txt">{{item}}</text>
+          </view>
+        </block>
+      </view>
+    </view>
+
+  </view>
+
+  <!-- 历史记录 -->
+  <view class="section" wx:if="{{history.length > 0 && phase !== 'loading'}}">
+    <view class="section-title">📋 历史报告</view>
+    <block wx:for="{{history}}" wx:key="ts">
+      <view class="history-item" bindtap="loadHistoryItem" data-idx="{{index}}">
+        <text class="history-period">{{item.result.period}} 报告</text>
+        <text class="history-summary">{{item.result.summary}}</text>
+        <text class="history-date">{{item.ts}}</text>
+      </view>
+    </block>
+  </view>
+
+  <view style="height: 80rpx;"></view>
+</view>

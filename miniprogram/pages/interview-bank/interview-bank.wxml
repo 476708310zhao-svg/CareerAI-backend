@@ -1,0 +1,182 @@
+<!-- pages/interview-bank/interview-bank.wxml -->
+<view class="page">
+
+  <!-- Hero -->
+  <view class="hero">
+    <view class="hero-left">
+      <text class="hero-title">面试题库</text>
+      <text class="hero-sub">沉淀面试内容，精准复习提升</text>
+    </view>
+    <view class="hero-stats">
+      <view class="stat-chip"><text class="stat-n">{{totalCount}}</text><text class="stat-l">题</text></view>
+      <view class="stat-chip accent"><text class="stat-n">{{bookmarkCount}}</text><text class="stat-l">错题</text></view>
+    </view>
+  </view>
+
+  <!-- Search + Filter row -->
+  <view class="search-row">
+    <view class="search-box">
+      <text class="search-icon">🔍</text>
+      <input class="search-input" placeholder="搜索题目或公司" value="{{searchKey}}" bindinput="onSearch" />
+    </view>
+    <view class="filter-btn {{showFilter ? 'active' : ''}}" bindtap="toggleFilter">
+      <text>筛选</text>
+    </view>
+  </view>
+
+  <!-- Filter Panel -->
+  <view class="filter-panel" wx:if="{{showFilter}}">
+    <view class="filter-section">
+      <text class="filter-label">难度</text>
+      <view class="filter-chips">
+        <view class="fchip {{filterDifficulty === 'easy'   ? 'sel' : ''}}" bindtap="setFilter" data-key="filterDifficulty" data-val="easy">简单</view>
+        <view class="fchip {{filterDifficulty === 'medium' ? 'sel' : ''}}" bindtap="setFilter" data-key="filterDifficulty" data-val="medium">中等</view>
+        <view class="fchip {{filterDifficulty === 'hard'   ? 'sel' : ''}}" bindtap="setFilter" data-key="filterDifficulty" data-val="hard">困难</view>
+      </view>
+    </view>
+    <view class="filter-section">
+      <text class="filter-label">类型</text>
+      <view class="filter-chips">
+        <view class="fchip {{filterType === 'behavior'  ? 'sel' : ''}}" bindtap="setFilter" data-key="filterType" data-val="behavior">行为面</view>
+        <view class="fchip {{filterType === 'technical' ? 'sel' : ''}}" bindtap="setFilter" data-key="filterType" data-val="technical">技术面</view>
+        <view class="fchip {{filterType === 'case'      ? 'sel' : ''}}" bindtap="setFilter" data-key="filterType" data-val="case">案例面</view>
+        <view class="fchip {{filterType === 'product'   ? 'sel' : ''}}" bindtap="setFilter" data-key="filterType" data-val="product">产品面</view>
+      </view>
+    </view>
+    <view class="filter-clear" bindtap="clearFilter">清除全部筛选</view>
+  </view>
+
+  <!-- Tabs -->
+  <view class="tabs">
+    <view class="tab-item {{activeTab === 'all'       ? 'active' : ''}}" bindtap="switchTab" data-tab="all">
+      全部<text class="tab-badge" wx:if="{{totalCount > 0}}"> {{totalCount}}</text>
+    </view>
+    <view class="tab-item {{activeTab === 'bookmarks' ? 'active' : ''}}" bindtap="switchTab" data-tab="bookmarks">
+      错题本<text class="tab-badge accent" wx:if="{{bookmarkCount > 0}}"> {{bookmarkCount}}</text>
+    </view>
+    <view class="tab-item {{activeTab === 'custom'    ? 'active' : ''}}" bindtap="switchTab" data-tab="custom">
+      我的题目
+    </view>
+  </view>
+
+  <!-- Question List -->
+  <view class="question-list">
+
+    <!-- Empty State -->
+    <view class="empty-wrap" wx:if="{{!filtered.length}}">
+      <text class="empty-icon">📭</text>
+      <text class="empty-title" wx:if="{{activeTab === 'all'}}">暂无题目</text>
+      <text class="empty-sub"  wx:if="{{activeTab === 'all'}}">完成 AI 面试后，题目将自动沉淀到题库</text>
+      <text class="empty-title" wx:elif="{{activeTab === 'bookmarks'}}">错题本为空</text>
+      <text class="empty-sub"  wx:elif="{{activeTab === 'bookmarks'}}">在题目卡片中点击"加入错题本"即可收藏</text>
+      <text class="empty-title" wx:else>还没有自定义题目</text>
+      <view class="empty-btn" wx:if="{{activeTab === 'all'}}" bindtap="goInterview">开始面试练习</view>
+      <view class="empty-btn" wx:if="{{activeTab === 'custom'}}" bindtap="showAdd">+ 添加题目</view>
+    </view>
+
+    <!-- Question Cards -->
+    <view wx:for="{{filtered}}" wx:key="qid" class="q-card">
+
+      <!-- Card header (tap to expand) -->
+      <view class="q-header" bindtap="toggleExpand" data-qid="{{item.qid}}">
+        <view class="q-meta">
+          <view class="q-badges">
+            <view wx:if="{{item.company}}" class="badge company-badge">{{item.company}}</view>
+            <view class="badge type-badge">{{item.typeLabel}}</view>
+            <view class="badge diff-badge" style="background:{{item.diffColor}}20;color:{{item.diffColor}}">{{item.diffLabel}}</view>
+          </view>
+          <text class="q-text">{{item.question}}</text>
+        </view>
+        <view class="q-right">
+          <view wx:if="{{item.score > 0}}" class="q-score {{item.score >= 80 ? 'score-good' : item.score >= 60 ? 'score-mid' : 'score-low'}}">{{item.score}}</view>
+          <text class="q-arrow">{{expandedQid === item.qid ? '▲' : '▼'}}</text>
+        </view>
+      </view>
+
+      <!-- Expanded detail -->
+      <view wx:if="{{expandedQid === item.qid}}" class="q-detail">
+
+        <!-- My answer -->
+        <view wx:if="{{item.answer}}" class="q-section">
+          <text class="q-sec-label">💬 我的回答</text>
+          <text class="q-sec-body" user-select>{{item.answer}}</text>
+        </view>
+
+        <!-- AI feedback -->
+        <view wx:if="{{item.feedback}}" class="q-section feedback-sec">
+          <text class="q-sec-label">🤖 AI 点评</text>
+          <text class="q-sec-body" user-select>{{item.feedback}}</text>
+        </view>
+
+        <!-- AI suggest (lazy loaded) -->
+        <view wx:if="{{item.aiSuggest}}" class="q-section suggest-sec">
+          <text class="q-sec-label">✨ AI 示范回答</text>
+          <text class="q-sec-body" user-select>{{item.aiSuggest}}</text>
+        </view>
+
+        <!-- Action row -->
+        <view class="q-actions">
+          <view class="q-action-btn" bindtap="practiceQuestion" data-question="{{item.question}}">
+            <text class="q-act-icon">🎤</text><text class="q-act-txt">练习此题</text>
+          </view>
+          <view class="q-action-btn {{analysingQid === item.qid ? 'loading' : ''}}" bindtap="aiImprove" data-qid="{{item.qid}}">
+            <text class="q-act-icon">✨</text>
+            <text class="q-act-txt">{{analysingQid === item.qid ? 'AI 生成中...' : 'AI 示范'}}</text>
+          </view>
+          <view class="q-action-btn {{item.bookmarked ? 'bookmarked' : ''}}" bindtap="toggleBookmark" data-qid="{{item.qid}}">
+            <text class="q-act-icon">{{item.bookmarked ? '★' : '☆'}}</text>
+            <text class="q-act-txt">{{item.bookmarked ? '已收藏' : '错题本'}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+  </view>
+
+  <!-- FAB -->
+  <view class="fab" bindtap="showAdd"><text class="fab-plus">＋</text></view>
+
+  <!-- Bottom spacer -->
+  <view style="height:120rpx;"></view>
+
+  <!-- Add Question Modal -->
+  <view class="modal-mask" wx:if="{{showAddModal}}" bindtap="hideAdd">
+    <view class="modal-card" catchtap="noop">
+      <view class="modal-handle"></view>
+      <text class="modal-title">添加自定义题目</text>
+
+      <view class="form-item">
+        <text class="form-label">题目内容 <text class="req">*</text></text>
+        <textarea class="fi fi-ta" placeholder="请输入面试题目" value="{{addForm.question}}" bindinput="onAddInput" data-field="question" maxlength="500" auto-height />
+      </view>
+      <view class="form-item">
+        <text class="form-label">我的回答思路（选填）</text>
+        <textarea class="fi fi-ta" placeholder="记录你对这道题的回答思路" value="{{addForm.answer}}" bindinput="onAddInput" data-field="answer" maxlength="1000" auto-height />
+      </view>
+      <view class="form-row">
+        <view class="form-item half">
+          <text class="form-label">公司</text>
+          <input class="fi" placeholder="如：Google" value="{{addForm.company}}" bindinput="onAddInput" data-field="company" />
+        </view>
+        <view class="form-item half">
+          <text class="form-label">岗位</text>
+          <input class="fi" placeholder="如：PM" value="{{addForm.role}}" bindinput="onAddInput" data-field="role" />
+        </view>
+      </view>
+      <view class="form-item">
+        <text class="form-label">难度</text>
+        <view class="seg-ctrl">
+          <view class="seg {{addForm.difficulty === 'easy'   ? 'seg-active' : ''}}" bindtap="setAddField" data-field="difficulty" data-val="easy">简单</view>
+          <view class="seg {{addForm.difficulty === 'medium' ? 'seg-active' : ''}}" bindtap="setAddField" data-field="difficulty" data-val="medium">中等</view>
+          <view class="seg {{addForm.difficulty === 'hard'   ? 'seg-active' : ''}}" bindtap="setAddField" data-field="difficulty" data-val="hard">困难</view>
+        </view>
+      </view>
+
+      <view class="modal-btns">
+        <c-button type="secondary" class="btn-cancel" bindtap="hideAdd">取消</c-button>
+        <c-button class="btn-save" bindtap="saveCustom">保存题目</c-button>
+      </view>
+    </view>
+  </view>
+
+</view>

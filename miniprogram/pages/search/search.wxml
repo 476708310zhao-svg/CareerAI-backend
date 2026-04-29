@@ -1,0 +1,118 @@
+<!-- pages/search/search.wxml -->
+<view class="container">
+
+  <!-- 搜索栏 -->
+  <view class="search-bar">
+    <view class="search-input-wrap">
+      <icon type="search" size="14" color="#999"></icon>
+      <input class="search-input" placeholder="搜索职位、公司或面经" value="{{keyword}}" bindinput="onInput" bindconfirm="doSearch" focus="true" />
+    </view>
+    <view class="search-btn" bindtap="doSearch">搜索</view>
+  </view>
+
+  <!-- 搜索前：热门 + 历史 -->
+  <block wx:if="{{!hasSearched}}">
+    <!-- 搜索历史 -->
+    <view class="section" wx:if="{{searchHistory.length > 0}}">
+      <view class="section-header">
+        <text class="section-title">搜索历史</text>
+        <text class="clear-btn" bindtap="clearHistory">清空</text>
+      </view>
+      <view class="tag-list">
+        <block wx:for="{{searchHistory}}" wx:key="*this">
+          <view class="tag" bindtap="historySearch" data-keyword="{{item}}">{{item}}</view>
+        </block>
+      </view>
+    </view>
+
+    <!-- 热门搜索 -->
+    <view class="section">
+      <view class="section-header">
+        <text class="section-title">热门搜索</text>
+      </view>
+      <view class="tag-list">
+        <block wx:for="{{hotKeywords}}" wx:key="*this">
+          <view class="tag hot" bindtap="quickSearch" data-keyword="{{item}}">{{item}}</view>
+        </block>
+      </view>
+    </view>
+  </block>
+
+  <!-- 搜索后：结果 -->
+  <block wx:if="{{hasSearched}}">
+    <!-- 结果 Tab -->
+    <view class="result-tabs">
+      <block wx:for="{{tabs}}" wx:key="*this">
+        <view
+          class="result-tab {{currentTab === index ? 'active' : ''}}"
+          bindtap="switchTab"
+          data-index="{{index}}"
+        >
+          {{item}}
+          <text class="tab-count" wx:if="{{index === 0}}">({{jobResults.length}})</text>
+          <text class="tab-count" wx:if="{{index === 1}}">({{companyResults.length}})</text>
+          <text class="tab-count" wx:if="{{index === 2}}">({{experienceResults.length}})</text>
+        </view>
+      </block>
+    </view>
+
+    <!-- Loading -->
+    <view wx:if="{{loading}}" class="loading">搜索中...</view>
+
+    <!-- 职位结果 -->
+    <view wx:if="{{currentTab === 0 && !loading}}" class="result-list">
+      <block wx:for="{{jobResults}}" wx:key="id">
+        <view class="job-card" bindtap="goToJobDetail" data-id="{{item.id}}" data-title="{{item.title}}">
+          <image class="job-logo" src="{{item.logo}}" mode="aspectFit" lazy-load></image>
+          <view class="job-info">
+            <text class="job-title">{{item.title}}</text>
+            <text class="job-company">{{item.company}}</text>
+            <view class="job-meta">
+              <text class="meta-tag">{{item.city}}{{item.state ? ', ' + item.state : ''}}</text>
+              <text class="meta-tag">{{item.type}}</text>
+            </view>
+          </view>
+          <text class="job-salary">{{item.salary}}</text>
+        </view>
+      </block>
+      <view wx:if="{{jobResults.length === 0}}" class="empty">未找到相关职位</view>
+
+      <!-- 加载更多 -->
+      <view wx:if="{{jobHasMore}}" class="load-more-row">
+        <view wx:if="{{loadingMore}}" class="loading-more-txt">加载中...</view>
+        <view wx:else class="load-more-btn" bindtap="loadMoreJobs">加载更多职位</view>
+      </view>
+      <view wx:if="{{!jobHasMore && jobResults.length > 0}}" class="no-more-txt">— 已显示全部结果 —</view>
+    </view>
+
+    <!-- 公司结果 -->
+    <view wx:if="{{currentTab === 1 && !loading}}" class="result-list">
+      <block wx:for="{{companyResults}}" wx:key="id">
+        <view class="company-card" bindtap="goToCompanyDetail" data-id="{{item.id}}" data-name="{{item.name}}">
+          <image class="company-logo" src="{{item.logo}}" mode="aspectFit" lazy-load></image>
+          <view class="company-info">
+            <text class="company-name">{{item.name}}</text>
+            <text class="company-meta">{{item.industry}} · {{item.size}} · {{item.jobCount}}个在招职位</text>
+          </view>
+        </view>
+      </block>
+      <view wx:if="{{companyResults.length === 0}}" class="empty">未找到相关公司</view>
+    </view>
+
+    <!-- 面经结果 -->
+    <view wx:if="{{currentTab === 2 && !loading}}" class="result-list">
+      <block wx:for="{{experienceResults}}" wx:key="id">
+        <view class="exp-card" bindtap="goToExperienceDetail" data-id="{{item.id}}">
+          <text class="exp-title">{{item.title}}</text>
+          <view class="exp-meta">
+            <text class="exp-company">{{item.company}}</text>
+            <text class="exp-type">{{item.type}}</text>
+            <text class="exp-likes">{{item.likesCount}} 赞</text>
+          </view>
+        </view>
+      </block>
+      <view wx:if="{{experienceResults.length === 0}}" class="empty">未找到相关面经</view>
+    </view>
+  </block>
+
+</view>

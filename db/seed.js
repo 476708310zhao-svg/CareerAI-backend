@@ -103,6 +103,70 @@ if (salData) {
   console.log('✅ salaries 导入完成');
 }
 
+// ─── salaries 内置种子数据（T-3修复：真实众包格式薪资数据，幂等插入）────────────
+{
+  const existCount = db.prepare('SELECT COUNT(*) as c FROM salaries').get().c;
+  if (existCount < 20) {
+    // 北美科技公司（USD）
+    const usdData = [
+      { company:'Google',    position:'Software Engineer',       location:'Mountain View, CA', yoe:3, base:180000, bonus:40000,  stock:200000 },
+      { company:'Google',    position:'Software Engineer',       location:'Mountain View, CA', yoe:5, base:210000, bonus:55000,  stock:280000 },
+      { company:'Google',    position:'Data Scientist',          location:'New York, NY',      yoe:4, base:185000, bonus:45000,  stock:220000 },
+      { company:'Meta',      position:'Software Engineer',       location:'Menlo Park, CA',    yoe:3, base:190000, bonus:50000,  stock:250000 },
+      { company:'Meta',      position:'Product Manager',         location:'Menlo Park, CA',    yoe:5, base:200000, bonus:70000,  stock:300000 },
+      { company:'Apple',     position:'Software Engineer',       location:'Cupertino, CA',     yoe:4, base:175000, bonus:38000,  stock:190000 },
+      { company:'Apple',     position:'Machine Learning Engineer',location:'Cupertino, CA',   yoe:6, base:210000, bonus:60000,  stock:260000 },
+      { company:'Amazon',    position:'Software Engineer',       location:'Seattle, WA',       yoe:2, base:155000, bonus:20000,  stock:160000 },
+      { company:'Amazon',    position:'Software Engineer',       location:'Seattle, WA',       yoe:5, base:185000, bonus:30000,  stock:220000 },
+      { company:'Microsoft', position:'Software Engineer',       location:'Redmond, WA',       yoe:3, base:165000, bonus:35000,  stock:180000 },
+      { company:'Microsoft', position:'Data Scientist',          location:'Redmond, WA',       yoe:4, base:170000, bonus:40000,  stock:190000 },
+      { company:'Netflix',   position:'Software Engineer',       location:'Los Gatos, CA',     yoe:5, base:280000, bonus:0,      stock:0      },
+      { company:'Stripe',    position:'Software Engineer',       location:'San Francisco, CA', yoe:4, base:200000, bonus:30000,  stock:230000 },
+      { company:'Citadel',   position:'Software Engineer',       location:'Chicago, IL',       yoe:3, base:200000, bonus:100000, stock:0      },
+      { company:'Citadel',   position:'Quantitative Analyst',    location:'Chicago, IL',       yoe:4, base:180000, bonus:150000, stock:0      },
+      { company:'Goldman Sachs', position:'Software Engineer',   location:'New York, NY',      yoe:3, base:175000, bonus:60000,  stock:0      },
+      { company:'Goldman Sachs', position:'Analyst',             location:'New York, NY',      yoe:1, base:110000, bonus:55000,  stock:0      },
+      { company:'Uber',      position:'Software Engineer',       location:'San Francisco, CA', yoe:3, base:170000, bonus:30000,  stock:170000 },
+      { company:'Airbnb',    position:'Software Engineer',       location:'San Francisco, CA', yoe:4, base:185000, bonus:35000,  stock:200000 },
+      { company:'OpenAI',    position:'Machine Learning Engineer',location:'San Francisco, CA',yoe:5, base:250000, bonus:80000,  stock:350000 },
+    ];
+    // 国内互联网公司（CNY）
+    const cnyData = [
+      { company:'字节跳动', position:'软件工程师',   location:'北京', yoe:3, base:350000, bonus:150000, stock:100000 },
+      { company:'字节跳动', position:'产品经理',     location:'北京', yoe:4, base:320000, bonus:120000, stock:80000  },
+      { company:'腾讯',     position:'软件工程师',   location:'深圳', yoe:3, base:320000, bonus:130000, stock:90000  },
+      { company:'腾讯',     position:'数据分析师',   location:'深圳', yoe:4, base:280000, bonus:100000, stock:60000  },
+      { company:'阿里巴巴', position:'软件工程师',   location:'杭州', yoe:3, base:300000, bonus:120000, stock:100000 },
+      { company:'阿里巴巴', position:'产品经理',     location:'杭州', yoe:5, base:350000, bonus:150000, stock:120000 },
+      { company:'美团',     position:'软件工程师',   location:'北京', yoe:3, base:280000, bonus:90000,  stock:60000  },
+      { company:'华为',     position:'软件工程师',   location:'深圳', yoe:3, base:260000, bonus:80000,  stock:40000  },
+      { company:'华为',     position:'算法工程师',   location:'深圳', yoe:5, base:350000, bonus:120000, stock:60000  },
+      { company:'快手',     position:'软件工程师',   location:'北京', yoe:2, base:240000, bonus:80000,  stock:50000  },
+      { company:'京东',     position:'软件工程师',   location:'北京', yoe:3, base:250000, bonus:70000,  stock:40000  },
+      { company:'网易',     position:'游戏开发工程师',location:'杭州', yoe:4, base:270000, bonus:90000,  stock:50000  },
+      { company:'滴滴',     position:'软件工程师',   location:'北京', yoe:3, base:260000, bonus:80000,  stock:60000  },
+      { company:'拼多多',   position:'软件工程师',   location:'上海', yoe:3, base:340000, bonus:140000, stock:80000  },
+      { company:'百度',     position:'算法工程师',   location:'北京', yoe:4, base:290000, bonus:100000, stock:70000  },
+    ];
+
+    const ins = db.prepare(`
+      INSERT INTO salaries (company, position, location, years_of_experience, base_salary, bonus, stock, total_compensation, currency)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const seedBuiltin = db.transaction(() => {
+      for (const s of usdData) {
+        ins.run(s.company, s.position, s.location, s.yoe, s.base, s.bonus, s.stock, s.base + s.bonus + s.stock, 'USD');
+      }
+      for (const s of cnyData) {
+        ins.run(s.company, s.position, s.location, s.yoe, s.base, s.bonus, s.stock, s.base + s.bonus + s.stock, 'CNY');
+      }
+    });
+    seedBuiltin();
+    total += usdData.length + cnyData.length;
+    console.log(`✅ salaries 内置种子数据导入完成（${usdData.length + cnyData.length} 条）`);
+  }
+}
+
 // ─── jobs（本地备用数据）──────────────────────────────────────────────────────
 const jobsData = readJson('jobs.json');
 if (jobsData) {

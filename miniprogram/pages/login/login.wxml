@@ -1,0 +1,65 @@
+<!-- pages/login/login.wxml -->
+<view class="page">
+
+  <!-- 顶部品牌区 -->
+  <view class="header">
+    <view class="logo-circle">
+      <image class="logo-img" src="/images/profile-active.png" mode="aspectFit" />
+    </view>
+    <text class="app-name">留学生求职助手</text>
+    <text class="app-desc">专为留学生打造的一站式求职平台</text>
+  </view>
+
+  <!-- 登录卡片 -->
+  <view class="card">
+
+    <!-- 头像选择 -->
+    <view class="avatar-section">
+      <button
+        class="avatar-btn"
+        open-type="chooseAvatar"
+        bindchooseavatar="onChooseAvatar"
+      >
+        <image class="avatar" src="{{avatarUrl}}" mode="aspectFill" />
+        <view class="avatar-badge">
+          <text class="badge-icon">✎</text>
+        </view>
+      </button>
+      <text class="avatar-tip">点击选择头像</text>
+    </view>
+
+    <!-- 昵称输入 -->
+    <view class="form-row">
+      <text class="form-label">昵称</text>
+      <input
+        class="nickname-input"
+        type="nickname"
+        placeholder="点击填写昵称（可选微信昵称）"
+        placeholder-class="input-placeholder"
+        value="{{nickname}}"
+        bindinput="onNicknameInput"
+        bindblur="onNicknameBlur"
+        maxlength="20"
+        confirm-type="done"
+      />
+    </view>
+
+  </view>
+
+  <!-- 确认按钮 -->
+  <button
+    class="confirm-btn"
+    bindtap="onConfirm"
+    disabled="{{loading}}"
+  >
+    <text wx:if="{{!loading}}">开始使用</text>
+    <text wx:else>登录中...</text>
+  </button>
+
+  <!-- 隐私协议 -->
+  <view class="privacy">
+    <text class="privacy-text">登录即代表同意</text>
+    <text class="privacy-link" bindtap="goToPrivacy">《用户协议与隐私政策》</text>
+  </view>
+
+</view>

@@ -1,0 +1,46 @@
+<!-- pages/privacy/privacy.wxml -->
+<view class="container">
+  <view class="title-block">
+    <text class="main-title">《{{appName}}》隐私政策</text>
+    <text class="update-date">更新日期：{{updateDate}}</text>
+  </view>
+
+  <view class="section">
+    <text class="section-title">一、我们收集的信息</text>
+    <text class="section-body">本应用仅在您主动授权时收集以下信息：\n\n• 微信昵称和头像（用于个性化展示）\n• 您填写的学校、专业、求职意向等档案信息\n• 您的搜索记录、浏览记录（仅存储在您的设备本地）\n• 您添加的求职申请记录（仅存储在您的设备本地）</text>
+  </view>
+
+  <view class="section">
+    <text class="section-title">二、信息使用目的</text>
+    <text class="section-body">我们收集的信息仅用于：\n\n• 为您提供个性化的职位和面经推荐\n• 记录您的求职进度和面试历史\n• 改善产品功能和用户体验\n\n我们不会将您的个人信息出售、出租或以任何方式提供给第三方。</text>
+  </view>
+
+  <view class="section">
+    <text class="section-title">三、信息存储</text>
+    <text class="section-body">• 您的个人档案信息存储于您的微信客户端本地存储中\n• 求职记录、面试历史等数据均存储在您的设备本地\n• 我们的服务器仅处理职位搜索、AI 对话等实时请求，不存储您的个人信息</text>
+  </view>
+
+  <view class="section">
+    <text class="section-title">四、信息安全</text>
+    <text class="section-body">• 与第三方 API（职位数据、AI服务）的通信均通过 HTTPS 加密传输\n• 我们的服务器不记录您的个人标识信息\n• 我们采用行业标准的安全措施保护数据传输安全</text>
+  </view>
+
+  <view class="section">
+    <text class="section-title">五、您的权利</text>
+    <text class="section-body">您随时可以：\n\n• 在"我的 → 编辑资料"中修改或删除您的个人信息\n• 在"设置 → 清除缓存"中清除本地存储的所有数据\n• 停止使用本应用，您的本地数据将随卸载一并删除</text>
+  </view>
+
+  <view class="section">
+    <text class="section-title">六、未成年人保护</text>
+    <text class="section-body">本应用面向18周岁及以上的用户。若您未满18周岁，请在监护人陪同下使用本产品。</text>
+  </view>
+
+  <view class="section">
+    <text class="section-title">七、联系我们</text>
+    <text class="section-body">如对本隐私政策有任何疑问，请通过以下方式联系我们：\n\n邮箱：{{contactEmail}}\n\n我们将在收到反馈后 3 个工作日内回复。</text>
+  </view>
+
+  <view class="footer">
+    <text class="footer-text">本政策自 {{updateDate}} 起生效</text>
+  </view>
+</view>

@@ -1,0 +1,227 @@
+<!-- pages/offer-compare/offer-compare.wxml -->
+<view class="page">
+
+  <!-- ══ 输入步骤 ══ -->
+  <view wx:if="{{step === 'input'}}">
+
+    <!-- Hero -->
+    <view class="hero">
+      <text class="hero-icon">⚖️</text>
+      <text class="hero-title">Offer 决策助手</text>
+      <text class="hero-sub">输入两份 Offer，AI 帮你全面对比</text>
+    </view>
+
+    <!-- 预填入口（有已保存 offer 时显示） -->
+    <view class="prefill-section" wx:if="{{savedOffers.length > 0}}">
+      <text class="prefill-label">从已录入 Offer 快速填入：</text>
+      <scroll-view scroll-x class="prefill-scroll">
+        <view class="prefill-inner">
+          <view wx:for="{{savedOffers}}" wx:key="company"
+                class="prefill-chip" bindtap="prefillFromSaved"
+                data-idx="{{index}}" data-which="A">
+            <text class="prefill-chip-txt">→A {{item.company}}</text>
+          </view>
+          <view wx:for="{{savedOffers}}" wx:key="company"
+                class="prefill-chip prefill-chip-b" bindtap="prefillFromSaved"
+                data-idx="{{index}}" data-which="B">
+            <text class="prefill-chip-txt">→B {{item.company}}</text>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- Offer A / B Tab 切换 -->
+    <view class="offer-tabs">
+      <view class="offer-tab {{activeOffer === 'A' ? 'active-a' : ''}}" bindtap="switchOffer" data-which="A">
+        <text class="offer-tab-badge badge-a">A</text>
+        <text class="offer-tab-name">{{offerA.company || 'Offer A'}}</text>
+      </view>
+      <view class="offer-tab-sep">VS</view>
+      <view class="offer-tab {{activeOffer === 'B' ? 'active-b' : ''}}" bindtap="switchOffer" data-which="B">
+        <text class="offer-tab-badge badge-b">B</text>
+        <text class="offer-tab-name">{{offerB.company || 'Offer B'}}</text>
+      </view>
+    </view>
+
+    <!-- Offer A 表单 -->
+    <view class="offer-form" wx:if="{{activeOffer === 'A'}}">
+      <view class="form-row">
+        <view class="form-item half">
+          <text class="form-label">公司名称 <text class="req">*</text></text>
+          <input class="fi" placeholder="如：Google" value="{{offerA.company}}" bindinput="onInput" data-which="A" data-field="company" />
+        </view>
+        <view class="form-item half">
+          <text class="form-label">城市/地点</text>
+          <input class="fi" placeholder="如：上海 / SF" value="{{offerA.city}}" bindinput="onInput" data-which="A" data-field="city" />
+        </view>
+      </view>
+      <view class="form-row">
+        <view class="form-item third">
+          <text class="form-label">Base 薪资</text>
+          <input class="fi" placeholder="180k" value="{{offerA.base}}" bindinput="onInput" data-which="A" data-field="base" />
+        </view>
+        <view class="form-item third">
+          <text class="form-label">Bonus</text>
+          <input class="fi" placeholder="15%" value="{{offerA.bonus}}" bindinput="onInput" data-which="A" data-field="bonus" />
+        </view>
+        <view class="form-item third">
+          <text class="form-label">RSU/期权</text>
+          <input class="fi" placeholder="40k/4年" value="{{offerA.rsu}}" bindinput="onInput" data-which="A" data-field="rsu" />
+        </view>
+      </view>
+      <view class="form-row">
+        <view class="form-item half">
+          <text class="form-label">签证支持</text>
+          <input class="fi" placeholder="H1B/无需/工签" value="{{offerA.visa}}" bindinput="onInput" data-which="A" data-field="visa" />
+        </view>
+        <view class="form-item half">
+          <text class="form-label">公司稳定性</text>
+          <input class="fi" placeholder="上市/创业/政府" value="{{offerA.stability}}" bindinput="onInput" data-which="A" data-field="stability" />
+        </view>
+      </view>
+      <view class="form-item">
+        <text class="form-label">发展路径（选填）</text>
+        <input class="fi" placeholder="如：PM通道清晰，有内部转岗机会" value="{{offerA.growth}}" bindinput="onInput" data-which="A" data-field="growth" />
+      </view>
+    </view>
+
+    <!-- Offer B 表单 -->
+    <view class="offer-form" wx:if="{{activeOffer === 'B'}}">
+      <view class="form-row">
+        <view class="form-item half">
+          <text class="form-label">公司名称 <text class="req">*</text></text>
+          <input class="fi" placeholder="如：字节跳动" value="{{offerB.company}}" bindinput="onInput" data-which="B" data-field="company" />
+        </view>
+        <view class="form-item half">
+          <text class="form-label">城市/地点</text>
+          <input class="fi" placeholder="如：北京 / Remote" value="{{offerB.city}}" bindinput="onInput" data-which="B" data-field="city" />
+        </view>
+      </view>
+      <view class="form-row">
+        <view class="form-item third">
+          <text class="form-label">Base 薪资</text>
+          <input class="fi" placeholder="35k" value="{{offerB.base}}" bindinput="onInput" data-which="B" data-field="base" />
+        </view>
+        <view class="form-item third">
+          <text class="form-label">Bonus</text>
+          <input class="fi" placeholder="3个月" value="{{offerB.bonus}}" bindinput="onInput" data-which="B" data-field="bonus" />
+        </view>
+        <view class="form-item third">
+          <text class="form-label">RSU/期权</text>
+          <input class="fi" placeholder="期权10万股" value="{{offerB.rsu}}" bindinput="onInput" data-which="B" data-field="rsu" />
+        </view>
+      </view>
+      <view class="form-row">
+        <view class="form-item half">
+          <text class="form-label">签证支持</text>
+          <input class="fi" placeholder="工作签/国内" value="{{offerB.visa}}" bindinput="onInput" data-which="B" data-field="visa" />
+        </view>
+        <view class="form-item half">
+          <text class="form-label">公司稳定性</text>
+          <input class="fi" placeholder="互联网大厂/独角兽" value="{{offerB.stability}}" bindinput="onInput" data-which="B" data-field="stability" />
+        </view>
+      </view>
+      <view class="form-item">
+        <text class="form-label">发展路径（选填）</text>
+        <input class="fi" placeholder="如：快速晋升，技术通道" value="{{offerB.growth}}" bindinput="onInput" data-which="B" data-field="growth" />
+      </view>
+    </view>
+
+    <c-button class="compare-btn" bindtap="onCompare">🤖 AI 开始对比分析</c-button>
+    <view style="height:40rpx;"></view>
+  </view>
+
+  <!-- ══ 加载步骤 ══ -->
+  <view wx:if="{{step === 'loading'}}" class="loading-page">
+    <view class="loading-anim">
+      <view class="pulse-ring"></view>
+      <view class="pulse-core">AI</view>
+    </view>
+    <text class="loading-tip">{{loadingTip}}</text>
+    <view class="loading-steps">
+      <view class="lstep {{loadingStep >= 0 ? 'done' : ''}}">💰 薪酬</view>
+      <text class="lstep-sep">›</text>
+      <view class="lstep {{loadingStep >= 2 ? 'done' : ''}}">🏙 城市</view>
+      <text class="lstep-sep">›</text>
+      <view class="lstep {{loadingStep >= 4 ? 'done' : ''}}">🚀 发展</view>
+    </view>
+  </view>
+
+  <!-- ══ 结果步骤 ══ -->
+  <view wx:if="{{step === 'result' && result}}" class="result-page">
+
+    <!-- 总结横幅 -->
+    <view class="result-banner">
+      <view class="score-row">
+        <view class="score-side">
+          <text class="score-company">{{offerA.company}}</text>
+          <text class="score-num score-a">{{result.scoreA}}</text>
+          <text class="score-label">综合评分</text>
+        </view>
+        <view class="score-vs">VS</view>
+        <view class="score-side">
+          <text class="score-company">{{offerB.company}}</text>
+          <text class="score-num score-b">{{result.scoreB}}</text>
+          <text class="score-label">综合评分</text>
+        </view>
+      </view>
+      <text class="result-summary">{{result.summary}}</text>
+    </view>
+
+    <!-- 维度对比表 -->
+    <view class="dim-card">
+      <view class="dim-header-row">
+        <view class="dim-label-col"></view>
+        <view class="dim-a-head">{{offerA.company}}</view>
+        <view class="dim-b-head">{{offerB.company}}</view>
+      </view>
+      <view wx:for="{{result.dimensions}}" wx:key="name" class="dim-row">
+        <text class="dim-name">{{item.name}}</text>
+        <view class="dim-cell {{item.winner === 'A' ? 'winner-cell' : ''}}">
+          <text class="dim-txt">{{item.a}}</text>
+          <text wx:if="{{item.winner === 'A'}}" class="winner-badge">✓</text>
+        </view>
+        <view class="dim-cell {{item.winner === 'B' ? 'winner-cell' : ''}}">
+          <text class="dim-txt">{{item.b}}</text>
+          <text wx:if="{{item.winner === 'B'}}" class="winner-badge">✓</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 最终建议 -->
+    <view class="recommend-card">
+      <view class="rec-header">
+        <text class="rec-icon">🏆</text>
+        <text class="rec-title">AI 最终建议</text>
+      </view>
+      <text class="rec-body">{{result.recommendation}}</text>
+    </view>
+
+    <!-- 谈判提示 -->
+    <view class="tips-card" wx:if="{{result.tips && result.tips.length}}">
+      <view class="rec-header">
+        <text class="rec-icon">💡</text>
+        <text class="rec-title">谈判与注意事项</text>
+      </view>
+      <view class="tips-list">
+        <view wx:for="{{result.tips}}" wx:key="*this" class="tip-item">
+          <text class="tip-dot">·</text>
+          <text class="tip-txt">{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 操作按钮 -->
+    <view class="action-row">
+      <view class="action-btn action-restart" bindtap="onRestart">
+        <text>↺ 重新对比</text>
+      </view>
+      <view class="action-btn action-copy" bindtap="copyRecommendation">
+        <text>📋 复制结果</text>
+      </view>
+    </view>
+
+    <view style="height:40rpx;"></view>
+  </view>
+
+</view>

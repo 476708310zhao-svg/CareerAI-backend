@@ -1,0 +1,120 @@
+<!-- pages/job-detail/job-detail.wxml -->
+<view class="page">
+
+<!-- Loading -->
+<view wx:if="{{loading}}" class="loading-wrap">
+  <view class="spinner"></view>
+  <text class="loading-txt">正在加载...</text>
+</view>
+
+<!-- 内容 -->
+<block wx:elif="{{job}}">
+
+  <!-- 头部卡片 -->
+  <view class="head-card">
+    <view class="head-top">
+      <image src="{{job.logo || '/images/default-company.png'}}" class="head-logo" mode="aspectFit" binderror="onLogoError"></image>
+      <view class="head-info">
+        <text class="head-company">{{job.company}}</text>
+        <text class="head-title">{{job.title}}</text>
+      </view>
+    </view>
+
+    <!-- 薪资 -->
+    <view class="salary-row">
+      <text class="salary-val">{{job.salary}}</text>
+      <text class="salary-unit" wx:if="{{job.salary !== 'Negotiable'}}"> / year</text>
+    </view>
+
+    <!-- 标签 -->
+    <view class="info-tags">
+      <view class="info-tag"><text class="info-tag-dot loc"></text>{{job.city}}{{job.state ? ', '+job.state : ''}}</view>
+      <view class="info-tag"><text class="info-tag-dot type"></text>{{job.type}}</view>
+      <view class="info-tag"><text class="info-tag-dot time"></text>{{job.postedAt}}</view>
+      <view class="info-tag visa" wx:if="{{job.visaSponsored}}">🛂 Visa Sponsor</view>
+    </view>
+  </view>
+
+  <!-- 职位描述 -->
+  <view class="desc-card">
+    <view class="desc-title">职位描述</view>
+    <text class="desc-body" user-select>{{job.description}}</text>
+  </view>
+
+  <!-- 求职路线规划入口 -->
+  <view class="roadmap-cta" bindtap="viewCareerPath">
+    <view class="roadmap-cta-left">
+      <text class="roadmap-cta-icon">🗺️</text>
+      <view class="roadmap-cta-info">
+        <text class="roadmap-cta-title">为该岗位定制求职路线</text>
+        <text class="roadmap-cta-sub">AI 生成 3/6/12 个月专属规划 · 含技能/项目/面试路线</text>
+      </view>
+    </view>
+    <text class="roadmap-cta-arrow">›</text>
+  </view>
+
+  <view style="height: 180rpx;"></view>
+</block>
+
+<!-- 底部操作栏 -->
+<view class="footer" wx:if="{{job}}">
+  <view class="footer-icons">
+    <view class="f-icon {{isSaved ? 'active' : ''}}" bindtap="toggleSave">
+      <text class="f-icon-txt">{{isSaved ? '★' : '☆'}}</text>
+    </view>
+    <button class="f-icon share-btn" open-type="share">
+      <text class="f-icon-txt">↗</text>
+    </button>
+  </view>
+
+  <view class="f-btn f-btn-ai" bindtap="startAiInterview">
+    <text class="ai-badge">AI</text>
+    <text>模拟面试</text>
+  </view>
+
+  <view class="f-btn f-btn-apply" bindtap="applyJob">一键投递</view>
+</view>
+
+<!-- 一键投递弹窗 -->
+<view class="apply-mask" wx:if="{{showApplyModal}}" bindtap="hideApplyModal"></view>
+<view class="apply-panel {{showApplyModal ? 'show' : ''}}">
+  <view class="ap-header">
+    <text class="ap-title">一键投递</text>
+    <text class="ap-close" bindtap="hideApplyModal">✕</text>
+  </view>
+
+  <!-- 职位信息 -->
+  <view class="ap-job-row">
+    <image class="ap-job-logo" src="{{job.logo || '/images/default-company.png'}}" mode="aspectFit" binderror="onLogoError"></image>
+    <view class="ap-job-info">
+      <text class="ap-job-title">{{job.title}}</text>
+      <text class="ap-job-company">{{job.company}} · {{job.city}}</text>
+    </view>
+  </view>
+
+  <!-- 简历快照 -->
+  <view class="ap-resume-card">
+    <text class="ap-resume-label">您的简历摘要（将复制到剪贴板）</text>
+    <view wx:if="{{resumeSnap.hasData}}">
+      <text class="ap-rname">{{resumeSnap.name}}</text>
+      <text class="ap-rsub" wx:if="{{resumeSnap.title}}">{{resumeSnap.title}}</text>
+      <text class="ap-rcontact" wx:if="{{resumeSnap.phone || resumeSnap.email}}">
+        {{resumeSnap.phone}}{{resumeSnap.phone && resumeSnap.email ? '  ·  ' : ''}}{{resumeSnap.email}}</text>
+      <text class="ap-rskills" wx:if="{{resumeSnap.skills}}">🔧 {{resumeSnap.skills}}</text>
+    </view>
+    <view wx:else class="ap-resume-empty">
+      <text>简历信息未完善，建议先填写再投递</text>
+      <text class="ap-resume-link" bindtap="hideApplyModal">→ 前往完善</text>
+    </view>
+  </view>
+
+  <view class="ap-btns">
+    <view class="ap-btn-cancel" bindtap="hideApplyModal">取消</view>
+    <view class="ap-btn-submit" bindtap="doOneClickApply">
+      <text>一键投递</text>
+    </view>
+  </view>
+  <text class="ap-tip">投递后：简历摘要已复制 · 记录到看板 · 跳转外部投递页</text>
+</view>
+
+</view>

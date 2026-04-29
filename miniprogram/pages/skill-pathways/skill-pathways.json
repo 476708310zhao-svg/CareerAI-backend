@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "技能成长路径",
+  "usingComponents": {
+    "c-button": "/components/c-button/c-button"
+  }
+}

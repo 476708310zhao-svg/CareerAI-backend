@@ -1,0 +1,90 @@
+<!-- pages/question-detail/question-detail.wxml -->
+<view class="page">
+
+  <!-- 题目标题区 -->
+  <view class="title-card">
+    <view class="meta-row">
+      <view class="diff-badge {{q.difficulty === '困难' ? 'hard' : (q.difficulty === '中等' ? 'mid' : 'easy')}}">
+        {{q.difficulty || 'Easy'}}
+      </view>
+      <view class="cat-badge">{{q.categoryName}}</view>
+      <view class="lc-badge" wx:if="{{q.source === 'leetcode'}}">
+        <text>LC #{{q.lcId}}</text>
+      </view>
+      <view class="ai-badge" wx:if="{{q.isAI}}">✦ AI生成</view>
+    </view>
+    <text class="q-title" user-select>{{q.title}}</text>
+    <text class="q-title-en" wx:if="{{q.titleEn}}" user-select>{{q.titleEn}}</text>
+    <view class="done-badge" wx:if="{{isDone}}">✓ 已完成</view>
+  </view>
+
+  <!-- LeetCode 统计信息 -->
+  <view class="lc-stats-card" wx:if="{{q.source === 'leetcode'}}">
+    <view class="lc-stat-item">
+      <text class="lc-stat-label">通过率</text>
+      <text class="lc-stat-val">{{q.acRate || '--'}}</text>
+    </view>
+    <view class="lc-stat-divider"></view>
+    <view class="lc-stat-item">
+      <text class="lc-stat-label">标签</text>
+      <view class="lc-tags">
+        <text class="lc-tag" wx:for="{{q.tags}}" wx:key="*this">{{item}}</text>
+        <text class="lc-tag-empty" wx:if="{{!q.tags || q.tags.length === 0}}">暂无</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 参考答案（本地题目） -->
+  <view class="answer-card" wx:if="{{q.answer}}">
+    <view class="answer-header">
+      <view class="answer-icon-box">
+        <text class="answer-icon">💡</text>
+      </view>
+      <text class="answer-title">参考答案</text>
+    </view>
+    <text class="answer-text" user-select>{{q.answer}}</text>
+  </view>
+
+  <!-- LeetCode 题目提示 -->
+  <view class="lc-hint-card" wx:if="{{q.source === 'leetcode' && !q.answer}}">
+    <text class="lc-hint-icon">🔗</text>
+    <view class="lc-hint-body">
+      <text class="lc-hint-title">LeetCode 在线题目</text>
+      <text class="lc-hint-desc">本题来自 LeetCode，可前往官网查看完整题目描述和测试用例</text>
+    </view>
+  </view>
+
+  <!-- 练习建议 -->
+  <view class="tips-card">
+    <view class="tips-header">
+      <view class="tips-icon-box">
+        <text class="tips-icon">📌</text>
+      </view>
+      <text class="tips-title">面试要点</text>
+    </view>
+    <view class="tips-list">
+      <view class="tip-item" wx:for="{{tips}}" wx:key="*this">
+        <view class="tip-dot"></view>
+        <text class="tip-text">{{item}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view style="height: 160rpx;"></view>
+</view>
+
+<!-- 底部操作栏 -->
+<view class="bottom-bar">
+  <view class="bottom-btn secondary" bindtap="toggleCollect">
+    <text class="btn-icon">{{isCollected ? '★' : '☆'}}</text>
+    <text class="btn-txt">{{isCollected ? '已收藏' : '收藏'}}</text>
+  </view>
+  <view class="bottom-btn done-btn {{isDone ? 'done-on' : ''}}" bindtap="toggleDone">
+    <text class="btn-icon">{{isDone ? '✓' : '○'}}</text>
+    <text class="btn-txt">{{isDone ? '已完成' : '标记已做'}}</text>
+  </view>
+  <view class="bottom-btn primary" bindtap="startAiInterview">
+    <text class="btn-icon">🤖</text>
+    <text class="btn-txt">AI 面试</text>
+  </view>
+</view>

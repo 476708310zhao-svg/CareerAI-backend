@@ -1,0 +1,27 @@
+<!-- pages/settings/settings.wxml -->
+<view class="container">
+
+  <t-cell-group title="通知设置" theme="card">
+    <t-cell title="消息推送" hover-class="none">
+      <t-switch slot="right-icon" value="{{pushEnabled}}" bind:change="togglePush" colors="{{switchColors}}" />
+    </t-cell>
+  </t-cell-group>
+
+  <t-cell-group title="通用" theme="card">
+    <t-cell title="深色模式" hover-class="none">
+      <t-switch slot="right-icon" value="{{darkMode}}" bind:change="toggleDarkMode" colors="{{switchColors}}" />
+    </t-cell>
+    <t-cell title="清除缓存" note="{{cacheSize}}" arrow bind:click="clearCache" />
+  </t-cell-group>
+
+  <t-cell-group title="其他" theme="card">
+    <t-cell title="意见反馈" arrow bind:click="goToFeedback" />
+    <t-cell title="关于我们" arrow bind:click="goToAbout" />
+    <t-cell title="隐私政策" arrow bind:click="goToPrivacy" />
+  </t-cell-group>
+
+  <view class="version-info">留学生求职助手 v1.0.0</view>
+</view>
+
+<t-toast id="t-toast" />
+<t-dialog id="t-dialog" />

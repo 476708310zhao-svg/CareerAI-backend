@@ -1,0 +1,192 @@
+/* pages/messages/messages.wxss �?White-based premium redesign */
+page {
+  background: var(--bg-page);
+  font-family: -apple-system, 'PingFang SC', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Tab Bar ─────────────────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  align-items: center;
+  background: var(--bg-panel);
+  padding: 0 24rpx;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 1.5rpx solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.tab-item {
+  padding: 28rpx 20rpx;
+  font-size: 27rpx;
+  color: var(--text-muted);
+  position: relative;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.tab-item.active {
+  color: var(--brand);
+  font-weight: 700;
+}
+
+.tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36rpx;
+  height: 5rpx;
+  background: var(--brand);
+  border-radius: 3rpx 3rpx 0 0;
+}
+
+.read-all-btn {
+  margin-left: auto;
+  font-size: 24rpx;
+  color: var(--brand);
+  white-space: nowrap;
+  padding: 28rpx 4rpx;
+  font-weight: 500;
+}
+
+/* ─── Message List ────────────────────────────────────────────── */
+.message-list {
+  padding: 16rpx 24rpx 48rpx;
+}
+
+/* ─── Message Card ────────────────────────────────────────────── */
+.message-card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  background: var(--bg-panel);
+  border-radius: var(--r-lg);
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+  border: 1.5rpx solid rgba(0, 0, 0, 0.06);
+  transition: transform 0.12s;
+  overflow: hidden;
+}
+
+.message-card:active {
+  transform: scale(0.984);
+  background: #FAFBFF;
+}
+
+/* Read state �?slightly dimmed */
+.message-card.read {
+  opacity: 0.65;
+}
+
+/* Unread state �?blue left accent */
+.message-card.unread {
+  border-left: 5rpx solid var(--brand);
+}
+
+/* Unread red dot */
+.unread-dot {
+  position: absolute;
+  top: 18rpx;
+  right: 20rpx;
+  width: 16rpx;
+  height: 16rpx;
+  background: #EF4444;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3rpx rgba(239, 68, 68, 0.18);
+}
+
+/* Icon wrap */
+.msg-icon-wrap {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 18rpx;
+  background: #EEF2FF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+  margin-top: 2rpx;
+}
+
+.msg-icon-img {
+  width: 38rpx;
+  height: 38rpx;
+}
+
+/* Content column */
+.msg-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.msg-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8rpx;
+  gap: 12rpx;
+}
+
+.msg-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.msg-time {
+  font-size: 22rpx;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.msg-content {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Clear all button */
+.clear-wrap {
+  text-align: center;
+  padding: 28rpx 0;
+}
+
+.clear-text {
+  font-size: 24rpx;
+  color: var(--text-muted);
+}
+
+/* Empty state */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120rpx 0;
+}
+
+.empty-icon {
+  width: 120rpx;
+  height: 120rpx;
+  opacity: 0.25;
+  margin-bottom: 24rpx;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: var(--text-muted);
+}

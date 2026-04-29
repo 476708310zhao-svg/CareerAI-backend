@@ -1,220 +1,109 @@
 const express = require('express');
 const router = express.Router();
-const experiencesData = require('../data/experiences.json');
+const db = require('../db/database');
+const { authMiddleware, optionalAuth } = require('../middleware/auth');
+const { writeLimiter } = require('../middleware/rateLimit');
 
-// 获取笔经面经列表
+const { parseId } = require('../db/utils');
+const { formatExperience: format } = require('../db/formatters');
+const { parsePage, pageResult } = require('../db/paginate');
+
+// ─── 列表（支持搜索、公司、类型、分页）────────────────────────────────────────
 router.get('/', (req, res) => {
   try {
-    const { 
-      keyword, 
-      company, 
-      type,
-      page = 1, 
-      pageSize = 10 
-    } = req.query;
-    
-    let filteredExperiences = [...experiencesData.experiences];
-    
-    // 关键词搜索
+    const { keyword, company, type } = req.query;
+    const { page, pageSize, offset } = parsePage(req.query);
+    let where = '1=1';
+    const params = [];
+
     if (keyword) {
-      const lowerKeyword = keyword.toLowerCase();
-      filteredExperiences = filteredExperiences.filter(exp => 
-        exp.title.toLowerCase().includes(lowerKeyword) ||
-        exp.company.toLowerCase().includes(lowerKeyword) ||
-        exp.position.toLowerCase().includes(lowerKeyword) ||
-        exp.content.toLowerCase().includes(lowerKeyword)
-      );
+      where += ' AND (title LIKE ? OR company LIKE ? OR position LIKE ? OR content LIKE ?)';
+      const k = `%${keyword}%`;
+      params.push(k, k, k, k);
     }
-    
-    // 公司筛选
-    if (company) {
-      filteredExperiences = filteredExperiences.filter(exp => exp.company === company);
-    }
-    
-    // 类型筛选（笔试/面试）
-    if (type) {
-      filteredExperiences = filteredExperiences.filter(exp => exp.type === type);
-    }
-    
-    // 按时间排序（最新的在前）
-    filteredExperiences.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    
-    // 分页
-    const startIndex = (page - 1) * pageSize;
-    const endIndex = startIndex + parseInt(pageSize);
-    const paginatedExperiences = filteredExperiences.slice(startIndex, endIndex);
-    
-    res.json({
-      code: 0,
-      message: 'success',
-      data: {
-        list: paginatedExperiences,
-        total: filteredExperiences.length,
-        page: parseInt(page),
-        pageSize: parseInt(pageSize),
-        totalPages: Math.ceil(filteredExperiences.length / pageSize)
-      }
-    });
+    if (company) { where += ' AND company LIKE ?'; params.push(`%${company}%`); }
+    if (type)    { where += ' AND type = ?'; params.push(type); }
+
+    const total = db.prepare(`SELECT COUNT(*) as c FROM experiences WHERE ${where}`).get(...params).c;
+    const rows  = db.prepare(`SELECT * FROM experiences WHERE ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`)
+                    .all(...params, pageSize, offset);
+
+    res.json({ code: 0, message: 'success', data: pageResult(rows.map(format), total, page, pageSize) });
   } catch (error) {
-    res.status(500).json({
-      code: -1,
-      message: error.message
-    });
+    console.error(error); res.status(500).json({ code: -1, message: '服务器内部错误' });
   }
 });
 
-// 获取笔经面经详情
+// ─── 详情 ─────────────────────────────────────────────────────────────────────
 router.get('/:id', (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  const e = db.prepare('SELECT * FROM experiences WHERE id = ?').get(id);
+  if (!e) return res.status(404).json({ code: -1, message: '面经不存在' });
+  res.json({ code: 0, message: 'success', data: format(e) });
+});
+
+// ─── 发布面经（需登录）────────────────────────────────────────────────────────
+router.post('/', writeLimiter, authMiddleware, (req, res) => {
   try {
-    const expId = parseInt(req.params.id);
-    const experience = experiencesData.experiences.find(e => e.id === expId);
-    
-    if (!experience) {
-      return res.status(404).json({
-        code: -1,
-        message: '内容不存在'
-      });
-    }
-    
-    res.json({
-      code: 0,
-      message: 'success',
-      data: experience
-    });
+    const { company, position, type = '面试', round = '一面', title, content, tags = [], isAnonymous = false } = req.body;
+    if (!company || !title || !content) return res.status(400).json({ code: -1, message: '公司、标题、内容不能为空' });
+
+    const user = db.prepare('SELECT nickname, avatar FROM users WHERE id = ?').get(req.user.userId);
+    const result = db.prepare(`
+      INSERT INTO experiences (user_id, user_name, user_avatar, company, position, type, round, title, content, tags, is_anonymous)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(req.user.userId, isAnonymous ? '匿名用户' : (user ? user.nickname : '用户'),
+      isAnonymous ? '' : (user ? user.avatar : ''),
+      company, position || '', type, round, title, content,
+      JSON.stringify(tags), isAnonymous ? 1 : 0);
+
+    const e = db.prepare('SELECT * FROM experiences WHERE id = ?').get(result.lastInsertRowid);
+    res.json({ code: 0, message: '发布成功', data: format(e) });
   } catch (error) {
-    res.status(500).json({
-      code: -1,
-      message: error.message
-    });
+    console.error(error); res.status(500).json({ code: -1, message: '服务器内部错误' });
   }
 });
 
-// 获取热门笔经面经
-router.get('/hot/list', (req, res) => {
-  try {
-    // 按点赞数排序
-    const hotExperiences = [...experiencesData.experiences]
-      .sort((a, b) => b.likesCount - a.likesCount)
-      .slice(0, 5);
-    
-    res.json({
-      code: 0,
-      message: 'success',
-      data: hotExperiences
-    });
-  } catch (error) {
-    res.status(500).json({
-      code: -1,
-      message: error.message
-    });
+// ─── 点赞/取消点赞面经（需登录，幂等切换）──────────────────────────────────────
+router.post('/:id/like', authMiddleware, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+
+  const e = db.prepare('SELECT id FROM experiences WHERE id = ?').get(id);
+  if (!e) return res.status(404).json({ code: -1, message: '面经不存在' });
+
+  const existing = db.prepare(
+    'SELECT id FROM experience_likes WHERE experience_id = ? AND user_id = ?'
+  ).get(id, req.user.userId);
+
+  let isLiked;
+  if (existing) {
+    db.prepare('DELETE FROM experience_likes WHERE experience_id = ? AND user_id = ?')
+      .run(id, req.user.userId);
+    db.prepare('UPDATE experiences SET likes_count = MAX(0, likes_count - 1) WHERE id = ?').run(id);
+    isLiked = false;
+  } else {
+    db.prepare('INSERT INTO experience_likes (experience_id, user_id) VALUES (?, ?)')
+      .run(id, req.user.userId);
+    db.prepare('UPDATE experiences SET likes_count = likes_count + 1 WHERE id = ?').run(id);
+    isLiked = true;
   }
+
+  const { likes_count } = db.prepare('SELECT likes_count FROM experiences WHERE id = ?').get(id);
+  res.json({ code: 0, data: { likesCount: likes_count, isLiked } });
 });
 
-// 发布笔经面经
-router.post('/', (req, res) => {
-  try {
-    const { 
-      company, 
-      position, 
-      type, 
-      round, 
-      title, 
-      content, 
-      tags,
-      isAnonymous = false,
-      userId = 1 
-    } = req.body;
-    
-    // 验证必填字段
-    if (!company || !position || !type || !title || !content) {
-      return res.status(400).json({
-        code: -1,
-        message: '请填写完整信息'
-      });
-    }
-    
-    const newExperience = {
-      id: experiencesData.experiences.length + 1,
-      userId,
-      userName: isAnonymous ? '匿名用户' : '留学生小明',
-      userAvatar: isAnonymous 
-        ? 'https://img.icons8.com/color/96/anonymous-mask.png'
-        : 'https://img.icons8.com/color/96/user-male-circle.png',
-      company,
-      position,
-      type,
-      round: round || '',
-      title,
-      content,
-      tags: tags || [],
-      likesCount: 0,
-      commentsCount: 0,
-      createdAt: new Date().toISOString().split('T')[0],
-      isAnonymous
-    };
-    
-    // 模拟添加到数据库
-    experiencesData.experiences.unshift(newExperience);
-    
-    res.json({
-      code: 0,
-      message: '发布成功',
-      data: newExperience
-    });
-  } catch (error) {
-    res.status(500).json({
-      code: -1,
-      message: error.message
-    });
-  }
-});
+// ─── 删除面经（仅本人）────────────────────────────────────────────────────────
+router.delete('/:id', authMiddleware, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
 
-// 点赞
-router.post('/:id/like', (req, res) => {
-  try {
-    const expId = parseInt(req.params.id);
-    const experience = experiencesData.experiences.find(e => e.id === expId);
-    
-    if (!experience) {
-      return res.status(404).json({
-        code: -1,
-        message: '内容不存在'
-      });
-    }
-    
-    experience.likesCount += 1;
-    
-    res.json({
-      code: 0,
-      message: '点赞成功',
-      data: {
-        likesCount: experience.likesCount
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      code: -1,
-      message: error.message
-    });
-  }
-});
+  const e = db.prepare('SELECT * FROM experiences WHERE id = ? AND user_id = ?').get(id, req.user.userId);
+  if (!e) return res.status(404).json({ code: -1, message: '面经不存在或无权限删除' });
 
-// 获取公司列表（用于筛选）
-router.get('/companies/list', (req, res) => {
-  try {
-    const companies = [...new Set(experiencesData.experiences.map(e => e.company))];
-    
-    res.json({
-      code: 0,
-      message: 'success',
-      data: companies
-    });
-  } catch (error) {
-    res.status(500).json({
-      code: -1,
-      message: error.message
-    });
-  }
+  db.prepare('DELETE FROM experiences WHERE id = ?').run(id);
+  res.json({ code: 0, message: '删除成功' });
 });
 
 module.exports = router;

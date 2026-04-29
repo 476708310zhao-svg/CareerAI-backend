@@ -1,0 +1,169 @@
+<!-- pages/experience-detail/experience-detail.wxml -->
+<view class="page">
+
+  <!-- 1. 作者信息 -->
+  <view class="author-card">
+    <image class="author-avatar" src="{{experience.userAvatar || '/images/default-avatar.png'}}" mode="aspectFill" binderror="onAvatarError"></image>
+    <view class="author-body">
+      <text class="author-name">{{experience.userName}}</text>
+      <text class="author-time">{{experience.createdAt}}</text>
+    </view>
+    <view class="author-follow" bindtap="toggleFollow">
+      <text>{{isFollowed ? '已关注' : '+ 关注'}}</text>
+    </view>
+  </view>
+
+  <!-- 2. 标题 -->
+  <view class="title-card">
+    <text class="exp-title">{{experience.title}}</text>
+    <!-- 职位信息标签 -->
+    <view class="meta-row">
+      <view class="meta-pill company" wx:if="{{experience.company}}">
+        <view class="meta-dot" style="background:#4a90e2;"></view>
+        <text>{{experience.company}}</text>
+      </view>
+      <view class="meta-pill" wx:if="{{experience.position}}">
+        <view class="meta-dot" style="background:#faad14;"></view>
+        <text>{{experience.position}}</text>
+      </view>
+      <view class="meta-pill" wx:if="{{experience.type}}">
+        <view class="meta-dot" style="background:#2da44e;"></view>
+        <text>{{experience.type}}{{experience.round ? ' · ' + experience.round : ''}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 3. 正文内容（富文本模式） -->
+  <view class="content-card" wx:if="{{hasRichContent}}">
+    <block wx:for="{{experience.richContent}}" wx:key="index">
+      <text wx:if="{{item.type === 'text'}}" class="rich-text" user-select>{{item.content}}</text>
+      <view wx:elif="{{item.type === 'heading'}}" class="rich-heading">{{item.content}}</view>
+      <view wx:elif="{{item.type === 'image'}}" class="rich-img-wrap">
+        <image class="rich-img" src="{{item.url}}" mode="widthFix" lazy-load bindtap="previewImage" data-url="{{item.url}}"></image>
+        <text class="rich-caption" wx:if="{{item.caption}}">{{item.caption}}</text>
+      </view>
+      <view wx:elif="{{item.type === 'quote'}}" class="rich-quote">
+        <text>{{item.content}}</text>
+      </view>
+      <view wx:elif="{{item.type === 'code'}}" class="rich-code">
+        <text class="code-text" user-select>{{item.content}}</text>
+      </view>
+    </block>
+  </view>
+
+  <!-- 正文（纯文本） -->
+  <view class="content-card" wx:else>
+    <text class="plain-text" user-select>{{experience.content}}</text>
+  </view>
+
+  <!-- 4. 标签 -->
+  <view class="tags-card" wx:if="{{experience.tags && experience.tags.length > 0}}">
+    <text class="exp-tag" wx:for="{{experience.tags}}" wx:key="*this"># {{item}}</text>
+  </view>
+
+  <!-- 5. 互动栏 -->
+  <view class="action-bar">
+    <view class="act-item" bindtap="likeExperience">
+      <view class="act-icon-box {{isLiked ? 'liked' : ''}}">
+        <text class="act-icon">{{isLiked ? '★' : '☆'}}</text>
+      </view>
+      <text class="act-num">{{experience.likesCount}}</text>
+      <text class="act-label">点赞</text>
+    </view>
+    <view class="act-item">
+      <view class="act-icon-box">
+        <text class="act-icon">✎</text>
+      </view>
+      <text class="act-num">{{experience.commentsCount}}</text>
+      <text class="act-label">评论</text>
+    </view>
+    <view class="act-item" bindtap="startAiInterview">
+      <view class="act-icon-box ai">
+        <text class="act-icon">AI</text>
+      </view>
+      <text class="act-label">AI练习</text>
+    </view>
+    <view class="act-item" bindtap="collectExperience">
+      <view class="act-icon-box {{isCollected ? 'saved' : ''}}">
+        <text class="act-icon">{{isCollected ? '★' : '☆'}}</text>
+      </view>
+      <text class="act-label">{{isCollected ? '已收藏' : '收藏'}}</text>
+    </view>
+    <view class="act-item" bindtap="saveAsImage">
+      <view class="act-icon-box {{saveLoading ? 'saving' : ''}}">
+        <text class="act-icon save-icon-txt">{{saveLoading ? '⏳' : '↓'}}</text>
+      </view>
+      <text class="act-label">{{saveLoading ? '生成中' : '保存'}}</text>
+    </view>
+  </view>
+
+  <!-- 6. 评论区 -->
+  <view class="comment-card">
+    <view class="comment-head">
+      <text class="comment-head-title">评论 ({{comments.length}})</text>
+    </view>
+
+    <view wx:if="{{commentsLoading}}" class="comment-loading">
+      <view class="loading-dot"></view>
+      <text>加载评论中...</text>
+    </view>
+
+    <block wx:for="{{comments}}" wx:key="id">
+      <view class="cmt-item">
+        <image class="cmt-avatar" src="{{item.userAvatar || '/images/default-avatar.png'}}" mode="aspectFill" lazy-load binderror="onCmtAvatarError" data-index="{{index}}"></image>
+        <view class="cmt-body">
+          <view class="cmt-top">
+            <text class="cmt-name">{{item.userName}}</text>
+            <text class="cmt-date">{{item.createdAt}}</text>
+          </view>
+          <text class="cmt-text">{{item.content}}</text>
+          <view class="cmt-actions">
+            <view class="cmt-act {{item.isLiked ? 'liked' : ''}}" bindtap="likeComment" data-index="{{index}}">
+              {{item.isLiked ? '★' : '☆'}} {{item.likesCount}}
+            </view>
+            <view class="cmt-act" bindtap="tapReply" data-comment="{{item}}">回复</view>
+            <view class="cmt-act cmt-del" wx:if="{{item.userId === myUserId}}" bindtap="deleteComment" data-index="{{index}}">删除</view>
+          </view>
+
+          <!-- 回复 -->
+          <view class="reply-list" wx:if="{{item.replies && item.replies.length > 0}}">
+            <block wx:for="{{item.replies}}" wx:for-item="reply" wx:key="id">
+              <view class="reply-item">
+                <text class="reply-name">{{reply.userName}}</text>
+                <text class="reply-text">{{reply.content}}</text>
+                <text class="reply-date">{{reply.createdAt}}</text>
+              </view>
+            </block>
+          </view>
+        </view>
+      </view>
+    </block>
+
+    <view wx:if="{{!commentsLoading && comments.length === 0}}" class="empty-cmt">
+      暂无评论，快来抢沙发吧~
+    </view>
+  </view>
+
+  <view style="height: 140rpx;"></view>
+</view>
+
+<!-- 隐藏画布（保存为图片用） -->
+<canvas type="2d" id="exp-save-canvas" class="exp-save-canvas"></canvas>
+
+<!-- 7. 底部评论输入栏 -->
+<view class="input-bar">
+  <view class="reply-hint" wx:if="{{replyTo}}">
+    <text>回复 {{replyTo.userName}}</text>
+    <text class="cancel-reply" bindtap="cancelReply">取消</text>
+  </view>
+  <view class="input-row">
+    <input
+      class="input-field"
+      placeholder="{{replyTo ? '回复 ' + replyTo.userName + '...' : '写下你的评论...'}}"
+      value="{{commentText}}"
+      bindinput="onCommentInput"
+      bindconfirm="sendComment"
+    />
+    <view class="send-btn {{commentText ? 'active' : ''}}" bindtap="sendComment">发送</view>
+  </view>
+</view>

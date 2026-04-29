@@ -1,0 +1,114 @@
+<!-- pages/interview-setup/interview-setup.wxml -->
+<view class="container">
+
+  <!-- 顶部标题 -->
+  <view class="page-header">
+    <text class="page-title">AI 模拟面试</text>
+    <text class="page-subtitle">选择你的面试场景，开始模拟练习</text>
+  </view>
+
+  <!-- 个性化预填提示 -->
+  <view class="profile-hint" wx:if="{{profileHint}}">
+    <text class="hint-icon">✨</text>
+    <text class="hint-text">{{profileHint}}</text>
+  </view>
+
+  <!-- 1. 面试类型 -->
+  <view class="section">
+    <view class="section-title">面试类型</view>
+    <view class="type-grid">
+      <block wx:for="{{interviewTypes}}" wx:key="id">
+        <view
+          class="type-card {{selectedType === item.id ? 'active' : ''}}"
+          bindtap="selectType"
+          data-id="{{item.id}}"
+        >
+          <text class="type-icon">{{item.icon}}</text>
+          <text class="type-name">{{item.name}}</text>
+          <text class="type-desc">{{item.desc}}</text>
+          <view class="check-mark" wx:if="{{selectedType === item.id}}">✓</view>
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <!-- 2. 目标公司 -->
+  <view class="section">
+    <view class="section-title">目标公司 <text class="optional">(可选)</text></view>
+    <input
+      class="input-box"
+      placeholder="输入公司名称"
+      value="{{companyInput}}"
+      bindinput="onCompanyInput"
+    />
+    <view class="tag-list">
+      <block wx:for="{{hotCompanies}}" wx:key="*this">
+        <view
+          class="quick-tag {{companyInput === item ? 'active' : ''}}"
+          bindtap="selectCompany"
+          data-name="{{item}}"
+        >{{item}}</view>
+      </block>
+    </view>
+  </view>
+
+  <!-- 3. 目标岗位 -->
+  <view class="section">
+    <view class="section-title">目标岗位</view>
+    <input
+      class="input-box"
+      placeholder="输入岗位名称"
+      value="{{positionInput}}"
+      bindinput="onPositionInput"
+    />
+    <view class="tag-list">
+      <block wx:for="{{hotPositions}}" wx:key="*this">
+        <view
+          class="quick-tag {{positionInput === item ? 'active' : ''}}"
+          bindtap="selectPosition"
+          data-name="{{item}}"
+        >{{item}}</view>
+      </block>
+    </view>
+  </view>
+
+  <!-- 4. 面试难度 -->
+  <view class="section">
+    <view class="section-title">面试难度</view>
+    <view class="difficulty-list">
+      <block wx:for="{{difficulties}}" wx:key="id">
+        <view
+          class="diff-item {{selectedDifficulty === item.id ? 'active' : ''}}"
+          bindtap="selectDifficulty"
+          data-id="{{item.id}}"
+        >
+          <text class="diff-name">{{item.name}}</text>
+          <text class="diff-desc">{{item.desc}}</text>
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <!-- 5. 题目数量 -->
+  <view class="section">
+    <view class="section-title">题目数量</view>
+    <view class="count-list">
+      <block wx:for="{{questionCounts}}" wx:key="*this">
+        <view
+          class="count-item {{selectedCount === item ? 'active' : ''}}"
+          bindtap="selectCount"
+          data-count="{{item}}"
+        >{{item}}题</view>
+      </block>
+    </view>
+  </view>
+
+  <!-- 底部占位 -->
+  <view style="height: 180rpx;"></view>
+
+  <!-- 底部开始按钮 -->
+  <view class="footer-bar">
+    <c-button bindtap="startInterview">开始模拟面试</c-button>
+  </view>
+
+</view>

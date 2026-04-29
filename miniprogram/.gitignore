@@ -1,0 +1,7 @@
+node_modules/
+.project
+*.log
+dist/
+project.private.config.json
+*.key
+*.pem

@@ -1,0 +1,186 @@
+<!-- pages/profile-edit/profile-edit.wxml -->
+<view class="container">
+
+  <!-- Hero: 头像 + 进度 合并为一个卡片 -->
+  <view class="hero-card">
+    <view class="hero-avatar-row" bindtap="changeAvatar">
+      <view class="avatar-wrapper">
+        <image class="avatar" src="{{avatarPreview || userInfo.avatarUrl || '/images/default-avatar.png'}}" mode="aspectFill"/>
+        <view class="camera-badge">📷</view>
+      </view>
+      <view class="hero-text">
+        <text class="hero-name">{{userInfo.nickName || '点击设置昵称'}}</text>
+        <text class="hero-school">{{userInfo.school || userInfo.major || '完善信息，提升匹配度'}}</text>
+      </view>
+    </view>
+    <view class="progress-wrap">
+      <text class="progress-label">资料完整度</text>
+      <t-progress percentage="{{completeness}}" color="#2B5CE6" track-color="#EEF2FF" />
+      <text class="progress-tip">资料越完整，匹配的岗位和题目越精准</text>
+    </view>
+  </view>
+
+  <!-- 基本信息 -->
+  <view class="section-title">
+    <view class="section-accent"></view>
+    <text>基本信息</text>
+  </view>
+  <view class="form-card">
+    <view class="form-item">
+      <view class="label-wrap">
+        <text class="label-icon">👤</text>
+        <text class="label">昵称</text>
+      </view>
+      <input class="input" type="text" value="{{userInfo.nickName}}" placeholder="请输入昵称" placeholder-style="color:#C4C9D4;" maxlength="20" data-field="nickName" bindinput="onInput"/>
+    </view>
+    <view class="form-divider"></view>
+    <view class="form-item">
+      <view class="label-wrap">
+        <text class="label-icon">🏫</text>
+        <text class="label">学校</text>
+      </view>
+      <input class="input" value="{{userInfo.school}}" placeholder="请输入学校名称" placeholder-style="color:#C4C9D4;" maxlength="40" data-field="school" bindinput="onInput"/>
+    </view>
+    <view class="form-divider"></view>
+    <view class="form-item">
+      <view class="label-wrap">
+        <text class="label-icon">📚</text>
+        <text class="label">专业</text>
+      </view>
+      <input class="input" value="{{userInfo.major}}" placeholder="如：计算机科学 · 硕士" placeholder-style="color:#C4C9D4;" maxlength="40" data-field="major" bindinput="onInput"/>
+    </view>
+  </view>
+
+  <!-- 求职状态 -->
+  <view class="section-title">
+    <view class="section-accent"></view>
+    <text>求职状态</text>
+  </view>
+  <view class="form-card pad">
+    <text class="sub-label">当前状态</text>
+    <view class="chip-row wrap">
+      <block wx:for="{{statusOptions}}" wx:key="id">
+        <view
+          class="chip {{userInfo.status === item.id ? 'chip-active' : ''}}"
+          bindtap="selectSingle"
+          data-field="status"
+          data-value="{{item.id}}"
+        >{{item.label}}</view>
+      </block>
+    </view>
+
+    <text class="sub-label mt">预计毕业年份</text>
+    <view class="chip-row wrap">
+      <block wx:for="{{gradYearOptions}}" wx:key="*this">
+        <view
+          class="chip {{userInfo.gradYear === item ? 'chip-active' : ''}}"
+          bindtap="selectSingle"
+          data-field="gradYear"
+          data-value="{{item}}"
+        >{{item}}</view>
+      </block>
+    </view>
+  </view>
+
+  <!-- 目标地区 -->
+  <view class="section-title">
+    <view class="section-accent"></view>
+    <text>目标地区</text>
+    <text class="section-note">可多选</text>
+  </view>
+  <view class="form-card pad">
+    <view class="chip-row wrap">
+      <block wx:for="{{locationPresets}}" wx:key="*this">
+        <view
+          class="chip {{userInfo.targetLocation.indexOf(item) >= 0 ? 'chip-active' : ''}}"
+          bindtap="toggleLocation"
+          data-value="{{item}}"
+        >{{item}}</view>
+      </block>
+    </view>
+  </view>
+
+  <!-- 目标岗位 -->
+  <view class="section-title">
+    <view class="section-accent"></view>
+    <text>目标岗位</text>
+    <text class="section-note">最多5个</text>
+  </view>
+  <view class="form-card pad">
+    <!-- 已选岗位 -->
+    <view class="selected-tags" wx:if="{{userInfo.targetRoles.length > 0}}">
+      <view class="selected-tag" wx:for="{{userInfo.targetRoles}}" wx:key="*this">
+        <text>{{item}}</text>
+        <text class="tag-remove" catchtap="removeRole" data-value="{{item}}">×</text>
+      </view>
+    </view>
+
+    <text class="sub-label {{userInfo.targetRoles.length > 0 ? 'mt' : ''}}">常见岗位</text>
+    <view class="chip-row wrap">
+      <block wx:for="{{rolePresets}}" wx:key="*this">
+        <view
+          class="chip {{userInfo.targetRoles.indexOf(item) >= 0 ? 'chip-active' : ''}}"
+          bindtap="toggleRole"
+          data-value="{{item}}"
+        >{{item}}</view>
+      </block>
+    </view>
+
+    <view class="custom-input-row">
+      <input
+        class="custom-input"
+        value="{{customRoleInput}}"
+        placeholder="输入自定义岗位"
+        placeholder-style="color:#C4C9D4;"
+        bindinput="onCustomRoleInput"
+        bindconfirm="addCustomRole"
+        maxlength="30"
+      />
+      <view class="custom-add-btn" bindtap="addCustomRole">添加</view>
+    </view>
+  </view>
+
+  <!-- 技能标签 -->
+  <view class="section-title">
+    <view class="section-accent"></view>
+    <text>技能标签</text>
+    <text class="section-note">最多20个</text>
+  </view>
+  <view class="form-card pad">
+    <!-- 已选技能 -->
+    <view class="selected-tags" wx:if="{{userInfo.skills.length > 0}}">
+      <view class="selected-tag" wx:for="{{userInfo.skills}}" wx:key="*this">
+        <text>{{item}}</text>
+        <text class="tag-remove" catchtap="removeSkill" data-value="{{item}}">×</text>
+      </view>
+    </view>
+
+    <text class="sub-label {{userInfo.skills.length > 0 ? 'mt' : ''}}">常用技能</text>
+    <view class="chip-row wrap">
+      <block wx:for="{{skillPresets}}" wx:key="*this">
+        <view
+          class="chip {{userInfo.skills.indexOf(item) >= 0 ? 'chip-active' : ''}}"
+          bindtap="toggleSkill"
+          data-value="{{item}}"
+        >{{item}}</view>
+      </block>
+    </view>
+
+    <view class="custom-input-row">
+      <input
+        class="custom-input"
+        value="{{customSkillInput}}"
+        placeholder="输入自定义技能"
+        placeholder-style="color:#C4C9D4;"
+        bindinput="onCustomSkillInput"
+        bindconfirm="addCustomSkill"
+        maxlength="20"
+      />
+      <view class="custom-add-btn" bindtap="addCustomSkill">添加</view>
+    </view>
+  </view>
+
+  <!-- 保存按钮 -->
+  <c-button class="save-btn" bindtap="handleSave">保存并应用匹配</c-button>
+
+</view>

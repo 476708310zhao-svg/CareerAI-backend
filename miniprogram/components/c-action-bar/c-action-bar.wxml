@@ -1,0 +1,6 @@
+<view class="ab-wrap">
+  <view class="ab-inner">
+    <slot></slot>
+  </view>
+  <view class="ab-safe"></view>
+</view>

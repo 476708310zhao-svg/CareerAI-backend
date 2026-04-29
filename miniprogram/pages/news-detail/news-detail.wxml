@@ -1,0 +1,33 @@
+<!-- pages/news-detail/news-detail.wxml -->
+<view class="page" wx:if="{{news}}">
+
+  <!-- Hero Header -->
+  <view class="hero cat-hero-{{news.type}}">
+    <view class="hero-badges">
+      <text class="hero-badge cat-badge-{{news.type}}">{{typeLabel[news.type]}}</text>
+      <text class="hero-personal" wx:if="{{news.isPersonal}}">为你推荐</text>
+    </view>
+    <text class="hero-title">{{news.title}}</text>
+    <view class="hero-meta">
+      <text class="hero-time">{{news.time}}</text>
+      <c-button type="ghost" class="hero-share-btn" block="{{false}}" open-type="share">分享</c-button>
+    </view>
+  </view>
+
+  <!-- 分割线 -->
+  <view class="divider"></view>
+
+  <!-- 正文内容 -->
+  <view class="article-wrap">
+    <view class="article-body">
+      <text class="article-text" space="nbsp">{{news.content}}</text>
+    </view>
+  </view>
+
+  <!-- 底部操作 -->
+  <view class="bottom-bar">
+    <view class="back-btn" bindtap="onBack">← 返回快讯</view>
+    <c-button class="share-btn" block="{{false}}" open-type="share">分享给朋友</c-button>
+  </view>
+
+</view>

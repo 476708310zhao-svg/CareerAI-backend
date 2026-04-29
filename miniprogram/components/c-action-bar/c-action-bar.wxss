@@ -1,0 +1,39 @@
+/* ══ c-action-bar 底部操作栏组件 ════════════════════════════════════
+ *
+ * 用法（单按钮）：
+ *   <c-action-bar>
+ *     <c-button>提交申请</c-button>
+ *   </c-action-bar>
+ *
+ * 用法（双按钮）：
+ *   <c-action-bar>
+ *     <c-button type="secondary" style="flex:1">取消</c-button>
+ *     <c-button style="flex:2">确认</c-button>
+ *   </c-action-bar>
+ *
+ * ★ 所有视觉值来自 app.wxss 设计令牌
+ *   改背景 → --bg-panel
+ *   改顶部边框 → --border
+ * ════════════════════════════════════════════════════════════════════ */
+
+.ab-wrap {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-panel);
+  border-top: 1.5rpx solid var(--border);
+  z-index: 100;
+}
+
+.ab-inner {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 16rpx 28rpx 12rpx;
+}
+
+/* 安全区：iPhone 底部 Home 条适配 */
+.ab-safe {
+  height: calc(env(safe-area-inset-bottom));
+}
