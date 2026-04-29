@@ -23,6 +23,7 @@ const favoriteRoutes    = require('./routes/favorites');
 const messageRoutes     = require('./routes/messages');
 const aiRoutes          = require('./routes/ai');
 const campusRoutes = require('./routes/campus');
+const logoRoutes = require('./routes/logo');
 
 // 注册路由
 app.use('/api/jobs',         jobRoutes);
@@ -36,6 +37,7 @@ app.use('/api/favorites',    favoriteRoutes);
 app.use('/api/messages',     messageRoutes);
 app.use('/api/ai',           aiRoutes);
 app.use('/api/campus', campusRoutes);
+app.use('/api/logo', logoRoutes);
 const adminRoutes = require('./routes/admin');
 const bannerRoutes = require('./routes/banners');
 app.use('/api/banners', bannerRoutes);

@@ -9,7 +9,7 @@
 <body>
 <div class="layout">
   <aside class="sidebar">
-    <div class="sidebar-brand"><div class="brand-title">🎯 求职助手</div><div class="brand-sub">管理后台</div></div>
+    <div class="sidebar-brand"><div class="brand-title">求职助手</div><div class="brand-sub">管理后台</div></div>
     <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
     <div class="sidebar-footer">
       <div class="admin-name" id="adminUsername"></div>
@@ -19,52 +19,93 @@
   <div class="main">
     <div class="topbar">
       <span class="topbar-title" id="pageTitle">概览</span>
-      <div class="topbar-right"><span style="font-size:13px;color:#6b7280" id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div>
+      <div class="topbar-right"><span class="topbar-user" id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div>
     </div>
-    <div class="content" id="pageContent">
-      <div class="page-header"><div><h1>数据概览</h1><div class="sub">实时统计</div></div></div>
-      <div class="stats-grid" id="statsGrid"><div class="stat-card"><div class="stat-label">加载中...</div></div></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px">
-        <div class="chart-card"><h3>最近 7 天趋势</h3><div id="recentActivity" style="font-size:13px;color:#6b7280">加载中...</div></div>
-        <div class="chart-card"><h3>快速操作</h3>
-          <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
-            <a href="jobs.html" class="btn btn-outline"><i class="fa-solid fa-briefcase"></i> 管理岗位</a>
-            <a href="campus.html" class="btn btn-outline"><i class="fa-solid fa-calendar-days"></i> 校招日历</a>
-            <a href="announcements.html" class="btn btn-primary"><i class="fa-solid fa-newspaper"></i> 发布公告</a>
+    <div class="content">
+      <div class="page-header">
+        <div>
+          <h1>数据概览</h1>
+          <div class="sub">统一查看小程序内容、用户、岗位、公司和运营状态</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="loadStats()"><i class="fa-solid fa-rotate"></i> 刷新数据</button>
+          <a href="companies.html" class="btn btn-primary"><i class="fa-solid fa-building-user"></i> 公司管理</a>
+        </div>
+      </div>
+
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card"><div class="stat-label">加载中...</div></div>
+      </div>
+
+      <div class="dashboard-grid">
+        <div class="chart-card">
+          <h3>运营状态</h3>
+          <div class="activity-list" id="recentActivity">
+            <div class="activity-item"><span>数据加载中</span><strong>...</strong></div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <h3>快速操作</h3>
+          <div class="quick-actions">
+            <a class="quick-action" href="jobs.html"><i class="fa-solid fa-briefcase"></i><span>管理岗位</span></a>
+            <a class="quick-action" href="companies.html"><i class="fa-solid fa-building-user"></i><span>公司管理</span></a>
+            <a class="quick-action" href="banners.html"><i class="fa-solid fa-images"></i><span>Banner配置</span></a>
+            <a class="quick-action" href="campus.html"><i class="fa-solid fa-calendar-days"></i><span>校招日历</span></a>
+            <a class="quick-action" href="announcements.html"><i class="fa-solid fa-newspaper"></i><span>发布资讯</span></a>
+            <a class="quick-action" href="resumes.html"><i class="fa-solid fa-id-card"></i><span>简历管理</span></a>
           </div>
         </div>
       </div>
     </div>
   </div>
 </div>
+
 <script src="js/config.js"></script><script src="js/common.js"></script>
 <script>
 initPage('dashboard', '概览');
+
+function card(icon, label, value, sub, colorClass) {
+  return `
+    <div class="stat-card">
+      <div class="stat-icon ${colorClass || ''}"><i class="fa-solid ${icon}"></i></div>
+      <div class="stat-value">${value ?? 0}</div>
+      <div class="stat-label">${label}${sub ? `<span class="stat-trend">${sub}</span>` : ''}</div>
+    </div>`;
+}
+
 async function loadStats() {
   const res = await GET('/admin/api/stats');
-  if (!res || res.code !== 0) return;
-  const s = res.data;
+  if (!res || res.code !== 0) {
+    toast('数据加载失败，请稍后重试', 'error');
+    return;
+  }
+
+  const s = res.data || {};
   const cards = [
-    { icon: '👥', label: '注册用户', value: s.users, sub: `今日新增 +${s.todayNewUsers}` },
-    { icon: '📝', label: '面经总数', value: s.experiences, sub: '' },
-    { icon: '💬', label: '评论总数', value: s.comments, sub: `今日新增 +${s.todayComments}` },
-    { icon: '🏢', label: '机构数量', value: s.agencies, sub: `评价 ${s.pendingReviews} 条` },
-    { icon: '📅', label: '校招日历', value: s.campus, sub: '' },
-    { icon: '💼', label: '岗位数量', value: s.jobs, sub: '' },
-    { icon: '📢', label: '公告数量', value: s.announcements, sub: '' },
+    card('fa-users', '注册用户', s.users, `今日 +${s.todayNewUsers || 0}`),
+    card('fa-building-user', '公司总数', s.companies || 0, ''),
+    card('fa-briefcase', '岗位数量', s.jobs, ''),
+    card('fa-file-lines', '面经总数', s.experiences, ''),
+    card('fa-comments', '评论总数', s.comments, `今日 +${s.todayComments || 0}`),
+    card('fa-calendar-days', '校招日历', s.campus, ''),
+    card('fa-building', '机构数量', s.agencies, `待审 ${s.pendingReviews || 0}`),
+    card('fa-newspaper', '资讯公告', s.announcements, '')
   ];
-  document.getElementById('statsGrid').innerHTML = cards.map(c => `
-    <div class="stat-card">
-      <div class="stat-icon">${c.icon}</div>
-      <div class="stat-value">${c.value}</div>
-      <div class="stat-label">${c.label}${c.sub ? ' <span style="font-size:11px;color:#9ca3af">· ' + c.sub + '</span>' : ''}</div>
-    </div>`).join('');
-  document.getElementById('recentActivity').innerHTML = `
-    <p style="margin:6px 0">📝 面经：${s.experiences} 篇</p>
-    <p style="margin:6px 0">💬 评论：${s.comments} 条</p>
-    <p style="margin:6px 0">🏢 机构：${s.agencies} 家</p>
-    <p style="margin:6px 0">📅 校招：${s.campus} 条</p>`;
+  document.getElementById('statsGrid').innerHTML = cards.join('');
+
+  const rows = [
+    ['用户增长', `${s.todayNewUsers || 0} 位今日新增`],
+    ['内容沉淀', `${s.experiences || 0} 篇面经 / ${s.comments || 0} 条评论`],
+    ['公司数据', `${s.companies || 0} 家公司已入库`],
+    ['招聘内容', `${s.jobs || 0} 个岗位 / ${s.campus || 0} 条校招记录`],
+    ['服务生态', `${s.agencies || 0} 家机构 / ${s.pendingReviews || 0} 条待处理评价`]
+  ];
+  document.getElementById('recentActivity').innerHTML = rows.map(([label, value]) => `
+    <div class="activity-item"><span>${label}</span><strong>${value}</strong></div>
+  `).join('');
 }
+
 loadStats();
 </script>
 </body>
