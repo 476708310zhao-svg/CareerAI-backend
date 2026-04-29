@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>校招日历 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">🎯 求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer"><div class="admin-name" id="adminUsername"></div><button class="nav-item" style="margin-top:6px" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i><span>退出登录</span></button></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span style="font-size:13px;color:#6b7280" id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
+    <div class="content">
+      <div class="page-header">
+        <div><h1>校招日历</h1><div class="sub">管理校招时间线数据</div></div>
+        <button class="btn btn-primary" onclick="openAdd()"><i class="fa-solid fa-plus"></i> 新增</button>
+      </div>
+      <div class="toolbar">
+        <input type="text" id="kw" placeholder="搜索公司、职位、行业..." onkeydown="if(event.key==='Enter')load(1)">
+        <button class="btn btn-outline" onclick="load(1)"><i class="fa-solid fa-search"></i> 搜索</button>
+      </div>
+      <div class="table-card">
+        <div class="table-wrap"><table>
+          <thead><tr><th>ID</th><th>公司</th><th>职位</th><th>地区</th><th>行业</th><th>招聘年份</th><th>开放日期</th><th>截止日期</th><th>热门</th><th>操作</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table></div>
+        <div class="pagination" id="pagi"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal('modal')">
+  <div class="modal-box" style="max-width:600px">
+    <div class="modal-header"><h3 id="modalTitle">新增校招</h3><button class="modal-close" onclick="closeModal('modal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>公司名称 *</label><input type="text" id="f_company" placeholder="Google"></div>
+        <div class="form-group"><label>职位名称</label><input type="text" id="f_position_name" placeholder="Software Engineer"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>地区</label>
+          <select id="f_region"><option value="北美">北美</option><option value="中国">中国</option><option value="欧洲">欧洲</option><option value="新加坡">新加坡</option><option value="香港">香港</option><option value="全球">全球</option></select>
+        </div>
+        <div class="form-group"><label>岗位类型</label>
+          <select id="f_position_type"><option value="技术">技术</option><option value="产品">产品</option><option value="设计">设计</option><option value="运营">运营</option><option value="金融">金融</option><option value="咨询">咨询</option><option value="综合">综合</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>行业</label><input type="text" id="f_industry" placeholder="互联网"></div>
+        <div class="form-group"><label>招聘年份</label><input type="number" id="f_recruit_year" value="2026" min="2024" max="2030"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>开放日期</label><input type="date" id="f_start_date"></div>
+        <div class="form-group"><label>截止日期</label><input type="date" id="f_deadline_date"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>发 Offer 月份</label><input type="text" id="f_offer_month" placeholder="3月"></div>
+        <div class="form-group"><label>申请链接</label><input type="text" id="f_apply_url" placeholder="https://..."></div>
+      </div>
+      <div class="form-group"><label>备注</label><textarea id="f_notes" rows="2" placeholder="补充说明..."></textarea></div>
+      <div class="form-check"><input type="checkbox" id="f_is_hot"><label for="f_is_hot">标记为热门</label></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal')">取消</button>
+      <button class="btn btn-primary" onclick="save()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script><script src="js/common.js"></script>
+<script>
+let page = 1, total = 0, editId = null;
+initPage('campus', '校招日历');
+load(1);
+
+async function load(p) {
+  page = p;
+  const kw = document.getElementById('kw').value.trim();
+  const res = await GET(`/admin/api/campus?page=${p}&pageSize=15&keyword=${encodeURIComponent(kw)}`);
+  if (!res || res.code !== 0) return;
+  total = res.data.total;
+  const list = res.data.list;
+  document.getElementById('tbody').innerHTML = list.length ? list.map(r => `
+    <tr>
+      <td>${r.id}</td>
+      <td>${esc(r.company)}</td>
+      <td class="text-muted">${esc(r.position_name||'-')}</td>
+      <td><span class="badge badge-blue">${esc(r.region)}</span></td>
+      <td>${esc(r.industry||'-')}</td>
+      <td>${r.recruit_year||'-'}</td>
+      <td>${r.start_date||'-'}</td>
+      <td>${r.deadline_date||'-'}</td>
+      <td>${r.is_hot?'<span class="badge badge-red">热门</span>':'-'}</td>
+      <td><div class="td-actions">
+        <button class="btn btn-outline btn-sm" onclick="openEdit(${r.id})"><i class="fa-solid fa-pen"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="del(${r.id})"><i class="fa-solid fa-trash"></i></button>
+      </div></td>
+    </tr>`).join('') : '<tr class="empty-row"><td colspan="10">暂无数据</td></tr>';
+  renderPagination('pagi', page, total, 15, 'load');
+}
+
+let allRows = [];
+async function getAllRows() {
+  const res = await GET('/admin/api/campus?page=1&pageSize=10000');
+  allRows = (res && res.data && res.data.list) || [];
+}
+
+function openAdd() {
+  editId = null; document.getElementById('modalTitle').textContent = '新增校招';
+  ['f_company','f_position_name','f_industry','f_offer_month','f_apply_url','f_notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f_region').value = '北美';
+  document.getElementById('f_position_type').value = '技术';
+  document.getElementById('f_recruit_year').value = 2026;
+  document.getElementById('f_start_date').value = '';
+  document.getElementById('f_deadline_date').value = '';
+  document.getElementById('f_is_hot').checked = false;
+  openModal('modal');
+}
+
+async function openEdit(id) {
+  if (!allRows.length) await getAllRows();
+  const r = allRows.find(x => x.id === id);
+  if (!r) { await getAllRows(); const r2 = allRows.find(x => x.id === id); if (!r2) return; Object.assign(r||{}, r2); }
+  const row = allRows.find(x => x.id === id);
+  if (!row) return;
+  editId = id; document.getElementById('modalTitle').textContent = '编辑校招';
+  document.getElementById('f_company').value = row.company||'';
+  document.getElementById('f_position_name').value = row.position_name||'';
+  document.getElementById('f_region').value = row.region||'北美';
+  document.getElementById('f_position_type').value = row.position_type||'技术';
+  document.getElementById('f_industry').value = row.industry||'';
+  document.getElementById('f_recruit_year').value = row.recruit_year||2026;
+  document.getElementById('f_start_date').value = row.start_date||'';
+  document.getElementById('f_deadline_date').value = row.deadline_date||'';
+  document.getElementById('f_offer_month').value = row.offer_month||'';
+  document.getElementById('f_apply_url').value = row.apply_url||'';
+  document.getElementById('f_notes').value = row.notes||'';
+  document.getElementById('f_is_hot').checked = !!row.is_hot;
+  openModal('modal');
+}
+
+async function save() {
+  const body = {
+    company: document.getElementById('f_company').value.trim(),
+    position_name: document.getElementById('f_position_name').value.trim(),
+    region: document.getElementById('f_region').value,
+    position_type: document.getElementById('f_position_type').value,
+    industry: document.getElementById('f_industry').value.trim(),
+    recruit_year: parseInt(document.getElementById('f_recruit_year').value)||2026,
+    start_date: document.getElementById('f_start_date').value,
+    deadline_date: document.getElementById('f_deadline_date').value,
+    offer_month: document.getElementById('f_offer_month').value.trim(),
+    apply_url: document.getElementById('f_apply_url').value.trim(),
+    notes: document.getElementById('f_notes').value.trim(),
+    is_hot: document.getElementById('f_is_hot').checked
+  };
+  if (!body.company) { toast('公司名称不能为空', 'error'); return; }
+  const res = editId ? await PUT(`/admin/api/campus/${editId}`, body) : await POST('/admin/api/campus', body);
+  if (res && res.code === 0) { toast(editId?'更新成功':'添加成功'); closeModal('modal'); allRows=[]; load(page); }
+  else toast(res?.message||'操作失败', 'error');
+}
+
+function del(id) {
+  confirm('确定删除该校招记录吗？', async () => {
+    const res = await DELETE(`/admin/api/campus/${id}`);
+    if (res && res.code === 0) { toast('删除成功'); allRows=[]; load(page); }
+    else toast(res?.message||'删除失败', 'error');
+  });
+}
+</script>
+</body>
+</html>

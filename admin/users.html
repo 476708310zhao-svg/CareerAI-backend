@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>用户管理 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    .avatar-sm { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 8px; background: #e5e7eb; }
+    .vip-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+    .vip-0 { background: #f3f4f6; color: #6b7280; }
+    .vip-1 { background: #fef3c7; color: #92400e; }
+    .vip-2 { background: #ede9fe; color: #5b21b6; }
+    .detail-section { margin-bottom: 20px; }
+    .detail-section h4 { font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; border-bottom: 1px solid #f3f4f6; padding-bottom: 6px; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .detail-item label { font-size: 12px; color: #9ca3af; display: block; margin-bottom: 2px; }
+    .detail-item span { font-size: 14px; color: #111827; }
+    .resume-chip { display: inline-flex; align-items: center; gap: 6px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 4px 10px; font-size: 12px; color: #0369a1; margin: 4px 4px 4px 0; }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">🎯 求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer"><div class="admin-name" id="adminUsername"></div><button class="nav-item" style="margin-top:6px" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i><span>退出登录</span></button></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span style="font-size:13px;color:#6b7280" id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
+    <div class="content">
+      <div class="page-header">
+        <div><h1>用户管理</h1><div class="sub">查看注册用户信息及简历</div></div>
+      </div>
+      <div class="toolbar">
+        <input type="text" id="kw" placeholder="搜索昵称、邮箱、手机号..." onkeydown="if(event.key==='Enter')load(1)">
+        <button class="btn btn-outline" onclick="load(1)"><i class="fa-solid fa-search"></i> 搜索</button>
+      </div>
+      <div class="table-card">
+        <div class="table-wrap"><table>
+          <thead><tr><th>用户</th><th>邮箱</th><th>手机</th><th>会员</th><th>注册时间</th><th>操作</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table></div>
+        <div class="pagination" id="pagi"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 用户详情 Modal -->
+<div class="modal-overlay" id="detailModal" onclick="if(event.target===this)closeModal('detailModal')">
+  <div class="modal-box" style="max-width:600px">
+    <div class="modal-header"><h3 id="detailTitle">用户详情</h3><button class="modal-close" onclick="closeModal('detailModal')">×</button></div>
+    <div class="modal-body" id="detailBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('detailModal')">关闭</button>
+      <button class="btn btn-primary" onclick="saveUser()">保存修改</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script><script src="js/common.js"></script>
+<script>
+initPage('users', '用户管理');
+
+let currentPage = 1;
+const pageSize = 20;
+let editUserId = null;
+
+async function load(page = 1) {
+  currentPage = page;
+  const kw = document.getElementById('kw').value.trim();
+  const res = await GET(`/admin/api/users?page=${page}&pageSize=${pageSize}&keyword=${encodeURIComponent(kw)}`);
+  if (!res || res.code !== 0) return;
+  const { list, total } = res.data;
+
+  document.getElementById('tbody').innerHTML = list.length === 0
+    ? '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:40px">暂无用户数据</td></tr>'
+    : list.map(u => `
+    <tr>
+      <td>
+        <div style="display:flex;align-items:center">
+          <img class="avatar-sm" src="${esc(u.avatar) || '/images/default-avatar.png'}" onerror="this.src='/images/default-avatar.png'">
+          <div>
+            <div style="font-weight:600">${esc(u.nickname)}</div>
+            <div style="font-size:12px;color:#9ca3af">ID: ${u.id}</div>
+          </div>
+        </div>
+      </td>
+      <td>${esc(u.email) || '-'}</td>
+      <td>${esc(u.phone) || '-'}</td>
+      <td><span class="vip-badge vip-${u.vip_level}">${u.vip_level === 0 ? '普通' : u.vip_level === 1 ? '会员' : 'VIP'}</span></td>
+      <td>${fmtDate(u.created_at)}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="openDetail(${u.id})"><i class="fa-solid fa-eye"></i> 查看</button>
+      </td>
+    </tr>`).join('');
+
+  renderPagination('pagi', page, total, pageSize, 'load');
+}
+
+async function openDetail(id) {
+  editUserId = id;
+  const res = await GET('/admin/api/users/' + id);
+  if (!res || res.code !== 0) { toast('加载失败', 'error'); return; }
+  const u = res.data;
+  let edu = '{}', pref = '{}';
+  try { edu = JSON.stringify(JSON.parse(u.education || '{}'), null, 2); } catch(e) {}
+  try { pref = JSON.stringify(JSON.parse(u.job_preference || '{}'), null, 2); } catch(e) {}
+
+  const resumeChips = (u.resumes || []).map(r =>
+    `<span class="resume-chip"><i class="fa-solid fa-file-lines"></i> ${esc(r.name)} <span style="color:#94a3b8">${fmtDate(r.updated_at)}</span></span>`
+  ).join('') || '<span style="color:#9ca3af;font-size:13px">暂无简历</span>';
+
+  document.getElementById('detailTitle').textContent = '用户详情 · ' + esc(u.nickname);
+  document.getElementById('detailBody').innerHTML = `
+    <div class="detail-section">
+      <h4>基本信息</h4>
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
+        <img style="width:56px;height:56px;border-radius:50%;object-fit:cover;background:#e5e7eb" src="${esc(u.avatar)}" onerror="this.src='/images/default-avatar.png'">
+        <div>
+          <div style="font-size:16px;font-weight:700">${esc(u.nickname)}</div>
+          <div style="font-size:12px;color:#9ca3af">UID: ${u.id} · 注册于 ${fmtDate(u.created_at)}</div>
+        </div>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-item"><label>昵称</label><input type="text" id="edit_nickname" value="${esc(u.nickname)}" style="width:100%"></div>
+        <div class="detail-item"><label>会员等级</label>
+          <select id="edit_vip" style="width:100%">
+            <option value="0" ${u.vip_level===0?'selected':''}>普通用户</option>
+            <option value="1" ${u.vip_level===1?'selected':''}>会员</option>
+            <option value="2" ${u.vip_level===2?'selected':''}>VIP</option>
+          </select>
+        </div>
+        <div class="detail-item"><label>邮箱</label><input type="text" id="edit_email" value="${esc(u.email)}" style="width:100%"></div>
+        <div class="detail-item"><label>手机</label><input type="text" id="edit_phone" value="${esc(u.phone)}" style="width:100%"></div>
+      </div>
+    </div>
+    <div class="detail-section">
+      <h4>数据统计</h4>
+      <div class="detail-grid">
+        <div class="detail-item"><label>投递记录</label><span>${u.appCount} 条</span></div>
+        <div class="detail-item"><label>发布面经</label><span>${u.expCount} 篇</span></div>
+        <div class="detail-item"><label>简历数量</label><span>${(u.resumes || []).length} 份</span></div>
+      </div>
+    </div>
+    <div class="detail-section">
+      <h4>简历列表</h4>
+      <div>${resumeChips}</div>
+    </div>
+    <div class="detail-section">
+      <h4>教育背景 <span style="font-weight:400;font-size:11px;color:#d1d5db">(只读)</span></h4>
+      <pre style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px;font-size:12px;overflow:auto;max-height:120px">${esc(edu)}</pre>
+    </div>
+    <div class="detail-section">
+      <h4>求职偏好 <span style="font-weight:400;font-size:11px;color:#d1d5db">(只读)</span></h4>
+      <pre style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px;font-size:12px;overflow:auto;max-height:120px">${esc(pref)}</pre>
+    </div>`;
+  openModal('detailModal');
+}
+
+async function saveUser() {
+  if (!editUserId) return;
+  const body = {
+    nickname: document.getElementById('edit_nickname').value.trim(),
+    email: document.getElementById('edit_email').value.trim(),
+    phone: document.getElementById('edit_phone').value.trim(),
+    vip_level: parseInt(document.getElementById('edit_vip').value),
+  };
+  const res = await PUT('/admin/api/users/' + editUserId, body);
+  if (!res || res.code !== 0) { toast(res?.message || '保存失败', 'error'); return; }
+  toast('保存成功');
+  closeModal('detailModal');
+  load(currentPage);
+}
+
+load(1);
+</script>
+</body>
+</html>

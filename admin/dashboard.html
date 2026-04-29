@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>概览 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">🎯 求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer">
+      <div class="admin-name" id="adminUsername"></div>
+      <button class="nav-item" style="margin-top:6px" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i><span>退出登录</span></button>
+    </div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title" id="pageTitle">概览</span>
+      <div class="topbar-right"><span style="font-size:13px;color:#6b7280" id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div>
+    </div>
+    <div class="content" id="pageContent">
+      <div class="page-header"><div><h1>数据概览</h1><div class="sub">实时统计</div></div></div>
+      <div class="stats-grid" id="statsGrid"><div class="stat-card"><div class="stat-label">加载中...</div></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px">
+        <div class="chart-card"><h3>最近 7 天趋势</h3><div id="recentActivity" style="font-size:13px;color:#6b7280">加载中...</div></div>
+        <div class="chart-card"><h3>快速操作</h3>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+            <a href="jobs.html" class="btn btn-outline"><i class="fa-solid fa-briefcase"></i> 管理岗位</a>
+            <a href="campus.html" class="btn btn-outline"><i class="fa-solid fa-calendar-days"></i> 校招日历</a>
+            <a href="announcements.html" class="btn btn-primary"><i class="fa-solid fa-newspaper"></i> 发布公告</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="js/config.js"></script><script src="js/common.js"></script>
+<script>
+initPage('dashboard', '概览');
+async function loadStats() {
+  const res = await GET('/admin/api/stats');
+  if (!res || res.code !== 0) return;
+  const s = res.data;
+  const cards = [
+    { icon: '👥', label: '注册用户', value: s.users, sub: `今日新增 +${s.todayNewUsers}` },
+    { icon: '📝', label: '面经总数', value: s.experiences, sub: '' },
+    { icon: '💬', label: '评论总数', value: s.comments, sub: `今日新增 +${s.todayComments}` },
+    { icon: '🏢', label: '机构数量', value: s.agencies, sub: `评价 ${s.pendingReviews} 条` },
+    { icon: '📅', label: '校招日历', value: s.campus, sub: '' },
+    { icon: '💼', label: '岗位数量', value: s.jobs, sub: '' },
+    { icon: '📢', label: '公告数量', value: s.announcements, sub: '' },
+  ];
+  document.getElementById('statsGrid').innerHTML = cards.map(c => `
+    <div class="stat-card">
+      <div class="stat-icon">${c.icon}</div>
+      <div class="stat-value">${c.value}</div>
+      <div class="stat-label">${c.label}${c.sub ? ' <span style="font-size:11px;color:#9ca3af">· ' + c.sub + '</span>' : ''}</div>
+    </div>`).join('');
+  document.getElementById('recentActivity').innerHTML = `
+    <p style="margin:6px 0">📝 面经：${s.experiences} 篇</p>
+    <p style="margin:6px 0">💬 评论：${s.comments} 条</p>
+    <p style="margin:6px 0">🏢 机构：${s.agencies} 家</p>
+    <p style="margin:6px 0">📅 校招：${s.campus} 条</p>`;
+}
+loadStats();
+</script>
+</body>
+</html>

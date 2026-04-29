@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Banner管理 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    /* Banner 预览卡片 */
+    .banner-preview-card {
+      width: 100%; aspect-ratio: 686 / 300; height: auto;
+      border-radius: 12px; overflow: hidden; position: relative;
+      display: flex; flex-direction: column; justify-content: flex-end;
+      padding: 12px 16px; box-sizing: border-box;
+    }
+    .banner-preview-card img {
+      position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    }
+    .banner-preview-card .overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(to top, rgba(0,0,0,.55) 0%, transparent 60%);
+    }
+    .banner-preview-card .text-layer {
+      position: relative; z-index: 1;
+    }
+    .banner-preview-card .pv-icon  { font-size: 20px; line-height: 1; }
+    .banner-preview-card .pv-title { color: #fff; font-size: 14px; font-weight: 700; margin-top: 2px; }
+    .banner-preview-card .pv-sub   { color: rgba(255,255,255,.8); font-size: 11px; margin-top: 1px; }
+
+    /* 上传区域 */
+    .upload-zone {
+      border: 2px dashed #d1d5db; border-radius: 10px; padding: 20px;
+      text-align: center; cursor: pointer; transition: border-color .2s, background .2s;
+    }
+    .upload-zone:hover { border-color: #2563eb; background: #eff6ff; }
+    .upload-zone.has-img { border-style: solid; border-color: #2563eb; }
+    .upload-zone img { max-width: 100%; max-height: 140px; border-radius: 8px; display: block; margin: 0 auto; }
+    .upload-hint { font-size: 13px; color: #9ca3af; margin-top: 8px; }
+    .upload-hint span { color: #2563eb; cursor: pointer; }
+
+    /* 渐变选色 */
+    .gradient-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+    .gradient-dot {
+      width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+      border: 3px solid transparent; transition: border-color .15s;
+    }
+    .gradient-dot.selected { border-color: #2563eb; }
+
+    /* 状态/语言标签 */
+    .status-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+    .status-on  { background: #d1fae5; color: #065f46; }
+    .status-off { background: #f3f4f6; color: #9ca3af; }
+
+    /* Tab 切换：图片 vs 渐变 */
+    .tab-bar { display: flex; gap: 4px; background: #f3f4f6; border-radius: 8px; padding: 3px; margin-bottom: 12px; }
+    .tab-btn { flex: 1; padding: 6px; border: none; background: none; border-radius: 6px;
+               font-size: 13px; cursor: pointer; color: #6b7280; transition: background .15s, color .15s; }
+    .tab-btn.active { background: #fff; color: #111827; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">🎯 求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer"><div class="admin-name" id="adminUsername"></div><button class="nav-item" style="margin-top:6px" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i><span>退出登录</span></button></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span style="font-size:13px;color:#6b7280" id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
+    <div class="content">
+      <div class="page-header">
+        <div><h1>Banner 管理</h1><div class="sub">配置小程序首页轮播图 · 推荐尺寸 1372×600px（2倍图）</div></div>
+        <button class="btn btn-primary" onclick="openAdd()"><i class="fa-solid fa-plus"></i> 新增 Banner</button>
+      </div>
+      <div class="table-card">
+        <div class="table-wrap"><table>
+          <thead><tr><th style="width:180px">预览</th><th>标题</th><th>副标题</th><th>跳转链接</th><th>排序</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增/编辑 Modal -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal('modal')">
+  <div class="modal-box" style="max-width:580px">
+    <div class="modal-header"><h3 id="modalTitle">新增 Banner</h3><button class="modal-close" onclick="closeModal('modal')">×</button></div>
+    <div class="modal-body">
+
+      <!-- 预览 -->
+      <div class="form-group">
+        <label>实时预览</label>
+        <div id="bannerPreview" class="banner-preview-card" style="background: linear-gradient(135deg,#1C3578 0%,#2B5CE6 100%)">
+          <div class="overlay" id="previewOverlay" style="display:none"></div>
+          <img id="previewImg" src="" style="display:none" alt="">
+          <div class="text-layer">
+            <div class="pv-icon" id="prevIcon">🚀</div>
+            <div class="pv-title" id="prevTitle">Banner 标题</div>
+            <div class="pv-sub" id="prevSub">副标题文字</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 背景类型 tab -->
+      <div class="form-group">
+        <label>背景类型</label>
+        <div class="tab-bar">
+          <button class="tab-btn active" id="tabImg" onclick="switchTab('image')"><i class="fa-solid fa-image"></i> 上传图片</button>
+          <button class="tab-btn" id="tabGrad" onclick="switchTab('gradient')"><i class="fa-solid fa-palette"></i> 渐变色</button>
+        </div>
+
+        <!-- 图片上传区 -->
+        <div id="panelImage">
+          <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+            <img id="uploadedImg" src="" alt="" style="display:none">
+            <div id="uploadPlaceholder">
+              <i class="fa-solid fa-cloud-arrow-up" style="font-size:28px;color:#d1d5db"></i>
+              <div class="upload-hint">点击选择图片 <span>或拖拽到此处</span></div>
+              <div class="upload-hint" style="margin-top:4px">JPG / PNG / WebP · 最大 5MB · 推荐 1372×600px</div>
+            </div>
+          </div>
+          <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none" onchange="onFileSelect(event)">
+          <div id="uploadProgress" style="display:none;margin-top:8px">
+            <div style="background:#e5e7eb;border-radius:4px;height:6px">
+              <div id="progressBar" style="background:#2563eb;height:6px;border-radius:4px;width:0%;transition:width .3s"></div>
+            </div>
+            <div style="font-size:12px;color:#6b7280;margin-top:4px" id="progressText">上传中...</div>
+          </div>
+          <input type="hidden" id="f_image_url">
+        </div>
+
+        <!-- 渐变色区 -->
+        <div id="panelGradient" style="display:none">
+          <input type="text" id="f_gradient" placeholder="linear-gradient(135deg,#1C3578 0%,#2B5CE6 100%)" oninput="updatePreview()">
+          <div class="gradient-list" id="gradientPresets"></div>
+        </div>
+      </div>
+
+      <!-- 文字信息 -->
+      <div class="form-row">
+        <div class="form-group" style="flex:0 0 68px">
+          <label>图标</label>
+          <input type="text" id="f_icon" placeholder="🚀" style="font-size:20px;text-align:center" oninput="updatePreview()">
+        </div>
+        <div class="form-group">
+          <label>标题 *</label>
+          <input type="text" id="f_title" placeholder="Banner 标题" oninput="updatePreview()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>副标题</label>
+        <input type="text" id="f_subtitle" placeholder="描述文字" oninput="updatePreview()">
+      </div>
+      <div class="form-group">
+        <label>跳转页面路径</label>
+        <input type="text" id="f_url" placeholder="/pages/jobs/jobs">
+        <div style="font-size:12px;color:#9ca3af;margin-top:4px">填写小程序页面路径，留空则不跳转</div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>排序（数字越小越靠前）</label>
+          <input type="number" id="f_sort" value="0" min="0">
+        </div>
+        <div class="form-group">
+          <label>状态</label>
+          <select id="f_active"><option value="1">启用</option><option value="0">禁用</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal')">取消</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="save()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script><script src="js/common.js"></script>
+<script>
+initPage('banners', 'Banner管理');
+
+const GRADIENTS = [
+  'linear-gradient(135deg,#1C3578 0%,#2B5CE6 100%)',
+  'linear-gradient(135deg,#7C3AED 0%,#DB2777 100%)',
+  'linear-gradient(135deg,#059669 0%,#0EA5E9 100%)',
+  'linear-gradient(135deg,#F59E0B 0%,#EF4444 100%)',
+  'linear-gradient(135deg,#0F172A 0%,#1E3A5F 100%)',
+  'linear-gradient(135deg,#6D28D9 0%,#2563EB 100%)',
+  'linear-gradient(135deg,#DC2626 0%,#9333EA 100%)',
+  'linear-gradient(135deg,#065F46 0%,#047857 100%)',
+];
+
+document.getElementById('gradientPresets').innerHTML = GRADIENTS.map(g =>
+  `<div class="gradient-dot" style="background:${g}" onclick="selectGradient('${g}')"></div>`
+).join('');
+
+let editId = null;
+let bgMode = 'image'; // 'image' | 'gradient'
+
+function switchTab(mode) {
+  bgMode = mode;
+  document.getElementById('tabImg').classList.toggle('active', mode === 'image');
+  document.getElementById('tabGrad').classList.toggle('active', mode === 'gradient');
+  document.getElementById('panelImage').style.display   = mode === 'image'    ? '' : 'none';
+  document.getElementById('panelGradient').style.display = mode === 'gradient' ? '' : 'none';
+  updatePreview();
+}
+
+function selectGradient(g) {
+  document.getElementById('f_gradient').value = g;
+  document.querySelectorAll('.gradient-dot').forEach((d, i) => {
+    d.classList.toggle('selected', GRADIENTS[i] === g);
+  });
+  updatePreview();
+}
+
+function updatePreview() {
+  const icon  = document.getElementById('f_icon').value || '🎯';
+  const title = document.getElementById('f_title').value || 'Banner 标题';
+  const sub   = document.getElementById('f_subtitle').value || '副标题文字';
+  document.getElementById('prevIcon').textContent  = icon;
+  document.getElementById('prevTitle').textContent = title;
+  document.getElementById('prevSub').textContent   = sub;
+
+  const imgUrl = document.getElementById('f_image_url').value;
+  const grad   = document.getElementById('f_gradient').value || GRADIENTS[0];
+  const card   = document.getElementById('bannerPreview');
+  const img    = document.getElementById('previewImg');
+  const overlay = document.getElementById('previewOverlay');
+
+  if (bgMode === 'image' && imgUrl) {
+    card.style.background = '#000';
+    img.src = window.ADMIN_API.replace('/admin/api', '') + imgUrl;
+    img.style.display = '';
+    overlay.style.display = '';
+  } else {
+    card.style.background = grad;
+    img.style.display = 'none';
+    overlay.style.display = 'none';
+  }
+}
+
+// 文件拖拽支持
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor = '#2563eb'; });
+zone.addEventListener('dragleave', () => { zone.style.borderColor = '#d1d5db'; });
+zone.addEventListener('drop', e => {
+  e.preventDefault();
+  zone.style.borderColor = '#d1d5db';
+  const file = e.dataTransfer.files[0];
+  if (file) uploadFile(file);
+});
+
+function onFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) uploadFile(file);
+  e.target.value = '';
+}
+
+async function uploadFile(file) {
+  const MAX = 5 * 1024 * 1024;
+  if (file.size > MAX) { toast('图片不能超过 5MB', 'error'); return; }
+  if (!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)) {
+    toast('只支持 JPG / PNG / WebP / GIF', 'error'); return;
+  }
+
+  document.getElementById('uploadProgress').style.display = '';
+  document.getElementById('progressBar').style.width = '30%';
+  document.getElementById('progressText').textContent = '上传中...';
+  document.getElementById('saveBtn').disabled = true;
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await api('/admin/api/upload/banner', { method: 'POST', body: formData });
+    console.log('[upload] response:', res);
+    if (!res || res.code !== 0) throw new Error(res?.message || `上传失败 (code: ${res?.code})`);
+
+    document.getElementById('progressBar').style.width = '100%';
+    document.getElementById('progressText').textContent = '上传成功 ✓';
+    document.getElementById('f_image_url').value = res.data.url;
+
+    // 预览缩略图
+    const uImg = document.getElementById('uploadedImg');
+    const reader = new FileReader();
+    reader.onload = e => {
+      uImg.src = e.target.result;
+      uImg.style.display = '';
+      document.getElementById('uploadPlaceholder').style.display = 'none';
+      document.getElementById('uploadZone').classList.add('has-img');
+    };
+    reader.readAsDataURL(file);
+
+    updatePreview();
+    setTimeout(() => { document.getElementById('uploadProgress').style.display = 'none'; }, 1500);
+  } catch (err) {
+    console.error('[upload] error:', err);
+    toast(err.message || '上传失败', 'error');
+    document.getElementById('progressBar').style.width = '0%';
+    document.getElementById('progressText').textContent = '上传失败: ' + (err.message || '未知错误');
+  } finally {
+    document.getElementById('saveBtn').disabled = false;
+  }
+}
+
+// ─── 列表加载 ─────────────────────────────────────────────────────────────────
+async function load() {
+  const res = await GET('/admin/api/banners');
+  if (!res || res.code !== 0) return;
+  const list = res.data;
+  const baseUrl = window.ADMIN_API.replace('/admin/api', '');
+
+  document.getElementById('tbody').innerHTML = list.length === 0
+    ? '<tr><td colspan="7" style="text-align:center;color:#9ca3af;padding:40px">暂无 Banner，点击右上角新增</td></tr>'
+    : list.map(b => {
+        const bgStyle = b.image_url
+          ? `background: url('${baseUrl + esc(b.image_url)}') center/cover no-repeat`
+          : `background: ${esc(b.gradient)}`;
+        return `
+        <tr>
+          <td>
+            <div class="banner-preview-card" style="${bgStyle};padding:8px 10px">
+              ${b.image_url ? '<div class="overlay"></div>' : ''}
+              <div class="text-layer">
+                <div style="font-size:14px">${esc(b.icon)}</div>
+                <div style="color:#fff;font-size:11px;font-weight:700">${esc(b.title)}</div>
+              </div>
+            </div>
+          </td>
+          <td><strong>${esc(b.title)}</strong></td>
+          <td>${esc(b.subtitle) || '-'}</td>
+          <td style="font-size:12px;color:#6b7280;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(b.url) || '-'}</td>
+          <td>${b.sort_order}</td>
+          <td><span class="status-badge ${b.is_active ? 'status-on' : 'status-off'}">${b.is_active ? '启用' : '禁用'}</span></td>
+          <td>
+            <button class="btn btn-outline btn-sm" onclick="openEdit(${b.id})"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn btn-danger btn-sm" onclick="del(${b.id})" style="margin-left:4px"><i class="fa-solid fa-trash"></i></button>
+          </td>
+        </tr>`;
+      }).join('');
+}
+
+// ─── 新增 ─────────────────────────────────────────────────────────────────────
+function openAdd() {
+  editId = null;
+  document.getElementById('modalTitle').textContent = '新增 Banner';
+  document.getElementById('f_title').value    = '';
+  document.getElementById('f_subtitle').value = '';
+  document.getElementById('f_url').value      = '';
+  document.getElementById('f_icon').value     = '🚀';
+  document.getElementById('f_gradient').value = GRADIENTS[0];
+  document.getElementById('f_sort').value     = '0';
+  document.getElementById('f_active').value   = '1';
+  document.getElementById('f_image_url').value = '';
+  document.getElementById('uploadedImg').style.display = 'none';
+  document.getElementById('uploadPlaceholder').style.display = '';
+  document.getElementById('uploadZone').classList.remove('has-img');
+  document.getElementById('uploadProgress').style.display = 'none';
+  selectGradient(GRADIENTS[0]);
+  switchTab('image');
+  updatePreview();
+  openModal('modal');
+}
+
+// ─── 编辑 ─────────────────────────────────────────────────────────────────────
+async function openEdit(id) {
+  const res = await GET('/admin/api/banners');
+  if (!res || res.code !== 0) return;
+  const b = res.data.find(x => x.id === id);
+  if (!b) return;
+  editId = id;
+  document.getElementById('modalTitle').textContent = '编辑 Banner';
+  document.getElementById('f_title').value    = b.title;
+  document.getElementById('f_subtitle').value = b.subtitle || '';
+  document.getElementById('f_url').value      = b.url || '';
+  document.getElementById('f_icon').value     = b.icon || '🎯';
+  document.getElementById('f_gradient').value = b.gradient || GRADIENTS[0];
+  document.getElementById('f_sort').value     = b.sort_order ?? 0;
+  document.getElementById('f_active').value   = b.is_active ? '1' : '0';
+  document.getElementById('f_image_url').value = b.image_url || '';
+  document.getElementById('uploadProgress').style.display = 'none';
+
+  if (b.image_url) {
+    const baseUrl = window.ADMIN_API.replace('/admin/api', '');
+    const uImg = document.getElementById('uploadedImg');
+    uImg.src = baseUrl + b.image_url;
+    uImg.style.display = '';
+    document.getElementById('uploadPlaceholder').style.display = 'none';
+    document.getElementById('uploadZone').classList.add('has-img');
+    switchTab('image');
+  } else {
+    document.getElementById('uploadedImg').style.display = 'none';
+    document.getElementById('uploadPlaceholder').style.display = '';
+    document.getElementById('uploadZone').classList.remove('has-img');
+    selectGradient(b.gradient || GRADIENTS[0]);
+    switchTab('gradient');
+  }
+  updatePreview();
+  openModal('modal');
+}
+
+// ─── 保存 ─────────────────────────────────────────────────────────────────────
+async function save() {
+  const title = document.getElementById('f_title').value.trim();
+  if (!title) { toast('标题不能为空', 'error'); return; }
+  const body = {
+    title,
+    subtitle:   document.getElementById('f_subtitle').value.trim(),
+    icon:       document.getElementById('f_icon').value.trim() || '🎯',
+    gradient:   document.getElementById('f_gradient').value.trim() || GRADIENTS[0],
+    image_url:  document.getElementById('f_image_url').value.trim(),
+    url:        document.getElementById('f_url').value.trim(),
+    sort_order: parseInt(document.getElementById('f_sort').value) || 0,
+    is_active:  document.getElementById('f_active').value === '1' ? 1 : 0,
+  };
+  const res = editId
+    ? await PUT('/admin/api/banners/' + editId, body)
+    : await POST('/admin/api/banners', body);
+  if (!res || res.code !== 0) { toast(res?.message || '操作失败', 'error'); return; }
+  toast(editId ? '更新成功' : '添加成功');
+  closeModal('modal');
+  load();
+}
+
+// ─── 删除 ─────────────────────────────────────────────────────────────────────
+function del(id) {
+  confirm('确认删除该 Banner？', async () => {
+    const res = await DELETE('/admin/api/banners/' + id);
+    if (!res || res.code !== 0) { toast(res?.message || '删除失败', 'error'); return; }
+    toast('删除成功');
+    load();
+  });
+}
+
+load();
+</script>
+</body>
+</html>

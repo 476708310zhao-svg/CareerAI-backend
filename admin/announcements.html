@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>资讯公告 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">🎯 求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer"><div class="admin-name" id="adminUsername"></div><button class="nav-item" style="margin-top:6px" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i><span>退出登录</span></button></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span style="font-size:13px;color:#6b7280" id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
+    <div class="content">
+      <div class="page-header">
+        <div><h1>资讯公告</h1><div class="sub">发布站内通知、求职资讯</div></div>
+        <button class="btn btn-primary" onclick="openAdd()"><i class="fa-solid fa-plus"></i> 发布公告</button>
+      </div>
+      <div class="table-card">
+        <div class="table-wrap"><table>
+          <thead><tr><th>ID</th><th>标题</th><th>分类</th><th>置顶</th><th>状态</th><th>发布时间</th><th>操作</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table></div>
+        <div class="pagination" id="pagi"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal('modal')">
+  <div class="modal-box" style="max-width:620px">
+    <div class="modal-header"><h3 id="modalTitle">发布公告</h3><button class="modal-close" onclick="closeModal('modal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>标题 *</label><input type="text" id="f_title" placeholder="公告标题..."></div>
+      <div class="form-row">
+        <div class="form-group"><label>分类</label>
+          <select id="f_category">
+            <option value="公告">公告</option>
+            <option value="资讯">资讯</option>
+            <option value="攻略">攻略</option>
+            <option value="政策">政策</option>
+            <option value="活动">活动</option>
+          </select>
+        </div>
+        <div class="form-group"><label>封面图 URL（选填）</label><input type="text" id="f_cover" placeholder="https://..."></div>
+      </div>
+      <div class="form-group"><label>正文内容 *</label><textarea id="f_content" rows="8" placeholder="支持换行，内容会直接显示给用户..."></textarea></div>
+      <div style="display:flex;gap:20px;margin-top:4px">
+        <div class="form-check"><input type="checkbox" id="f_pinned"><label for="f_pinned">置顶</label></div>
+        <div class="form-check"><input type="checkbox" id="f_published" checked><label for="f_published">立即发布</label></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal')">取消</button>
+      <button class="btn btn-primary" onclick="save()"><i class="fa-solid fa-paper-plane"></i> 发布</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script><script src="js/common.js"></script>
+<script>
+let page=1, total=0, editId=null;
+initPage('announcements', '资讯公告');
+load(1);
+
+async function load(p) {
+  page = p;
+  const res = await GET(`/admin/api/announcements?page=${p}&pageSize=15`);
+  if (!res || res.code !== 0) return;
+  total = res.data.total;
+  const list = res.data.list;
+  document.getElementById('tbody').innerHTML = list.length ? list.map(a => `
+    <tr>
+      <td>${a.id}</td>
+      <td style="max-width:280px"><strong>${esc(a.title)}</strong></td>
+      <td><span class="badge ${catBadge(a.category)}">${esc(a.category||'公告')}</span></td>
+      <td>${a.is_pinned?'<span class="badge badge-red">📌 置顶</span>':'-'}</td>
+      <td>${a.is_published
+        ?'<span class="badge badge-green">已发布</span>'
+        :'<span class="badge badge-gray">草稿</span>'}</td>
+      <td>${fmtDate(a.created_at)}</td>
+      <td><div class="td-actions">
+        <button class="btn btn-outline btn-sm" onclick="openEdit(${a.id})"><i class="fa-solid fa-pen"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="del(${a.id})"><i class="fa-solid fa-trash"></i></button>
+      </div></td>
+    </tr>`).join('') : '<tr class="empty-row"><td colspan="7">暂无公告，点击右上角发布第一条</td></tr>';
+  renderPagination('pagi', page, total, 15, 'load');
+}
+
+function catBadge(c) {
+  const m = { '公告':'badge-blue','资讯':'badge-green','攻略':'badge-purple','政策':'badge-amber','活动':'badge-red' };
+  return m[c] || 'badge-gray';
+}
+
+function openAdd() {
+  editId = null; document.getElementById('modalTitle').textContent = '发布公告';
+  document.getElementById('f_title').value = '';
+  document.getElementById('f_category').value = '公告';
+  document.getElementById('f_cover').value = '';
+  document.getElementById('f_content').value = '';
+  document.getElementById('f_pinned').checked = false;
+  document.getElementById('f_published').checked = true;
+  openModal('modal');
+}
+
+let cache = [];
+async function openEdit(id) {
+  if (!cache.length) {
+    const res = await GET('/admin/api/announcements?page=1&pageSize=1000');
+    cache = (res && res.data && res.data.list) || [];
+  }
+  const a = cache.find(x => x.id === id);
+  if (!a) return;
+  editId = id; document.getElementById('modalTitle').textContent = '编辑公告';
+  document.getElementById('f_title').value = a.title||'';
+  document.getElementById('f_category').value = a.category||'公告';
+  document.getElementById('f_cover').value = a.cover_url||'';
+  document.getElementById('f_content').value = a.content||'';
+  document.getElementById('f_pinned').checked = !!a.is_pinned;
+  document.getElementById('f_published').checked = !!a.is_published;
+  openModal('modal');
+}
+
+async function save() {
+  const body = {
+    title: document.getElementById('f_title').value.trim(),
+    content: document.getElementById('f_content').value.trim(),
+    category: document.getElementById('f_category').value,
+    cover_url: document.getElementById('f_cover').value.trim(),
+    is_pinned: document.getElementById('f_pinned').checked,
+    is_published: document.getElementById('f_published').checked
+  };
+  if (!body.title || !body.content) { toast('标题和内容不能为空', 'error'); return; }
+  const res = editId
+    ? await PUT(`/admin/api/announcements/${editId}`, body)
+    : await POST('/admin/api/announcements', body);
+  if (res && res.code === 0) {
+    toast(editId ? '更新成功' : '发布成功');
+    closeModal('modal'); cache=[]; load(page);
+  } else toast(res?.message||'操作失败', 'error');
+}
+
+function del(id) {
+  confirm('确定删除该公告吗？', async () => {
+    const res = await DELETE(`/admin/api/announcements/${id}`);
+    if (res && res.code === 0) { toast('删除成功'); cache=[]; load(page); }
+    else toast(res?.message||'删除失败', 'error');
+  });
+}
+</script>
+</body>
+</html>

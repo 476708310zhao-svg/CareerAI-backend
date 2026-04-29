@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>岗位管理 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">🎯 求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer"><div class="admin-name" id="adminUsername"></div><button class="nav-item" style="margin-top:6px" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i><span>退出登录</span></button></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span style="font-size:13px;color:#6b7280" id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
+    <div class="content">
+      <div class="page-header">
+        <div><h1>岗位管理</h1><div class="sub">管理本地职位数据（jobs.json）</div></div>
+        <button class="btn btn-primary" onclick="openAdd()"><i class="fa-solid fa-plus"></i> 新增岗位</button>
+      </div>
+      <div class="toolbar">
+        <input type="text" id="kw" placeholder="搜索职位名称、公司..." onkeydown="if(event.key==='Enter')load(1)">
+        <button class="btn btn-outline" onclick="load(1)"><i class="fa-solid fa-search"></i> 搜索</button>
+      </div>
+      <div class="table-card">
+        <div class="table-wrap"><table>
+          <thead><tr><th>ID</th><th>职位</th><th>公司</th><th>地区</th><th>薪资</th><th>类型</th><th>签证</th><th>发布日期</th><th>操作</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table></div>
+        <div class="pagination" id="pagi"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增/编辑 Modal -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal('modal')">
+  <div class="modal-box" style="max-width:640px">
+    <div class="modal-header"><h3 id="modalTitle">新增岗位</h3><button class="modal-close" onclick="closeModal('modal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>职位名称 *</label><input type="text" id="f_title" placeholder="Software Engineer"></div>
+        <div class="form-group"><label>公司名称 *</label><input type="text" id="f_company" placeholder="Google"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>地点</label><input type="text" id="f_location" placeholder="New York, NY"></div>
+        <div class="form-group"><label>地区</label>
+          <select id="f_region"><option value="美国">美国</option><option value="中国">中国</option><option value="英国">英国</option><option value="新加坡">新加坡</option><option value="香港">香港</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>薪资</label><input type="text" id="f_salary" placeholder="$120k-$160k"></div>
+        <div class="form-group"><label>工作类型</label>
+          <select id="f_jobType"><option value="全职">全职</option><option value="实习">实习</option><option value="兼职">兼职</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>行业</label><input type="text" id="f_industry" placeholder="互联网"></div>
+        <div class="form-group"><label>Logo URL</label><input type="text" id="f_logo" placeholder="https://..."></div>
+      </div>
+      <div class="form-group"><label>职位描述</label><textarea id="f_description" rows="3"></textarea></div>
+      <div class="form-check">
+        <input type="checkbox" id="f_visa"><label for="f_visa">提供签证担保</label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal')">取消</button>
+      <button class="btn btn-primary" onclick="save()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script><script src="js/common.js"></script>
+<script>
+let page = 1, total = 0, editId = null;
+initPage('jobs', '岗位管理');
+load(1);
+
+async function load(p) {
+  page = p;
+  const kw = document.getElementById('kw').value.trim();
+  const res = await GET(`/admin/api/jobs?page=${p}&pageSize=15&keyword=${encodeURIComponent(kw)}`);
+  if (!res || res.code !== 0) return;
+  total = res.data.total;
+  const list = res.data.list;
+  document.getElementById('tbody').innerHTML = list.length ? list.map(j => `
+    <tr>
+      <td>${j.id}</td>
+      <td class="text-clamp">${esc(j.title)}</td>
+      <td>${esc(j.company)}</td>
+      <td>${esc(j.region||'')}</td>
+      <td>${esc(j.salary||'-')}</td>
+      <td><span class="badge ${j.jobType==='实习'?'badge-amber':'badge-blue'}">${esc(j.jobType||'全职')}</span></td>
+      <td>${j.visaSponsored?'<span class="badge badge-green">✓</span>':'-'}</td>
+      <td>${fmtDate(j.postedAt)}</td>
+      <td><div class="td-actions">
+        <button class="btn btn-outline btn-sm" onclick="openEdit(${j.id})"><i class="fa-solid fa-pen"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="del(${j.id})"><i class="fa-solid fa-trash"></i></button>
+      </div></td>
+    </tr>`).join('') : '<tr class="empty-row"><td colspan="9">暂无数据</td></tr>';
+  renderPagination('pagi', page, total, 15, 'load');
+}
+
+function openAdd() {
+  editId = null; document.getElementById('modalTitle').textContent = '新增岗位';
+  ['f_title','f_company','f_location','f_salary','f_industry','f_logo','f_description'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f_region').value = '美国';
+  document.getElementById('f_jobType').value = '全职';
+  document.getElementById('f_visa').checked = false;
+  openModal('modal');
+}
+
+async function openEdit(id) {
+  const res = await GET(`/admin/api/jobs?page=1&pageSize=1000`);
+  const j = res && res.data.list.find(x => x.id === id);
+  if (!j) return;
+  editId = id; document.getElementById('modalTitle').textContent = '编辑岗位';
+  document.getElementById('f_title').value = j.title || '';
+  document.getElementById('f_company').value = j.company || '';
+  document.getElementById('f_location').value = j.location || '';
+  document.getElementById('f_region').value = j.region || '美国';
+  document.getElementById('f_salary').value = j.salary || '';
+  document.getElementById('f_jobType').value = j.jobType || '全职';
+  document.getElementById('f_industry').value = j.industry || '';
+  document.getElementById('f_logo').value = j.companyLogo || '';
+  document.getElementById('f_description').value = j.description || '';
+  document.getElementById('f_visa').checked = !!j.visaSponsored;
+  openModal('modal');
+}
+
+async function save() {
+  const body = {
+    title: document.getElementById('f_title').value.trim(),
+    company: document.getElementById('f_company').value.trim(),
+    location: document.getElementById('f_location').value.trim(),
+    region: document.getElementById('f_region').value,
+    salary: document.getElementById('f_salary').value.trim(),
+    jobType: document.getElementById('f_jobType').value,
+    industry: document.getElementById('f_industry').value.trim(),
+    companyLogo: document.getElementById('f_logo').value.trim(),
+    description: document.getElementById('f_description').value.trim(),
+    visaSponsored: document.getElementById('f_visa').checked,
+    requirements: []
+  };
+  if (!body.title || !body.company) { toast('职位名称和公司不能为空', 'error'); return; }
+  const res = editId ? await PUT(`/admin/api/jobs/${editId}`, body) : await POST('/admin/api/jobs', body);
+  if (res && res.code === 0) { toast(editId ? '更新成功' : '添加成功'); closeModal('modal'); load(page); }
+  else toast(res?.message || '操作失败', 'error');
+}
+
+function del(id) {
+  confirm(`确定删除该职位吗？`, async () => {
+    const res = await DELETE(`/admin/api/jobs/${id}`);
+    if (res && res.code === 0) { toast('删除成功'); load(page); }
+    else toast(res?.message || '删除失败', 'error');
+  });
+}
+</script>
+</body>
+</html>

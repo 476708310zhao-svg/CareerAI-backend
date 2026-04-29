@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>简历管理 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    .avatar-sm { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 8px; background: #e5e7eb; }
+    .lang-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+    .lang-zh { background: #dbeafe; color: #1d4ed8; }
+    .lang-en { background: #d1fae5; color: #065f46; }
+    .section-block { margin-bottom: 18px; }
+    .section-block h4 { font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; border-bottom: 1px solid #f3f4f6; padding-bottom: 5px; }
+    .edu-item, .exp-item { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; font-size: 13px; }
+    .edu-item .school { font-weight: 700; color: #111827; }
+    .edu-item .degree { color: #6b7280; margin-top: 2px; }
+    .skill-tag { display: inline-block; background: #ede9fe; color: #5b21b6; border-radius: 6px; padding: 3px 10px; font-size: 12px; margin: 3px; }
+    .raw-pre { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; font-size: 11px; overflow: auto; max-height: 200px; white-space: pre-wrap; word-break: break-all; }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">🎯 求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer"><div class="admin-name" id="adminUsername"></div><button class="nav-item" style="margin-top:6px" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i><span>退出登录</span></button></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span style="font-size:13px;color:#6b7280" id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
+    <div class="content">
+      <div class="page-header">
+        <div><h1>简历管理</h1><div class="sub">查看用户提交的简历内容</div></div>
+      </div>
+      <div class="toolbar">
+        <input type="text" id="kw" placeholder="搜索简历名称、用户昵称..." onkeydown="if(event.key==='Enter')load(1)">
+        <button class="btn btn-outline" onclick="load(1)"><i class="fa-solid fa-search"></i> 搜索</button>
+      </div>
+      <div class="table-card">
+        <div class="table-wrap"><table>
+          <thead><tr><th>简历名称</th><th>用户</th><th>语言</th><th>创建时间</th><th>最后更新</th><th>操作</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table></div>
+        <div class="pagination" id="pagi"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 简历详情 Modal -->
+<div class="modal-overlay" id="detailModal" onclick="if(event.target===this)closeModal('detailModal')">
+  <div class="modal-box" style="max-width:640px">
+    <div class="modal-header"><h3 id="detailTitle">简历详情</h3><button class="modal-close" onclick="closeModal('detailModal')">×</button></div>
+    <div class="modal-body" id="detailBody" style="max-height:70vh;overflow-y:auto"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('detailModal')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script><script src="js/common.js"></script>
+<script>
+initPage('resumes', '简历管理');
+
+let currentPage = 1;
+const pageSize = 20;
+
+async function load(page = 1) {
+  currentPage = page;
+  const kw = document.getElementById('kw').value.trim();
+  const res = await GET(`/admin/api/resumes?page=${page}&pageSize=${pageSize}&keyword=${encodeURIComponent(kw)}`);
+  if (!res || res.code !== 0) return;
+  const { list, total } = res.data;
+
+  document.getElementById('tbody').innerHTML = list.length === 0
+    ? '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:40px">暂无简历数据</td></tr>'
+    : list.map(r => `
+    <tr>
+      <td><i class="fa-solid fa-file-lines" style="color:#6366f1;margin-right:6px"></i><strong>${esc(r.name)}</strong></td>
+      <td>
+        <div style="display:flex;align-items:center">
+          <img class="avatar-sm" src="${esc(r.avatar) || '/images/default-avatar.png'}" onerror="this.src='/images/default-avatar.png'">
+          ${esc(r.nickname) || '-'}
+        </div>
+      </td>
+      <td><span class="lang-badge lang-${r.language === 'en' ? 'en' : 'zh'}">${r.language === 'en' ? 'English' : '中文'}</span></td>
+      <td>${fmtDate(r.created_at)}</td>
+      <td>${fmtDate(r.updated_at)}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="openDetail(${r.id})"><i class="fa-solid fa-eye"></i> 查看</button>
+        <button class="btn btn-danger btn-sm" onclick="del(${r.id})" style="margin-left:4px"><i class="fa-solid fa-trash"></i></button>
+      </td>
+    </tr>`).join('');
+
+  renderPagination('pagi', page, total, pageSize, 'load');
+}
+
+async function openDetail(id) {
+  const res = await GET('/admin/api/resumes/' + id);
+  if (!res || res.code !== 0) { toast('加载失败', 'error'); return; }
+  const r = res.data;
+
+  let edu = [], exp = [], skills = [], rawData = null;
+  try { edu = JSON.parse(r.education || '[]'); } catch(e) {}
+  try { exp = JSON.parse(r.experience || '[]'); } catch(e) {}
+  try { skills = JSON.parse(r.skills || '[]'); } catch(e) {}
+  if (r.data) { try { rawData = JSON.parse(r.data); } catch(e) {} }
+
+  const eduHtml = edu.length ? edu.map(e => `
+    <div class="edu-item">
+      <div class="school">${esc(e.school || e.institution || '')}</div>
+      <div class="degree">${esc(e.degree || '')} ${esc(e.major || e.field || '')} ${e.start_year || e.startYear ? '· ' + (e.start_year || e.startYear) + ' - ' + (e.end_year || e.endYear || '至今') : ''}</div>
+      ${e.gpa ? '<div style="color:#6b7280;font-size:12px;margin-top:2px">GPA: ' + esc(String(e.gpa)) + '</div>' : ''}
+    </div>`).join('') : '<div style="color:#9ca3af;font-size:13px">无教育经历</div>';
+
+  const expHtml = exp.length ? exp.map(e => `
+    <div class="exp-item">
+      <div style="font-weight:700">${esc(e.company || '')}</div>
+      <div style="color:#6b7280;margin-top:2px">${esc(e.position || e.title || '')} ${e.start_date || e.startDate ? '· ' + (e.start_date || e.startDate) + ' - ' + (e.end_date || e.endDate || '至今') : ''}</div>
+      ${e.description ? '<div style="font-size:12px;color:#374151;margin-top:4px;line-height:1.5">' + esc(e.description).slice(0, 200) + (e.description.length > 200 ? '...' : '') + '</div>' : ''}
+    </div>`).join('') : '<div style="color:#9ca3af;font-size:13px">无工作经历</div>';
+
+  const skillHtml = skills.length
+    ? (Array.isArray(skills[0]) ? skills.flat() : skills).map(s => `<span class="skill-tag">${esc(typeof s === 'string' ? s : s.name || String(s))}</span>`).join('')
+    : '<div style="color:#9ca3af;font-size:13px">无技能标签</div>';
+
+  document.getElementById('detailTitle').textContent = `简历 · ${esc(r.name)} (${r.language === 'en' ? 'English' : '中文'})`;
+  document.getElementById('detailBody').innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #f3f4f6">
+      <img style="width:40px;height:40px;border-radius:50%;background:#e5e7eb" src="${esc(r.avatar)}" onerror="this.src='/images/default-avatar.png'">
+      <div>
+        <div style="font-weight:600">${esc(r.nickname)}</div>
+        <div style="font-size:12px;color:#9ca3af">ID: ${r.id} · 更新于 ${fmtDate(r.updated_at)}</div>
+      </div>
+    </div>
+    <div class="section-block"><h4>教育经历</h4>${eduHtml}</div>
+    <div class="section-block"><h4>工作/实习经历</h4>${expHtml}</div>
+    <div class="section-block"><h4>技能标签</h4><div>${skillHtml}</div></div>
+    ${rawData ? `<div class="section-block"><h4>完整简历数据 (JSON)</h4><pre class="raw-pre">${esc(JSON.stringify(rawData, null, 2))}</pre></div>` : ''}
+  `;
+  openModal('detailModal');
+}
+
+function del(id) {
+  confirm('确认删除该简历？此操作不可恢复。', async () => {
+    const res = await DELETE('/admin/api/resumes/' + id);
+    if (!res || res.code !== 0) { toast(res?.message || '删除失败', 'error'); return; }
+    toast('删除成功');
+    load(currentPage);
+  });
+}
+
+load(1);
+</script>
+</body>
+</html>

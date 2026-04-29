@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>公司管理 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    .logo-cell { width: 42px; height: 42px; border-radius: 8px; border: 1px solid #e5e7eb; object-fit: contain; background: #fff; }
+    .company-name-stack { display: flex; flex-direction: column; gap: 2px; }
+    .company-name-stack small { color: #6b7280; font-size: 12px; }
+    .form-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    @media (max-width: 900px) { .form-grid-3 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer"><div class="admin-name" id="adminUsername"></div><button class="nav-item" style="margin-top:6px" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i><span>退出登录</span></button></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span style="font-size:13px;color:#6b7280" id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
+    <div class="content">
+      <div class="page-header">
+        <div><h1>公司管理</h1><div class="sub">维护小程序公司搜索、公司详情和 logo 数据</div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline" onclick="syncSeed()"><i class="fa-solid fa-rotate"></i> 同步种子企业</button>
+          <button class="btn btn-primary" onclick="openAdd()"><i class="fa-solid fa-plus"></i> 新增公司</button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <input type="text" id="kw" placeholder="搜索公司、域名、中文名、英文名..." onkeydown="if(event.key==='Enter')loadCompanies(1)">
+        <select id="country" onchange="loadCompanies(1)">
+          <option value="">全部国家/地区</option>
+          <option value="United States">United States</option>
+          <option value="China">China</option>
+          <option value="United Kingdom">United Kingdom</option>
+          <option value="Germany">Germany</option>
+          <option value="Japan">Japan</option>
+          <option value="South Korea">South Korea</option>
+        </select>
+        <select id="industry" onchange="loadCompanies(1)">
+          <option value="">全部行业</option>
+          <option value="Technology">Technology</option>
+          <option value="Finance">Finance</option>
+          <option value="Consulting">Consulting</option>
+          <option value="Professional Services">Professional Services</option>
+          <option value="Automotive">Automotive</option>
+          <option value="Industrial">Industrial</option>
+          <option value="Semiconductors">Semiconductors</option>
+        </select>
+        <button class="btn btn-outline" onclick="loadCompanies(1)"><i class="fa-solid fa-search"></i> 搜索</button>
+      </div>
+
+      <div class="table-card">
+        <div class="table-wrap"><table>
+          <thead><tr><th>Logo</th><th>公司</th><th>行业</th><th>总部</th><th>规模</th><th>股票</th><th>数据</th><th>操作</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table></div>
+        <div class="pagination" id="pagi"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal('modal')">
+  <div class="modal-box" style="max-width:760px">
+    <div class="modal-header"><h3 id="modalTitle">新增公司</h3><button class="modal-close" onclick="closeModal('modal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>展示名称 *</label><input id="f_display_name" placeholder="Google"></div>
+        <div class="form-group"><label>Slug</label><input id="f_slug" placeholder="google"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>中文名</label><input id="f_name_zh" placeholder="谷歌"></div>
+        <div class="form-group"><label>英文名</label><input id="f_name_en" placeholder="Google"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>官网域名</label><input id="f_official_domain" placeholder="google.com"></div>
+        <div class="form-group"><label>Logo URL</label><input id="f_logo_url" placeholder="留空则自动走后端 logo 兜底"></div>
+      </div>
+      <div class="form-grid-3">
+        <div class="form-group"><label>一级行业</label><input id="f_industry_l1" placeholder="Technology"></div>
+        <div class="form-group"><label>二级行业</label><input id="f_industry_l2" placeholder="Cloud, AI"></div>
+        <div class="form-group"><label>品牌色</label><input id="f_brand_color" placeholder="#4285F4"></div>
+      </div>
+      <div class="form-grid-3">
+        <div class="form-group"><label>总部国家</label><input id="f_hq_country" placeholder="United States"></div>
+        <div class="form-group"><label>总部城市</label><input id="f_hq_city" placeholder="Mountain View, CA"></div>
+        <div class="form-group"><label>成立年份</label><input id="f_founded_year" type="number" placeholder="1998"></div>
+      </div>
+      <div class="form-grid-3">
+        <div class="form-group"><label>员工规模</label><input id="f_employee_range" placeholder="180,000+"></div>
+        <div class="form-group"><label>股票代码</label><input id="f_ticker" placeholder="GOOGL"></div>
+        <div class="form-group"><label>交易所</label><input id="f_exchange_name" placeholder="NASDAQ"></div>
+      </div>
+      <div class="form-group"><label>标签（英文逗号分隔）</label><input id="f_tags" placeholder="Search, AI, Cloud"></div>
+      <div class="form-group"><label>别名（英文逗号分隔）</label><input id="f_aliases" placeholder="谷歌, Google LLC, Alphabet"></div>
+      <div class="form-group"><label>中文简介</label><textarea id="f_description_zh" rows="3"></textarea></div>
+      <div class="form-group"><label>英文简介</label><textarea id="f_description_en" rows="3"></textarea></div>
+      <div class="form-check"><input type="checkbox" id="f_is_public"><label for="f_is_public">上市公司</label></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal')">取消</button>
+      <button class="btn btn-primary" onclick="saveCompany()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script><script src="js/common.js"></script>
+<script>
+let page = 1, total = 0, editId = null, currentRows = [];
+initPage('companies', '公司管理');
+loadCompanies(1);
+
+function fullLogo(url) {
+  if (!url) return '';
+  return url.startsWith('/api/') ? window.ADMIN_API + url : url;
+}
+function splitCsv(value) {
+  return String(value || '').split(',').map(s => s.trim()).filter(Boolean);
+}
+function setValue(id, value) {
+  document.getElementById(id).value = value || '';
+}
+function getPayload() {
+  return {
+    display_name: document.getElementById('f_display_name').value.trim(),
+    slug: document.getElementById('f_slug').value.trim(),
+    name_zh: document.getElementById('f_name_zh').value.trim(),
+    name_en: document.getElementById('f_name_en').value.trim(),
+    official_domain: document.getElementById('f_official_domain').value.trim(),
+    logo_url: document.getElementById('f_logo_url').value.trim(),
+    industry_l1: document.getElementById('f_industry_l1').value.trim(),
+    industry_l2: document.getElementById('f_industry_l2').value.trim(),
+    brand_color: document.getElementById('f_brand_color').value.trim(),
+    hq_country: document.getElementById('f_hq_country').value.trim(),
+    hq_city: document.getElementById('f_hq_city').value.trim(),
+    founded_year: Number(document.getElementById('f_founded_year').value) || null,
+    employee_range: document.getElementById('f_employee_range').value.trim(),
+    ticker: document.getElementById('f_ticker').value.trim(),
+    exchange_name: document.getElementById('f_exchange_name').value.trim(),
+    tags: splitCsv(document.getElementById('f_tags').value),
+    aliases: splitCsv(document.getElementById('f_aliases').value),
+    description_zh: document.getElementById('f_description_zh').value.trim(),
+    description_en: document.getElementById('f_description_en').value.trim(),
+    is_public: document.getElementById('f_is_public').checked
+  };
+}
+
+async function loadCompanies(p) {
+  page = p;
+  const kw = document.getElementById('kw').value.trim();
+  const country = document.getElementById('country').value;
+  const industry = document.getElementById('industry').value;
+  const qs = new URLSearchParams({ page, pageSize: 15, keyword: kw, country, industry });
+  const res = await GET(`/admin/api/companies?${qs.toString()}`);
+  if (!res || res.code !== 0) return;
+  currentRows = res.data.list;
+  total = res.data.total;
+  document.getElementById('tbody').innerHTML = currentRows.length ? currentRows.map(c => `
+    <tr>
+      <td><img class="logo-cell" src="${esc(fullLogo(c.logo))}" onerror="this.style.display='none'"></td>
+      <td><div class="company-name-stack"><strong>${esc(c.displayName)}</strong><small>${esc(c.nameZh || c.nameEn || c.officialDomain || '-')}</small></div></td>
+      <td><span class="badge badge-blue">${esc(c.industry || '-')}</span><div style="font-size:12px;color:#6b7280;margin-top:4px">${esc(c.industryL2 || '')}</div></td>
+      <td>${esc(c.hqCity || '-')}<div style="font-size:12px;color:#6b7280">${esc(c.hqCountry || '')}</div></td>
+      <td>${esc(c.employeeRange || '-')}</td>
+      <td>${c.ticker ? `<strong>${esc(c.ticker)}</strong><div style="font-size:12px;color:#6b7280">${esc(c.exchangeName || '')}</div>` : '<span class="text-muted">未上市/未填</span>'}</td>
+      <td><span class="badge badge-green">${c.jobCount || 0} 岗位</span> <span class="badge badge-gray">${c.experienceCount || 0} 面经</span></td>
+      <td><div class="td-actions">
+        <button class="btn btn-outline btn-sm" onclick="openEdit(${c.id})"><i class="fa-solid fa-pen"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="delCompany(${c.id})"><i class="fa-solid fa-trash"></i></button>
+      </div></td>
+    </tr>`).join('') : '<tr class="empty-row"><td colspan="8">暂无公司数据，点击右上角“同步种子企业”</td></tr>';
+  renderPagination('pagi', page, total, 15, 'loadCompanies');
+}
+
+async function syncSeed() {
+  const res = await POST('/admin/api/companies/import-seed', {});
+  if (res && res.code === 0) {
+    toast(`已同步 ${res.data.imported} 家种子企业`);
+    loadCompanies(1);
+  } else {
+    toast(res?.message || '同步失败', 'error');
+  }
+}
+
+function clearForm() {
+  ['f_display_name','f_slug','f_name_zh','f_name_en','f_official_domain','f_logo_url','f_industry_l1','f_industry_l2','f_brand_color','f_hq_country','f_hq_city','f_founded_year','f_employee_range','f_ticker','f_exchange_name','f_tags','f_aliases','f_description_zh','f_description_en'].forEach(id => setValue(id, ''));
+  document.getElementById('f_is_public').checked = false;
+}
+function openAdd() {
+  editId = null;
+  clearForm();
+  document.getElementById('modalTitle').textContent = '新增公司';
+  openModal('modal');
+}
+async function openEdit(id) {
+  const res = await GET(`/admin/api/companies/${id}`);
+  if (!res || res.code !== 0) return;
+  const c = res.data;
+  editId = id;
+  document.getElementById('modalTitle').textContent = '编辑公司';
+  setValue('f_display_name', c.displayName);
+  setValue('f_slug', c.slug);
+  setValue('f_name_zh', c.nameZh);
+  setValue('f_name_en', c.nameEn);
+  setValue('f_official_domain', c.officialDomain);
+  setValue('f_logo_url', c.logo && !c.logo.startsWith('/api/') ? c.logo : '');
+  setValue('f_industry_l1', c.industryL1);
+  setValue('f_industry_l2', c.industryL2);
+  setValue('f_brand_color', c.brandColor);
+  setValue('f_hq_country', c.hqCountry);
+  setValue('f_hq_city', c.hqCity);
+  setValue('f_founded_year', c.foundedYear);
+  setValue('f_employee_range', c.employeeRange);
+  setValue('f_ticker', c.ticker);
+  setValue('f_exchange_name', c.exchangeName);
+  setValue('f_tags', (c.tags || []).join(', '));
+  setValue('f_aliases', (c.aliases || []).join(', '));
+  setValue('f_description_zh', c.descriptionZh);
+  setValue('f_description_en', c.descriptionEn);
+  document.getElementById('f_is_public').checked = !!c.isPublic;
+  openModal('modal');
+}
+async function saveCompany() {
+  const body = getPayload();
+  if (!body.display_name) { toast('展示名称不能为空', 'error'); return; }
+  const res = editId
+    ? await PUT(`/admin/api/companies/${editId}`, body)
+    : await POST('/admin/api/companies', body);
+  if (res && res.code === 0) {
+    toast(editId ? '更新成功' : '添加成功');
+    closeModal('modal');
+    loadCompanies(page);
+  } else {
+    toast(res?.message || '保存失败', 'error');
+  }
+}
+function delCompany(id) {
+  confirm('确定删除这家公司吗？小程序将不再展示这条公司资料。', async () => {
+    const res = await DELETE(`/admin/api/companies/${id}`);
+    if (res && res.code === 0) { toast('删除成功'); loadCompanies(page); }
+    else toast(res?.message || '删除失败', 'error');
+  });
+}
+</script>
+</body>
+</html>

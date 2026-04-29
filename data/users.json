@@ -1,0 +1,98 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "openid": "test_openid_001",
+      "nickname": "留学生小明",
+      "avatar": "https://img.icons8.com/color/96/user-male-circle.png",
+      "email": "xiaoming@example.com",
+      "phone": "13800138000",
+      "education": {
+        "school": "Columbia University",
+        "major": "Computer Science",
+        "degree": "Master",
+        "graduationYear": 2026
+      },
+      "jobPreference": {
+        "positions": ["产品经理", "Software Engineer"],
+        "locations": ["北京", "上海", "美国"],
+        "industries": ["互联网", "金融"],
+        "jobTypes": ["全职"]
+      },
+      "vipLevel": 1,
+      "vipExpiresAt": "2026-12-31",
+      "createdAt": "2025-09-01"
+    }
+  ],
+  "resumes": [
+    {
+      "id": 1,
+      "userId": 1,
+      "name": "主简历-中文版",
+      "language": "zh",
+      "education": [
+        {
+          "school": "Columbia University",
+          "major": "Computer Science",
+          "degree": "Master",
+          "startDate": "2024-09",
+          "endDate": "2026-05",
+          "gpa": "3.8/4.0"
+        },
+        {
+          "school": "北京大学",
+          "major": "软件工程",
+          "degree": "Bachelor",
+          "startDate": "2020-09",
+          "endDate": "2024-06",
+          "gpa": "3.7/4.0"
+        }
+      ],
+      "experience": [
+        {
+          "company": "字节跳动",
+          "position": "产品经理实习生",
+          "startDate": "2023-06",
+          "endDate": "2023-09",
+          "description": "负责抖音电商某功能模块的产品设计，通过用户调研和数据分析，提出优化方案，使转化率提升15%。"
+        }
+      ],
+      "skills": ["Python", "SQL", "产品设计", "数据分析", "用户研究"],
+      "createdAt": "2025-10-01",
+      "updatedAt": "2026-01-01"
+    }
+  ],
+  "applications": [
+    {
+      "id": 1,
+      "userId": 1,
+      "jobId": 1,
+      "resumeId": 1,
+      "status": "viewed",
+      "statusText": "已被查看",
+      "appliedAt": "2026-01-04",
+      "viewedAt": "2026-01-05"
+    },
+    {
+      "id": 2,
+      "userId": 1,
+      "jobId": 2,
+      "resumeId": 1,
+      "status": "applied",
+      "statusText": "已投递",
+      "appliedAt": "2026-01-03",
+      "viewedAt": null
+    },
+    {
+      "id": 3,
+      "userId": 1,
+      "jobId": 4,
+      "resumeId": 1,
+      "status": "interview",
+      "statusText": "面试中",
+      "appliedAt": "2025-12-28",
+      "viewedAt": "2025-12-29",
+      "interviewAt": "2026-01-10"
+    }
+  ]
+}

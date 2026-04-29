@@ -1,0 +1,153 @@
+{
+  "salaries": [
+    {
+      "id": 1,
+      "company": "字节跳动",
+      "position": "产品经理",
+      "location": "北京",
+      "yearsOfExperience": 3,
+      "baseSalary": 35000,
+      "bonus": 60000,
+      "stock": 100000,
+      "totalCompensation": 580000,
+      "currency": "CNY",
+      "createdAt": "2026-01-03"
+    },
+    {
+      "id": 2,
+      "company": "Google",
+      "position": "Software Engineer",
+      "location": "Mountain View",
+      "yearsOfExperience": 2,
+      "baseSalary": 180000,
+      "bonus": 30000,
+      "stock": 80000,
+      "totalCompensation": 290000,
+      "currency": "USD",
+      "createdAt": "2026-01-02"
+    },
+    {
+      "id": 3,
+      "company": "高盛集团",
+      "position": "投资银行分析师",
+      "location": "香港",
+      "yearsOfExperience": 1,
+      "baseSalary": 65000,
+      "bonus": 80000,
+      "stock": 0,
+      "totalCompensation": 860000,
+      "currency": "HKD",
+      "createdAt": "2026-01-01"
+    },
+    {
+      "id": 4,
+      "company": "麦肯锡",
+      "position": "咨询顾问",
+      "location": "上海",
+      "yearsOfExperience": 2,
+      "baseSalary": 45000,
+      "bonus": 100000,
+      "stock": 0,
+      "totalCompensation": 640000,
+      "currency": "CNY",
+      "createdAt": "2025-12-28"
+    },
+    {
+      "id": 5,
+      "company": "Amazon",
+      "position": "Data Scientist",
+      "location": "Seattle",
+      "yearsOfExperience": 3,
+      "baseSalary": 160000,
+      "bonus": 20000,
+      "stock": 120000,
+      "totalCompensation": 300000,
+      "currency": "USD",
+      "createdAt": "2025-12-25"
+    },
+    {
+      "id": 6,
+      "company": "腾讯",
+      "position": "后端开发工程师",
+      "location": "深圳",
+      "yearsOfExperience": 4,
+      "baseSalary": 40000,
+      "bonus": 80000,
+      "stock": 150000,
+      "totalCompensation": 710000,
+      "currency": "CNY",
+      "createdAt": "2025-12-20"
+    },
+    {
+      "id": 7,
+      "company": "Citadel",
+      "position": "Quantitative Researcher",
+      "location": "London",
+      "yearsOfExperience": 2,
+      "baseSalary": 120000,
+      "bonus": 150000,
+      "stock": 50000,
+      "totalCompensation": 320000,
+      "currency": "GBP",
+      "createdAt": "2025-12-18"
+    },
+    {
+      "id": 8,
+      "company": "阿里巴巴",
+      "position": "UI/UX设计师",
+      "location": "杭州",
+      "yearsOfExperience": 3,
+      "baseSalary": 28000,
+      "bonus": 50000,
+      "stock": 80000,
+      "totalCompensation": 466000,
+      "currency": "CNY",
+      "createdAt": "2025-12-15"
+    },
+    {
+      "id": 9,
+      "company": "字节跳动",
+      "position": "产品经理",
+      "location": "北京",
+      "yearsOfExperience": 5,
+      "baseSalary": 50000,
+      "bonus": 100000,
+      "stock": 200000,
+      "totalCompensation": 900000,
+      "currency": "CNY",
+      "createdAt": "2025-12-10"
+    },
+    {
+      "id": 10,
+      "company": "Google",
+      "position": "Software Engineer",
+      "location": "Mountain View",
+      "yearsOfExperience": 5,
+      "baseSalary": 220000,
+      "bonus": 50000,
+      "stock": 150000,
+      "totalCompensation": 420000,
+      "currency": "USD",
+      "createdAt": "2025-12-08"
+    }
+  ],
+  "statistics": {
+    "byCompany": [
+      { "company": "字节跳动", "avgSalary": 740000, "count": 2, "currency": "CNY" },
+      { "company": "Google", "avgSalary": 355000, "count": 2, "currency": "USD" },
+      { "company": "高盛集团", "avgSalary": 860000, "count": 1, "currency": "HKD" },
+      { "company": "麦肯锡", "avgSalary": 640000, "count": 1, "currency": "CNY" },
+      { "company": "Amazon", "avgSalary": 300000, "count": 1, "currency": "USD" },
+      { "company": "腾讯", "avgSalary": 710000, "count": 1, "currency": "CNY" },
+      { "company": "Citadel", "avgSalary": 320000, "count": 1, "currency": "GBP" },
+      { "company": "阿里巴巴", "avgSalary": 466000, "count": 1, "currency": "CNY" }
+    ],
+    "byPosition": [
+      { "position": "产品经理", "avgSalary": 740000, "count": 2, "currency": "CNY" },
+      { "position": "Software Engineer", "avgSalary": 355000, "count": 2, "currency": "USD" },
+      { "position": "投资银行分析师", "avgSalary": 860000, "count": 1, "currency": "HKD" },
+      { "position": "咨询顾问", "avgSalary": 640000, "count": 1, "currency": "CNY" },
+      { "position": "Data Scientist", "avgSalary": 300000, "count": 1, "currency": "USD" }
+    ]
+  }
+}

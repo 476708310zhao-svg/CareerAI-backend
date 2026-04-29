@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>机构管理 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">🎯 求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer"><div class="admin-name" id="adminUsername"></div><button class="nav-item" style="margin-top:6px" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i><span>退出登录</span></button></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span style="font-size:13px;color:#6b7280" id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
+    <div class="content">
+      <!-- 选项卡 -->
+      <div style="display:flex;gap:8px;margin-bottom:20px">
+        <button class="btn btn-primary" id="tabAgency" onclick="switchTab('agency')">机构列表</button>
+        <button class="btn btn-outline" id="tabReview" onclick="switchTab('review')">用户评价</button>
+      </div>
+
+      <!-- 机构列表 -->
+      <div id="panelAgency">
+        <div class="page-header">
+          <div><h1>机构管理</h1><div class="sub">管理留学求职机构信息</div></div>
+          <button class="btn btn-primary" onclick="openAdd()"><i class="fa-solid fa-plus"></i> 新增机构</button>
+        </div>
+        <div class="toolbar">
+          <input type="text" id="kwA" placeholder="搜索机构名称、城市、类型..." onkeydown="if(event.key==='Enter')loadAgencies(1)">
+          <button class="btn btn-outline" onclick="loadAgencies(1)"><i class="fa-solid fa-search"></i> 搜索</button>
+        </div>
+        <div class="table-card">
+          <div class="table-wrap"><table>
+            <thead><tr><th>ID</th><th>机构名称</th><th>类型</th><th>城市</th><th>评分</th><th>评价数</th><th>已认证</th><th>操作</th></tr></thead>
+            <tbody id="tbodyA"></tbody>
+          </table></div>
+          <div class="pagination" id="pagiA"></div>
+        </div>
+      </div>
+
+      <!-- 评价列表 -->
+      <div id="panelReview" style="display:none">
+        <div class="page-header">
+          <div><h1>用户评价</h1><div class="sub">审核并管理机构评价内容</div></div>
+        </div>
+        <div class="table-card">
+          <div class="table-wrap"><table>
+            <thead><tr><th>ID</th><th>机构</th><th>标题</th><th>内容</th><th>评分</th><th>匿名</th><th>时间</th><th>操作</th></tr></thead>
+            <tbody id="tbodyR"></tbody>
+          </table></div>
+          <div class="pagination" id="pagiR"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增/编辑机构 Modal -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal('modal')">
+  <div class="modal-box" style="max-width:580px">
+    <div class="modal-header"><h3 id="modalTitle">新增机构</h3><button class="modal-close" onclick="closeModal('modal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>机构名称 *</label><input type="text" id="f_name" placeholder="ABC留学咨询"></div>
+        <div class="form-group"><label>类型</label>
+          <select id="f_type"><option value="综合">综合</option><option value="留学">留学</option><option value="求职">求职</option><option value="背景提升">背景提升</option><option value="语言培训">语言培训</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>城市</label><input type="text" id="f_city" placeholder="北京"></div>
+        <div class="form-group"><label>电话</label><input type="text" id="f_phone" placeholder="400-xxx-xxxx"></div>
+      </div>
+      <div class="form-group"><label>官网</label><input type="text" id="f_website" placeholder="https://..."></div>
+      <div class="form-group"><label>简介</label><textarea id="f_description" rows="3"></textarea></div>
+      <div class="form-check"><input type="checkbox" id="f_verified"><label for="f_verified">官方认证机构</label></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal')">取消</button>
+      <button class="btn btn-primary" onclick="saveAgency()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script><script src="js/common.js"></script>
+<script>
+let pageA=1, totalA=0, pageR=1, totalR=0, editId=null;
+initPage('agencies', '机构管理');
+loadAgencies(1);
+
+function switchTab(tab) {
+  const isAgency = tab === 'agency';
+  document.getElementById('panelAgency').style.display = isAgency ? '' : 'none';
+  document.getElementById('panelReview').style.display = isAgency ? 'none' : '';
+  document.getElementById('tabAgency').className = isAgency ? 'btn btn-primary' : 'btn btn-outline';
+  document.getElementById('tabReview').className = isAgency ? 'btn btn-outline' : 'btn btn-primary';
+  if (!isAgency && totalR === 0) loadReviews(1);
+}
+
+async function loadAgencies(p) {
+  pageA = p;
+  const kw = document.getElementById('kwA').value.trim();
+  const res = await GET(`/admin/api/agencies?page=${p}&pageSize=15&keyword=${encodeURIComponent(kw)}`);
+  if (!res || res.code !== 0) return;
+  totalA = res.data.total;
+  document.getElementById('tbodyA').innerHTML = res.data.list.length ? res.data.list.map(a => `
+    <tr>
+      <td>${a.id}</td>
+      <td><strong>${esc(a.name)}</strong></td>
+      <td><span class="badge badge-purple">${esc(a.type||'综合')}</span></td>
+      <td>${esc(a.city||'-')}</td>
+      <td><span style="color:#f59e0b;font-weight:600">${(a.rating_avg||0).toFixed(1)} ★</span></td>
+      <td>${a.review_count||0}</td>
+      <td>${a.is_verified?'<span class="badge badge-green">✓ 已认证</span>':'<span class="badge badge-gray">未认证</span>'}</td>
+      <td><div class="td-actions">
+        <button class="btn btn-outline btn-sm" onclick="openEdit(${a.id})"><i class="fa-solid fa-pen"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="delAgency(${a.id})"><i class="fa-solid fa-trash"></i></button>
+      </div></td>
+    </tr>`).join('') : '<tr class="empty-row"><td colspan="8">暂无数据</td></tr>';
+  renderPagination('pagiA', pageA, totalA, 15, 'loadAgencies');
+}
+
+async function loadReviews(p) {
+  pageR = p;
+  const res = await GET(`/admin/api/agency-reviews?page=${p}&pageSize=20`);
+  if (!res || res.code !== 0) return;
+  totalR = res.data.total;
+  document.getElementById('tbodyR').innerHTML = res.data.list.length ? res.data.list.map(r => `
+    <tr>
+      <td>${r.id}</td>
+      <td>${esc(r.agency_name||'-')}</td>
+      <td class="text-clamp">${esc(r.title||'-')}</td>
+      <td style="max-width:240px;word-break:break-all;font-size:12px">${esc(truncate(r.content,60))}</td>
+      <td><span style="color:#f59e0b;font-weight:600">${(r.rating_overall||0).toFixed(1)} ★</span></td>
+      <td>${r.is_anonymous?'<span class="badge badge-gray">匿名</span>':'否'}</td>
+      <td>${fmtDate(r.created_at)}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="delReview(${r.id})"><i class="fa-solid fa-trash"></i></button></td>
+    </tr>`).join('') : '<tr class="empty-row"><td colspan="8">暂无评价</td></tr>';
+  renderPagination('pagiR', pageR, totalR, 20, 'loadReviews');
+}
+
+let agencyCache = [];
+function openAdd() {
+  editId = null; document.getElementById('modalTitle').textContent = '新增机构';
+  ['f_name','f_city','f_phone','f_website','f_description'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f_type').value = '综合';
+  document.getElementById('f_verified').checked = false;
+  openModal('modal');
+}
+async function openEdit(id) {
+  if (!agencyCache.length) {
+    const res = await GET('/admin/api/agencies?page=1&pageSize=10000');
+    agencyCache = (res && res.data && res.data.list) || [];
+  }
+  const a = agencyCache.find(x => x.id === id);
+  if (!a) return;
+  editId = id; document.getElementById('modalTitle').textContent = '编辑机构';
+  document.getElementById('f_name').value = a.name||'';
+  document.getElementById('f_type').value = a.type||'综合';
+  document.getElementById('f_city').value = a.city||'';
+  document.getElementById('f_phone').value = a.phone||'';
+  document.getElementById('f_website').value = a.website||'';
+  document.getElementById('f_description').value = a.description||'';
+  document.getElementById('f_verified').checked = !!a.is_verified;
+  openModal('modal');
+}
+async function saveAgency() {
+  const body = {
+    name: document.getElementById('f_name').value.trim(),
+    type: document.getElementById('f_type').value,
+    city: document.getElementById('f_city').value.trim(),
+    phone: document.getElementById('f_phone').value.trim(),
+    website: document.getElementById('f_website').value.trim(),
+    description: document.getElementById('f_description').value.trim(),
+    is_verified: document.getElementById('f_verified').checked
+  };
+  if (!body.name) { toast('机构名称不能为空', 'error'); return; }
+  if (!editId) { toast('新增机构请直接在数据库添加或使用 seed 脚本', 'info'); return; }
+  const res = await PUT(`/admin/api/agencies/${editId}`, body);
+  if (res && res.code === 0) { toast('更新成功'); closeModal('modal'); agencyCache=[]; loadAgencies(pageA); }
+  else toast(res?.message||'操作失败', 'error');
+}
+function delAgency(id) {
+  confirm('确定删除该机构及其所有评价吗？此操作不可恢复。', async () => {
+    const res = await DELETE(`/admin/api/agencies/${id}`);
+    if (res && res.code === 0) { toast('删除成功'); agencyCache=[]; loadAgencies(pageA); }
+    else toast(res?.message||'删除失败', 'error');
+  });
+}
+function delReview(id) {
+  confirm('确定删除该评价吗？', async () => {
+    const res = await DELETE(`/admin/api/agency-reviews/${id}`);
+    if (res && res.code === 0) { toast('删除成功'); loadReviews(pageR); }
+    else toast(res?.message||'删除失败', 'error');
+  });
+}
+</script>
+</body>
+</html>

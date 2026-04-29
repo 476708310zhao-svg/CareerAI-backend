@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>评论管理 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">🎯 求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer"><div class="admin-name" id="adminUsername"></div><button class="nav-item" style="margin-top:6px" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i><span>退出登录</span></button></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span style="font-size:13px;color:#6b7280" id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
+    <div class="content">
+      <div class="page-header">
+        <div><h1>评论管理</h1><div class="sub">审核并管理用户评论</div></div>
+      </div>
+      <div class="toolbar">
+        <input type="text" id="kw" placeholder="搜索评论内容、用户名..." onkeydown="if(event.key==='Enter')load(1)">
+        <button class="btn btn-outline" onclick="load(1)"><i class="fa-solid fa-search"></i> 搜索</button>
+      </div>
+      <div class="table-card">
+        <div class="table-wrap"><table>
+          <thead><tr><th>ID</th><th>评论内容</th><th>用户</th><th>所属面经</th><th>点赞</th><th>时间</th><th>操作</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table></div>
+        <div class="pagination" id="pagi"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="js/config.js"></script><script src="js/common.js"></script>
+<script>
+let page = 1, total = 0;
+initPage('comments', '评论管理');
+load(1);
+
+async function load(p) {
+  page = p;
+  const kw = document.getElementById('kw').value.trim();
+  const res = await GET(`/admin/api/comments?page=${p}&pageSize=20&keyword=${encodeURIComponent(kw)}`);
+  if (!res || res.code !== 0) return;
+  total = res.data.total;
+  const list = res.data.list;
+  document.getElementById('tbody').innerHTML = list.length ? list.map(c => `
+    <tr>
+      <td>${c.id}</td>
+      <td style="max-width:280px;word-break:break-all;font-size:13px">${esc(c.content)}</td>
+      <td>${esc(c.user_name||'匿名')}</td>
+      <td class="text-clamp" title="${esc(c.exp_title||'')}"><a href="#" style="color:#2563eb;text-decoration:none">${esc(truncate(c.exp_title||'未知面经',20))}</a></td>
+      <td>${c.likes_count||0}</td>
+      <td>${fmtDate(c.created_at)}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="del(${c.id})"><i class="fa-solid fa-trash"></i> 删除</button></td>
+    </tr>`).join('') : '<tr class="empty-row"><td colspan="7">暂无评论</td></tr>';
+  renderPagination('pagi', page, total, 20, 'load');
+}
+
+function del(id) {
+  confirm('确定删除该评论吗？', async () => {
+    const res = await DELETE(`/admin/api/comments/${id}`);
+    if (res && res.code === 0) { toast('删除成功'); load(page); }
+    else toast(res?.message || '删除失败', 'error');
+  });
+}
+</script>
+</body>
+</html>
