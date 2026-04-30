@@ -1,18 +1,104 @@
 <!-- pages/ai-workflow/ai-workflow.wxml -->
 <view class="page">
 
-  <!-- 顶部栏 -->
-  <view class="top-bar">
-    <view class="top-title">
-      <text class="top-icon">✦</text>
-      <text class="top-name">AI 求职助手</text>
+  <view class="drawer-mask {{drawerOpen ? 'show' : ''}}" catchtap="closeDrawer"></view>
+  <view class="side-drawer {{drawerOpen ? 'show' : ''}}">
+    <view class="drawer-brand">
+      <view class="brand-mark">AI</view>
+      <view class="brand-copy">
+        <text class="brand-title">求职助手</text>
+        <text class="brand-sub">你的职业规划工作台</text>
+      </view>
     </view>
-    <view class="clear-btn" bindtap="onClear" hover-class="clear-hover">
-      <text class="clear-txt">清空</text>
+
+    <view class="drawer-primary" hover-class="drawer-press" bindtap="startNewChat">
+      <text class="drawer-primary-icon">✎</text>
+      <text class="drawer-primary-text">新聊天</text>
+    </view>
+
+    <view class="drawer-search">
+      <text class="drawer-search-icon">⌕</text>
+      <input
+        class="drawer-search-input"
+        placeholder="搜索聊天"
+        value="{{sessionSearch}}"
+        bindinput="onSessionSearch"
+      />
+      <text wx:if="{{sessionSearch}}" class="drawer-search-clear" catchtap="clearSessionSearch">×</text>
+    </view>
+
+    <view class="drawer-section">
+      <view class="drawer-section-title">常用功能</view>
+      <view class="tool-grid">
+        <view
+          wx:for="{{quickTools}}"
+          wx:key="module"
+          class="tool-card"
+          data-module="{{item.module}}"
+          bindtap="onToolTap"
+          hover-class="drawer-press"
+        >
+          <text class="tool-icon">{{item.icon}}</text>
+          <view class="tool-copy">
+            <text class="tool-title">{{item.title}}</text>
+            <text class="tool-desc">{{item.desc}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="drawer-section history-section-drawer">
+      <view class="drawer-section-head">
+        <text class="drawer-section-title">最近对话</text>
+        <text class="drawer-count">{{filteredSessions.length}}</text>
+      </view>
+      <scroll-view scroll-y class="session-scroll">
+        <view
+          wx:for="{{filteredSessions}}"
+          wx:key="id"
+          class="session-item {{activeSessionId === item.id ? 'active' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="selectSession"
+          hover-class="drawer-press"
+        >
+          <view class="session-dot"></view>
+          <view class="session-main">
+            <text class="session-title">{{item.title}}</text>
+            <text class="session-preview">{{item.preview}}</text>
+          </view>
+          <view class="session-side">
+            <text class="session-time">{{item.timeLabel}}</text>
+            <text class="session-delete" catchtap="deleteSession" data-id="{{item.id}}">×</text>
+          </view>
+        </view>
+        <view wx:if="{{filteredSessions.length === 0}}" class="drawer-empty">
+          <text>还没有历史对话</text>
+          <text>发起一次咨询后会自动保存</text>
+        </view>
+      </scroll-view>
     </view>
   </view>
 
-  <!-- 消息列表 -->
+  <view class="top-bar">
+    <view class="menu-btn" bindtap="toggleDrawer" hover-class="top-press">
+      <text class="menu-line"></text>
+      <text class="menu-line"></text>
+    </view>
+    <view class="top-title">
+      <text class="top-icon">✦</text>
+      <view class="top-copy">
+        <text class="top-name">AI 求职助手</text>
+        <text class="top-model">CareerGPT</text>
+      </view>
+    </view>
+    <view class="top-actions">
+      <view class="new-chat-btn" bindtap="startNewChat" hover-class="top-press">＋</view>
+      <view class="clear-btn" bindtap="onClear" hover-class="clear-hover">
+        <text class="clear-txt">清空</text>
+      </view>
+    </view>
+  </view>
+
   <scroll-view
     class="msg-scroll"
     scroll-y
@@ -22,24 +108,18 @@
   >
     <view class="msg-list">
       <block wx:for="{{messages}}" wx:key="id">
-
-        <!-- 时间戳（仅超过5分钟间隔才显示） -->
         <view wx:if="{{item.showTime}}" class="time-stamp">{{item.timeLabel}}</view>
 
         <view id="msg-{{index}}" class="msg-row {{item.role === 'user' ? 'user-row' : 'ai-row'}}">
-
-          <!-- AI 头像 -->
           <view wx:if="{{item.role === 'ai'}}" class="ai-avatar">
             <text class="ai-avatar-icon">✦</text>
           </view>
 
           <view class="bubble-wrap">
-            <!-- 气泡 -->
             <view class="bubble {{item.role === 'user' ? 'user-bubble' : item.type === 'error' ? 'error-bubble' : 'ai-bubble'}}">
               <text class="bubble-text" user-select>{{item.text}}</text>
             </view>
 
-            <!-- 操作卡片（带图标） -->
             <view wx:if="{{item.actions && item.actions.length}}" class="action-cards">
               <view
                 wx:for="{{item.actions}}"
@@ -57,7 +137,6 @@
               </view>
             </view>
 
-            <!-- 快捷建议（只在最新 AI 消息上可点） -->
             <view wx:if="{{item.suggestions && item.suggestions.length && index === latestAiIdx}}" class="suggestions">
               <view
                 wx:for="{{item.suggestions}}"
@@ -70,11 +149,9 @@
               >{{sug}}</view>
             </view>
           </view>
-
         </view>
       </block>
 
-      <!-- 加载中 -->
       <view wx:if="{{loading}}" class="msg-row ai-row">
         <view class="ai-avatar"><text class="ai-avatar-icon">✦</text></view>
         <view class="bubble ai-bubble loading-bubble">
@@ -86,11 +163,10 @@
         </view>
       </view>
 
-      <view style="height:24rpx;"></view>
+      <view class="msg-bottom-spacer"></view>
     </view>
   </scroll-view>
 
-  <!-- 输入栏 -->
   <view class="input-bar">
     <view class="input-wrap">
       <input

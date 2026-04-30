@@ -16,9 +16,12 @@ const MODULE_ICONS = {
   interview: '🎤', career_plan: '🗺️', agencies: '🏢',
   campus: '📅', salary: '💰',
 };
-const TAB_MODULES = new Set(['jobs', 'applications']);
+const TAB_MODULES = new Set(['jobs']);
 const CACHE_KEY   = 'ai_workflow_messages';
+const SESSION_KEY = 'ai_workflow_sessions';
+const ACTIVE_SESSION_KEY = 'ai_workflow_active_session';
 const MAX_CACHE   = 20;
+const MAX_SESSIONS = 12;
 const TIME_GAP_MS = 5 * 60 * 1000; // 超过5分钟才显示时间戳
 const MAX_INPUT   = 200;
 
@@ -40,6 +43,13 @@ function friendlyError(err) {
 
 function fmtTime(ts) {
   return new Date(ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtDate(ts) {
+  const d = new Date(ts);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return fmtTime(ts);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
 // 给消息数组标注 showTime 字段：第一条 + 距上一条超5分钟才显示（仅用于初始化恢复）
@@ -78,12 +88,28 @@ Page({
     scrollId: '',
     latestAiIdx: 0,
     keyboardHeight: 0,
+    drawerOpen: false,
+    sessions: [],
+    filteredSessions: [],
+    sessionSearch: '',
+    activeSessionId: '',
+    quickTools: [
+      { module: 'resume', icon: '🧾', title: '优化简历', desc: '润色经历与匹配 ATS' },
+      { module: 'jobs', icon: '💼', title: '推荐岗位', desc: '根据目标筛选机会' },
+      { module: 'interview', icon: '🎙️', title: '模拟面试', desc: '生成问题并陪练' },
+      { module: 'career_plan', icon: '🗺️', title: '求职规划', desc: '拆解阶段路线图' },
+      { module: 'salary', icon: '💰', title: '查薪资', desc: '岗位与公司薪酬参考' },
+      { module: 'campus', icon: '📅', title: '校招日历', desc: '查看开放与截止' },
+    ],
   },
 
   _history: [],
   _userContext: {},
 
   onLoad() {
+    const sessions = this._loadSessions();
+    const activeSessionId = wx.getStorageSync(ACTIVE_SESSION_KEY) || `session_${Date.now()}`;
+    this.setData({ sessions, filteredSessions: sessions, activeSessionId });
     // 读用户信息
     try {
       const profile = wx.getStorageSync('userProfile') || {};
@@ -109,6 +135,7 @@ Page({
         const msgs = markTimestamps(cached);
         const latestAiIdx = msgs.reduce((acc, m, i) => m.role === 'ai' ? i : acc, 0);
         this.setData({ messages: msgs, latestAiIdx });
+        this._upsertSession(msgs, activeSessionId);
         // 等渲染完成再滚动
         wx.nextTick(() => this._scrollToBottom(msgs.length - 1));
         return;
@@ -117,6 +144,8 @@ Page({
 
     const welcome = makeWelcome();
     this.setData({ messages: [welcome], latestAiIdx: 0 });
+    this._saveCache([welcome]);
+    this._upsertSession([welcome], activeSessionId);
     wx.nextTick(() => this._scrollToBottom(0));
   },
 
@@ -151,6 +180,8 @@ Page({
     };
     const msgs = appendWithTimestamp(this.data.messages, userMsg);
     this.setData({ messages: msgs, inputText: '', inputLen: 0, loading: true });
+    this._saveCache(msgs);
+    this._upsertSession(msgs);
     wx.nextTick(() => this._scrollToBottom(msgs.length - 1));
 
     this._history.push({ role: 'user', content: text });
@@ -173,6 +204,7 @@ Page({
       if (this._history.length > 16) this._history = this._history.slice(-16);
       const newMsgs = appendWithTimestamp(this.data.messages, aiMsg);
       this._saveCache(newMsgs);
+      this._upsertSession(newMsgs);
       const latestAiIdx = newMsgs.length - 1;
       this.setData({ messages: newMsgs, loading: false, latestAiIdx });
       wx.nextTick(() => this._scrollToBottom(newMsgs.length - 1));
@@ -186,6 +218,8 @@ Page({
       this._history.push({ role: 'assistant', content: '[响应失败]' });
       if (this._history.length > 16) this._history = this._history.slice(-16);
       const newMsgs = appendWithTimestamp(this.data.messages, errMsg);
+      this._saveCache(newMsgs);
+      this._upsertSession(newMsgs);
       this.setData({ messages: newMsgs, loading: false });
       wx.nextTick(() => this._scrollToBottom(newMsgs.length - 1));
     });
@@ -203,6 +237,88 @@ Page({
       : wx.navigateTo({ url: url + query });
   },
 
+  onToolTap(e) {
+    const mod = e.currentTarget.dataset.module;
+    const url = MODULE_ROUTES[mod];
+    if (!url) return;
+    TAB_MODULES.has(mod)
+      ? wx.switchTab({ url })
+      : wx.navigateTo({ url });
+  },
+
+  toggleDrawer() {
+    this.setData({ drawerOpen: !this.data.drawerOpen });
+  },
+
+  closeDrawer() {
+    this.setData({ drawerOpen: false });
+  },
+
+  onSessionSearch(e) {
+    const sessionSearch = e.detail.value || '';
+    const keyword = sessionSearch.trim().toLowerCase();
+    const filteredSessions = keyword
+      ? this.data.sessions.filter(item =>
+          (item.title || '').toLowerCase().includes(keyword) ||
+          (item.preview || '').toLowerCase().includes(keyword)
+        )
+      : this.data.sessions;
+    this.setData({ sessionSearch, filteredSessions });
+  },
+
+  clearSessionSearch() {
+    this.setData({ sessionSearch: '', filteredSessions: this.data.sessions });
+  },
+
+  startNewChat() {
+    const id = `session_${Date.now()}`;
+    const welcome = makeWelcome();
+    this._history = [];
+    wx.setStorageSync(ACTIVE_SESSION_KEY, id);
+    this.setData({
+      activeSessionId: id,
+      messages: [welcome],
+      latestAiIdx: 0,
+      inputText: '',
+      inputLen: 0,
+      loading: false,
+      drawerOpen: false,
+    });
+    this._saveCache([welcome]);
+    this._upsertSession([welcome], id);
+    wx.nextTick(() => this._scrollToBottom(0));
+  },
+
+  selectSession(e) {
+    const id = e.currentTarget.dataset.id;
+    const session = this.data.sessions.find(item => item.id === id);
+    if (!session || !Array.isArray(session.messages)) return;
+    const msgs = markTimestamps(session.messages);
+    const latestAiIdx = msgs.reduce((acc, m, i) => m.role === 'ai' ? i : acc, 0);
+    this._history = msgs
+      .filter(m => m.type !== 'error')
+      .map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }));
+    wx.setStorageSync(ACTIVE_SESSION_KEY, id);
+    this.setData({
+      activeSessionId: id,
+      messages: msgs,
+      latestAiIdx,
+      drawerOpen: false,
+      loading: false,
+      inputText: '',
+      inputLen: 0,
+    });
+    this._saveCache(msgs);
+    wx.nextTick(() => this._scrollToBottom(msgs.length - 1));
+  },
+
+  deleteSession(e) {
+    const id = e.currentTarget.dataset.id;
+    const sessions = this.data.sessions.filter(item => item.id !== id);
+    this._setSessions(sessions);
+    if (id === this.data.activeSessionId) this.startNewChat();
+  },
+
   onClear() {
     wx.showModal({
       title: '清空对话',
@@ -213,6 +329,8 @@ Page({
         try { wx.removeStorageSync(CACHE_KEY); } catch (e) {}
         const welcome = makeWelcome();
         this.setData({ messages: [welcome], latestAiIdx: 0, loading: false, inputText: '', inputLen: 0 });
+        this._saveCache([welcome]);
+        this._upsertSession([welcome]);
         wx.nextTick(() => this._scrollToBottom(0));
       }
     });
@@ -224,5 +342,51 @@ Page({
 
   _saveCache(msgs) {
     try { wx.setStorageSync(CACHE_KEY, msgs.slice(-MAX_CACHE)); } catch (e) {}
+  },
+
+  _loadSessions() {
+    try {
+      const sessions = wx.getStorageSync(SESSION_KEY);
+      return Array.isArray(sessions) ? sessions : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  _setSessions(sessions) {
+    const keyword = (this.data.sessionSearch || '').trim().toLowerCase();
+    const filteredSessions = keyword
+      ? sessions.filter(item =>
+          (item.title || '').toLowerCase().includes(keyword) ||
+          (item.preview || '').toLowerCase().includes(keyword)
+        )
+      : sessions;
+    this.setData({ sessions, filteredSessions });
+    try { wx.setStorageSync(SESSION_KEY, sessions); } catch (e) {}
+  },
+
+  _upsertSession(msgs, id) {
+    const sessionId = id || this.data.activeSessionId || `session_${Date.now()}`;
+    const userFirst = msgs.find(m => m.role === 'user' && m.text);
+    const last = msgs[msgs.length - 1] || {};
+    const title = userFirst ? userFirst.text.slice(0, 18) : '新的求职咨询';
+    const preview = (last.text || '准备开始新的求职咨询').replace(/\s+/g, ' ').slice(0, 34);
+    const updatedAt = last.ts || Date.now();
+    const next = [
+      {
+        id: sessionId,
+        title,
+        preview,
+        updatedAt,
+        timeLabel: fmtDate(updatedAt),
+        messages: msgs.slice(-MAX_CACHE),
+      },
+      ...this.data.sessions.filter(item => item.id !== sessionId),
+    ].slice(0, MAX_SESSIONS);
+    wx.setStorageSync(ACTIVE_SESSION_KEY, sessionId);
+    if (sessionId !== this.data.activeSessionId) {
+      this.setData({ activeSessionId: sessionId });
+    }
+    this._setSessions(next);
   }
 });
