@@ -89,7 +89,7 @@
       </view>
     </view>
 
-    <view style="height: 40rpx;"></view>
+    <view class="bottom-spacer"></view>
   </view>
 
   <!-- ══ 加载步骤 ══ -->
@@ -251,7 +251,7 @@
       </view>
     </view>
 
-    <view style="height: 40rpx;"></view>
+    <view class="bottom-spacer"></view>
 
   </view>
 
