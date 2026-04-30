@@ -150,7 +150,7 @@
     </view>
   </view>
 
-  <view style="height: 60rpx;"></view>
+  <view style="height: 12rpx;"></view>
 </view>
 
 <!-- 登录弹窗：点击头像 / 我的资料触发 -->
