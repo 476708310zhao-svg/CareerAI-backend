@@ -16,24 +16,45 @@ page {
 
 .top-tabs {
   display: flex;
-  align-items: stretch;
-  gap: 8rpx;
-  padding: 18rpx 4rpx 12rpx;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6rpx;
+  padding: 16rpx 2rpx 10rpx;
 }
 
 .top-tab {
   position: relative;
-  flex: 1;
+  flex: 0 0 auto;
   min-width: 0;
-  padding: 14rpx 4rpx 16rpx;
+  height: 62rpx;
+  padding: 0 8rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6rpx;
-  border-radius: 18rpx;
+  gap: 5rpx;
+  box-sizing: border-box;
+  border-radius: 20rpx;
   color: #94a3b8;
-  font-size: 24rpx;
-  font-weight: 850;
+  font-size: 22rpx;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.top-tab.mode-featured {
+  width: 176rpx;
+}
+
+.top-tab.mode-leetcode {
+  width: 190rpx;
+}
+
+.top-tab.mode-topics {
+  width: 132rpx;
+}
+
+.top-tab.mode-elite {
+  width: 144rpx;
 }
 
 .top-tab.active {
@@ -44,31 +65,36 @@ page {
 .top-tab.active::after {
   content: '';
   position: absolute;
-  left: 28rpx;
-  right: 28rpx;
-  bottom: 4rpx;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: 0;
   height: 5rpx;
   border-radius: 999rpx;
   background: linear-gradient(90deg, #2563eb, #38bdf8);
 }
 
 .top-tab-title {
+  display: block;
+  flex-shrink: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 28rpx;
 }
 
 .top-tab-badge {
   flex-shrink: 0;
-  min-width: 30rpx;
-  height: 26rpx;
-  padding: 0 8rpx;
+  min-width: 28rpx;
+  height: 24rpx;
+  padding: 0 7rpx;
+  box-sizing: border-box;
   border-radius: 999rpx;
   color: #2563eb;
   background: #dbeafe;
-  font-size: 18rpx;
+  font-size: 17rpx;
   font-weight: 950;
-  line-height: 26rpx;
+  line-height: 24rpx;
   text-align: center;
 }
 
