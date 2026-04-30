@@ -1,257 +1,243 @@
 // pages/interview-bank/interview-bank.js
-const api = require('../../utils/api.js');
-const sendChatToDeepSeek = api.sendChatToDeepSeek;
+const { QUESTIONS } = require('../../utils/mock-data.js');
 
-const DIFF_LABELS  = { easy: '简单', medium: '中等', hard: '困难' };
-const TYPE_LABELS  = { behavior: '行为面', technical: '技术面', case: '案例面', product: '产品面' };
-const DIFF_COLORS  = { easy: '#059669', medium: '#F59E0B', hard: '#EF4444' };
+const CATEGORY_OPTIONS = [
+  { key: 'all', label: '全部' },
+  { key: 'java', label: 'Java' },
+  { key: 'frontend', label: '前端' },
+  { key: 'algorithm', label: '算法' },
+  { key: 'system', label: '系统设计' },
+  { key: 'behavior', label: '行为面试' },
+  { key: 'python', label: 'Python' },
+  { key: 'database', label: '数据库' }
+];
+
+const DIFFICULTY_OPTIONS = [
+  { key: 'all', label: '全部' },
+  { key: '简单', label: '简单' },
+  { key: '中等', label: '中等' },
+  { key: '困难', label: '困难' }
+];
+
+const QUALITY_OPTIONS = [
+  { key: 'all', label: '全部' },
+  { key: 'featured', label: '精华' },
+  { key: 'hot', label: '高频' }
+];
+
+const MODE_OPTIONS = [
+  { key: 'featured', label: '精选题库', badge: '100' },
+  { key: 'leetcode', label: 'LeetCode', badge: '4303+' },
+  { key: 'topics', label: '话题', badge: '8' },
+  { key: 'elite', label: '精华区', badge: 'hot' }
+];
+
+const CATEGORY_LABELS = CATEGORY_OPTIONS.reduce((map, item) => {
+  map[item.key] = item.label;
+  return map;
+}, {});
+
+const DIFFICULTY_TONE = {
+  '简单': 'easy',
+  '中等': 'medium',
+  '困难': 'hard'
+};
 
 Page({
   data: {
-    allQuestions:  [],
-    filtered:      [],
-    bookmarked:    [],
-
-    activeTab:       'all',   // 'all' | 'bookmarks' | 'custom'
-    searchKey:       '',
-    filterCompany:   '',
-    filterRole:      '',
-    filterDifficulty:'',
-    filterType:      '',
-
-    companies:   [],
-    roles:       [],
-    showFilter:  false,
-    totalCount:  0,
-    bookmarkCount: 0,
-    expandedQid: '',
-
-    // Add-question modal
-    showAddModal: false,
-    addForm: { question: '', answer: '', company: '', role: '', difficulty: 'medium', interviewType: 'behavior' },
-
-    // AI analyse state
-    analysingQid: '',
+    modes: MODE_OPTIONS,
+    categories: CATEGORY_OPTIONS,
+    difficulties: DIFFICULTY_OPTIONS,
+    qualities: QUALITY_OPTIONS,
+    allQuestions: [],
+    filtered: [],
+    activeMode: 'featured',
+    activeCategory: 'all',
+    activeDifficulty: 'all',
+    activeQuality: 'all',
+    searchKey: '',
+    totalCount: 0,
+    doneCount: 0,
+    collectedCount: 0
   },
 
-  onLoad()  { this._harvest(); },
-  onShow()  { this._harvest(); },
+  onLoad() {
+    this.loadQuestions();
+  },
 
-  /* ──────────────────────────────────────────
-     Data loading
-  ────────────────────────────────────────── */
-  _harvest() {
-    const history = wx.getStorageSync('interviewHistory') || [];
-    const questions = [];
+  onShow() {
+    this.refreshQuestionState();
+  },
 
-    history.forEach(h => {
-      const reportKey = h.reportKey || ('aiReport_' + h.id);
-      const report = wx.getStorageSync(reportKey);
-      if (report && Array.isArray(report.qaList)) {
-        report.qaList.forEach((qa, i) => {
-          if (!qa.q) return;
-          questions.push({
-            qid:           `${h.id}_q${i}`,
-            question:      qa.q,
-            answer:        qa.a   || '',
-            feedback:      qa.feedback || '',
-            score:         qa.score || 0,
-            company:       h.company   || '',
-            role:          h.position  || '',
-            interviewType: h.interviewType || '',
-            difficulty:    h.difficulty || 'medium',
-            timestamp:     h.timestamp  || 0,
-            source:        'auto',
-            typeLabel:     TYPE_LABELS[h.interviewType] || '综合',
-            diffLabel:     DIFF_LABELS[h.difficulty]    || '中等',
-            diffColor:     DIFF_COLORS[h.difficulty]    || '#F59E0B',
-            bookmarked:    false,
-          });
-        });
-      }
-    });
+  loadQuestions() {
+    const allQuestions = (QUESTIONS || []).map((item, index) => this.normalizeQuestion(item, index));
+    this.setData({
+      allQuestions,
+      totalCount: allQuestions.length
+    }, () => this.refreshQuestionState());
+  },
 
-    // Custom questions
-    const custom = wx.getStorageSync('bankCustomQuestions') || [];
-    custom.forEach(q => {
-      questions.push({
-        ...q,
-        source:    'custom',
-        typeLabel: TYPE_LABELS[q.interviewType] || '自定义',
-        diffLabel: DIFF_LABELS[q.difficulty]    || '中等',
-        diffColor: DIFF_COLORS[q.difficulty]    || '#F59E0B',
-      });
-    });
+  normalizeQuestion(item, index) {
+    const difficulty = item.difficulty || '中等';
+    const category = item.category || 'behavior';
+    return {
+      id: item.id || index + 1,
+      qid: String(item.id || index + 1),
+      title: item.title || item.question || '',
+      question: item.title || item.question || '',
+      answer: item.answer || '',
+      category,
+      categoryName: CATEGORY_LABELS[category] || '综合',
+      difficulty,
+      difficultyTone: DIFFICULTY_TONE[difficulty] || 'medium',
+      views: item.views || 0,
+      isFeatured: index < 16 || item.views >= 1800,
+      isHot: item.views >= 1800,
+      isCollected: false,
+      isDone: false
+    };
+  },
 
-    // Mark bookmarked
-    const bqsRaw = wx.getStorageSync('bookmarkedQuestions') || [];
-    const bqSet  = new Set(bqsRaw.map(b => b.qid));
-    questions.forEach(q => { q.bookmarked = bqSet.has(q.qid); });
-
-    // Deduplicate
-    const seen   = new Set();
-    const unique = questions.filter(q => { if (seen.has(q.qid)) return false; seen.add(q.qid); return true; });
-
-    // Build filter options
-    const companies = [...new Set(unique.map(q => q.company).filter(Boolean))];
-    const roles     = [...new Set(unique.map(q => q.role).filter(Boolean))];
-
-    // Full bookmark objects (merge with harvest)
-    const bookmarked = bqsRaw.map(b => {
-      const full = unique.find(q => q.qid === b.qid) || b;
-      return { ...full, ...b, bookmarked: true };
-    });
+  refreshQuestionState() {
+    const collected = wx.getStorageSync('collectedQuestions') || [];
+    const done = wx.getStorageSync('doneQuestions') || [];
+    const collectedSet = new Set(collected.map(String));
+    const doneSet = new Set(done.map(String));
+    const allQuestions = this.data.allQuestions.map(item => ({
+      ...item,
+      isCollected: collectedSet.has(String(item.id)),
+      isDone: doneSet.has(String(item.id))
+    }));
 
     this.setData({
-      allQuestions:  unique,
-      bookmarked,
-      companies,
-      roles,
-      totalCount:    unique.length,
-      bookmarkCount: bookmarked.length,
-    });
-    this._applyFilter();
+      allQuestions,
+      collectedCount: collectedSet.size,
+      doneCount: doneSet.size
+    }, () => this.applyFilter());
   },
 
-  _applyFilter() {
-    const { allQuestions, bookmarked, activeTab, searchKey, filterCompany, filterRole, filterDifficulty, filterType } = this.data;
+  applyFilter() {
+    const {
+      allQuestions,
+      activeMode,
+      activeCategory,
+      activeDifficulty,
+      activeQuality,
+      searchKey
+    } = this.data;
 
-    let list = activeTab === 'bookmarks' ? bookmarked
-              : activeTab === 'custom'   ? allQuestions.filter(q => q.source === 'custom')
-              : allQuestions;
+    let list = allQuestions.slice();
 
-    if (searchKey) {
-      const kw = searchKey.toLowerCase();
-      list = list.filter(q => (q.question || '').toLowerCase().includes(kw) || (q.company || '').toLowerCase().includes(kw));
+    if (activeMode === 'leetcode') {
+      list = list.filter(item => ['algorithm', 'java', 'frontend', 'python', 'database'].includes(item.category));
+    } else if (activeMode === 'topics') {
+      list = list.filter(item => ['system', 'behavior', 'product'].includes(item.category) || item.category === 'behavior');
+    } else if (activeMode === 'elite') {
+      list = list.filter(item => item.isFeatured || item.isHot);
     }
-    if (filterCompany)   list = list.filter(q => q.company   === filterCompany);
-    if (filterRole)      list = list.filter(q => q.role      === filterRole);
-    if (filterDifficulty)list = list.filter(q => q.difficulty === filterDifficulty);
-    if (filterType)      list = list.filter(q => q.interviewType === filterType);
+
+    if (activeCategory !== 'all') {
+      list = list.filter(item => item.category === activeCategory);
+    }
+
+    if (activeDifficulty !== 'all') {
+      list = list.filter(item => item.difficulty === activeDifficulty);
+    }
+
+    if (activeQuality === 'featured') {
+      list = list.filter(item => item.isFeatured);
+    } else if (activeQuality === 'hot') {
+      list = list.filter(item => item.isHot);
+    }
+
+    const keyword = searchKey.trim().toLowerCase();
+    if (keyword) {
+      list = list.filter(item => {
+        const haystack = `${item.title} ${item.answer} ${item.categoryName}`.toLowerCase();
+        return haystack.indexOf(keyword) >= 0;
+      });
+    }
 
     this.setData({ filtered: list });
   },
 
-  /* ──────────────────────────────────────────
-     Interactions
-  ────────────────────────────────────────── */
-  switchTab(e) {
-    this.setData({ activeTab: e.currentTarget.dataset.tab }, () => this._applyFilter());
+  switchMode(e) {
+    this.setData({
+      activeMode: e.currentTarget.dataset.key,
+      activeCategory: 'all'
+    }, () => this.applyFilter());
+  },
+
+  selectCategory(e) {
+    this.setData({ activeCategory: e.currentTarget.dataset.key }, () => this.applyFilter());
+  },
+
+  selectDifficulty(e) {
+    this.setData({ activeDifficulty: e.currentTarget.dataset.key }, () => this.applyFilter());
+  },
+
+  selectQuality(e) {
+    this.setData({ activeQuality: e.currentTarget.dataset.key }, () => this.applyFilter());
   },
 
   onSearch(e) {
-    this.setData({ searchKey: e.detail.value }, () => this._applyFilter());
+    this.setData({ searchKey: e.detail.value || '' }, () => this.applyFilter());
   },
 
-  toggleFilter() {
-    this.setData({ showFilter: !this.data.showFilter });
+  clearSearch() {
+    this.setData({ searchKey: '' }, () => this.applyFilter());
   },
 
-  setFilter(e) {
-    const { key, val } = e.currentTarget.dataset;
-    this.setData({ [key]: this.data[key] === val ? '' : val }, () => this._applyFilter());
+  resetFilters() {
+    this.setData({
+      activeCategory: 'all',
+      activeDifficulty: 'all',
+      activeQuality: 'all',
+      searchKey: ''
+    }, () => this.applyFilter());
   },
 
-  clearFilter() {
-    this.setData({ filterCompany: '', filterRole: '', filterDifficulty: '', filterType: '' }, () => this._applyFilter());
-  },
-
-  toggleExpand(e) {
-    const qid = e.currentTarget.dataset.qid;
-    this.setData({ expandedQid: this.data.expandedQid === qid ? '' : qid });
-  },
-
-  toggleBookmark(e) {
-    const qid = e.currentTarget.dataset.qid;
-    const q   = this.data.allQuestions.find(x => x.qid === qid)
-             || this.data.bookmarked.find(x => x.qid === qid);
+  openQuestion(e) {
+    const q = this.findQuestion(e.currentTarget.dataset.id);
     if (!q) return;
-
-    let bqs = wx.getStorageSync('bookmarkedQuestions') || [];
-    const idx = bqs.findIndex(b => b.qid === qid);
-    if (idx >= 0) {
-      bqs.splice(idx, 1);
-      wx.showToast({ title: '已取消收藏', icon: 'none' });
-    } else {
-      bqs.unshift({ ...q, savedAt: new Date().toISOString().slice(0, 10), reviewInterval: q.score < 60 ? 1 : 3 });
-      wx.showToast({ title: '已加入错题本', icon: 'success' });
-    }
-    wx.setStorageSync('bookmarkedQuestions', bqs);
-    this._harvest();
+    wx.setStorageSync('currentQuestion', q);
+    wx.navigateTo({ url: '/pages/question-detail/question-detail' });
   },
 
   practiceQuestion(e) {
-    const q = e.currentTarget.dataset.question;
-    wx.navigateTo({ url: `/pages/interview-setup/interview-setup?autoQuestion=${encodeURIComponent(q)}` });
+    const q = this.findQuestion(e.currentTarget.dataset.id);
+    if (!q) return;
+    wx.navigateTo({
+      url: `/pages/interview-dialog/interview-dialog?autoQuestion=${encodeURIComponent(q.title)}`
+    });
   },
 
-  goInterview() {
+  toggleCollect(e) {
+    const id = String(e.currentTarget.dataset.id);
+    let collected = wx.getStorageSync('collectedQuestions') || [];
+    const exists = collected.map(String).includes(id);
+    collected = exists ? collected.filter(item => String(item) !== id) : [id, ...collected];
+    wx.setStorageSync('collectedQuestions', collected);
+    wx.showToast({ title: exists ? '已取消收藏' : '已加入收藏', icon: 'none' });
+    this.refreshQuestionState();
+  },
+
+  markDone(e) {
+    const id = String(e.currentTarget.dataset.id);
+    let done = wx.getStorageSync('doneQuestions') || [];
+    if (!done.map(String).includes(id)) {
+      done = [id, ...done];
+      wx.setStorageSync('doneQuestions', done);
+      wx.showToast({ title: '已标记练习', icon: 'success' });
+      this.refreshQuestionState();
+    }
+  },
+
+  generateAiQuestions() {
     wx.navigateTo({ url: '/pages/interview-setup/interview-setup' });
   },
 
-  // AI improve: ask DeepSeek for a better answer to this question
-  aiImprove(e) {
-    const qid = e.currentTarget.dataset.qid;
-    const q   = this.data.allQuestions.find(x => x.qid === qid) || this.data.bookmarked.find(x => x.qid === qid);
-    if (!q || !sendChatToDeepSeek) return;
-
-    this.setData({ analysingQid: qid });
-    const prompt = `面试题目："${q.question}"。\n候选人之前的回答："${q.answer || '（未提供）'}"。\n请给出一个【满分示范回答】，结构清晰、有数据支撑，200字以内。`;
-    sendChatToDeepSeek([
-      { role: 'system', content: '你是一位资深面试教练，擅长用STAR法则和具体数据帮助候选人优化面试回答。' },
-      { role: 'user',   content: prompt }
-    ]).then(res => {
-      const text = res.choices?.[0]?.message?.content || '生成失败，请重试';
-      // Update the question's feedback field in-place
-      const updated = [...this.data.filtered].map(item =>
-        item.qid === qid ? { ...item, aiSuggest: text } : item
-      );
-      this.setData({ filtered: updated, analysingQid: '' });
-    }).catch(() => {
-      this.setData({ analysingQid: '' });
-      wx.showToast({ title: 'AI 请求失败', icon: 'none' });
-    });
-  },
-
-  /* ──────────────────────────────────────────
-     Add question modal
-  ────────────────────────────────────────── */
-  showAdd() {
-    this.setData({
-      showAddModal: true,
-      addForm: { question: '', answer: '', company: '', role: '', difficulty: 'medium', interviewType: 'behavior' },
-    });
-  },
-  hideAdd() { this.setData({ showAddModal: false }); },
-  noop()    {},
-
-  onAddInput(e) {
-    this.setData({ [`addForm.${e.currentTarget.dataset.field}`]: e.detail.value });
-  },
-  setAddField(e) {
-    const { field, val } = e.currentTarget.dataset;
-    this.setData({ [`addForm.${field}`]: val });
-  },
-
-  saveCustom() {
-    const { question, answer, company, role, difficulty, interviewType } = this.data.addForm;
-    if (!question.trim()) { wx.showToast({ title: '请填写题目', icon: 'none' }); return; }
-    const custom = wx.getStorageSync('bankCustomQuestions') || [];
-    custom.unshift({
-      qid:           'custom_' + Date.now(),
-      question:      question.trim(),
-      answer:        answer.trim(),
-      feedback:      '',
-      score:         0,
-      company:       company.trim(),
-      role:          role.trim(),
-      difficulty,
-      interviewType,
-      timestamp:     Date.now(),
-    });
-    wx.setStorageSync('bankCustomQuestions', custom);
-    this.setData({ showAddModal: false });
-    wx.showToast({ title: '已添加', icon: 'success' });
-    this._harvest();
-  },
+  findQuestion(id) {
+    return this.data.allQuestions.find(item => String(item.id) === String(id));
+  }
 });
