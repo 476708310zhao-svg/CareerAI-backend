@@ -13,8 +13,8 @@
     <swiper class="banner-swiper" autoplay circular interval="4000" indicator-dots indicator-color="rgba(255,255,255,0.5)" indicator-active-color="#ffffff" bindchange="onBannerChange">
       <block wx:for="{{bannerList}}" wx:key="id">
         <swiper-item>
-          <view wx:if="{{item.image_url}}" class="banner-item" bindtap="navigateToPage" data-url="{{item.url}}" hover-class="opacity-hover">
-            <image src="{{apiBase}}{{item.image_url}}" class="banner-bg-image" mode="aspectFill"></image>
+          <view wx:if="{{item.imageUrl}}" class="banner-item" bindtap="navigateToPage" data-url="{{item.url}}" hover-class="opacity-hover">
+            <image src="{{item.imageUrl}}" class="banner-bg-image" mode="aspectFill"></image>
           </view>
           <view wx:else class="banner-item banner-gradient" bindtap="navigateToPage" data-url="{{item.url}}" hover-class="opacity-hover"
             style="background:{{item.gradient}};">

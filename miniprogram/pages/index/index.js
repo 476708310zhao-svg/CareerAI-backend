@@ -164,6 +164,18 @@ Page({
     };
   },
 
+  normalizeAssetUrl(url) {
+    if (!url) return '';
+    if (url.indexOf('https://') === 0 || url.indexOf('wxfile://') === 0 || url.indexOf('/') !== 0) return url;
+    return `${config.ASSET_BASE_URL || config.API_BASE_URL}${url}`;
+  },
+
+  normalizeBanners(list) {
+    return (list || []).map(item => Object.assign({}, item, {
+      imageUrl: this.normalizeAssetUrl(item.imageUrl || item.image_url)
+    }));
+  },
+
   // ======== Banner 数据 ========
   fetchBanners() {
     const FALLBACK = [
@@ -174,7 +186,7 @@ Page({
 
     // 立即显示缓存或兜底，不阻塞页面
     const cached = wx.getStorageSync('cachedBanners');
-    this.setData({ bannerList: (cached && cached.length > 0) ? cached : FALLBACK });
+    this.setData({ bannerList: (cached && cached.length > 0) ? this.normalizeBanners(cached) : FALLBACK });
 
     // 后台静默拉取最新数据，5 秒超时
     wx.request({
@@ -184,8 +196,9 @@ Page({
       success: (res) => {
         const list = res.data && res.data.code === 0 && res.data.data;
         if (list && list.length > 0) {
-          this.setData({ bannerList: list });
-          wx.setStorageSync('cachedBanners', list);
+          const normalized = this.normalizeBanners(list);
+          this.setData({ bannerList: normalized });
+          wx.setStorageSync('cachedBanners', normalized);
         }
       },
       fail: () => {}

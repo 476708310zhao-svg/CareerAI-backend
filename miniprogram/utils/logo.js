@@ -4,7 +4,7 @@
 //       src="{{logoUrl('google.com')}}"  或  src="{{logoByName('字节跳动')}}"
 
 const config = require('./config.js');
-const BASE   = config.API_BASE_URL;
+const BASE   = config.ASSET_BASE_URL || config.API_BASE_URL;
 
 // 公司名 → 主域名（与后端 NAME_TO_DOMAIN 保持同步，用于纯前端预填）
 const NAME_TO_DOMAIN = {

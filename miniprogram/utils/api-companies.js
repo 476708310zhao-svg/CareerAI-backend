@@ -2,15 +2,16 @@ const config = require('./config.js');
 const { request, DETAIL_CACHE_TTL } = require('./api-client.js');
 
 const LOGO_CACHE_VERSION = '20260429a';
+const ASSET_BASE_URL = config.ASSET_BASE_URL || config.API_BASE_URL;
 
 function normalizeLogo(url) {
   if (!url) return '/images/default-company.png';
   if (url.indexOf('/api/logo') === 0) {
     const separator = url.indexOf('?') >= 0 ? '&' : '?';
-    return `${config.API_BASE_URL}${url}${separator}v=${LOGO_CACHE_VERSION}`;
+    return `${ASSET_BASE_URL}${url}${separator}v=${LOGO_CACHE_VERSION}`;
   }
   if (url.indexOf('/api/') === 0 || url.indexOf('/uploads/') === 0) {
-    return config.API_BASE_URL + url;
+    return ASSET_BASE_URL + url;
   }
   return url;
 }

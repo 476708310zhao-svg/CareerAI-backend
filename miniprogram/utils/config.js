@@ -12,6 +12,8 @@ const PROD_API_BASE_URL = 'https://api.zhiyincareer.com';
 module.exports = {
   // 模拟器走本地后端；手机预览/体验版/正式版全部走线上
   API_BASE_URL: IS_SIMULATOR ? LOCAL_API_BASE_URL : PROD_API_BASE_URL,
+  // <image> 不再支持 HTTP，图片/Logo 资源统一走线上 HTTPS 域名。
+  ASSET_BASE_URL: PROD_API_BASE_URL,
 
   // LeetCode 题库（无需密钥，直接请求）
   LEETCODE_API_URL: 'https://leetcode.cn/graphql',
