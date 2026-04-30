@@ -35,6 +35,8 @@ Page({
     offerForm: { interviewers: '', interviewTime: '', feedback: '', ocDetails: '', offerBase: '', offerBonus: '', offerRsu: '' },
   },
 
+  _searchTimer: null,
+
   onLoad: function() {
     const vipLevel = (wx.getStorageSync('userInfo') || {}).vipLevel || 0;
     this.setData({ isVip: vipLevel > 0 });
@@ -45,6 +47,13 @@ Page({
     const vipLevel = (wx.getStorageSync('userInfo') || {}).vipLevel || 0;
     this.setData({ isVip: vipLevel > 0 });
     this.checkDeadlineReminders();
+  },
+
+  onUnload: function() {
+    if (this._searchTimer) {
+      clearTimeout(this._searchTimer);
+      this._searchTimer = null;
+    }
   },
 
   checkDeadlineReminders: function() {
@@ -186,10 +195,18 @@ Page({
 
   onSearchInput: function(e) {
     this.setData({ searchKeyword: e.detail.value });
-    this.applyFilter(this.data.filterTab);
+    if (this._searchTimer) clearTimeout(this._searchTimer);
+    this._searchTimer = setTimeout(() => {
+      this.applyFilter(this.data.filterTab);
+      this._searchTimer = null;
+    }, 220);
   },
 
   clearSearch: function() {
+    if (this._searchTimer) {
+      clearTimeout(this._searchTimer);
+      this._searchTimer = null;
+    }
     this.setData({ searchKeyword: '' });
     this.applyFilter(this.data.filterTab);
   },

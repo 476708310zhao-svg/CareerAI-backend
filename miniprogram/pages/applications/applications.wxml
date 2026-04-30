@@ -3,6 +3,8 @@
 
   <!-- Hero Header -->
   <view class="hero">
+    <view class="hero-orb hero-orb-a"></view>
+    <view class="hero-orb hero-orb-b"></view>
     <view class="hero-inner">
       <view class="hero-left">
         <text class="hero-title">我的网申</text>
@@ -15,22 +17,22 @@
 
     <!-- Stats Bar -->
     <view class="hero-stats">
-      <view class="stat-item" bindtap="setFilter" data-tab="all">
+      <view class="stat-item" hover-class="tap-bounce" hover-stay-time="80" bindtap="setFilter" data-tab="all">
         <text class="stat-num">{{stats.total}}</text>
         <text class="stat-label">累计投递</text>
       </view>
       <view class="stat-divider"></view>
-      <view class="stat-item" bindtap="setFilter" data-tab="pending">
+      <view class="stat-item" hover-class="tap-bounce" hover-stay-time="80" bindtap="setFilter" data-tab="pending">
         <text class="stat-num orange">{{stats.pending}}</text>
         <text class="stat-label">待初筛</text>
       </view>
       <view class="stat-divider"></view>
-      <view class="stat-item" bindtap="setFilter" data-tab="interview">
+      <view class="stat-item" hover-class="tap-bounce" hover-stay-time="80" bindtap="setFilter" data-tab="interview">
         <text class="stat-num blue">{{stats.interviewing}}</text>
         <text class="stat-label">面试中</text>
       </view>
       <view class="stat-divider"></view>
-      <view class="stat-item" bindtap="setFilter" data-tab="offer">
+      <view class="stat-item" hover-class="tap-bounce" hover-stay-time="80" bindtap="setFilter" data-tab="offer">
         <text class="stat-num green">{{stats.offer}}</text>
         <text class="stat-label">已录用</text>
       </view>
@@ -59,7 +61,7 @@
       <input class="search-input" placeholder="搜索公司或职位" value="{{searchKeyword}}" bindinput="onSearchInput" />
       <text wx:if="{{searchKeyword}}" class="search-clear" catchtap="clearSearch">✕</text>
     </view>
-    <view class="sort-btn" catchtap="toggleSort">
+    <view class="sort-btn" hover-class="tap-bounce" hover-stay-time="80" catchtap="toggleSort">
       <text class="sort-icon">{{sortBy === 'date' ? '📅' : '⏰'}}</text>
       <text class="sort-txt">{{sortBy === 'date' ? '投递时间' : '截止日期'}}</text>
     </view>
@@ -67,15 +69,15 @@
 
   <!-- Filter Tabs -->
   <view class="filter-row">
-    <view class="filter-tab {{filterTab === 'all' ? 'active' : ''}}" bindtap="setFilter" data-tab="all">全部</view>
-    <view class="filter-tab {{filterTab === 'pending' ? 'active' : ''}}" bindtap="setFilter" data-tab="pending">待初筛</view>
-    <view class="filter-tab {{filterTab === 'interview' ? 'active' : ''}}" bindtap="setFilter" data-tab="interview">面试中</view>
-    <view class="filter-tab {{filterTab === 'offer' ? 'active' : ''}}" bindtap="setFilter" data-tab="offer">已录用</view>
-    <view class="filter-tab {{filterTab === 'rejected' ? 'active' : ''}}" bindtap="setFilter" data-tab="rejected">已结束</view>
+    <view class="filter-tab {{filterTab === 'all' ? 'active' : ''}}" hover-class="tab-press" hover-stay-time="80" bindtap="setFilter" data-tab="all">全部</view>
+    <view class="filter-tab {{filterTab === 'pending' ? 'active' : ''}}" hover-class="tab-press" hover-stay-time="80" bindtap="setFilter" data-tab="pending">待初筛</view>
+    <view class="filter-tab {{filterTab === 'interview' ? 'active' : ''}}" hover-class="tab-press" hover-stay-time="80" bindtap="setFilter" data-tab="interview">面试中</view>
+    <view class="filter-tab {{filterTab === 'offer' ? 'active' : ''}}" hover-class="tab-press" hover-stay-time="80" bindtap="setFilter" data-tab="offer">已录用</view>
+    <view class="filter-tab {{filterTab === 'rejected' ? 'active' : ''}}" hover-class="tab-press" hover-stay-time="80" bindtap="setFilter" data-tab="rejected">已结束</view>
   </view>
 
   <!-- Offer AI 对比横幅 -->
-  <view class="offer-compare-banner" wx:if="{{stats.offer >= 2}}" bindtap="goToOfferCompare">
+  <view class="offer-compare-banner" wx:if="{{stats.offer >= 2}}" hover-class="card-press" hover-stay-time="80" bindtap="goToOfferCompare">
     <view class="ocb-left">
       <text class="ocb-icon">🤖</text>
       <view class="ocb-info">
@@ -88,6 +90,13 @@
 
   <!-- Application List -->
   <view class="list-area">
+    <view class="list-head" wx:if="{{!loading}}">
+      <view class="list-head-left">
+        <text class="list-kicker">APPLICATIONS</text>
+        <text class="list-title">申请进度</text>
+      </view>
+      <text class="list-count">共 {{filteredApps.length}} 条</text>
+    </view>
 
     <!-- Loading -->
     <loading-spinner wx:if="{{loading}}" text="同步进度中..."></loading-spinner>
@@ -98,6 +107,8 @@
         wx:for="{{filteredApps}}"
         wx:key="id"
         class="app-card"
+        hover-class="card-press"
+        hover-stay-time="80"
         bindtap="viewApplication"
         data-id="{{item.id}}"
       >
@@ -128,7 +139,7 @@
           <!-- Status + date -->
           <view class="right-col">
             <view wx:if="{{isVip}}" class="vip-priority-badge">VIP优先</view>
-            <view class="status-badge {{item.statusCode}}" catchtap="quickUpdateStatus" data-id="{{item.id}}">{{item.statusText}}</view>
+            <view class="status-badge {{item.statusCode}}" hover-class="chip-press" hover-stay-time="80" catchtap="quickUpdateStatus" data-id="{{item.id}}">{{item.statusText}}</view>
             <text class="date-text">{{item.applied_at}}</text>
           </view>
         </view>
@@ -157,7 +168,7 @@
         </view>
 
         <!-- Offer 详情行（仅 offer 状态且已录入） -->
-        <view wx:if="{{item.statusCode === 'offer' && item.offer && (item.offer.offerBase || item.offer.offerBonus || item.offer.offerRsu)}}" class="offer-panel" catchtap="openOfferModal" data-id="{{item.id}}">
+        <view wx:if="{{item.statusCode === 'offer' && item.offer && (item.offer.offerBase || item.offer.offerBonus || item.offer.offerRsu)}}" class="offer-panel" hover-class="soft-press" hover-stay-time="80" catchtap="openOfferModal" data-id="{{item.id}}">
           <view class="offer-panel-inner">
             <view wx:if="{{item.offer.offerBase}}"  class="offer-chip offer-base">💰 Base {{item.offer.offerBase}}</view>
             <view wx:if="{{item.offer.offerBonus}}" class="offer-chip offer-bonus">🎁 Bonus {{item.offer.offerBonus}}</view>
@@ -165,13 +176,13 @@
           </view>
           <text class="offer-edit-hint">编辑</text>
         </view>
-        <view wx:elif="{{item.statusCode === 'offer'}}" class="offer-empty-bar" catchtap="openOfferModal" data-id="{{item.id}}">
+        <view wx:elif="{{item.statusCode === 'offer'}}" class="offer-empty-bar" hover-class="soft-press" hover-stay-time="80" catchtap="openOfferModal" data-id="{{item.id}}">
           <text class="offer-empty-icon">🎉</text>
           <text class="offer-empty-txt">点击录入 Offer 详情（Base / Bonus / RSU）</text>
         </view>
 
         <!-- 备注快捷行 -->
-        <view class="note-bar" catchtap="openNoteModal" data-id="{{item.id}}">
+        <view class="note-bar" hover-class="soft-press" hover-stay-time="80" catchtap="openNoteModal" data-id="{{item.id}}">
           <text class="note-bar-icon">📝</text>
           <text class="note-bar-txt">{{item.notes || '添加备注…'}}</text>
           <text class="note-bar-edit">编辑</text>
@@ -193,7 +204,7 @@
   </view>
 
   <!-- FAB -->
-  <view class="fab" bindtap="showAddModal">
+  <view class="fab" hover-class="fab-press" hover-stay-time="80" bindtap="showAddModal">
     <text class="fab-plus">＋</text>
   </view>
 
