@@ -48,6 +48,94 @@ const POST = (path, body) => api(path, { method: 'POST', body });
 const PUT = (path, body) => api(path, { method: 'PUT', body });
 const DELETE = path => api(path, { method: 'DELETE' });
 
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 KB';
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
+function canvasToBlob(canvas, type, quality) {
+  return new Promise(resolve => canvas.toBlob(resolve, type, quality));
+}
+
+function loadImageFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('图片读取失败，请重新选择图片'));
+    };
+    img.src = url;
+  });
+}
+
+async function compressImageForFrontend(file, options = {}) {
+  const {
+    maxWidth = 1200,
+    maxHeight = 800,
+    quality = 0.78,
+    outputType = 'image/jpeg',
+    filePrefix = 'image'
+  } = options;
+
+  // GIF 动图压缩会丢动画，保持原文件上传。
+  if (!file || file.type === 'image/gif') {
+    return {
+      file,
+      originalSize: file ? file.size : 0,
+      compressedSize: file ? file.size : 0,
+      compressed: false,
+      note: file && file.type === 'image/gif' ? 'GIF 动图已保持原格式' : ''
+    };
+  }
+
+  const img = await loadImageFromFile(file);
+  const scale = Math.min(1, maxWidth / img.naturalWidth, maxHeight / img.naturalHeight);
+  const width = Math.max(1, Math.round(img.naturalWidth * scale));
+  const height = Math.max(1, Math.round(img.naturalHeight * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(img, 0, 0, width, height);
+
+  const blob = await canvasToBlob(canvas, outputType, quality);
+  if (!blob) throw new Error('图片压缩失败，请换一张图片重试');
+
+  const ext = outputType === 'image/webp' ? 'webp' : outputType === 'image/png' ? 'png' : 'jpg';
+  const compressedFile = new File([blob], `${filePrefix}_${Date.now()}.${ext}`, { type: outputType });
+
+  // 极小图片如果转换后反而变大，就保留原图，避免负优化。
+  if (compressedFile.size >= file.size && scale === 1) {
+    return {
+      file,
+      originalSize: file.size,
+      compressedSize: file.size,
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+      compressed: false
+    };
+  }
+
+  return {
+    file: compressedFile,
+    originalSize: file.size,
+    compressedSize: compressedFile.size,
+    width,
+    height,
+    compressed: true
+  };
+}
+
 function toast(msg, type = 'success') {
   let container = document.getElementById('toastContainer');
   if (!container) {

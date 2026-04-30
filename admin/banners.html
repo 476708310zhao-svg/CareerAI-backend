@@ -118,6 +118,7 @@
               <i class="fa-solid fa-cloud-arrow-up" style="font-size:28px;color:#d1d5db"></i>
               <div class="upload-hint">点击选择图片 <span>或拖拽到此处</span></div>
               <div class="upload-hint" style="margin-top:4px">JPG / PNG / WebP · 最大 5MB · 推荐 1372×600px</div>
+              <div class="upload-hint" style="margin-top:4px">上传后会自动压缩为前端轻量图，提升小程序首屏加载速度</div>
             </div>
           </div>
           <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none" onchange="onFileSelect(event)">
@@ -265,20 +266,36 @@ async function uploadFile(file) {
   }
 
   document.getElementById('uploadProgress').style.display = '';
-  document.getElementById('progressBar').style.width = '30%';
-  document.getElementById('progressText').textContent = '上传中...';
+  document.getElementById('progressBar').style.width = '18%';
+  document.getElementById('progressText').textContent = '正在自动压缩图片...';
   document.getElementById('saveBtn').disabled = true;
 
-  const formData = new FormData();
-  formData.append('file', file);
-
   try {
+    const optimized = await compressImageForFrontend(file, {
+      maxWidth: 1060,
+      maxHeight: 463,
+      quality: 0.78,
+      outputType: 'image/jpeg',
+      filePrefix: 'banner'
+    });
+
+    document.getElementById('progressBar').style.width = '55%';
+    document.getElementById('progressText').textContent = optimized.compressed
+      ? `已压缩：${formatBytes(optimized.originalSize)} → ${formatBytes(optimized.compressedSize)}，上传中...`
+      : `${optimized.note || '图片无需压缩'}，上传中...`;
+
+    const uploadTarget = optimized.file;
+    const formData = new FormData();
+    formData.append('file', uploadTarget);
+
     const res = await api('/admin/api/upload/banner', { method: 'POST', body: formData });
     console.log('[upload] response:', res);
     if (!res || res.code !== 0) throw new Error(res?.message || `上传失败 (code: ${res?.code})`);
 
     document.getElementById('progressBar').style.width = '100%';
-    document.getElementById('progressText').textContent = '上传成功 ✓';
+    document.getElementById('progressText').textContent = optimized.compressed
+      ? `压缩并上传成功：${formatBytes(optimized.originalSize)} → ${formatBytes(optimized.compressedSize)}`
+      : '上传成功';
     document.getElementById('f_image_url').value = res.data.url;
 
     // 预览缩略图
@@ -290,7 +307,7 @@ async function uploadFile(file) {
       document.getElementById('uploadPlaceholder').style.display = 'none';
       document.getElementById('uploadZone').classList.add('has-img');
     };
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(uploadTarget);
 
     updatePreview();
     setTimeout(() => { document.getElementById('uploadProgress').style.display = 'none'; }, 1500);
