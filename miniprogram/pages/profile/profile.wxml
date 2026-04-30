@@ -9,7 +9,7 @@
 
     <!-- 未登录 -->
     <block wx:if="{{!isLogin}}">
-      <view class="user-info" bindtap="onLogin">
+      <view class="user-info" bindtap="onLogin" hover-class="panel-press">
         <view class="avatar-wrap">
           <image class="avatar" src="/images/default-avatar.png" mode="aspectFill"></image>
           <view class="avatar-badge">登录</view>
@@ -24,7 +24,7 @@
 
     <!-- 已登录 -->
     <block wx:else>
-      <view class="user-info" bindtap="goToEditProfile">
+      <view class="user-info" bindtap="goToEditProfile" hover-class="panel-press">
         <view class="avatar-wrap">
           <image class="avatar" src="{{userInfo.avatarUrl}}" mode="aspectFill"></image>
         </view>
@@ -41,17 +41,17 @@
 
     <!-- 统计数据条（悬浮在 header 底部） -->
     <view class="stats-card">
-      <view class="stat-item" bindtap="goToApplications">
+      <view class="stat-item" bindtap="goToApplications" hover-class="tap-soft">
         <text class="stat-num">{{stats.applications}}</text>
         <text class="stat-label">已投递</text>
       </view>
       <view class="stat-divider"></view>
-      <view class="stat-item" bindtap="goToInterviews">
+      <view class="stat-item" bindtap="goToInterviews" hover-class="tap-soft">
         <text class="stat-num">{{stats.interviews}}</text>
         <text class="stat-label">面试</text>
       </view>
       <view class="stat-divider"></view>
-      <view class="stat-item" bindtap="goToFavorites">
+      <view class="stat-item" bindtap="goToFavorites" hover-class="tap-soft">
         <text class="stat-num">{{stats.favorites}}</text>
         <text class="stat-label">收藏</text>
       </view>
@@ -64,7 +64,7 @@
   </view>
 
   <!-- ── VIP Banner ── -->
-  <view class="vip-banner" bindtap="goToVip">
+  <view class="vip-banner" bindtap="goToVip" hover-class="panel-press">
     <view class="vip-left">
       <view class="vip-title-row">
         <text class="vip-crown">👑</text>
@@ -79,7 +79,7 @@
   <view class="menu-group">
     <view class="group-title">求职工具</view>
 
-    <view class="menu-item" bindtap="goToMessages">
+    <view class="menu-item" bindtap="goToMessages" hover-class="menu-press">
       <view class="menu-icon-box" style="background:#EEF2FF;">
         <text class="menu-emoji">🔔</text>
       </view>
@@ -87,7 +87,7 @@
       <view class="menu-arrow"></view>
     </view>
 
-    <view class="menu-item" bindtap="goToFavorites">
+    <view class="menu-item" bindtap="goToFavorites" hover-class="menu-press">
       <view class="menu-icon-box" style="background:#FFF1F2;">
         <text class="menu-emoji">🔖</text>
       </view>
@@ -95,7 +95,7 @@
       <view class="menu-arrow"></view>
     </view>
 
-    <view class="menu-item" bindtap="goToResumes">
+    <view class="menu-item" bindtap="goToResumes" hover-class="menu-press">
       <view class="menu-icon-box" style="background:#F0FDF4;">
         <text class="menu-emoji">📄</text>
       </view>
@@ -103,7 +103,7 @@
       <view class="menu-arrow"></view>
     </view>
 
-    <view class="menu-item" bindtap="goToAIInterview">
+    <view class="menu-item" bindtap="goToAIInterview" hover-class="menu-press">
       <view class="menu-icon-box" style="background:#FAF5FF;">
         <text class="menu-emoji">🤖</text>
       </view>
@@ -112,7 +112,7 @@
       <view class="menu-arrow"></view>
     </view>
 
-    <view class="menu-item" bindtap="goToMyExperiences">
+    <view class="menu-item" bindtap="goToMyExperiences" hover-class="menu-press">
       <view class="menu-icon-box" style="background:#FFFBEB;">
         <text class="menu-emoji">📝</text>
       </view>
@@ -125,7 +125,7 @@
   <view class="menu-group">
     <view class="group-title">常用功能</view>
 
-    <view class="menu-item" bindtap="goToFeedback">
+    <view class="menu-item" bindtap="goToFeedback" hover-class="menu-press">
       <view class="menu-icon-box" style="background:#F0F9FF;">
         <text class="menu-emoji">💬</text>
       </view>
@@ -133,7 +133,7 @@
       <view class="menu-arrow"></view>
     </view>
 
-    <view class="menu-item" bindtap="goToAbout">
+    <view class="menu-item" bindtap="goToAbout" hover-class="menu-press">
       <view class="menu-icon-box" style="background:#F8FAFC;">
         <text class="menu-emoji">ℹ️</text>
       </view>
@@ -141,7 +141,7 @@
       <view class="menu-arrow"></view>
     </view>
 
-    <view class="menu-item" bindtap="goToSettings">
+    <view class="menu-item" bindtap="goToSettings" hover-class="menu-press">
       <view class="menu-icon-box" style="background:#F4F6F9;">
         <text class="menu-emoji">⚙️</text>
       </view>

@@ -170,3 +170,217 @@ page {
   border-top: 3rpx solid #D1D5DB;
   transform: rotate(45deg); flex-shrink: 0;
 }
+
+/* ===== UI polish: profile page ===== */
+page {
+  background:
+    radial-gradient(circle at 10% -4%, rgba(43,92,230,0.13), transparent 34%),
+    radial-gradient(circle at 92% 8%, rgba(245,158,11,0.12), transparent 28%),
+    linear-gradient(180deg, #ffffff 0%, #f6f8fc 38%, #f8fafc 100%);
+}
+
+.container {
+  min-height: 100vh;
+  padding-bottom: calc(28rpx + env(safe-area-inset-bottom));
+}
+
+.user-header {
+  margin: 0 0 82rpx;
+  padding: 52rpx 28rpx 0;
+  overflow: visible;
+  background:
+    radial-gradient(circle at 86% 18%, rgba(255,255,255,0.16), transparent 26%),
+    linear-gradient(135deg, #1d4ed8 0%, #2447bf 46%, #172554 100%);
+  border-radius: 0 0 42rpx 42rpx;
+  box-shadow: 0 22rpx 50rpx rgba(29,78,216,0.22);
+}
+
+.deco-circle {
+  background: rgba(255,255,255,0.08);
+}
+
+.deco1 {
+  width: 340rpx;
+  height: 340rpx;
+  top: -70rpx;
+  right: -74rpx;
+  border: 1rpx solid rgba(255,255,255,0.10);
+}
+
+.deco2 {
+  width: 190rpx;
+  height: 190rpx;
+  left: -52rpx;
+  bottom: 76rpx;
+}
+
+.user-info {
+  position: relative;
+  z-index: 1;
+  min-height: 142rpx;
+  padding: 10rpx 8rpx 38rpx;
+}
+
+.avatar {
+  width: 112rpx;
+  height: 112rpx;
+  border: 5rpx solid rgba(255,255,255,0.72);
+  background: rgba(255,255,255,0.22);
+  box-shadow: 0 18rpx 34rpx rgba(15,23,42,0.22);
+}
+
+.avatar-badge {
+  right: -8rpx;
+  bottom: 0;
+  background: linear-gradient(135deg, #f59e0b, #fb7185);
+  border-radius: 999rpx;
+  box-shadow: 0 8rpx 16rpx rgba(15,23,42,0.18);
+}
+
+.nickname {
+  color: #ffffff;
+  font-size: 38rpx;
+  font-weight: 900;
+  letter-spacing: 0.2rpx;
+}
+
+.school {
+  max-width: 420rpx;
+  color: rgba(255,255,255,0.78);
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.edit-btn,
+.arrow-btn {
+  color: #ffffff;
+  background: rgba(255,255,255,0.16);
+  border: 1.5rpx solid rgba(255,255,255,0.32);
+  box-shadow: inset 0 1rpx 0 rgba(255,255,255,0.20);
+}
+
+.edit-btn {
+  padding: 12rpx 28rpx;
+  font-weight: 800;
+}
+
+.vip-badge {
+  background: linear-gradient(135deg, rgba(245,158,11,0.32), rgba(251,191,36,0.20));
+  color: #fde68a;
+}
+
+.stats-card {
+  position: absolute;
+  left: 28rpx;
+  right: 28rpx;
+  bottom: -70rpx;
+  padding: 24rpx 12rpx;
+  border-radius: 28rpx;
+  background: rgba(255,255,255,0.96);
+  border: 1.5rpx solid rgba(148,163,184,0.14);
+  box-shadow: 0 18rpx 44rpx rgba(15,23,42,0.13);
+}
+
+.stat-item {
+  padding: 6rpx 0;
+  border-radius: 18rpx;
+}
+
+.stat-num {
+  color: #172554;
+  font-size: 34rpx;
+  font-weight: 950;
+}
+
+.stat-label {
+  color: #8a94a6;
+  font-size: 21rpx;
+  font-weight: 750;
+}
+
+.stat-divider {
+  background: rgba(148,163,184,0.18);
+}
+
+.vip-banner {
+  margin: 18rpx 22rpx 0;
+  padding: 26rpx 26rpx;
+  border-radius: 28rpx;
+  background:
+    radial-gradient(circle at 86% 16%, rgba(255,255,255,0.38), transparent 30%),
+    linear-gradient(135deg, #fff7d6 0%, #ffedb6 48%, #fff8e8 100%);
+  border: 1.5rpx solid rgba(245,158,11,0.26);
+  box-shadow: 0 16rpx 36rpx rgba(245,158,11,0.13);
+}
+
+.vip-title {
+  color: #92400e;
+  font-size: 28rpx;
+  font-weight: 950;
+}
+
+.vip-desc {
+  color: #b45309;
+  font-size: 22rpx;
+  font-weight: 650;
+}
+
+.vip-btn {
+  padding: 15rpx 26rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  box-shadow: 0 12rpx 22rpx rgba(249,115,22,0.28);
+}
+
+.menu-group {
+  margin: 18rpx 22rpx 0;
+  border-radius: 30rpx;
+  background: rgba(255,255,255,0.94);
+  border: 1.5rpx solid rgba(148,163,184,0.14);
+  box-shadow: 0 16rpx 40rpx rgba(15,23,42,0.06);
+}
+
+.group-title {
+  padding: 24rpx 28rpx 12rpx;
+  color: #8a94a6;
+  font-size: 22rpx;
+  font-weight: 900;
+  letter-spacing: 1.2rpx;
+}
+
+.menu-item {
+  min-height: 100rpx;
+  padding: 20rpx 28rpx;
+  border-bottom-color: rgba(148,163,184,0.12);
+}
+
+.menu-icon-box {
+  width: 70rpx;
+  height: 70rpx;
+  border-radius: 20rpx;
+  box-shadow: inset 0 -2rpx 0 rgba(15,23,42,0.03);
+}
+
+.menu-name {
+  color: #1f2937;
+  font-size: 29rpx;
+  font-weight: 780;
+}
+
+.menu-arrow {
+  border-color: #cbd5e1;
+}
+
+.tag-new {
+  color: #2557d6;
+  background: #eef4ff;
+  border-radius: 999rpx;
+  font-size: 18rpx;
+}
+
+.panel-press,
+.menu-press,
+.tap-soft {
+  transform: scale(0.982);
+  opacity: 0.84;
+}
