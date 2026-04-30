@@ -1,13 +1,15 @@
 <!-- pages/interview-bank/interview-bank.wxml -->
 <view class="page">
-  <view class="top-tabs">
-    <block wx:for="{{modes}}" wx:key="key">
-      <view class="top-tab mode-{{item.key}} {{activeMode === item.key ? 'active' : ''}}" bindtap="switchMode" data-key="{{item.key}}">
-        <text class="top-tab-title">{{item.label}}</text>
-        <text class="top-tab-badge {{item.key === 'elite' ? 'flame' : ''}}">{{item.badge}}</text>
-      </view>
-    </block>
-  </view>
+  <scroll-view scroll-x class="top-tabs" enhanced="{{true}}" show-scrollbar="{{false}}">
+    <view class="top-tab-track">
+      <block wx:for="{{modes}}" wx:key="key">
+        <view class="top-tab mode-{{item.key}} {{activeMode === item.key ? 'active' : ''}}" bindtap="switchMode" data-key="{{item.key}}">
+          <text class="top-tab-title">{{item.label}}</text>
+          <text class="top-tab-badge {{item.key === 'elite' ? 'flame' : ''}}">{{item.badge}}</text>
+        </view>
+      </block>
+    </view>
+  </scroll-view>
 
   <view class="filter-card">
     <view class="search-box">

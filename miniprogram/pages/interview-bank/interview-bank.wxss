@@ -15,46 +15,52 @@ page {
 }
 
 .top-tabs {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6rpx;
   padding: 16rpx 2rpx 10rpx;
+  white-space: nowrap;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.top-tab-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 12rpx;
+  min-width: 100%;
+  box-sizing: border-box;
 }
 
 .top-tab {
   position: relative;
   flex: 0 0 auto;
-  min-width: 0;
   height: 62rpx;
-  padding: 0 8rpx;
+  padding: 0 18rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5rpx;
+  gap: 8rpx;
   box-sizing: border-box;
   border-radius: 20rpx;
   color: #94a3b8;
-  font-size: 22rpx;
+  font-size: 23rpx;
   font-weight: 800;
   line-height: 1;
   white-space: nowrap;
 }
 
 .top-tab.mode-featured {
-  width: 176rpx;
+  width: auto;
 }
 
 .top-tab.mode-leetcode {
-  width: 190rpx;
+  width: auto;
 }
 
 .top-tab.mode-topics {
-  width: 132rpx;
+  width: auto;
 }
 
 .top-tab.mode-elite {
-  width: 144rpx;
+  width: auto;
 }
 
 .top-tab.active {
@@ -74,11 +80,9 @@ page {
 }
 
 .top-tab-title {
-  display: block;
-  flex-shrink: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: inline-block;
+  flex: none;
+  word-break: keep-all;
   white-space: nowrap;
   line-height: 28rpx;
 }
