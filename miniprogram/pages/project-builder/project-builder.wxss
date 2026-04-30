@@ -696,7 +696,7 @@ page {
 .gen-btn {
   width: 560rpx;
   max-width: calc(100vw - 136rpx);
-  margin: 28rpx auto 0;
+  margin: 26rpx auto 18rpx;
   display: block;
   --btn-height: 82rpx;
   --btn-font-size: 28rpx;
@@ -704,5 +704,5 @@ page {
 }
 
 .bottom-spacer {
-  height: 0;
+  height: calc(20rpx + env(safe-area-inset-bottom));
 }
