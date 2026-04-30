@@ -985,7 +985,7 @@ page {
 }
 
 .list-area {
-  padding: 22rpx 24rpx calc(172rpx + env(safe-area-inset-bottom));
+  padding: 22rpx 24rpx calc(78rpx + env(safe-area-inset-bottom));
 }
 
 .list-head {
@@ -1190,11 +1190,15 @@ page {
 
 .fab {
   right: 34rpx;
-  bottom: calc(126rpx + env(safe-area-inset-bottom));
+  bottom: calc(58rpx + env(safe-area-inset-bottom));
   width: 108rpx;
   height: 108rpx;
   background: linear-gradient(135deg, #2f66f4 0%, #16b8a7 100%);
   box-shadow: 0 18rpx 36rpx rgba(47, 102, 244, 0.36);
+}
+
+.footer-tip {
+  margin: 4rpx 0 12rpx;
 }
 
 .fab::after {
