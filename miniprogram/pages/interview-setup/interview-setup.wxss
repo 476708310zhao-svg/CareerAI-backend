@@ -282,4 +282,120 @@ page {
   border-top: 1.5rpx solid rgba(0, 0, 0, 0.05);
 }
 
+/* 2026 kingkong polish: interview setup */
+page {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(101, 82, 255, 0.16), transparent 34%),
+    linear-gradient(180deg, #f8f7ff 0%, #f6f8fc 56%, #ffffff 100%);
+  overflow-x: hidden;
+}
+
+.container {
+  padding: 18rpx 24rpx calc(158rpx + env(safe-area-inset-bottom));
+  overflow-x: hidden;
+}
+
+.page-header {
+  position: relative;
+  margin: 0 0 22rpx;
+  padding: 36rpx 28rpx;
+  border-radius: 34rpx;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1d2361 0%, #6552ff 58%, #ff7ab6 100%);
+  box-shadow: 0 22rpx 44rpx rgba(101, 82, 255, 0.24);
+}
+
+.page-header::after {
+  content: '';
+  position: absolute;
+  width: 260rpx;
+  height: 260rpx;
+  right: -98rpx;
+  top: -98rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.page-title {
+  position: relative;
+  z-index: 1;
+  color: #ffffff;
+  font-size: 44rpx;
+  letter-spacing: -0.8rpx;
+}
+
+.page-subtitle {
+  position: relative;
+  z-index: 1;
+  color: rgba(255, 255, 255, 0.76);
+  margin-top: 10rpx;
+}
+
+.profile-hint,
+.section {
+  margin-left: 0;
+  margin-right: 0;
+  border: 1rpx solid rgba(55, 68, 132, 0.08);
+  border-radius: 30rpx;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  box-shadow: 0 16rpx 34rpx rgba(25, 33, 70, 0.07);
+}
+
+.section-title {
+  font-size: 31rpx;
+  font-weight: 800;
+  letter-spacing: -0.4rpx;
+}
+
+.type-card,
+.diff-item,
+.count-item,
+.quick-tag {
+  border-radius: 24rpx;
+  transition: transform 0.16s ease, opacity 0.16s ease;
+}
+
+.type-card {
+  border: 1rpx solid rgba(101, 82, 255, 0.1);
+  background: #f8f9ff;
+}
+
+.type-card.active {
+  background: linear-gradient(180deg, #f0eeff 0%, #ffffff 100%);
+  border-color: rgba(101, 82, 255, 0.36);
+  box-shadow: 0 14rpx 28rpx rgba(101, 82, 255, 0.16);
+}
+
+.diff-item.active,
+.count-item.active,
+.quick-tag.active {
+  background: linear-gradient(135deg, #6552ff, #ff7ab6);
+  color: #ffffff;
+  box-shadow: 0 12rpx 24rpx rgba(101, 82, 255, 0.2);
+}
+
+.type-card:active,
+.diff-item:active,
+.count-item:active,
+.quick-tag:active {
+  transform: scale(0.965);
+  opacity: 0.86;
+}
+
+.input-box {
+  height: 84rpx;
+  border-radius: 24rpx;
+  border: 1rpx solid rgba(101, 82, 255, 0.12);
+  background: #f7f8ff;
+  box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.9);
+}
+
+.footer-bar {
+  padding: 18rpx 28rpx;
+  padding-bottom: calc(18rpx + env(safe-area-inset-bottom));
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(18rpx);
+  box-shadow: 0 -16rpx 36rpx rgba(24, 31, 68, 0.1);
+}
+
 /* start-btn 由 c-button 提供样式 */

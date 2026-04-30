@@ -254,3 +254,116 @@ page { background: #F2F2F7; }
   color: #fff;
   font-weight: 700;
 }
+
+/* 2026 kingkong polish: AI workflow */
+page {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(47, 102, 244, 0.14), transparent 34%),
+    linear-gradient(180deg, #f7faff 0%, #f7f8fc 56%, #ffffff 100%);
+  overflow-x: hidden;
+}
+
+.page {
+  overflow-x: hidden;
+}
+
+.top-bar {
+  margin: 16rpx 24rpx 0;
+  padding: 22rpx 24rpx;
+  border-radius: 30rpx;
+  border: 1rpx solid rgba(47, 102, 244, 0.1);
+  background: linear-gradient(135deg, rgba(17, 36, 91, 0.98), rgba(47, 102, 244, 0.96));
+  box-shadow: 0 18rpx 38rpx rgba(47, 102, 244, 0.22);
+}
+
+.top-name,
+.top-icon {
+  color: #ffffff;
+}
+
+.clear-btn {
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1rpx solid rgba(255, 255, 255, 0.22);
+}
+
+.clear-txt {
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.msg-scroll {
+  margin-top: 18rpx;
+}
+
+.msg-list {
+  padding: 0 24rpx calc(156rpx + env(safe-area-inset-bottom));
+}
+
+.ai-avatar {
+  background: linear-gradient(135deg, #2f66f4, #13bfa6);
+  box-shadow: 0 10rpx 20rpx rgba(47, 102, 244, 0.22);
+}
+
+.ai-bubble {
+  border: 1rpx solid rgba(47, 102, 244, 0.08);
+  border-radius: 8rpx 26rpx 26rpx 26rpx;
+  background: #ffffff;
+  box-shadow: 0 12rpx 28rpx rgba(20, 34, 66, 0.08);
+}
+
+.user-bubble {
+  border-radius: 26rpx 8rpx 26rpx 26rpx;
+  background: linear-gradient(135deg, #2f66f4, #13bfa6);
+  box-shadow: 0 12rpx 28rpx rgba(47, 102, 244, 0.18);
+}
+
+.action-card,
+.sug-chip,
+.clear-btn,
+.send-btn {
+  transition: transform 0.16s ease, opacity 0.16s ease;
+}
+
+.action-card {
+  border-radius: 24rpx;
+  border: 1rpx solid rgba(47, 102, 244, 0.1);
+  background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+  box-shadow: 0 10rpx 22rpx rgba(20, 34, 66, 0.06);
+}
+
+.sug-chip {
+  border-radius: 999rpx;
+  background: #eef4ff;
+  color: #2f66f4;
+  border: 1rpx solid rgba(47, 102, 244, 0.12);
+}
+
+.input-bar {
+  left: 24rpx;
+  right: 24rpx;
+  bottom: calc(18rpx + env(safe-area-inset-bottom));
+  width: auto;
+  border-radius: 30rpx;
+  border: 1rpx solid rgba(47, 102, 244, 0.1);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(18rpx);
+  box-shadow: 0 18rpx 38rpx rgba(20, 34, 66, 0.12);
+}
+
+.input-wrap {
+  border-radius: 24rpx;
+  background: #f7faff;
+}
+
+.send-btn.active {
+  background: linear-gradient(135deg, #2f66f4, #13bfa6);
+  box-shadow: 0 10rpx 22rpx rgba(47, 102, 244, 0.24);
+}
+
+.action-card:active,
+.sug-chip:active,
+.clear-btn:active,
+.send-btn:active {
+  transform: scale(0.94);
+  opacity: 0.86;
+}

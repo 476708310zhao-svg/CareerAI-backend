@@ -1373,3 +1373,157 @@ page {
   color: var(--text-muted);
   font-size: 24rpx;
 }
+
+/* 2026 kingkong polish: salary */
+page {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(47, 102, 244, 0.14), transparent 34%),
+    linear-gradient(180deg, #f7fbff 0%, #f5f7fb 54%, #ffffff 100%);
+  overflow-x: hidden;
+}
+
+.container {
+  overflow-x: hidden;
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+}
+
+.hero {
+  position: relative;
+  margin: 18rpx 24rpx 0;
+  padding: 34rpx 26rpx;
+  border: 0;
+  border-radius: 34rpx;
+  overflow: hidden;
+  background: linear-gradient(135deg, #10296d 0%, #2f66f4 56%, #13bfa6 100%);
+  box-shadow: 0 22rpx 44rpx rgba(47, 102, 244, 0.22);
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  width: 260rpx;
+  height: 260rpx;
+  right: -94rpx;
+  top: -94rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.hero-title {
+  color: #ffffff;
+  font-size: 42rpx;
+  letter-spacing: -0.8rpx;
+}
+
+.hero-sub {
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.region-toggle {
+  position: relative;
+  z-index: 1;
+  padding: 7rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1rpx solid rgba(255, 255, 255, 0.22);
+}
+
+.region-btn {
+  border-radius: 999rpx;
+}
+
+.region-btn.active {
+  background: #ffffff;
+  box-shadow: 0 10rpx 24rpx rgba(13, 31, 79, 0.16);
+}
+
+.tab-header {
+  margin: 20rpx 24rpx 0;
+  padding: 8rpx;
+  border-radius: 28rpx;
+  border: 0;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 14rpx 30rpx rgba(23, 42, 80, 0.07);
+}
+
+.tab-item {
+  border-radius: 20rpx;
+}
+
+.tab-item.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #2f66f4, #17b7a6);
+  box-shadow: 0 10rpx 24rpx rgba(47, 102, 244, 0.22);
+}
+
+.tab-item.active::after {
+  display: none;
+}
+
+.form-card,
+.cmp-form-card,
+.cmp-result-card,
+.history-section,
+.preset-section,
+.result-card,
+.percentile-card,
+.compare-card {
+  margin-left: 24rpx;
+  margin-right: 24rpx;
+  border: 1rpx solid rgba(37, 72, 133, 0.08);
+  border-radius: 30rpx;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  box-shadow: 0 16rpx 38rpx rgba(21, 34, 65, 0.08);
+}
+
+.input-group,
+.cmp-row {
+  border-radius: 22rpx;
+  border: 1rpx solid rgba(47, 102, 244, 0.1);
+  background: #f7faff;
+}
+
+.input-icon-box {
+  border-radius: 18rpx;
+  background: #eef4ff;
+}
+
+.search-btn,
+.gen-btn {
+  border-radius: 24rpx;
+  box-shadow: 0 14rpx 28rpx rgba(47, 102, 244, 0.22);
+}
+
+.role-card,
+.cmp-item,
+.history-chip,
+.tag-item,
+.company-tag,
+.cmp-quick-tag {
+  border-radius: 22rpx;
+  transition: transform 0.16s ease, opacity 0.16s ease;
+}
+
+.role-card:active,
+.cmp-item:active,
+.history-chip:active,
+.tag-item:active,
+.company-tag:active,
+.cmp-quick-tag:active,
+.cmp-add-btn:active,
+.region-btn:active,
+.tab-item:active {
+  transform: scale(0.96);
+  opacity: 0.86;
+}
+
+.cmp-bar-track {
+  height: 16rpx;
+  border-radius: 999rpx;
+  background: #eef3fb;
+}
+
+.cmp-median-bar {
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #2f66f4, #17b7a6);
+}

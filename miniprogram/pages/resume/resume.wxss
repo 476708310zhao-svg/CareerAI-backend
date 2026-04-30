@@ -816,3 +816,141 @@ page {
   height: 1200px;
   pointer-events: none;
 }
+
+/* 2026 kingkong polish: resume diagnosis */
+page {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(20, 184, 166, 0.15), transparent 34%),
+    linear-gradient(180deg, #f4fffc 0%, #f7f9fd 54%, #ffffff 100%);
+  overflow-x: hidden;
+}
+
+.container {
+  overflow-x: hidden;
+  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
+}
+
+.tabs {
+  margin: 18rpx 24rpx 22rpx;
+  padding: 8rpx;
+  border-radius: 28rpx;
+  border: 0;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 14rpx 30rpx rgba(20, 55, 90, 0.08);
+}
+
+.tab-item {
+  border-radius: 20rpx;
+  transition: transform 0.16s ease, opacity 0.16s ease;
+}
+
+.tab-item.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #14b8a6, #2f66f4);
+  box-shadow: 0 10rpx 24rpx rgba(20, 184, 166, 0.22);
+}
+
+.tab-item.active::after {
+  display: none;
+}
+
+.resume-switcher,
+.progress-card,
+.section-card,
+.upload-card,
+.analysis-card,
+.resume-manager-panel,
+.nlp-panel {
+  margin-left: 24rpx;
+  margin-right: 24rpx;
+  border: 1rpx solid rgba(38, 95, 121, 0.08);
+  border-radius: 30rpx;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  box-shadow: 0 16rpx 36rpx rgba(24, 42, 70, 0.08);
+}
+
+.progress-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-card::before {
+  content: '';
+  position: absolute;
+  width: 220rpx;
+  height: 220rpx;
+  right: -98rpx;
+  top: -110rpx;
+  border-radius: 999rpx;
+  background: rgba(20, 184, 166, 0.1);
+}
+
+.progress-fill {
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #14b8a6, #2f66f4);
+}
+
+.left-border {
+  border-radius: 8rpx;
+  border-left-color: #14b8a6;
+}
+
+.edit-icon,
+.add-btn,
+.ai-btn,
+.ai-gen-btn,
+.export-btn,
+.switcher-btn,
+.nlp-btn {
+  border-radius: 999rpx;
+  transition: transform 0.16s ease, opacity 0.16s ease;
+}
+
+.ai-btn,
+.ai-gen-btn,
+.nlp-btn,
+.export-btn {
+  box-shadow: 0 10rpx 22rpx rgba(47, 102, 244, 0.12);
+}
+
+.info-item,
+.exp-item,
+.edu-item,
+.skill-tag,
+.empty-hint,
+.summary-box,
+.match-box {
+  border-radius: 22rpx;
+}
+
+.empty-hint {
+  background: #f4fbff;
+  border: 1rpx dashed rgba(20, 184, 166, 0.28);
+}
+
+.tab-item:active,
+.resume-switcher:active,
+.section-card:active,
+.exp-item:active,
+.edu-item:active,
+.edit-icon:active,
+.add-btn:active,
+.ai-btn:active,
+.ai-gen-btn:active,
+.export-btn:active,
+.switcher-btn:active,
+.nlp-btn:active,
+.empty-hint:active {
+  transform: scale(0.97);
+  opacity: 0.86;
+}
+
+.form-input,
+.match-input,
+.input-box,
+.textarea,
+.modal-input {
+  border-radius: 20rpx;
+  background: #f7fbff;
+  border-color: rgba(20, 184, 166, 0.12);
+}
