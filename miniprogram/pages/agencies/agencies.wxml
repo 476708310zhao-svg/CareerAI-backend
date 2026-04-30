@@ -5,13 +5,14 @@
   <view class="fixed-header" id="fixed-header">
 
     <!-- 类型 Tab -->
-    <scroll-view scroll-x class="type-scroll">
+    <scroll-view scroll-x class="type-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
       <view class="type-inner">
         <block wx:for="{{typeList}}" wx:key="*this">
           <view
             class="type-pill {{currentType === item ? 'active' : ''}}"
             bindtap="switchType"
             data-type="{{item}}"
+            hover-class="tap-soft"
           >{{item}}</view>
         </block>
       </view>
@@ -47,6 +48,7 @@
       <view
         class="compare-toggle {{compareMode ? 'active' : ''}}"
         bindtap="toggleCompareMode"
+        hover-class="tap-soft"
       >
         <text>{{compareMode ? '退出对比' : '机构对比'}}</text>
       </view>
@@ -64,6 +66,7 @@
         class="agency-card {{compareMode && compareSel[item.id] ? 'selected' : ''}} {{compareMode ? 'compare-mode' : ''}}"
         bindtap="onCardTap"
         data-id="{{item.id}}"
+        hover-class="card-press"
       >
 
         <!-- 对比模式复选框 -->

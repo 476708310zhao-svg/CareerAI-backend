@@ -326,3 +326,348 @@ page {
   color: var(--text-muted);
   border: 1.5rpx solid rgba(0,0,0,0.06);
 }
+
+/* ===== UI polish: assessment page ===== */
+.page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 0 0, rgba(43, 92, 230, 0.10), transparent 34%),
+    radial-gradient(circle at 96% 8%, rgba(16, 185, 129, 0.09), transparent 30%),
+    linear-gradient(180deg, #ffffff 0%, #f6f8fc 34%, #f8fafc 100%);
+}
+
+.fixed-header {
+  background: rgba(255,255,255,0.96);
+  border-bottom: 1rpx solid rgba(148,163,184,0.12);
+  box-shadow: 0 12rpx 34rpx rgba(15,23,42,0.06);
+}
+
+.type-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.type-inner {
+  gap: 10rpx;
+  padding: 16rpx 24rpx 12rpx;
+}
+
+.type-pill {
+  min-width: 92rpx;
+  height: 56rpx;
+  padding: 0 24rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #7b8797;
+  background: #f8fafc;
+  border: 1.5rpx solid rgba(148,163,184,0.16);
+  border-radius: 999rpx;
+  font-size: 25rpx;
+  font-weight: 700;
+  box-shadow: inset 0 -2rpx 0 rgba(15,23,42,0.02);
+}
+
+.type-pill.active {
+  color: #1d4ed8;
+  background: linear-gradient(135deg, #eef4ff, #ffffff);
+  border-color: rgba(43,92,230,0.28);
+  box-shadow: 0 10rpx 24rpx rgba(43,92,230,0.12);
+}
+
+.search-bar {
+  padding: 0 22rpx 14rpx;
+}
+
+.search-wrap {
+  height: 76rpx;
+  background: #ffffff;
+  border: 1.5rpx solid rgba(148,163,184,0.18);
+  border-radius: 28rpx;
+  box-shadow: 0 10rpx 26rpx rgba(15,23,42,0.045);
+}
+
+.search-input {
+  font-size: 27rpx;
+  font-weight: 600;
+}
+
+.search-clear {
+  background: #eef2f7;
+  color: #64748b;
+}
+
+.toolbar-row {
+  padding: 0 22rpx 18rpx;
+}
+
+.sort-btn,
+.compare-toggle {
+  min-height: 52rpx;
+  padding: 0 20rpx;
+  background: #ffffff;
+  border-color: rgba(148,163,184,0.16);
+  box-shadow: 0 8rpx 18rpx rgba(15,23,42,0.04);
+}
+
+.sort-label,
+.compare-toggle {
+  font-size: 24rpx;
+  color: #667085;
+  font-weight: 750;
+}
+
+.compare-toggle.active {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-color: rgba(43,92,230,0.28);
+}
+
+.stat-center {
+  min-width: 0;
+}
+
+.stat-txt {
+  font-size: 24rpx;
+  color: #94a3b8;
+  font-weight: 800;
+}
+
+.stat-kw {
+  max-width: 160rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spacer {
+  height: 274rpx;
+}
+
+.list {
+  padding: 8rpx 20rpx 60rpx;
+}
+
+.agency-card {
+  padding: 22rpx 20rpx 0;
+  margin-bottom: 18rpx;
+  border-radius: 28rpx;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0.92)),
+    radial-gradient(circle at 100% 0, rgba(43,92,230,0.10), transparent 34%);
+  border: 1.5rpx solid rgba(148,163,184,0.16);
+  box-shadow: 0 18rpx 42rpx rgba(15,23,42,0.075);
+}
+
+.agency-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 26rpx;
+  width: 6rpx;
+  height: 72rpx;
+  border-radius: 0 999rpx 999rpx 0;
+  background: linear-gradient(180deg, #2b5ce6, #38bdf8);
+  opacity: 0.9;
+}
+
+.agency-card.compare-mode {
+  padding-left: 76rpx;
+}
+
+.agency-card.selected {
+  border-color: rgba(43,92,230,0.55);
+  box-shadow: 0 18rpx 46rpx rgba(43,92,230,0.16);
+}
+
+.card-press,
+.tap-soft {
+  transform: scale(0.982);
+  opacity: 0.82;
+}
+
+.card-head {
+  gap: 18rpx;
+  margin-bottom: 14rpx;
+}
+
+.logo-img,
+.logo-placeholder {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 22rpx;
+  border: 1.5rpx solid rgba(255,255,255,0.70);
+  box-shadow: 0 12rpx 24rpx rgba(15,23,42,0.12);
+}
+
+.logo-placeholder {
+  background-image: linear-gradient(135deg, rgba(255,255,255,0.26), rgba(255,255,255,0));
+}
+
+.logo-text {
+  font-size: 29rpx;
+  font-weight: 950;
+}
+
+.name-row {
+  gap: 8rpx;
+  margin-bottom: 8rpx;
+}
+
+.agency-name {
+  font-size: 30rpx;
+  font-weight: 900;
+  color: #1f2937;
+  letter-spacing: 0.1rpx;
+}
+
+.verified-badge {
+  padding: 4rpx 10rpx;
+  border-radius: 10rpx;
+  background: #ecfdf5;
+  border-color: rgba(16,185,129,0.28);
+}
+
+.verified-text {
+  font-size: 20rpx;
+  font-weight: 800;
+  color: #059669;
+}
+
+.meta-row {
+  gap: 8rpx;
+}
+
+.type-tag {
+  padding: 5rpx 14rpx;
+  border-radius: 10rpx;
+  color: #3157d5;
+  background: #eef4ff;
+  font-size: 22rpx;
+  font-weight: 800;
+}
+
+.city-text {
+  max-width: 260rpx;
+  color: #8a94a6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rating-block {
+  min-width: 88rpx;
+  align-items: flex-end;
+  padding-top: 0;
+}
+
+.r-score-row {
+  padding: 3rpx 0;
+  border-radius: 999rpx;
+}
+
+.r-star {
+  font-size: 24rpx;
+}
+
+.r-num {
+  font-size: 30rpx;
+  font-weight: 950;
+}
+
+.r-cnt {
+  font-size: 20rpx;
+  color: #98a2b3;
+}
+
+.desc {
+  margin-bottom: 16rpx;
+  color: #667085;
+  font-size: 25rpx;
+  line-height: 1.62;
+}
+
+.spec-tags {
+  gap: 8rpx;
+  margin-bottom: 16rpx;
+}
+
+.spec-tag,
+.spec-more {
+  padding: 7rpx 14rpx;
+  border-radius: 10rpx;
+  color: #798294;
+  background: #f3f6fa;
+  border: 1rpx solid rgba(148,163,184,0.14);
+  font-size: 21rpx;
+  font-weight: 700;
+}
+
+.card-footer {
+  padding: 16rpx 0 18rpx;
+  border-top: 1rpx solid rgba(148,163,184,0.14);
+}
+
+.ai-badge {
+  padding: 7rpx 14rpx;
+  border-radius: 12rpx;
+  background: linear-gradient(135deg, #eef4ff, #f8fbff);
+  border-color: rgba(43,92,230,0.20);
+}
+
+.ai-badge.pending {
+  background: #f8fafc;
+  border-color: rgba(148,163,184,0.16);
+}
+
+.ai-badge-txt {
+  color: #2557d6;
+  font-size: 22rpx;
+  font-weight: 850;
+}
+
+.arrow {
+  padding: 8rpx 2rpx 8rpx 18rpx;
+  color: #1d4ed8;
+  font-size: 25rpx;
+  font-weight: 900;
+}
+
+.check-inner {
+  width: 46rpx;
+  height: 46rpx;
+  border-color: rgba(43,92,230,0.22);
+  background: #ffffff;
+  box-shadow: 0 8rpx 18rpx rgba(15,23,42,0.08);
+}
+
+.check-inner.checked {
+  background: linear-gradient(135deg, #2b5ce6, #38bdf8);
+  border-color: transparent;
+}
+
+.compare-bar {
+  background: rgba(255,255,255,0.96);
+  border-top-color: rgba(148,163,184,0.18);
+  box-shadow: 0 -16rpx 42rpx rgba(15,23,42,0.10);
+}
+
+.compare-dot {
+  background: #e5eaf3;
+  border-color: transparent;
+}
+
+.compare-dot.filled {
+  background: linear-gradient(135deg, #2b5ce6, #38bdf8);
+}
+
+.compare-go-btn {
+  background: linear-gradient(135deg, #2b5ce6, #1d4ed8);
+  color: #ffffff;
+  box-shadow: 0 12rpx 24rpx rgba(43,92,230,0.24);
+}
+
+.load-more-btn {
+  border-radius: 24rpx;
+  background: #eef4ff;
+}

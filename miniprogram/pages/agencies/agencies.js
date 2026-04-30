@@ -67,6 +67,10 @@ Page({
     this.loadList(true, () => wx.stopPullDownRefresh());
   },
 
+  onUnload() {
+    clearTimeout(this.searchTimer);
+  },
+
   // ── 加载列表 ──────────────────────────────────────────────────────────────
   loadList(reset = false, cb) {
     if (this.data.loading) return;
@@ -122,13 +126,19 @@ Page({
   // ── 搜索 ─────────────────────────────────────────────────────────────────
   onKeywordInput(e) {
     this.setData({ keyword: e.detail.value });
+    clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => {
+      this.loadList(true);
+    }, 450);
   },
 
   onSearch() {
+    clearTimeout(this.searchTimer);
     this.loadList(true);
   },
 
   clearSearch() {
+    clearTimeout(this.searchTimer);
     this.setData({ keyword: '' });
     this.loadList(true);
   },
