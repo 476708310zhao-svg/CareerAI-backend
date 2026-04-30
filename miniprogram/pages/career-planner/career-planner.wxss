@@ -695,5 +695,14 @@ page {
 }
 
 .bottom-spacer {
-  height: calc(18rpx + env(safe-area-inset-bottom));
+  height: calc(2rpx + env(safe-area-inset-bottom));
+}
+
+/* 2026 career planner bottom spacing tighten */
+.page {
+  padding-bottom: 0;
+}
+
+.tips-card {
+  margin-bottom: 0;
 }
