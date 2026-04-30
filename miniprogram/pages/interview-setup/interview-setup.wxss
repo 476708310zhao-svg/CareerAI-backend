@@ -399,3 +399,59 @@ page {
 }
 
 /* start-btn 由 c-button 提供样式 */
+
+/* 2026 interview setup readability and spacing fix */
+.container {
+  padding-bottom: calc(110rpx + env(safe-area-inset-bottom));
+}
+
+.footer-spacer {
+  height: 34rpx;
+}
+
+.difficulty-list,
+.count-list {
+  gap: 14rpx;
+}
+
+.diff-item,
+.count-item {
+  min-height: 86rpx;
+  border-radius: 22rpx;
+  background: #ffffff;
+}
+
+.diff-item.active,
+.count-item.active {
+  border-color: transparent;
+  background: linear-gradient(135deg, #6552ff 0%, #f06db3 100%);
+  box-shadow: 0 14rpx 28rpx rgba(101, 82, 255, 0.22);
+}
+
+.diff-item.active .diff-name,
+.diff-item.active .diff-desc,
+.count-item.active {
+  color: #ffffff;
+}
+
+.diff-item.active .diff-name {
+  font-weight: 850;
+}
+
+.diff-item.active .diff-desc {
+  opacity: 0.84;
+}
+
+.count-item {
+  color: #69758a;
+  font-weight: 800;
+}
+
+.count-item.active {
+  font-weight: 900;
+}
+
+.footer-bar {
+  padding: 14rpx 28rpx;
+  padding-bottom: calc(14rpx + env(safe-area-inset-bottom));
+}

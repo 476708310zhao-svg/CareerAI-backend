@@ -104,7 +104,7 @@
   </view>
 
   <!-- 底部占位 -->
-  <view style="height: 180rpx;"></view>
+  <view class="footer-spacer"></view>
 
   <!-- 底部开始按钮 -->
   <view class="footer-bar">
