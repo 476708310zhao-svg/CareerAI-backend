@@ -14,7 +14,7 @@
       <block wx:for="{{bannerList}}" wx:key="id">
         <swiper-item>
           <view wx:if="{{item.imageUrl}}" class="banner-item" bindtap="navigateToPage" data-url="{{item.url}}" hover-class="opacity-hover">
-            <image src="{{item.imageUrl}}" class="banner-bg-image" mode="aspectFill"></image>
+            <image src="{{item.imageUrl}}" class="banner-bg-image" mode="aspectFill" data-index="{{index}}" binderror="onBannerImageError"></image>
           </view>
           <view wx:else class="banner-item banner-gradient" bindtap="navigateToPage" data-url="{{item.url}}" hover-class="opacity-hover"
             style="background:{{item.gradient}};">

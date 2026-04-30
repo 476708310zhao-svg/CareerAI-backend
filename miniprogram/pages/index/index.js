@@ -176,6 +176,16 @@ Page({
     }));
   },
 
+  onBannerImageError(e) {
+    const index = e.currentTarget.dataset.index;
+    if (typeof index !== 'number') return;
+    const bannerList = this.data.bannerList.map((item, i) => {
+      if (i !== index) return item;
+      return Object.assign({}, item, { imageUrl: '' });
+    });
+    this.setData({ bannerList });
+  },
+
   // ======== Banner 数据 ========
   fetchBanners() {
     const FALLBACK = [
@@ -190,7 +200,7 @@ Page({
 
     // 后台静默拉取最新数据，5 秒超时
     wx.request({
-      url: config.API_BASE_URL + '/api/banners',
+      url: (config.CONTENT_API_BASE_URL || config.API_BASE_URL) + '/api/banners',
       method: 'GET',
       timeout: 5000,
       success: (res) => {

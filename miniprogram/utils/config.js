@@ -14,6 +14,8 @@ module.exports = {
   API_BASE_URL: IS_SIMULATOR ? LOCAL_API_BASE_URL : PROD_API_BASE_URL,
   // <image> 不再支持 HTTP，图片/Logo 资源统一走线上 HTTPS 域名。
   ASSET_BASE_URL: PROD_API_BASE_URL,
+  // 首页 Banner 是带图片的公共内容，接口和图片源保持一致，避免本地数据指向线上缺失资源。
+  CONTENT_API_BASE_URL: PROD_API_BASE_URL,
 
   // LeetCode 题库（无需密钥，直接请求）
   LEETCODE_API_URL: 'https://leetcode.cn/graphql',
