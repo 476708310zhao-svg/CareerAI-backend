@@ -3,6 +3,18 @@ const favUtil = require('./utils/favorites.js');
 const vipUtil  = require('./utils/vip.js');
 const api      = require('./utils/api.js');
 
+function safeErrorText(error) {
+  if (!error) return '';
+  if (typeof error === 'string') return error;
+  if (error.message) return error.message;
+  if (error.errMsg) return error.errMsg;
+  try {
+    return JSON.stringify(error);
+  } catch (e) {
+    return String(error);
+  }
+}
+
 App({
   onLaunch: function () {
     console.log('小程序启动');
@@ -13,12 +25,12 @@ App({
 
   // 全局 JS 运行时错误捕获
   onError: function(error) {
-    console.error('[全局错误]', error);
+    console.warn('[GlobalError]', safeErrorText(error));
   },
 
   // 全局未处理的 Promise rejection 捕获
   onUnhandledRejection: function(res) {
-    console.error('[未处理的 Promise 异常]', res.reason);
+    console.warn('[UnhandledRejection]', safeErrorText(res && res.reason));
   },
 
   // ─── 全局状态初始化（启动时读取一次）───────────────────────────
