@@ -3,7 +3,10 @@
 
   <!-- 公司头部信息 -->
   <view class="company-header">
-    <image class="company-logo" src="{{company.logo}}" mode="aspectFit"></image>
+    <view class="company-logo-wrap">
+      <image wx:if="{{company.logo && !company.logoFailed}}" class="company-logo" src="{{company.logo}}" mode="aspectFit" binderror="onCompanyLogoError"></image>
+      <text wx:else class="company-logo-initial">{{company.initial || 'C'}}</text>
+    </view>
     <view class="header-info">
       <view class="name-row">
         <text class="company-name">{{company.name}}</text>
@@ -176,7 +179,7 @@
   </view>
 
   <!-- 底部占位 -->
-  <view style="height: 140rpx;"></view>
+  <view class="detail-safe-tail"></view>
 
   <!-- 底部操作栏 -->
   <view class="footer-bar">

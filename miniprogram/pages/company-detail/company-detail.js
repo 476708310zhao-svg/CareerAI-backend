@@ -1,5 +1,5 @@
 // pages/company-detail/company-detail.js
-const { searchCompanyJobs, getCompanyDetail, generateExperience, generateBatchExperiences, generateCompanyQuestions, sendChatToDeepSeek } = require('../../utils/api.js');
+const { searchCompanyJobs, getCompanyDetail, generateExperience, generateBatchExperiences, generateCompanyQuestions, sendChatToDeepSeek, normalizeCompanyLogo } = require('../../utils/api.js');
 const { formatSalaryRange } = require('../../utils/util.js');
 const safePage = require('../../behaviors/safe-page');
 
@@ -25,12 +25,25 @@ Page({
     this.loadCompanyDetail(id, name);
   },
 
+  getCompanyInitial(name) {
+    const text = String(name || 'C').trim();
+    return text ? text.slice(0, 1).toUpperCase() : 'C';
+  },
+
+  buildCompanyLogo(name) {
+    if (!name) return '';
+    return normalizeCompanyLogo(`/api/logo?name=${encodeURIComponent(name)}`);
+  },
+
   loadCompanyDetail(id, name) {
     this.setData({ loading: true });
 
     getCompanyDetail(id, name).then(res => {
       const company = res && res.data;
       if (!company || !company.id) throw new Error('company not found');
+      company.logo = company.logo || this.buildCompanyLogo(company.name);
+      company.initial = this.getCompanyInitial(company.name);
+      company.logoFailed = false;
 
       company.jobs = (company.jobs || []).map(job => ({
         id: job.id,
@@ -38,6 +51,9 @@ Page({
         salary: job.salary || 'Negotiable',
         type: job.job_type || job.type || 'Full-time',
         location: job.location || company.headquarters || '',
+        company: company.name,
+        logo: company.logo,
+        companyInitial: company.initial,
         isReal: false
       }));
       company.experiences = (company.experiences || []).map(exp => ({
@@ -59,7 +75,9 @@ Page({
       const fallback = {
         id: id || 0,
         name: name || '未知公司',
-        logo: '/images/default-company.png',
+        logo: this.buildCompanyLogo(name || 'Company'),
+        initial: this.getCompanyInitial(name || 'Company'),
+        logoFailed: false,
         industry: '-',
         size: '-',
         description: '',
@@ -183,6 +201,9 @@ Page({
             salary: salary,
             type: job.job_employment_type || 'Full-time',
             location: (job.job_city || 'Remote') + (job.job_state ? ', ' + job.job_state : ''),
+            company: companyName,
+            logo: this.data.company.logo,
+            companyInitial: this.data.company.initial,
             isReal: true
           };
         });
@@ -201,10 +222,12 @@ Page({
 
   _getMockJobs(companyName) {
     const hq = this.data.company.headquarters || '';
+    const logo = this.data.company.logo;
+    const companyInitial = this.data.company.initial || this.getCompanyInitial(companyName);
     return [
-      { id: 'cj1', title: 'Software Engineer', salary: 'Negotiable', type: 'Full-time', location: hq },
-      { id: 'cj2', title: 'Product Manager', salary: 'Negotiable', type: 'Full-time', location: hq },
-      { id: 'cj3', title: 'Data Analyst', salary: 'Negotiable', type: 'Full-time', location: hq }
+      { id: 'cj1', title: 'Software Engineer', salary: 'Negotiable', type: 'Full-time', location: hq, company: companyName, logo, companyInitial },
+      { id: 'cj2', title: 'Product Manager', salary: 'Negotiable', type: 'Full-time', location: hq, company: companyName, logo, companyInitial },
+      { id: 'cj3', title: 'Data Analyst', salary: 'Negotiable', type: 'Full-time', location: hq, company: companyName, logo, companyInitial }
     ];
   },
 
@@ -327,7 +350,29 @@ Page({
 
   goToJobDetail(e) {
     const id = e.currentTarget.dataset.id;
+    const jobs = (this.data.company && this.data.company.jobs) || [];
+    const job = jobs.find(item => String(item.id) === String(id));
+    if (job && this.data.company) {
+      const snapshot = {
+        id: job.id,
+        title: job.title,
+        company: this.data.company.name,
+        logo: job.logo || this.data.company.logo,
+        logoFailed: !!this.data.company.logoFailed,
+        companyInitial: job.companyInitial || this.data.company.initial,
+        city: job.location,
+        type: job.type,
+        salary: job.salary,
+        postedAt: job.isReal ? 'Recently posted' : ''
+      };
+      wx.setStorageSync('tempJobDetail', snapshot);
+      wx.setStorageSync('jobDetailSnapshot_' + String(id), snapshot);
+    }
     wx.navigateTo({ url: '/pages/job-detail/job-detail?id=' + id });
+  },
+
+  onCompanyLogoError() {
+    this.setData({ 'company.logoFailed': true });
   },
 
   goToExperienceDetail(e) {

@@ -462,6 +462,25 @@ Page({
 
   navigateToDetail: function(e) {
     const jobId = e.currentTarget.dataset.id;
+    const job = (this.data.jobs || []).find(item => String(item.id) === String(jobId));
+    if (job) {
+      const snapshot = {
+        id: job.id,
+        title: job.title,
+        company: job.company,
+        logo: job.logo,
+        logoFailed: !!job.logoFailed,
+        companyInitial: job.companyInitial,
+        city: job.city,
+        state: job.state,
+        type: job.type,
+        salary: job.salary,
+        postedAt: job.postedAt,
+        optFriendly: job.optFriendly
+      };
+      wx.setStorageSync('tempJobDetail', snapshot);
+      wx.setStorageSync('jobDetailSnapshot_' + String(jobId), snapshot);
+    }
     wx.navigateTo({
       url: `/pages/job-detail/job-detail?id=${encodeURIComponent(jobId)}`
     });

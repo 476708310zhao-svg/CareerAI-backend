@@ -1,5 +1,5 @@
 // pages/job-detail/job-detail.js
-const { getJobDetail, post } = require('../../utils/api.js');
+const { getJobDetail, post, normalizeCompanyLogo } = require('../../utils/api.js');
 const favUtil = require('../../utils/favorites.js');
 const { fromNow, formatSalaryRange } = require('../../utils/util.js');
 const config = require('../../utils/config.js');
@@ -25,8 +25,26 @@ Page({
     }
   },
 
+  getCompanyInitial: function(companyName) {
+    const name = String(companyName || 'C').trim();
+    return name ? name.slice(0, 1).toUpperCase() : 'C';
+  },
+
+  buildCompanyLogo: function(companyName) {
+    if (!companyName) return '';
+    return normalizeCompanyLogo(`/api/logo?name=${encodeURIComponent(companyName)}`);
+  },
+
+  getJobSnapshot: function(id) {
+    const stored = wx.getStorageSync('jobDetailSnapshot_' + String(id));
+    if (stored && String(stored.id) === String(id)) return stored;
+    const temp = wx.getStorageSync('tempJobDetail');
+    return temp && String(temp.id) === String(id) ? temp : null;
+  },
+
   fetchJobDetail: function(id) {
     this.setData({ loading: true });
+    const snapshot = this.getJobSnapshot(id);
 
     // 模拟数据判断
     if (String(id).startsWith('mock') || String(id).startsWith('default')) {
@@ -45,14 +63,16 @@ Page({
         id: rawData.job_id,
         title: rawData.job_title,
         company: rawData.employer_name,
-        logo: rawData.employer_logo || '/images/default-company.png',
+        logo: (snapshot && snapshot.logo) || (rawData.employer_logo ? normalizeCompanyLogo(rawData.employer_logo) : this.buildCompanyLogo(rawData.employer_name)),
+        logoFailed: !!(snapshot && snapshot.logoFailed),
+        companyInitial: (snapshot && snapshot.companyInitial) || this.getCompanyInitial(rawData.employer_name),
         city: rawData.job_city || 'Remote',
         state: rawData.job_state,
         type: rawData.job_employment_type || 'Full-time',
         postedAt: rawData.job_posted_at_datetime_utc ? fromNow(rawData.job_posted_at_datetime_utc) : 'Recently posted',
         applyLink: rawData.job_apply_link,
         description: this.formatDescription(rawData.job_description),
-        salary: formatSalaryRange(rawData.job_min_salary, rawData.job_max_salary),
+        salary: formatSalaryRange(rawData.job_min_salary, rawData.job_max_salary) || (snapshot && snapshot.salary) || 'Negotiable',
         visaSponsored
       };
 
@@ -97,7 +117,9 @@ Page({
       id: id,
       title: 'Senior Full Stack Engineer',
       company: 'TechFlow Solutions',
-      logo: '/images/default-company.png',
+      logo: this.buildCompanyLogo('TechFlow Solutions'),
+      logoFailed: false,
+      companyInitial: this.getCompanyInitial('TechFlow Solutions'),
       city: 'San Francisco',
       state: 'CA',
       type: 'Full-time',
@@ -288,6 +310,6 @@ Requirements:
   },
 
   onLogoError() {
-    this.setData({ 'job.logo': '/images/default-company.png' });
+    this.setData({ 'job.logoFailed': true });
   }
 });
