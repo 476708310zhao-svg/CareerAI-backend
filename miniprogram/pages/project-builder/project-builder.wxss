@@ -687,3 +687,22 @@ page {
 .bottom-spacer {
   height: calc(8rpx + env(safe-area-inset-bottom));
 }
+
+/* 2026 project builder bottom tighten */
+.page {
+  padding-bottom: 0;
+}
+
+.gen-btn {
+  width: 560rpx;
+  max-width: calc(100vw - 136rpx);
+  margin: 28rpx auto 0;
+  display: block;
+  --btn-height: 82rpx;
+  --btn-font-size: 28rpx;
+  border-radius: 999rpx;
+}
+
+.bottom-spacer {
+  height: 0;
+}
