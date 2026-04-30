@@ -5,6 +5,7 @@ const favUtil = require('../../utils/favorites.js');
 const { RECOMMEND_JOBS, NEWS_FEED: ALL_NEWS } = require('../../utils/mock-data.js');
 const matcher = require('../../utils/matcher.js');
 const { formatSalaryRange } = require('../../utils/util.js');
+const BANNER_CACHE_KEY = 'cachedBanners_v2';
 
 // TabBar 页面路径列表，用于判断跳转方式
 const TAB_PAGES = ['/pages/index/index', '/pages/jobs/jobs', '/pages/experiences/experiences', '/pages/agencies/agencies', '/pages/profile/profile'];
@@ -195,7 +196,7 @@ Page({
     ];
 
     // 立即显示缓存或兜底，不阻塞页面
-    const cached = wx.getStorageSync('cachedBanners');
+    const cached = wx.getStorageSync(BANNER_CACHE_KEY);
     this.setData({ bannerList: (cached && cached.length > 0) ? this.normalizeBanners(cached) : FALLBACK });
 
     // 后台静默拉取最新数据，5 秒超时
@@ -208,7 +209,7 @@ Page({
         if (list && list.length > 0) {
           const normalized = this.normalizeBanners(list);
           this.setData({ bannerList: normalized });
-          wx.setStorageSync('cachedBanners', normalized);
+          wx.setStorageSync(BANNER_CACHE_KEY, normalized);
         }
       },
       fail: () => {}

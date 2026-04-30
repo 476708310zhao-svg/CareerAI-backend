@@ -39,9 +39,12 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // 全局挂载可选鉴权（有 token 则解析 req.user，无 token 也不拦截）
 app.use(optionalAuth);
 
-// 静态文件服务（头像等上传文件）
+// 静态文件服务（头像、Banner、Logo 等上传文件）。文件名带时间戳/随机串，适合长期缓存。
 const path = require('path');
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  maxAge: '7d',
+  immutable: true
+}));
 
 // 导入路由
 const jobRoutes         = require('./routes/jobs');
