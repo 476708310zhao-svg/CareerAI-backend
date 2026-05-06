@@ -3,8 +3,7 @@
 // 用法：const { logoUrl } = require('../../utils/logo');
 //       src="{{logoUrl('google.com')}}"  或  src="{{logoByName('字节跳动')}}"
 
-const config = require('./config.js');
-const BASE   = config.ASSET_BASE_URL || config.API_BASE_URL;
+const { normalizeLogoUrl } = require('./assets.js');
 
 // 公司名 → 主域名（与后端 NAME_TO_DOMAIN 保持同步，用于纯前端预填）
 const NAME_TO_DOMAIN = {
@@ -41,7 +40,7 @@ const NAME_TO_DOMAIN = {
  */
 function logoUrl(domain) {
   if (!domain) return '/images/default-company.png';
-  return `${BASE}/api/logo?domain=${encodeURIComponent(domain)}`;
+  return normalizeLogoUrl(`/api/logo?domain=${encodeURIComponent(domain)}`);
 }
 
 /**
@@ -54,8 +53,7 @@ function logoByName(name) {
   const key    = name.toLowerCase().trim();
   const domain = NAME_TO_DOMAIN[key] || NAME_TO_DOMAIN[name.trim()];
   if (domain) return logoUrl(domain);
-  // 让后端用 name 参数做模糊映射
-  return `${BASE}/api/logo?name=${encodeURIComponent(name)}`;
+  return normalizeLogoUrl(`/api/logo?name=${encodeURIComponent(name)}`);
 }
 
 module.exports = { logoUrl, logoByName };

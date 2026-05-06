@@ -5,6 +5,7 @@ const favUtil = require('../../utils/favorites.js');
 const { RECOMMEND_JOBS, NEWS_FEED: ALL_NEWS } = require('../../utils/mock-data.js');
 const matcher = require('../../utils/matcher.js');
 const { formatSalaryRange } = require('../../utils/util.js');
+const { normalizeBannerUrl } = require('../../utils/assets.js');
 const BANNER_CACHE_KEY = 'cachedBanners_v2';
 
 // TabBar 页面路径列表，用于判断跳转方式
@@ -166,9 +167,7 @@ Page({
   },
 
   normalizeAssetUrl(url) {
-    if (!url) return '';
-    if (url.indexOf('https://') === 0 || url.indexOf('wxfile://') === 0 || url.indexOf('/') !== 0) return url;
-    return `${config.ASSET_BASE_URL || config.API_BASE_URL}${url}`;
+    return normalizeBannerUrl(url);
   },
 
   normalizeBanners(list) {
@@ -351,6 +350,7 @@ Page({
   // 公司 Logo 加载失败时，自动降级为文字头像
   onCompanyLogoError(e) {
     const idx = e.currentTarget.dataset.idx;
+    if (typeof idx !== 'number' || (this.data.hotCompanies[idx] && this.data.hotCompanies[idx].logoFailed)) return;
     this.setData({ [`hotCompanies[${idx}].logoFailed`]: true });
   },
 
@@ -377,6 +377,7 @@ Page({
   // 职位 Logo 加载失败时，自动降级为文字头像
   onJobLogoError(e) {
     const index = e.currentTarget.dataset.index;
+    if (typeof index !== 'number' || (this.data.recommendJobs[index] && this.data.recommendJobs[index].logoFailed)) return;
     this.setData({ [`recommendJobs[${index}].logoFailed`]: true });
   },
 

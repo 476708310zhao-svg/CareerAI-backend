@@ -1,5 +1,6 @@
 // pages/news/news.js
 const { API_BASE_URL } = require('../../utils/config.js');
+const { normalizeNewsImageUrl } = require('../../utils/assets.js');
 
 Page({
   data: {
@@ -29,6 +30,15 @@ Page({
     this.loadNews();
   },
 
+  normalizeArticle(item) {
+    const imageUrl = normalizeNewsImageUrl(item.imageUrl || item.image_url || item.cover);
+    return Object.assign({}, item, {
+      imageUrl,
+      image_url: imageUrl || item.image_url,
+      cover: imageUrl || item.cover
+    });
+  },
+
   // ======== 从后端拉取新闻，失败降级 mock ========
   loadNews() {
     wx.request({
@@ -39,7 +49,7 @@ Page({
         const articles = res.data && res.data.articles;
         if (articles && articles.length > 0) {
           const personalNews = this._buildPersonalNews();
-          const allNews = [...personalNews, ...articles];
+          const allNews = [...personalNews, ...articles.map(item => this.normalizeArticle(item))];
           this.setData({ allNews, displayList: allNews });
         } else {
           // API 返回空（未配置 key 或无结果）→ 降级 mock
