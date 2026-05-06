@@ -93,9 +93,6 @@
     </view>
     <view class="top-actions">
       <view class="new-chat-btn" bindtap="startNewChat" hover-class="top-press">＋</view>
-      <view class="clear-btn" bindtap="onClear" hover-class="clear-hover">
-        <text class="clear-txt">清空</text>
-      </view>
     </view>
   </view>
 

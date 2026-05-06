@@ -319,23 +319,6 @@ Page({
     if (id === this.data.activeSessionId) this.startNewChat();
   },
 
-  onClear() {
-    wx.showModal({
-      title: '清空对话',
-      content: '确定清空所有对话记录吗？',
-      success: ({ confirm }) => {
-        if (!confirm) return;
-        this._history = [];
-        try { wx.removeStorageSync(CACHE_KEY); } catch (e) {}
-        const welcome = makeWelcome();
-        this.setData({ messages: [welcome], latestAiIdx: 0, loading: false, inputText: '', inputLen: 0 });
-        this._saveCache([welcome]);
-        this._upsertSession([welcome]);
-        wx.nextTick(() => this._scrollToBottom(0));
-      }
-    });
-  },
-
   _scrollToBottom(idx) {
     this.setData({ scrollId: `msg-${idx}` });
   },
