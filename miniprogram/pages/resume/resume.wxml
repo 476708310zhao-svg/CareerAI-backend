@@ -231,7 +231,7 @@
       <block wx:for="{{resumeList}}" wx:key="id">
         <view class="resume-card" bindtap="handleAction" data-index="{{index}}">
           <view class="card-left">
-            <image class="file-icon" src="/images/application.png"></image>
+            <image class="file-icon" src="/images/application.png" lazy-load></image>
             <view class="info">
               <text class="name">{{item.name}}</text>
               <text class="date">更新于 {{item.date}}</text>

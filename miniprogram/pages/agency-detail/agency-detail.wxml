@@ -336,7 +336,7 @@
           <view class="review-head">
             <view class="reviewer-info">
               <view class="avatar-wrap">
-                <image wx:if="{{item.userAvatar}}" class="avatar-img" src="{{item.userAvatar}}" mode="aspectFill"/>
+                <image wx:if="{{item.userAvatar}}" class="avatar-img" src="{{item.userAvatar}}" mode="aspectFill" lazy-load/>
                 <view wx:else class="avatar-placeholder">
                   <text>{{item.userName.slice(0,1)}}</text>
                 </view>

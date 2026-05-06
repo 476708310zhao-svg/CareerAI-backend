@@ -23,6 +23,7 @@
             class="logo-img"
             src="{{item.logo}}"
             mode="aspectFit"
+            lazy-load
             binderror="onLogoError"
             data-idx="{{index}}"
           />

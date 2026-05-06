@@ -41,7 +41,7 @@
 
     <!-- 空状态 -->
     <view wx:if="{{filteredMessages.length === 0}}" class="empty">
-      <image class="empty-icon" src="/images/home-active.png" mode="aspectFit"></image>
+      <image class="empty-icon" src="/images/home-active.png" mode="aspectFit" lazy-load></image>
       <text class="empty-text">暂无消息</text>
     </view>
   </view>

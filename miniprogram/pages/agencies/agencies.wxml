@@ -84,6 +84,7 @@
               class="logo-img"
               src="https://logo.clearbit.com/{{item.logoDomain}}"
               mode="aspectFill"
+              lazy-load
               binderror="onLogoError"
               data-idx="{{index}}"
             />

@@ -17,7 +17,7 @@
   <view class="feature-list">
     <block wx:for="{{features}}" wx:key="title">
       <view class="feature-item">
-        <image class="feature-icon" src="{{item.icon}}" mode="aspectFit"></image>
+        <image class="feature-icon" src="{{item.icon}}" mode="aspectFit" lazy-load></image>
         <view class="feature-info">
           <text class="feature-title">{{item.title}}</text>
           <text class="feature-desc">{{item.desc}}</text>

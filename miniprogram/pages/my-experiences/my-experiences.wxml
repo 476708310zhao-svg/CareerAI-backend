@@ -55,7 +55,7 @@
 
     <!-- 空状态 -->
     <view wx:else class="empty-state">
-      <image src="/images/experience.png" class="empty-img"></image>
+      <image src="/images/experience.png" class="empty-img" lazy-load></image>
       <text class="empty-main">{{currentTab === 0 ? '暂无收藏的面经' : '还没有发布过面经'}}</text>
       <text class="empty-sub">{{currentTab === 0 ? '在面经广场收藏感兴趣的内容' : '分享你的求职经验帮助更多人'}}</text>
       <view class="empty-btn" wx:if="{{currentTab === 1}}" bindtap="goToPublish">发布第一篇面经</view>
