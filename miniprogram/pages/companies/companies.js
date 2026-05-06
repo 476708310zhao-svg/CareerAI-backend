@@ -19,24 +19,34 @@ Page({
     hasMore: true
   },
 
+  _companyRequestSeq: 0,
+  _lastCompanyRequestKey: '',
+
   onLoad() {
     this.loadCompanies(1);
   },
 
   switchTab(e) {
     const tab = e.currentTarget.dataset.tab;
+    if (tab === this.data.currentTab && this.data.list.length > 0) return;
     this.setData({ currentTab: tab, list: [], page: 1, hasMore: true });
     this.loadCompanies(1);
   },
 
   loadCompanies(page) {
-    if (this.data.loading) return;
+    const requestKey = [this.data.currentTab || 'all', page].join('|');
+    if (this.data.loading && this._lastCompanyRequestKey === requestKey) return;
+
+    this._lastCompanyRequestKey = requestKey;
+    const seq = ++this._companyRequestSeq;
     this.setData({ loading: true });
+
     getCompanies({
       industry: this.data.currentTab,
       page,
       pageSize: 20
     }).then(res => {
+      if (seq !== this._companyRequestSeq) return;
       const data = res && res.data ? res.data : {};
       const list = (data.list || []).map(company => ({
         id: company.id,
@@ -55,6 +65,7 @@ Page({
         loading: false
       });
     }).catch(() => {
+      if (seq !== this._companyRequestSeq) return;
       this.setData({ loading: false, hasMore: false });
       wx.showToast({ title: '公司列表加载失败', icon: 'none' });
     });
@@ -74,6 +85,7 @@ Page({
 
   onLogoError(e) {
     const idx = e.currentTarget.dataset.idx;
+    if (idx === undefined || this.data.list[idx] && this.data.list[idx].logoFailed) return;
     this.setData({ [`list[${idx}].logoFailed`]: true });
   }
 });

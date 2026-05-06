@@ -103,6 +103,9 @@ Page({
     profileMissing: []
   },
 
+  _jobRequestSeq: 0,
+  _lastJobRequestKey: '',
+
   onShow: function() {
     // 从详情页返回时同步最新收藏状态
     if (this.data.jobs.length > 0) {
@@ -154,7 +157,6 @@ Page({
 
   onReachBottom: function() {
     if (this.data.hasMore && !this.data.loading) {
-      this.setData({ currentPage: this.data.currentPage + 1 });
       this.loadJobs(false);
     }
   },
@@ -248,26 +250,37 @@ Page({
 
   // 核心：加载职位
   loadJobs: function(reset) {
-    if (reset) {
-      this.setData({ currentPage: 1, hasMore: true });
-    }
-
-    // 已有数据时静默刷新，不显示 loading
-    if (this.data.jobs.length === 0) {
-      this.setData({ loading: true });
-    }
-
     const query = this.data.searchKeyword || 'Software Engineer jobs';
     const dateMap = { today: 'today', week: '3days', month: 'month' };
+    const page = reset ? 1 : this.data.currentPage + 1;
+    const requestKey = [
+      query,
+      page,
+      this.data.pageSize,
+      this.data.filterDate || 'all',
+      this.data.filterType || 'any'
+    ].join('|');
+
+    if (this.data.loading && this._lastJobRequestKey === requestKey) return;
+
+    this._lastJobRequestKey = requestKey;
+    const seq = ++this._jobRequestSeq;
+    const patch = { loading: this.data.jobs.length === 0 || !reset };
+    if (reset) {
+      patch.currentPage = 1;
+      patch.hasMore = true;
+    }
+    this.setData(patch);
 
     getJobs({
       keyword: query,
-      page: this.data.currentPage,
+      page,
       size: this.data.pageSize,
       country: 'us',
       date_posted: dateMap[this.data.filterDate] || 'all',
       employment_types: this.data.filterType || undefined
     }).then(res => {
+      if (seq !== this._jobRequestSeq) return;
       if (!res.data || res.data.length === 0) {
         throw new Error('No data / Quota exceeded');
       }
@@ -282,6 +295,7 @@ Page({
 
       this.setData({
         jobs: reset ? processedJobs : [...this.data.jobs, ...processedJobs],
+        currentPage: page,
         hasMore: res.data.length >= this.data.pageSize,
         loading: false,
         isRefreshing: false,
@@ -294,6 +308,7 @@ Page({
       }
 
     }).catch(err => {
+      if (seq !== this._jobRequestSeq) return;
       console.warn('API Exception:', err);
       // 只有完全没数据时才用 Mock 兜底
       if (this.data.jobs.length === 0) {
@@ -302,7 +317,7 @@ Page({
         this.setData({ loading: false, isRefreshing: false, hasMore: false });
       }
     }).finally(() => {
-      wx.stopPullDownRefresh();
+      if (seq === this._jobRequestSeq) wx.stopPullDownRefresh();
     });
   },
 
