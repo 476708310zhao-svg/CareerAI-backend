@@ -27,3 +27,31 @@
   padding: 8rpx 4rpx 8rpx 12rpx;
   flex-shrink: 0;
 }
+
+/* 2026 product component polish */
+.search-bar {
+  padding: 14rpx 24rpx;
+}
+
+.search-wrap {
+  height: 76rpx;
+  padding: 0 22rpx;
+  border-radius: 24rpx;
+  background: var(--color-bg-soft, #f7f8fb);
+  border: 1rpx solid transparent;
+}
+
+.search-wrap:active {
+  background: #ffffff;
+  border-color: rgba(37, 99, 235, 0.16);
+}
+
+.search-input {
+  height: 76rpx;
+  font-size: 27rpx;
+}
+
+.search-icon,
+.search-clear {
+  color: var(--color-ink-4, #98a2b3);
+}

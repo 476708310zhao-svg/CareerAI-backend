@@ -90,3 +90,45 @@
 @keyframes cspinner {
   to { transform: rotate(360deg); }
 }
+
+/* 2026 product component polish */
+.c-btn {
+  min-height: var(--btn-height);
+  border-radius: var(--radius-full, 999rpx);
+  font-weight: 780;
+  letter-spacing: 0;
+  transition: transform var(--motion-fast, 0.16s ease), opacity var(--motion-fast, 0.16s ease), box-shadow var(--motion-normal, 0.22s ease);
+}
+
+.c-btn--primary {
+  background: var(--color-brand, #2563eb);
+  box-shadow: var(--shadow-action, 0 12rpx 26rpx rgba(37, 99, 235, 0.18));
+}
+
+.c-btn--secondary {
+  color: var(--color-ink-2, #344054);
+  background: var(--color-bg-soft, #f7f8fb);
+  border: 1rpx solid var(--color-line-soft, rgba(16, 24, 40, 0.05));
+}
+
+.c-btn--ghost {
+  color: var(--color-brand, #2563eb);
+  background: #ffffff;
+  border: 1rpx solid rgba(37, 99, 235, 0.20);
+  box-shadow: none;
+}
+
+.c-btn--danger {
+  color: var(--color-danger, #dc2626);
+  background: var(--color-danger-soft, #fef2f2);
+  border: 1rpx solid rgba(220, 38, 38, 0.14);
+}
+
+.c-btn--sz-small {
+  min-height: var(--btn-height-sm, 60rpx);
+}
+
+.c-btn:not(.c-btn--disabled):active {
+  transform: scale(0.975);
+  opacity: 0.9;
+}

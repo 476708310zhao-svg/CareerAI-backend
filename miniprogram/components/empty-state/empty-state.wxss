@@ -45,3 +45,41 @@
   opacity: 0.85;
   transform: scale(0.97);
 }
+
+/* 2026 product component polish */
+.empty-state {
+  padding: 96rpx 48rpx 72rpx;
+}
+
+.es-emoji {
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-soft, #f7f8fb);
+  font-size: 58rpx;
+  margin-bottom: 26rpx;
+}
+
+.es-title {
+  color: var(--color-ink, #101828);
+  font-size: 31rpx;
+  font-weight: 820;
+  letter-spacing: -0.3rpx;
+}
+
+.es-desc {
+  max-width: 520rpx;
+  color: var(--color-ink-3, #667085);
+  font-size: 25rpx;
+}
+
+.es-btn {
+  height: 78rpx;
+  line-height: 78rpx;
+  padding: 0 42rpx;
+  background: var(--color-brand, #2563eb);
+  box-shadow: var(--shadow-action, 0 12rpx 26rpx rgba(37, 99, 235, 0.18));
+}

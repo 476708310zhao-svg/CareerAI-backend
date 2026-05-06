@@ -27,3 +27,22 @@
   font-size: 26rpx;
   color: var(--text-muted);
 }
+
+/* 2026 product component polish */
+.ls-wrap {
+  padding: 72rpx 0;
+  gap: 18rpx;
+}
+
+.ls-ring {
+  width: 42rpx;
+  height: 42rpx;
+  border-width: 4rpx;
+  border-color: #eef2f7;
+  border-top-color: var(--color-brand, #2563eb);
+}
+
+.ls-text {
+  color: var(--color-ink-3, #667085);
+  font-size: 24rpx;
+}

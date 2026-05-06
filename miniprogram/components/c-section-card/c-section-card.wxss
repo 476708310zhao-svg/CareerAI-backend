@@ -42,3 +42,23 @@
   align-items: center;
   gap: 12rpx;
 }
+
+/* 2026 product component polish */
+.sc-wrap {
+  border-radius: var(--radius-lg, 28rpx);
+  border: 1rpx solid var(--color-line-soft, rgba(16, 24, 40, 0.05));
+  box-shadow: var(--shadow-card, 0 12rpx 34rpx rgba(16, 24, 40, 0.06));
+  padding: 30rpx 28rpx 26rpx;
+}
+
+.sc-header {
+  margin-bottom: 22rpx;
+}
+
+.sc-title {
+  padding-left: 0;
+  border-left: 0;
+  font-size: var(--font-lg, 30rpx);
+  font-weight: 820;
+  letter-spacing: -0.4rpx;
+}

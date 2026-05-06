@@ -96,7 +96,7 @@
       }
     ]
   },
-  "darkmode": true,
+  "darkmode": false,
   "sitemapLocation": "sitemap.json",
   "usingComponents": {
     "c-button":       "/components/c-button/c-button",

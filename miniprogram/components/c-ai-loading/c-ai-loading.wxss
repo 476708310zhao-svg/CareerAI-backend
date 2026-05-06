@@ -36,3 +36,45 @@
   text-align: center;
   transition: opacity 0.3s;
 }
+
+/* 2026 AI loading polish */
+.ai-loading {
+  padding: 96rpx 40rpx;
+}
+
+.ai-spinner {
+  width: 72rpx;
+  height: 72rpx;
+  border: 0;
+  border-radius: 24rpx;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.95), transparent 22%),
+    linear-gradient(135deg, #111827 0%, #2563eb 100%);
+  animation: ai-pulse 1.4s ease-in-out infinite;
+  box-shadow: 0 14rpx 34rpx rgba(37, 99, 235, 0.18);
+}
+
+@keyframes ai-pulse {
+  0%, 100% { transform: scale(0.96); opacity: 0.88; }
+  50% { transform: scale(1); opacity: 1; }
+}
+
+.ai-loading-dots {
+  gap: 10rpx;
+}
+
+.dot {
+  width: 10rpx;
+  height: 10rpx;
+  background: #d0d5dd;
+}
+
+.dot.active {
+  background: var(--color-brand, #2563eb);
+}
+
+.ai-loading-tip {
+  color: var(--color-ink-3, #667085);
+  font-size: 26rpx;
+  line-height: 1.6;
+}

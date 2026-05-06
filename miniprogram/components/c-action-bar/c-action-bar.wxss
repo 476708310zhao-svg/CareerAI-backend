@@ -37,3 +37,15 @@
 .ab-safe {
   height: calc(env(safe-area-inset-bottom));
 }
+
+/* 2026 product component polish */
+.ab-wrap {
+  border-top: 1rpx solid var(--color-line-soft, rgba(16, 24, 40, 0.05));
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 -14rpx 36rpx rgba(16, 24, 40, 0.08);
+}
+
+.ab-inner {
+  gap: 14rpx;
+  padding: 14rpx 24rpx 10rpx;
+}

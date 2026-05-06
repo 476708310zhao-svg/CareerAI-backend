@@ -74,3 +74,41 @@
   padding: 8rpx 20rpx;
   border-radius: var(--r-sm);
 }
+
+/* 2026 product component polish */
+.ct {
+  min-height: 38rpx;
+  border-radius: var(--radius-full, 999rpx);
+  font-weight: 680;
+  letter-spacing: 0;
+}
+
+.ct--default {
+  background: var(--color-bg-soft, #f7f8fb);
+  color: var(--color-ink-3, #667085);
+  border-color: var(--color-line-soft, rgba(16, 24, 40, 0.05));
+}
+
+.ct--primary {
+  background: var(--color-brand-soft, #eff6ff);
+  color: var(--color-brand, #2563eb);
+  border-color: rgba(37, 99, 235, 0.16);
+}
+
+.ct--success {
+  background: var(--color-success-soft, #ecfdf3);
+  color: var(--color-success, #059669);
+  border-color: rgba(5, 150, 105, 0.14);
+}
+
+.ct--warning {
+  background: var(--color-warning-soft, #fffbeb);
+  color: var(--color-warning, #d97706);
+  border-color: rgba(217, 119, 6, 0.14);
+}
+
+.ct--danger {
+  background: var(--color-danger-soft, #fef2f2);
+  color: var(--color-danger, #dc2626);
+  border-color: rgba(220, 38, 38, 0.14);
+}
