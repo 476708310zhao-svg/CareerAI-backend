@@ -549,9 +549,6 @@ Page({
   },
 
   onLogoError(e) {
-    const idx = e.currentTarget.dataset.index;
-    if (idx !== undefined) {
-      this.setData({ [`recommendJobs[${idx}].logoFailed`]: true });
-    }
+    this.onJobLogoError(e);
   }
 })

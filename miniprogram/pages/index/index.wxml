@@ -2,6 +2,18 @@
 
 <view class="page">
 
+  <view class="home-hero">
+    <view class="hero-copy">
+      <text class="hero-kicker">CareerAI Workspace</text>
+      <text class="hero-title">留学生求职助手</text>
+      <text class="hero-subtitle">岗位推荐、名企情报、面试准备和求职规划，一站式 AI 工作台。</text>
+    </view>
+    <view class="hero-orb">
+      <text class="hero-orb-main">AI</text>
+      <text class="hero-orb-sub">Ready</text>
+    </view>
+  </view>
+
   <!-- 搜索框 -->
   <view class="search-wrap" bindtap="goToJobSearch">
     <image src="/images/search.png" class="search-icon"></image>
@@ -32,7 +44,7 @@
   <!-- 金刚区 -->
   <view class="feature-grid">
     <block wx:for="{{features}}" wx:key="id">
-      <view class="feature-item" bindtap="navigateToPage" data-url="{{item.url}}" hover-class="opacity-hover">
+      <view class="feature-item {{item.badge == 'AI' ? 'is-ai' : ''}}" bindtap="navigateToPage" data-url="{{item.url}}" hover-class="opacity-hover">
         <view class="feature-icon-wrap" style="background: {{item.bg}};">
           <image src="{{item.icon}}" class="feature-icon" mode="aspectFit"></image>
           <view wx:if="{{item.badge}}" class="feature-badge">{{item.badge}}</view>
@@ -45,7 +57,10 @@
   <!-- 热门企业 -->
   <view class="section">
     <view class="section-header">
-      <text class="section-title">热门企业</text>
+      <view class="section-heading">
+        <text class="section-title">热门企业</text>
+        <text class="section-subtitle">名企情报 · Logo 实时同步</text>
+      </view>
       <view bindtap="viewMoreCompanies" hover-class="opacity-hover">
         <text class="section-more">查看全部 ›</text>
       </view>
@@ -76,7 +91,10 @@
   <!-- 今日热门 -->
   <view class="section">
     <view class="section-header">
-      <text class="section-title">今日热门</text>
+      <view class="section-heading">
+        <text class="section-title">今日热门</text>
+        <text class="section-subtitle">按你的方向优先推荐</text>
+      </view>
       <view bindtap="viewMoreJobs" hover-class="opacity-hover">
         <text class="section-more">查看更多 ›</text>
       </view>
@@ -98,7 +116,10 @@
     <block wx:for="{{recommendJobs}}" wx:key="id">
       <view class="job-card" bindtap="goToJobDetail" data-id="{{item.id}}" data-title="{{item.title}}" hover-class="opacity-hover">
         <view class="job-card-body">
-          <text class="job-card-loc">{{item.city}}{{item.state ? ', ' + item.state : ''}}</text>
+          <view class="job-card-topline">
+            <text class="job-card-loc">{{item.city}}{{item.state ? ', ' + item.state : ''}}</text>
+            <text class="job-card-pill">推荐</text>
+          </view>
           <text class="job-card-title">{{item.title}}</text>
           <view class="job-card-meta">
             <text class="job-card-co">{{item.company}}</text>
@@ -117,7 +138,10 @@
   <!-- 求职快讯 -->
   <view class="section">
     <view class="section-header">
-      <text class="section-title">求职快讯</text>
+      <view class="section-heading">
+        <text class="section-title">求职快讯</text>
+        <text class="section-subtitle">政策、面经、数据趋势</text>
+      </view>
       <view bindtap="goToNews" hover-class="opacity-hover">
         <text class="section-more">更多 ›</text>
       </view>
