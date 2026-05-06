@@ -14,6 +14,17 @@
 
   <!-- 公司列表 -->
   <view class="list">
+    <view wx:if="{{loading && list.length === 0}}" class="skeleton-list">
+      <view wx:for="{{[1,2,3,4,5,6]}}" wx:key="*this" class="skeleton-row">
+        <view class="sk-avatar ux-skeleton"></view>
+        <view class="sk-info">
+          <view class="sk-line sk-title ux-skeleton"></view>
+          <view class="sk-line sk-desc ux-skeleton"></view>
+        </view>
+        <view class="sk-tag ux-skeleton"></view>
+      </view>
+    </view>
+
     <block wx:for="{{list}}" wx:key="id">
       <view class="company-row" bindtap="onCompanyTap" data-id="{{item.id}}" data-name="{{item.name}}" hover-class="row-hover">
 
@@ -42,7 +53,11 @@
     </block>
   </view>
 
-  <view wx:if="{{loading}}" class="empty-text">加载中...</view>
+  <view wx:if="{{loading && list.length > 0}}" class="load-more-state">
+    <view class="mini-spinner"></view>
+    <text>正在加载更多公司...</text>
+  </view>
+  <view wx:if="{{!loading && !hasMore && list.length > 0}}" class="no-more-state">已显示全部公司</view>
   <view wx:if="{{!loading && list.length === 0}}" class="empty-text">暂无公司数据</view>
 
   <view style="height:40rpx;"></view>
