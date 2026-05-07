@@ -18,6 +18,7 @@
         <text wx:else class="head-logo-initial">{{job.companyInitial || 'C'}}</text>
       </view>
       <view class="head-info">
+        <text class="head-kicker">Recommended Role</text>
         <text class="head-company">{{job.company}}</text>
         <text class="head-title">{{job.title}}</text>
       </view>
@@ -36,12 +37,50 @@
       <view class="info-tag"><text class="info-tag-dot time"></text>{{job.postedAt}}</view>
       <view class="info-tag visa" wx:if="{{job.visaSponsored}}">🛂 Visa Sponsor</view>
     </view>
+
+    <view class="head-conversion-row">
+      <view class="conversion-pill">
+        <text class="conversion-num">AI</text>
+        <text class="conversion-label">面试准备</text>
+      </view>
+      <view class="conversion-pill">
+        <text class="conversion-num">3/6/12</text>
+        <text class="conversion-label">月路线</text>
+      </view>
+      <view class="conversion-pill">
+        <text class="conversion-num">1-click</text>
+        <text class="conversion-label">投递看板</text>
+      </view>
+    </view>
   </view>
 
   <!-- 职位描述 -->
   <view class="desc-card">
     <view class="desc-title">职位描述</view>
     <text class="desc-body" user-select>{{job.description}}</text>
+  </view>
+
+  <view class="action-lab">
+    <view class="action-lab-head">
+      <text class="action-lab-kicker">Next Best Action</text>
+      <text class="action-lab-title">读完职位后，马上进入准备流</text>
+    </view>
+    <view class="action-grid">
+      <view class="action-card primary" bindtap="startAiInterview">
+        <text class="action-icon">AI</text>
+        <view class="action-copy">
+          <text class="action-title">模拟面试</text>
+          <text class="action-sub">围绕该岗位生成追问</text>
+        </view>
+      </view>
+      <view class="action-card" bindtap="applyJob">
+        <text class="action-icon doc">↗</text>
+        <view class="action-copy">
+          <text class="action-title">一键投递</text>
+          <text class="action-sub">复制简历摘要并加入看板</text>
+        </view>
+      </view>
+    </view>
   </view>
 
   <!-- 求职路线规划入口 -->
