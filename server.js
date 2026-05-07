@@ -34,7 +34,10 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({
+  limit: '2mb',
+  verify: (req, _res, buf) => { req.rawBody = buf; },
+}));
 app.use(bodyParser.urlencoded({ extended: true }));
 // 全局挂载可选鉴权（有 token 则解析 req.user，无 token 也不拦截）
 app.use(optionalAuth);
@@ -97,6 +100,9 @@ app.use('/admin',           adminRoutes);
 // 管理后台静态文件（需放在 adminRoutes 之后，避免 /admin/api/* 被静态文件拦截）
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
 
+// GitHub Webhook — 前端自动部署
+app.use('/webhook', require('./routes/webhook'));
+
 // 健康检查
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', message: '留学生求职小程序后端服务运行正常', time: new Date().toISOString() });
@@ -111,6 +117,12 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`✅ 留学生求职小程序后端运行在 http://localhost:${PORT}`);
 });
+
+// 防止 nginx 反代场景下 socket 被提前关闭：
+// nginx 默认 keepalive_timeout=65s，Node 默认 5s，导致 "socket closed unexpectedly"
+// 设为 70s，比 nginx 稍长，确保 Node 不会先关闭连接
+server.keepAliveTimeout = 70000;
+server.headersTimeout   = 75000;
