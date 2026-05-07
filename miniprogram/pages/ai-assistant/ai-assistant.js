@@ -4,6 +4,7 @@ const { post } = require('../../utils/api-client.js');
 
 const API_BASE    = config.API_BASE_URL;
 const CACHE_KEY   = 'ai_assistant_messages';
+const SAVED_KEY   = 'ai_assistant_saved_results';
 const MAX_CACHE   = 30;
 const TIME_GAP_MS = 5 * 60 * 1000;
 const CURSOR      = '▋';
@@ -286,6 +287,41 @@ Page({
     this.sendMessage();
   },
 
+  onCopyAnswer(e) {
+    const msg = this.data.messages[e.currentTarget.dataset.index];
+    const content = msg && (msg.content || msg.displayText);
+    if (!content) return;
+    wx.setClipboardData({
+      data: content,
+      success: () => wx.showToast({ title: '已复制', icon: 'success' })
+    });
+  },
+
+  onSaveAnswer(e) {
+    const msg = this.data.messages[e.currentTarget.dataset.index];
+    const content = msg && (msg.content || msg.displayText);
+    if (!content) return;
+    const saved = wx.getStorageSync(SAVED_KEY) || [];
+    const item = {
+      id: Date.now(),
+      title: this._buildSavedTitle(content),
+      content,
+      createdAt: fmtTime(Date.now())
+    };
+    wx.setStorageSync(SAVED_KEY, [item].concat(saved).slice(0, 30));
+    wx.showToast({ title: '已保存', icon: 'success' });
+  },
+
+  onContinueAsk(e) {
+    if (this.data.loading || this.data.streaming) return;
+    const type = e.currentTarget.dataset.type;
+    const text = type === 'plan'
+      ? '请把上面的建议拆成可执行清单，按今天、本周、本月分组，并标出优先级。'
+      : '请基于上面的回答继续追问我 3 个关键信息，然后给出更精准的下一步建议。';
+    this.setData({ inputText: text });
+    wx.nextTick(() => this.sendMessage());
+  },
+
   sendMessage() {
     const rawText = this.data.inputText.trim();
     if (!rawText || this.data.loading || this.data.streaming) return;
@@ -468,6 +504,11 @@ Page({
     if (/职位|岗位|推荐|job|公司/.test(lower))               return ['哪些公司适合我', '如何提升竞争力', '怎么找内推机会'];
     if (/计划|规划|路线|时间线|timeline/.test(lower))        return ['制定 3 个月计划', '技能提升优先级', '校招时间节点'];
     return ['继续深入分析', '有什么注意事项', '下一步该怎么做'];
+  },
+
+  _buildSavedTitle(content) {
+    const firstLine = String(content || '').replace(/\s+/g, ' ').slice(0, 24);
+    return firstLine || 'AI 求职建议';
   },
 
   // ── 内部工具 ─────────────────────────────────────────────────

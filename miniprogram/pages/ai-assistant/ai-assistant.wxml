@@ -101,6 +101,37 @@
 
             </view>
 
+            <view
+              wx:if="{{item.role === 'ai' && !item.isWelcome && !item.isStreaming && !item.isError}}"
+              class="answer-action-card"
+            >
+              <view class="answer-action-head">
+                <view class="answer-action-mark">AI</view>
+                <view class="answer-action-copy">
+                  <text class="answer-action-title">可行动结果</text>
+                  <text class="answer-action-sub">复制、保存，或让 CareerGPT 继续拆解下一步</text>
+                </view>
+              </view>
+              <view class="answer-action-grid">
+                <view class="answer-action-btn" bindtap="onCopyAnswer" data-index="{{index}}" hover-class="card-hover">
+                  <text class="answer-action-icon">⧉</text>
+                  <text>复制</text>
+                </view>
+                <view class="answer-action-btn" bindtap="onSaveAnswer" data-index="{{index}}" hover-class="card-hover">
+                  <text class="answer-action-icon">✓</text>
+                  <text>保存</text>
+                </view>
+                <view class="answer-action-btn primary" bindtap="onContinueAsk" data-type="follow" hover-class="card-hover">
+                  <text class="answer-action-icon">↳</text>
+                  <text>继续追问</text>
+                </view>
+                <view class="answer-action-btn" bindtap="onContinueAsk" data-type="plan" hover-class="card-hover">
+                  <text class="answer-action-icon">▦</text>
+                  <text>拆成清单</text>
+                </view>
+              </view>
+            </view>
+
             <!-- 错误重试按钮 -->
             <view wx:if="{{item.isError && item.retryText}}" class="retry-row">
               <view
