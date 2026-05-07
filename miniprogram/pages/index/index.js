@@ -24,14 +24,14 @@ Page({
 
     // 2. 金刚区（8 入口，每个配独立背景色）
     features: [
-      { id: 1, name: '网申助手', icon: '/images/application.png', url: '/pages/applications/applications', badge: '', bg: '#eef6ff' },
-      { id: 2, name: '薪酬查询', icon: '/images/experience.png', url: '/pages/salary/salary', badge: 'Hot', bg: '#fff4e6' },
-      { id: 3, name: 'AI面试',   icon: '/images/interview.png',  url: '/pages/interview-setup/interview-setup', badge: 'New', bg: '#f0e6ff' },
-      { id: 4, name: '简历诊断', icon: '/images/salary.png',     url: '/pages/resume/resume', badge: 'New', bg: '#e6fff0' },
-      { id: 5, name: '求职规划', icon: '/images/application.png', url: '/pages/career-planner/career-planner', badge: 'AI', bg: '#fff0f0' },
-      { id: 6, name: 'AI助手', icon: '/images/interview.png', url: '/pages/ai-workflow/ai-workflow', badge: 'AI', bg: '#fffbe6' },
-      { id: 7, name: 'AI项目', icon: '/images/experience-active.png', url: '/pages/project-builder/project-builder', badge: 'New', bg: '#f5f3ff' },
-      { id: 8, name: '校招日历', icon: '/images/salary.png', url: '/pages/campus/campus', badge: '', bg: '#f0fdf4' }
+      { id: 1, name: '网申助手', icon: '/images/icon-apply.png', url: '/pages/applications/applications', badge: '', bg: 'linear-gradient(145deg,#eef6ff,#f8fbff)' },
+      { id: 2, name: '薪酬查询', icon: '/images/icon-salary.png', url: '/pages/salary/salary', badge: 'Hot', bg: 'linear-gradient(145deg,#ecfdf5,#f8fbff)' },
+      { id: 3, name: 'AI面试',   icon: '/images/icon-interview.png',  url: '/pages/interview-setup/interview-setup', badge: 'New', bg: 'linear-gradient(145deg,#f3e8ff,#f8fbff)' },
+      { id: 4, name: '简历诊断', icon: '/images/icon-resume.png',     url: '/pages/resume/resume', badge: 'New', bg: 'linear-gradient(145deg,#ecfdf5,#f8fbff)' },
+      { id: 5, name: '求职规划', icon: '/images/icon-plan.png', url: '/pages/career-planner/career-planner', badge: 'AI', bg: 'linear-gradient(145deg,#fff7ed,#f8fbff)' },
+      { id: 6, name: 'AI助手', icon: '/images/icon-ai-assistant.png', url: '/pages/ai-workflow/ai-workflow', badge: 'AI', bg: 'linear-gradient(145deg,#eef4ff,#f8fbff)' },
+      { id: 7, name: 'AI项目', icon: '/images/icon-project.png', url: '/pages/project-builder/project-builder', badge: 'New', bg: 'linear-gradient(145deg,#eef2ff,#f8fbff)' },
+      { id: 8, name: '校招日历', icon: '/images/icon-calendar.png', url: '/pages/campus/campus', badge: '', bg: 'linear-gradient(145deg,#f0f9ff,#f8fbff)' }
     ],
 
     // 3. 热门公司
@@ -300,12 +300,12 @@ Page({
     try {
       const res = await getJobs({ keyword, country: 'us', size: 5, page: 1, timeout: 5000 });
       if (!res.data || res.data.length === 0) throw new Error('API Empty');
-      
+
       let jobs = this.formatJobData(res.data);
       jobs = this.rankByProfile(jobs);
       jobs = this.withCompanyLogos(jobs);
       jobs = jobs.slice(0, 5);
-      
+
       this.setData({ recommendJobs: jobs, loadingJobs: false });
       // 缓存成功结果，下次秒开
       wx.setStorageSync('cachedRecommendJobs', jobs);
