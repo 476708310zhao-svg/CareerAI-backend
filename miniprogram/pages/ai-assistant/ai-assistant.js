@@ -122,7 +122,19 @@ Page({
     statusBarHeight: 44,
     safeBottom:  0,
     keyboardHeight: 0,
-    quickActions: ['帮我优化简历', '推荐适合我的职位', '制定求职计划', '准备下周面试']
+    sidebarOpen: false,
+    quickActions: ['帮我优化简历', '推荐适合我的职位', '制定求职计划', '准备下周面试'],
+    assistantTools: [
+      { icon: 'CV', title: '优化简历', desc: '润色经历与匹配 ATS', prompt: '请帮我优化简历，重点提升 ATS 关键词、项目表达和量化结果。' },
+      { icon: 'JD', title: '推荐岗位', desc: '根据背景匹配机会', prompt: '请根据我的背景推荐适合申请的岗位方向，并说明优先级。' },
+      { icon: 'MI', title: '模拟面试', desc: '生成问题与追问', prompt: '请帮我准备一次模拟面试，先从行为面试和项目深挖开始。' },
+      { icon: 'PL', title: '求职规划', desc: '拆解接下来行动', prompt: '请帮我制定一个 30 天求职计划，包含简历、投递、面试和复盘。' }
+    ],
+    recentChats: [
+      { id: 1, title: '新的求职咨询', preview: '你好！我是你的 AI 求职助手...', time: '刚刚' },
+      { id: 2, title: '简历优化思路', preview: '项目经历需要突出影响力', time: '昨天' },
+      { id: 3, title: '岗位匹配建议', preview: '优先申请 SWE / Data 方向', time: '本周' }
+    ]
   },
 
   _history:      [],
@@ -237,6 +249,35 @@ Page({
     if (this.data.loading || this.data.streaming) return;
     this.setData({ inputText: e.currentTarget.dataset.text });
     this.sendMessage();
+  },
+
+  onToolAction(e) {
+    if (this.data.loading || this.data.streaming) return;
+    this.setData({ sidebarOpen: false, inputText: e.currentTarget.dataset.text || '' });
+    wx.nextTick(() => this.sendMessage());
+  },
+
+  toggleSidebar() {
+    this.setData({ sidebarOpen: !this.data.sidebarOpen });
+  },
+
+  onNewChat() {
+    this._abortStream();
+    this._history = [];
+    this._streamingIdx = -1;
+    this._lastRawText = '';
+    try { wx.removeStorageSync(CACHE_KEY); } catch (e) {}
+    const welcome = makeWelcome();
+    this.setData({
+      sidebarOpen: false,
+      messages: [welcome],
+      latestAiIdx: 0,
+      loading: false,
+      streaming: false,
+      inputText: '',
+      inputLen: 0
+    });
+    wx.nextTick(() => this._scrollTo());
   },
 
   onSuggestion(e) {

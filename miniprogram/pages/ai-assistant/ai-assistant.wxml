@@ -3,13 +3,60 @@
 
   <!-- 顶部栏（自定义导航，含状态栏占位） -->
   <view class="top-bar" style="padding-top: {{statusBarHeight}}px;">
+    <view class="menu-btn" bindtap="toggleSidebar" hover-class="btn-hover">
+      <view class="menu-line"></view>
+      <view class="menu-line short"></view>
+    </view>
     <view class="top-title">
-      <text class="top-icon">✦</text>
-      <text class="top-name">AI 求职助手</text>
+      <text class="top-icon">AI</text>
+      <view class="top-copy">
+        <text class="top-name">AI 求职助手</text>
+        <text class="top-sub">CareerGPT</text>
+      </view>
     </view>
-    <view class="clear-btn" bindtap="onClear" hover-class="btn-hover">
-      <text class="clear-txt">清空</text>
+    <view class="new-chat-btn" bindtap="onNewChat" hover-class="btn-hover">
+      <text class="new-chat-icon">+</text>
     </view>
+  </view>
+
+  <view wx:if="{{sidebarOpen}}" class="drawer-mask" bindtap="toggleSidebar"></view>
+  <view class="drawer {{sidebarOpen ? 'open' : ''}}" style="padding-top: {{statusBarHeight}}px;">
+    <view class="drawer-brand">
+      <view class="drawer-logo">AI</view>
+      <view class="drawer-title-wrap">
+        <text class="drawer-title">求职助手</text>
+        <text class="drawer-sub">你的职业规划工作台</text>
+      </view>
+    </view>
+    <view class="drawer-new" bindtap="onNewChat" hover-class="card-hover">
+      <text class="drawer-new-icon">+</text>
+      <text>新对话</text>
+    </view>
+    <view class="drawer-search">
+      <text class="drawer-search-icon">⌕</text>
+      <text class="drawer-search-placeholder">搜索聊天</text>
+    </view>
+    <view class="drawer-section-title">常用功能</view>
+    <block wx:for="{{assistantTools}}" wx:key="title">
+      <view class="drawer-tool" bindtap="onToolAction" data-text="{{item.prompt}}" hover-class="card-hover">
+        <view class="drawer-tool-icon">{{item.icon}}</view>
+        <view class="drawer-tool-copy">
+          <text class="drawer-tool-title">{{item.title}}</text>
+          <text class="drawer-tool-desc">{{item.desc}}</text>
+        </view>
+      </view>
+    </block>
+    <view class="drawer-section-title recent-title">最近对话</view>
+    <block wx:for="{{recentChats}}" wx:key="id">
+      <view class="recent-chat" bindtap="toggleSidebar" hover-class="card-hover">
+        <view class="recent-dot"></view>
+        <view class="recent-copy">
+          <text class="recent-name">{{item.title}}</text>
+          <text class="recent-preview">{{item.preview}}</text>
+        </view>
+        <text class="recent-time">{{item.time}}</text>
+      </view>
+    </block>
   </view>
 
   <!-- 消息列表 -->
@@ -105,10 +152,18 @@
       <view wx:if="{{loading && !streaming}}" class="msg-row ai-row">
         <view class="ai-avatar"><text class="ai-avatar-icon">✦</text></view>
         <view class="bubble ai-bubble loading-bubble">
-          <view class="dot-wrap">
-            <view class="dot"></view>
-            <view class="dot"></view>
-            <view class="dot"></view>
+          <view class="thinking-head">
+            <text class="thinking-title">CareerGPT 正在思考</text>
+            <view class="dot-wrap">
+              <view class="dot"></view>
+              <view class="dot"></view>
+              <view class="dot"></view>
+            </view>
+          </view>
+          <view class="thinking-steps">
+            <text>理解你的目标</text>
+            <text>匹配求职策略</text>
+            <text>生成可执行建议</text>
           </view>
         </view>
       </view>
