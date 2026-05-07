@@ -21,6 +21,28 @@
     </view>
   </view>
 
+  <view class="company-intel">
+    <view class="intel-head">
+      <text class="intel-kicker">Company Intelligence</text>
+      <text class="intel-title">名企情报工作台</text>
+      <text class="intel-sub">把公司背景、在招岗位、面试风格和薪资信息集中到一个决策页。</text>
+    </view>
+    <view class="intel-grid">
+      <view class="intel-card" bindtap="switchTab" data-index="0">
+        <text class="intel-num">{{company.jobs.length || 0}}</text>
+        <text class="intel-label">在招职位</text>
+      </view>
+      <view class="intel-card" bindtap="switchTab" data-index="1">
+        <text class="intel-num">{{company.experiences.length || 0}}</text>
+        <text class="intel-label">面经资产</text>
+      </view>
+      <view class="intel-card accent" bindtap="switchTab" data-index="3">
+        <text class="intel-num">AI</text>
+        <text class="intel-label">公司洞察</text>
+      </view>
+    </view>
+  </view>
+
   <!-- 公司简介 -->
   <view class="section-card">
     <view class="section-title">公司简介</view>
@@ -57,6 +79,13 @@
 
   <!-- Tab 内容: 职位 (JSearch API) -->
   <view wx:if="{{currentTab === 0}}" class="tab-content">
+    <view class="tab-section-head">
+      <view>
+        <text class="tab-section-kicker">Open Roles</text>
+        <text class="tab-section-title">值得优先关注的岗位</text>
+      </view>
+      <text class="tab-section-count">{{company.jobs.length}} 个</text>
+    </view>
     <view wx:if="{{jobsLoading}}" class="loading-hint">正在搜索最新岗位...</view>
     <block wx:for="{{company.jobs}}" wx:key="id">
       <view class="job-card" bindtap="goToJobDetail" data-id="{{item.id}}">
@@ -120,6 +149,12 @@
 
   <!-- Tab 内容: AI洞察 -->
   <view wx:if="{{currentTab === 3}}" class="tab-content">
+    <view class="tab-section-head">
+      <view>
+        <text class="tab-section-kicker">AI Insight</text>
+        <text class="tab-section-title">面试前需要知道的公司情报</text>
+      </view>
+    </view>
     <!-- 加载中 -->
     <view wx:if="{{insightLoading}}" class="insight-loading">
       <view class="insight-spin"></view>
