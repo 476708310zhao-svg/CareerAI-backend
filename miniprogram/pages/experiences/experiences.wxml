@@ -105,6 +105,18 @@
   <!-- 占位（高度由 JS 动态设置，适配 fixed-header 实际高度） -->
   <view style="height: {{spacerHeight}}px;"></view>
 
+  <view class="training-hero">
+    <view class="training-copy">
+      <text class="training-kicker">Interview Training OS</text>
+      <text class="training-title">面试题库训练台</text>
+      <text class="training-sub">整合精选题、LeetCode、话题专题和精华内容，用 AI 帮你更快进入练习状态。</text>
+    </view>
+    <view class="training-meter">
+      <text class="training-meter-num">{{displayList.length || allQuestions.length}}</text>
+      <text class="training-meter-label">当前题量</text>
+    </view>
+  </view>
+
   <!-- 话题讨论网格 -->
   <view class="topics-grid" wx:if="{{sourceTab === 'topics' && !currentTopic}}">
     <view class="topics-header">
@@ -197,6 +209,7 @@
   <view class="q-list" wx:if="{{(sourceTab !== 'topics' || currentTopic) && !(sourceTab === 'picks' && picksTab === 'trending' && !selectedTrendingCompany)}}">
     <block wx:for="{{displayList}}" wx:key="id">
       <view class="q-card" bindtap="goToDetail" data-item="{{item}}">
+        <view class="q-card-glow"></view>
 
         <!-- 第一行：序号 + 标题 + 难度（右上角） -->
         <view class="q-head">
