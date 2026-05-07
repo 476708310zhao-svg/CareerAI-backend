@@ -59,6 +59,18 @@
   <!-- 占位 -->
   <view class="spacer"></view>
 
+  <view class="assessment-hero">
+    <view class="assessment-copy">
+      <text class="assessment-kicker">Agency Decision Lab</text>
+      <text class="assessment-title">求职机构测评</text>
+      <text class="assessment-sub">用真实评价、AI 测评和机构对比，快速判断哪家更适合你的求职阶段。</text>
+    </view>
+    <view class="assessment-meter">
+      <text class="assessment-meter-num">{{total || list.length}}</text>
+      <text class="assessment-meter-label">机构样本</text>
+    </view>
+  </view>
+
   <!-- ── 机构列表 ── -->
   <view class="list">
     <block wx:for="{{list}}" wx:key="id">
@@ -68,6 +80,7 @@
         data-id="{{item.id}}"
         hover-class="card-press"
       >
+        <view class="agency-card-glow"></view>
 
         <!-- 对比模式复选框 -->
         <view class="check-box" wx:if="{{compareMode}}">
