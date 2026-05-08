@@ -380,6 +380,25 @@ page {
   opacity: 0.92;
 }
 
+.ux-list-card {
+  margin-bottom: 14rpx;
+  padding: 24rpx;
+  border-radius: 24rpx;
+  border: 1rpx solid var(--color-line-soft);
+  background: #fbfdff;
+  box-shadow: none;
+  transition: transform var(--motion-fast), opacity var(--motion-fast), border-color var(--motion-fast);
+}
+
+.ux-list-card:last-child {
+  margin-bottom: 0;
+}
+
+.ux-list-card:active {
+  transform: scale(0.986);
+  opacity: 0.88;
+}
+
 .ux-section-title {
   color: var(--color-ink);
   font-size: var(--font-lg);

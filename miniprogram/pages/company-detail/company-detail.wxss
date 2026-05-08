@@ -133,12 +133,6 @@ page { background: var(--bg-raised); }
 }
 
 /* 职位卡片 */
-.job-card {
-  padding: 24rpx;
-  border-bottom: 1rpx solid #f5f5f5;
-}
-.job-card:last-child { border-bottom: none; }
-
 .job-top {
   display: flex;
   justify-content: space-between;
@@ -151,23 +145,11 @@ page { background: var(--bg-raised); }
 .job-bottom { display: flex; flex-wrap: wrap; gap: 12rpx; }
 
 /* 面经卡片 */
-.exp-card {
-  padding: 24rpx;
-  border-bottom: 1rpx solid #f5f5f5;
-}
-.exp-card:last-child { border-bottom: none; }
-
 .exp-title { font-size: 28rpx; font-weight: bold; color: var(--text-body); display: block; margin-bottom: 12rpx; }
 .exp-meta { display: flex; gap: 20rpx; font-size: 22rpx; color: var(--text-muted); }
 .exp-type { background: #fff7e6; color: #fa8c16; padding: 2rpx 10rpx; border-radius: 6rpx; }
 
 /* 薪资卡片 */
-.salary-card {
-  padding: 24rpx;
-  border-bottom: 1rpx solid #f5f5f5;
-}
-.salary-card:last-child { border-bottom: none; }
-
 .salary-top {
   display: flex;
   justify-content: space-between;
@@ -273,11 +255,6 @@ page { background: var(--bg-raised); }
 @keyframes spin { to { transform: rotate(360deg); } }
 .insight-loading-txt { font-size: 26rpx; color: var(--brand); }
 
-.insight-card {
-  padding: 22rpx 0 22rpx;
-  border-bottom: 1rpx solid #f5f5f5;
-}
-.insight-card:last-child { border-bottom: none; }
 .insight-card-header {
   display: flex; align-items: center; gap: 10rpx;
   margin-bottom: 14rpx;
@@ -445,25 +422,6 @@ page {
   border-top: none;
   border-radius: 0 0 28rpx 28rpx;
   box-shadow: 0 16rpx 38rpx rgba(31, 45, 74, 0.07);
-}
-
-.job-card,
-.exp-card,
-.salary-card,
-.insight-card {
-  margin-bottom: 14rpx;
-  padding: 24rpx;
-  border: 1rpx solid rgba(31, 45, 74, 0.06);
-  border-radius: 24rpx;
-  background: #fbfdff;
-}
-
-.job-card:last-child,
-.exp-card:last-child,
-.salary-card:last-child,
-.insight-card:last-child {
-  margin-bottom: 0;
-  border-bottom: 1rpx solid rgba(31, 45, 74, 0.06);
 }
 
 .job-top,

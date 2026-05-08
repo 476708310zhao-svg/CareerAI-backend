@@ -92,7 +92,7 @@
     </view>
     <view wx:if="{{jobsLoading}}" class="loading-hint">正在搜索最新岗位...</view>
     <block wx:for="{{company.jobs}}" wx:key="id">
-      <view class="job-card" bindtap="goToJobDetail" data-id="{{item.id}}">
+      <view class="job-card ux-list-card" bindtap="goToJobDetail" data-id="{{item.id}}">
         <view class="job-top">
           <text class="job-title">{{item.title}}</text>
           <text class="job-salary">{{item.salary}}</text>
@@ -116,7 +116,7 @@
       </view>
     </view>
     <block wx:for="{{company.experiences}}" wx:key="id">
-      <view class="exp-card" bindtap="goToExperienceDetail" data-id="{{item.id}}">
+      <view class="exp-card ux-list-card" bindtap="goToExperienceDetail" data-id="{{item.id}}">
         <view class="exp-title-row">
           <text class="exp-title">{{item.title}}</text>
           <text class="ai-tag" wx:if="{{item.isAI}}">AI</text>
@@ -134,7 +134,7 @@
   <!-- Tab 内容: 薪资 -->
   <view wx:if="{{currentTab === 2}}" class="tab-content">
     <block wx:for="{{company.salaries}}" wx:key="position">
-      <view class="salary-card">
+      <view class="salary-card ux-list-card">
         <view class="salary-top">
           <text class="salary-position">{{item.position}}</text>
           <text class="salary-avg">{{item.avgSalary}}</text>
@@ -166,21 +166,21 @@
     </view>
     <!-- 已生成 -->
     <view wx:elif="{{insight}}">
-      <view class="insight-card">
+      <view class="insight-card ux-list-card">
         <view class="insight-card-header">
           <text class="insight-icon">🏢</text>
           <text class="insight-card-title">公司背景</text>
         </view>
         <text class="insight-card-body">{{insight.background}}</text>
       </view>
-      <view class="insight-card">
+      <view class="insight-card ux-list-card">
         <view class="insight-card-header">
           <text class="insight-icon">🎯</text>
           <text class="insight-card-title">面试风格</text>
         </view>
         <text class="insight-card-body">{{insight.interview_style}}</text>
       </view>
-      <view class="insight-card">
+      <view class="insight-card ux-list-card">
         <view class="insight-card-header">
           <text class="insight-icon">❓</text>
           <text class="insight-card-title">高频面试题</text>
@@ -192,7 +192,7 @@
           </view>
         </view>
       </view>
-      <view class="insight-card">
+      <view class="insight-card ux-list-card">
         <view class="insight-card-header">
           <text class="insight-icon">💡</text>
           <text class="insight-card-title">求职建议</text>
