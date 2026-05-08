@@ -30,16 +30,35 @@ async function api(path, opts = {}) {
   if (!isFormData) headers['Content-Type'] = 'application/json';
   Object.assign(headers, opts.headers || {});
 
-  const res = await fetch(window.ADMIN_API + path, {
-    method: opts.method || 'GET',
-    headers,
-    body: opts.body ? (isFormData ? opts.body : JSON.stringify(opts.body)) : undefined
-  });
+  let res;
+  try {
+    res = await fetch(window.ADMIN_API + path, {
+      method: opts.method || 'GET',
+      headers,
+      body: opts.body ? (isFormData ? opts.body : JSON.stringify(opts.body)) : undefined
+    });
+  } catch (err) {
+    console.error('[Admin API] 网络错误:', path, err.message);
+    toast('网络连接异常，请检查服务器是否在线', 'error');
+    return null;
+  }
 
   if (res.status === 401) {
     logout();
     return null;
   }
+
+  if (!res.ok) {
+    console.error('[Admin API] HTTP', res.status, path);
+    try {
+      const body = await res.json();
+      toast(body.error || body.message || `请求失败 (${res.status})`, 'error');
+    } catch (_) {
+      toast(`请求失败 (${res.status})`, 'error');
+    }
+    return null;
+  }
+
   return res.json();
 }
 

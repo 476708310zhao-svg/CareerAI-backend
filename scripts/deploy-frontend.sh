@@ -5,6 +5,11 @@ set -e
 LOG="/var/log/frontend-deploy.log"
 exec >> "$LOG" 2>&1
 
+# 加载 nvm，使用 Node.js 20
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+nvm use 20 2>/dev/null || true
+
 REPO="476708310zhao-svg/CareerAO"
 BUILD_DIR="/tmp/careerao-build"
 WEB_ROOT="/www/wwwroot/zhiyincareer-web"
@@ -35,9 +40,10 @@ else
   cd "$BUILD_DIR"
 fi
 
-# 安装依赖
+# 安装依赖（删除旧 node_modules 避免 Windows lock 文件引起的平台兼容问题）
 echo "[2/4] 安装依赖..."
-npm ci --legacy-peer-deps
+rm -rf node_modules
+npm install --legacy-peer-deps
 
 # 构建
 echo "[3/4] 构建中..."

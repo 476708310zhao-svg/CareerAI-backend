@@ -52,6 +52,68 @@ router.post('/login', loginLimiter, async (req, res) => {
   }
 });
 
+// ─── 手机号登录 ───────────────────────────────────────────────────────────────
+// phoneCode: from getPhoneNumber button event (wx mini-program 2.21.2+)
+// loginCode: from wx.login(), used to obtain openid
+router.post('/phone-login', loginLimiter, async (req, res) => {
+  try {
+    const { phoneCode, loginCode } = req.body;
+    if (!phoneCode || !loginCode) return res.status(400).json({ code: -1, message: '缺少参数' });
+
+    let openid, phone;
+
+    if (WX_APP_ID && WX_APP_SECRET && WX_APP_ID !== '你的小程序AppID') {
+      // Exchange loginCode → openid
+      const sessionRes = await axios.get('https://api.weixin.qq.com/sns/jscode2session', {
+        params: { appid: WX_APP_ID, secret: WX_APP_SECRET, js_code: loginCode, grant_type: 'authorization_code' },
+        timeout: 8000
+      });
+      if (sessionRes.data.errcode) return res.status(400).json({ code: -1, message: '微信登录失败: ' + sessionRes.data.errmsg });
+      openid = sessionRes.data.openid;
+
+      // Get access token then exchange phoneCode → phone number
+      const tokenRes = await axios.get('https://api.weixin.qq.com/cgi-bin/token', {
+        params: { grant_type: 'client_credential', appid: WX_APP_ID, secret: WX_APP_SECRET },
+        timeout: 8000
+      });
+      const accessToken = tokenRes.data.access_token;
+      if (accessToken) {
+        const phoneRes = await axios.post(
+          `https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=${accessToken}`,
+          { code: phoneCode },
+          { timeout: 8000 }
+        );
+        phone = phoneRes.data.phone_info && phoneRes.data.phone_info.phoneNumber;
+      }
+    } else {
+      openid = 'dev_' + loginCode;
+      phone  = 'dev_phone_' + phoneCode.slice(0, 8);
+    }
+
+    if (!openid) return res.status(400).json({ code: -1, message: '获取用户身份失败' });
+
+    // Find or create user (prefer openid match, fall back to phone match)
+    let user = db.prepare('SELECT * FROM users WHERE openid = ?').get(openid);
+    if (!user && phone) {
+      user = db.prepare('SELECT * FROM users WHERE phone = ?').get(phone);
+      if (user) db.prepare('UPDATE users SET openid = ? WHERE id = ?').run(openid, user.id);
+    }
+    if (!user) {
+      const result = db.prepare('INSERT INTO users (openid, phone) VALUES (?, ?)').run(openid, phone || null);
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
+    } else if (phone && !user.phone) {
+      db.prepare('UPDATE users SET phone = ? WHERE id = ?').run(phone, user.id);
+    }
+    user = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
+
+    const token = signToken(user.id, user.openid);
+    res.json({ code: 0, message: '登录成功', data: { token, user: formatUser(user) } });
+  } catch (error) {
+    console.error('[phone-login error]', error.message);
+    res.status(500).json({ code: -1, message: '登录失败，请稍后重试' });
+  }
+});
+
 // ─── 更新昵称/头像 ─────────────────────────────────────────────────────────────
 router.post('/update-profile', authMiddleware, (req, res) => {
   try {
