@@ -66,7 +66,7 @@
       <text class="action-lab-title">读完职位后，马上进入准备流</text>
     </view>
     <view class="action-grid">
-      <view class="action-card primary" bindtap="startAiInterview">
+      <view class="action-card" bindtap="startAiInterview">
         <text class="action-icon">AI</text>
         <view class="action-copy">
           <text class="action-title">模拟面试</text>
@@ -111,7 +111,7 @@
 
   <view class="f-btn f-btn-ai" bindtap="startAiInterview">
     <text class="ai-badge">AI</text>
-    <text>模拟面试</text>
+    <text>面试</text>
   </view>
 
   <view class="f-btn f-btn-apply" bindtap="applyJob">一键投递</view>

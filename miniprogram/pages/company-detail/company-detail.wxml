@@ -218,10 +218,15 @@
 
   <!-- 底部操作栏 -->
   <view class="footer-bar">
-    <view class="fav-btn" bindtap="toggleFavorite">
-      <text>{{company.isFavorited ? '已收藏' : '收藏'}}</text>
+    <view class="footer-secondary">
+      <view class="footer-icon-btn {{company.isFavorited ? 'active' : ''}}" bindtap="toggleFavorite">
+        <text>{{company.isFavorited ? '★' : '☆'}}</text>
+      </view>
+      <button class="footer-icon-btn footer-share-btn" open-type="share">
+        <text>↗</text>
+      </button>
     </view>
-    <c-button class="share-btn" open-type="share">分享</c-button>
+    <view class="footer-primary" bindtap="focusCompanyJobs">查看在招岗位</view>
   </view>
 
 </view>

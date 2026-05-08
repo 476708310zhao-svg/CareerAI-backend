@@ -393,6 +393,17 @@ Page({
     wx.showToast({ title: isFav ? '已取消收藏' : '已收藏', icon: 'none' });
   },
 
+  focusCompanyJobs() {
+    this.setData({ currentTab: 0 });
+    wx.nextTick(() => {
+      wx.pageScrollTo({
+        selector: '.tab-bar',
+        duration: 260,
+        fail: () => wx.pageScrollTo({ scrollTop: 520, duration: 260 })
+      });
+    });
+  },
+
   onShareAppMessage() {
     return {
       title: (this.data.company ? this.data.company.name : '') + ' - 留学生求职助手',

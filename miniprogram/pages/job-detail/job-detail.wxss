@@ -206,11 +206,11 @@ page {
 }
 
 .f-btn-ai {
-  background: #EFF6FF;
-  color: var(--brand);
-  border: 2rpx solid #BFDBFE;
+  background: var(--bg-raised);
+  color: #334155;
+  border: 1.5rpx solid rgba(226,232,240,0.96);
   box-sizing: border-box;
-  flex: 1;
+  flex: 0 0 150rpx;
 }
 
 .ai-badge {
@@ -231,7 +231,7 @@ page {
   background: linear-gradient(135deg, var(--brand), #6366F1);
   color: #fff;
   box-shadow: 0 6rpx 16rpx rgba(43,92,230,0.3);
-  flex: 1.2;
+  flex: 1;
 }
 
 /* 点击反馈 */
@@ -646,8 +646,8 @@ page {
 }
 
 .f-btn-ai {
-  background: #eff6ff;
-  border-color: #d9e7ff;
+  background: #f7f9fd;
+  border-color: rgba(226,232,240,0.96);
 }
 
 .f-btn-apply {
@@ -828,7 +828,7 @@ page {
 }
 
 .f-btn-ai {
-  background: linear-gradient(135deg, #eef5ff 0%, #ffffff 100%);
+  background: #f7f9fd;
   color: #1d4ed8;
 }
 
