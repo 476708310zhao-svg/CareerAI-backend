@@ -746,15 +746,7 @@ page {
 /* ===== Phase 4 polish: actionable AI result card ===== */
 .answer-action-card {
   width: 100%;
-  box-sizing: border-box;
   margin-top: 14rpx;
-  padding: 18rpx;
-  border-radius: 26rpx;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,251,255,0.94)),
-    radial-gradient(circle at 100% 0, rgba(43,92,230,0.10), transparent 34%);
-  border: 1.5rpx solid rgba(226,232,240,0.92);
-  box-shadow: 0 12rpx 30rpx rgba(15,23,42,0.055);
 }
 
 .answer-action-head {
@@ -808,25 +800,7 @@ page {
 
 .answer-action-btn {
   width: calc(50% - 5rpx);
-  min-height: 64rpx;
-  box-sizing: border-box;
   padding: 0 14rpx;
-  border-radius: 20rpx;
-  background: #ffffff;
-  border: 1.5rpx solid rgba(226,232,240,0.92);
-  color: #344054;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-  font-size: 23rpx;
-  font-weight: 850;
-}
-
-.answer-action-btn.primary {
-  color: #2557d6;
-  background: #eef4ff;
-  border-color: rgba(43,92,230,0.18);
 }
 
 .answer-action-icon {

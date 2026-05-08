@@ -103,7 +103,7 @@
 
             <view
               wx:if="{{item.role === 'ai' && !item.isWelcome && !item.isStreaming && !item.isError}}"
-              class="answer-action-card"
+              class="answer-action-card ux-ai-result-card"
             >
               <view class="answer-action-head">
                 <view class="answer-action-mark">AI</view>
@@ -113,19 +113,19 @@
                 </view>
               </view>
               <view class="answer-action-grid">
-                <view class="answer-action-btn" bindtap="onCopyAnswer" data-index="{{index}}" hover-class="card-hover">
+                <view class="answer-action-btn ux-result-action" bindtap="onCopyAnswer" data-index="{{index}}" hover-class="card-hover">
                   <text class="answer-action-icon">⧉</text>
                   <text>复制</text>
                 </view>
-                <view class="answer-action-btn" bindtap="onSaveAnswer" data-index="{{index}}" hover-class="card-hover">
+                <view class="answer-action-btn ux-result-action" bindtap="onSaveAnswer" data-index="{{index}}" hover-class="card-hover">
                   <text class="answer-action-icon">✓</text>
                   <text>保存</text>
                 </view>
-                <view class="answer-action-btn primary" bindtap="onContinueAsk" data-type="follow" hover-class="card-hover">
+                <view class="answer-action-btn ux-result-action primary" bindtap="onContinueAsk" data-type="follow" hover-class="card-hover">
                   <text class="answer-action-icon">↳</text>
                   <text>继续追问</text>
                 </view>
-                <view class="answer-action-btn" bindtap="onContinueAsk" data-type="plan" hover-class="card-hover">
+                <view class="answer-action-btn ux-result-action" bindtap="onContinueAsk" data-type="plan" hover-class="card-hover">
                   <text class="answer-action-icon">▦</text>
                   <text>拆成清单</text>
                 </view>

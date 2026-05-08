@@ -501,6 +501,38 @@ page {
   font-weight: 900;
 }
 
+.ux-ai-result-card {
+  box-sizing: border-box;
+  padding: 18rpx;
+  border-radius: 26rpx;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,251,255,0.94)),
+    radial-gradient(circle at 100% 0, rgba(37,99,235,0.10), transparent 34%);
+  border: 1rpx solid var(--color-line-soft);
+  box-shadow: 0 12rpx 30rpx rgba(16,24,40,0.055);
+}
+
+.ux-result-action {
+  min-height: 64rpx;
+  border-radius: 20rpx;
+  background: #ffffff;
+  border: 1rpx solid var(--color-line-soft);
+  color: var(--color-ink-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  font-size: var(--font-sm);
+  font-weight: 850;
+  box-sizing: border-box;
+}
+
+.ux-result-action.primary {
+  color: var(--color-brand);
+  background: var(--color-brand-soft);
+  border-color: rgba(37,99,235,0.18);
+}
+
 .ux-bottom-bar {
   position: fixed;
   left: 0;
