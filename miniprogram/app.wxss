@@ -482,6 +482,90 @@ page {
   font-weight: 900;
 }
 
+.ux-bottom-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 14rpx 24rpx;
+  padding-bottom: calc(14rpx + env(safe-area-inset-bottom));
+  border-radius: 32rpx 32rpx 0 0;
+  border: 1rpx solid var(--color-line-soft);
+  border-bottom: none;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow-up);
+  box-sizing: border-box;
+}
+
+.ux-bottom-icons {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  flex-shrink: 0;
+}
+
+.ux-icon-action {
+  width: 68rpx;
+  height: 68rpx;
+  min-width: 68rpx;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-soft);
+  color: var(--color-ink-4);
+  border: 1rpx solid var(--color-line-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  font-size: 30rpx;
+  font-weight: 850;
+  line-height: 1;
+  box-sizing: border-box;
+}
+
+.ux-icon-action.active {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.ux-icon-action::after {
+  border: none;
+}
+
+.ux-main-cta,
+.ux-sub-cta {
+  height: 76rpx;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-md);
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.ux-main-cta {
+  flex: 1;
+  color: #ffffff;
+  background: var(--color-brand);
+  box-shadow: var(--shadow-action);
+}
+
+.ux-sub-cta {
+  flex: 0 0 150rpx;
+  color: var(--color-brand-strong);
+  background: var(--color-brand-soft);
+  border: 1rpx solid rgba(37, 99, 235, 0.12);
+}
+
+.ux-detail-tail {
+  height: calc(112rpx + env(safe-area-inset-bottom));
+}
+
 .safe-tail {
   height: calc(24rpx + env(safe-area-inset-bottom));
 }
@@ -502,6 +586,13 @@ button:active,
 .ux-secondary-action:active {
   transform: scale(0.975);
   opacity: 0.88;
+}
+
+.ux-bottom-bar .ux-icon-action:active,
+.ux-bottom-bar .ux-main-cta:active,
+.ux-bottom-bar .ux-sub-cta:active {
+  transform: scale(0.96);
+  opacity: 0.84;
 }
 
 /* 手动暗色模式（已废弃 — 当前无 WXML 使用 theme-dark 类名，

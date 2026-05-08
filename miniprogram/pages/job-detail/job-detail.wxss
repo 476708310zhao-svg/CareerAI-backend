@@ -126,91 +126,19 @@ page {
 }
 
 /* ====== 底部操作栏 ====== */
-.footer {
-  position: fixed;
-  bottom: 0; left: 0;
-  width: 100%;
-  background: var(--bg-panel);
-  z-index: 999;
-  display: flex;
-  align-items: center;
-  padding: 16rpx 24rpx;
-  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
-  box-shadow: var(--shadow-up);
-  box-sizing: border-box;
-  gap: 16rpx;
-}
-
-/* 图标组——紧凑，不允许撑大 */
 .footer-icons {
-  display: flex;
-  gap: 8rpx;
-  flex-shrink: 0;
-  width: 160rpx;
-  max-width: 160rpx;
+  width: 146rpx;
+  max-width: 146rpx;
 }
-
-.f-icon {
-  width: 72rpx;
-  height: 72rpx;
-  min-width: 72rpx;
-  max-width: 72rpx;
-  border-radius: 50%;
-  background: #F3F4F6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.f-icon.active { background: #FFFBEB; }
 
 .f-icon-txt {
-  font-size: 32rpx;
-  color: var(--text-muted);
+  color: inherit;
+  font-size: 30rpx;
   line-height: 1;
-}
-.f-icon.active .f-icon-txt { color: #D97706; }
-
-.share-btn {
-  background: #F3F4F6 !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  border: none !important;
-  width: 72rpx !important;
-  height: 72rpx !important;
-  min-width: 0 !important;
-  max-width: 72rpx !important;
-  border-radius: 50% !important;
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-.share-btn::after { border: none !important; }
-
-/* 核心按钮——占满剩余空间 */
-.f-btn {
-  flex: 1;
-  min-width: 0;
-  height: 84rpx;
-  border-radius: 42rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28rpx;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
 }
 
 .f-btn-ai {
-  background: var(--bg-raised);
-  color: #334155;
-  border: 1.5rpx solid rgba(226,232,240,0.96);
-  box-sizing: border-box;
-  flex: 0 0 150rpx;
+  font-size: 25rpx;
 }
 
 .ai-badge {
@@ -226,17 +154,6 @@ page {
   margin-right: 6rpx;
   flex-shrink: 0;
 }
-
-.f-btn-apply {
-  background: linear-gradient(135deg, var(--brand), #6366F1);
-  color: #fff;
-  box-shadow: 0 6rpx 16rpx rgba(43,92,230,0.3);
-  flex: 1;
-}
-
-/* 点击反馈 */
-.f-icon:active, .share-btn:active { transform: scale(0.88); opacity: 0.7; }
-.f-btn:active { transform: scale(0.97); opacity: 0.85; }
 
 /* ====== Loading ====== */
 .loading-wrap {
@@ -614,45 +531,12 @@ page {
 }
 
 .detail-safe-tail {
-  height: calc(118rpx + env(safe-area-inset-bottom));
-}
-
-.footer {
-  padding: 14rpx 24rpx;
-  padding-bottom: calc(14rpx + env(safe-area-inset-bottom));
-  border-radius: 32rpx 32rpx 0 0;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 -16rpx 36rpx rgba(31, 45, 74, 0.08);
+  height: calc(112rpx + env(safe-area-inset-bottom));
 }
 
 .footer-icons {
-  width: 148rpx;
-  max-width: 148rpx;
-}
-
-.f-icon,
-.share-btn {
-  width: 68rpx !important;
-  height: 68rpx !important;
-  min-width: 68rpx;
-  max-width: 68rpx !important;
-  background: #f3f6fb !important;
-}
-
-.f-btn {
-  height: 78rpx;
-  border-radius: 999rpx;
-  font-size: 27rpx;
-}
-
-.f-btn-ai {
-  background: #f7f9fd;
-  border-color: rgba(226,232,240,0.96);
-}
-
-.f-btn-apply {
-  background: linear-gradient(135deg, #2b5ce6 0%, #465ff2 100%);
-  box-shadow: 0 12rpx 26rpx rgba(43, 92, 230, 0.28);
+  width: 146rpx;
+  max-width: 146rpx;
 }
 
 .ap-job-logo-wrap {
@@ -822,13 +706,7 @@ page {
   box-shadow: 0 16rpx 38rpx rgba(43, 92, 230, 0.08);
 }
 
-.footer {
-  border: 1rpx solid rgba(226,232,240,0.88);
-  border-bottom: none;
-}
-
 .f-btn-ai {
-  background: #f7f9fd;
   color: #1d4ed8;
 }
 

@@ -214,19 +214,19 @@
   </view>
 
   <!-- 底部占位 -->
-  <view class="detail-safe-tail"></view>
+  <view class="detail-safe-tail ux-detail-tail"></view>
 
   <!-- 底部操作栏 -->
-  <view class="footer-bar">
-    <view class="footer-secondary">
-      <view class="footer-icon-btn {{company.isFavorited ? 'active' : ''}}" bindtap="toggleFavorite">
+  <view class="footer-bar ux-bottom-bar">
+    <view class="footer-secondary ux-bottom-icons">
+      <view class="footer-icon-btn ux-icon-action {{company.isFavorited ? 'active' : ''}}" bindtap="toggleFavorite">
         <text>{{company.isFavorited ? '★' : '☆'}}</text>
       </view>
-      <button class="footer-icon-btn footer-share-btn" open-type="share">
+      <button class="footer-icon-btn footer-share-btn ux-icon-action" open-type="share">
         <text>↗</text>
       </button>
     </view>
-    <view class="footer-primary" bindtap="focusCompanyJobs">查看在招岗位</view>
+    <view class="footer-primary ux-main-cta" bindtap="focusCompanyJobs">查看在招岗位</view>
   </view>
 
 </view>

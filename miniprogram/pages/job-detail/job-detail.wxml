@@ -95,26 +95,26 @@
     <text class="roadmap-cta-arrow">›</text>
   </view>
 
-  <view class="detail-safe-tail"></view>
+  <view class="detail-safe-tail ux-detail-tail"></view>
 </block>
 
 <!-- 底部操作栏 -->
-<view class="footer" wx:if="{{job}}">
-  <view class="footer-icons">
-    <view class="f-icon {{isSaved ? 'active' : ''}}" bindtap="toggleSave">
+<view class="footer ux-bottom-bar" wx:if="{{job}}">
+  <view class="footer-icons ux-bottom-icons">
+    <view class="f-icon ux-icon-action {{isSaved ? 'active' : ''}}" bindtap="toggleSave">
       <text class="f-icon-txt">{{isSaved ? '★' : '☆'}}</text>
     </view>
-    <button class="f-icon share-btn" open-type="share">
+    <button class="f-icon share-btn ux-icon-action" open-type="share">
       <text class="f-icon-txt">↗</text>
     </button>
   </view>
 
-  <view class="f-btn f-btn-ai" bindtap="startAiInterview">
+  <view class="f-btn f-btn-ai ux-sub-cta" bindtap="startAiInterview">
     <text class="ai-badge">AI</text>
     <text>面试</text>
   </view>
 
-  <view class="f-btn f-btn-apply" bindtap="applyJob">一键投递</view>
+  <view class="f-btn f-btn-apply ux-main-cta" bindtap="applyJob">一键投递</view>
 </view>
 
 <!-- 一键投递弹窗 -->
