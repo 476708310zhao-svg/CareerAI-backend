@@ -105,6 +105,7 @@
     "c-action-bar":   "/components/c-action-bar/c-action-bar",
     "c-search-bar":   "/components/c-search-bar/c-search-bar",
     "c-ai-loading":   "/components/c-ai-loading/c-ai-loading",
+    "c-company-logo": "/components/c-company-logo/c-company-logo",
     "t-button":       "tdesign-miniprogram/button/button",
     "t-tag":          "tdesign-miniprogram/tag/tag",
     "t-icon":         "tdesign-miniprogram/icon/icon",

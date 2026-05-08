@@ -1,0 +1,63 @@
+.c-company-logo {
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 22rpx;
+  background:
+    linear-gradient(145deg, #ffffff 0%, #f2f6ff 100%);
+  border: 1rpx solid rgba(16, 24, 40, 0.08);
+  box-shadow: 0 10rpx 22rpx rgba(16, 24, 40, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.c-company-logo--sm {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 18rpx;
+}
+
+.c-company-logo--md {
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 22rpx;
+}
+
+.c-company-logo--lg {
+  width: 108rpx;
+  height: 108rpx;
+  border-radius: 28rpx;
+}
+
+.c-company-logo--xl {
+  width: 124rpx;
+  height: 124rpx;
+  border-radius: 30rpx;
+}
+
+.c-company-logo__image {
+  width: 78%;
+  height: 78%;
+}
+
+.c-company-logo__initial {
+  color: #2563eb;
+  font-size: 32rpx;
+  font-weight: 950;
+  letter-spacing: -0.8rpx;
+}
+
+.c-company-logo--sm .c-company-logo__initial {
+  font-size: 28rpx;
+}
+
+.c-company-logo--lg .c-company-logo__initial {
+  font-size: 38rpx;
+}
+
+.c-company-logo--xl .c-company-logo__initial {
+  font-size: 42rpx;
+}

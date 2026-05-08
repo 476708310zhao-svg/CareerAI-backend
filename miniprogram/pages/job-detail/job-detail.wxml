@@ -13,10 +13,14 @@
   <!-- 头部卡片 -->
   <view class="head-card">
     <view class="head-top">
-      <view class="head-logo-wrap">
-        <image wx:if="{{job.logo && !job.logoFailed}}" src="{{job.logo}}" class="head-logo" mode="aspectFit" binderror="onLogoError"></image>
-        <text wx:else class="head-logo-initial">{{job.companyInitial || 'C'}}</text>
-      </view>
+      <c-company-logo
+        logo="{{job.logoFailed ? '' : job.logo}}"
+        name="{{job.company}}"
+        fallback="{{job.companyInitial || 'C'}}"
+        size="lg"
+        custom-class="head-logo-wrap"
+        bind:error="onLogoError"
+      ></c-company-logo>
       <view class="head-info">
         <text class="head-kicker">Recommended Role</text>
         <text class="head-company">{{job.company}}</text>
@@ -127,10 +131,14 @@
 
   <!-- 职位信息 -->
   <view class="ap-job-row">
-    <view class="ap-job-logo-wrap">
-      <image wx:if="{{job.logo && !job.logoFailed}}" class="ap-job-logo" src="{{job.logo}}" mode="aspectFit" binderror="onLogoError"></image>
-      <text wx:else class="ap-job-logo-initial">{{job.companyInitial || 'C'}}</text>
-    </view>
+    <c-company-logo
+      logo="{{job.logoFailed ? '' : job.logo}}"
+      name="{{job.company}}"
+      fallback="{{job.companyInitial || 'C'}}"
+      size="sm"
+      custom-class="ap-job-logo-wrap"
+      bind:error="onLogoError"
+    ></c-company-logo>
     <view class="ap-job-info">
       <text class="ap-job-title">{{job.title}}</text>
       <text class="ap-job-company">{{job.company}} · {{job.city}}</text>

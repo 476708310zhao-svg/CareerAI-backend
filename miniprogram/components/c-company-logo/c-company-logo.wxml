@@ -1,0 +1,11 @@
+<view class="c-company-logo c-company-logo--{{size || 'md'}} custom-class">
+  <image
+    wx:if="{{logo && !failed}}"
+    class="c-company-logo__image"
+    src="{{logo}}"
+    mode="aspectFit"
+    lazy-load="{{lazyLoad}}"
+    binderror="handleError"
+  ></image>
+  <text wx:else class="c-company-logo__initial">{{initial}}</text>
+</view>

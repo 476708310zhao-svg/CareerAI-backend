@@ -3,10 +3,14 @@
 
   <!-- 公司头部信息 -->
   <view class="company-header">
-    <view class="company-logo-wrap">
-      <image wx:if="{{company.logo && !company.logoFailed}}" class="company-logo" src="{{company.logo}}" mode="aspectFit" binderror="onCompanyLogoError"></image>
-      <text wx:else class="company-logo-initial">{{company.initial || 'C'}}</text>
-    </view>
+    <c-company-logo
+      logo="{{company.logoFailed ? '' : company.logo}}"
+      name="{{company.name}}"
+      fallback="{{company.initial || 'C'}}"
+      size="xl"
+      custom-class="company-logo-wrap"
+      bind:error="onCompanyLogoError"
+    ></c-company-logo>
     <view class="header-info">
       <view class="name-row">
         <text class="company-name">{{company.name}}</text>

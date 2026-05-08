@@ -143,17 +143,16 @@
       <view class="company-scroll-list">
         <block wx:for="{{hotCompanies}}" wx:key="id">
           <view class="company-card" bindtap="goToCompanyDetail" data-id="{{item.id}}" data-name="{{item.name}}" hover-class="opacity-hover">
-            <view class="company-avatar" style="background:{{item.logoFailed ? item.color : '#f5f5f7'}};">
-              <image
-                wx:if="{{!item.logoFailed}}"
-                src="{{item.logo}}"
-                class="company-logo"
-                mode="aspectFit"
-                binderror="onCompanyLogoError"
-                data-idx="{{index}}"
-              />
-              <text wx:else class="company-initial">{{item.initial}}</text>
-            </view>
+            <c-company-logo
+              logo="{{item.logoFailed ? '' : item.logo}}"
+              name="{{item.name}}"
+              fallback="{{item.initial}}"
+              size="md"
+              lazy-load="{{true}}"
+              custom-class="company-avatar"
+              bind:error="onCompanyLogoError"
+              data-idx="{{index}}"
+            ></c-company-logo>
             <text class="company-name">{{item.name}}</text>
             <text class="company-desc">{{item.description}}</text>
           </view>
@@ -211,10 +210,16 @@
             <text class="job-card-sal">{{item.salary}}</text>
           </view>
         </view>
-        <view class="job-card-logo-wrap">
-          <image wx:if="{{item.logo && !item.logoFailed}}" src="{{item.logo}}" class="job-card-logo" mode="aspectFit" lazy-load binderror="onLogoError" data-index="{{index}}"></image>
-          <text wx:else class="job-card-logo-initial">{{item.companyInitial || 'C'}}</text>
-        </view>
+        <c-company-logo
+          logo="{{item.logoFailed ? '' : item.logo}}"
+          name="{{item.company}}"
+          fallback="{{item.companyInitial || 'C'}}"
+          size="md"
+          lazy-load="{{true}}"
+          custom-class="job-card-logo-wrap"
+          bind:error="onLogoError"
+          data-index="{{index}}"
+        ></c-company-logo>
       </view>
     </block>
   </view>
