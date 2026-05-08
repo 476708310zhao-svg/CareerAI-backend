@@ -7,10 +7,34 @@
       <text class="hero-kicker">CareerAI Workspace</text>
       <text class="hero-title">留学生求职助手</text>
       <text class="hero-subtitle">岗位推荐、名企情报、面试准备和求职规划，一站式 AI 工作台。</text>
+      <view class="hero-actions">
+        <view class="hero-primary" bindtap="goCompleteProfile" hover-class="opacity-hover">建立求职档案</view>
+        <view class="hero-secondary" bindtap="navigateToPage" data-url="/pages/ai-assistant/ai-assistant" hover-class="opacity-hover">问 AI 助手</view>
+      </view>
     </view>
     <view class="hero-orb">
       <text class="hero-orb-main">AI</text>
       <text class="hero-orb-sub">Ready</text>
+    </view>
+  </view>
+
+  <view wx:if="{{showProfileGuide}}" class="onboarding-card">
+    <view class="onboarding-head">
+      <view>
+        <text class="onboarding-kicker">Start here</text>
+        <text class="onboarding-title">先完成档案，推荐会更准</text>
+      </view>
+      <text class="onboarding-score">{{profileCompleteness}}%</text>
+    </view>
+    <view class="onboarding-progress">
+      <view class="onboarding-progress-fill" style="width: {{profileCompleteness}}%;"></view>
+    </view>
+    <view class="onboarding-copy">
+      <text>补充学校、专业、目标岗位后，AI 会优先推荐更匹配的岗位、公司和面试准备路径。</text>
+    </view>
+    <view class="onboarding-actions">
+      <view class="onboarding-btn primary" bindtap="goCompleteProfile" hover-class="opacity-hover">完善资料</view>
+      <view class="onboarding-btn" bindtap="navigateToPage" data-url="/pages/career-planner/career-planner" hover-class="opacity-hover">生成规划</view>
     </view>
   </view>
 
@@ -52,6 +76,15 @@
         <text class="feature-name">{{item.name}}</text>
       </view>
     </block>
+  </view>
+
+  <view class="pro-teaser" bindtap="navigateToPage" data-url="/pages/vip/vip" hover-class="opacity-hover">
+    <view class="pro-copy">
+      <text class="pro-kicker">CareerAI Pro</text>
+      <text class="pro-title">把简历、投递、面试连成闭环</text>
+      <text class="pro-sub">解锁 AI 简历深度优化、无限模拟面试和高优先级求职规划。</text>
+    </view>
+    <view class="pro-cta">了解会员</view>
   </view>
 
   <!-- 热门企业 -->
