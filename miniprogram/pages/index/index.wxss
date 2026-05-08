@@ -924,3 +924,218 @@ page, .page {
   height: 112rpx;
   border-radius: 26rpx;
 }
+
+.career-loop {
+  margin: 0 32rpx 34rpx;
+  padding: 26rpx;
+  border-radius: 32rpx;
+  background:
+    radial-gradient(circle at 100% 0, rgba(43,92,230,0.08), transparent 34%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border: 1.5rpx solid rgba(226,232,240,0.92);
+  box-shadow: 0 16rpx 44rpx rgba(15,23,42,0.06);
+}
+
+.career-loop-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+  margin-bottom: 22rpx;
+}
+
+.career-loop-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.career-loop-kicker {
+  color: #2b5ce6;
+  font-size: 20rpx;
+  font-weight: 950;
+  letter-spacing: 0.8rpx;
+  text-transform: uppercase;
+}
+
+.career-loop-title {
+  margin-top: 8rpx;
+  color: #101828;
+  font-size: 32rpx;
+  font-weight: 950;
+  letter-spacing: -0.4rpx;
+  line-height: 1.28;
+}
+
+.career-loop-sub {
+  margin-top: 10rpx;
+  color: #667085;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.career-loop-badge {
+  flex-shrink: 0;
+  padding: 9rpx 16rpx;
+  border-radius: 999rpx;
+  color: #2557d6;
+  background: #eef4ff;
+  font-size: 20rpx;
+  font-weight: 900;
+  border: 1rpx solid rgba(43,92,230,0.12);
+}
+
+.career-loop-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.career-loop-step {
+  display: flex;
+  align-items: center;
+  min-height: 78rpx;
+  padding: 0 18rpx;
+  border-radius: 22rpx;
+  background: rgba(248,250,252,0.92);
+  border: 1rpx solid rgba(226,232,240,0.86);
+  transition: transform var(--trans-fast), opacity var(--trans-fast);
+}
+
+.career-loop-step:active {
+  transform: scale(0.986);
+  opacity: 0.84;
+}
+
+.loop-step-index {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 16rpx;
+  color: #2557d6;
+  background: #eef4ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19rpx;
+  font-weight: 950;
+  margin-right: 18rpx;
+}
+
+.loop-step-title {
+  color: #101828;
+  font-size: 27rpx;
+  font-weight: 900;
+  margin-right: 14rpx;
+}
+
+.loop-step-desc {
+  flex: 1;
+  min-width: 0;
+  color: #94a3b8;
+  font-size: 22rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loop-step-arrow {
+  color: #94a3b8;
+  font-size: 34rpx;
+  line-height: 1;
+}
+
+.career-loop-actions {
+  display: flex;
+  gap: 14rpx;
+  margin-top: 20rpx;
+}
+
+.career-loop-btn {
+  flex: 1;
+  height: 68rpx;
+  border-radius: 22rpx;
+  color: #2557d6;
+  background: #eef4ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  font-weight: 950;
+}
+
+.career-loop-btn.primary {
+  color: #ffffff;
+  background: #101828;
+  box-shadow: 0 14rpx 28rpx rgba(15,23,42,0.16);
+}
+
+.jobs-empty-card {
+  margin: 0 32rpx 16rpx;
+  padding: 34rpx 28rpx 30rpx;
+  border-radius: 30rpx;
+  background:
+    radial-gradient(circle at 100% 0, rgba(56,189,248,0.10), transparent 34%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border: 1.5rpx solid rgba(226,232,240,0.92);
+  box-shadow: 0 14rpx 38rpx rgba(15,23,42,0.055);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.jobs-empty-icon {
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 26rpx;
+  background: linear-gradient(145deg, #101828, #2557d6);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 950;
+  box-shadow: 0 16rpx 30rpx rgba(43,92,230,0.22);
+}
+
+.jobs-empty-title {
+  margin-top: 18rpx;
+  color: #101828;
+  font-size: 31rpx;
+  font-weight: 950;
+  letter-spacing: -0.3rpx;
+}
+
+.jobs-empty-desc {
+  margin-top: 10rpx;
+  max-width: 520rpx;
+  color: #667085;
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
+.jobs-empty-actions {
+  display: flex;
+  gap: 14rpx;
+  width: 100%;
+  margin-top: 24rpx;
+}
+
+.jobs-empty-btn {
+  flex: 1;
+  height: 66rpx;
+  border-radius: 22rpx;
+  color: #2557d6;
+  background: #eef4ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  font-weight: 950;
+}
+
+.jobs-empty-btn.primary {
+  color: #ffffff;
+  background: #101828;
+}

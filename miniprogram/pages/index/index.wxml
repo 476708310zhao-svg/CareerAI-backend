@@ -87,6 +87,47 @@
     <view class="pro-cta">了解会员</view>
   </view>
 
+  <view class="career-loop">
+    <view class="career-loop-head">
+      <view class="career-loop-copy">
+        <text class="career-loop-kicker">Career Loop</text>
+        <text class="career-loop-title">从准备到录用，按这条路径推进</text>
+        <text class="career-loop-sub">先补简历，再匹配岗位，接着练面试，最后生成求职规划。</text>
+      </view>
+      <view class="career-loop-badge">4 steps</view>
+    </view>
+    <view class="career-loop-steps">
+      <view class="career-loop-step" bindtap="navigateToPage" data-url="/pages/resume/resume" hover-class="opacity-hover">
+        <text class="loop-step-index">01</text>
+        <text class="loop-step-title">简历定位</text>
+        <text class="loop-step-desc">完善亮点</text>
+        <text class="loop-step-arrow">›</text>
+      </view>
+      <view class="career-loop-step" bindtap="navigateToPage" data-url="/pages/jobs/jobs" hover-class="opacity-hover">
+        <text class="loop-step-index">02</text>
+        <text class="loop-step-title">岗位匹配</text>
+        <text class="loop-step-desc">推荐机会</text>
+        <text class="loop-step-arrow">›</text>
+      </view>
+      <view class="career-loop-step" bindtap="navigateToPage" data-url="/pages/interview-setup/interview-setup" hover-class="opacity-hover">
+        <text class="loop-step-index">03</text>
+        <text class="loop-step-title">面试训练</text>
+        <text class="loop-step-desc">模拟问答</text>
+        <text class="loop-step-arrow">›</text>
+      </view>
+      <view class="career-loop-step" bindtap="navigateToPage" data-url="/pages/career-planner/career-planner" hover-class="opacity-hover">
+        <text class="loop-step-index">04</text>
+        <text class="loop-step-title">求职规划</text>
+        <text class="loop-step-desc">路线拆解</text>
+        <text class="loop-step-arrow">›</text>
+      </view>
+    </view>
+    <view class="career-loop-actions">
+      <view class="career-loop-btn primary" bindtap="navigateToPage" data-url="/pages/resume/resume" hover-class="opacity-hover">从简历开始</view>
+      <view class="career-loop-btn" bindtap="navigateToPage" data-url="/pages/jobs/jobs" hover-class="opacity-hover">查看岗位</view>
+    </view>
+  </view>
+
   <!-- 热门企业 -->
   <view class="section">
     <view class="section-header">
@@ -144,6 +185,16 @@
         <view class="skeleton-thumb" style="width:88rpx;height:88rpx;border-radius:16rpx;flex-shrink:0;"></view>
       </view>
     </block>
+
+    <view wx:if="{{!loadingJobs && recommendJobs.length === 0}}" class="jobs-empty-card">
+      <view class="jobs-empty-icon">AI</view>
+      <text class="jobs-empty-title">还没有匹配到岗位</text>
+      <text class="jobs-empty-desc">先完善求职档案，或直接搜索目标岗位，系统会重新生成推荐。</text>
+      <view class="jobs-empty-actions">
+        <view class="jobs-empty-btn primary" bindtap="goCompleteProfile" hover-class="opacity-hover">完善档案</view>
+        <view class="jobs-empty-btn" bindtap="goToJobSearch" hover-class="opacity-hover">搜索岗位</view>
+      </view>
+    </view>
 
     <!-- 职位列表 -->
     <block wx:for="{{recommendJobs}}" wx:key="id">
