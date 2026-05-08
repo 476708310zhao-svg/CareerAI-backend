@@ -36,10 +36,10 @@
 
     <!-- 标签 -->
     <view class="info-tags">
-      <view class="info-tag"><text class="info-tag-dot loc"></text>{{job.city}}{{job.state ? ', '+job.state : ''}}</view>
-      <view class="info-tag"><text class="info-tag-dot type"></text>{{job.type}}</view>
-      <view class="info-tag"><text class="info-tag-dot time"></text>{{job.postedAt}}</view>
-      <view class="info-tag visa" wx:if="{{job.visaSponsored}}">🛂 Visa Sponsor</view>
+      <c-tag type="primary">{{job.city}}{{job.state ? ', '+job.state : ''}}</c-tag>
+      <c-tag>{{job.type}}</c-tag>
+      <c-tag type="info">{{job.postedAt}}</c-tag>
+      <c-tag type="success" wx:if="{{job.visaSponsored}}">Visa Sponsor</c-tag>
     </view>
 
     <view class="head-conversion-row">

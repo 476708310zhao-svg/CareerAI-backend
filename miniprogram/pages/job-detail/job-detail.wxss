@@ -76,28 +76,6 @@ page {
   gap: 14rpx;
 }
 
-.info-tag {
-  display: flex;
-  align-items: center;
-  font-size: 24rpx;
-  color: var(--text-secondary);
-  background: var(--bg-raised);
-  padding: 8rpx 20rpx;
-  border-radius: 10rpx;
-}
-
-.info-tag-dot {
-  width: 12rpx;
-  height: 12rpx;
-  border-radius: 50%;
-  margin-right: 10rpx;
-  flex-shrink: 0;
-}
-.info-tag-dot.loc { background: var(--brand); }
-.info-tag-dot.type { background: #D97706; }
-.info-tag-dot.time { background: var(--text-muted); }
-.info-tag.visa { background: #F0FDF4; color: #16A34A; border-color: #BBF7D0; font-weight: 500; }
-
 /* ====== 描述卡片 ====== */
 .desc-card {
   margin: 0 24rpx 24rpx;
@@ -485,15 +463,6 @@ page {
 
 .info-tags {
   gap: 14rpx 12rpx;
-}
-
-.info-tag {
-  min-height: 48rpx;
-  padding: 8rpx 18rpx;
-  border-radius: 14rpx;
-  color: #667085;
-  background: #f3f6fb;
-  box-sizing: border-box;
 }
 
 .desc-card {

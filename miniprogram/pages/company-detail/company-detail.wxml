@@ -19,7 +19,7 @@
       <text class="company-meta">{{company.industry}} · {{company.size}}人 · {{company.headquarters}}</text>
       <view class="tag-row">
         <block wx:for="{{company.tags}}" wx:key="*this">
-          <text class="tag">{{item}}</text>
+          <c-tag type="primary" size="small">{{item}}</c-tag>
         </block>
       </view>
     </view>
@@ -98,9 +98,9 @@
           <text class="job-salary">{{item.salary}}</text>
         </view>
         <view class="job-bottom">
-          <text class="job-tag">{{item.type}}</text>
-          <text class="job-tag">{{item.location}}</text>
-          <text class="api-badge" wx:if="{{item.isReal}}">Real-time</text>
+          <c-tag size="small">{{item.type}}</c-tag>
+          <c-tag size="small">{{item.location}}</c-tag>
+          <c-tag type="success" size="small" wx:if="{{item.isReal}}">Real-time</c-tag>
         </view>
       </view>
     </block>
