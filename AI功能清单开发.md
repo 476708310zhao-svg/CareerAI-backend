@@ -35,6 +35,13 @@
 - 验证结果：`npm test` 通过，15 个 smoke tests 全部通过。
 - P1 状态：已完成。后续进入 P2：后台上传工具抽取、GitHub Actions、上传测试补充、超长样式初步整理等。
 
+### 2026-05-09 第二批 P2 优化：进行中
+
+- 已完成：抽取 `utils/uploadSecurity.js`，头像上传和后台 Banner 上传复用 MIME 白名单、文件后缀推导和 magic bytes 校验。
+- 已完成：扩展 smoke tests，新增后台 Banner 伪 MIME 上传拒绝覆盖。
+- 已完成：新增 `.github/workflows/test.yml`，在 push/PR 到 `main` 时运行 `npm ci` 和 `npm test`。
+- 验证结果：`npm test` 通过，16 个 smoke tests 全部通过。
+
 ## 1. 项目总览
 
 ### 技术栈

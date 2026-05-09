@@ -15,6 +15,7 @@ const testAccount = {
 let server;
 let serverOutput = '';
 let authToken;
+let adminToken;
 let createdOrderNo;
 
 function startServer() {
@@ -59,6 +60,10 @@ async function readJson(res) {
 
 function authHeaders() {
   return { Authorization: `Bearer ${authToken}` };
+}
+
+function adminHeaders() {
+  return { Authorization: `Bearer ${adminToken}` };
 }
 
 test.before(async () => {
@@ -191,6 +196,30 @@ test('ai project builder validation uses standard error shape', async () => {
   const body = await readJson(res);
   assert.equal(body.code, -1);
   assert.match(body.message, /项目方向/);
+});
+
+test('admin banner upload rejects content that does not match image MIME', async () => {
+  const loginRes = await fetch(`${BASE_URL}/admin/api/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'admin', password: 'admin_password' })
+  });
+  assert.equal(loginRes.status, 200);
+  const loginBody = await readJson(loginRes);
+  adminToken = loginBody.data.token;
+
+  const form = new FormData();
+  form.append('file', new Blob(['not a real png'], { type: 'image/png' }), 'fake.png');
+
+  const res = await fetch(`${BASE_URL}/admin/api/upload/banner`, {
+    method: 'POST',
+    headers: adminHeaders(),
+    body: form
+  });
+  assert.equal(res.status, 400);
+  const body = await readJson(res);
+  assert.equal(body.code, -1);
+  assert.match(body.message, /文件内容与格式不符/);
 });
 
 test('payment mock create-order, confirm and verify flow works', async () => {

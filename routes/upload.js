@@ -4,47 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const router = express.Router();
 const { authMiddleware } = require('../middleware/auth');
-
-// 允许的图片 MIME 类型白名单（明确列举，不用前缀匹配）
-const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
-
-// MIME 类型到安全文件后缀的映射（强制从服务端推导，不信任客户端 originalname）
-const MIME_TO_EXT = {
-  'image/jpeg': '.jpg',
-  'image/png':  '.png',
-  'image/webp': '.webp',
-  'image/gif':  '.gif'
-};
-
-// 各 MIME 对应的文件头魔数（magic bytes），防止客户端伪造 MIME
-// WebP: RIFF????WEBP，需校验字节 0-3 为 RIFF 且字节 8-11 为 WEBP
-const MAGIC_BYTES = {
-  'image/jpeg': [[0xFF, 0xD8, 0xFF]],
-  'image/png':  [[0x89, 0x50, 0x4E, 0x47]],
-  'image/gif':  [[0x47, 0x49, 0x46, 0x38]]  // GIF8
-};
-
-function checkMagicBytes(filePath, mime) {
-  try {
-    const buf = Buffer.alloc(12);
-    const fd = fs.openSync(filePath, 'r');
-    fs.readSync(fd, buf, 0, 12, 0);
-    fs.closeSync(fd);
-
-    if (mime === 'image/webp') {
-      // RIFF at 0-3, WEBP at 8-11
-      const riff = [0x52, 0x49, 0x46, 0x46];
-      const webp = [0x57, 0x45, 0x42, 0x50];
-      return riff.every((b, i) => buf[i] === b) && webp.every((b, i) => buf[8 + i] === b);
-    }
-
-    const patterns = MAGIC_BYTES[mime];
-    if (!patterns) return false;
-    return patterns.some(magic => magic.every((byte, i) => buf[i] === byte));
-  } catch (e) {
-    return false;
-  }
-}
+const { imageExtForMime, isAllowedImageMime, rejectInvalidImage } = require('../utils/uploadSecurity');
 
 // 确保 uploads 目录存在
 const UPLOAD_DIR = path.join(__dirname, '../uploads');
@@ -62,7 +22,7 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     // 后缀强制从验证后的 MIME 推导，忽略客户端 originalname，防止 polyglot 攻击
-    const ext = MIME_TO_EXT[file.mimetype] || '.jpg';
+    const ext = imageExtForMime(file.mimetype);
     cb(null, `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`);
   }
 });
@@ -71,7 +31,7 @@ const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 最大 5MB
   fileFilter: (req, file, cb) => {
-    if (!ALLOWED_MIME.has(file.mimetype)) {
+    if (!isAllowedImageMime(file.mimetype)) {
       return cb(new Error('只允许上传 JPG、PNG、WebP、GIF 格式的图片'));
     }
     cb(null, true);
@@ -86,8 +46,7 @@ router.post('/avatar', authMiddleware, upload.single('file'), (req, res) => {
   }
 
   // 二次校验：读取文件头魔数，防止 MIME 伪造
-  if (!checkMagicBytes(req.file.path, req.file.mimetype)) {
-    fs.unlink(req.file.path, () => {});  // 删除伪造文件
+  if (rejectInvalidImage(req.file)) {
     return res.status(400).json({ code: -1, message: '文件内容与格式不符，请上传真实图片' });
   }
 

@@ -12,37 +12,10 @@ const adminAuth = require('../middleware/adminAuth');
 const { parseId } = require('../db/utils');
 const { adminLoginLimiter } = require('../middleware/rateLimit');
 const companyService = require('../services/companyService');
+const { imageExtForMime, isAllowedImageMime, rejectInvalidImage } = require('../utils/uploadSecurity');
 
 // ─── 管理后台图片上传（Banner 等） ─────────────────────────────────────────────
 const UPLOAD_DIR = path.join(__dirname, '../uploads');
-const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
-const MIME_TO_EXT  = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif' };
-const MAGIC_BYTES = {
-  'image/jpeg': [[0xFF, 0xD8, 0xFF]],
-  'image/png':  [[0x89, 0x50, 0x4E, 0x47]],
-  'image/gif':  [[0x47, 0x49, 0x46, 0x38]]
-};
-
-function checkMagicBytes(filePath, mime) {
-  try {
-    const buf = Buffer.alloc(12);
-    const fd = fs.openSync(filePath, 'r');
-    fs.readSync(fd, buf, 0, 12, 0);
-    fs.closeSync(fd);
-
-    if (mime === 'image/webp') {
-      const riff = [0x52, 0x49, 0x46, 0x46];
-      const webp = [0x57, 0x45, 0x42, 0x50];
-      return riff.every((b, i) => buf[i] === b) && webp.every((b, i) => buf[8 + i] === b);
-    }
-
-    const patterns = MAGIC_BYTES[mime];
-    if (!patterns) return false;
-    return patterns.some(magic => magic.every((byte, i) => buf[i] === byte));
-  } catch (e) {
-    return false;
-  }
-}
 
 const adminStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -51,7 +24,7 @@ const adminStorage = multer.diskStorage({
     cb(null, dir);
   },
   filename: (req, file, cb) => {
-    const ext = MIME_TO_EXT[file.mimetype] || '.jpg';
+    const ext = imageExtForMime(file.mimetype);
     cb(null, `banner_${Date.now()}_${Math.random().toString(36).slice(2, 7)}${ext}`);
   }
 });
@@ -59,15 +32,14 @@ const adminUpload = multer({
   storage: adminStorage,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (!ALLOWED_MIME.has(file.mimetype)) return cb(new Error('只允许 JPG/PNG/WebP/GIF'));
+    if (!isAllowedImageMime(file.mimetype)) return cb(new Error('只允许 JPG/PNG/WebP/GIF'));
     cb(null, true);
   }
 });
 
 router.post('/api/upload/banner', adminAuth, adminUpload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ code: -1, message: '未收到文件' });
-  if (!checkMagicBytes(req.file.path, req.file.mimetype)) {
-    fs.unlink(req.file.path, () => {});
+  if (rejectInvalidImage(req.file)) {
     return res.status(400).json({ code: -1, message: '文件内容与格式不符，请上传真实图片' });
   }
   res.json({ code: 0, data: { url: `/uploads/banners/${req.file.filename}` } });

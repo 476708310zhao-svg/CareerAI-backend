@@ -8,7 +8,7 @@
 
 ## 当前批次
 
-第二批 P1 优化已完成：统一接口、补测试、明确数据源和 AI 权限边界。继续进入 P2 时仍避免主动改动支付、登录等高风险核心链路。
+第二批 P1 优化已完成，P2 正在进行：降低维护成本、补工程化和测试覆盖。继续避免主动改动支付、登录等高风险核心链路。
 
 ## 已完成
 
@@ -27,6 +27,8 @@
 | 2026-05-09 | 标记 `/api/users/resumes` deprecated，前端保持 `/api/resumes` 主入口 | `routes/users.js`、`docs/RESUME_API_DEDUP_PLAN.md` | smoke test |
 | 2026-05-09 | 记录支付三阶段上线策略，当前仅 Mock 模式验证 | `docs/PAYMENT_ROLLOUT_PLAN.md` | 文档检查 |
 | 2026-05-09 | 完成 AI 响应格式分批治理，补最小 JSON schema 校验和标准错误格式 | `routes/ai.js`、`tests/smoke.test.js`、`docs/API_RESPONSE_CONVENTION.md` | `npm test` 通过，15/15 |
+| 2026-05-09 | 抽取上传安全工具，头像和后台 Banner 复用 MIME 与 magic bytes 校验 | `utils/uploadSecurity.js`、`routes/upload.js`、`routes/admin.js` | `npm test` 通过，16/16 |
+| 2026-05-09 | 新增后端测试 CI workflow | `.github/workflows/test.yml` | workflow 检查 |
 
 ## 进行中
 
@@ -34,6 +36,8 @@
 |---|---|---|---|---|
 | P1 | 简历 API 实施迁移 | AI1 Builder | `routes/users.js`、`routes/resumes.js`、小程序简历调用 | 已完成，旧接口保留 6 个月 |
 | P1 | API 响应格式分批实施 | AI1 Builder | `routes/ai.js`、小程序 `utils/api-*` | 已完成首批，支付/健康/Webhook 保持例外 |
+| P2 | 上传安全工具抽取 | Codex | `utils/uploadSecurity.js`、`routes/upload.js`、`routes/admin.js` | 已完成 |
+| P2 | GitHub Actions 测试 | Codex | `.github/workflows/test.yml` | 已完成 |
 
 ## 当前文件占用
 
@@ -49,6 +53,8 @@
 | Codex | 职位本地数据源相关后端文件 | 删除 SQLite `jobs` 双轨读取 | 已完成 |
 | Codex | AI 配额相关后端文件 | 助手/规划/工作流权限限制 | 已完成 |
 | Codex | `routes/ai.js`、`tests/smoke.test.js` | AI schema 与错误格式首批治理 | 已完成 |
+| Codex | `utils/uploadSecurity.js`、`routes/upload.js`、`routes/admin.js` | 上传安全工具抽取 | 已完成 |
+| Codex | `.github/workflows/test.yml` | 后端测试 CI | 已完成 |
 
 ## 待决策
 
@@ -76,6 +82,7 @@ npm test
 - `/api/ai/workflow` VIP 拒绝
 - `/api/ai/chat` 参数错误标准响应
 - `/api/ai/project-builder` 参数错误标准响应
+- `/admin/api/upload/banner` 伪 MIME 拒绝
 - `/api/payment/create-order` Mock 下单
 - `/api/payment/mock-confirm`
 - `/api/payment/verify/:orderNo`
