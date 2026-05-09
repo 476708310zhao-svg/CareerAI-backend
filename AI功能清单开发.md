@@ -16,6 +16,17 @@
 - 已完成：新增 `tests/smoke.test.js` 和 `npm test`，覆盖 health、公开职位列表、匿名鉴权拒绝、Webhook 缺签名拒绝。
 - 验证结果：`npm test` 通过，4 个 smoke tests 全部通过。
 
+### 2026-05-09 第二批优化：进行中
+
+- 已完成：提交并推送第一批安全修复记录和基础 smoke tests，提交 `2adbb1a`。
+- 已完成：新增 `AGENTS.md`，明确多 AI 分工、文件占用和高风险链路规则。
+- 已完成：新增 `DEVELOPMENT_STATUS.md`，记录第二批任务状态、文件占用和待决策项。
+- 已完成：补充 `README.md`，覆盖本地启动、测试、环境变量、目录边界和协作说明。
+- 已完成：扩展后端 smoke tests，覆盖登录、支付 Mock 下单/确认/校验、订单鉴权、上传伪 MIME 拒绝、公开 banners/companies 列表。
+- 验证结果：`npm test` 通过，11 个 smoke tests 全部通过。
+- 待开始：小程序直接请求迁移第一批页面，优先 `messages`、`feedback`、`news`。
+- 待开始：简历 API 去重方案，先设计，不删除旧接口。
+
 ## 1. 项目总览
 
 ### 技术栈
