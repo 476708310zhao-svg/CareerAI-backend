@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const router = express.Router();
 const db = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
@@ -16,6 +17,36 @@ const { loginLimiter } = require('../middleware/rateLimit');
 
 function signToken(userId, openid) {
   return jwt.sign({ userId, openid }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+}
+
+const PASSWORD_PREFIX = 'scrypt';
+const PASSWORD_KEY_LEN = 64;
+
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(password, salt, PASSWORD_KEY_LEN).toString('hex');
+  return `${PASSWORD_PREFIX}$${salt}$${hash}`;
+}
+
+function verifyPassword(password, stored) {
+  if (!stored) return false;
+
+  const parts = String(stored).split('$');
+  if (parts.length === 3 && parts[0] === PASSWORD_PREFIX) {
+    const [, salt, expected] = parts;
+    const actual = crypto.scryptSync(password, salt, Buffer.from(expected, 'hex').length).toString('hex');
+    try {
+      return crypto.timingSafeEqual(Buffer.from(actual, 'hex'), Buffer.from(expected, 'hex'));
+    } catch (e) {
+      return false;
+    }
+  }
+
+  return stored === password;
+}
+
+function isPasswordHash(stored) {
+  return typeof stored === 'string' && stored.startsWith(`${PASSWORD_PREFIX}$`);
 }
 
 // ─── 微信登录 ─────────────────────────────────────────────────────────────────
@@ -246,10 +277,13 @@ router.post('/web-login', loginLimiter, (req, res) => {
       return res.status(400).json({ code: -1, message: '账号和密码不能为空' });
     }
     const user = db.prepare(
-      `SELECT * FROM users WHERE (email = ? OR phone = ?) AND password = ?`
-    ).get(account, account, password);
-    if (!user) {
+      `SELECT * FROM users WHERE email = ? OR phone = ?`
+    ).get(account, account);
+    if (!user || !verifyPassword(password, user.password)) {
       return res.status(401).json({ code: -1, message: '账号或密码错误' });
+    }
+    if (!isPasswordHash(user.password)) {
+      db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashPassword(password), user.id);
     }
     const token = signToken(user.id, user.openid || '');
     res.json({ code: 0, message: 'success', data: { token, user: formatUser(user) } });
@@ -276,7 +310,7 @@ router.post('/web-register', loginLimiter, (req, res) => {
     const result = db.prepare(
       `INSERT INTO users (nickname, email, phone, password, avatar, openid, created_at)
        VALUES (?, ?, ?, ?, '', 'web_' || hex(randomblob(8)), datetime('now'))`
-    ).run(nickname || '新用户', email || '', phone || '', password);
+    ).run(nickname || '新用户', email || '', phone || '', hashPassword(password));
 
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
     const token = signToken(user.id, user.openid);

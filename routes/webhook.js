@@ -10,19 +10,21 @@ const SCRIPT = path.join(__dirname, '../scripts/deploy-frontend.sh');
 
 router.post('/deploy', (req, res) => {
   const secret = process.env.WEBHOOK_SECRET || '';
+  if (!secret) {
+    console.error('[Webhook] WEBHOOK_SECRET 未配置，拒绝执行部署');
+    return res.status(500).json({ error: 'webhook secret not configured' });
+  }
 
   // 验证 GitHub 签名
-  if (secret) {
-    const sig = req.headers['x-hub-signature-256'];
-    if (!sig) return res.status(401).json({ error: 'missing signature' });
-    const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(req.rawBody || '').digest('hex');
-    try {
-      if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
-        return res.status(401).json({ error: 'invalid signature' });
-      }
-    } catch {
-      return res.status(401).json({ error: 'signature error' });
+  const sig = req.headers['x-hub-signature-256'];
+  if (!sig) return res.status(401).json({ error: 'missing signature' });
+  const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(req.rawBody || '').digest('hex');
+  try {
+    if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
+      return res.status(401).json({ error: 'invalid signature' });
     }
+  } catch {
+    return res.status(401).json({ error: 'signature error' });
   }
 
   // 只处理推送到 main 分支的事件

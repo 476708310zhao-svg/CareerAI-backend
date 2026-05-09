@@ -95,7 +95,7 @@ function callUnifiedOrder(params) {
 
 // ── POST /api/payment/create-order ───────────────────────────────
 router.post('/create-order', authMiddleware, paymentLimiter, (req, res) => {
-  const userId = req.user.id;
+  const userId = req.user.userId;
   const openid = req.user.openid;
   const { planId, clientIp } = req.body;
   const planIdInt = parseInt(planId, 10);
@@ -178,9 +178,15 @@ router.post('/notify', express.raw({ type: 'text/xml' }), (req, res) => {
   if (params.result_code === 'SUCCESS') {
     const orderNo       = params.out_trade_no;
     const transactionId = params.transaction_id;
+    const paidAmount    = parseInt(params.total_fee, 10);
     const order = db.prepare('SELECT * FROM orders WHERE order_no = ?').get(orderNo);
 
     if (order && order.status === 'pending') {
+      if (paidAmount !== order.amount) {
+        console.warn(`[WXPay Notify] 金额不匹配 order=${orderNo}, paid=${paidAmount}, expected=${order.amount}`);
+        return res.send(objToXml({ return_code: 'FAIL', return_msg: '金额不匹配' }));
+      }
+
       const plan       = PLANS[order.plan_id];
       const expireDate = new Date();
       expireDate.setDate(expireDate.getDate() + (plan ? plan.days : 30));
@@ -203,7 +209,7 @@ router.post('/mock-confirm', authMiddleware, (req, res) => {
   if (!IS_MOCK) return res.status(403).json({ error: '仅在 Mock 模式下可用' });
 
   const { orderNo } = req.body;
-  const userId = req.user.id;
+  const userId = req.user.userId;
 
   const order = db.prepare('SELECT * FROM orders WHERE order_no = ? AND user_id = ?').get(orderNo, userId);
   if (!order) return res.status(404).json({ error: '订单不存在' });
@@ -228,7 +234,7 @@ router.post('/mock-confirm', authMiddleware, (req, res) => {
 // ── GET /api/payment/verify/:orderNo ────────────────────────────
 router.get('/verify/:orderNo', authMiddleware, (req, res) => {
   const { orderNo } = req.params;
-  const userId = req.user.id;
+  const userId = req.user.userId;
 
   const order = db.prepare('SELECT * FROM orders WHERE order_no = ? AND user_id = ?').get(orderNo, userId);
   if (!order) return res.status(404).json({ error: '订单不存在' });
@@ -251,7 +257,7 @@ router.get('/config', (_req, res) => {
 router.get('/orders', authMiddleware, (req, res) => {
   const orders = db.prepare(
     'SELECT order_no, plan_name, amount, status, created_at, paid_at FROM orders WHERE user_id = ? ORDER BY created_at DESC LIMIT 20'
-  ).all(req.user.id);
+  ).all(req.user.userId);
   res.json({ orders });
 });
 

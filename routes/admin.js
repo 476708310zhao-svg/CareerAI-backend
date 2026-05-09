@@ -17,6 +17,33 @@ const companyService = require('../services/companyService');
 const UPLOAD_DIR = path.join(__dirname, '../uploads');
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 const MIME_TO_EXT  = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif' };
+const MAGIC_BYTES = {
+  'image/jpeg': [[0xFF, 0xD8, 0xFF]],
+  'image/png':  [[0x89, 0x50, 0x4E, 0x47]],
+  'image/gif':  [[0x47, 0x49, 0x46, 0x38]]
+};
+
+function checkMagicBytes(filePath, mime) {
+  try {
+    const buf = Buffer.alloc(12);
+    const fd = fs.openSync(filePath, 'r');
+    fs.readSync(fd, buf, 0, 12, 0);
+    fs.closeSync(fd);
+
+    if (mime === 'image/webp') {
+      const riff = [0x52, 0x49, 0x46, 0x46];
+      const webp = [0x57, 0x45, 0x42, 0x50];
+      return riff.every((b, i) => buf[i] === b) && webp.every((b, i) => buf[8 + i] === b);
+    }
+
+    const patterns = MAGIC_BYTES[mime];
+    if (!patterns) return false;
+    return patterns.some(magic => magic.every((byte, i) => buf[i] === byte));
+  } catch (e) {
+    return false;
+  }
+}
+
 const adminStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = path.join(UPLOAD_DIR, 'banners');
@@ -39,6 +66,10 @@ const adminUpload = multer({
 
 router.post('/api/upload/banner', adminAuth, adminUpload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ code: -1, message: '未收到文件' });
+  if (!checkMagicBytes(req.file.path, req.file.mimetype)) {
+    fs.unlink(req.file.path, () => {});
+    return res.status(400).json({ code: -1, message: '文件内容与格式不符，请上传真实图片' });
+  }
   res.json({ code: 0, data: { url: `/uploads/banners/${req.file.filename}` } });
 });
 router.use('/api/upload', (err, req, res, next) => {

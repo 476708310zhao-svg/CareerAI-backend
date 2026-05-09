@@ -37,10 +37,7 @@ router.get('/search', jobsLimiter, async (req, res) => {
   } catch (err) {
     const status = err.response?.status || 500;
     console.error('[jobs/search]', status, err.message);
-    if (status === 429) {
-      return res.status(429).json({ error: 'API配额已用完，请稍后再试', _source: 'rateLimit' });
-    }
-    // 任何非429错误（403/401/502/500等）→ 降级本地数据
+    // 所有错误（含429配额超限）→ 降级本地数据
     console.warn('[jobs/search] RapidAPI异常(', status, ')，降级到本地数据');
     return _localSearch(req, res);
   }
