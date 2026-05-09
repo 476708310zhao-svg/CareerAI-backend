@@ -197,6 +197,78 @@ router.get('/remote', jobsLimiter, async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════════
+// GET /api/jobs/aggregate
+// 多源聚合：JSearch → Adzuna → The Muse → Local，并行拉取后合并去重
+// 参数：query / country / page / pageSize
+// ════════════════════════════════════════════════════════════════════════════════
+router.get('/aggregate', jobsLimiter, async (req, res) => {
+  const { query = 'software engineer', country = 'us', page = 1, pageSize = 20 } = req.query;
+  const ps = Math.min(parseInt(pageSize) || 20, 50);
+
+  // 从 JSearch/Adzuna/Local 走搜索链
+  async function _fetchSearch() {
+    if (_isValidRapidKey(process.env.RAPID_API_KEY)) {
+      try {
+        const r = await axios.get(`${RAPID_BASE}/search`, {
+          params: { query, page, num_pages: 1, country, date_posted: 'all' },
+          headers: RAPID_HEADERS, timeout: 5000
+        });
+        if (r.data && r.data.data && r.data.data.length) return r.data.data;
+      } catch (_) {}
+    }
+    if (_isValidAdzuna()) {
+      try {
+        const countryCode = ADZUNA_COUNTRIES.has(country) ? country : 'us';
+        const r = await axios.get(
+          `https://api.adzuna.com/v1/api/jobs/${countryCode}/search/${page}`,
+          { params: { app_id: ADZUNA_APP_ID, app_key: ADZUNA_APP_KEY, results_per_page: 10, what: query },
+            headers: { 'Content-Type': 'application/json' }, timeout: 8000 }
+        );
+        return (r.data.results || []).map(j => _normalizeAdzuna(j, countryCode));
+      } catch (_) {}
+    }
+    // 本地兜底
+    const keyword = query.toLowerCase();
+    return jobsData.jobs
+      .filter(j => !keyword || j.title.toLowerCase().includes(keyword) || j.company.toLowerCase().includes(keyword))
+      .slice(0, 10)
+      .map(j => ({ job_id: String(j.id), job_title: j.title, employer_name: j.company, job_city: j.location || '', job_country: j.region || '', job_description: j.description || '', job_min_salary: null, job_max_salary: null, job_salary_currency: 'CNY', job_employment_type: j.jobType || '', job_apply_link: j.applyUrl || '', _source: 'local' }));
+  }
+
+  // 从 The Muse 拉精选科技职位
+  async function _fetchMuse() {
+    try {
+      const kw = query.toLowerCase();
+      const museCategory = MUSE_CATEGORIES[kw] || 'Software Engineering';
+      const r = await axios.get('https://www.themuse.com/api/public/jobs', {
+        params: { page: Math.max(0, parseInt(page) - 1), category: museCategory },
+        timeout: 8000
+      });
+      return (r.data.results || []).map(_normalizeMuse);
+    } catch (_) { return []; }
+  }
+
+  try {
+    const [searchJobs, museJobs] = await Promise.all([_fetchSearch(), _fetchMuse()]);
+
+    // 合并去重（按 job_title + employer_name 去重）
+    const seen = new Set();
+    const merged = [];
+    for (const job of [...searchJobs, ...museJobs]) {
+      const key = (job.job_title + '|' + job.employer_name).toLowerCase();
+      if (!seen.has(key)) { seen.add(key); merged.push(job); }
+    }
+
+    const start = 0;
+    const slice = merged.slice(start, ps);
+    res.json({ data: slice, status: 'OK', _source: 'aggregate', total: merged.length, sources: [...new Set(merged.map(j => j._source))] });
+  } catch (err) {
+    console.error('[jobs/aggregate]', err.message);
+    return _localSearch(req, res);
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════════
 // GET /api/jobs/featured
 // The Muse 精选职位（完全免费，专注科技/创业公司，附带公司文化介绍）
 // 参数：query / category / level / location / page

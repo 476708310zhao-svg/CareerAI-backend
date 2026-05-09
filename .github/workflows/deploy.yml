@@ -10,24 +10,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Sync files to server
+      - name: Sync files to server (exclude node_modules)
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT || 22 }}
-          source: ".,!node_modules,!.git,!.env,!uploads"
+          port: 22
+          source: ".,!node_modules,!.git,!.env,!uploads,!tests"
           target: /www/wwwroot/jobapp-server
 
-      - name: Restart server
+      - name: Install deps and restart
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT || 22 }}
+          port: 22
           script: |
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            nvm use 18
             cd /www/wwwroot/jobapp-server
             npm install --production --silent
             /root/.nvm/versions/node/v18.20.8/bin/pm2 restart jobapp-server
