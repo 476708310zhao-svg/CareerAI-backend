@@ -20,8 +20,8 @@ function _isValidRapidKey(key) {
 const ADZUNA_APP_ID  = process.env.ADZUNA_APP_ID  || '';
 const ADZUNA_APP_KEY = process.env.ADZUNA_APP_KEY || '';
 
-// ── LinkedIn Jobs（RapidAPI，需单独订阅）─────────────────────────────────────
-const LINKEDIN_RAPID_HOST = process.env.LINKEDIN_RAPID_HOST || 'linkedin-jobs-search.p.rapidapi.com';
+// ── LinkedIn Jobs（RapidAPI）─────────────────────────────────────────────────
+const LINKEDIN_RAPID_HOST = process.env.LINKEDIN_RAPID_HOST || 'linkedin-job-search-api.p.rapidapi.com';
 
 // ── Indeed（RapidAPI，需单独订阅）────────────────────────────────────────────
 const INDEED_RAPID_HOST = process.env.INDEED_RAPID_HOST || 'indeed12.p.rapidapi.com';
@@ -283,31 +283,38 @@ router.get('/linkedin', jobsLimiter, async (req, res) => {
     return res.status(503).json({ error: '未配置 RapidAPI Key', data: [], _source: 'unavailable' });
   }
   try {
-    const { query = 'software engineer', location = 'United States', page = 1 } = req.query;
-    const result = await axios.get('https://linkedin-jobs-search.p.rapidapi.com/', {
-      params: { query, location, page: String(page) },
+    const { query = 'software engineer', location = 'United States OR United Kingdom', page = 1 } = req.query;
+    const offset = (parseInt(page) - 1) * 10;
+    const result = await axios.get(`https://${LINKEDIN_RAPID_HOST}/active-jb-1h`, {
+      params: {
+        title_filter:    query,
+        location_filter: location,
+        description_type: 'text',
+        offset:          offset
+      },
       headers: {
+        'Content-Type':  'application/json',
         'X-RapidAPI-Key':  process.env.RAPID_API_KEY,
         'X-RapidAPI-Host': LINKEDIN_RAPID_HOST
       },
       timeout: 8000
     });
 
-    const jobs = Array.isArray(result.data) ? result.data : (result.data.jobs || []);
+    const jobs = Array.isArray(result.data) ? result.data : (result.data.jobs || result.data.data || []);
     const data = jobs.map(j => ({
       job_id:                    'li_' + (j.job_id || j.id || Math.random()),
-      job_title:                 j.job_title || j.title || '',
-      employer_name:             j.company_name || j.company || '',
+      job_title:                 j.title || j.job_title || '',
+      employer_name:             j.company || j.company_name || '',
       employer_logo:             j.company_logo || '',
-      job_city:                  j.job_location || j.location || '',
+      job_city:                  j.location || j.job_location || '',
       job_country:               'US',
-      job_description:           j.job_description || j.description || '',
+      job_description:           j.description || j.job_description || '',
       job_min_salary:            null,
       job_max_salary:            null,
       job_salary_currency:       'USD',
       job_employment_type:       j.job_type || 'FULLTIME',
-      job_apply_link:            j.job_url || j.url || '',
-      job_posted_at_datetime_utc: j.posted_date || null,
+      job_apply_link:            j.url || j.job_url || j.linkedin_url || '',
+      job_posted_at_datetime_utc: j.posted_date || j.date_posted || null,
       _source: 'linkedin'
     }));
 
