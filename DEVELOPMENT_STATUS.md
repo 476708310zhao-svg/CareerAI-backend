@@ -29,6 +29,7 @@
 | 2026-05-09 | 完成 AI 响应格式分批治理，补最小 JSON schema 校验和标准错误格式 | `routes/ai.js`、`tests/smoke.test.js`、`docs/API_RESPONSE_CONVENTION.md` | `npm test` 通过，15/15 |
 | 2026-05-09 | 抽取上传安全工具，头像和后台 Banner 复用 MIME 与 magic bytes 校验 | `utils/uploadSecurity.js`、`routes/upload.js`、`routes/admin.js` | `npm test` 通过，16/16 |
 | 2026-05-09 | 新增后端测试 CI workflow | `.github/workflows/test.yml` | workflow 检查 |
+| 2026-05-09 | 补充 P2 上传测试、AI 修改记录和数据库迁移治理方案 | `tests/smoke.test.js`、`CHANGELOG_AI.md`、`docs/DATABASE_MIGRATION_PLAN.md`、`README.md` | `npm test` 通过，18/18 |
 
 ## 进行中
 
@@ -38,6 +39,8 @@
 | P1 | API 响应格式分批实施 | AI1 Builder | `routes/ai.js`、小程序 `utils/api-*` | 已完成首批，支付/健康/Webhook 保持例外 |
 | P2 | 上传安全工具抽取 | Codex | `utils/uploadSecurity.js`、`routes/upload.js`、`routes/admin.js` | 已完成 |
 | P2 | GitHub Actions 测试 | Codex | `.github/workflows/test.yml` | 已完成 |
+| P2 | README/DX 补齐 | Codex | `README.md`、`CHANGELOG_AI.md` | 已完成 |
+| P2 | 数据库迁移治理方案 | Codex | `docs/DATABASE_MIGRATION_PLAN.md` | 已完成 |
 
 ## 当前文件占用
 
@@ -55,6 +58,7 @@
 | Codex | `routes/ai.js`、`tests/smoke.test.js` | AI schema 与错误格式首批治理 | 已完成 |
 | Codex | `utils/uploadSecurity.js`、`routes/upload.js`、`routes/admin.js` | 上传安全工具抽取 | 已完成 |
 | Codex | `.github/workflows/test.yml` | 后端测试 CI | 已完成 |
+| Codex | `README.md`、`CHANGELOG_AI.md`、`docs/DATABASE_MIGRATION_PLAN.md`、`tests/smoke.test.js` | P2 文档和上传测试补齐 | 已完成 |
 
 ## 待决策
 
@@ -83,6 +87,8 @@ npm test
 - `/api/ai/chat` 参数错误标准响应
 - `/api/ai/project-builder` 参数错误标准响应
 - `/admin/api/upload/banner` 伪 MIME 拒绝
+- `/admin/api/upload/banner` 非图片 MIME 拒绝
+- `/api/upload/avatar` 正常 PNG 上传
 - `/api/payment/create-order` Mock 下单
 - `/api/payment/mock-confirm`
 - `/api/payment/verify/:orderNo`

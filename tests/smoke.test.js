@@ -1,6 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
+const fs = require('node:fs');
+const path = require('node:path');
 const db = require('../db/database');
 
 const PORT = String(4100 + Math.floor(Math.random() * 1000));
@@ -17,6 +19,7 @@ let serverOutput = '';
 let authToken;
 let adminToken;
 let createdOrderNo;
+const uploadedFiles = [];
 
 function startServer() {
   server = spawn(process.execPath, ['server.js'], {
@@ -66,6 +69,19 @@ function adminHeaders() {
   return { Authorization: `Bearer ${adminToken}` };
 }
 
+function pngBlob() {
+  const bytes = Uint8Array.from([
+    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+    0x00, 0x00, 0x00, 0x0D
+  ]);
+  return new Blob([bytes], { type: 'image/png' });
+}
+
+function trackUploadedUrl(url) {
+  if (!url || !url.startsWith('/uploads/')) return;
+  uploadedFiles.push(path.join(process.cwd(), url.replace(/^\//, '')));
+}
+
 test.before(async () => {
   startServer();
   await waitForServer();
@@ -78,6 +94,9 @@ test.after(() => {
     db.prepare('DELETE FROM orders WHERE user_id = ?').run(user.id);
     db.prepare('DELETE FROM users WHERE id = ?').run(user.id);
   }
+  uploadedFiles.forEach(file => {
+    try { fs.unlinkSync(file); } catch (e) {}
+  });
 });
 
 test('health endpoint is available', async () => {
@@ -222,6 +241,22 @@ test('admin banner upload rejects content that does not match image MIME', async
   assert.match(body.message, /文件内容与格式不符/);
 });
 
+test('admin banner upload rejects non-image MIME before magic byte check', async () => {
+  assert.ok(adminToken);
+  const form = new FormData();
+  form.append('file', new Blob(['plain text'], { type: 'text/plain' }), 'fake.txt');
+
+  const res = await fetch(`${BASE_URL}/admin/api/upload/banner`, {
+    method: 'POST',
+    headers: adminHeaders(),
+    body: form
+  });
+  assert.equal(res.status, 400);
+  const body = await readJson(res);
+  assert.equal(body.code, -1);
+  assert.match(body.message, /只允许/);
+});
+
 test('payment mock create-order, confirm and verify flow works', async () => {
   assert.ok(authToken);
 
@@ -275,6 +310,23 @@ test('avatar upload rejects content that does not match image MIME', async () =>
   const body = await readJson(res);
   assert.equal(body.code, -1);
   assert.match(body.message, /文件内容与格式不符/);
+});
+
+test('avatar upload accepts a valid png image', async () => {
+  assert.ok(authToken);
+  const form = new FormData();
+  form.append('file', pngBlob(), 'avatar.png');
+
+  const res = await fetch(`${BASE_URL}/api/upload/avatar`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: form
+  });
+  assert.equal(res.status, 200);
+  const body = await readJson(res);
+  assert.equal(body.code, 0);
+  assert.match(body.data.url, /^\/uploads\/\d{4}-\d{2}-\d{2}\//);
+  trackUploadedUrl(body.data.url);
 });
 
 test('webhook rejects missing GitHub signature', async () => {
