@@ -169,6 +169,30 @@ test('ai workflow requires vip', async () => {
   assert.equal(body.data.vipRequired, true);
 });
 
+test('ai chat validation uses standard error shape', async () => {
+  const res = await fetch(`${BASE_URL}/api/ai/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [] })
+  });
+  assert.equal(res.status, 400);
+  const body = await readJson(res);
+  assert.equal(body.code, -1);
+  assert.match(body.message, /messages/);
+});
+
+test('ai project builder validation uses standard error shape', async () => {
+  const res = await fetch(`${BASE_URL}/api/ai/project-builder`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({})
+  });
+  assert.equal(res.status, 400);
+  const body = await readJson(res);
+  assert.equal(body.code, -1);
+  assert.match(body.message, /项目方向/);
+});
+
 test('payment mock create-order, confirm and verify flow works', async () => {
   assert.ok(authToken);
 

@@ -45,7 +45,8 @@
 |---|---|---|
 | `/api/payment/*` | `{ error }`、`{ mock, orderNo }`、`{ orders }` 等 | 支付链路高风险，先不在第二批改行为 |
 | `/api/news` | `{ source, articles }` | 前端已按 NewsAPI 代理结构消费 |
-| `/api/ai/*` | 部分直接透传 AI 结果，限额/VIP 错误使用 `{ code, message, data }` | AI 生成结果需等 schema 与错误码专项一起处理 |
+| `/api/ai/chat` | 成功时透传 DeepSeek 原始结构 | 面试/题库等旧调用依赖原始 `choices` 结构 |
+| `/api/ai/assistant` | 成功时使用 SSE 流 | 流式接口按 SSE 协议返回，建立连接前的参数错误使用标准格式 |
 | `/webhook/deploy` | Webhook 专用响应 | 面向 GitHub 回调，不是小程序业务 API |
 | `/api/health` | `{ status, message, time }` | 健康检查接口，便于运维直接读取 |
 
@@ -62,3 +63,10 @@
 2. 低风险读取接口优先迁移到 `ok/fail`。
 3. 支付、登录、AI 等高风险链路单独建任务，不和普通格式化混在同一批。
 4. 每次迁移后补 smoke test 或页面手工回归记录。
+
+## 已完成首批
+
+- AI 参数校验错误统一为 `{ code, message, data }`。
+- AI 上游超时、额度不足、服务异常统一为 `{ code, message, data }`。
+- `career-plan`、`project-builder`、`workflow` 增加最小 JSON schema 校验。
+- 支付、健康检查、Webhook 继续保留例外格式。

@@ -31,6 +31,9 @@
 - 已完成：AI 会员边界实施，AI 助手免费用户每日 5 次，求职规划免费用户每日 1 次，AI 工作流仅 VIP 可用，使用 SQLite `ai_usage` 按用户、功能、日期计数。
 - 已完成：支付上线策略记录，当前仅 Mock 模式验证流程，有营业执照和商户资质后再接真实微信支付。
 - 已完成：简历 API 去重实施，`/api/users/resumes` 标记 deprecated，前端已使用 `/api/resumes`，旧接口保留 6 个月至 2026-11-09 后再评估下线。
+- 已完成：AI JSON schema 和错误码首批治理，`career-plan`、`project-builder`、`workflow` 增加最小 schema 校验，AI 参数/上游错误返回 `{ code, message, data }` 标准格式。
+- 验证结果：`npm test` 通过，15 个 smoke tests 全部通过。
+- P1 状态：已完成。后续进入 P2：后台上传工具抽取、GitHub Actions、上传测试补充、超长样式初步整理等。
 
 ## 1. 项目总览
 

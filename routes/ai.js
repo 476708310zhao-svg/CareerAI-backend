@@ -6,6 +6,73 @@ const { consumeDailyLimit, requireVip } = require('../utils/aiQuota');
 
 const DEEPSEEK_URL = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/chat/completions';
 
+function aiFail(res, status, message, data) {
+  return res.status(status).json({ code: -1, message, data });
+}
+
+function aiErrorResponse(res, err, scope) {
+  const status = err.response?.status || 500;
+  console.error(`[ai/${scope}]`, status, err.message);
+  if (err.code === 'ECONNABORTED' || /timeout|超时/i.test(err.message)) {
+    return aiFail(res, 504, 'AI响应超时，请重试', { reason: 'timeout' });
+  }
+  if (status === 402) {
+    return aiFail(res, 402, 'AI服务额度不足，请稍后再试', { reason: 'upstream_balance' });
+  }
+  return aiFail(res, status, 'AI服务异常，请稍后重试', { reason: 'upstream_error' });
+}
+
+function extractJsonObject(content) {
+  const cleaned = String(content || '').replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+  const match = cleaned.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    return JSON.parse(match[0]);
+  } catch (e) {
+    return null;
+  }
+}
+
+function isStringArray(value) {
+  return Array.isArray(value) && value.every(item => typeof item === 'string');
+}
+
+function validateCareerPlan(plan) {
+  return !!(
+    plan &&
+    typeof plan === 'object' &&
+    plan.gap_analysis &&
+    Array.isArray(plan.phases) &&
+    plan.phases.length > 0 &&
+    Array.isArray(plan.resources) &&
+    Array.isArray(plan.milestones)
+  );
+}
+
+function validateProject(project) {
+  return !!(
+    project &&
+    typeof project.title === 'string' &&
+    typeof project.background === 'string' &&
+    typeof project.methodology === 'string' &&
+    isStringArray(project.data_sources) &&
+    isStringArray(project.tech_stack) &&
+    isStringArray(project.key_results) &&
+    typeof project.resume_bullet === 'string'
+  );
+}
+
+function validateWorkflowResult(result) {
+  const intents = new Set(['resume', 'jobs', 'interview', 'applications', 'career_plan', 'agencies', 'campus', 'salary', 'general']);
+  return !!(
+    result &&
+    typeof result.reply === 'string' &&
+    intents.has(result.intent) &&
+    Array.isArray(result.actions) &&
+    Array.isArray(result.suggestions)
+  );
+}
+
 // ── AI 求职助手 System Prompt ──────────────────────────────
 const ASSISTANT_SYSTEM = `你是"职引"平台的首席 AI 职业导师，专为留学生群体提供专业的求职全程支持。
 
@@ -38,14 +105,14 @@ const ASSISTANT_SYSTEM = `你是"职引"平台的首席 AI 职业导师，专为
 router.post('/assistant', authMiddleware, aiLimiter, async (req, res) => {
   const { messages, userContext } = req.body;
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
-    return res.status(400).json({ error: 'messages 不能为空' });
+    return aiFail(res, 400, 'messages 不能为空');
   }
   if (messages.length > 40) {
-    return res.status(400).json({ error: '消息轮数不能超过 40' });
+    return aiFail(res, 400, '消息轮数不能超过 40');
   }
   for (const m of messages) {
     if (typeof m.content !== 'string' || m.content.length > 4000) {
-      return res.status(400).json({ error: '单条消息不能超过 4000 字符' });
+      return aiFail(res, 400, '单条消息不能超过 4000 字符');
     }
   }
   if (!consumeDailyLimit(req, res, 'assistant')) return;
@@ -108,7 +175,7 @@ router.post('/assistant', authMiddleware, aiLimiter, async (req, res) => {
     const status = err.response?.status || 500;
     console.error('[ai/assistant]', status, err.message);
     if (!res.headersSent) {
-      return res.status(status).json({ error: err.message });
+      return aiErrorResponse(res, err, 'assistant');
     }
     try {
       if (err.code === 'ECONNABORTED' || err.message.includes('timeout')) {
@@ -131,14 +198,14 @@ router.post('/chat', aiLimiter, async (req, res) => {
   const { messages, temperature } = req.body;
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
-    return res.status(400).json({ error: 'messages 不能为空' });
+    return aiFail(res, 400, 'messages 不能为空');
   }
   if (messages.length > 50) {
-    return res.status(400).json({ error: '消息轮数不能超过 50' });
+    return aiFail(res, 400, '消息轮数不能超过 50');
   }
   for (const m of messages) {
     if (typeof m.content !== 'string' || m.content.length > 4000) {
-      return res.status(400).json({ error: '单条消息不能超过 4000 字符' });
+      return aiFail(res, 400, '单条消息不能超过 4000 字符');
     }
   }
 
@@ -161,16 +228,7 @@ router.post('/chat', aiLimiter, async (req, res) => {
     );
     res.json(result.data);
   } catch (err) {
-    const status = err.response?.status || 500;
-    console.error('[ai/chat]', status, err.message);
-
-    if (err.code === 'ECONNABORTED' || err.message.includes('timeout')) {
-      return res.status(504).json({ error: 'AI响应超时，请重试' });
-    }
-    if (status === 402) {
-      return res.status(402).json({ error: 'DeepSeek余额不足，请充值' });
-    }
-    res.status(status).json({ error: err.message });
+    aiErrorResponse(res, err, 'chat');
   }
 });
 
@@ -180,10 +238,10 @@ router.post('/chat', aiLimiter, async (req, res) => {
 router.post('/career-plan', authMiddleware, aiLimiter, async (req, res) => {
   const { location, position, background } = req.body;
   if (!position || !background) {
-    return res.status(400).json({ error: '目标岗位和个人背景不能为空' });
+    return aiFail(res, 400, '目标岗位和个人背景不能为空');
   }
   if (position.length > 200 || background.length > 2000) {
-    return res.status(400).json({ error: '输入内容过长' });
+    return aiFail(res, 400, '输入内容过长');
   }
   if (!consumeDailyLimit(req, res, 'career_plan')) return;
 
@@ -214,29 +272,14 @@ JSON结构（每个字符串字段控制在20字以内，数组最多3项）：
     );
 
     const content = result.data?.choices?.[0]?.message?.content || '';
-    let plan = null;
-    try {
-      const cleaned = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-      const match = cleaned.match(/\{[\s\S]*\}/);
-      if (match) plan = JSON.parse(match[0]);
-    } catch (e) {
-      console.error('[career-plan] JSON解析失败:', e.message);
-    }
+    const plan = extractJsonObject(content);
 
-    if (!plan) {
-      return res.status(500).json({ error: 'AI返回格式异常，请重试' });
+    if (!validateCareerPlan(plan)) {
+      return aiFail(res, 502, 'AI返回格式异常，请重试', { reason: 'schema_invalid' });
     }
     res.json({ plan, raw: content });
   } catch (err) {
-    const status = err.response?.status || 500;
-    console.error('[ai/career-plan]', status, err.message);
-    if (err.code === 'ECONNABORTED' || err.message.includes('timeout')) {
-      return res.status(504).json({ error: 'AI响应超时，请重试' });
-    }
-    if (status === 402) {
-      return res.status(402).json({ error: 'DeepSeek余额不足，请充值' });
-    }
-    res.status(status).json({ error: err.message });
+    aiErrorResponse(res, err, 'career-plan');
   }
 });
 
@@ -246,7 +289,7 @@ JSON结构（每个字符串字段控制在20字以内，数组最多3项）：
 router.post('/project-builder', aiLimiter, async (req, res) => {
   const { track, role, background, seniority } = req.body;
   if (!track) {
-    return res.status(400).json({ error: '请选择项目方向' });
+    return aiFail(res, 400, '请选择项目方向');
   }
 
   const trackMap = {
@@ -294,29 +337,14 @@ router.post('/project-builder', aiLimiter, async (req, res) => {
     );
 
     const content = result.data?.choices?.[0]?.message?.content || '';
-    let project = null;
-    try {
-      const cleaned = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-      const match = cleaned.match(/\{[\s\S]*\}/);
-      if (match) project = JSON.parse(match[0]);
-    } catch (e) {
-      console.error('[project-builder] JSON解析失败:', e.message);
-    }
+    const project = extractJsonObject(content);
 
-    if (!project) {
-      return res.status(500).json({ error: 'AI返回格式异常，请重试' });
+    if (!validateProject(project)) {
+      return aiFail(res, 502, 'AI返回格式异常，请重试', { reason: 'schema_invalid' });
     }
     res.json({ project });
   } catch (err) {
-    const status = err.response?.status || 500;
-    console.error('[ai/project-builder]', status, err.message);
-    if (err.code === 'ECONNABORTED' || err.message.includes('timeout')) {
-      return res.status(504).json({ error: 'AI响应超时，请重试' });
-    }
-    if (status === 402) {
-      return res.status(402).json({ error: 'DeepSeek余额不足，请充值' });
-    }
-    res.status(status).json({ error: err.message });
+    aiErrorResponse(res, err, 'project-builder');
   }
 });
 
@@ -356,7 +384,7 @@ rules:
 router.post('/workflow', authMiddleware, aiLimiter, requireVip('AI 工作流'), async (req, res) => {
   const { message, history = [], userContext } = req.body;
   if (!message || typeof message !== 'string' || message.length > 500) {
-    return res.status(400).json({ error: '消息不合法' });
+    return aiFail(res, 400, '消息不合法');
   }
 
   // 将用户背景信息拼入 system prompt
@@ -392,17 +420,13 @@ router.post('/workflow', authMiddleware, aiLimiter, requireVip('AI 工作流'), 
     );
 
     const raw = result.data.choices[0].message.content.trim();
-    // 提取 JSON（防止模型输出多余文字）
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('AI未返回合法JSON');
-    const parsed = JSON.parse(jsonMatch[0]);
+    const parsed = extractJsonObject(raw);
+    if (!validateWorkflowResult(parsed)) {
+      return aiFail(res, 502, 'AI返回格式异常，请重试', { reason: 'schema_invalid' });
+    }
     res.json(parsed);
   } catch (err) {
-    const status = err.response?.status || 500;
-    console.error('[ai/workflow]', err.message);
-    if (err.code === 'ECONNABORTED') return res.status(504).json({ error: 'AI响应超时' });
-    if (status === 402) return res.status(402).json({ error: 'DeepSeek余额不足' });
-    res.status(status).json({ error: err.message });
+    aiErrorResponse(res, err, 'workflow');
   }
 });
 
