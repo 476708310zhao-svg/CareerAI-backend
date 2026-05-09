@@ -295,7 +295,7 @@ page { background: var(--bg-raised); }
 }
 .insight-empty-sub { font-size: 24rpx; color: var(--text-muted); }
 
-/* 2026 company detail polish */
+/* Company detail product polish */
 page {
   background:
     radial-gradient(circle at 10% 0%, rgba(43, 92, 230, 0.08), transparent 30%),
@@ -449,7 +449,7 @@ page {
   background: linear-gradient(135deg, #2b5ce6 0%, #465ff2 100%);
 }
 
-/* Company intelligence conversion polish */
+/* Company intelligence conversion */
 .company-intel {
   margin: 0 24rpx 22rpx;
   padding: 30rpx;

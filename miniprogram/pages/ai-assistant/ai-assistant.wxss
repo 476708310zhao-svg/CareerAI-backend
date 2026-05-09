@@ -280,7 +280,7 @@ page { background: #F2F2F7; }
 }
 .btn-hover { opacity: 0.7; }
 
-/* ===== Phase 4 polish: ChatGPT style workspace ===== */
+/* ChatGPT-style AI workspace */
 page {
   background: #ffffff;
 }
@@ -743,7 +743,7 @@ page {
   box-shadow: 0 12rpx 24rpx rgba(239,68,68,0.18);
 }
 
-/* ===== Phase 4 polish: actionable AI result card ===== */
+/* Actionable AI result card */
 .answer-action-card {
   width: 100%;
   margin-top: 14rpx;

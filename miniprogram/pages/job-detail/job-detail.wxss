@@ -370,7 +370,7 @@ page {
   flex-shrink: 0;
 }
 
-/* 2026 detail page polish */
+/* Job detail product polish */
 page {
   background:
     radial-gradient(circle at 14% 0%, rgba(43, 92, 230, 0.08), transparent 30%),
@@ -527,7 +527,7 @@ page {
   background: transparent;
 }
 
-/* Conversion-first detail polish */
+/* Conversion-first detail */
 .head-kicker {
   display: block;
   margin-bottom: 6rpx;
