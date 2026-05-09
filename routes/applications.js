@@ -6,6 +6,8 @@ const { sendToUser } = require('./notify');
 
 const { parseId } = require('../db/utils');
 const { formatApp } = require('../db/formatters');
+const { ja } = require('../db/utils');
+const { findJobById, findJobsByIds, toApplicationJob } = require('../utils/jobData');
 
 // ─── 获取申请列表 ─────────────────────────────────────────────────────────────
 router.get('/', authMiddleware, (req, res) => {
@@ -23,19 +25,13 @@ router.get('/', authMiddleware, (req, res) => {
       .map(a => parseInt(a.job_id))
       .filter(id => !isNaN(id));
 
-    const jobMap = {};
-    if (localIds.length > 0) {
-      const placeholders = localIds.map(() => '?').join(',');
-      db.prepare(`SELECT id, title, company, company_logo, location, salary FROM jobs WHERE id IN (${placeholders})`)
-        .all(...localIds)
-        .forEach(j => { jobMap[j.id] = j; });
-    }
+    const jobMap = findJobsByIds(localIds);
 
     const list = filtered.map(a => {
       const app = formatApp(a);
       if (!app.jobSnapshot || !app.jobSnapshot.title) {
-        const j = jobMap[parseInt(a.job_id)];
-        if (j) app.job = { id: j.id, title: j.title, company: j.company, companyLogo: j.company_logo, location: j.location, salary: j.salary };
+        const j = toApplicationJob(jobMap[String(parseInt(a.job_id))]);
+        if (j) app.job = j;
       }
       return app;
     });
@@ -65,7 +61,7 @@ router.get('/:id', authMiddleware, (req, res) => {
   const a = db.prepare('SELECT * FROM applications WHERE id = ? AND user_id = ?').get(id, req.user.userId);
   if (!a) return res.status(404).json({ code: -1, message: '申请记录不存在' });
   const app = formatApp(a);
-  const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(parseInt(a.job_id));
+  const job = toApplicationJob(findJobById(a.job_id));
   const resume = db.prepare('SELECT * FROM resumes WHERE id = ?').get(a.resume_id);
   res.json({ code: 0, message: 'success', data: { ...app, job: job || null,
     resume: resume ? { ...resume, education: ja(resume.education), skills: ja(resume.skills) } : null } });

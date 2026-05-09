@@ -1,6 +1,8 @@
 const router = require('express').Router();
 const axios  = require('axios');
 const { aiLimiter } = require('../middleware/rateLimit');
+const { authMiddleware } = require('../middleware/auth');
+const { consumeDailyLimit, requireVip } = require('../utils/aiQuota');
 
 const DEEPSEEK_URL = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/chat/completions';
 
@@ -33,7 +35,7 @@ const ASSISTANT_SYSTEM = `你是"职引"平台的首席 AI 职业导师，专为
 // ── AI 求职助手对话（SSE 流式输出） ────────────────
 // POST /api/ai/assistant
 // Body: { messages: [{role, content}], userContext?: {...} }
-router.post('/assistant', aiLimiter, async (req, res) => {
+router.post('/assistant', authMiddleware, aiLimiter, async (req, res) => {
   const { messages, userContext } = req.body;
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'messages 不能为空' });
@@ -46,6 +48,7 @@ router.post('/assistant', aiLimiter, async (req, res) => {
       return res.status(400).json({ error: '单条消息不能超过 4000 字符' });
     }
   }
+  if (!consumeDailyLimit(req, res, 'assistant')) return;
 
   // 将用户画像动态注入 system prompt，实现个性化建议
   const safe = (v, max) => String(v || '').trim().slice(0, max);
@@ -174,7 +177,7 @@ router.post('/chat', aiLimiter, async (req, res) => {
 // ── 求职路线规划 ──────────────────────────────
 // POST /api/ai/career-plan
 // Body: { location, position, background }
-router.post('/career-plan', aiLimiter, async (req, res) => {
+router.post('/career-plan', authMiddleware, aiLimiter, async (req, res) => {
   const { location, position, background } = req.body;
   if (!position || !background) {
     return res.status(400).json({ error: '目标岗位和个人背景不能为空' });
@@ -182,6 +185,7 @@ router.post('/career-plan', aiLimiter, async (req, res) => {
   if (position.length > 200 || background.length > 2000) {
     return res.status(400).json({ error: '输入内容过长' });
   }
+  if (!consumeDailyLimit(req, res, 'career_plan')) return;
 
   const prompt = `你是留学生求职顾问。根据以下信息，用JSON返回求职路线规划，不要有任何JSON以外的内容。
 
@@ -349,7 +353,7 @@ rules:
 - 简历相关问题必须推荐 resume 模块
 - 投递相关必须推荐 applications 模块`;
 
-router.post('/workflow', aiLimiter, async (req, res) => {
+router.post('/workflow', authMiddleware, aiLimiter, requireVip('AI 工作流'), async (req, res) => {
   const { message, history = [], userContext } = req.body;
   if (!message || typeof message !== 'string' || message.length > 500) {
     return res.status(400).json({ error: '消息不合法' });

@@ -49,6 +49,12 @@ function isPasswordHash(stored) {
   return typeof stored === 'string' && stored.startsWith(`${PASSWORD_PREFIX}$`);
 }
 
+function markDeprecatedResumesApi(res) {
+  res.set('Deprecation', 'true');
+  res.set('Sunset', 'Mon, 09 Nov 2026 00:00:00 GMT');
+  res.set('Link', '</api/resumes>; rel="successor-version"');
+}
+
 // ─── 微信登录 ─────────────────────────────────────────────────────────────────
 router.post('/login', loginLimiter, async (req, res) => {
   try {
@@ -187,8 +193,9 @@ router.put('/profile', authMiddleware, (req, res) => {
   }
 });
 
-// ─── 简历列表 ─────────────────────────────────────────────────────────────────
+// ─── 旧版简历兼容接口：已废弃，请使用 /api/resumes ───────────────────────────
 router.get('/resumes', authMiddleware, (req, res) => {
+  markDeprecatedResumesApi(res);
   const resumes = db.prepare('SELECT * FROM resumes WHERE user_id = ? ORDER BY updated_at DESC').all(req.user.userId);
   res.json({ code: 0, message: 'success', data: resumes.map(r => ({
     ...r, userId: r.user_id,
@@ -196,8 +203,9 @@ router.get('/resumes', authMiddleware, (req, res) => {
   }))});
 });
 
-// ─── 简历详情 ─────────────────────────────────────────────────────────────────
+// ─── 旧版简历详情兼容接口：已废弃，请使用 /api/resumes/:id ───────────────────
 router.get('/resumes/:id', authMiddleware, (req, res) => {
+  markDeprecatedResumesApi(res);
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
   const r = db.prepare('SELECT * FROM resumes WHERE id = ? AND user_id = ?').get(id, req.user.userId);
@@ -208,8 +216,9 @@ router.get('/resumes/:id', authMiddleware, (req, res) => {
   }});
 });
 
-// ─── 创建简历 ─────────────────────────────────────────────────────────────────
+// ─── 旧版创建简历兼容接口：已废弃，请使用 POST /api/resumes ──────────────────
 router.post('/resumes', authMiddleware, (req, res) => {
+  markDeprecatedResumesApi(res);
   try {
     const { name, language = 'zh', education, experience, skills } = req.body;
     const result = db.prepare(`
@@ -227,8 +236,9 @@ router.post('/resumes', authMiddleware, (req, res) => {
   }
 });
 
-// ─── 更新简历 ─────────────────────────────────────────────────────────────────
+// ─── 旧版更新简历兼容接口：已废弃，请使用 PUT /api/resumes/:id ────────────────
 router.put('/resumes/:id', authMiddleware, (req, res) => {
+  markDeprecatedResumesApi(res);
   try {
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ code: -1, message: '参数无效' });

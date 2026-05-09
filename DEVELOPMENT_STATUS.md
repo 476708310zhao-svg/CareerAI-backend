@@ -2,7 +2,9 @@
 
 更新时间：2026-05-09
 
-项目目录：`C:\Users\admin\Desktop\求职小程序\jobapp-server`
+后端项目目录：`C:\Users\admin\Desktop\求职小程序\jobapp-server`
+
+小程序项目目录：`C:\Users\admin\Desktop\求职小程序\求职小程序`
 
 ## 当前批次
 
@@ -17,14 +19,20 @@
 | 2026-05-09 | 新增开发状态跟踪 | `DEVELOPMENT_STATUS.md` | 文档检查 |
 | 2026-05-09 | 补充 README 开发、测试、环境变量和协作说明 | `README.md` | 文档检查 |
 | 2026-05-09 | 扩展后端 smoke tests，覆盖登录、支付 Mock、上传异常和公开列表 | `tests/smoke.test.js` | `npm test` 通过，11/11 |
+| 2026-05-09 | 迁移第一批小程序直接请求到统一 API 模块 | 小程序 `messages`、`feedback`、`news` 页面与 `utils/api-*` | `rg` 无残留，`node --check` 通过 |
+| 2026-05-09 | 输出简历 API 去重方案 | `docs/RESUME_API_DEDUP_PLAN.md` | 文档检查 |
+| 2026-05-09 | 输出 API 响应格式规范 | `docs/API_RESPONSE_CONVENTION.md` | 文档检查 |
+| 2026-05-09 | 固定 `data/jobs.json` 为唯一本地职位数据源，停止创建/导入/读取 SQLite `jobs` 双轨 | `db/database.js`、`db/seed.js`、`routes/applications.js`、`services/companyService.js`、`utils/jobData.js` | `node --check` |
+| 2026-05-09 | 增加 AI 免费次数和 VIP 工作流限制 | `routes/ai.js`、`utils/aiQuota.js`、`db/database.js` | `node --check` |
+| 2026-05-09 | 标记 `/api/users/resumes` deprecated，前端保持 `/api/resumes` 主入口 | `routes/users.js`、`docs/RESUME_API_DEDUP_PLAN.md` | smoke test |
+| 2026-05-09 | 记录支付三阶段上线策略，当前仅 Mock 模式验证 | `docs/PAYMENT_ROLLOUT_PLAN.md` | 文档检查 |
 
 ## 进行中
 
 | 优先级 | 任务 | 负责人 | 文件范围 | 状态 |
 |---|---|---|---|---|
-| P1 | 统一小程序直接请求第一批页面 | AI1 Builder | `miniprogram/pages/messages/`、`miniprogram/pages/feedback/`、`miniprogram/pages/news/`、`miniprogram/utils/` | 待开始 |
-| P1 | 简历 API 去重方案 | AI2 Reviewer | `docs/` 或设计文档 | 待开始 |
-| P1 | API 响应格式规范 | AI2 Reviewer | `docs/`、`miniprogram/utils/api-client.js` | 待开始 |
+| P1 | 简历 API 实施迁移 | AI1 Builder | `routes/users.js`、`routes/resumes.js`、小程序简历调用 | 已完成，旧接口保留 6 个月 |
+| P1 | API 响应格式分批实施 | AI1 Builder | `routes/*`、小程序 `utils/api-*` | 待开始 |
 
 ## 当前文件占用
 
@@ -34,14 +42,17 @@
 | Codex | `AGENTS.md` | 建立协作规则 | 已完成 |
 | Codex | `DEVELOPMENT_STATUS.md` | 建立状态记录 | 已完成 |
 | Codex | `tests/smoke.test.js` | 扩展后端 smoke tests | 已完成 |
+| Codex | 小程序 `messages`、`feedback`、`news` 页面与 `utils/api-*` | 统一请求迁移 | 已完成 |
+| Codex | `docs/RESUME_API_DEDUP_PLAN.md` | 简历 API 去重方案 | 已完成 |
+| Codex | `docs/API_RESPONSE_CONVENTION.md` | API 响应格式规范 | 已完成 |
+| Codex | 职位本地数据源相关后端文件 | 删除 SQLite `jobs` 双轨读取 | 已完成 |
+| Codex | AI 配额相关后端文件 | 助手/规划/工作流权限限制 | 已完成 |
 
 ## 待决策
 
 | 事项 | 决策人 | 说明 |
 |---|---|---|
-| 职位数据源主线 | Human | 当前存在 JSON 与 SQLite 双轨，需要决定主数据源。 |
-| AI 会员边界 | Human | 免费次数、VIP 权限和后端限流需要产品确认。 |
-| 简历 API 废弃节奏 | AI2 + Human | 建议保留 `/api/resumes`，将 `/api/users/resumes` 标记为兼容旧接口。 |
+| 真实微信支付上线 | Human | 当前仅 Mock 模式验证流程，有营业执照和商户资质后再进入真实支付灰度。 |
 
 ## 验证命令
 

@@ -167,31 +167,6 @@ if (salData) {
   }
 }
 
-// ─── jobs（本地备用数据）──────────────────────────────────────────────────────
-const jobsData = readJson('jobs.json');
-if (jobsData) {
-  const insertJob = db.prepare(`
-    INSERT OR IGNORE INTO jobs
-      (id, title, company, company_logo, location, region, salary,
-       job_type, industry, description, requirements,
-       visa_sponsored, posted_at, view_count, apply_count)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  const seedJobs = db.transaction(() => {
-    for (const job of (jobsData.jobs || [])) {
-      insertJob.run(job.id, job.title, job.company, job.companyLogo || '',
-        job.location || '', job.region || '', job.salary || '',
-        job.jobType || '全职', job.industry || '',
-        job.description || '', j(job.requirements),
-        job.visaSponsored ? 1 : 0, job.postedAt,
-        job.viewCount || 0, job.applyCount || 0);
-    }
-  });
-  seedJobs();
-  total += (jobsData.jobs || []).length;
-  console.log('✅ jobs 导入完成');
-}
-
 // ─── feedbacks（如有历史数据）────────────────────────────────────────────────
 const fbData = readJson('feedbacks.json');
 if (fbData) {

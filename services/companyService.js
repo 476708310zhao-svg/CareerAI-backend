@@ -1,6 +1,11 @@
 const path = require('path');
 const db = require('../db/database');
 const { ja } = require('../db/utils');
+const {
+  countJobsByCompanyNames,
+  listJobsByCompanyNames,
+  toCompanyJob
+} = require('../utils/jobData');
 
 const seedCompanies = require(path.join(__dirname, '../data/companies.seed.json'));
 
@@ -86,7 +91,7 @@ function countByNames(table, names) {
 function getCounts(row) {
   const names = matchNames(row);
   return {
-    jobCount: countByNames('jobs', names),
+    jobCount: countJobsByCompanyNames(names),
     experienceCount: countByNames('experiences', names),
     salaryCount: countByNames('salaries', names)
   };
@@ -238,9 +243,7 @@ function getCompanyById(id) {
   if (!row) return null;
   const names = matchNames(row);
   const placeholders = names.map(() => '?').join(',');
-  const jobs = names.length
-    ? db.prepare(`SELECT id, title, company, salary, location, job_type, company_logo FROM jobs WHERE company IN (${placeholders}) ORDER BY posted_at DESC LIMIT 12`).all(...names)
-    : [];
+  const jobs = listJobsByCompanyNames(names, 12).map(toCompanyJob);
   const experiences = names.length
     ? db.prepare(`SELECT id, title, company, position, type, round, likes_count, created_at FROM experiences WHERE company IN (${placeholders}) ORDER BY created_at DESC LIMIT 12`).all(...names)
     : [];

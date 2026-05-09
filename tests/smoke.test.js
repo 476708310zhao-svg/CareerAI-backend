@@ -146,6 +146,29 @@ test('web-login returns a token for valid credentials', async () => {
   authToken = body.data.token;
 });
 
+test('legacy users resumes endpoint is marked deprecated', async () => {
+  assert.ok(authToken);
+  const res = await fetch(`${BASE_URL}/api/users/resumes`, {
+    headers: authHeaders()
+  });
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('deprecation'), 'true');
+  assert.match(res.headers.get('link') || '', /\/api\/resumes/);
+});
+
+test('ai workflow requires vip', async () => {
+  assert.ok(authToken);
+  const res = await fetch(`${BASE_URL}/api/ai/workflow`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ message: '帮我优化简历' })
+  });
+  assert.equal(res.status, 403);
+  const body = await readJson(res);
+  assert.equal(body.code, -1);
+  assert.equal(body.data.vipRequired, true);
+});
+
 test('payment mock create-order, confirm and verify flow works', async () => {
   assert.ok(authToken);
 

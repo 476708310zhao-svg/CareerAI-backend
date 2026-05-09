@@ -24,8 +24,13 @@
 - 已完成：补充 `README.md`，覆盖本地启动、测试、环境变量、目录边界和协作说明。
 - 已完成：扩展后端 smoke tests，覆盖登录、支付 Mock 下单/确认/校验、订单鉴权、上传伪 MIME 拒绝、公开 banners/companies 列表。
 - 验证结果：`npm test` 通过，11 个 smoke tests 全部通过。
-- 待开始：小程序直接请求迁移第一批页面，优先 `messages`、`feedback`、`news`。
-- 待开始：简历 API 去重方案，先设计，不删除旧接口。
+- 已完成：小程序直接请求迁移第一批页面，`messages`、`feedback`、`news` 已改为调用统一 `utils/api-*` 模块。
+- 已完成：简历 API 去重方案，见 `docs/RESUME_API_DEDUP_PLAN.md`；先保留 `/api/resumes` 为主入口，不删除旧接口。
+- 已完成：API 响应格式规范，见 `docs/API_RESPONSE_CONVENTION.md`；支付、AI、Webhook 等高风险/特殊链路暂列例外。
+- 已完成：职位本地数据源决策实施，`data/jobs.json` 为唯一本地职位数据源，停止创建、导入和读取 SQLite `jobs` 表。
+- 已完成：AI 会员边界实施，AI 助手免费用户每日 5 次，求职规划免费用户每日 1 次，AI 工作流仅 VIP 可用，使用 SQLite `ai_usage` 按用户、功能、日期计数。
+- 已完成：支付上线策略记录，当前仅 Mock 模式验证流程，有营业执照和商户资质后再接真实微信支付。
+- 已完成：简历 API 去重实施，`/api/users/resumes` 标记 deprecated，前端已使用 `/api/resumes`，旧接口保留 6 个月至 2026-11-09 后再评估下线。
 
 ## 1. 项目总览
 

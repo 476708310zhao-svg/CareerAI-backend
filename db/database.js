@@ -80,24 +80,6 @@ db.exec(`
     created_at         TEXT DEFAULT (datetime('now'))
   );
 
-  CREATE TABLE IF NOT EXISTS jobs (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    title        TEXT NOT NULL,
-    company      TEXT NOT NULL,
-    company_logo TEXT DEFAULT '',
-    location     TEXT DEFAULT '',
-    region       TEXT DEFAULT '',
-    salary       TEXT DEFAULT '',
-    job_type     TEXT DEFAULT '全职',
-    industry     TEXT DEFAULT '',
-    description  TEXT DEFAULT '',
-    requirements TEXT DEFAULT '[]',
-    visa_sponsored INTEGER DEFAULT 0,
-    posted_at    TEXT DEFAULT (datetime('now')),
-    view_count   INTEGER DEFAULT 0,
-    apply_count  INTEGER DEFAULT 0
-  );
-
   CREATE TABLE IF NOT EXISTS favorites (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id    INTEGER NOT NULL,
@@ -302,6 +284,16 @@ db.exec(`
     payload    TEXT    DEFAULT '{}',
     created_at TEXT    DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS ai_usage (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL,
+    feature    TEXT    NOT NULL,
+    usage_date TEXT    NOT NULL,
+    count      INTEGER DEFAULT 0,
+    updated_at TEXT    DEFAULT (datetime('now')),
+    UNIQUE(user_id, feature, usage_date)
+  );
 `);
 
 // ─── 性能索引（幂等，不存在才创建）────────────────────────────────────────────
@@ -322,6 +314,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_companies_domain ON companies(official_domain);
   CREATE INDEX IF NOT EXISTS idx_companies_industry_country ON companies(industry_l1, hq_country);
   CREATE INDEX IF NOT EXISTS idx_company_aliases_alias ON company_aliases(alias);
+  CREATE INDEX IF NOT EXISTS idx_ai_usage_user_feature_date ON ai_usage(user_id, feature, usage_date);
 `);
 
 // 兼容旧库：为 campus_schedules 补齐后续迭代新增字段

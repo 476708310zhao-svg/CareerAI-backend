@@ -107,15 +107,14 @@ router.get('/search', jobsLimiter, async (req, res) => {
         app_id:           ADZUNA_APP_ID,
         app_key:          ADZUNA_APP_KEY,
         results_per_page: 10,
-        what:             query || 'software engineer',
-        content_type:     'application/json'
+        what:             query || 'software engineer'
       };
       const contract = _toAdzunaContract(employment_types);
       if (contract) params.contract_time = contract;
 
       const result = await axios.get(
         `https://api.adzuna.com/v1/api/jobs/${countryCode}/search/${page}`,
-        { params, timeout: 8000 }
+        { params, headers: { 'Content-Type': 'application/json' }, timeout: 8000 }
       );
       const data = (result.data.results || []).map(j => _normalizeAdzuna(j, countryCode));
       return res.json({ data, status: 'OK', _source: 'adzuna', total: result.data.count || data.length });
