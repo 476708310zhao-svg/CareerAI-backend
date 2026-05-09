@@ -20,6 +20,12 @@ function _isValidRapidKey(key) {
 const ADZUNA_APP_ID  = process.env.ADZUNA_APP_ID  || '';
 const ADZUNA_APP_KEY = process.env.ADZUNA_APP_KEY || '';
 
+// ── LinkedIn Jobs（RapidAPI，需单独订阅）─────────────────────────────────────
+const LINKEDIN_RAPID_HOST = process.env.LINKEDIN_RAPID_HOST || 'linkedin-jobs-search.p.rapidapi.com';
+
+// ── Indeed（RapidAPI，需单独订阅）────────────────────────────────────────────
+const INDEED_RAPID_HOST = process.env.INDEED_RAPID_HOST || 'indeed12.p.rapidapi.com';
+
 function _isValidAdzuna() {
   return ADZUNA_APP_ID.length > 0 && ADZUNA_APP_KEY.length > 0;
 }
@@ -187,6 +193,181 @@ router.get('/remote', jobsLimiter, async (req, res) => {
     } catch (e) {
       res.status(500).json({ error: e.message, data: [] });
     }
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════════
+// GET /api/jobs/featured
+// The Muse 精选职位（完全免费，专注科技/创业公司，附带公司文化介绍）
+// 参数：query / category / level / location / page
+// ════════════════════════════════════════════════════════════════════════════════
+// The Muse 职位分类映射（常用留学生方向）
+const MUSE_CATEGORIES = {
+  'software': 'Software Engineering',
+  'data':     'Data Science',
+  'product':  'Product Management',
+  'design':   'Design & UX',
+  'finance':  'Finance',
+  'marketing':'Marketing & Communications',
+  'consulting':'Consulting',
+  'devops':   'IT',
+  'ml':       'Data Science'
+};
+
+function _normalizeMuse(job) {
+  const location = (job.locations && job.locations[0] && job.locations[0].name) || 'United States';
+  const level    = (job.levels    && job.levels[0]    && job.levels[0].name)    || '';
+  const category = (job.categories && job.categories[0] && job.categories[0].name) || '';
+  const company  = (job.company && job.company.name) || '';
+  return {
+    job_id:                    'muse_' + job.id,
+    job_title:                 job.name || '',
+    employer_name:             company,
+    employer_logo:             '',
+    job_city:                  location,
+    job_country:               'US',
+    job_description:           job.contents || '',
+    job_min_salary:            null,
+    job_max_salary:            null,
+    job_salary_currency:       'USD',
+    job_employment_type:       'FULLTIME',
+    job_apply_link:            (job.refs && job.refs.landing_page) || '',
+    job_posted_at_datetime_utc: job.publication_date || null,
+    job_level:                 level,
+    job_category:              category,
+    _source: 'themuse'
+  };
+}
+
+router.get('/featured', jobsLimiter, async (req, res) => {
+  try {
+    const { query = '', category = '', level = '', location = '', page = 0 } = req.query;
+
+    const params = { page: parseInt(page) };
+
+    // 关键词映射到 The Muse 分类
+    const kw = (query || category).toLowerCase();
+    const museCategory = MUSE_CATEGORIES[kw] || (category || undefined);
+    if (museCategory) params.category = museCategory;
+    if (level)        params.level     = level;
+    if (location)     params.location  = location;
+
+    const result = await axios.get('https://www.themuse.com/api/public/jobs', {
+      params,
+      timeout: 10000
+    });
+
+    const data = (result.data.results || []).map(_normalizeMuse);
+    res.json({
+      data,
+      status:     'OK',
+      _source:    'themuse',
+      total:      result.data.total      || data.length,
+      page:       result.data.page       || 0,
+      page_count: result.data.page_count || 1,
+      hasMore:    (result.data.page || 0) < (result.data.page_count || 1) - 1
+    });
+  } catch (err) {
+    console.error('[jobs/featured] The Muse 异常:', err.message);
+    return _localSearch(req, res);
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════════
+// GET /api/jobs/linkedin
+// LinkedIn Jobs（RapidAPI，需在 RapidAPI 订阅 linkedin-jobs-search）
+// 参数：query / location / page
+// ════════════════════════════════════════════════════════════════════════════════
+router.get('/linkedin', jobsLimiter, async (req, res) => {
+  if (!_isValidRapidKey(process.env.RAPID_API_KEY)) {
+    return res.status(503).json({ error: '未配置 RapidAPI Key', data: [], _source: 'unavailable' });
+  }
+  try {
+    const { query = 'software engineer', location = 'United States', page = 1 } = req.query;
+    const result = await axios.get('https://linkedin-jobs-search.p.rapidapi.com/', {
+      params: { query, location, page: String(page) },
+      headers: {
+        'X-RapidAPI-Key':  process.env.RAPID_API_KEY,
+        'X-RapidAPI-Host': LINKEDIN_RAPID_HOST
+      },
+      timeout: 8000
+    });
+
+    const jobs = Array.isArray(result.data) ? result.data : (result.data.jobs || []);
+    const data = jobs.map(j => ({
+      job_id:                    'li_' + (j.job_id || j.id || Math.random()),
+      job_title:                 j.job_title || j.title || '',
+      employer_name:             j.company_name || j.company || '',
+      employer_logo:             j.company_logo || '',
+      job_city:                  j.job_location || j.location || '',
+      job_country:               'US',
+      job_description:           j.job_description || j.description || '',
+      job_min_salary:            null,
+      job_max_salary:            null,
+      job_salary_currency:       'USD',
+      job_employment_type:       j.job_type || 'FULLTIME',
+      job_apply_link:            j.job_url || j.url || '',
+      job_posted_at_datetime_utc: j.posted_date || null,
+      _source: 'linkedin'
+    }));
+
+    res.json({ data, status: 'OK', _source: 'linkedin', total: data.length });
+  } catch (err) {
+    const status = err.response?.status || 500;
+    console.error('[jobs/linkedin]', status, err.message);
+    if (status === 403) {
+      return res.status(403).json({ error: '请先在 RapidAPI 订阅 LinkedIn Jobs API', data: [], _source: 'unavailable' });
+    }
+    return _localSearch(req, res);
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════════
+// GET /api/jobs/indeed
+// Indeed Jobs（RapidAPI，需在 RapidAPI 订阅 indeed12）
+// 参数：query / location / page
+// ════════════════════════════════════════════════════════════════════════════════
+router.get('/indeed', jobsLimiter, async (req, res) => {
+  if (!_isValidRapidKey(process.env.RAPID_API_KEY)) {
+    return res.status(503).json({ error: '未配置 RapidAPI Key', data: [], _source: 'unavailable' });
+  }
+  try {
+    const { query = 'software engineer', location = 'United States', page = 1 } = req.query;
+    const result = await axios.get('https://indeed12.p.rapidapi.com/jobs/search', {
+      params: { q: query, l: location, page_id: String(page), locality: 'us' },
+      headers: {
+        'X-RapidAPI-Key':  process.env.RAPID_API_KEY,
+        'X-RapidAPI-Host': INDEED_RAPID_HOST
+      },
+      timeout: 8000
+    });
+
+    const jobs = result.data.hits || result.data.jobs || [];
+    const data = jobs.map(j => ({
+      job_id:                    'ind_' + (j.job_id || j.id || Math.random()),
+      job_title:                 j.title || '',
+      employer_name:             j.company_name || j.company || '',
+      employer_logo:             '',
+      job_city:                  j.location || '',
+      job_country:               'US',
+      job_description:           j.description || j.summary || '',
+      job_min_salary:            j.salary_min || null,
+      job_max_salary:            j.salary_max || null,
+      job_salary_currency:       'USD',
+      job_employment_type:       j.job_type || 'FULLTIME',
+      job_apply_link:            j.url || j.job_url || '',
+      job_posted_at_datetime_utc: j.date || null,
+      _source: 'indeed'
+    }));
+
+    res.json({ data, status: 'OK', _source: 'indeed', total: result.data.total || data.length });
+  } catch (err) {
+    const status = err.response?.status || 500;
+    console.error('[jobs/indeed]', status, err.message);
+    if (status === 403) {
+      return res.status(403).json({ error: '请先在 RapidAPI 订阅 Indeed API', data: [], _source: 'unavailable' });
+    }
+    return _localSearch(req, res);
   }
 });
 
