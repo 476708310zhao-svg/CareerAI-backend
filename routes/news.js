@@ -1,32 +1,61 @@
-// routes/news.js — 求职快讯 API（NewsAPI.org 代理 + 30分钟缓存 + mock 兜底）
+// routes/news.js — 求职快讯 API（RSS聚合 + 30分钟缓存 + mock 兜底）
 const express = require('express');
 const router  = express.Router();
-const axios   = require('axios');
+const Parser  = require('rss-parser');
 
-const NEWS_API_KEY = process.env.NEWS_API_KEY || '';
-const CACHE_TTL    = 30 * 60 * 1000; // 30 分钟
+const rssParser = new Parser({ timeout: 8000 });
+const CACHE_TTL  = 30 * 60 * 1000; // 30 分钟
 
 // 简单内存缓存
 const _cache = {};
 
-// 按分类对应的中文搜索词
-const TAB_QUERIES = {
-  all:    '求职 OR 留学生 OR 招聘 OR 职场',
-  news:   '校招 OR 春招 OR 秋招 OR 招聘',
-  tip:    '面试技巧 OR 简历优化 OR offer',
-  data:   '薪资报告 OR 就业数据 OR 职场薪酬',
-  policy: 'OPT OR H1B OR 落户政策 OR 签证',
+// RSS 源配置（均可从中国大陆服务器访问）
+const RSS_FEEDS = [
+  { url: 'https://36kr.com/feed',        source: '36氪',      type: 'news' },
+  { url: 'https://www.woshipm.com/feed', source: '人人都是PM', type: 'tip'  },
+  { url: 'https://www.geekpark.net/rss', source: '极客公园',   type: 'news' },
+];
+
+// tab 关键词过滤（null = 不过滤）
+const TAB_KEYWORDS = {
+  all:    null,
+  news:   /校招|招聘|春招|秋招|实习|offer/i,
+  tip:    /面试|简历|求职|技巧|offer|ATS/i,
+  data:   /薪资|数据|报告|涨薪/i,
+  policy: /OPT|H1B|签证|落户|CPT/i,
 };
+
+async function fetchAllFeeds() {
+  const results = await Promise.allSettled(
+    RSS_FEEDS.map(async (feed) => {
+      const parsed = await rssParser.parseURL(feed.url);
+      const ts = Date.now();
+      return (parsed.items || []).map((item, i) => ({
+        id:         `${feed.source}_${i}_${ts}`,
+        title:      item.title || '',
+        desc:       item.contentSnippet || item.summary || item.title || '',
+        content:    (item.content || item['content:encoded'] || item.contentSnippet || '')
+                    + '\n\n来源：' + feed.source,
+        url:        item.link || '',
+        source:     feed.source,
+        time:       relativeTime(item.pubDate || item.isoDate),
+        type:       feed.type,
+        isPersonal: false,
+      }));
+    })
+  );
+
+  const articles = [];
+  for (const r of results) {
+    if (r.status === 'fulfilled') articles.push(...r.value);
+  }
+  return articles;
+}
 
 // GET /api/news?tab=all&keyword=xxx
 router.get('/', async (req, res) => {
   const tab     = req.query.tab     || 'all';
   const keyword = (req.query.keyword || '').trim();
-
-  if (!NEWS_API_KEY) {
-    // 未配置 API key → 返回空列表，前端自动降级 mock
-    return res.json({ source: 'mock', articles: [] });
-  }
 
   const cacheKey = `${tab}::${keyword}`;
   const now      = Date.now();
@@ -36,56 +65,30 @@ router.get('/', async (req, res) => {
   }
 
   try {
-    const q = keyword || TAB_QUERIES[tab] || TAB_QUERIES.all;
+    let articles = await fetchAllFeeds();
 
-    const { data } = await axios.get('https://newsapi.org/v2/everything', {
-      params: {
-        q,
-        language:  'zh',
-        sortBy:    'publishedAt',
-        pageSize:  30,
-        apiKey:    NEWS_API_KEY,
-      },
-      timeout: 8000,
-    });
+    // tab 过滤
+    const tabRe = TAB_KEYWORDS[tab];
+    if (tabRe) {
+      articles = articles.filter(a => tabRe.test(a.title + ' ' + a.desc));
+    }
 
-    const ts = Date.now();
-    const articles = (data.articles || []).reduce((acc, a, i) => {
-      if (!a.title || a.title === '[Removed]') return acc;
-      acc.push({
-        id:         'api_' + i + '_' + ts,
-        title:      a.title,
-        desc:       a.description || a.title,
-        content:    buildContent(a),
-        url:        a.url || '',
-        source:     a.source?.name || '资讯',
-        time:       relativeTime(a.publishedAt),
-        type:       guessType(a.title + ' ' + (a.description || ''), tab),
-        isPersonal: false,
-      });
-      return acc;
-    }, []);
+    // 关键词搜索
+    if (keyword) {
+      const kw = keyword.toLowerCase();
+      articles = articles.filter(a =>
+        a.title.toLowerCase().includes(kw) || a.desc.toLowerCase().includes(kw)
+      );
+    }
 
     _cache[cacheKey] = { data: articles, time: now };
-    res.json({ source: 'api', articles });
+    res.json({ source: 'rss', articles });
 
   } catch (err) {
-    console.error('[News API Error]', err.message);
-    // API 报错 → 前端降级 mock，不影响用户
+    console.error('[News RSS Error]', err.message);
     res.json({ source: 'mock', articles: [] });
   }
 });
-
-// ── 工具函数 ─────────────────────────────────────────────────────────────
-
-function guessType(text, defaultTab) {
-  if (defaultTab !== 'all') return defaultTab;
-  if (/招聘|校招|春招|秋招|offer|实习/i.test(text))           return 'news';
-  if (/技巧|简历|面试|STAR|ATS|笔试/i.test(text))            return 'tip';
-  if (/薪资|数据|报告|平均|涨薪|调薪/i.test(text))           return 'data';
-  if (/政策|签证|OPT|H1B|落户|CPT|移民/i.test(text))         return 'policy';
-  return 'news';
-}
 
 function relativeTime(iso) {
   if (!iso) return '近期';
@@ -98,19 +101,6 @@ function relativeTime(iso) {
   if (days < 7)   return days + '天前';
   const d = new Date(iso);
   return `${d.getMonth() + 1}月${d.getDate()}日`;
-}
-
-function buildContent(a) {
-  const parts = [];
-  if (a.description) parts.push(a.description);
-  if (a.content) {
-    // NewsAPI 免费版 content 会被截断，去掉截断提示
-    const cleaned = a.content.replace(/\[\+\d+ chars\]$/, '').trim();
-    if (cleaned && cleaned !== a.description) parts.push(cleaned);
-  }
-  if (a.url) parts.push('\n阅读原文：' + a.url);
-  if (a.source?.name) parts.push('来源：' + a.source.name);
-  return parts.join('\n\n');
 }
 
 module.exports = router;
