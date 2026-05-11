@@ -257,6 +257,19 @@ test('admin banner upload rejects non-image MIME before magic byte check', async
   assert.match(body.message, /只允许/);
 });
 
+test('admin jobs list reads jobs json through admin API', async () => {
+  assert.ok(adminToken);
+  const res = await fetch(`${BASE_URL}/admin/api/jobs?page=1&pageSize=1`, {
+    headers: adminHeaders()
+  });
+  assert.equal(res.status, 200);
+  const body = await readJson(res);
+  assert.equal(body.code, 0);
+  assert.ok(Array.isArray(body.data.list));
+  assert.equal(body.data.list.length, 1);
+  assert.ok(body.data.total >= 1);
+});
+
 test('payment mock create-order, confirm and verify flow works', async () => {
   assert.ok(authToken);
 

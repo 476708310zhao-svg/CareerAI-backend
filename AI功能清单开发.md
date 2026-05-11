@@ -43,6 +43,8 @@
 - 验证结果：`npm test` 通过，16 个 smoke tests 全部通过。
 - 已完成：补充上传测试、AI 修改记录、README DX 说明和数据库迁移治理方案。
 - 验证结果：`npm test` 通过，18 个 smoke tests 全部通过。
+- 已完成：抽取后台 jobs.json 存储工具和分页工具，降低 `routes/admin.js` 维护成本。
+- 验证结果：`npm test` 通过，19 个 smoke tests 全部通过。
 
 ## 1. 项目总览
 

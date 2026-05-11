@@ -13,6 +13,8 @@ const { parseId } = require('../db/utils');
 const { adminLoginLimiter } = require('../middleware/rateLimit');
 const companyService = require('../services/companyService');
 const { imageExtForMime, isAllowedImageMime, rejectInvalidImage } = require('../utils/uploadSecurity');
+const adminJobsStore = require('../utils/adminJobsStore');
+const { parsePagination, paginateArray } = require('../utils/pagination');
 
 // ─── 管理后台图片上传（Banner 等） ─────────────────────────────────────────────
 const UPLOAD_DIR = path.join(__dirname, '../uploads');
@@ -48,11 +50,6 @@ router.use('/api/upload', (err, req, res, next) => {
   res.status(400).json({ code: -1, message: err.message });
 });
 
-const JOBS_FILE = path.join(__dirname, '../data/jobs.json');
-
-function readJobs()       { return JSON.parse(fs.readFileSync(JOBS_FILE, 'utf8')); }
-function writeJobs(data)  { fs.writeFileSync(JOBS_FILE, JSON.stringify(data, null, 2)); }
-
 // ═══════════════════════════════════════════════════════════════
 // 登录
 // ═══════════════════════════════════════════════════════════════
@@ -85,7 +82,7 @@ router.get('/api/stats', adminAuth, (req, res) => {
     companies:     db.prepare('SELECT COUNT(*) as c FROM companies').get().c,
     campus:        db.prepare('SELECT COUNT(*) as c FROM campus_schedules').get().c,
     announcements: db.prepare('SELECT COUNT(*) as c FROM announcements').get().c,
-    jobs:          readJobs().jobs.length,
+    jobs:          adminJobsStore.countJobs(),
     todayNewUsers: db.prepare("SELECT COUNT(*) as c FROM users WHERE date(created_at) = ?").get(today).c,
     todayComments: db.prepare("SELECT COUNT(*) as c FROM comments WHERE date(created_at) = ?").get(today).c,
     pendingReviews: db.prepare('SELECT COUNT(*) as c FROM agency_reviews').get().c,
@@ -97,46 +94,26 @@ router.get('/api/stats', adminAuth, (req, res) => {
 // 岗位管理（jobs.json）
 // ═══════════════════════════════════════════════════════════════
 router.get('/api/jobs', adminAuth, (req, res) => {
-  const { keyword = '', page = 1, pageSize = 15 } = req.query;
-  let list = readJobs().jobs;
-  if (keyword) {
-    const k = keyword.toLowerCase();
-    list = list.filter(j =>
-      j.title.toLowerCase().includes(k) ||
-      j.company.toLowerCase().includes(k)
-    );
-  }
-  const total = list.length;
-  const start = (page - 1) * pageSize;
-  res.json({ code: 0, data: { list: list.slice(start, start + Number(pageSize)), total } });
+  const { keyword = '' } = req.query;
+  const result = paginateArray(adminJobsStore.listJobs(keyword), req.query, { pageSize: 15 });
+  res.json({ code: 0, data: { list: result.list, total: result.total } });
 });
 
 router.post('/api/jobs', adminAuth, (req, res) => {
-  const data = readJobs();
-  const maxId = data.jobs.reduce((m, j) => Math.max(m, j.id || 0), 0);
-  const job = { id: maxId + 1, ...req.body, postedAt: new Date().toISOString().slice(0, 10), viewCount: 0, applyCount: 0 };
-  data.jobs.unshift(job);
-  writeJobs(data);
+  const job = adminJobsStore.createJob(req.body);
   res.json({ code: 0, message: '添加成功', data: job });
 });
 
 router.put('/api/jobs/:id', adminAuth, (req, res) => {
   const id = parseInt(req.params.id);
-  const data = readJobs();
-  const idx = data.jobs.findIndex(j => j.id === id);
-  if (idx === -1) return res.status(404).json({ code: -1, message: '职位不存在' });
-  data.jobs[idx] = { ...data.jobs[idx], ...req.body, id };
-  writeJobs(data);
-  res.json({ code: 0, message: '更新成功', data: data.jobs[idx] });
+  const job = adminJobsStore.updateJob(id, req.body);
+  if (!job) return res.status(404).json({ code: -1, message: '职位不存在' });
+  res.json({ code: 0, message: '更新成功', data: job });
 });
 
 router.delete('/api/jobs/:id', adminAuth, (req, res) => {
   const id = parseInt(req.params.id);
-  const data = readJobs();
-  const before = data.jobs.length;
-  data.jobs = data.jobs.filter(j => j.id !== id);
-  if (data.jobs.length === before) return res.status(404).json({ code: -1, message: '职位不存在' });
-  writeJobs(data);
+  if (!adminJobsStore.deleteJob(id)) return res.status(404).json({ code: -1, message: '职位不存在' });
   res.json({ code: 0, message: '删除成功' });
 });
 
@@ -206,8 +183,8 @@ router.delete('/api/companies/:id', adminAuth, (req, res) => {
 // 面经管理
 // ═══════════════════════════════════════════════════════════════
 router.get('/api/experiences', adminAuth, (req, res) => {
-  const { keyword = '', page = 1, pageSize = 15 } = req.query;
-  const offset = (page - 1) * pageSize;
+  const { keyword = '' } = req.query;
+  const { pageSize, offset } = parsePagination(req.query, { pageSize: 15 });
   const k = `%${keyword}%`;
   const where = keyword ? 'WHERE title LIKE ? OR company LIKE ? OR user_name LIKE ?' : '';
   const params = keyword ? [k, k, k] : [];
@@ -229,8 +206,8 @@ router.delete('/api/experiences/:id', adminAuth, (req, res) => {
 // 评论管理
 // ═══════════════════════════════════════════════════════════════
 router.get('/api/comments', adminAuth, (req, res) => {
-  const { page = 1, pageSize = 20, keyword = '' } = req.query;
-  const offset = (page - 1) * pageSize;
+  const { keyword = '' } = req.query;
+  const { pageSize, offset } = parsePagination(req.query, { pageSize: 20 });
   const k = `%${keyword}%`;
   const where = keyword ? 'WHERE c.content LIKE ? OR c.user_name LIKE ?' : '';
   const params = keyword ? [k, k] : [];
@@ -259,8 +236,8 @@ router.delete('/api/comments/:id', adminAuth, (req, res) => {
 // 校招日历管理
 // ═══════════════════════════════════════════════════════════════
 router.get('/api/campus', adminAuth, (req, res) => {
-  const { page = 1, pageSize = 15, keyword = '' } = req.query;
-  const offset = (page - 1) * pageSize;
+  const { keyword = '' } = req.query;
+  const { pageSize, offset } = parsePagination(req.query, { pageSize: 15 });
   const k = `%${keyword}%`;
   const where = keyword ? 'WHERE company LIKE ? OR position_name LIKE ? OR industry LIKE ?' : '';
   const params = keyword ? [k, k, k] : [];
@@ -314,8 +291,8 @@ router.delete('/api/campus/:id', adminAuth, (req, res) => {
 // 机构管理
 // ═══════════════════════════════════════════════════════════════
 router.get('/api/agencies', adminAuth, (req, res) => {
-  const { page = 1, pageSize = 15, keyword = '' } = req.query;
-  const offset = (page - 1) * pageSize;
+  const { keyword = '' } = req.query;
+  const { pageSize, offset } = parsePagination(req.query, { pageSize: 15 });
   const k = `%${keyword}%`;
   const where = keyword ? 'WHERE name LIKE ? OR city LIKE ? OR type LIKE ?' : '';
   const params = keyword ? [k, k, k] : [];
@@ -347,8 +324,7 @@ router.delete('/api/agencies/:id', adminAuth, (req, res) => {
 
 // ─── 机构评价管理 ──────────────────────────────────────────────────────────────
 router.get('/api/agency-reviews', adminAuth, (req, res) => {
-  const { page = 1, pageSize = 20 } = req.query;
-  const offset = (page - 1) * pageSize;
+  const { pageSize, offset } = parsePagination(req.query, { pageSize: 20 });
   const total = db.prepare('SELECT COUNT(*) as c FROM agency_reviews').get().c;
   const list  = db.prepare(`
     SELECT r.id, r.rating_overall, r.title, r.content, r.created_at,
@@ -371,8 +347,7 @@ router.delete('/api/agency-reviews/:id', adminAuth, (req, res) => {
 // 资讯公告管理
 // ═══════════════════════════════════════════════════════════════
 router.get('/api/announcements', adminAuth, (req, res) => {
-  const { page = 1, pageSize = 15 } = req.query;
-  const offset = (page - 1) * pageSize;
+  const { pageSize, offset } = parsePagination(req.query, { pageSize: 15 });
   const total = db.prepare('SELECT COUNT(*) as c FROM announcements').get().c;
   const list  = db.prepare('SELECT * FROM announcements ORDER BY is_pinned DESC, created_at DESC LIMIT ? OFFSET ?')
                   .all(Number(pageSize), offset);
@@ -414,8 +389,8 @@ router.delete('/api/announcements/:id', adminAuth, (req, res) => {
 // 用户管理
 // ═══════════════════════════════════════════════════════════════
 router.get('/api/users', adminAuth, (req, res) => {
-  const { page = 1, pageSize = 20, keyword = '' } = req.query;
-  const offset = (page - 1) * pageSize;
+  const { keyword = '' } = req.query;
+  const { pageSize, offset } = parsePagination(req.query, { pageSize: 20 });
   const k = `%${keyword}%`;
   const where = keyword ? 'WHERE nickname LIKE ? OR email LIKE ? OR phone LIKE ?' : '';
   const params = keyword ? [k, k, k] : [];
@@ -452,8 +427,8 @@ router.put('/api/users/:id', adminAuth, (req, res) => {
 // 简历管理
 // ═══════════════════════════════════════════════════════════════
 router.get('/api/resumes', adminAuth, (req, res) => {
-  const { page = 1, pageSize = 20, keyword = '' } = req.query;
-  const offset = (page - 1) * pageSize;
+  const { keyword = '' } = req.query;
+  const { pageSize, offset } = parsePagination(req.query, { pageSize: 20 });
   const k = `%${keyword}%`;
   const where = keyword ? 'WHERE r.name LIKE ? OR u.nickname LIKE ?' : '';
   const params = keyword ? [k, k] : [];
