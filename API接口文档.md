@@ -35,12 +35,20 @@
 | 服务 | 提供方 | 用途 | 价格 | 降级策略 |
 |------|--------|------|------|----------|
 | JSearch | RapidAPI | 职位搜索主力（北美） | 免费 200次/月，付费 $10/月起 | 失败自动切 Adzuna |
-| **Adzuna** | Adzuna | 职位搜索备用（美/英/加/澳/新加坡等） | **免费 100次/天** | Adzuna 失败切本地数据 |
-| **RemoteOK** | RemoteOK | 远程职位专区 | **完全免费，无需 Key** | 失败切本地远程职位 |
+| Adzuna | Adzuna | 职位搜索备用（美/英/加/澳/新加坡等） | 免费 100次/天 | Adzuna 失败切本地数据 |
+| RemoteOK | RemoteOK | 远程职位专区 | 完全免费，无需 Key | 失败切本地远程职位 |
+| The Muse | The Muse | 精选科技/创业职位 | 完全免费，无需 Key | 失败返回空 |
+| LinkedIn Jobs | RapidAPI | LinkedIn 职位 | 需单独订阅 | 未订阅时返回空 |
+| Indeed | RapidAPI | Indeed 职位 | 需单独订阅 | 未订阅时返回空 |
 | DeepSeek | DeepSeek | 所有 AI 功能底层模型 | 按 token 计费 | 无降级，失败返回错误提示 |
 | 微信登录 | 微信官方 | openid 获取、手机号授权 | 免费 | 无真实 AppID 时使用 dev_ 前缀模拟 |
 | 微信支付 | 微信官方 | VIP 会员购买 JSAPI v2 | 按交易收费 | 未配置时自动切换 Mock 模式 |
 | 腾讯云 ASR | 腾讯云 | 语音转文字（面试模拟语音输入） | 按用量计费 | 无降级，失败返回错误提示 |
+| Clearbit Logo | Clearbit | 公司 Logo（域名查询） | 免费 | 失败切 Google Favicon → SVG 占位 |
+| open.er-api | exchangerate-api | 实时汇率换算（薪资页） | 完全免费，无需 Key | 失败切内置参考汇率 |
+| REST Countries | restcountries.com | 国家列表+国旗（职位筛选） | 完全免费，无需 Key | 失败切内置 18 国兜底列表 |
+| Devicon CDN | jsdelivr | 技术技能图标（职位详情） | 完全免费，前端直连 CDN | 图片加载失败不影响功能 |
+| Simple Icons CDN | jsdelivr | 公司/品牌图标（Logo链路） | 完全免费，前端直连 CDN | 失败切下一 Logo 来源 |
 
 ### 职位搜索降级链
 
@@ -298,41 +306,57 @@ RemoteOK ── 成功 ──→ 返回结果
 
 | 状态 | 接口 | 提供方 | 价格 | 说明 |
 |------|------|--------|------|------|
-| ✅ 已接入 | JSearch | RapidAPI | 免费200次/月 | 北美职位主力数据源 |
-| ✅ 已接入 | Adzuna | Adzuna | 免费100次/天 | 多国职位备用数据源，需配置 ADZUNA_APP_ID / ADZUNA_APP_KEY |
-| ✅ 已接入 | RemoteOK | RemoteOK | 完全免费 | 远程职位专区，无需 Key，`/api/jobs/remote` |
-| ✅ 已接入 | The Muse | The Muse | 完全免费 | 精选科技/创业公司职位，`/api/jobs/featured`，支持分类/级别/地区筛选 |
-| ✅ 已接入（待激活） | LinkedIn Jobs | RapidAPI | 免费100次/月 | `/api/jobs/linkedin`，需在 RapidAPI 订阅 linkedin-jobs-search，复用现有 Key |
-| ✅ 已接入（待激活） | Indeed | RapidAPI | 免费200次/月 | `/api/jobs/indeed`，需在 RapidAPI 订阅 indeed12，复用现有 Key |
-| ⬜ 跳过 | We Work Remotely | RapidAPI | 免费 | RemoteOK 已覆盖远程职位，价值重复，暂不接入 |
+| ✅ | JSearch | RapidAPI | 免费200次/月 | 北美职位主力 |
+| ✅ | Adzuna | Adzuna | 免费100次/天 | 多国职位备用 |
+| ✅ | RemoteOK | RemoteOK | 完全免费 | 远程职位专区 |
+| ✅ | The Muse | The Muse | 完全免费 | 精选科技创业职位 |
+| ✅ 已接入（待激活） | LinkedIn Jobs | RapidAPI | 需订阅 | 复用 RAPID_API_KEY，需在 RapidAPI 订阅 |
+| ✅ 已接入（待激活） | Indeed | RapidAPI | 需订阅 | 复用 RAPID_API_KEY，需在 RapidAPI 订阅 |
 
 ### 公司信息类
 
 | 状态 | 接口 | 提供方 | 价格 | 说明 |
 |------|------|--------|------|------|
-| ⬜ 待接入 | Glassdoor | RapidAPI | 需申请 | 公司评价 + 薪资 + 面试评价，一个接口同时获取三类数据 |
-| ⬜ 待接入 | Clearbit Logo API | Clearbit | 免费 | 通过公司域名获取高清 Logo，提升公司卡片显示效果 |
+| ✅ | Clearbit Logo | Clearbit | 免费 | 公司高清 Logo，多源链路第2优先级 |
+| ⬜ 待接入 | Glassdoor | RapidAPI unofficial | 需申请 | 公司评价 + 薪资 + 面试评价 |
 
-### 薪资数据类
-
-| 状态 | 接口 | 提供方 | 价格 | 说明 |
-|------|------|--------|------|------|
-| ✅ 已接入 | JSearch 薪资估算 | RapidAPI | 含在 JSearch 配额内 | 按职位+城市估算薪资范围 |
-| ✅ 已接入 | DeepSeek AI 薪资估算 | DeepSeek | 按 token 计费 | 本地DB和 RapidAPI 均无数据时的 AI 兜底 |
-| ⬜ 待接入 | Levels.fyi | 第三方 | 需申请 | 科技大厂精确薪资数据（TC、Base、Bonus 分项） |
-
-### 国内就业类
+### 薪资 & 汇率类
 
 | 状态 | 接口 | 提供方 | 价格 | 说明 |
 |------|------|--------|------|------|
-| ⬜ 待接入 | 前程无忧 51job | 51job | 需商务合作 | 国内职位主力平台，回国就业方向 |
-| ⬜ 待接入 | 智联招聘 | 智联 | 需商务合作 | 国内职位补充数据源 |
+| ✅ | JSearch 薪资估算 | RapidAPI | 含在 JSearch 配额内 | 按职位+城市估算 |
+| ✅ | DeepSeek AI 薪资估算 | DeepSeek | 按 token 计费 | AI 兜底 |
+| ✅ | open.er-api 汇率 | exchangerate-api | 完全免费 | 薪资页实时换算，`/api/exchange-rates` |
+| ⬜ 待接入 | Levels.fyi | 第三方 | 需申请 | 科技大厂精确 TC/Base/Bonus 数据 |
 
-### 配置说明
+### 辅助工具类（前端 CDN，无需后端）
 
-接入新接口后，在服务器 `.env` 文件中添加对应密钥，并重启服务：
-```bash
-pm2 restart jobapp-server
-```
+| 状态 | 接口 | 提供方 | 价格 | 说明 |
+|------|------|--------|------|------|
+| ✅ | Devicon CDN | jsdelivr | 完全免费 | 职位详情技能图标（50+技术） |
+| ✅ | Simple Icons CDN | jsdelivr | 完全免费 | Logo 链路第1优先级 |
+| ✅ | REST Countries | restcountries.com | 完全免费 | 职位筛选国家/国旗，`/api/countries` |
 
-*最后更新：2026-05-09*
+### 资讯 RSS 类（无需 Key）
+
+| 状态 | 来源 | 语言 | 类型 |
+|------|------|------|------|
+| ✅ | 36氪 | 中文 | 资讯 |
+| ✅ | 人人都是PM | 中文 | 技巧 |
+| ✅ | 极客公园 | 中文 | 资讯 |
+| ✅ | InfoQ中文 | 中文 | 资讯 |
+| ✅ | HN Jobs | 英文 | 招聘 |
+| ✅ | Hacker News | 英文 | 数据 |
+| ✅ | TechCrunch | 英文 | 资讯 |
+| ✅ | Levels.fyi Blog | 英文 | 数据 |
+
+### 国内就业类（需商务合作，暂缓）
+
+| 状态 | 接口 | 提供方 | 说明 |
+|------|------|--------|------|
+| ⬜ 暂缓 | 前程无忧 51job | 51job | 需商务合作 |
+| ⬜ 暂缓 | 智联招聘 | 智联 | 需商务合作 |
+
+---
+
+*最后更新：2026-05-11*
