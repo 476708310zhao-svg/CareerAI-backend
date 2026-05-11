@@ -72,6 +72,7 @@ const adminRoutes       = require('./routes/admin');
 const bannerRoutes      = require('./routes/banners');
 const asrRoutes         = require('./routes/asr');
 const paymentRoutes     = require('./routes/payment');
+const exchangeRoutes    = require('./routes/exchange');
 
 // 注册路由
 app.use('/api/jobs',         jobRoutes);
@@ -95,6 +96,7 @@ app.use('/api/resumes',     resumeRoutes);
 app.use('/api/banners',     bannerRoutes);
 app.use('/api/asr',         asrRoutes);
 app.use('/api/payment',     paymentRoutes);
+app.use('/api/exchange-rates', exchangeRoutes);
 app.use('/admin',           adminRoutes);
 
 // 管理后台静态文件（需放在 adminRoutes 之后，避免 /admin/api/* 被静态文件拦截）
