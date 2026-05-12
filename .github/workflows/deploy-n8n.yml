@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       n8n_password:
-        description: 'N8N 管理员密码（留空则用默认值）'
+        description: 'N8N 管理员密码'
         required: false
         default: 'jobapp2026!'
 
@@ -12,7 +12,7 @@ jobs:
   deploy-n8n:
     runs-on: ubuntu-latest
     steps:
-      - name: Install Docker + Start N8N on server
+      - name: Install N8N via npm and start with PM2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -22,96 +22,66 @@ jobs:
           script: |
             set -e
 
-            # ── 1. 安装 Docker（使用国内镜像）────────────────────────────
-            if ! command -v docker &>/dev/null; then
-              echo "📦 Installing Docker via Chinese mirror..."
+            # 加载 nvm / node 环境
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            nvm use 18
 
-              if [ -f /etc/redhat-release ] || [ -f /etc/tencentos-release ]; then
-                # CentOS / TencentOS / RHEL
-                yum install -y yum-utils
-                yum-config-manager --add-repo \
-                  https://mirrors.tencent.com/docker-ce/linux/centos/docker-ce.repo
-                yum install -y docker-ce docker-ce-cli containerd.io --allowerasing
-              elif [ -f /etc/debian_version ] || grep -qi ubuntu /etc/os-release 2>/dev/null; then
-                # Ubuntu / Debian
-                apt-get update -y
-                apt-get install -y ca-certificates curl gnupg
-                install -m 0755 -d /etc/apt/keyrings
-                curl -fsSL https://mirrors.tencent.com/docker-ce/linux/ubuntu/gpg \
-                  | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-                chmod a+r /etc/apt/keyrings/docker.gpg
-                echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-                  https://mirrors.tencent.com/docker-ce/linux/ubuntu \
-                  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
-                  > /etc/apt/sources.list.d/docker.list
-                apt-get update -y
-                apt-get install -y docker-ce docker-ce-cli containerd.io
-              else
-                echo "❌ Unsupported OS"; exit 1
-              fi
+            NODE=$(which node)
+            NPM=$(which npm)
+            PM2=/root/.nvm/versions/node/v18.20.8/bin/pm2
 
-              systemctl enable docker
-              systemctl start docker
-              echo "✅ Docker installed: $(docker --version)"
-            else
-              echo "✅ Docker already installed: $(docker --version)"
-            fi
+            echo "✅ Node: $($NODE -v)"
+            echo "✅ npm:  $($NPM -v)"
 
-            # ── 2. 配置国内 Docker 镜像加速 ──────────────────────────────
-            mkdir -p /etc/docker
-            cat > /etc/docker/daemon.json << 'DOCKEREOF'
-            {
-              "registry-mirrors": [
-                "https://mirror.ccs.tencentyun.com",
-                "https://hub-mirror.c.163.com",
-                "https://docker.mirrors.ustc.edu.cn"
-              ]
-            }
-            DOCKEREOF
-            systemctl daemon-reload
-            systemctl restart docker
-            echo "✅ Docker mirror configured"
+            # ── 1. 安装 N8N ─────────────────────────────────────────
+            echo "📦 Installing n8n..."
+            $NPM install -g n8n --prefer-offline 2>&1 | tail -5
+            N8N=$(which n8n)
+            echo "✅ n8n installed: $($N8N --version)"
 
-            # ── 3. 停止旧容器（若存在）────────────────────────────────────
-            docker stop n8n 2>/dev/null && echo "🛑 Stopped old n8n" || true
-            docker rm   n8n 2>/dev/null && echo "🗑  Removed old n8n" || true
+            # ── 2. 停止旧进程 ────────────────────────────────────────
+            $PM2 stop  n8n 2>/dev/null || true
+            $PM2 delete n8n 2>/dev/null || true
 
-            # ── 4. 创建数据目录 ───────────────────────────────────────────
+            # ── 3. 创建数据目录和配置 ────────────────────────────────
             mkdir -p /root/.n8n
-            chown -R 1000:1000 /root/.n8n
+            cat > /root/.n8n/.env << 'EOF'
+            N8N_BASIC_AUTH_ACTIVE=true
+            N8N_BASIC_AUTH_USER=admin
+            N8N_HOST=0.0.0.0
+            N8N_PORT=5678
+            N8N_PROTOCOL=http
+            GENERIC_TIMEZONE=Asia/Shanghai
+            TZ=Asia/Shanghai
+            N8N_USER_FOLDER=/root/.n8n
+            EOF
 
-            # ── 5. 拉取 N8N 镜像（Docker Hub，走国内加速）───────────────
-            echo "📥 Pulling N8N image..."
-            docker pull n8nio/n8n:latest
-            echo "✅ N8N image pulled"
+            # ── 4. 用 PM2 启动 N8N ───────────────────────────────────
+            N8N_BASIC_AUTH_ACTIVE=true \
+            N8N_BASIC_AUTH_USER=admin \
+            N8N_BASIC_AUTH_PASSWORD="${{ github.event.inputs.n8n_password }}" \
+            N8N_HOST=0.0.0.0 \
+            N8N_PORT=5678 \
+            N8N_PROTOCOL=http \
+            GENERIC_TIMEZONE=Asia/Shanghai \
+            TZ=Asia/Shanghai \
+            N8N_USER_FOLDER=/root/.n8n \
+            $PM2 start $N8N --name n8n -- start
 
-            # ── 6. 启动 N8N ──────────────────────────────────────────────
-            docker run -d \
-              --name n8n \
-              --restart unless-stopped \
-              -p 5678:5678 \
-              -v /root/.n8n:/home/node/.n8n \
-              -e N8N_BASIC_AUTH_ACTIVE=true \
-              -e N8N_BASIC_AUTH_USER=admin \
-              -e "N8N_BASIC_AUTH_PASSWORD=${{ github.event.inputs.n8n_password }}" \
-              -e N8N_HOST=0.0.0.0 \
-              -e N8N_PORT=5678 \
-              -e N8N_PROTOCOL=http \
-              -e "WEBHOOK_URL=http://${{ secrets.SERVER_HOST }}:5678/" \
-              -e GENERIC_TIMEZONE=Asia/Shanghai \
-              -e TZ=Asia/Shanghai \
-              n8nio/n8n:latest
+            $PM2 save
+            echo "✅ N8N started via PM2"
 
-            # ── 7. 等待启动并检查 ─────────────────────────────────────────
-            echo "⏳ Waiting for N8N to start..."
-            sleep 20
-            if docker ps | grep -q n8n; then
-              echo "✅ N8N is running!"
+            # ── 5. 检查运行状态 ──────────────────────────────────────
+            sleep 8
+            if $PM2 list | grep -q "n8n.*online"; then
+              echo ""
+              echo "🎉 N8N is running!"
               echo "🌐 URL:      http://${{ secrets.SERVER_HOST }}:5678"
               echo "👤 Username: admin"
               echo "🔑 Password: ${{ github.event.inputs.n8n_password }}"
             else
-              echo "❌ N8N failed to start. Logs:"
-              docker logs n8n
+              echo "❌ N8N failed. Logs:"
+              $PM2 logs n8n --lines 30 --nostream
               exit 1
             fi
