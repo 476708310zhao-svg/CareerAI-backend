@@ -21,46 +21,39 @@ jobs:
           port: 22
           command_timeout: 30m
           script: |
-            set -e
-
-            # 加载 nvm / node 环境
+            # 加载 nvm / node 环境（不用 set -e，避免管道误退出）
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             nvm use 18
 
-            NODE=$(which node)
-            NPM=$(which npm)
+            NPM=/root/.nvm/versions/node/v18.20.8/bin/npm
             PM2=/root/.nvm/versions/node/v18.20.8/bin/pm2
+            N8N_BIN=/root/.nvm/versions/node/v18.20.8/bin/n8n
 
-            echo "✅ Node: $($NODE -v)"
+            echo "✅ Node: $(node -v)"
             echo "✅ npm:  $($NPM -v)"
 
-            # ── 1. 配置淘宝 npm 镜像（国内加速）─────────────────────
+            # ── 1. 配置淘宝镜像 ──────────────────────────────────────
             $NPM config set registry https://registry.npmmirror.com
-            echo "✅ npm registry: $(npm config get registry)"
+            echo "✅ Registry: $($NPM config get registry)"
 
-            # ── 2. 安装 N8N ──────────────────────────────────────────
-            echo "📦 Installing n8n (via npmmirror, may take 3-5 min)..."
-            $NPM install -g n8n 2>&1 | grep -E "(added|warn|error|ERR)" | tail -10
-            N8N=$(which n8n)
-            echo "✅ n8n installed: $($N8N --version)"
+            # ── 2. 安装 N8N（显示完整输出方便排查）────────────────────
+            echo "📦 Installing n8n..."
+            $NPM install -g n8n --unsafe-perm
+            if [ ! -f "$N8N_BIN" ]; then
+              echo "❌ n8n binary not found at $N8N_BIN"
+              echo "Global bin dir contents:"
+              ls /root/.nvm/versions/node/v18.20.8/bin/ | grep n8n || echo "(none)"
+              exit 1
+            fi
+            echo "✅ n8n installed: $($N8N_BIN --version)"
 
-            # ── 3. 停止旧进程 ────────────────────────────────────────
+            # ── 3. 停止旧进程 ─────────────────────────────────────────
             $PM2 stop  n8n 2>/dev/null || true
             $PM2 delete n8n 2>/dev/null || true
 
-            # ── 4. 创建数据目录和配置 ────────────────────────────────
+            # ── 4. 创建数据目录 ───────────────────────────────────────
             mkdir -p /root/.n8n
-            cat > /root/.n8n/.env << 'EOF'
-            N8N_BASIC_AUTH_ACTIVE=true
-            N8N_BASIC_AUTH_USER=admin
-            N8N_HOST=0.0.0.0
-            N8N_PORT=5678
-            N8N_PROTOCOL=http
-            GENERIC_TIMEZONE=Asia/Shanghai
-            TZ=Asia/Shanghai
-            N8N_USER_FOLDER=/root/.n8n
-            EOF
 
             # ── 5. 用 PM2 启动 N8N ───────────────────────────────────
             N8N_BASIC_AUTH_ACTIVE=true \
@@ -72,13 +65,13 @@ jobs:
             GENERIC_TIMEZONE=Asia/Shanghai \
             TZ=Asia/Shanghai \
             N8N_USER_FOLDER=/root/.n8n \
-            $PM2 start $N8N --name n8n -- start
+            $PM2 start $N8N_BIN --name n8n -- start
 
             $PM2 save
             echo "✅ N8N started via PM2"
 
             # ── 6. 检查运行状态 ──────────────────────────────────────
-            sleep 8
+            sleep 10
             if $PM2 list | grep -q "n8n.*online"; then
               echo ""
               echo "🎉 N8N is running!"
@@ -86,7 +79,7 @@ jobs:
               echo "👤 Username: admin"
               echo "🔑 Password: ${{ github.event.inputs.n8n_password }}"
             else
-              echo "❌ N8N failed. Logs:"
+              echo "❌ N8N failed to start. PM2 logs:"
               $PM2 logs n8n --lines 30 --nostream
               exit 1
             fi
