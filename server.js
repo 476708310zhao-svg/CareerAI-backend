@@ -74,6 +74,7 @@ const asrRoutes         = require('./routes/asr');
 const paymentRoutes     = require('./routes/payment');
 const exchangeRoutes    = require('./routes/exchange');
 const countriesRoutes   = require('./routes/countries');
+const glassdoorRoutes   = require('./routes/glassdoor');
 
 // 注册路由
 app.use('/api/jobs',         jobRoutes);
@@ -99,6 +100,7 @@ app.use('/api/asr',         asrRoutes);
 app.use('/api/payment',     paymentRoutes);
 app.use('/api/exchange-rates', exchangeRoutes);
 app.use('/api/countries',     countriesRoutes);
+app.use('/api/glassdoor',     glassdoorRoutes);
 app.use('/admin',           adminRoutes);
 
 // 管理后台静态文件（需放在 adminRoutes 之后，避免 /admin/api/* 被静态文件拦截）
