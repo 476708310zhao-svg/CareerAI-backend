@@ -22,10 +22,34 @@ jobs:
           script: |
             set -e
 
-            # ── 1. 安装 Docker（若未安装）──────────────────────────────
+            # ── 1. 安装 Docker（使用国内镜像）────────────────────────────
             if ! command -v docker &>/dev/null; then
-              echo "📦 Installing Docker..."
-              curl -fsSL https://get.docker.com | sh
+              echo "📦 Installing Docker via Chinese mirror..."
+
+              if [ -f /etc/redhat-release ] || [ -f /etc/tencentos-release ]; then
+                # CentOS / TencentOS / RHEL
+                yum install -y yum-utils
+                yum-config-manager --add-repo \
+                  https://mirrors.tencent.com/docker-ce/linux/centos/docker-ce.repo
+                yum install -y docker-ce docker-ce-cli containerd.io --allowerasing
+              elif [ -f /etc/debian_version ] || grep -qi ubuntu /etc/os-release 2>/dev/null; then
+                # Ubuntu / Debian
+                apt-get update -y
+                apt-get install -y ca-certificates curl gnupg
+                install -m 0755 -d /etc/apt/keyrings
+                curl -fsSL https://mirrors.tencent.com/docker-ce/linux/ubuntu/gpg \
+                  | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+                chmod a+r /etc/apt/keyrings/docker.gpg
+                echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+                  https://mirrors.tencent.com/docker-ce/linux/ubuntu \
+                  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+                  > /etc/apt/sources.list.d/docker.list
+                apt-get update -y
+                apt-get install -y docker-ce docker-ce-cli containerd.io
+              else
+                echo "❌ Unsupported OS"; exit 1
+              fi
+
               systemctl enable docker
               systemctl start docker
               echo "✅ Docker installed: $(docker --version)"
@@ -33,15 +57,35 @@ jobs:
               echo "✅ Docker already installed: $(docker --version)"
             fi
 
-            # ── 2. 停止旧容器（若存在）────────────────────────────────
+            # ── 2. 配置国内 Docker 镜像加速 ──────────────────────────────
+            mkdir -p /etc/docker
+            cat > /etc/docker/daemon.json << 'DOCKEREOF'
+            {
+              "registry-mirrors": [
+                "https://mirror.ccs.tencentyun.com",
+                "https://hub-mirror.c.163.com",
+                "https://docker.mirrors.ustc.edu.cn"
+              ]
+            }
+            DOCKEREOF
+            systemctl daemon-reload
+            systemctl restart docker
+            echo "✅ Docker mirror configured"
+
+            # ── 3. 停止旧容器（若存在）────────────────────────────────────
             docker stop n8n 2>/dev/null && echo "🛑 Stopped old n8n" || true
             docker rm   n8n 2>/dev/null && echo "🗑  Removed old n8n" || true
 
-            # ── 3. 创建数据目录 ───────────────────────────────────────
+            # ── 4. 创建数据目录 ───────────────────────────────────────────
             mkdir -p /root/.n8n
             chown -R 1000:1000 /root/.n8n
 
-            # ── 4. 启动 N8N ───────────────────────────────────────────
+            # ── 5. 拉取 N8N 镜像（Docker Hub，走国内加速）───────────────
+            echo "📥 Pulling N8N image..."
+            docker pull n8nio/n8n:latest
+            echo "✅ N8N image pulled"
+
+            # ── 6. 启动 N8N ──────────────────────────────────────────────
             docker run -d \
               --name n8n \
               --restart unless-stopped \
@@ -49,18 +93,18 @@ jobs:
               -v /root/.n8n:/home/node/.n8n \
               -e N8N_BASIC_AUTH_ACTIVE=true \
               -e N8N_BASIC_AUTH_USER=admin \
-              -e N8N_BASIC_AUTH_PASSWORD=${{ github.event.inputs.n8n_password }} \
+              -e "N8N_BASIC_AUTH_PASSWORD=${{ github.event.inputs.n8n_password }}" \
               -e N8N_HOST=0.0.0.0 \
               -e N8N_PORT=5678 \
               -e N8N_PROTOCOL=http \
-              -e WEBHOOK_URL=http://${{ secrets.SERVER_HOST }}:5678/ \
+              -e "WEBHOOK_URL=http://${{ secrets.SERVER_HOST }}:5678/" \
               -e GENERIC_TIMEZONE=Asia/Shanghai \
               -e TZ=Asia/Shanghai \
-              docker.n8n.io/n8nio/n8n
+              n8nio/n8n:latest
 
-            # ── 5. 等待启动并检查 ─────────────────────────────────────
+            # ── 7. 等待启动并检查 ─────────────────────────────────────────
             echo "⏳ Waiting for N8N to start..."
-            sleep 15
+            sleep 20
             if docker ps | grep -q n8n; then
               echo "✅ N8N is running!"
               echo "🌐 URL:      http://${{ secrets.SERVER_HOST }}:5678"
