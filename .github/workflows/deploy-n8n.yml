@@ -1,0 +1,73 @@
+name: Deploy N8N
+
+on:
+  workflow_dispatch:
+    inputs:
+      n8n_password:
+        description: 'N8N 管理员密码（留空则用默认值）'
+        required: false
+        default: 'jobapp2026!'
+
+jobs:
+  deploy-n8n:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Docker + Start N8N on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          script: |
+            set -e
+
+            # ── 1. 安装 Docker（若未安装）──────────────────────────────
+            if ! command -v docker &>/dev/null; then
+              echo "📦 Installing Docker..."
+              curl -fsSL https://get.docker.com | sh
+              systemctl enable docker
+              systemctl start docker
+              echo "✅ Docker installed: $(docker --version)"
+            else
+              echo "✅ Docker already installed: $(docker --version)"
+            fi
+
+            # ── 2. 停止旧容器（若存在）────────────────────────────────
+            docker stop n8n 2>/dev/null && echo "🛑 Stopped old n8n" || true
+            docker rm   n8n 2>/dev/null && echo "🗑  Removed old n8n" || true
+
+            # ── 3. 创建数据目录 ───────────────────────────────────────
+            mkdir -p /root/.n8n
+            chown -R 1000:1000 /root/.n8n
+
+            # ── 4. 启动 N8N ───────────────────────────────────────────
+            docker run -d \
+              --name n8n \
+              --restart unless-stopped \
+              -p 5678:5678 \
+              -v /root/.n8n:/home/node/.n8n \
+              -e N8N_BASIC_AUTH_ACTIVE=true \
+              -e N8N_BASIC_AUTH_USER=admin \
+              -e N8N_BASIC_AUTH_PASSWORD=${{ github.event.inputs.n8n_password }} \
+              -e N8N_HOST=0.0.0.0 \
+              -e N8N_PORT=5678 \
+              -e N8N_PROTOCOL=http \
+              -e WEBHOOK_URL=http://${{ secrets.SERVER_HOST }}:5678/ \
+              -e GENERIC_TIMEZONE=Asia/Shanghai \
+              -e TZ=Asia/Shanghai \
+              docker.n8n.io/n8nio/n8n
+
+            # ── 5. 等待启动并检查 ─────────────────────────────────────
+            echo "⏳ Waiting for N8N to start..."
+            sleep 15
+            if docker ps | grep -q n8n; then
+              echo "✅ N8N is running!"
+              echo "🌐 URL:      http://${{ secrets.SERVER_HOST }}:5678"
+              echo "👤 Username: admin"
+              echo "🔑 Password: ${{ github.event.inputs.n8n_password }}"
+            else
+              echo "❌ N8N failed to start. Logs:"
+              docker logs n8n
+              exit 1
+            fi
