@@ -19,6 +19,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 22
+          command_timeout: 30m
           script: |
             set -e
 
@@ -34,17 +35,21 @@ jobs:
             echo "✅ Node: $($NODE -v)"
             echo "✅ npm:  $($NPM -v)"
 
-            # ── 1. 安装 N8N ─────────────────────────────────────────
-            echo "📦 Installing n8n..."
-            $NPM install -g n8n --prefer-offline 2>&1 | tail -5
+            # ── 1. 配置淘宝 npm 镜像（国内加速）─────────────────────
+            $NPM config set registry https://registry.npmmirror.com
+            echo "✅ npm registry: $(npm config get registry)"
+
+            # ── 2. 安装 N8N ──────────────────────────────────────────
+            echo "📦 Installing n8n (via npmmirror, may take 3-5 min)..."
+            $NPM install -g n8n 2>&1 | grep -E "(added|warn|error|ERR)" | tail -10
             N8N=$(which n8n)
             echo "✅ n8n installed: $($N8N --version)"
 
-            # ── 2. 停止旧进程 ────────────────────────────────────────
+            # ── 3. 停止旧进程 ────────────────────────────────────────
             $PM2 stop  n8n 2>/dev/null || true
             $PM2 delete n8n 2>/dev/null || true
 
-            # ── 3. 创建数据目录和配置 ────────────────────────────────
+            # ── 4. 创建数据目录和配置 ────────────────────────────────
             mkdir -p /root/.n8n
             cat > /root/.n8n/.env << 'EOF'
             N8N_BASIC_AUTH_ACTIVE=true
@@ -57,7 +62,7 @@ jobs:
             N8N_USER_FOLDER=/root/.n8n
             EOF
 
-            # ── 4. 用 PM2 启动 N8N ───────────────────────────────────
+            # ── 5. 用 PM2 启动 N8N ───────────────────────────────────
             N8N_BASIC_AUTH_ACTIVE=true \
             N8N_BASIC_AUTH_USER=admin \
             N8N_BASIC_AUTH_PASSWORD="${{ github.event.inputs.n8n_password }}" \
@@ -72,7 +77,7 @@ jobs:
             $PM2 save
             echo "✅ N8N started via PM2"
 
-            # ── 5. 检查运行状态 ──────────────────────────────────────
+            # ── 6. 检查运行状态 ──────────────────────────────────────
             sleep 8
             if $PM2 list | grep -q "n8n.*online"; then
               echo ""
