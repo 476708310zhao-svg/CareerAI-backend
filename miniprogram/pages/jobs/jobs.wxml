@@ -7,7 +7,7 @@
   <view class="fixed-header">
     <view class="search-bar">
       <view class="search-wrap">
-        <text class="search-icon">⌕</text>
+        <text class="search-icon">搜</text>
         <input
           class="search-input"
           placeholder="搜索职位、公司、关键词"
@@ -19,7 +19,7 @@
         <view class="search-clear" wx:if="{{searchKeyword}}" catchtap="clearSearch">×</view>
       </view>
       <view class="filter-btn {{filterActive ? 'active' : ''}}" bindtap="openFilter">
-        <text class="filter-icon">⚙</text>
+        <text class="filter-icon">筛</text>
         <text class="filter-txt">筛选</text>
         <view class="filter-dot" wx:if="{{filterActive}}"></view>
       </view>
@@ -52,19 +52,19 @@
 
   <view class="jobs-brief">
     <view class="jobs-brief-copy">
-      <text class="brief-kicker">AI Job Match</text>
+      <text class="brief-kicker">CAREER MATCH</text>
       <text class="brief-title">岗位推荐</text>
-      <text class="brief-subtitle">结合岗位热度、公司信息和你的求职画像，优先呈现更值得投递的机会。</text>
+      <text class="brief-subtitle">按匹配度、岗位新鲜度和投递价值排序</text>
     </view>
     <view class="brief-metric">
       <text class="brief-metric-num">{{jobs.length || 18}}+</text>
-      <text class="brief-metric-label">机会池</text>
+      <text class="brief-metric-label">精选岗位</text>
     </view>
   </view>
 
   <view class="match-bar">
     <view class="match-toggle {{matchMode ? 'match-on' : ''}}" bindtap="toggleMatchMode">
-      <text class="match-toggle-icon">✨</text>
+      <text class="match-toggle-icon">AI</text>
       <text class="match-toggle-txt">智能匹配</text>
       <view class="match-toggle-badge" wx:if="{{matchMode}}">ON</view>
     </view>
@@ -131,7 +131,7 @@
   <view class="result-bar" wx:if="{{!loading && jobs.length > 0}}">
     <view class="result-copy">
       <text class="result-label">为你筛选</text>
-      <text class="result-count">{{jobs.length}}+ 个职位</text>
+        <text class="result-count">{{jobs.length}}+ 个机会</text>
       <text class="result-kw">{{searchKeyword || '全部职位'}}</text>
     </view>
     <view class="view-toggle">
