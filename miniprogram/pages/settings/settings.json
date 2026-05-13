@@ -2,5 +2,11 @@
   "navigationBarTitleText": "设置",
   "navigationBarBackgroundColor": "#ffffff",
   "navigationBarTextStyle": "black",
-  "usingComponents": {}
+  "usingComponents": {
+    "t-cell-group": "tdesign-miniprogram/cell-group/cell-group",
+    "t-cell": "tdesign-miniprogram/cell/cell",
+    "t-switch": "tdesign-miniprogram/switch/switch",
+    "t-toast": "tdesign-miniprogram/toast/toast",
+    "t-dialog": "tdesign-miniprogram/dialog/dialog"
+  }
 }

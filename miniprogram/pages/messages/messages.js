@@ -149,6 +149,14 @@ Page({
     });
   },
 
+  goApplications() {
+    wx.navigateTo({ url: '/pages/applications/applications' });
+  },
+
+  goInterview() {
+    wx.navigateTo({ url: '/pages/interview-setup/interview-setup' });
+  },
+
   // ─── 工具方法 ────────────────────────────────────────────────────────────────
   _syncTabBarBadge(count) {
     if (count > 0) {

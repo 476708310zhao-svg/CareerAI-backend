@@ -43,6 +43,11 @@
     <view wx:if="{{filteredMessages.length === 0}}" class="empty">
       <image class="empty-icon" src="/images/home-active.png" mode="aspectFit" lazy-load></image>
       <text class="empty-text">暂无消息</text>
+      <text class="empty-sub">投递进度、互动提醒和系统通知会出现在这里</text>
+      <view class="empty-actions">
+        <view class="empty-action primary" bindtap="goApplications">查看网申</view>
+        <view class="empty-action" bindtap="goInterview">开始面试</view>
+      </view>
     </view>
   </view>
 
