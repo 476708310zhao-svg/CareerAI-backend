@@ -3,6 +3,7 @@ const { getJobDetail, post, normalizeCompanyLogo } = require('../../utils/api.js
 const favUtil = require('../../utils/favorites.js');
 const { fromNow, formatSalaryRange } = require('../../utils/util.js');
 const config = require('../../utils/config.js');
+const { extractSkillTags } = require('../../utils/skill-icons.js');
 const API_BASE = config.API_BASE_URL;
 
 Page({
@@ -73,7 +74,8 @@ Page({
         applyLink: rawData.job_apply_link,
         description: this.formatDescription(rawData.job_description),
         salary: formatSalaryRange(rawData.job_min_salary, rawData.job_max_salary) || (snapshot && snapshot.salary) || 'Negotiable',
-        visaSponsored
+        visaSponsored,
+        skillTags: extractSkillTags(desc)
       };
 
       this.setData({ job: jobDetail, loading: false });

@@ -1,4 +1,23 @@
 page, .page {
+  --bg-page: #FFFFFF;
+  --bg-panel: #FFFFFF;
+  --bg-raised: #F7F8FB;
+  --text-primary: #101828;
+  --text-body: #344054;
+  --text-muted: #98A2B3;
+  --brand: #2563EB;
+  --success: #10B981;
+  --danger: #EF4444;
+  --border: rgba(16,24,40,0.08);
+  --border-light: #EAECF0;
+  --r-sm: 14rpx;
+  --r-md: 20rpx;
+  --r-lg: 28rpx;
+  --r-xl: 36rpx;
+  --shadow-sm: 0 12rpx 34rpx rgba(16,24,40,0.06);
+  --skeleton-base: #F2F4F7;
+  --skeleton-shine: #FFFFFF;
+  --trans-fast: 0.16s ease;
   background-color: var(--bg-page);
   min-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
@@ -1138,4 +1157,106 @@ page, .page {
 .jobs-empty-btn.primary {
   color: #ffffff;
   background: #101828;
+}
+
+/* Compact first-screen modules */
+.home-hero {
+  min-height: 156rpx;
+  margin: calc(env(safe-area-inset-top) + 14rpx) 32rpx 12rpx;
+  padding: 22rpx 24rpx 20rpx;
+  border-radius: 26rpx;
+}
+
+.hero-copy {
+  padding-right: 18rpx;
+}
+
+.hero-kicker {
+  margin-bottom: 6rpx;
+  font-size: 20rpx;
+}
+
+.hero-title {
+  font-size: 36rpx;
+  line-height: 1.12;
+}
+
+.hero-subtitle {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  line-height: 1.42;
+}
+
+.hero-orb {
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: 30rpx;
+}
+
+.hero-orb-main {
+  font-size: 31rpx;
+}
+
+.hero-orb-sub {
+  font-size: 16rpx;
+}
+
+.hero-actions {
+  gap: 10rpx;
+  margin-top: 14rpx;
+}
+
+.hero-primary,
+.hero-secondary {
+  height: 52rpx;
+  padding: 0 18rpx;
+  font-size: 21rpx;
+}
+
+.onboarding-card {
+  margin: 0 32rpx 18rpx;
+  padding: 18rpx 22rpx;
+  border-radius: 26rpx;
+}
+
+.onboarding-kicker,
+.pro-kicker {
+  font-size: 18rpx;
+}
+
+.onboarding-title {
+  margin-top: 5rpx;
+  font-size: 28rpx;
+  line-height: 1.22;
+}
+
+.onboarding-score {
+  font-size: 30rpx;
+}
+
+.onboarding-progress {
+  height: 10rpx;
+  margin-top: 12rpx;
+}
+
+.onboarding-copy {
+  display: none;
+  margin-top: 0;
+  font-size: 22rpx;
+  line-height: 1.42;
+}
+
+.onboarding-actions {
+  gap: 12rpx;
+  margin-top: 12rpx;
+}
+
+.onboarding-btn {
+  height: 52rpx;
+  border-radius: 18rpx;
+  font-size: 22rpx;
+}
+
+.search-wrap {
+  margin-bottom: 18rpx;
 }

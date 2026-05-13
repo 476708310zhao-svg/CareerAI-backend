@@ -1,4 +1,4 @@
-/* pages/messages/messages.wxss �?White-based premium redesign */
+/* pages/messages/messages.wxss - White-based premium redesign */
 page {
   background: var(--bg-page);
   font-family: -apple-system, 'PingFang SC', sans-serif;
@@ -78,12 +78,12 @@ page {
   background: #FAFBFF;
 }
 
-/* Read state �?slightly dimmed */
+/* Read state - slightly dimmed */
 .message-card.read {
   opacity: 0.65;
 }
 
-/* Unread state �?blue left accent */
+/* Unread state - blue left accent */
 .message-card.unread {
   border-left: 5rpx solid var(--brand);
 }

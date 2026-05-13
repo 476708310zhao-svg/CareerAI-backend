@@ -260,6 +260,38 @@
       </view>
     </view>
 
+    <!-- 汇率换算 -->
+    <view class="fx-card" wx:if="{{exchangeRates || exchangeLoading}}">
+      <view class="fx-header">
+        <text class="fx-title">汇率换算</text>
+        <text class="fx-hint">基于实时汇率</text>
+      </view>
+      <view class="fx-body">
+        <view class="fx-from">
+          <text class="fx-label">{{result.medianStr}}/yr</text>
+          <text class="fx-base-code">{{exchangeBase}}</text>
+        </view>
+        <text class="fx-arrow">→</text>
+        <view class="fx-to">
+          <text class="fx-result" wx:if="{{convertedSalary && !exchangeLoading}}">{{convertedSalary}}/yr</text>
+          <text class="fx-result fx-loading" wx:elif="{{exchangeLoading}}">换算中...</text>
+          <picker
+            class="fx-picker"
+            mode="selector"
+            range="{{currencies}}"
+            range-key="name"
+            value="{{convertTargetIdx}}"
+            bindchange="onConvertTargetChange"
+          >
+            <view class="fx-picker-btn">
+              <text class="fx-target-code">{{convertTarget}}</text>
+              <text class="fx-picker-arrow">▼</text>
+            </view>
+          </picker>
+        </view>
+      </view>
+    </view>
+
     <!-- 数据来源标注 -->
     <view class="data-source-row">
       <view class="source-badge {{result.isMock ? 'source-ref' : result.dataSource === 'community' ? 'source-community' : result.dataSource === 'ai' ? 'source-ai' : 'source-api'}}">

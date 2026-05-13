@@ -21,6 +21,15 @@ Page({
     wx.navigateBack();
   },
 
+  onCopyLink() {
+    const url = this.data.news && this.data.news.url;
+    if (!url) return;
+    wx.setClipboardData({
+      data: url,
+      success: () => wx.showToast({ title: '链接已复制', icon: 'success' })
+    });
+  },
+
   onShareAppMessage() {
     const news = this.data.news;
     return {

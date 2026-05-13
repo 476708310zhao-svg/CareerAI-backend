@@ -1,5 +1,21 @@
 /* pages/applications/applications.wxss — White-based premium redesign */
 page {
+  --bg-page: #f6f8fc;
+  --bg-panel: #ffffff;
+  --text-primary: #101828;
+  --text-body: #344054;
+  --text-secondary: #667085;
+  --text-muted: #98a2b3;
+  --brand: #2563eb;
+  --warning: #f59e0b;
+  --border: rgba(16,24,40,0.08);
+  --border-light: #eaecf0;
+  --border-faint: #f1f5f9;
+  --r-lg: 28rpx;
+  --shadow-sm: 0 12rpx 34rpx rgba(16,24,40,0.06);
+  --success-text: #059669;
+  --success-bg-solid: #ecfdf3;
+  --trans-fast: 0.16s ease;
   background: var(--bg-page);
   font-family: -apple-system, 'PingFang SC', sans-serif;
   -webkit-font-smoothing: antialiased;

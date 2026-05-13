@@ -1,24 +1,30 @@
 /* pages/project-builder/project-builder.wxss */
 page {
-  background: var(--bg-page);
+  overflow-x: hidden;
+  background: radial-gradient(circle at 90% 10%, rgba(109, 40, 217, 0.08), transparent 24%), linear-gradient(180deg, #fbfdff 0%, #f7f9ff 54%, #ffffff 100%);
   font-family: -apple-system, 'PingFang SC', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* ══ Hero ══ */
+/* 閳烘劏鏅?Hero 閳烘劏鏅?*/
 .hero {
+  box-shadow: 0 22rpx 44rpx rgba(109, 40, 217, 0.24);
+  overflow: hidden;
+  border-radius: 34rpx;
+  margin: 16rpx 24rpx 28rpx;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: linear-gradient(135deg, #1C3578 0%, #6D28D9 100%);
-  padding: 44rpx 40rpx 40rpx;
+  background: linear-gradient(135deg, #27115f 0%, #6d28d9 56%, #2f66f4 100%);
+  padding: 44rpx 34rpx 42rpx;
   text-align: center;
 }
 .hero-icon  { font-size: 60rpx; margin-bottom: 14rpx; }
 .hero-title { font-size: 36rpx; font-weight: 700; color: #fff; margin-bottom: 10rpx; letter-spacing: 1rpx; }
 .hero-sub   { font-size: 25rpx; color: rgba(255,255,255,0.82); line-height: 1.7; }
 
-/* ══ 预填提示 ══ */
+/* 閳烘劏鏅?妫板嫬锝為幓鎰仛 閳烘劏鏅?*/
 .prefill-tip {
   margin: 16rpx 24rpx 0;
   padding: 16rpx 22rpx;
@@ -30,36 +36,43 @@ page {
   line-height: 1.5;
 }
 
-/* ══ 表单区块 ══ */
+/* 閳烘劏鏅?鐞涖劌宕熼崠鍝勬健 閳烘劏鏅?*/
 .form-section {
-  margin: 20rpx 24rpx 0;
+  box-shadow: 0 16rpx 36rpx rgba(38, 27, 75, 0.08);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border-radius: 32rpx;
+  border: 1rpx solid rgba(71, 42, 132, 0.08);
+  padding: 28rpx 24rpx 30rpx;
+  margin: 24rpx 24rpx 0;
 }
 
 .section-label {
+  line-height: 42rpx;
   display: flex;
   align-items: center;
-  font-size: 27rpx;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 16rpx;
+  font-size: 29rpx;
+  font-weight: 850;
+  color: #172033;
+  margin-bottom: 22rpx;
 }
 .section-label.no-margin { margin-bottom: 0; }
 .section-label-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8rpx;
+  margin-bottom: 22rpx;
 }
 .label-num {
+  box-shadow: 0 10rpx 20rpx rgba(47, 102, 244, 0.2);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38rpx; height: 38rpx;
-  background: var(--brand);
+  width: 44rpx; height: 44rpx;
+  background: linear-gradient(135deg, #2f66f4 0%, #7c3aed 100%);
   color: #fff;
-  border-radius: 50%;
-  font-size: 22rpx;
-  font-weight: 800;
+  border-radius: 15rpx;
+  font-size: 23rpx;
+  font-weight: 900;
   margin-right: 12rpx;
   flex-shrink: 0;
 }
@@ -68,21 +81,23 @@ page {
 .char-count { font-size: 22rpx; color: var(--text-muted); }
 .field-hint { font-size: 23rpx; color: var(--text-muted); line-height: 1.5; margin-bottom: 12rpx; display: block; }
 
-/* ══ 方向卡片网格 ══ */
+/* 閳烘劏鏅?閺傜懓鎮滈崡锛勫缂冩垶鐗?閳烘劏鏅?*/
 .track-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 14rpx;
+  gap: 18rpx;
 }
 .track-card {
+  transition: transform 0.16s ease, opacity 0.16s ease;
+  min-height: 134rpx;
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20rpx 10rpx 18rpx;
-  background: var(--bg-panel);
-  border-radius: var(--r-md);
-  border: 2rpx solid rgba(0,0,0,0.06);
+  padding: 24rpx 10rpx 22rpx;
+  background: #fbf8ff;
+  border-radius: 26rpx;
+  border: 1rpx solid rgba(109, 40, 217, 0.1);
   text-align: center;
   overflow: hidden;
 }
@@ -101,53 +116,73 @@ page {
   font-size: 16rpx; font-weight: 800; color: #fff;
 }
 
-/* ══ 级别 Chips ══ */
+/* 閳烘劏鏅?缁狙冨焼 Chips 閳烘劏鏅?*/
 .chip-row { display: flex; gap: 14rpx; }
 .chip {
+  transition: transform 0.16s ease, opacity 0.16s ease;
+  border-radius: 999rpx;
+  font-weight: 750;
+  color: #566174;
+  justify-content: center;
+  align-items: center;
+  display: flex;
+  min-height: 72rpx;
   flex: 1; text-align: center;
-  font-size: 26rpx; color: var(--text-secondary); font-weight: 500;
-  padding: 18rpx 0; border-radius: var(--r-sm);
-  background: var(--bg-panel);
-  border: 1.5rpx solid rgba(0,0,0,0.06);
+  font-size: 27rpx;
+  padding: 0 22rpx;
+  background: #ffffff;
+  border: 1rpx solid rgba(23, 32, 51, 0.08);
 }
 .chip.chip-active {
-  color: var(--brand); background: #EEF2FF;
-  border-color: #A5B4FC; font-weight: 700;
+  box-shadow: 0 10rpx 22rpx rgba(109, 40, 217, 0.2);
+  background: linear-gradient(135deg, #6d28d9, #2f66f4);
+  color: #ffffff;
+  border-color: transparent;
 }
 
-/* ══ 文本输入 ══ */
+/* 閳烘劏鏅?閺傚洦婀版潏鎾冲弳 閳烘劏鏅?*/
 .text-input {
+  height: 90rpx;
   width: 100%; height: 84rpx;
-  background: var(--bg-panel);
-  border-radius: var(--r-sm);
-  padding: 0 20rpx;
-  font-size: 27rpx; color: var(--text-primary);
-  border: 1.5rpx solid rgba(0,0,0,0.06);
+  background: #faf7ff;
+  border-radius: 22rpx;
+  padding: 0 26rpx;
+  font-size: 28rpx;
+  border: 1rpx solid rgba(109, 40, 217, 0.12);
   box-sizing: border-box;
 }
 .text-area {
+  min-height: 176rpx;
   width: 100%; min-height: 140rpx;
-  background: var(--bg-panel);
-  border-radius: var(--r-sm);
-  padding: 18rpx 20rpx;
-  font-size: 27rpx; color: var(--text-primary);
-  border: 1.5rpx solid rgba(0,0,0,0.06);
+  background: #faf7ff;
+  border-radius: 22rpx;
+  padding: 24rpx 26rpx;
+  font-size: 28rpx;
+  border: 1rpx solid rgba(109, 40, 217, 0.12);
   box-sizing: border-box;
-  line-height: 1.7; margin-top: 8rpx;
+  line-height: 1.55;
 }
 
-/* ══ 生成按钮 ══ */
+/* 閳烘劏鏅?閻㈢喐鍨氶幐澶愭尦 閳烘劏鏅?*/
 .gen-btn {
-  margin: 28rpx 24rpx 0;
-  width: calc(100% - 48rpx);
+  box-shadow: 0 14rpx 28rpx rgba(109, 40, 217, 0.22);
+  border-radius: 999rpx;
+  --btn-font-size: 28rpx;
+  --btn-height: 82rpx;
+  display: block;
+  max-width: calc(100vw - 136rpx);
+  margin: 26rpx auto 18rpx;
+  width: 560rpx;
 }
 
-/* ══ 历史记录 ══ */
+/* 閳烘劏鏅?閸樺棗褰剁拋鏉跨秿 閳烘劏鏅?*/
 .history-section {
-  margin: 20rpx 24rpx 0;
-  background: var(--bg-panel);
-  border-radius: var(--r-md);
-  border: 1.5rpx solid rgba(0,0,0,0.05);
+  box-shadow: 0 16rpx 36rpx rgba(38, 27, 75, 0.08);
+  padding: 28rpx 24rpx;
+  margin: 28rpx 24rpx 0;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border-radius: 30rpx;
+  border: 1rpx solid rgba(71, 42, 132, 0.08);
   overflow: hidden;
 }
 .history-head {
@@ -158,8 +193,10 @@ page {
 .history-toggle { font-size: 22rpx; color: var(--text-muted); }
 .history-list   { border-top: 1rpx solid #F3F4F6; }
 .history-card {
+  transition: transform 0.16s ease, opacity 0.16s ease;
+  border-radius: 26rpx;
   display: flex; align-items: center;
-  padding: 18rpx 28rpx; gap: 16rpx;
+  padding: 24rpx;
   border-bottom: 1rpx solid #F3F4F6;
 }
 .history-card:active { background: rgba(0,0,0,0.03); }
@@ -182,8 +219,9 @@ page {
 }
 .history-clear-txt { font-size: 24rpx; color: var(--danger); }
 
-/* ══ 加载页 ══ */
+/* 閳烘劏鏅?閸旂姾娴囨い?閳烘劏鏅?*/
 .loading-page {
+  background: radial-gradient(circle at center 28%, rgba(109, 40, 217, 0.12), transparent 38%), linear-gradient(180deg, #faf7ff, #ffffff);
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   min-height: 80vh; padding: 0 48rpx; gap: 32rpx;
@@ -222,7 +260,7 @@ page {
 .lstep-sep  { font-size: 26rpx; color: #D1D5DB; }
 .loading-note { font-size: 24rpx; color: var(--text-muted); }
 
-/* ══ 结果页 ══ */
+/* 閳烘劏鏅?缂佹挻鐏夋い?閳烘劏鏅?*/
 .result-page { padding: 16rpx 24rpx; }
 
 .result-header {
@@ -267,14 +305,17 @@ page {
 .top-btn-icon { font-size: 26rpx; color: var(--text-muted); }
 .top-btn-txt  { font-size: 24rpx; color: var(--text-muted); font-weight: 500; }
 
-/* ══ 结果卡片 ══ */
+/* 閳烘劏鏅?缂佹挻鐏夐崡锛勫 閳烘劏鏅?*/
 .result-card {
-  background: var(--bg-panel);
-  border-radius: var(--r-lg);
-  padding: 24rpx 26rpx;
-  margin-bottom: 14rpx;
-  border: 1.5rpx solid rgba(0,0,0,0.05);
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.03);
+  transition: transform 0.16s ease, opacity 0.16s ease;
+  overflow: hidden;
+  margin-top: 22rpx;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border-radius: 32rpx;
+  padding: 30rpx 28rpx;
+  margin-bottom: 24rpx;
+  border: 1rpx solid rgba(71, 42, 132, 0.08);
+  box-shadow: 0 16rpx 36rpx rgba(38, 27, 75, 0.08);
 }
 
 .card-label-row {
@@ -290,7 +331,7 @@ page {
   line-height: 1.8; display: block;
 }
 
-/* 数据来源 + 技术栈并排 */
+/* 閺佺増宓侀弶銉︾爱 + 閹垛偓閺堫垱鐖ら獮鑸靛笓 */
 .two-col-card { display: flex; gap: 0; }
 .half-col     { flex: 1; min-width: 0; }
 .col-divider  { width: 1.5rpx; background: #F3F4F6; margin: 0 20rpx; flex-shrink: 0; }
@@ -307,7 +348,7 @@ page {
   border-radius: 8rpx; padding: 5rpx 14rpx;
 }
 
-/* 关键成果 */
+/* 閸忔娊鏁幋鎰亯 */
 .results-list { display: flex; flex-direction: column; gap: 14rpx; }
 .result-item  { display: flex; align-items: flex-start; gap: 14rpx; }
 .result-num-badge {
@@ -321,7 +362,7 @@ page {
   font-size: 27rpx; color: var(--text-body); line-height: 1.7; flex: 1;
 }
 
-/* 简历一行版 */
+/* 缁犫偓閸樺棔绔寸悰宀€澧?*/
 .resume-bullet-card { cursor: pointer; }
 .resume-bullet-card:active { opacity: 0.75; }
 .bullet-copy-hint {
@@ -338,11 +379,7 @@ page {
   border-left: 5rpx solid var(--brand);
 }
 
-/* ══ 操作按钮组 ══ */
-.action-group {
-  display: flex; gap: 16rpx;
-  margin-top: 4rpx;
-}
+/* 閳烘劏鏅?閹垮秳缍旈幐澶愭尦缂?閳烘劏鏅?*/
 .action-btn {
   flex: 1; display: flex;
   align-items: center; justify-content: center;
@@ -357,37 +394,10 @@ page {
   border: 1.5rpx solid rgba(0,0,0,0.08);
   color: var(--text-secondary);
 }
-.action-resume {
-  background: linear-gradient(135deg, var(--brand), #6D28D9);
-  color: #fff;
-  box-shadow: 0 6rpx 16rpx rgba(94,106,210,0.3);
-}
 .action-btn-icon { font-size: 30rpx; }
 .action-btn-txt  { font-size: 28rpx; }
 
 /* 2026 kingkong polish: project builder */
-page {
-  background:
-    radial-gradient(circle at 18% 0%, rgba(109, 40, 217, 0.15), transparent 34%),
-    linear-gradient(180deg, #faf7ff 0%, #f7f8fc 56%, #ffffff 100%);
-  overflow-x: hidden;
-}
-
-.page {
-  overflow-x: hidden;
-  padding-bottom: calc(44rpx + env(safe-area-inset-bottom));
-}
-
-.hero {
-  position: relative;
-  margin: 18rpx 24rpx 22rpx;
-  padding: 38rpx 30rpx;
-  border-radius: 34rpx;
-  overflow: hidden;
-  background: linear-gradient(135deg, #27115f 0%, #6d28d9 56%, #2f66f4 100%);
-  box-shadow: 0 22rpx 44rpx rgba(109, 40, 217, 0.24);
-}
-
 .hero::after {
   content: '';
   position: absolute;
@@ -399,88 +409,10 @@ page {
   background: rgba(255, 255, 255, 0.16);
 }
 
-.hero-icon,
-.hero-title,
-.hero-sub {
-  position: relative;
-  z-index: 1;
-}
-
 .hero-title {
   color: #ffffff;
   font-size: 42rpx;
   letter-spacing: -0.8rpx;
-}
-
-.hero-sub {
-  color: rgba(255, 255, 255, 0.78);
-}
-
-.prefill-tip,
-.form-section,
-.history-section,
-.result-header,
-.result-card {
-  margin-left: 24rpx;
-  margin-right: 24rpx;
-  border: 1rpx solid rgba(71, 42, 132, 0.08);
-  border-radius: 30rpx;
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
-  box-shadow: 0 16rpx 36rpx rgba(38, 27, 75, 0.08);
-}
-
-.track-card,
-.chip,
-.history-card,
-.result-card,
-.result-item,
-.action-btn,
-.top-btn,
-.resume-bullet-card {
-  transition: transform 0.16s ease, opacity 0.16s ease;
-}
-
-.track-card {
-  border-radius: 26rpx;
-  border: 1rpx solid rgba(109, 40, 217, 0.1);
-  background: #fbf8ff;
-}
-
-.track-selected {
-  box-shadow: 0 14rpx 28rpx rgba(109, 40, 217, 0.16);
-}
-
-.chip {
-  border-radius: 999rpx;
-}
-
-.chip-active {
-  color: #ffffff;
-  background: linear-gradient(135deg, #6d28d9, #2f66f4);
-  box-shadow: 0 10rpx 22rpx rgba(109, 40, 217, 0.2);
-}
-
-.text-input,
-.text-area {
-  border-radius: 22rpx;
-  background: #faf7ff;
-  border: 1rpx solid rgba(109, 40, 217, 0.12);
-}
-
-.gen-btn {
-  margin-left: 24rpx;
-  margin-right: 24rpx;
-  border-radius: 24rpx;
-  box-shadow: 0 14rpx 28rpx rgba(109, 40, 217, 0.22);
-}
-
-.result-card {
-  overflow: hidden;
-}
-
-.result-item {
-  border-radius: 22rpx;
-  background: #fbf8ff;
 }
 
 .action-group {
@@ -493,37 +425,7 @@ page {
   box-shadow: 0 14rpx 28rpx rgba(109, 40, 217, 0.22);
 }
 
-.track-card:active,
-.chip:active,
-.history-card:active,
-.result-card:active,
-.result-item:active,
-.action-btn:active,
-.top-btn:active,
-.resume-bullet-card:active {
-  transform: scale(0.97);
-  opacity: 0.86;
-}
-
-.loading-page {
-  background:
-    radial-gradient(circle at center 28%, rgba(109, 40, 217, 0.12), transparent 38%),
-    linear-gradient(180deg, #faf7ff, #ffffff);
-}
-
 /* 2026 project builder spacing polish */
-.page {
-  background:
-    radial-gradient(circle at 90% 10%, rgba(109, 40, 217, 0.08), transparent 24%),
-    linear-gradient(180deg, #fbfdff 0%, #f7f9ff 54%, #ffffff 100%);
-  padding-bottom: calc(12rpx + env(safe-area-inset-bottom));
-}
-
-.hero {
-  margin: 16rpx 24rpx 28rpx;
-  padding: 44rpx 34rpx 42rpx;
-}
-
 .hero-icon {
   width: 72rpx;
   height: 72rpx;
@@ -541,10 +443,74 @@ page {
   line-height: 1.6;
 }
 
-.form-section {
-  margin: 24rpx 24rpx 0;
-  padding: 28rpx 24rpx 30rpx;
-  border-radius: 32rpx;
+.form-section + .form-section {
+  margin-top: 26rpx;
+}
+
+/* 2026 project builder bottom tighten */
+
+/* Visual stability restore: keep final project builder overrides last. */
+page {
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 14% -5%, rgba(109, 40, 217, 0.12), transparent 34%),
+    radial-gradient(circle at 92% 10%, rgba(37, 99, 235, 0.10), transparent 30%),
+    #f6f8fc;
+}
+
+.page {
+  overflow-x: hidden;
+  padding-bottom: 0;
+}
+
+.hero {
+  position: relative;
+  margin: 16rpx 24rpx 18rpx;
+  padding: 36rpx 30rpx;
+  overflow: hidden;
+  border-radius: 34rpx;
+  background:
+    radial-gradient(circle at 86% 12%, rgba(255,255,255,0.24), transparent 32%),
+    linear-gradient(135deg, #3b0764 0%, #6d28d9 50%, #2563eb 130%);
+  box-shadow: 0 22rpx 48rpx rgba(109, 40, 217, 0.20);
+}
+
+.hero-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72rpx;
+  height: 72rpx;
+  margin: 0 auto 18rpx;
+  border-radius: 24rpx;
+  background: rgba(255,255,255,0.14);
+  box-shadow: inset 0 0 0 1rpx rgba(255,255,255,0.18);
+}
+
+.hero-title {
+  color: #ffffff;
+  font-size: 42rpx;
+  font-weight: 950;
+  letter-spacing: -0.8rpx;
+}
+
+.hero-sub {
+  margin-top: 12rpx;
+  color: rgba(255,255,255,0.78);
+  font-size: 25rpx;
+  line-height: 1.6;
+}
+
+.form-section,
+.history-section,
+.result-header,
+.result-card {
+  margin-left: 24rpx;
+  margin-right: 24rpx;
+  border-radius: 30rpx;
+  background: linear-gradient(180deg, #ffffff, #fbfdff);
+  border: 1rpx solid rgba(109, 40, 217, 0.08);
+  box-shadow: 0 14rpx 34rpx rgba(15, 23, 42, 0.06);
 }
 
 .form-section + .form-section {
@@ -553,156 +519,56 @@ page {
 
 .section-label,
 .section-label-row {
-  margin-bottom: 22rpx;
-}
-
-.section-label {
   color: #172033;
-  font-size: 29rpx;
   font-weight: 850;
-  line-height: 42rpx;
 }
 
 .label-num {
-  width: 44rpx;
-  height: 44rpx;
-  margin-right: 12rpx;
-  border-radius: 15rpx;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-size: 23rpx;
-  font-weight: 900;
-  background: linear-gradient(135deg, #2f66f4 0%, #7c3aed 100%);
-  box-shadow: 0 10rpx 20rpx rgba(47, 102, 244, 0.2);
+  color: #6d28d9;
+  background: #f4efff;
 }
 
-.track-grid {
-  gap: 18rpx;
-}
-
-.track-card {
-  min-height: 134rpx;
-  padding: 24rpx 10rpx 22rpx;
-  border-radius: 26rpx;
-}
-
-.track-icon {
-  margin-bottom: 12rpx;
-  font-size: 44rpx;
-  line-height: 48rpx;
-}
-
-.track-label {
-  margin-bottom: 8rpx;
-  color: #1d2638;
-  font-size: 27rpx;
-  font-weight: 850;
-}
-
-.track-desc {
-  color: #8b95a8;
-  font-size: 20rpx;
-  line-height: 1.45;
-}
-
-.chip-row {
-  gap: 18rpx;
-}
-
-.chip {
-  min-height: 72rpx;
-  padding: 0 22rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #566174;
-  font-size: 27rpx;
-  font-weight: 750;
-  background: #ffffff;
-  border: 1rpx solid rgba(23, 32, 51, 0.08);
-}
-
-.chip-active {
-  color: #ffffff;
-  border-color: transparent;
-}
-
-.field-hint {
-  margin: 8rpx 0 16rpx;
-  line-height: 1.45;
-}
-
-.text-input {
-  height: 90rpx;
-  padding: 0 26rpx;
-  font-size: 28rpx;
-}
-
+.track-card,
+.chip,
+.text-input,
 .text-area {
-  min-height: 176rpx;
-  padding: 24rpx 26rpx;
-  font-size: 28rpx;
-  line-height: 1.55;
+  background: #f8fafc;
+  border: 1rpx solid #e6ebf2;
+}
+
+.track-card.track-selected,
+.chip.chip-active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #6d28d9, #2563eb);
+  border-color: transparent;
+  box-shadow: 0 12rpx 24rpx rgba(109, 40, 217, 0.18);
+}
+
+.text-input,
+.text-area {
+  border-radius: 22rpx;
+  color: #172033;
 }
 
 .gen-btn {
-  width: calc(100% - 64rpx);
-  margin: 32rpx 32rpx 0;
-  --btn-height: 90rpx;
-  --btn-font-size: 29rpx;
-  border-radius: 30rpx;
+  margin-top: 24rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #6d28d9, #2563eb);
+  box-shadow: 0 16rpx 30rpx rgba(109, 40, 217, 0.22);
 }
 
-.history-section {
-  margin-top: 28rpx;
-  padding: 28rpx 24rpx;
+.action-group {
+  margin-left: 24rpx;
+  margin-right: 24rpx;
 }
 
-.history-card {
-  padding: 24rpx;
-  border-radius: 26rpx;
+.action-resume {
+  background: linear-gradient(135deg, #6d28d9, #2f66f4);
+  box-shadow: 0 14rpx 28rpx rgba(109, 40, 217, 0.22);
 }
 
-.result-page {
-  padding: 18rpx 0 calc(12rpx + env(safe-area-inset-bottom));
-}
-
-.result-header,
-.result-card {
-  margin-top: 22rpx;
-  padding: 30rpx 28rpx;
-  border-radius: 32rpx;
-}
-
-.result-card {
-  margin-bottom: 24rpx;
-}
-
-.result-item {
-  padding: 22rpx;
-}
-
-.bottom-spacer {
-  height: calc(8rpx + env(safe-area-inset-bottom));
-}
-
-/* 2026 project builder bottom tighten */
-.page {
-  padding-bottom: 0;
-}
-
-.gen-btn {
-  width: 560rpx;
-  max-width: calc(100vw - 136rpx);
-  margin: 26rpx auto 18rpx;
-  display: block;
-  --btn-height: 82rpx;
-  --btn-font-size: 28rpx;
-  border-radius: 999rpx;
-}
-
-.bottom-spacer {
-  height: calc(20rpx + env(safe-area-inset-bottom));
+.loading-page {
+  background:
+    radial-gradient(circle at 50% 8%, rgba(109, 40, 217, 0.12), transparent 36%),
+    #f6f8fc;
 }

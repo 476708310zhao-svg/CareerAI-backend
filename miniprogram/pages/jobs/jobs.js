@@ -1,5 +1,6 @@
 // pages/jobs/jobs.js
-const { getJobs, normalizeCompanyLogo } = require('../../utils/api.js');
+const { getJobs, getAggregatedJobs, normalizeCompanyLogo } = require('../../utils/api.js');
+const { getCountries } = require('../../utils/api-news.js');
 const favUtil = require('../../utils/favorites.js');
 const { JOBS: MOCK_JOBS } = require('../../utils/mock-data.js');
 const { fromNow, formatSalaryRange } = require('../../utils/util.js');
@@ -84,9 +85,11 @@ Page({
 
     // 筛选面板
     filterVisible: false,
-    filterType: '',   // '' | 'FULLTIME' | 'PARTTIME' | 'CONTRACTOR' | 'INTERN'
-    filterDate: '',   // '' | 'today' | 'week' | 'month'
+    filterType: '',      // '' | 'FULLTIME' | 'PARTTIME' | 'CONTRACTOR' | 'INTERN'
+    filterDate: '',      // '' | 'today' | 'week' | 'month'
+    filterCountry: 'us', // ISO alpha2 小写
     filterActive: false,
+    countryList: [],     // 从 /api/countries 加载
 
     // 地图视图
     viewMode: 'list',   // 'list' | 'map'
@@ -125,19 +128,23 @@ Page({
   },
 
   onLoad: function(options) {
-    // 加载搜索历史
     const searchHistory = wx.getStorageSync('jobSearchHistory') || [];
     this.setData({ searchHistory });
 
     if (options.keyword) {
-      this.setData({
-        searchKeyword: options.keyword,
-        activeTag: options.keyword
-      });
+      this.setData({ searchKeyword: options.keyword, activeTag: options.keyword });
     }
-    // 先立即展示缓存/Mock数据，再后台请求API
     this.loadCachedOrMock();
     this.loadJobs(true);
+    this._loadCountries();
+  },
+
+  _loadCountries: function() {
+    getCountries().then(res => {
+      if (res && res.countries && res.countries.length > 0) {
+        this.setData({ countryList: res.countries });
+      }
+    }).catch(() => {});
   },
 
   // 优先加载缓存，保证秒开
@@ -237,13 +244,18 @@ Page({
     this.setData({ filterDate: this.data.filterDate === val ? '' : val });
   },
 
+  onFilterCountrySelect: function(e) {
+    const val = e.currentTarget.dataset.val;
+    this.setData({ filterCountry: this.data.filterCountry === val ? 'us' : val });
+  },
+
   resetFilter: function() {
-    this.setData({ filterType: '', filterDate: '', filterActive: false, filterVisible: false });
+    this.setData({ filterType: '', filterDate: '', filterCountry: 'us', filterActive: false, filterVisible: false });
     this.loadJobs(true);
   },
 
   applyFilter: function() {
-    const active = !!(this.data.filterType || this.data.filterDate);
+    const active = !!(this.data.filterType || this.data.filterDate || this.data.filterCountry !== 'us');
     this.setData({ filterActive: active, filterVisible: false });
     this.loadJobs(true);
   },
@@ -272,13 +284,12 @@ Page({
     }
     this.setData(patch);
 
-    getJobs({
+    getAggregatedJobs({
       keyword: query,
       page,
       size: this.data.pageSize,
-      country: 'us',
-      date_posted: dateMap[this.data.filterDate] || 'all',
-      employment_types: this.data.filterType || undefined
+      country: this.data.filterCountry || 'us',
+      noCache: reset
     }).then(res => {
       if (seq !== this._jobRequestSeq) return;
       if (!res.data || res.data.length === 0) {

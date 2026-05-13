@@ -1,29 +1,23 @@
+// components/c-login-popup/c-login-popup.js
 const api = require('../../utils/api.js');
 
 Component({
   properties: {
-    show: { type: Boolean, value: false }
+    show:     { type: Boolean, value: false },
+    // 父页面可自定义副标题，例如"投递职位需要先登录"
+    subtitle: { type: String, value: '登录后解锁全部求职功能' }
   },
 
   data: {
-    avatarUrl: '/images/default-avatar.png',
-    nickname: '',
-    loading: false
+    agreed:        false,
+    loadingWechat: false,
+    loadingPhone:  false,
   },
 
   observers: {
-    // 每次弹窗打开时预填已有信息
-    'show': function (val) {
-      if (!val) return;
-      const profile = wx.getStorageSync('userProfile');
-      this.setData({
-        avatarUrl: (profile && profile.avatarUrl) || '/images/default-avatar.png',
-        nickname: (profile && profile.nickName && profile.nickName !== '微信用户')
-          ? profile.nickName : ''
-      });
-      // 确保有 token
-      if (!wx.getStorageSync('token')) {
-        api.login().catch(err => console.warn('[c-login-popup] 静默登录失败:', err.message));
+    'show': function(val) {
+      if (val) {
+        this.setData({ loadingWechat: false, loadingPhone: false });
       }
     }
   },
@@ -33,64 +27,77 @@ Component({
       this.triggerEvent('close');
     },
 
-    // 阻止点击内容区冒泡关闭
     onSheetTap() {},
 
-    onChooseAvatar(e) {
-      this.setData({ avatarUrl: e.detail.avatarUrl });
+    toggleAgree() {
+      this.setData({ agreed: !this.data.agreed });
     },
 
-    onNicknameInput(e) {
-      this.setData({ nickname: e.detail.value });
+    onPrivacyTap() {
+      wx.navigateTo({ url: '/pages/privacy/privacy' });
     },
 
-    onNicknameBlur(e) {
-      this.setData({ nickname: e.detail.value });
-    },
-
-    onConfirm() {
-      if (this.data.loading) return;
-      const nickname = this.data.nickname.trim();
-      if (!nickname) {
-        wx.showToast({ title: '请输入昵称', icon: 'none' });
-        return;
+    // 未勾选协议时点击按钮区域给出提示
+    onUnagreedTap() {
+      if (!this.data.agreed) {
+        wx.showToast({ title: '请先同意用户协议', icon: 'none', duration: 1500 });
       }
+    },
 
-      this.setData({ loading: true });
+    // ── 微信一键登录 ─────────────────────────────────────────────────
+    async onWechatLogin() {
+      if (!this.data.agreed || this.data.loadingWechat || this.data.loadingPhone) return;
+      this.setData({ loadingWechat: true });
+      try {
+        const data = await api.login();
+        this._onLoginSuccess(data);
+      } catch (err) {
+        wx.showToast({ title: err.message || '登录失败，请重试', icon: 'none' });
+      } finally {
+        this.setData({ loadingWechat: false });
+      }
+    },
 
-      const doSave = () => {
-        const existing = wx.getStorageSync('userProfile') || {};
-        const profile = Object.assign({}, existing, {
-          nickName: nickname,
-          avatarUrl: this.data.avatarUrl
+    // ── 手机号快速验证 ────────────────────────────────────────────────
+    // open-type="getPhoneNumber" 触发，e.detail.code 为临时授权码
+    // 参考：https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/getPhoneNumber.html
+    async onGetPhoneNumber(e) {
+      if (!e.detail.code) return; // 用户取消授权
+
+      this.setData({ loadingPhone: true });
+      try {
+        // 获取 loginCode 用于绑定 openid
+        const loginRes = await new Promise((resolve, reject) => {
+          wx.login({ success: resolve, fail: reject });
         });
-        wx.setStorageSync('userProfile', profile);
+        if (!loginRes.code) throw new Error('wx.login 失败');
 
-        api.updateUserProfileRemote(nickname, this.data.avatarUrl)
-          .catch(err => console.warn('[c-login-popup] 同步失败:', err.message));
-
-        getApp().refreshGlobalData();
-        this.setData({ loading: false });
-        wx.showToast({ title: '登录成功', icon: 'success' });
-
-        setTimeout(() => {
-          this.triggerEvent('success', { profile });
-          this.triggerEvent('close');
-        }, 600);
-      };
-
-      const token = wx.getStorageSync('token');
-      if (token) {
-        doSave();
-      } else {
-        api.login()
-          .then(() => doSave())
-          .catch(err => {
-            this.setData({ loading: false });
-            wx.showToast({ title: '登录失败，请重试', icon: 'none' });
-            console.error('[c-login-popup] 登录失败:', err.message);
-          });
+        const data = await api.phoneLogin(e.detail.code, loginRes.code);
+        this._onLoginSuccess(data);
+      } catch (err) {
+        wx.showToast({ title: err.message || '验证失败，请重试', icon: 'none' });
+      } finally {
+        this.setData({ loadingPhone: false });
       }
+    },
+
+    // ── 登录成功 ──────────────────────────────────────────────────────
+    _onLoginSuccess(data) {
+      const app = getApp();
+      app.globalData.isLoggedIn = true;
+      app.refreshGlobalData();
+
+      if (app._loginCallbacks && app._loginCallbacks.length) {
+        app._loginCallbacks.forEach(cb => { try { cb(null, data); } catch (e) {} });
+        app._loginCallbacks = [];
+      }
+
+      wx.showToast({ title: '登录成功', icon: 'success', duration: 800 });
+      const profile = app.globalData.userProfile || {};
+      setTimeout(() => {
+        this.triggerEvent('success', { profile });
+        this.triggerEvent('close');
+      }, 600);
     }
   }
 });

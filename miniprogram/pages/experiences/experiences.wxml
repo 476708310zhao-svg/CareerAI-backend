@@ -102,8 +102,8 @@
 
   </view>
 
-  <!-- 占位（高度由 JS 动态设置，适配 fixed-header 实际高度） -->
-  <view style="height: {{spacerHeight}}px;"></view>
+  <!-- 固定头部占位 -->
+  <view class="header-spacer source-{{sourceTab}} {{sourceTab === 'local' && currentCat !== 'all' ? 'with-ai' : ''}}"></view>
 
   <view class="training-hero">
     <view class="training-copy">

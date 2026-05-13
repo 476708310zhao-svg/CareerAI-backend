@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "我的"
+  "navigationBarTitleText": "我的",
+  "usingComponents": {
+    "c-login-popup": "/components/c-login-popup/c-login-popup"
+  }
 }

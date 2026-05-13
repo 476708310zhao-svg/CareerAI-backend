@@ -237,7 +237,7 @@ Page({
     // 2. 资料完整度计算
     const completeness = matcher.getProfileCompleteness(profile);
     const hints = matcher.getMissingHints(profile);
-    
+
     // 3. 构建带来源标注的推荐关键词列表
     const sourceKws = [];
     matcher.getJobKeywords(profile).forEach(kw => sourceKws.push({ kw, source: '专业' }));
@@ -324,7 +324,7 @@ Page({
   onPrefTagTap(e) {
     // 增加轻微震动反馈，提升交互的高级感
     wx.vibrateShort({ type: 'light' });
-    
+
     const tag = e.currentTarget.dataset.tag;
     if (this.data.activePrefTag === tag) {
       this.setData({ activePrefTag: '' });
@@ -338,7 +338,7 @@ Page({
   refreshRecommend() {
     // 增加中等强度的震动反馈，给用户明确的操作确认感
     wx.vibrateShort({ type: 'medium' });
-    
+
     if (this.userKeywords && this.userKeywords.length > 1) {
       this.userKeywords.push(this.userKeywords.shift());
       this.userSourceKws.push(this.userSourceKws.shift());

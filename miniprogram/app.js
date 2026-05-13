@@ -41,9 +41,9 @@ App({
   },
 
   /**
-   * 静默登录：启动时自动调用 wx.login() 换取服务端 token
-   * - 若本地已有有效 token，跳过（避免每次启动都换新 token 浪费 wx.login 次数）
-   * - 若无 token 或 token 已过期，自动重新登录
+   * 登录检查：启动时调用
+   * - 已有 token：后台静默校验，无效则清除（不阻塞启动）
+   * - 无 token：不自动创建匿名账号，等用户使用需要登录的功能时弹出登录框
    */
   _silentLogin: function() {
     const token = wx.getStorageSync('token');
@@ -53,16 +53,16 @@ App({
         if (res && res.code === 0) {
           this.globalData.isLoggedIn = true;
         } else {
-          // token 无效，触发重新登录
-          this._doLogin();
+          // token 无效，清除并等待用户主动登录
+          wx.removeStorageSync('token');
+          wx.removeStorageSync('userProfile');
+          this.globalData.isLoggedIn = false;
         }
       }).catch(() => {
         // 网络失败时保留本地登录态，不强制登出
       });
-    } else {
-      // 无 token，静默登录（只换 token，不弹授权窗口）
-      this._doLogin();
     }
+    // 无 token：不自动登录，登录弹窗由各页面按需触发
   },
 
   /**

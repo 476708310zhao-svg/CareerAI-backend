@@ -22,6 +22,13 @@
           <c-tag type="primary" size="small">{{item}}</c-tag>
         </block>
       </view>
+      <view class="gd-header-badge" wx:if="{{glassdoor && glassdoor.overallRating}}" bindtap="switchToGlassdoor">
+        <text class="gd-hb-icon">G</text>
+        <text class="gd-hb-score">{{glassdoor.overallRating}}★</text>
+        <text class="gd-hb-sep"> · </text>
+        <text class="gd-hb-count">{{glassdoor.reviewCount}}条员工评价</text>
+        <text class="gd-hb-arrow"> ›</text>
+      </view>
     </view>
   </view>
 
@@ -215,6 +222,112 @@
       </view>
       <text class="insight-empty-sub">面试风格 · 高频题 · 求职建议</text>
     </view>
+  </view>
+
+  <!-- Tab 内容: 评价 (Glassdoor) -->
+  <view wx:if="{{currentTab === 4}}" class="tab-content">
+
+    <!-- Overview loading -->
+    <view wx:if="{{glassdoorLoading}}" class="insight-loading">
+      <view class="insight-spin"></view>
+      <text class="insight-loading-txt">正在获取 Glassdoor 数据...</text>
+    </view>
+
+    <!-- Overview stats card -->
+    <view wx:if="{{!glassdoorLoading && glassdoor && glassdoor.overallRating}}" class="gd-overview-card">
+      <view class="gd-score-row">
+        <view class="gd-score-main">
+          <text class="gd-big-score">{{glassdoor.overallRating}}</text>
+          <text class="gd-score-label">/ 5</text>
+        </view>
+        <view class="gd-score-right">
+          <text class="gd-review-count">{{glassdoor.reviewCount}} 条员工评价</text>
+          <view class="gd-pills-row">
+            <view class="gd-pill gd-pill-green" wx:if="{{glassdoor.recommendPct}}">
+              <text class="gd-pill-val">{{glassdoor.recommendPct}}%</text>
+              <text class="gd-pill-label">推荐入职</text>
+            </view>
+            <view class="gd-pill gd-pill-blue" wx:if="{{glassdoor.ceoApprovalPct}}">
+              <text class="gd-pill-val">{{glassdoor.ceoApprovalPct}}%</text>
+              <text class="gd-pill-label">CEO满意</text>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="gd-subs" wx:if="{{glassdoor.cultureRating || glassdoor.workLifeRating || glassdoor.careerRating}}">
+        <view class="gd-sub-item" wx:if="{{glassdoor.cultureRating}}">
+          <text class="gd-sub-lbl">文化价值观</text>
+          <view class="gd-sub-track"><view class="gd-sub-fill" style="width:{{glassdoor.culturePct}}%;"></view></view>
+          <text class="gd-sub-val">{{glassdoor.cultureRating}}</text>
+        </view>
+        <view class="gd-sub-item" wx:if="{{glassdoor.workLifeRating}}">
+          <text class="gd-sub-lbl">工作生活平衡</text>
+          <view class="gd-sub-track"><view class="gd-sub-fill" style="width:{{glassdoor.workLifePct}}%;"></view></view>
+          <text class="gd-sub-val">{{glassdoor.workLifeRating}}</text>
+        </view>
+        <view class="gd-sub-item" wx:if="{{glassdoor.careerRating}}">
+          <text class="gd-sub-lbl">职业发展</text>
+          <view class="gd-sub-track"><view class="gd-sub-fill" style="width:{{glassdoor.careerPct}}%;"></view></view>
+          <text class="gd-sub-val">{{glassdoor.careerRating}}</text>
+        </view>
+        <view class="gd-sub-item" wx:if="{{glassdoor.mgmtRating}}">
+          <text class="gd-sub-lbl">高管团队</text>
+          <view class="gd-sub-track"><view class="gd-sub-fill" style="width:{{glassdoor.mgmtPct}}%;"></view></view>
+          <text class="gd-sub-val">{{glassdoor.mgmtRating}}</text>
+        </view>
+        <view class="gd-sub-item" wx:if="{{glassdoor.benefitsRating}}">
+          <text class="gd-sub-lbl">薪酬福利</text>
+          <view class="gd-sub-track"><view class="gd-sub-fill" style="width:{{glassdoor.benefitsPct}}%;"></view></view>
+          <text class="gd-sub-val">{{glassdoor.benefitsRating}}</text>
+        </view>
+      </view>
+      <text class="gd-source-note">数据来源：Glassdoor</text>
+    </view>
+
+    <!-- Reviews loading -->
+    <view wx:if="{{glassdoorReviewsLoading && glassdoorReviews.length === 0}}" class="loading-hint">
+      正在加载员工评价...
+    </view>
+
+    <!-- Reviews list -->
+    <view wx:if="{{glassdoorReviews.length > 0}}" class="gd-reviews-head">
+      <text class="gd-reviews-title">员工评价</text>
+      <text class="gd-reviews-total">共 {{glassdoorTotal}} 条</text>
+    </view>
+    <block wx:for="{{glassdoorReviews}}" wx:key="id">
+      <view class="gd-review-card ux-list-card">
+        <view class="gd-rv-header">
+          <view class="gd-rv-rating">
+            <text class="gd-rv-star">★</text>
+            <text class="gd-rv-score">{{item.rating}}</text>
+          </view>
+          <view class="gd-rv-meta">
+            <text class="gd-rv-title">{{item.title}}</text>
+            <text class="gd-rv-sub">{{item.jobTitle}}{{item.jobTitle ? ' · ' : ''}}{{item.date}} · {{item.isCurrentEmployee ? '在职' : '离职'}}</text>
+          </view>
+        </view>
+        <view class="gd-rv-body">
+          <view class="gd-rv-row" wx:if="{{item.pros}}">
+            <text class="gd-rv-badge gd-rv-pro">优</text>
+            <text class="gd-rv-text">{{item.pros}}</text>
+          </view>
+          <view class="gd-rv-row" wx:if="{{item.cons}}">
+            <text class="gd-rv-badge gd-rv-con">缺</text>
+            <text class="gd-rv-text">{{item.cons}}</text>
+          </view>
+        </view>
+      </view>
+    </block>
+
+    <!-- Load more -->
+    <view wx:if="{{glassdoorReviews.length > 0 && glassdoorReviews.length < glassdoorTotal}}"
+          class="gd-load-more" bindtap="loadMoreGlassdoorReviews">
+      <text wx:if="{{!glassdoorReviewsLoading}}">加载更多评价</text>
+      <text wx:else>加载中...</text>
+    </view>
+
+    <!-- No data -->
+    <view wx:if="{{!glassdoor && !glassdoorLoading}}" class="empty">暂无 Glassdoor 评价数据</view>
   </view>
 
   <!-- 底部占位 -->

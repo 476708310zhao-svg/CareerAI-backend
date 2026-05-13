@@ -14,7 +14,7 @@ function getJobs(data) {
     date_posted: data.date_posted || 'all'
   };
   if (data.employment_types) params.employment_types = data.employment_types;
-  return request({ path: '/api/jobs/search', params, timeout: data.timeout || 5000 });
+  return request({ path: '/api/jobs/search', params, timeout: data.timeout || 15000 });
 }
 
 function getJobDetail(jobId) {
@@ -109,7 +109,61 @@ function submitSalaryReport(data) {
   return post({ path: '/api/salaries', body: data });
 }
 
+// ── 远程职位（RemoteOK，免费无需 Key）──
+function getRemoteJobs(data) {
+  return request({
+    path: '/api/jobs/remote',
+    params: { query: data.keyword || '', tag: data.tag || '', page: data.page || 1, pageSize: data.size || 10 },
+    timeout: 12000
+  });
+}
+
+// ── 多源聚合（JSearch/Adzuna + The Muse，一次请求拿多源合并结果）──
+function getAggregatedJobs(data) {
+  return request({
+    path: '/api/jobs/aggregate',
+    params: {
+      query:    data.keyword || 'software engineer',
+      country:  data.country  || 'us',
+      page:     data.page     || 1,
+      pageSize: data.size     || 20
+    },
+    timeout: 15000,
+    noCache: !!data.noCache
+  });
+}
+
+// ── The Muse 精选职位（完全免费，科技/创业公司）──
+// category 可选：software / data / product / design / finance / marketing / consulting
+// level 可选：Entry Level / Mid Level / Senior Level / Management / Internship
+function getFeaturedJobs(data) {
+  return request({
+    path: '/api/jobs/featured',
+    params: { query: data.keyword || '', category: data.category || '', level: data.level || '', location: data.location || '', page: data.page || 0 },
+    timeout: 12000
+  });
+}
+
+// ── LinkedIn Jobs（RapidAPI，需单独订阅）──
+function getLinkedInJobs(data) {
+  return request({
+    path: '/api/jobs/linkedin',
+    params: { query: data.keyword || 'software engineer', location: data.location || 'United States', page: data.page || 1 },
+    timeout: 12000
+  });
+}
+
+// ── Indeed Jobs（RapidAPI，需单独订阅）──
+function getIndeedJobs(data) {
+  return request({
+    path: '/api/jobs/indeed',
+    params: { query: data.keyword || 'software engineer', location: data.location || 'United States', page: data.page || 1 },
+    timeout: 12000
+  });
+}
+
 module.exports = {
-  getJobs, getJobDetail, searchCompanyJobs, fetchBatchJobs, fetchTrendingJobs,
+  getJobs, getAggregatedJobs, getJobDetail, searchCompanyJobs, fetchBatchJobs, fetchTrendingJobs,
+  getRemoteJobs, getFeaturedJobs, getLinkedInJobs, getIndeedJobs,
   getEstimatedSalary, getCompanyJobSalary, fetchUserSalaryStats, submitSalaryReport
 };

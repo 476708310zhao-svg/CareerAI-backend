@@ -11,8 +11,8 @@
 .backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  animation: fadeIn 0.25s ease;
+  background: rgba(0, 0, 0, 0.48);
+  animation: fadeIn 0.22s ease;
 }
 
 @keyframes fadeIn {
@@ -27,9 +27,9 @@
   left: 0;
   right: 0;
   background: #ffffff;
-  border-radius: 32rpx 32rpx 0 0;
-  padding: 0 48rpx calc(env(safe-area-inset-bottom) + 48rpx);
-  animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border-radius: 36rpx 36rpx 0 0;
+  padding: 0 48rpx calc(env(safe-area-inset-bottom) + 56rpx);
+  animation: slideUp 0.28s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
 @keyframes slideUp {
@@ -39,22 +39,41 @@
 
 /* ── 顶部拖拽条 ── */
 .handle-bar {
-  width: 80rpx;
+  width: 72rpx;
   height: 8rpx;
   background: #E5E7EB;
   border-radius: 4rpx;
-  margin: 20rpx auto 32rpx;
+  margin: 20rpx auto 36rpx;
 }
 
-/* ── 标题 ── */
+/* ── 品牌标题 ── */
 .sheet-header {
-  text-align: center;
-  margin-bottom: 40rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 48rpx;
+}
+
+.logo-wrap {
+  width: 96rpx;
+  height: 96rpx;
+  background: linear-gradient(135deg, #3B6EF8, #2B5CE6);
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20rpx;
+  box-shadow: 0 8rpx 24rpx rgba(43, 92, 230, 0.28);
+}
+
+.logo-img {
+  width: 52rpx;
+  height: 52rpx;
+  filter: brightness(10);
 }
 
 .sheet-title {
-  display: block;
-  font-size: 36rpx;
+  font-size: 38rpx;
   font-weight: 700;
   color: #1A1D27;
   margin-bottom: 10rpx;
@@ -65,126 +84,104 @@
   color: #9CA3AF;
 }
 
-/* ── 头像区 ── */
-.avatar-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 48rpx;
+/* ── 按钮区域 ── */
+.btn-area {
+  width: 100%;
+  margin-bottom: 20rpx;
 }
 
-.avatar-btn {
-  background: transparent;
+.btn {
+  width: 100%;
+  height: 96rpx;
+  border-radius: 48rpx;
   border: none;
-  padding: 0;
-  margin: 0;
-  width: 160rpx;
-  height: 160rpx;
-  border-radius: 50%;
-  position: relative;
-  line-height: 1;
-}
-
-.avatar-btn::after {
-  border: none;
-}
-
-.avatar-img {
-  width: 160rpx;
-  height: 160rpx;
-  border-radius: 50%;
-  border: 4rpx solid #EEF2FF;
-  display: block;
-}
-
-.avatar-edit-badge {
-  position: absolute;
-  bottom: 4rpx;
-  right: 4rpx;
-  width: 44rpx;
-  height: 44rpx;
-  background: #2B5CE6;
-  border-radius: 50%;
+  font-size: 30rpx;
+  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 3rpx solid #ffffff;
+  letter-spacing: 1rpx;
 }
 
-.edit-icon {
-  color: #ffffff;
-  font-size: 22rpx;
+.btn::after {
+  border: none;
+}
+
+.btn[disabled] {
+  opacity: 0.42;
+}
+
+.btn-icon {
+  font-size: 36rpx;
+  margin-right: 14rpx;
   line-height: 1;
 }
 
-.avatar-tip {
-  margin-top: 16rpx;
-  font-size: 24rpx;
-  color: #9CA3AF;
+.btn-text {
+  line-height: 1;
 }
 
-/* ── 昵称输入 ── */
-.input-row {
-  display: flex;
-  align-items: center;
-  border-bottom: 1rpx solid #F3F4F6;
-  padding: 16rpx 0;
-  margin-bottom: 40rpx;
+.btn-wechat {
+  background: linear-gradient(135deg, #2DC100, #1AAD19);
+  color: #ffffff;
+  box-shadow: 0 6rpx 20rpx rgba(26, 173, 25, 0.28);
+  margin-bottom: 0;
 }
 
-.input-label {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #374151;
-  width: 80rpx;
-  flex-shrink: 0;
-}
-
-.nickname-input {
-  flex: 1;
-  font-size: 28rpx;
-  color: #1A1D27;
-  height: 64rpx;
-  padding-left: 16rpx;
-}
-
-.input-placeholder {
-  color: #C4C9D4;
-  font-size: 26rpx;
-}
-
-/* ── 确认按钮 ── */
-.confirm-btn {
-  width: 100%;
-  height: 96rpx;
+.btn-phone {
   background: linear-gradient(135deg, #3B6EF8, #2B5CE6);
   color: #ffffff;
-  font-size: 32rpx;
-  font-weight: 600;
-  border-radius: 48rpx;
-  border: none;
-  box-shadow: 0 8rpx 24rpx rgba(43, 92, 230, 0.3);
-  letter-spacing: 2rpx;
-  margin-bottom: 28rpx;
-}
-
-.confirm-btn[disabled] {
-  opacity: 0.65;
+  box-shadow: 0 6rpx 20rpx rgba(43, 92, 230, 0.28);
 }
 
 /* ── 隐私协议 ── */
 .privacy-row {
   display: flex;
+  align-items: center;
+  margin-top: 32rpx;
+  padding: 4rpx 0;
+}
+
+.checkbox {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 8rpx;
+  border: 2rpx solid #D1D5DB;
+  background: #F9FAFB;
+  display: flex;
+  align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  margin-right: 14rpx;
+}
+
+.checkbox.checked {
+  background: #2B5CE6;
+  border-color: #2B5CE6;
+}
+
+.check-mark {
+  color: #ffffff;
+  font-size: 22rpx;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.privacy-desc {
+  display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  flex: 1;
 }
 
 .privacy-text {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #9CA3AF;
+  line-height: 1.5;
 }
 
 .privacy-link {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #2B5CE6;
+  line-height: 1.5;
 }

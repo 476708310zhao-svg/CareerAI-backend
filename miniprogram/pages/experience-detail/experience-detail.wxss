@@ -1,5 +1,14 @@
 /* pages/experience-detail/experience-detail.wxss */
 page {
+  --bg-panel: #ffffff;
+  --bg-raised: #f6f8fc;
+  --text-body: #344054;
+  --text-secondary: #667085;
+  --text-muted: #98a2b3;
+  --brand: #2563eb;
+  --danger: #ef4444;
+  --r-sm: 14rpx;
+  --r-lg: 28rpx;
   background: var(--bg-raised);
   font-family: -apple-system, sans-serif;
 }

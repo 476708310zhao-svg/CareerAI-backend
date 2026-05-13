@@ -108,6 +108,19 @@
         <view class="fchip {{filterDate === 'month' ? 'active' : ''}}" bindtap="onFilterDateSelect" data-val="month">近一个月</view>
       </view>
 
+      <view class="filter-section-label">求职国家/地区</view>
+      <scroll-view scroll-x class="filter-country-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
+        <view class="filter-chips filter-chips-row">
+          <block wx:for="{{countryList}}" wx:key="code">
+            <view
+              class="fchip fchip-country {{filterCountry === item.api ? 'active' : ''}}"
+              bindtap="onFilterCountrySelect"
+              data-val="{{item.api}}"
+            >{{item.flag}} {{item.name}}</view>
+          </block>
+        </view>
+      </scroll-view>
+
       <view class="filter-actions">
         <view class="filter-reset" bindtap="resetFilter">重置</view>
         <view class="filter-confirm" bindtap="applyFilter">查看结果</view>

@@ -43,7 +43,12 @@ Page({
     completeness: 0,
   },
 
-  onLoad() {
+  onLoad(options) {
+    // 从登录弹窗跳转过来时，提示用户设置真实昵称
+    if (options.fromLogin === '1') {
+      wx.showToast({ title: '请设置你的昵称和头像', icon: 'none', duration: 2500 });
+    }
+
     const cached = wx.getStorageSync('userProfile');
     if (cached) {
       this.setData({ userInfo: { ...this.data.userInfo, ...cached } });

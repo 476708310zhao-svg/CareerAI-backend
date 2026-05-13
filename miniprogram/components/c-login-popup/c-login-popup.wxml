@@ -2,64 +2,59 @@
 <view class="popup-root" wx:if="{{show}}">
 
   <!-- 遮罩层 -->
-  <view class="backdrop" bindtap="onBackdropTap" />
+  <view class="backdrop" bindtap="onBackdropTap"></view>
 
   <!-- 底部卡片 -->
   <view class="sheet" catchtap="onSheetTap">
 
     <!-- 顶部拖拽条 -->
-    <view class="handle-bar" />
+    <view class="handle-bar"></view>
 
-    <!-- 标题 -->
+    <!-- 品牌标题 -->
     <view class="sheet-header">
-      <text class="sheet-title">微信快捷登录</text>
-      <text class="sheet-subtitle">设置昵称与头像，开始你的求职之旅</text>
+      <view class="logo-wrap">
+        <image class="logo-img" src="/images/home-active.png" mode="aspectFit" />
+      </view>
+      <text class="sheet-title">登录职引</text>
+      <text class="sheet-subtitle">{{subtitle}}</text>
     </view>
 
-    <!-- 头像选择 -->
-    <view class="avatar-section">
+    <!-- 微信一键登录 -->
+    <view class="btn-area" catchtap="onUnagreedTap">
       <button
-        class="avatar-btn"
-        open-type="chooseAvatar"
-        bindchooseavatar="onChooseAvatar"
+        class="btn btn-wechat"
+        bindtap="onWechatLogin"
+        loading="{{loadingWechat}}"
+        disabled="{{!agreed || loadingWechat || loadingPhone}}"
       >
-        <image class="avatar-img" src="{{avatarUrl}}" mode="aspectFill" />
-        <view class="avatar-edit-badge">
-          <text class="edit-icon">✎</text>
-        </view>
+        <text class="btn-icon">💬</text>
+        <text class="btn-text">微信一键登录</text>
       </button>
-      <text class="avatar-tip">点击更换头像</text>
     </view>
 
-    <!-- 昵称输入 -->
-    <view class="input-row">
-      <text class="input-label">昵称</text>
-      <input
-        class="nickname-input"
-        type="nickname"
-        placeholder="点击填写昵称（可选用微信昵称）"
-        placeholder-class="input-placeholder"
-        value="{{nickname}}"
-        bindinput="onNicknameInput"
-        bindblur="onNicknameBlur"
-        maxlength="20"
-        confirm-type="done"
-      />
+    <!-- 手机号快速验证 -->
+    <view class="btn-area" catchtap="onUnagreedTap">
+      <button
+        class="btn btn-phone"
+        open-type="getPhoneNumber"
+        bindgetphonenumber="onGetPhoneNumber"
+        loading="{{loadingPhone}}"
+        disabled="{{!agreed || loadingWechat || loadingPhone}}"
+      >
+        <text class="btn-icon">📱</text>
+        <text class="btn-text">手机号快速验证</text>
+      </button>
     </view>
-
-    <!-- 确认按钮 -->
-    <button
-      class="confirm-btn"
-      bindtap="onConfirm"
-      disabled="{{loading}}"
-    >
-      {{loading ? '登录中...' : '一键登录'}}
-    </button>
 
     <!-- 隐私协议 -->
-    <view class="privacy-row">
-      <text class="privacy-text">登录即代表同意</text>
-      <text class="privacy-link">《用户协议与隐私政策》</text>
+    <view class="privacy-row" bindtap="toggleAgree">
+      <view class="checkbox {{agreed ? 'checked' : ''}}">
+        <text wx:if="{{agreed}}" class="check-mark">✓</text>
+      </view>
+      <view class="privacy-desc">
+        <text class="privacy-text">我已阅读并同意</text>
+        <text class="privacy-link" catchtap="onPrivacyTap">《用户协议与隐私政策》</text>
+      </view>
     </view>
 
   </view>

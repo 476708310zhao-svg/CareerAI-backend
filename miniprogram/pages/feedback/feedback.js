@@ -1,6 +1,5 @@
 // pages/feedback/feedback.js
-const config = require('../../utils/config.js');
-const API_BASE = config.API_BASE_URL;
+const { submitFeedback: submitFeedbackApi } = require('../../utils/api-feedback.js');
 
 Page({
   data: {
@@ -46,26 +45,17 @@ Page({
       contact: this.data.contact.trim()
     };
 
-    const token = wx.getStorageSync('token') || '';
-
-    wx.request({
-      url: API_BASE + '/api/feedback',
-      method: 'POST',
-      header: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token
-      },
-      data: payload,
-      success: (res) => {
+    submitFeedbackApi(payload)
+      .then((res) => {
         this.setData({ submitting: false });
-        if (res.statusCode === 200 && res.data.code === 0) {
+        if (res && res.code === 0) {
           wx.showToast({ title: '感谢您的反馈', icon: 'success' });
           setTimeout(() => wx.navigateBack(), 1500);
         } else {
-          wx.showToast({ title: res.data.message || '提交失败，请重试', icon: 'none' });
+          wx.showToast({ title: (res && res.message) || '提交失败，请重试', icon: 'none' });
         }
-      },
-      fail: () => {
+      })
+      .catch(() => {
         // 网络失败：降级存本地
         this.setData({ submitting: false });
         const feedbacks = wx.getStorageSync('userFeedbacks') || [];
@@ -73,7 +63,6 @@ Page({
         wx.setStorageSync('userFeedbacks', feedbacks);
         wx.showToast({ title: '网络异常，已保存到本地', icon: 'none' });
         setTimeout(() => wx.navigateBack(), 1500);
-      }
-    });
+      });
   }
 });

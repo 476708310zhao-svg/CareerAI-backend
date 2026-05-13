@@ -69,6 +69,33 @@ page {
   margin-left: 6rpx;
 }
 
+/* 技能图标 */
+.skill-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 20rpx;
+}
+.skill-chip {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  background: #F8FAFF;
+  border: 1.5rpx solid #E4EEFF;
+  border-radius: 16rpx;
+  padding: 8rpx 18rpx 8rpx 10rpx;
+}
+.skill-icon {
+  width: 36rpx;
+  height: 36rpx;
+  flex-shrink: 0;
+}
+.skill-name {
+  font-size: 22rpx;
+  color: #374151;
+  font-weight: 500;
+}
+
 /* 信息标签 */
 .info-tags {
   display: flex;

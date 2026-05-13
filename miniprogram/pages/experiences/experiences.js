@@ -51,8 +51,8 @@ Page({
     // 实际展示的列表
     displayList: [],
 
-    // fixed-header 占位高度（px，由 JS 动态测量后设置）
-    spacerHeight: 160,
+    // fixed-header 占位高度已由 WXSS class 控制，保留字段兼容旧逻辑
+    spacerHeight: 0,
 
     // 精华区筛选
     featuredFilter: '', // '' | 'featured' | 'hot'
@@ -111,16 +111,9 @@ Page({
     setTimeout(() => this._updateSpacerHeight(), 100);
   },
 
-  // 测量 fixed-header 实际高度并更新 spacer
+  // 占位高度由 WXSS 根据当前 tab 控制，保留方法避免切换逻辑报错
   _updateSpacerHeight() {
-    wx.createSelectorQuery()
-      .select('.fixed-header')
-      .boundingClientRect(rect => {
-        if (rect && rect.height) {
-          this.setData({ spacerHeight: rect.height + 4 });
-        }
-      })
-      .exec();
+    return;
   },
 
   // ======== 搜索 ========

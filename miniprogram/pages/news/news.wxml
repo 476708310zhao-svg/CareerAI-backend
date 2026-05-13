@@ -18,6 +18,17 @@
     </view>
   </view>
 
+  <!-- 语言切换 -->
+  <view class="lang-bar">
+    <view
+      wx:for="{{langTabs}}"
+      wx:key="id"
+      class="lang-btn {{currentLang === item.id ? 'lang-active' : ''}}"
+      bindtap="switchLang"
+      data-id="{{item.id}}"
+    >{{item.name}}</view>
+  </view>
+
   <!-- 分类 Tab -->
   <scroll-view scroll-x class="tab-wrap" scroll-with-animation>
     <view class="tab-row">

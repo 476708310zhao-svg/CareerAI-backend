@@ -31,7 +31,7 @@
         <text class="label-icon">👤</text>
         <text class="label">昵称</text>
       </view>
-      <input class="input" type="text" value="{{userInfo.nickName}}" placeholder="请输入昵称" placeholder-style="color:#C4C9D4;" maxlength="20" data-field="nickName" bindinput="onInput"/>
+      <input class="input" type="nickname" value="{{userInfo.nickName}}" placeholder="点击可使用微信昵称" placeholder-style="color:#C4C9D4;" maxlength="20" data-field="nickName" bindinput="onInput" bindblur="onInput"/>
     </view>
     <view class="form-divider"></view>
     <view class="form-item">

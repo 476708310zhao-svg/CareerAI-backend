@@ -10,8 +10,9 @@ const LAN_API_BASE_URL = 'http://192.168.110.47:3001';
 const PROD_API_BASE_URL = 'https://api.zhiyincareer.com';
 
 module.exports = {
-  // 模拟器走本地后端；手机预览/体验版/正式版全部走线上
-  API_BASE_URL: IS_SIMULATOR ? LOCAL_API_BASE_URL : PROD_API_BASE_URL,
+  // 模拟器和手机均走线上生产接口，避免本地服务未启动时登录失败
+  // 如需本地联调，将下方改为 IS_SIMULATOR ? LOCAL_API_BASE_URL : PROD_API_BASE_URL
+  API_BASE_URL: PROD_API_BASE_URL,
   // <image> 不再支持 HTTP，图片/Logo 资源统一走线上 HTTPS 域名。
   ASSET_BASE_URL: PROD_API_BASE_URL,
   // 首页 Banner 是带图片的公共内容，接口和图片源保持一致，避免本地数据指向线上缺失资源。

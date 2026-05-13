@@ -42,6 +42,14 @@
       <c-tag type="success" wx:if="{{job.visaSponsored}}">Visa Sponsor</c-tag>
     </view>
 
+    <!-- 技能图标 -->
+    <view class="skill-tags" wx:if="{{job.skillTags && job.skillTags.length > 0}}">
+      <view wx:for="{{job.skillTags}}" wx:key="label" class="skill-chip">
+        <image class="skill-icon" src="{{item.iconUrl}}" mode="aspectFit" lazy-load></image>
+        <text class="skill-name">{{item.label}}</text>
+      </view>
+    </view>
+
     <view class="head-conversion-row">
       <view class="conversion-pill">
         <text class="conversion-num">AI</text>

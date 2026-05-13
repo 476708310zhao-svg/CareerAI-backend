@@ -1,39 +1,49 @@
 /* pages/career-planner/career-planner.wxss */
 page {
-  background: var(--bg-page);
+  overflow-x: hidden;
+  background: radial-gradient(circle at 16% 0%, rgba(47, 102, 244, 0.12), transparent 34%), linear-gradient(180deg, #f7faff 0%, #f6f8fc 56%, #ffffff 100%);
   font-family: -apple-system, 'PingFang SC', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* ══ 顶部 Banner ══ */
+/* 閳烘劏鏅?妞ゅ爼鍎?Banner 閳烘劏鏅?*/
 .hero {
+  box-shadow: 0 22rpx 44rpx rgba(47, 102, 244, 0.22);
+  overflow: hidden;
+  border-radius: 34rpx;
+  margin: 16rpx 24rpx 18rpx;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: linear-gradient(135deg, #1C3578 0%, var(--brand) 100%);
-  padding: 48rpx 40rpx 44rpx;
+  background: linear-gradient(135deg, #10296d 0%, #2f66f4 58%, #17b7a6 100%);
+  padding: 34rpx 28rpx;
   text-align: center;
 }
 .hero-icon { font-size: 64rpx; margin-bottom: 16rpx; }
 .hero-title {
-  font-size: 36rpx; font-weight: 700; color: #fff;
+  letter-spacing: -0.8rpx;
+  color: #ffffff;
+  font-size: 42rpx;
   margin-bottom: 12rpx; letter-spacing: 1rpx;
 }
 .hero-sub { font-size: 25rpx; color: rgba(255,255,255,0.82); line-height: 1.7; }
 
-/* ══ 表单卡片 ══ */
+/* 閳烘劏鏅?鐞涖劌宕熼崡锛勫 閳烘劏鏅?*/
 .form-card {
-  background: var(--bg-panel);
-  margin: 20rpx 24rpx 0;
-  border-radius: var(--r-lg);
-  padding: 8rpx 0 28rpx;
-  border: 1.5rpx solid rgba(0,0,0,0.05);
-  box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.04);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  margin: 0 24rpx 0;
+  border-radius: 30rpx;
+  padding: 6rpx 0 28rpx;
+  border: 1rpx solid rgba(47, 102, 244, 0.08);
+  box-shadow: 0 16rpx 36rpx rgba(20, 38, 82, 0.08);
 }
 
 .field { padding: 24rpx 28rpx 8rpx; }
 
 .field-label {
+  font-weight: 800;
+  color: #172033;
   display: flex; align-items: center;
   font-size: 27rpx; font-weight: 600; color: var(--text-primary);
   margin-bottom: 14rpx;
@@ -49,13 +59,15 @@ page {
 .optional { color: var(--text-muted); font-size: 23rpx; font-weight: 400; margin-left: 4rpx; }
 
 .field-input {
+  box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.9);
+  color: #172033;
   width: 100%;
-  height: 84rpx;
-  background: #F9FAFB;
-  border-radius: var(--r-sm);
+  height: 82rpx;
+  background: #f8fbff;
+  border-radius: 22rpx;
   padding: 0 20rpx;
   font-size: 27rpx; color: var(--text-primary);
-  border: 1.5rpx solid var(--border-light);
+  border: 1rpx solid rgba(47, 102, 244, 0.14);
   box-sizing: border-box;
 }
 
@@ -66,13 +78,15 @@ page {
 .char-count { font-size: 22rpx; color: var(--text-muted); }
 
 .field-textarea {
+  box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.9);
+  color: #172033;
   width: 100%;
-  min-height: 160rpx;
-  background: #F9FAFB;
-  border-radius: var(--r-sm);
+  min-height: 152rpx;
+  background: #f8fbff;
+  border-radius: 22rpx;
   padding: 18rpx 20rpx;
   font-size: 27rpx; color: var(--text-primary);
-  border: 1.5rpx solid var(--border-light);
+  border: 1rpx solid rgba(47, 102, 244, 0.14);
   box-sizing: border-box;
   line-height: 1.7;
   margin-top: 8rpx;
@@ -80,24 +94,36 @@ page {
 
 .field-divider {
   height: 1rpx;
-  background: #F3F4F6;
-  margin: 8rpx 28rpx 0;
+  background: rgba(47, 102, 244, 0.08);
+  margin: 6rpx 24rpx 0;
 }
 
 .gen-btn {
+  box-shadow: 0 14rpx 28rpx rgba(37, 99, 235, 0.22);
+  border-radius: 24rpx;
+  margin-top: 24rpx;
+  --btn-font-size: 28rpx;
+  --btn-height: 84rpx;
+  --brand-shadow: rgba(37, 99, 235, 0.28);
+  --brand-dark: #173bd1;
+  --brand: #2563eb;
   width: calc(100% - 56rpx);
   margin: 28rpx 28rpx 0;
 }
 
-/* ══ 提示卡片 ══ */
+/* 閳烘劏鏅?閹绘劗銇氶崡锛勫 閳烘劏鏅?*/
 .tips-card {
+  transition: transform 0.16s ease, opacity 0.16s ease;
+  box-shadow: 0 16rpx 36rpx rgba(20, 38, 82, 0.08);
   margin: 16rpx 24rpx 0;
-  background: var(--bg-panel);
-  border-radius: var(--r-md);
-  padding: 24rpx 28rpx;
-  border: 1.5rpx solid rgba(0,0,0,0.05);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border-radius: 30rpx;
+  padding: 22rpx 26rpx;
+  border: 1rpx solid rgba(47, 102, 244, 0.08);
 }
 .tips-title {
+  font-weight: 800;
+  color: #172033;
   display: block;
   font-size: 26rpx; font-weight: 600; color: var(--text-body);
   margin-bottom: 16rpx;
@@ -107,8 +133,9 @@ page {
 .ti-dot { color: var(--brand); font-size: 28rpx; flex-shrink: 0; line-height: 1.6; }
 .ti-txt { font-size: 25rpx; color: var(--text-secondary); line-height: 1.6; flex: 1; }
 
-/* ══ 加载页 ══ */
+/* 閳烘劏鏅?閸旂姾娴囨い?閳烘劏鏅?*/
 .loading-page {
+  background: radial-gradient(circle at center 28%, rgba(47, 102, 244, 0.12), transparent 38%), linear-gradient(180deg, #f7faff, #ffffff);
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   min-height: 80vh; padding: 0 48rpx;
@@ -150,7 +177,7 @@ page {
 .lstep-arrow { font-size: 26rpx; color: #D1D5DB; }
 .loading-note { font-size: 24rpx; color: var(--text-muted); }
 
-/* ══ 结果页 ══ */
+/* 閳烘劏鏅?缂佹挻鐏夋い?閳烘劏鏅?*/
 .result-page { padding: 16rpx 24rpx; }
 
 .sec-card {
@@ -166,7 +193,7 @@ page {
 .sec-icon { font-size: 30rpx; }
 .sec-title { font-size: 30rpx; font-weight: 700; color: var(--text-primary); }
 
-/* 两列分析 */
+/* 娑撱倕鍨崚鍡樼€?*/
 .two-col { display: flex; gap: 0; margin-bottom: 24rpx; }
 .col-box { flex: 1; }
 .col-sep { width: 1.5rpx; background: #F3F4F6; margin: 0 16rpx; }
@@ -185,7 +212,7 @@ page {
 .blue-tag { color: var(--brand); background: #EEF2FF; border: 1rpx solid rgba(94,106,210,0.2); }
 .green-tag { color: var(--success); background: rgba(16,185,129,0.10); border: 1rpx solid rgba(16,185,129,0.2); }
 
-/* 差距 */
+/* 瀹割喛绐?*/
 .gap-block {
   background: #FFF7F7; border-radius: var(--r-sm);
   padding: 16rpx 18rpx;
@@ -200,9 +227,11 @@ page {
 .gap-dot { color: var(--danger); font-size: 28rpx; flex-shrink: 0; }
 .gap-txt { font-size: 25rpx; color: var(--text-secondary); flex: 1; line-height: 1.6; }
 
-/* 阶段 Tabs */
+/* 闂冭埖顔?Tabs */
 .phase-tabs { display: flex; gap: 10rpx; margin-bottom: 24rpx; }
 .phase-tab {
+  transition: transform 0.16s ease, opacity 0.16s ease;
+  border-radius: 18rpx;
   flex: 1; text-align: center;
   font-size: 26rpx; color: var(--text-muted); font-weight: 500;
   padding: 16rpx 0; border-radius: var(--r-sm);
@@ -210,11 +239,13 @@ page {
   border: 1.5rpx solid var(--border-light);
 }
 .phase-tab.active {
-  color: var(--brand); background: #EEF2FF;
+  box-shadow: 0 10rpx 22rpx rgba(47, 102, 244, 0.2);
+  background: linear-gradient(135deg, #2f66f4, #17b7a6);
+  color: #ffffff;
   border-color: #A5B4FC; font-weight: 700;
 }
 
-/* 阶段内容 */
+/* 闂冭埖顔岄崘鍛啇 */
 .phase-body { display: flex; flex-direction: column; gap: 20rpx; }
 .phase-goal {
   font-size: 27rpx; font-weight: 600; color: #1e3a5f;
@@ -228,14 +259,14 @@ page {
 .pill {
   font-size: 23rpx; color: var(--brand);
   background: #EEF2FF; padding: 7rpx 18rpx;
-  border-radius: 9999rpx; border: 1rpx solid rgba(94,106,210,0.2);
+  border-radius: 999rpx;
 }
 .arrow-item { display: flex; align-items: flex-start; gap: 10rpx; }
 .arrow { color: var(--brand); font-size: 26rpx; flex-shrink: 0; }
 .arrow-txt { font-size: 25rpx; color: var(--text-secondary); flex: 1; line-height: 1.6; }
 .db-text { font-size: 25rpx; color: var(--text-secondary); line-height: 1.75; }
 
-/* 推荐资源 */
+/* 閹恒劏宕樼挧鍕爱 */
 .res-group { margin-bottom: 20rpx; }
 .res-group:last-child { margin-bottom: 0; }
 .res-cat {
@@ -258,7 +289,7 @@ page {
 
 .regen-btn { margin-top: 8rpx; }
 
-/* ══ 预填提示 ══ */
+/* 閳烘劏鏅?妫板嫬锝為幓鎰仛 閳烘劏鏅?*/
 .prefill-tip, .from-job-tip {
   display: flex;
   align-items: center;
@@ -276,12 +307,16 @@ page {
 .prefill-txt { color: var(--brand); line-height: 1.5; flex: 1; }
 
 .from-job-tip {
+  box-shadow: 0 10rpx 22rpx rgba(54, 42, 24, 0.06);
+  border-radius: 22rpx;
+  margin-right: 24rpx;
+  margin-left: 24rpx;
   background: rgba(245,158,11,0.08);
   border: 1rpx solid rgba(245,158,11,0.20);
 }
 .fj-txt { color: #B45309; line-height: 1.5; flex: 1; }
 
-/* ══ 历史规划 ══ */
+/* 閳烘劏鏅?閸樺棗褰剁憴鍕灊 閳烘劏鏅?*/
 .history-section {
   margin: 16rpx 24rpx 0;
   background: var(--bg-panel);
@@ -328,8 +363,14 @@ page {
 }
 .hc-clear-txt { font-size: 24rpx; color: var(--danger); }
 
-/* ══ 结果标题栏 ══ */
+/* 閳烘劏鏅?缂佹挻鐏夐弽鍥暯閺?閳烘劏鏅?*/
 .result-header {
+  box-shadow: 0 16rpx 36rpx rgba(20, 38, 82, 0.08);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border-radius: 30rpx;
+  border: 1rpx solid rgba(47, 102, 244, 0.08);
+  margin-right: 24rpx;
+  margin-left: 24rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -353,14 +394,14 @@ page {
 .regen-icon { font-size: 28rpx; color: var(--text-muted); }
 .regen-txt  { font-size: 24rpx; color: var(--text-muted); font-weight: 500; }
 
-/* ══ 里程碑 Tab 特殊样式 ══ */
+/* 閳烘劏鏅?闁插瞼鈻肩喊?Tab 閻楄鐣╅弽宄扮础 閳烘劏鏅?*/
 .phase-tab.milestone-tab {
   color: #7C3AED;
   background: #EDE9FE;
   border-color: #DDD6FE;
 }
 
-/* ══ 月度里程碑时间线 ══ */
+/* 閳烘劏鏅?閺堝牆瀹抽柌宀€鈻肩喊鎴炴闂傚鍤?閳烘劏鏅?*/
 .milestone-body {
   display: flex;
   flex-direction: column;
@@ -429,54 +470,61 @@ page {
 .ms-action-txt { font-size: 25rpx; color: var(--text-secondary); line-height: 1.6; flex: 1; }
 
 /* 2026 kingkong polish: career planner */
+/* 2026 career planner color unification */
+/* 2026 career planner bottom spacing tighten */
+
+/* Visual stability restore: keep final planner overrides last. */
 page {
-  background:
-    radial-gradient(circle at 18% 0%, rgba(245, 158, 11, 0.16), transparent 34%),
-    linear-gradient(180deg, #fffaf2 0%, #f8f9fd 54%, #ffffff 100%);
   overflow-x: hidden;
+  background:
+    radial-gradient(circle at 12% -4%, rgba(43, 92, 230, 0.12), transparent 34%),
+    radial-gradient(circle at 92% 10%, rgba(23, 183, 166, 0.10), transparent 30%),
+    #f6f8fc;
 }
 
 .page {
   overflow-x: hidden;
-  padding-bottom: calc(44rpx + env(safe-area-inset-bottom));
+  padding-bottom: 0;
+  background: transparent;
 }
 
 .hero {
   position: relative;
-  margin: 18rpx 24rpx 22rpx;
-  padding: 38rpx 30rpx;
-  border-radius: 34rpx;
+  margin: 16rpx 24rpx 18rpx;
+  padding: 34rpx 28rpx;
   overflow: hidden;
-  background: linear-gradient(135deg, #5b2b05 0%, #f59e0b 54%, #2f66f4 100%);
-  box-shadow: 0 22rpx 44rpx rgba(245, 158, 11, 0.22);
+  border-radius: 34rpx;
+  background:
+    radial-gradient(circle at 86% 12%, rgba(255,255,255,0.24), transparent 32%),
+    linear-gradient(135deg, #10296d 0%, #2f66f4 58%, #17b7a6 135%);
+  box-shadow: 0 22rpx 48rpx rgba(47, 102, 244, 0.20);
 }
 
-.hero::after {
-  content: '';
-  position: absolute;
-  width: 260rpx;
-  height: 260rpx;
-  right: -96rpx;
-  top: -96rpx;
-  border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.16);
-}
-
-.hero-icon,
-.hero-title,
-.hero-sub {
-  position: relative;
-  z-index: 1;
+.hero-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 62rpx;
+  height: 62rpx;
+  margin-bottom: 16rpx;
+  border-radius: 20rpx;
+  background: rgba(255,255,255,0.16);
+  border: 1rpx solid rgba(255,255,255,0.26);
+  font-size: 42rpx;
 }
 
 .hero-title {
   color: #ffffff;
   font-size: 42rpx;
+  font-weight: 950;
   letter-spacing: -0.8rpx;
 }
 
 .hero-sub {
-  color: rgba(255, 255, 255, 0.78);
+  margin-top: 10rpx;
+  color: rgba(255,255,255,0.78);
+  font-size: 25rpx;
+  line-height: 1.7;
 }
 
 .form-card,
@@ -486,125 +534,10 @@ page {
 .result-header {
   margin-left: 24rpx;
   margin-right: 24rpx;
-  border: 1rpx solid rgba(111, 78, 32, 0.08);
   border-radius: 30rpx;
-  background: linear-gradient(180deg, #ffffff 0%, #fffefd 100%);
-  box-shadow: 0 16rpx 36rpx rgba(54, 42, 24, 0.08);
-}
-
-.prefill-tip,
-.from-job-tip {
-  margin-left: 24rpx;
-  margin-right: 24rpx;
-  border-radius: 22rpx;
-  box-shadow: 0 10rpx 22rpx rgba(54, 42, 24, 0.06);
-}
-
-.field-input,
-.field-textarea {
-  border-radius: 22rpx;
-  background: #fffaf2;
-  border: 1rpx solid rgba(245, 158, 11, 0.14);
-}
-
-.gen-btn,
-.result-regen,
-.phase-tab,
-.tag,
-.pill,
-.history-card,
-.tips-card,
-.sec-card,
-.detail-block {
-  transition: transform 0.16s ease, opacity 0.16s ease;
-}
-
-.gen-btn {
-  border-radius: 24rpx;
-  box-shadow: 0 14rpx 28rpx rgba(245, 158, 11, 0.2);
-}
-
-.phase-tabs {
-  padding: 8rpx;
-  border-radius: 24rpx;
-  background: #fff7e8;
-}
-
-.phase-tab {
-  border-radius: 18rpx;
-}
-
-.phase-tab.active {
-  color: #ffffff;
-  background: linear-gradient(135deg, #f59e0b, #2f66f4);
-  box-shadow: 0 10rpx 22rpx rgba(245, 158, 11, 0.2);
-}
-
-.tag,
-.pill {
-  border-radius: 999rpx;
-}
-
-.gen-btn:active,
-.result-regen:active,
-.phase-tab:active,
-.history-card:active,
-.tips-card:active,
-.sec-card:active,
-.detail-block:active {
-  transform: scale(0.97);
-  opacity: 0.86;
-}
-
-.loading-page {
-  background:
-    radial-gradient(circle at center 28%, rgba(245, 158, 11, 0.12), transparent 38%),
-    linear-gradient(180deg, #fffaf2, #ffffff);
-}
-
-/* 2026 career planner color unification */
-page {
-  background:
-    radial-gradient(circle at 16% 0%, rgba(47, 102, 244, 0.12), transparent 34%),
-    linear-gradient(180deg, #f7faff 0%, #f6f8fc 56%, #ffffff 100%);
-}
-
-.page {
-  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
-  background: transparent;
-}
-
-.hero {
-  margin: 16rpx 24rpx 18rpx;
-  padding: 34rpx 28rpx;
-  background: linear-gradient(135deg, #10296d 0%, #2f66f4 58%, #17b7a6 100%);
-  box-shadow: 0 22rpx 44rpx rgba(47, 102, 244, 0.22);
-}
-
-.hero::after {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-.hero-icon {
-  width: 62rpx;
-  height: 62rpx;
-  border-radius: 20rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 16rpx;
-  background: rgba(255, 255, 255, 0.14);
-  border: 1rpx solid rgba(255, 255, 255, 0.22);
-}
-
-.form-card,
-.tips-card,
-.history-section,
-.sec-card,
-.result-header {
-  border-color: rgba(47, 102, 244, 0.08);
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
-  box-shadow: 0 16rpx 36rpx rgba(20, 38, 82, 0.08);
+  border: 1rpx solid rgba(47, 102, 244, 0.08);
+  background: linear-gradient(180deg, #ffffff, #fbfdff);
+  box-shadow: 0 14rpx 34rpx rgba(15, 23, 42, 0.06);
 }
 
 .form-card {
@@ -618,26 +551,17 @@ page {
 
 .field-label {
   color: #172033;
+  font-size: 27rpx;
   font-weight: 800;
-}
-
-.label-icon {
-  width: 36rpx;
-  height: 36rpx;
-  border-radius: 12rpx;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 10rpx;
-  background: #eef4ff;
 }
 
 .field-input,
 .field-textarea {
+  color: #172033;
   background: #f8fbff;
   border: 1rpx solid rgba(47, 102, 244, 0.14);
-  color: #172033;
-  box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.9);
+  border-radius: 22rpx;
+  box-shadow: inset 0 1rpx 0 rgba(255,255,255,0.86);
 }
 
 .field-input {
@@ -648,29 +572,16 @@ page {
   min-height: 152rpx;
 }
 
-.field-hint,
-.char-count,
-.optional {
-  color: #8a98ad;
-}
-
-.field-divider {
-  background: rgba(47, 102, 244, 0.08);
-  margin: 6rpx 24rpx 0;
-}
-
 .gen-btn {
-  --brand: #2563eb;
-  --brand-dark: #173bd1;
-  --brand-shadow: rgba(37, 99, 235, 0.28);
-  --btn-height: 84rpx;
-  --btn-font-size: 28rpx;
   margin-top: 24rpx;
-  box-shadow: 0 14rpx 28rpx rgba(37, 99, 235, 0.22);
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #2563eb, #17b7a6);
+  box-shadow: 0 16rpx 30rpx rgba(37, 99, 235, 0.22);
 }
 
 .tips-card {
   margin-top: 16rpx;
+  margin-bottom: 0;
   padding: 22rpx 26rpx;
 }
 
@@ -679,30 +590,18 @@ page {
   font-weight: 800;
 }
 
-.ti-dot {
-  color: #2f66f4;
+.phase-tab {
+  border-radius: 18rpx;
 }
 
 .phase-tab.active {
+  color: #ffffff;
   background: linear-gradient(135deg, #2f66f4, #17b7a6);
-  box-shadow: 0 10rpx 22rpx rgba(47, 102, 244, 0.2);
+  box-shadow: 0 10rpx 22rpx rgba(47, 102, 244, 0.20);
 }
 
 .loading-page {
   background:
-    radial-gradient(circle at center 28%, rgba(47, 102, 244, 0.12), transparent 38%),
-    linear-gradient(180deg, #f7faff, #ffffff);
-}
-
-.bottom-spacer {
-  height: calc(2rpx + env(safe-area-inset-bottom));
-}
-
-/* 2026 career planner bottom spacing tighten */
-.page {
-  padding-bottom: 0;
-}
-
-.tips-card {
-  margin-bottom: 0;
+    radial-gradient(circle at 50% 8%, rgba(47, 102, 244, 0.12), transparent 36%),
+    #f6f8fc;
 }

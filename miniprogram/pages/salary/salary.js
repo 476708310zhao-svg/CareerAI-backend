@@ -1,6 +1,20 @@
 // pages/salary/salary.js
 const { getEstimatedSalary, getCompanyJobSalary, fetchUserSalaryStats, submitSalaryReport } = require('../../utils/api.js');
+const { getExchangeRates } = require('../../utils/api-news.js');
 const { SALARY_ROLES, SALARY_COMPANIES, SALARY_CN_MAP, COMPANY_SALARY_BASE } = require('../../utils/mock-data.js');
+
+// 货币显示配置
+const CURRENCIES = [
+  { code: 'USD', symbol: '$',  name: '美元' },
+  { code: 'CNY', symbol: '¥',  name: '人民币' },
+  { code: 'CAD', symbol: 'C$', name: '加元' },
+  { code: 'GBP', symbol: '£',  name: '英镑' },
+  { code: 'EUR', symbol: '€',  name: '欧元' },
+  { code: 'JPY', symbol: '¥',  name: '日元' },
+  { code: 'AUD', symbol: 'A$', name: '澳元' },
+  { code: 'SGD', symbol: 'S$', name: '新币' },
+  { code: 'HKD', symbol: 'HK$', name: '港元' },
+];
 
 const REGION_NA = 'NA';
 const REGION_CN = 'CN';
@@ -17,6 +31,15 @@ Page({
     company: '',
     result: null,
     loading: false,
+
+    // 汇率换算
+    currencies: CURRENCIES,
+    exchangeRates: null,       // { USD:1, CNY:7.25, ... }
+    exchangeBase: 'USD',       // 当前结果的原始货币
+    convertTarget: 'CNY',      // 目标货币
+    convertTargetIdx: 1,       // picker index
+    convertedSalary: '',       // 换算后显示字符串
+    exchangeLoading: false,
 
     presetRoles: SALARY_ROLES,
     hotCompanies: SALARY_COMPANIES,
@@ -471,9 +494,51 @@ Page({
       isMock: false
     };
 
+    const base = this.data.region === REGION_CN ? 'CNY' : 'USD';
+    const target = base === 'USD' ? 'CNY' : 'USD';
     setTimeout(() => {
-      this.setData({ result: formattedResult, loading: false });
+      const targetIdx = CURRENCIES.findIndex(c => c.code === target);
+    this.setData({ result: formattedResult, loading: false, exchangeBase: base, convertTarget: target, convertTargetIdx: targetIdx < 0 ? 0 : targetIdx, convertedSalary: '' });
+      this._loadExchangeRates(base, formattedResult.medianRaw || (formattedResult.medianStr ? this._parseMedianRaw(formattedResult.medianStr) : 0));
     }, 500);
+  },
+
+  _parseMedianRaw(str) {
+    const n = parseFloat(String(str || '').replace(/[^0-9.]/g, ''));
+    return isNaN(n) ? 0 : n * 1000;
+  },
+
+  _loadExchangeRates(base, medianRaw) {
+    this.setData({ exchangeLoading: true });
+    getExchangeRates(base)
+      .then(res => {
+        const rates = res && res.rates;
+        if (!rates) return;
+        this.setData({ exchangeRates: rates, exchangeLoading: false });
+        this._doConvert(medianRaw || this._parseMedianRaw(this.data.result && this.data.result.medianStr));
+      })
+      .catch(() => this.setData({ exchangeLoading: false }));
+  },
+
+  _doConvert(medianRaw) {
+    const { exchangeRates, exchangeBase, convertTarget } = this.data;
+    if (!exchangeRates || !medianRaw) return;
+    const rate = exchangeRates[convertTarget];
+    if (!rate) return;
+    const converted = Math.round(medianRaw * rate);
+    const cur = CURRENCIES.find(c => c.code === convertTarget) || { symbol: '' };
+    const str = convertTarget === 'JPY'
+      ? cur.symbol + Math.round(converted / 10000) + '万'
+      : cur.symbol + Math.round(converted / 1000) + 'k';
+    this.setData({ convertedSalary: str });
+  },
+
+  onConvertTargetChange(e) {
+    const idx = Number(e.detail.value);
+    const target = CURRENCIES[idx].code;
+    this.setData({ convertTarget: target, convertTargetIdx: idx, convertedSalary: '' });
+    const median = this.data.result ? this._parseMedianRaw(this.data.result.medianStr) : 0;
+    this._doConvert(median);
   },
 
   loadMockData: function(type) {

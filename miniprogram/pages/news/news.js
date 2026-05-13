@@ -1,5 +1,5 @@
 // pages/news/news.js
-const { API_BASE_URL } = require('../../utils/config.js');
+const { getNews } = require('../../utils/api-news.js');
 const { normalizeNewsImageUrl } = require('../../utils/assets.js');
 
 Page({
@@ -13,6 +13,14 @@ Page({
       { id: 'policy', name: '政策' }
     ],
     currentTab: 'all',
+
+    // 语言切换
+    langTabs: [
+      { id: 'all', name: '全部' },
+      { id: 'zh',  name: '中文' },
+      { id: 'en',  name: 'English' }
+    ],
+    currentLang: 'all',
 
     // 快讯数据
     allNews: [],
@@ -41,26 +49,22 @@ Page({
 
   // ======== 从后端拉取新闻，失败降级 mock ========
   loadNews() {
-    wx.request({
-      url: API_BASE_URL + '/api/news?tab=all',
-      method: 'GET',
-      timeout: 8000,
-      success: (res) => {
-        const articles = res.data && res.data.articles;
+    const lang = this.data.currentLang !== 'all' ? this.data.currentLang : '';
+    getNews({ tab: 'all', lang })
+      .then((res) => {
+        const articles = res && res.articles;
         if (articles && articles.length > 0) {
-          const personalNews = this._buildPersonalNews();
+          const personalNews = this.data.currentLang === 'all' ? this._buildPersonalNews() : [];
           const allNews = [...personalNews, ...articles.map(item => this.normalizeArticle(item))];
-          this.setData({ allNews, displayList: allNews });
+          this.setData({ allNews });
+          this._applyFilter(this.data.currentTab, this.data.searchKeyword);
         } else {
-          // API 返回空（未配置 key 或无结果）→ 降级 mock
           this.buildAllNews();
         }
-      },
-      fail: () => {
-        // 网络失败 → 降级 mock
+      })
+      .catch(() => {
         this.buildAllNews();
-      }
-    });
+      });
   },
 
   // ======== 构建个性化快讯（供两个路径复用）========
@@ -243,10 +247,12 @@ Page({
   },
 
   _applyFilter(tab, keyword) {
-    const kw = (keyword || '').trim().toLowerCase();
+    const kw  = (keyword || '').trim().toLowerCase();
+    const lang = this.data.currentLang;
     const list = this.data.allNews.filter(n =>
-      (tab === 'all' || n.type === tab) &&
-      (!kw || n.title.toLowerCase().includes(kw) || n.desc.toLowerCase().includes(kw))
+      (tab  === 'all' || n.type === tab) &&
+      (lang === 'all' || !n.lang || n.lang === lang) &&
+      (!kw  || n.title.toLowerCase().includes(kw) || n.desc.toLowerCase().includes(kw))
     );
     this.setData({ displayList: list, isSearching: !!kw });
   },
@@ -256,6 +262,13 @@ Page({
     const tab = e.currentTarget.dataset.id;
     this.setData({ currentTab: tab });
     this._applyFilter(tab, this.data.searchKeyword);
+  },
+
+  // ======== 语言切换 ========
+  switchLang(e) {
+    const lang = e.currentTarget.dataset.id;
+    this.setData({ currentLang: lang, allNews: [] });
+    this.loadNews();
   },
 
   // ======== 查看详情 ========

@@ -29,9 +29,6 @@
     <view class="onboarding-progress">
       <view class="onboarding-progress-fill" style="width: {{profileCompleteness}}%;"></view>
     </view>
-    <view class="onboarding-copy">
-      <text>补充学校、专业、目标岗位后，AI 会优先推荐更匹配的岗位、公司和面试准备路径。</text>
-    </view>
     <view class="onboarding-actions">
       <view class="onboarding-btn primary" bindtap="goCompleteProfile" hover-class="opacity-hover">完善资料</view>
       <view class="onboarding-btn" bindtap="navigateToPage" data-url="/pages/career-planner/career-planner" hover-class="opacity-hover">生成规划</view>

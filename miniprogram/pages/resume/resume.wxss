@@ -1,15 +1,18 @@
 /* pages/resume/resume.wxss */
 page {
-  background: var(--bg-raised);
+  overflow-x: hidden;
+  background: radial-gradient(circle at 18% 0%, rgba(20, 184, 166, 0.15), transparent 34%), linear-gradient(180deg, #f4fffc 0%, #f7f9fd 54%, #ffffff 100%);
   font-family: -apple-system, sans-serif;
 }
 
 .container {
+  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
 }
 
-/* --- 多份简历选择栏 --- */
+/* --- 澶氫唤绠€鍘嗛€夋嫨鏍?--- */
 .resume-switcher {
   display: flex;
   align-items: center;
@@ -70,7 +73,7 @@ page {
   font-weight: 600;
 }
 
-/* --- 简历管理面板遮罩 --- */
+/* --- 绠€鍘嗙鐞嗛潰鏉块伄缃?--- */
 .resume-manager-mask {
   position: fixed;
   inset: 0;
@@ -159,18 +162,23 @@ page {
   color: var(--text-secondary);
 }
 
-/* --- Tab 切换 --- */
+/* --- Tab 鍒囨崲 --- */
 .tabs {
-  background: var(--bg-panel);
+  border: 0;
+  border-radius: 28rpx;
+  margin: 18rpx 24rpx 22rpx;
+  background: rgba(255, 255, 255, 0.94);
   display: flex;
-  padding: 0 30rpx;
+  padding: 8rpx;
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.02);
+  box-shadow: 0 14rpx 30rpx rgba(20, 55, 90, 0.08);
 }
 
 .tab-item {
+  transition: transform 0.16s ease, opacity 0.16s ease;
+  border-radius: 20rpx;
   flex: 1;
   text-align: center;
   padding: 30rpx 0;
@@ -180,12 +188,15 @@ page {
 }
 
 .tab-item.active {
-  color: var(--brand);
+  box-shadow: 0 10rpx 24rpx rgba(20, 184, 166, 0.22);
+  background: linear-gradient(135deg, #14b8a6, #2f66f4);
+  color: #ffffff;
   font-weight: bold;
   font-size: 30rpx;
 }
 
 .tab-item.active::after {
+  display: none;
   content: '';
   position: absolute;
   bottom: 0;
@@ -197,15 +208,21 @@ page {
   border-radius: 4rpx;
 }
 
-/* --- 通用内容区 --- */
+/* --- 閫氱敤鍐呭鍖?--- */
 .tab-content {
   padding: 30rpx;
 }
 
-/* --- 完整度卡片 --- */
+/* --- 瀹屾暣搴﹀崱鐗?--- */
 .progress-card {
-  background: var(--bg-panel);
-  border-radius: var(--r-lg);
+  margin-right: 24rpx;
+  margin-left: 24rpx;
+  box-shadow: 0 16rpx 36rpx rgba(24, 42, 70, 0.08);
+  border: 1rpx solid rgba(38, 95, 121, 0.08);
+  overflow: hidden;
+  position: relative;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border-radius: 30rpx;
   padding: 30rpx;
   margin-bottom: 24rpx;
 }
@@ -220,6 +237,9 @@ page {
 .prog-val   { color: var(--brand); font-weight: bold; }
 .prog-right { display: flex; align-items: center; gap: 16rpx; }
 .export-btn {
+  box-shadow: 0 10rpx 22rpx rgba(47, 102, 244, 0.12);
+  transition: transform 0.16s ease, opacity 0.16s ease;
+  border-radius: 999rpx;
   font-size: 22rpx; font-weight: 600; color: #6D28D9;
   background: #F5F3FF; border: 1rpx solid #DDD6FE;
   padding: 6rpx 20rpx; border-radius: 9999rpx;
@@ -236,14 +256,14 @@ page {
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent-hover), var(--brand));
-  border-radius: 10rpx;
+  background: linear-gradient(90deg, #14b8a6, #2f66f4);
+  border-radius: 999rpx;
   transition: width var(--trans-slow);
 }
 
 .prog-tip { font-size: 24rpx; color: #fa8c16; }
 
-/* --- 通用 Section 卡片 --- */
+/* --- 閫氱敤 Section 鍗＄墖 --- */
 .section-card {
   background: var(--bg-panel);
   border-radius: var(--r-lg);
@@ -259,6 +279,8 @@ page {
 }
 
 .left-border {
+  border-left-color: #14b8a6;
+  border-radius: 8rpx;
   font-size: 32rpx;
   font-weight: bold;
   color: var(--text-primary);
@@ -289,13 +311,16 @@ page {
 }
 
 .empty-hint {
+  border: 1rpx dashed rgba(20, 184, 166, 0.28);
+  background: #f4fbff;
+  border-radius: 22rpx;
   text-align: center;
   color: #D1D5DB;
   font-size: 26rpx;
   padding: 30rpx 0;
 }
 
-/* 基本信息 Grid */
+/* 鍩烘湰淇℃伅 Grid */
 .info-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -306,7 +331,7 @@ page {
 .info-item .label { font-size: 24rpx; color: var(--text-muted); margin-bottom: 8rpx; }
 .info-item .value { font-size: 28rpx; color: var(--text-body); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* 个人优势 & AI 按钮 */
+/* 涓汉浼樺娍 & AI 鎸夐挳 */
 .ai-group { display: flex; gap: 12rpx; }
 .ai-btn {
   font-size: 22rpx;
@@ -335,7 +360,7 @@ page {
   margin-top: 10rpx;
 }
 
-/* 工作经历 */
+/* 宸ヤ綔缁忓巻 */
 .exp-item {
   display: flex;
   position: relative;
@@ -389,7 +414,7 @@ page {
   line-height: 1.5;
 }
 
-/* --- 附件简历 --- */
+/* --- 闄勪欢绠€鍘?--- */
 .resume-card {
   background: var(--bg-panel); padding: 30rpx; border-radius: var(--r-lg); margin-bottom: 24rpx;
   display: flex; justify-content: space-between; align-items: center;
@@ -402,9 +427,9 @@ page {
 .date { font-size: 24rpx; color: var(--text-muted); }
 .tag { font-size: 22rpx; color: var(--brand); background: #eef4fd; padding: 4rpx 12rpx; border-radius: 8rpx; }
 .footer-btn { position: fixed; bottom: 50rpx; left: 0; width: 100%; padding: 0 30rpx; box-sizing: border-box; }
-/* upload-btn 由 c-button 提供样式 */
+/* upload-btn 鐢?c-button 鎻愪緵鏍峰紡 */
 
-/* ======================== 编辑弹窗通用 ======================== */
+/* ======================== 缂栬緫寮圭獥閫氱敤 ======================== */
 .edit-modal {
   height: 100%;
   display: flex;
@@ -497,7 +522,7 @@ page {
   padding-top: 10rpx;
 }
 
-/* ======================== AI 弹窗样式 ======================== */
+/* ======================== AI 寮圭獥鏍峰紡 ======================== */
 .ai-modal {
   height: 100%;
   display: flex;
@@ -545,8 +570,9 @@ page {
 .ai-modal-cancel  { flex: 1; }
 .ai-modal-confirm { flex: 2; }
 
-/* 岗位匹配 */
+/* 宀椾綅鍖归厤 */
 .match-box {
+  border-radius: 22rpx;
   display: flex;
   align-items: center;
   gap: 16rpx;
@@ -565,7 +591,7 @@ page {
   white-space: nowrap;
 }
 
-/* 工作经历润色小按钮 */
+/* 宸ヤ綔缁忓巻娑﹁壊灏忔寜閽?*/
 .ai-btn-sm {
   font-size: 20rpx;
   padding: 4rpx 14rpx;
@@ -575,7 +601,7 @@ page {
   white-space: nowrap;
 }
 
-/* ======================== 教育经历 ======================== */
+/* ======================== 鏁欒偛缁忓巻 ======================== */
 .edu-item {
   padding: 20rpx 0;
   border-bottom: 1.5rpx solid var(--border-faint);
@@ -602,7 +628,7 @@ page {
   color: var(--text-secondary);
 }
 
-/* ======================== 技能标签 ======================== */
+/* ======================== 鎶€鑳芥爣绛?======================== */
 .skills-wrap {
   display: flex;
   flex-wrap: wrap;
@@ -626,7 +652,7 @@ page {
   margin-left: 4rpx;
 }
 
-/* 技能编辑弹窗 */
+/* 鎶€鑳界紪杈戝脊绐?*/
 .skills-edit-wrap {
   display: flex;
   flex-wrap: wrap;
@@ -660,7 +686,7 @@ page {
   white-space: nowrap;
 }
 
-/* ======================== 项目经历 ======================== */
+/* ======================== 椤圭洰缁忓巻 ======================== */
 .exp-sub-role {
   display: block;
   font-size: 24rpx;
@@ -668,7 +694,7 @@ page {
   margin-bottom: 12rpx;
 }
 
-/* ======================== 底部操作栏 ======================== */
+/* ======================== 搴曢儴鎿嶄綔鏍?======================== */
 .resume-action-bar {
   position: fixed;
   bottom: 0;
@@ -687,18 +713,20 @@ page {
 .resume-act-icon { font-size: 30rpx; line-height: 1; }
 .resume-act-txt  { font-size: 28rpx; font-weight: 700; }
 
-/* ======================== NLP 智能优化 ======================== */
+/* ======================== NLP 鏅鸿兘浼樺寲 ======================== */
 .nlp-row {
   margin-top: 20rpx;
 }
 
 .nlp-btn {
+  box-shadow: 0 10rpx 22rpx rgba(47, 102, 244, 0.12);
+  transition: transform 0.16s ease, opacity 0.16s ease;
   display: flex;
   align-items: center;
   gap: 14rpx;
   background: linear-gradient(135deg, #f0f4ff, #e8edff);
   border: 1.5rpx solid #c7d2fe;
-  border-radius: 18rpx;
+  border-radius: 999rpx;
   padding: 22rpx 28rpx;
 }
 
@@ -724,7 +752,7 @@ page {
   margin-left: auto;
 }
 
-/* NLP 结果面板 */
+/* NLP 缁撴灉闈㈡澘 */
 .nlp-mask {
   position: fixed;
   inset: 0;
@@ -733,12 +761,16 @@ page {
 }
 
 .nlp-panel {
+  box-shadow: 0 16rpx 36rpx rgba(24, 42, 70, 0.08);
+  border: 1rpx solid rgba(38, 95, 121, 0.08);
+  margin-right: 24rpx;
+  margin-left: 24rpx;
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--bg-panel);
-  border-radius: 32rpx 32rpx 0 0;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border-radius: 30rpx;
   z-index: 201;
   max-height: 80vh;
   display: flex;
@@ -807,7 +839,7 @@ page {
   border-top: 1rpx solid var(--border-subtle);
 }
 
-/* ======================== 导出 Canvas（隐藏）======================== */
+/* ======================== 瀵煎嚭 Canvas锛堥殣钘忥級======================== */
 .export-canvas {
   position: fixed;
   top: -9999px;
@@ -818,62 +850,6 @@ page {
 }
 
 /* 2026 kingkong polish: resume diagnosis */
-page {
-  background:
-    radial-gradient(circle at 18% 0%, rgba(20, 184, 166, 0.15), transparent 34%),
-    linear-gradient(180deg, #f4fffc 0%, #f7f9fd 54%, #ffffff 100%);
-  overflow-x: hidden;
-}
-
-.container {
-  overflow-x: hidden;
-  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
-}
-
-.tabs {
-  margin: 18rpx 24rpx 22rpx;
-  padding: 8rpx;
-  border-radius: 28rpx;
-  border: 0;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 14rpx 30rpx rgba(20, 55, 90, 0.08);
-}
-
-.tab-item {
-  border-radius: 20rpx;
-  transition: transform 0.16s ease, opacity 0.16s ease;
-}
-
-.tab-item.active {
-  color: #ffffff;
-  background: linear-gradient(135deg, #14b8a6, #2f66f4);
-  box-shadow: 0 10rpx 24rpx rgba(20, 184, 166, 0.22);
-}
-
-.tab-item.active::after {
-  display: none;
-}
-
-.resume-switcher,
-.progress-card,
-.section-card,
-.upload-card,
-.analysis-card,
-.resume-manager-panel,
-.nlp-panel {
-  margin-left: 24rpx;
-  margin-right: 24rpx;
-  border: 1rpx solid rgba(38, 95, 121, 0.08);
-  border-radius: 30rpx;
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
-  box-shadow: 0 16rpx 36rpx rgba(24, 42, 70, 0.08);
-}
-
-.progress-card {
-  position: relative;
-  overflow: hidden;
-}
-
 .progress-card::before {
   content: '';
   position: absolute;
@@ -885,72 +861,507 @@ page {
   background: rgba(20, 184, 166, 0.1);
 }
 
-.progress-fill {
+/* ===== Premium resume workspace redesign ===== */
+page {
+  --bg-page: #f5f7fb;
+  --bg-panel: #ffffff;
+  --bg-raised: #f8fbff;
+  --text-primary: #101828;
+  --text-body: #344054;
+  --text-secondary: #667085;
+  --text-muted: #98a2b3;
+  --brand: #2563eb;
+  --border-subtle: rgba(16, 24, 40, 0.06);
+  --border-faint: #edf1f7;
+  --border-light: #eaecf0;
+  --r-sm: 14rpx;
+  --r-md: 20rpx;
+  --r-lg: 28rpx;
+  --shadow-up: 0 -18rpx 44rpx rgba(16, 24, 40, 0.12);
+  --trans-slow: 0.28s ease;
+  --resume-bg: #f5f7fb;
+  --resume-panel: #ffffff;
+  --resume-ink: #101828;
+  --resume-body: #344054;
+  --resume-muted: #98a2b3;
+  --resume-line: rgba(16, 24, 40, 0.07);
+  --resume-brand: #2563eb;
+  --resume-brand-2: #14b8a6;
+  --resume-soft: #eef4ff;
+  --resume-shadow: 0 16rpx 44rpx rgba(16, 24, 40, 0.07);
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 12% 0, rgba(20,184,166,0.13), transparent 30%),
+    radial-gradient(circle at 88% 4%, rgba(37,99,235,0.12), transparent 34%),
+    linear-gradient(180deg, #ffffff 0%, #f5f7fb 360rpx, #f5f7fb 100%);
+  color: var(--resume-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+}
+
+view,
+text,
+image,
+input,
+textarea,
+scroll-view {
+  box-sizing: border-box;
+}
+
+.container {
+  width: 100%;
+  max-width: 750rpx;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding-bottom: calc(132rpx + env(safe-area-inset-bottom));
+  background: transparent;
+  overflow-x: hidden;
+}
+
+.tabs {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  margin: 18rpx 28rpx 20rpx;
+  padding: 8rpx;
+  border-radius: 28rpx;
+  background: rgba(255,255,255,0.88);
+  border: 1rpx solid rgba(255,255,255,0.75);
+  box-shadow: 0 16rpx 42rpx rgba(16,24,40,0.08);
+  backdrop-filter: blur(20rpx);
+}
+
+.tab-item {
+  height: 78rpx;
+  padding: 0;
+  border-radius: 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #667085;
+  font-size: 27rpx;
+  font-weight: 800;
+}
+
+.tab-item.active {
+  color: #ffffff;
+  font-size: 28rpx;
+  background: linear-gradient(135deg, #0f766e 0%, #2563eb 100%);
+  box-shadow: 0 14rpx 28rpx rgba(37,99,235,0.20);
+}
+
+.tab-content {
+  padding: 0 28rpx;
+}
+
+.resume-switcher,
+.progress-card,
+.section-card,
+.resume-card {
+  margin-left: 0;
+  margin-right: 0;
+  border-radius: 30rpx;
+  background: rgba(255,255,255,0.96);
+  border: 1rpx solid rgba(16,24,40,0.06);
+  box-shadow: var(--resume-shadow);
+}
+
+.resume-switcher {
+  margin-top: 0;
+  margin-bottom: 18rpx;
+  padding: 22rpx 24rpx;
+}
+
+.switcher-name {
+  color: var(--resume-ink);
+  font-size: 29rpx;
+  font-weight: 900;
+}
+
+.switcher-count,
+.switcher-vip-badge {
+  height: 34rpx;
+  padding: 0 12rpx;
   border-radius: 999rpx;
-  background: linear-gradient(90deg, #14b8a6, #2f66f4);
+  font-size: 19rpx;
+  line-height: 34rpx;
+}
+
+.switcher-btn,
+.edit-icon,
+.add-btn {
+  height: 46rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2563eb;
+  background: #eef4ff;
+  font-size: 23rpx;
+  font-weight: 850;
+}
+
+.progress-card {
+  position: relative;
+  margin-bottom: 20rpx;
+  padding: 26rpx;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 98% 0, rgba(20,184,166,0.14), transparent 34%),
+    linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,251,255,0.96));
+}
+
+.progress-card::before {
+  width: 210rpx;
+  height: 210rpx;
+  right: -92rpx;
+  top: -104rpx;
+  background: rgba(20,184,166,0.12);
+}
+
+.prog-header {
+  position: relative;
+  z-index: 1;
+  align-items: center;
+  margin-bottom: 18rpx;
+}
+
+.prog-label {
+  color: var(--resume-ink);
+  font-size: 29rpx;
+  font-weight: 950;
+}
+
+.prog-val {
+  color: #101828;
+  font-size: 34rpx;
+  font-weight: 950;
+}
+
+.export-btn {
+  height: 42rpx;
+  padding: 0 18rpx;
+  color: #6d28d9;
+  background: #f5f3ff;
+  border: 1rpx solid rgba(109,40,217,0.14);
+  font-size: 21rpx;
+  line-height: 42rpx;
+  box-shadow: 0 10rpx 22rpx rgba(109,40,217,0.12);
+}
+
+.progress-track {
+  position: relative;
+  z-index: 1;
+  height: 14rpx;
+  margin-bottom: 14rpx;
+  background: #e8edf5;
+}
+
+.progress-fill {
+  background: linear-gradient(90deg, #14b8a6, #2563eb);
+}
+
+.prog-tip {
+  position: relative;
+  z-index: 1;
+  color: #f97316;
+  font-size: 23rpx;
+  font-weight: 700;
+}
+
+.section-card {
+  margin-bottom: 20rpx;
+  padding: 26rpx;
+}
+
+.card-header {
+  margin-bottom: 22rpx;
 }
 
 .left-border {
-  border-radius: 8rpx;
-  border-left-color: #14b8a6;
+  padding-left: 0;
+  border-left: none;
+  color: var(--resume-ink);
+  font-size: 31rpx;
+  font-weight: 950;
+  line-height: 1.2;
 }
 
-.edit-icon,
-.add-btn,
-.ai-btn,
-.ai-gen-btn,
-.export-btn,
-.switcher-btn,
-.nlp-btn {
+.left-border::before {
+  content: '';
+  display: inline-block;
+  width: 8rpx;
+  height: 26rpx;
+  margin-right: 12rpx;
   border-radius: 999rpx;
-  transition: transform 0.16s ease, opacity 0.16s ease;
-}
-
-.ai-btn,
-.ai-gen-btn,
-.nlp-btn,
-.export-btn {
-  box-shadow: 0 10rpx 22rpx rgba(47, 102, 244, 0.12);
-}
-
-.info-item,
-.exp-item,
-.edu-item,
-.skill-tag,
-.empty-hint,
-.summary-box,
-.match-box {
-  border-radius: 22rpx;
+  background: linear-gradient(180deg, #14b8a6, #2563eb);
+  vertical-align: -4rpx;
 }
 
 .empty-hint {
-  background: #f4fbff;
-  border: 1rpx dashed rgba(20, 184, 166, 0.28);
+  min-height: 86rpx;
+  padding: 0 24rpx;
+  border-radius: 22rpx;
+  border: 1.5rpx dashed rgba(37,99,235,0.16);
+  background:
+    linear-gradient(180deg, rgba(248,251,255,0.92), rgba(255,255,255,0.96));
+  color: #b6c0cf;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 25rpx;
+  font-weight: 700;
 }
 
-.tab-item:active,
-.resume-switcher:active,
-.section-card:active,
-.exp-item:active,
-.edu-item:active,
-.edit-icon:active,
-.add-btn:active,
-.ai-btn:active,
-.ai-gen-btn:active,
-.export-btn:active,
-.switcher-btn:active,
-.nlp-btn:active,
-.empty-hint:active {
-  transform: scale(0.97);
-  opacity: 0.86;
+.info-grid {
+  gap: 18rpx;
+}
+
+.info-item {
+  min-height: 94rpx;
+  padding: 18rpx;
+  border-radius: 20rpx;
+  background: #f8fbff;
+  border: 1rpx solid #edf1f7;
+}
+
+.info-item .label {
+  color: var(--resume-muted);
+  font-size: 21rpx;
+  font-weight: 800;
+}
+
+.info-item .value {
+  color: var(--resume-body);
+  font-size: 27rpx;
+  font-weight: 850;
+}
+
+.ai-group,
+.header-actions {
+  gap: 10rpx;
+}
+
+.ai-btn,
+.ai-gen-btn,
+.ai-btn-sm {
+  height: 42rpx;
+  padding: 0 16rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 21rpx;
+  font-weight: 850;
+  color: #2563eb;
+  background: #eef4ff;
+  border: 1rpx solid rgba(37,99,235,0.12);
+}
+
+.ai-btn.review,
+.ai-btn.polish,
+.ai-btn.match,
+.ai-btn-sm {
+  color: #ffffff;
+  background: linear-gradient(135deg, #0f766e, #2563eb);
+  border-color: transparent;
+}
+
+.summary-box,
+.exp-desc {
+  border-radius: 22rpx;
+  background: #f8fbff;
+  border: 1rpx solid #edf1f7;
+  color: #344054;
+  font-size: 26rpx;
+  line-height: 1.65;
+}
+
+.match-box {
+  gap: 12rpx;
+}
+
+.match-input {
+  height: 76rpx;
+  padding: 0 22rpx;
+  border-radius: 20rpx;
+  color: #344054;
+  background: #f8fbff;
+  border: 1rpx solid #edf1f7;
+  font-size: 25rpx;
+}
+
+.nlp-row {
+  margin-top: 18rpx;
+}
+
+.nlp-btn {
+  min-height: 86rpx;
+  padding: 18rpx 22rpx;
+  border-radius: 26rpx;
+  background:
+    radial-gradient(circle at 100% 0, rgba(37,99,235,0.12), transparent 34%),
+    linear-gradient(135deg, #eef4ff, #f8fbff);
+  border: 1rpx solid rgba(37,99,235,0.16);
+  box-shadow: 0 14rpx 30rpx rgba(37,99,235,0.10);
+}
+
+.nlp-btn-icon {
+  width: 50rpx;
+  height: 50rpx;
+  border-radius: 18rpx;
+  background: rgba(37,99,235,0.10);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+}
+
+.nlp-btn-txt {
+  color: #1d2939;
+  font-size: 26rpx;
+  font-weight: 950;
+}
+
+.nlp-btn-sub {
+  margin-left: 0;
+  color: #667085;
+  font-size: 20rpx;
+  line-height: 1.35;
+}
+
+.exp-item {
+  padding: 2rpx 0 28rpx;
+}
+
+.exp-dot {
+  width: 18rpx;
+  height: 18rpx;
+  margin-right: 22rpx;
+  background: linear-gradient(135deg, #14b8a6, #2563eb);
+  box-shadow: 0 0 0 8rpx rgba(37,99,235,0.08);
+}
+
+.exp-company,
+.edu-school {
+  color: #1d2939;
+  font-size: 29rpx;
+  font-weight: 950;
+}
+
+.exp-sub,
+.edu-sub,
+.edu-time,
+.exp-time {
+  color: #667085;
+}
+
+.edu-item {
+  padding: 20rpx;
+  border-radius: 22rpx;
+  border: 1rpx solid #edf1f7;
+  background: #f8fbff;
+  margin-bottom: 14rpx;
+}
+
+.skills-wrap {
+  gap: 12rpx;
+}
+
+.skill-tag {
+  min-height: 48rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  color: #2563eb;
+  background: #eef4ff;
+  border: 1rpx solid rgba(37,99,235,0.12);
+  font-size: 23rpx;
+  font-weight: 800;
+}
+
+.resume-action-bar {
+  left: 24rpx;
+  right: 24rpx;
+  bottom: calc(14rpx + env(safe-area-inset-bottom));
+  padding: 12rpx;
+  border-radius: 999rpx;
+  background: rgba(255,255,255,0.94);
+  border: 1rpx solid rgba(16,24,40,0.08);
+  box-shadow: 0 18rpx 44rpx rgba(16,24,40,0.14);
+  backdrop-filter: blur(20rpx);
+}
+
+.resume-act-btn {
+  min-width: 0;
+  height: 68rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.resume-act-btn.secondary {
+  color: #344054;
+  background: #f6f8fb;
+}
+
+.resume-action-bar c-button.resume-act-btn,
+.resume-act-btn:not(.secondary) {
+  color: #ffffff;
+  background: linear-gradient(135deg, #0f766e, #2563eb);
+  box-shadow: 0 12rpx 24rpx rgba(37,99,235,0.20);
+}
+
+.resume-act-icon {
+  font-size: 25rpx;
+}
+
+.resume-act-txt {
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.resume-card {
+  padding: 24rpx;
+}
+
+.file-icon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 20rpx;
+  background: #eef4ff;
+}
+
+.name {
+  color: #1d2939;
+  font-size: 28rpx;
+}
+
+.footer-btn {
+  left: 24rpx;
+  right: 24rpx;
+  bottom: calc(18rpx + env(safe-area-inset-bottom));
+  width: auto;
+  padding: 0;
+}
+
+.resume-manager-panel,
+.nlp-panel {
+  border-radius: 32rpx 32rpx 0 0;
+  background: #ffffff;
+  box-shadow: 0 -20rpx 60rpx rgba(16,24,40,0.16);
+}
+
+.edit-modal,
+.ai-modal {
+  padding: 30rpx 30rpx calc(24rpx + env(safe-area-inset-bottom));
 }
 
 .form-input,
-.match-input,
-.input-box,
-.textarea,
-.modal-input {
+.form-textarea,
+.edit-textarea,
+.skill-input {
   border-radius: 20rpx;
-  background: #f7fbff;
-  border-color: rgba(20, 184, 166, 0.12);
+  background: #f8fbff;
+  border: 1rpx solid #edf1f7;
 }

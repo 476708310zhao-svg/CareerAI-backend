@@ -128,7 +128,7 @@ function request(options) {
       },
       fail: (err) => {
         clearTimeout(timer);
-        console.error('[API] fail:', err);
+        console.warn('[API] fail:', err.errMsg || err.message || err);
         const stale = _getStaleCache(key);
         finish(stale || { data: [], _source: 'networkError' });
       }

@@ -608,3 +608,135 @@ page {
 .insight-gen-btn {
   box-shadow: 0 14rpx 30rpx rgba(43,92,230,0.24);
 }
+
+/* ── Glassdoor ─────────────────────────────────────────────────────────────── */
+
+.gd-header-badge {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4rpx;
+  margin-top: 14rpx;
+}
+.gd-hb-icon {
+  width: 34rpx; height: 34rpx;
+  background: #0CAA41; color: #fff;
+  font-size: 18rpx; font-weight: 900;
+  border-radius: 8rpx; text-align: center; line-height: 34rpx;
+  flex-shrink: 0;
+}
+.gd-hb-score {
+  font-size: 25rpx; font-weight: bold; color: #0CAA41;
+}
+.gd-hb-sep, .gd-hb-count {
+  font-size: 22rpx; color: var(--text-muted);
+}
+.gd-hb-arrow {
+  font-size: 22rpx; color: var(--brand);
+}
+
+.gd-overview-card {
+  background: #f7fff9;
+  border: 1rpx solid rgba(12,170,65,0.18);
+  border-radius: 24rpx;
+  padding: 28rpx;
+  margin-bottom: 18rpx;
+}
+
+.gd-score-row {
+  display: flex; align-items: flex-start; gap: 22rpx;
+  padding-bottom: 20rpx; margin-bottom: 18rpx;
+  border-bottom: 1rpx solid #eef6ef;
+}
+.gd-score-main {
+  display: flex; align-items: baseline; gap: 6rpx; flex-shrink: 0;
+}
+.gd-big-score {
+  font-size: 72rpx; font-weight: 900; color: #0CAA41; line-height: 1;
+}
+.gd-score-label {
+  font-size: 26rpx; font-weight: bold; color: var(--text-muted);
+}
+.gd-score-right { flex: 1; min-width: 0; }
+.gd-review-count {
+  display: block; font-size: 23rpx; color: var(--text-muted); margin-bottom: 14rpx;
+}
+.gd-pills-row { display: flex; gap: 10rpx; flex-wrap: wrap; }
+.gd-pill {
+  padding: 6rpx 14rpx; border-radius: 12rpx; text-align: center;
+}
+.gd-pill-green {
+  background: rgba(12,170,65,0.1); border: 1rpx solid rgba(12,170,65,0.25);
+}
+.gd-pill-blue {
+  background: rgba(43,92,230,0.08); border: 1rpx solid rgba(43,92,230,0.2);
+}
+.gd-pill-val {
+  display: block; font-size: 26rpx; font-weight: 900; color: #172033; line-height: 1.2;
+}
+.gd-pill-label {
+  display: block; font-size: 20rpx; color: var(--text-muted); margin-top: 2rpx;
+}
+
+.gd-subs { display: flex; flex-direction: column; gap: 12rpx; margin-bottom: 16rpx; }
+.gd-sub-item { display: flex; align-items: center; gap: 12rpx; }
+.gd-sub-lbl {
+  font-size: 22rpx; color: var(--text-muted); width: 136rpx; flex-shrink: 0;
+}
+.gd-sub-track {
+  flex: 1; height: 10rpx; background: #eef6ef; border-radius: 5rpx; overflow: hidden;
+}
+.gd-sub-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0CAA41, #52c41a);
+  border-radius: 5rpx;
+}
+.gd-sub-val {
+  font-size: 22rpx; font-weight: bold; color: #0CAA41; width: 44rpx; text-align: right; flex-shrink: 0;
+}
+.gd-source-note {
+  display: block; font-size: 20rpx; color: #b8c4bf; text-align: right; margin-top: 6rpx;
+}
+
+.gd-reviews-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6rpx 4rpx 14rpx;
+}
+.gd-reviews-title { font-size: 28rpx; font-weight: bold; color: var(--text-primary); }
+.gd-reviews-total { font-size: 22rpx; color: var(--text-muted); }
+
+.gd-review-card { margin-bottom: 16rpx; }
+.gd-rv-header { display: flex; align-items: flex-start; gap: 14rpx; margin-bottom: 14rpx; }
+.gd-rv-rating {
+  display: flex; align-items: center; gap: 4rpx;
+  background: #fff8ee; border: 1rpx solid #ffe7b0;
+  border-radius: 10rpx; padding: 6rpx 12rpx; flex-shrink: 0;
+}
+.gd-rv-star { font-size: 22rpx; color: #fa8c16; }
+.gd-rv-score { font-size: 24rpx; font-weight: bold; color: #fa8c16; }
+.gd-rv-meta { flex: 1; min-width: 0; }
+.gd-rv-title {
+  display: block; font-size: 27rpx; font-weight: bold;
+  color: var(--text-body); line-height: 1.4; margin-bottom: 6rpx;
+}
+.gd-rv-sub { font-size: 21rpx; color: var(--text-muted); }
+.gd-rv-body { display: flex; flex-direction: column; gap: 10rpx; }
+.gd-rv-row { display: flex; align-items: flex-start; gap: 12rpx; }
+.gd-rv-badge {
+  font-size: 20rpx; font-weight: bold;
+  padding: 2rpx 10rpx; border-radius: 8rpx; flex-shrink: 0; margin-top: 3rpx;
+}
+.gd-rv-pro {
+  background: rgba(12,170,65,0.1); color: #0CAA41; border: 1rpx solid rgba(12,170,65,0.25);
+}
+.gd-rv-con {
+  background: rgba(239,68,68,0.08); color: #ef4444; border: 1rpx solid rgba(239,68,68,0.2);
+}
+.gd-rv-text {
+  font-size: 25rpx; color: var(--text-secondary); line-height: 1.65; flex: 1;
+}
+
+.gd-load-more {
+  text-align: center; padding: 22rpx 0;
+  font-size: 26rpx; color: var(--brand);
+}

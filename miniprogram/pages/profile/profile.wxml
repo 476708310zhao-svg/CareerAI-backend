@@ -1,13 +1,9 @@
 <!-- pages/profile/profile.wxml -->
 <view class="container">
-
-  <!-- ── 顶部用户信息 ── -->
   <view class="user-header">
-    <!-- 装饰圆 -->
     <view class="deco-circle deco1"></view>
     <view class="deco-circle deco2"></view>
 
-    <!-- 未登录 -->
     <block wx:if="{{!isLogin}}">
       <view class="user-info" bindtap="onLogin" hover-class="panel-press">
         <view class="avatar-wrap">
@@ -22,7 +18,6 @@
       </view>
     </block>
 
-    <!-- 已登录 -->
     <block wx:else>
       <view class="user-info" bindtap="goToEditProfile" hover-class="panel-press">
         <view class="avatar-wrap">
@@ -39,7 +34,6 @@
       </view>
     </block>
 
-    <!-- 统计数据条（悬浮在 header 底部） -->
     <view class="stats-card">
       <view class="stat-item" bindtap="goToApplications" hover-class="tap-soft">
         <text class="stat-num">{{stats.applications}}</text>
@@ -63,11 +57,10 @@
     </view>
   </view>
 
-  <!-- ── VIP Banner ── -->
   <view class="vip-banner" bindtap="goToVip" hover-class="panel-press">
     <view class="vip-left">
       <view class="vip-title-row">
-        <text class="vip-crown">👑</text>
+        <text class="vip-crown">冠</text>
         <text class="vip-title">升级求职黑卡会员</text>
       </view>
       <text class="vip-desc">解锁 AI 简历优化 · 无限次模拟面试</text>
@@ -85,12 +78,12 @@
     </view>
     <view class="workspace-actions">
       <view wx:if="{{!isLogin}}" class="workspace-action primary" bindtap="onLogin" hover-class="panel-press">
-        <text class="workspace-icon">✦</text>
+        <text class="workspace-icon">✓</text>
         <text class="workspace-name">登录并建立档案</text>
         <text class="workspace-desc">解锁精准推荐</text>
       </view>
       <view wx:else class="workspace-action primary" bindtap="goToEditProfile" hover-class="panel-press">
-        <text class="workspace-icon">✦</text>
+        <text class="workspace-icon">✓</text>
         <text class="workspace-name">完善求职档案</text>
         <text class="workspace-desc">提升推荐质量</text>
       </view>
@@ -100,20 +93,19 @@
         <text class="workspace-desc">适配 ATS</text>
       </view>
       <view class="workspace-action" bindtap="goToApplications" hover-class="panel-press">
-        <text class="workspace-icon">↗</text>
+        <text class="workspace-icon">→</text>
         <text class="workspace-name">跟进投递</text>
         <text class="workspace-desc">查看进度</text>
       </view>
     </view>
   </view>
 
-  <!-- ── 求职工具 ── -->
   <view class="menu-group">
     <view class="group-title">求职工具</view>
 
     <view class="menu-item" bindtap="goToMessages" hover-class="menu-press">
       <view class="menu-icon-box" style="background:#EEF2FF;">
-        <text class="menu-emoji">🔔</text>
+        <text class="menu-emoji">铃</text>
       </view>
       <text class="menu-name">消息通知</text>
       <view class="menu-arrow"></view>
@@ -121,7 +113,7 @@
 
     <view class="menu-item" bindtap="goToFavorites" hover-class="menu-press">
       <view class="menu-icon-box" style="background:#FFF1F2;">
-        <text class="menu-emoji">🔖</text>
+        <text class="menu-emoji">藏</text>
       </view>
       <text class="menu-name">我的收藏</text>
       <view class="menu-arrow"></view>
@@ -129,7 +121,7 @@
 
     <view class="menu-item" bindtap="goToResumes" hover-class="menu-press">
       <view class="menu-icon-box" style="background:#F0FDF4;">
-        <text class="menu-emoji">📄</text>
+        <text class="menu-emoji">简</text>
       </view>
       <text class="menu-name">我的简历</text>
       <view class="menu-arrow"></view>
@@ -137,7 +129,7 @@
 
     <view class="menu-item" bindtap="goToAIInterview" hover-class="menu-press">
       <view class="menu-icon-box" style="background:#FAF5FF;">
-        <text class="menu-emoji">🤖</text>
+        <text class="menu-emoji">AI</text>
       </view>
       <text class="menu-name">AI 模拟面试记录</text>
       <view class="tag-new">NEW</view>
@@ -146,20 +138,19 @@
 
     <view class="menu-item" bindtap="goToMyExperiences" hover-class="menu-press">
       <view class="menu-icon-box" style="background:#FFFBEB;">
-        <text class="menu-emoji">📝</text>
+        <text class="menu-emoji">经</text>
       </view>
       <text class="menu-name">我的笔经面经</text>
       <view class="menu-arrow"></view>
     </view>
   </view>
 
-  <!-- ── 常用功能 ── -->
   <view class="menu-group">
     <view class="group-title">常用功能</view>
 
     <view class="menu-item" bindtap="goToFeedback" hover-class="menu-press">
       <view class="menu-icon-box" style="background:#F0F9FF;">
-        <text class="menu-emoji">💬</text>
+        <text class="menu-emoji">议</text>
       </view>
       <text class="menu-name">意见反馈</text>
       <view class="menu-arrow"></view>
@@ -167,7 +158,7 @@
 
     <view class="menu-item" bindtap="goToAbout" hover-class="menu-press">
       <view class="menu-icon-box" style="background:#F8FAFC;">
-        <text class="menu-emoji">ℹ️</text>
+        <text class="menu-emoji">i</text>
       </view>
       <text class="menu-name">关于我们</text>
       <view class="menu-arrow"></view>
@@ -175,17 +166,14 @@
 
     <view class="menu-item" bindtap="goToSettings" hover-class="menu-press">
       <view class="menu-icon-box" style="background:#F4F6F9;">
-        <text class="menu-emoji">⚙️</text>
+        <text class="menu-emoji">设</text>
       </view>
       <text class="menu-name">设置</text>
       <view class="menu-arrow"></view>
     </view>
   </view>
-
-  <view style="height: 12rpx;"></view>
 </view>
 
-<!-- 登录弹窗：点击头像 / 我的资料触发 -->
 <c-login-popup
   show="{{showLoginPopup}}"
   bind:close="onLoginPopupClose"

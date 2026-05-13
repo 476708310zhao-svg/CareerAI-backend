@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/auth/auth",
     "pages/jobs/jobs",
     "pages/job-detail/job-detail",
 

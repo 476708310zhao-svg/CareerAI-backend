@@ -1,141 +1,159 @@
-/* pages/agencies/agencies.wxss — Linear Dark Theme */
+/* pages/agencies/agencies.wxss 鈥?Linear Dark Theme */
 page {
   background: var(--bg-page);
   font-family: -apple-system, 'PingFang SC', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── 固定头部 ── */
+/* 鈹€鈹€ 鍥哄畾澶撮儴 鈹€鈹€ */
 .fixed-header {
+  box-shadow: 0 12rpx 34rpx rgba(15,23,42,0.06);
   position: fixed;
   top: 0; left: 0;
   width: 100%;
   z-index: 100;
-  background: var(--bg-panel);
-  border-bottom: 1rpx solid rgba(0,0,0,0.04);
+  background: rgba(255,255,255,0.96);
+  border-bottom: 1rpx solid rgba(148,163,184,0.12);
   padding-top: env(safe-area-inset-top);
 }
 
-/* ── 类型 Tab ── */
+/* 鈹€鈹€ 绫诲瀷 Tab 鈹€鈹€ */
 .type-scroll { width: 100%; }
 .type-inner {
   display: inline-flex;
   align-items: center;
-  gap: 12rpx;
-  padding: 18rpx 24rpx 14rpx;
+  gap: 10rpx;
+  padding: 16rpx 24rpx 12rpx;
   white-space: nowrap;
 }
 .type-pill {
-  font-size: 26rpx;
-  color: var(--text-muted);
-  background: rgba(255,255,255,0.04);
-  padding: 10rpx 26rpx;
-  border-radius: 9999rpx;
+  box-shadow: inset 0 -2rpx 0 rgba(15,23,42,0.02);
+  font-weight: 700;
+  justify-content: center;
+  align-items: center;
+  display: inline-flex;
+  height: 56rpx;
+  min-width: 92rpx;
+  font-size: 25rpx;
+  color: #7b8797;
+  background: #f8fafc;
+  padding: 0 24rpx;
+  border-radius: 999rpx;
   flex-shrink: 0;
-  border: 1.5rpx solid rgba(0,0,0,0.06);
+  border: 1.5rpx solid rgba(148,163,184,0.16);
 }
 .type-pill.active {
-  background: #EEF2FF;
-  color: var(--brand);
-  border-color: #A5B4FC;
+  box-shadow: 0 10rpx 24rpx rgba(43,92,230,0.12);
+  background: linear-gradient(135deg, #eef4ff, #ffffff);
+  color: #1d4ed8;
+  border-color: rgba(43,92,230,0.28);
   font-weight: 600;
 }
 
-/* ── 搜索栏 ── */
+/* 鈹€鈹€ 鎼滅储鏍?鈹€鈹€ */
 .search-bar { padding: 0 20rpx 14rpx; }
 .search-wrap {
+  box-shadow: 0 10rpx 26rpx rgba(15,23,42,0.045);
   display: flex;
   align-items: center;
-  height: 74rpx;
-  background: rgba(255,255,255,0.04);
-  border-radius: 9999rpx;
+  height: 76rpx;
+  background: #ffffff;
+  border-radius: 28rpx;
   padding: 0 22rpx;
   gap: 12rpx;
-  border: 1.5rpx solid rgba(0,0,0,0.06);
+  border: 1.5rpx solid rgba(148,163,184,0.18);
 }
 .search-input {
+  font-weight: 600;
   flex: 1;
-  font-size: 28rpx;
+  font-size: 27rpx;
   color: var(--text-primary);
   height: 74rpx;
   line-height: 74rpx;
 }
 .ph { color: var(--text-muted); font-size: 27rpx; }
 .search-clear {
+  color: #64748b;
   width: 40rpx; height: 40rpx;
   border-radius: 50%;
-  background: rgba(255,255,255,0.10);
+  background: #eef2f7;
   display: flex; align-items: center; justify-content: center;
   font-size: 22rpx; color: var(--text-muted); line-height: 40rpx; text-align: center;
 }
 
-/* ── 工具栏行 ── */
+/* 鈹€鈹€ 宸ュ叿鏍忚 鈹€鈹€ */
 .toolbar-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20rpx 16rpx;
+  padding: 0 22rpx 18rpx;
   gap: 12rpx;
 }
 .sort-btn {
+  box-shadow: 0 8rpx 18rpx rgba(15,23,42,0.04);
+  min-height: 52rpx;
   display: flex;
   align-items: center;
   gap: 8rpx;
-  background: rgba(255,255,255,0.04);
-  border: 1.5rpx solid rgba(0,0,0,0.06);
+  background: #ffffff;
+  border: 1.5rpx solid rgba(148,163,184,0.16);
   border-radius: 22rpx;
-  padding: 8rpx 20rpx;
+  padding: 0 20rpx;
   flex-shrink: 0;
 }
 .sort-label { font-size: 25rpx; color: var(--text-secondary); font-weight: 500; }
 .sort-arrow { font-size: 19rpx; color: var(--text-muted); }
 .stat-center {
+  min-width: 0;
   flex: 1;
   display: flex; align-items: center; justify-content: center; gap: 6rpx;
 }
 .stat-txt { font-size: 24rpx; color: var(--text-muted); }
 .stat-kw  { font-size: 24rpx; color: var(--brand); font-weight: 500; }
 .compare-toggle {
+  box-shadow: 0 8rpx 18rpx rgba(15,23,42,0.04);
+  min-height: 52rpx;
   display: flex; align-items: center;
-  background: rgba(255,255,255,0.04);
-  border: 1.5rpx solid rgba(0,0,0,0.06);
+  background: #ffffff;
+  border: 1.5rpx solid rgba(148,163,184,0.16);
   border-radius: 22rpx;
-  padding: 8rpx 20rpx;
+  padding: 0 20rpx;
   flex-shrink: 0;
-  font-size: 25rpx;
-  color: var(--text-secondary);
-  font-weight: 500;
+  font-size: 24rpx;
+  color: #667085;
+  font-weight: 750;
 }
 .compare-toggle.active {
-  background: #EEF2FF;
-  border-color: #A5B4FC;
-  color: var(--brand);
+  background: #eff6ff;
+  border-color: rgba(43,92,230,0.28);
+  color: #1d4ed8;
 }
 
-/* ── 占位 ── */
+/* 鈹€鈹€ 鍗犱綅 鈹€鈹€ */
 .spacer { height: 270rpx; }
 
-/* ── 机构列表 ── */
+/* 鈹€鈹€ 鏈烘瀯鍒楄〃 鈹€鈹€ */
 .list { padding: 4rpx 16rpx 60rpx; }
 
-/* ── 机构卡片 ── */
+/* 鈹€鈹€ 鏈烘瀯鍗＄墖 鈹€鈹€ */
 .agency-card {
+  box-shadow: 0 18rpx 42rpx rgba(15,23,42,0.075);
   position: relative;
-  background: var(--bg-panel);
-  border-radius: var(--r-lg);
-  border: 1.5rpx solid rgba(0,0,0,0.05);
-  padding: 24rpx 22rpx 0;
-  margin-bottom: 14rpx;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0.92)), radial-gradient(circle at 100% 0, rgba(43,92,230,0.10), transparent 34%);
+  border-radius: 28rpx;
+  border: 1.5rpx solid rgba(148,163,184,0.16);
+  padding: 22rpx 20rpx 0;
+  margin-bottom: 18rpx;
   overflow: hidden;
 }
 .agency-card:active { opacity: 0.80; }
 .agency-card.compare-mode { padding-left: 76rpx; }
 .agency-card.selected {
-  border-color: rgba(113,112,255,0.50);
-  box-shadow: 0 0 0 3rpx rgba(113,112,255,0.15);
+  border-color: rgba(43,92,230,0.55);
+  box-shadow: 0 18rpx 46rpx rgba(43,92,230,0.16);
 }
 
-/* 复选框 */
+/* 澶嶉€夋 */
 .check-box {
   position: absolute;
   left: 18rpx;
@@ -143,19 +161,24 @@ page {
   transform: translateY(-50%);
 }
 .check-inner {
-  width: 44rpx; height: 44rpx;
+  box-shadow: 0 8rpx 18rpx rgba(15,23,42,0.08);
+  border-color: rgba(43,92,230,0.22);
+  width: 46rpx; height: 46rpx;
   border-radius: 50%;
   border: 2.5rpx solid rgba(255,255,255,0.15);
-  background: rgba(255,255,255,0.04);
+  background: #ffffff;
   display: flex; align-items: center; justify-content: center;
 }
 .check-inner.checked { background: var(--brand); border-color: var(--brand); }
 .check-mark { font-size: 26rpx; color: var(--bg-panel); font-weight: 700; }
 
-/* ── 卡片头部 ── */
+/* 鈹€鈹€ 鍗＄墖澶撮儴 鈹€鈹€ */
 .card-head {
+  z-index: 1;
+  position: relative;
+  margin-bottom: 14rpx;
   display: flex; align-items: flex-start;
-  gap: 18rpx; margin-bottom: 16rpx;
+  gap: 18rpx;
 }
 .logo-wrap { flex-shrink: 0; }
 .logo-img {
@@ -164,44 +187,57 @@ page {
   border: 1rpx solid rgba(255,255,255,0.10);
 }
 .logo-placeholder {
-  width: 92rpx; height: 92rpx;
-  border-radius: 18rpx;
+  background-image: linear-gradient(135deg, rgba(255,255,255,0.26), rgba(255,255,255,0));
+  box-shadow: 0 12rpx 24rpx rgba(15,23,42,0.12);
+  border: 1.5rpx solid rgba(255,255,255,0.70);
+  height: 88rpx;
+  width: 88rpx;
+  border-radius: 22rpx;
   display: flex; align-items: center; justify-content: center;
 }
 .logo-text { font-size: 28rpx; font-weight: 800; color: #fff; letter-spacing: 1rpx; text-shadow: 0 1rpx 4rpx rgba(0,0,0,0.2); }
 
 .card-info { flex: 1; min-width: 0; padding-top: 2rpx; }
 .name-row {
+  margin-bottom: 8rpx;
   display: flex; align-items: center;
-  gap: 10rpx; margin-bottom: 10rpx;
+  gap: 8rpx;
 }
 .agency-name {
-  font-size: 30rpx; font-weight: 700;
-  color: var(--text-primary); line-height: 1.35;
+  letter-spacing: 0.1rpx;
+  font-weight: 900;
+  font-size: 30rpx;
+  color: #1f2937;
   flex: 1; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap;
 }
 .verified-badge {
-  background: rgba(16,185,129,0.12);
+  border-color: rgba(16,185,129,0.28);
+  background: #ecfdf5;
   border: 1rpx solid rgba(16,185,129,0.30);
-  border-radius: 8rpx;
-  padding: 3rpx 10rpx; flex-shrink: 0;
+  border-radius: 10rpx;
+  padding: 4rpx 10rpx;
 }
 .verified-text { font-size: 20rpx; color: var(--success); font-weight: 600; }
 .meta-row { display: flex; align-items: center; gap: 10rpx; }
 .type-tag {
-  font-size: 22rpx; color: #6366F1;
-  background: #EEF2FF;
-  padding: 4rpx 14rpx; border-radius: 8rpx; font-weight: 500;
+  font-weight: 800;
+  color: #3157d5;
+  border-radius: 10rpx;
+  font-size: 22rpx;
+  background: #eef4ff;
+  padding: 5rpx 14rpx;
   flex-shrink: 0;
   border: 1rpx solid rgba(94,106,210,0.30);
 }
 .city-text { font-size: 23rpx; color: var(--text-muted); }
 
-/* 评分块 */
+/* 璇勫垎鍧?*/
 .rating-block {
+  padding-top: 0;
+  min-width: 88rpx;
   display: flex; flex-direction: column;
-  align-items: flex-end; gap: 5rpx;
+  align-items: flex-end;
   flex-shrink: 0; padding-top: 2rpx;
 }
 .r-score-row { display: flex; align-items: center; gap: 4rpx; }
@@ -210,16 +246,19 @@ page {
 .r-none { font-size: 24rpx; font-weight: 500; color: var(--text-muted); }
 .r-cnt  { font-size: 21rpx; color: var(--text-muted); }
 
-/* 描述 */
+/* 鎻忚堪 */
 .desc {
-  font-size: 26rpx; color: var(--text-muted);
-  line-height: 1.65; overflow: hidden;
+  z-index: 1;
+  position: relative;
+  color: #667085;
+  font-size: 25rpx;
+  line-height: 1.62;
   text-overflow: ellipsis;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   margin-bottom: 16rpx;
 }
 
-/* 专长标签 */
+/* 涓撻暱鏍囩 */
 .spec-tags { display: flex; flex-wrap: wrap; gap: 8rpx; margin-bottom: 18rpx; }
 .spec-tag {
   font-size: 22rpx; color: var(--text-muted);
@@ -229,22 +268,26 @@ page {
 }
 .spec-more { font-size: 22rpx; color: var(--text-muted); padding: 6rpx 8rpx; }
 
-/* 卡片底部 */
+/* 鍗＄墖搴曢儴 */
 .card-footer {
+  z-index: 1;
+  position: relative;
   display: flex; align-items: center; justify-content: space-between;
-  padding: 14rpx 0 16rpx;
-  border-top: 1rpx solid rgba(0,0,0,0.04);
+  padding: 16rpx 0 18rpx;
+  border-top: 1rpx solid rgba(148,163,184,0.14);
   margin-top: 2rpx;
 }
 .ai-badge {
+  border-color: rgba(43,92,230,0.20);
+  padding: 7rpx 14rpx;
   display: flex; align-items: center; gap: 6rpx;
-  background: #EEF2FF;
+  background: linear-gradient(135deg, #eef4ff, #f8fbff);
   border: 1rpx solid rgba(94,106,210,0.25);
-  border-radius: 10rpx; padding: 6rpx 14rpx;
+  border-radius: 12rpx;
 }
 .ai-badge.pending {
-  background: rgba(255,255,255,0.04);
-  border-color: rgba(0,0,0,0.06);
+  background: #f8fafc;
+  border-color: rgba(148,163,184,0.16);
 }
 .ai-badge-txt { font-size: 22rpx; color: var(--brand); font-weight: 500; }
 .ai-badge.pending .ai-badge-txt { color: var(--text-muted); }
@@ -254,7 +297,7 @@ page {
 .compare-hint-txt { font-size: 24rpx; color: var(--text-muted); }
 .agency-card.selected .compare-hint-txt { color: var(--brand); font-weight: 600; }
 
-/* ── 加载 / 空状态 ── */
+/* 鈹€鈹€ 鍔犺浇 / 绌虹姸鎬?鈹€鈹€ */
 .loading-tip {
   display: flex; align-items: center; justify-content: center;
   gap: 16rpx; padding: 48rpx 0;
@@ -285,42 +328,16 @@ page {
 .load-more-btn {
   text-align: center; padding: 28rpx 0;
   font-size: 28rpx; color: var(--brand); font-weight: 600;
-  background: rgba(94,106,210,0.10);
-  border-radius: var(--r-md); margin: 8rpx 0 16rpx;
+  background: #eef4ff;
+  border-radius: 24rpx;
   border: 1rpx solid rgba(94,106,210,0.25);
 }
 
-/* ── 对比悬浮栏 ── */
-.compare-bar {
-  position: fixed;
-  bottom: 0; left: 0;
-  width: 100%;
-  background: var(--bg-panel);
-  border-top: 1.5rpx solid rgba(0,0,0,0.06);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20rpx 28rpx;
-  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
-  z-index: 200;
-  box-sizing: border-box;
-}
+/* 鈹€鈹€ 瀵规瘮鎮诞鏍?鈹€鈹€ */
 .compare-bar-left { display: flex; align-items: center; gap: 16rpx; }
 .compare-dots { display: flex; align-items: center; gap: 10rpx; }
-.compare-dot {
-  width: 20rpx; height: 20rpx;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.10);
-  border: 1.5rpx solid rgba(255,255,255,0.15);
-  flex-shrink: 0;
-}
 .compare-dot.filled { background: var(--brand); border-color: var(--brand); }
 .compare-count { font-size: 27rpx; color: var(--text-secondary); font-weight: 500; }
-.compare-go-btn {
-  background: var(--brand);
-  color: var(--bg-panel); font-size: 30rpx; font-weight: 700;
-  padding: 20rpx 48rpx; border-radius: 9999rpx;
-}
 .compare-go-btn.disabled {
   background: rgba(0,0,0,0.04);
   color: var(--text-muted);
@@ -336,97 +353,6 @@ page {
     linear-gradient(180deg, #ffffff 0%, #f6f8fc 34%, #f8fafc 100%);
 }
 
-.fixed-header {
-  background: rgba(255,255,255,0.96);
-  border-bottom: 1rpx solid rgba(148,163,184,0.12);
-  box-shadow: 0 12rpx 34rpx rgba(15,23,42,0.06);
-}
-
-.type-scroll {
-  width: 100%;
-  white-space: nowrap;
-}
-
-.type-inner {
-  gap: 10rpx;
-  padding: 16rpx 24rpx 12rpx;
-}
-
-.type-pill {
-  min-width: 92rpx;
-  height: 56rpx;
-  padding: 0 24rpx;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #7b8797;
-  background: #f8fafc;
-  border: 1.5rpx solid rgba(148,163,184,0.16);
-  border-radius: 999rpx;
-  font-size: 25rpx;
-  font-weight: 700;
-  box-shadow: inset 0 -2rpx 0 rgba(15,23,42,0.02);
-}
-
-.type-pill.active {
-  color: #1d4ed8;
-  background: linear-gradient(135deg, #eef4ff, #ffffff);
-  border-color: rgba(43,92,230,0.28);
-  box-shadow: 0 10rpx 24rpx rgba(43,92,230,0.12);
-}
-
-.search-bar {
-  padding: 0 22rpx 14rpx;
-}
-
-.search-wrap {
-  height: 76rpx;
-  background: #ffffff;
-  border: 1.5rpx solid rgba(148,163,184,0.18);
-  border-radius: 28rpx;
-  box-shadow: 0 10rpx 26rpx rgba(15,23,42,0.045);
-}
-
-.search-input {
-  font-size: 27rpx;
-  font-weight: 600;
-}
-
-.search-clear {
-  background: #eef2f7;
-  color: #64748b;
-}
-
-.toolbar-row {
-  padding: 0 22rpx 18rpx;
-}
-
-.sort-btn,
-.compare-toggle {
-  min-height: 52rpx;
-  padding: 0 20rpx;
-  background: #ffffff;
-  border-color: rgba(148,163,184,0.16);
-  box-shadow: 0 8rpx 18rpx rgba(15,23,42,0.04);
-}
-
-.sort-label,
-.compare-toggle {
-  font-size: 24rpx;
-  color: #667085;
-  font-weight: 750;
-}
-
-.compare-toggle.active {
-  color: #1d4ed8;
-  background: #eff6ff;
-  border-color: rgba(43,92,230,0.28);
-}
-
-.stat-center {
-  min-width: 0;
-}
-
 .stat-txt {
   font-size: 24rpx;
   color: #94a3b8;
@@ -438,25 +364,6 @@ page {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.spacer {
-  height: 274rpx;
-}
-
-.list {
-  padding: 8rpx 20rpx 60rpx;
-}
-
-.agency-card {
-  padding: 22rpx 20rpx 0;
-  margin-bottom: 18rpx;
-  border-radius: 28rpx;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0.92)),
-    radial-gradient(circle at 100% 0, rgba(43,92,230,0.10), transparent 34%);
-  border: 1.5rpx solid rgba(148,163,184,0.16);
-  box-shadow: 0 18rpx 42rpx rgba(15,23,42,0.075);
 }
 
 .agency-card::before {
@@ -471,179 +378,10 @@ page {
   opacity: 0.9;
 }
 
-.agency-card.compare-mode {
-  padding-left: 76rpx;
-}
-
-.agency-card.selected {
-  border-color: rgba(43,92,230,0.55);
-  box-shadow: 0 18rpx 46rpx rgba(43,92,230,0.16);
-}
-
 .card-press,
 .tap-soft {
   transform: scale(0.982);
   opacity: 0.82;
-}
-
-.card-head {
-  gap: 18rpx;
-  margin-bottom: 14rpx;
-}
-
-.logo-img,
-.logo-placeholder {
-  width: 88rpx;
-  height: 88rpx;
-  border-radius: 22rpx;
-  border: 1.5rpx solid rgba(255,255,255,0.70);
-  box-shadow: 0 12rpx 24rpx rgba(15,23,42,0.12);
-}
-
-.logo-placeholder {
-  background-image: linear-gradient(135deg, rgba(255,255,255,0.26), rgba(255,255,255,0));
-}
-
-.logo-text {
-  font-size: 29rpx;
-  font-weight: 950;
-}
-
-.name-row {
-  gap: 8rpx;
-  margin-bottom: 8rpx;
-}
-
-.agency-name {
-  font-size: 30rpx;
-  font-weight: 900;
-  color: #1f2937;
-  letter-spacing: 0.1rpx;
-}
-
-.verified-badge {
-  padding: 4rpx 10rpx;
-  border-radius: 10rpx;
-  background: #ecfdf5;
-  border-color: rgba(16,185,129,0.28);
-}
-
-.verified-text {
-  font-size: 20rpx;
-  font-weight: 800;
-  color: #059669;
-}
-
-.meta-row {
-  gap: 8rpx;
-}
-
-.type-tag {
-  padding: 5rpx 14rpx;
-  border-radius: 10rpx;
-  color: #3157d5;
-  background: #eef4ff;
-  font-size: 22rpx;
-  font-weight: 800;
-}
-
-.city-text {
-  max-width: 260rpx;
-  color: #8a94a6;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.rating-block {
-  min-width: 88rpx;
-  align-items: flex-end;
-  padding-top: 0;
-}
-
-.r-score-row {
-  padding: 3rpx 0;
-  border-radius: 999rpx;
-}
-
-.r-star {
-  font-size: 24rpx;
-}
-
-.r-num {
-  font-size: 30rpx;
-  font-weight: 950;
-}
-
-.r-cnt {
-  font-size: 20rpx;
-  color: #98a2b3;
-}
-
-.desc {
-  margin-bottom: 16rpx;
-  color: #667085;
-  font-size: 25rpx;
-  line-height: 1.62;
-}
-
-.spec-tags {
-  gap: 8rpx;
-  margin-bottom: 16rpx;
-}
-
-.spec-tag,
-.spec-more {
-  padding: 7rpx 14rpx;
-  border-radius: 10rpx;
-  color: #798294;
-  background: #f3f6fa;
-  border: 1rpx solid rgba(148,163,184,0.14);
-  font-size: 21rpx;
-  font-weight: 700;
-}
-
-.card-footer {
-  padding: 16rpx 0 18rpx;
-  border-top: 1rpx solid rgba(148,163,184,0.14);
-}
-
-.ai-badge {
-  padding: 7rpx 14rpx;
-  border-radius: 12rpx;
-  background: linear-gradient(135deg, #eef4ff, #f8fbff);
-  border-color: rgba(43,92,230,0.20);
-}
-
-.ai-badge.pending {
-  background: #f8fafc;
-  border-color: rgba(148,163,184,0.16);
-}
-
-.ai-badge-txt {
-  color: #2557d6;
-  font-size: 22rpx;
-  font-weight: 850;
-}
-
-.arrow {
-  padding: 8rpx 2rpx 8rpx 18rpx;
-  color: #1d4ed8;
-  font-size: 25rpx;
-  font-weight: 900;
-}
-
-.check-inner {
-  width: 46rpx;
-  height: 46rpx;
-  border-color: rgba(43,92,230,0.22);
-  background: #ffffff;
-  box-shadow: 0 8rpx 18rpx rgba(15,23,42,0.08);
-}
-
-.check-inner.checked {
-  background: linear-gradient(135deg, #2b5ce6, #38bdf8);
-  border-color: transparent;
 }
 
 .compare-bar {
@@ -657,19 +395,10 @@ page {
   border-color: transparent;
 }
 
-.compare-dot.filled {
-  background: linear-gradient(135deg, #2b5ce6, #38bdf8);
-}
-
 .compare-go-btn {
   background: linear-gradient(135deg, #2b5ce6, #1d4ed8);
   color: #ffffff;
   box-shadow: 0 12rpx 24rpx rgba(43,92,230,0.24);
-}
-
-.load-more-btn {
-  border-radius: 24rpx;
-  background: #eef4ff;
 }
 
 .assessment-hero {
@@ -773,10 +502,181 @@ page {
   pointer-events: none;
 }
 
-.card-head,
-.desc,
-.spec-tags,
-.card-footer {
+/* Visual stability restore: keep final agency list overrides last. */
+.page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(37, 99, 235, 0.12), transparent 34%),
+    radial-gradient(circle at 94% 10%, rgba(20, 184, 166, 0.10), transparent 30%),
+    #f6f8fc;
+}
+
+.fixed-header {
+  background: rgba(255,255,255,0.96);
+  border-bottom: 1rpx solid #eef2f7;
+  box-shadow: 0 10rpx 30rpx rgba(15, 23, 42, 0.05);
+}
+
+.type-scroll {
+  padding: 16rpx 0 10rpx;
+}
+
+.type-inner {
+  padding: 0 24rpx;
+}
+
+.type-pill {
+  height: 62rpx;
+  padding: 0 24rpx;
+  border-radius: 999rpx;
+  color: #667085;
+  background: #f8fafc;
+  border: 1rpx solid #e6ebf2;
+}
+
+.type-pill.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb, #14b8a6);
+  border-color: transparent;
+  box-shadow: 0 12rpx 24rpx rgba(37, 99, 235, 0.18);
+}
+
+.search-wrap {
+  border-radius: 24rpx;
+  background: #f8fafc;
+  border: 1rpx solid #e6ebf2;
+}
+
+.sort-btn,
+.compare-toggle {
+  border-radius: 22rpx;
+  background: #ffffff;
+  border: 1rpx solid #e6ebf2;
+}
+
+.compare-toggle.active {
+  color: #2563eb;
+  background: #eef4ff;
+  border-color: rgba(37, 99, 235, 0.18);
+}
+
+.stat-center {
+  color: #667085;
+  font-size: 24rpx;
+}
+
+.stat-kw {
+  color: #2563eb;
+  font-weight: 900;
+}
+
+.list {
+  padding: 20rpx 24rpx 160rpx;
+}
+
+.agency-card {
   position: relative;
-  z-index: 1;
+  overflow: hidden;
+  margin-bottom: 22rpx;
+  padding: 26rpx;
+  border-radius: 30rpx;
+  background: #ffffff;
+  border: 1rpx solid rgba(37, 99, 235, 0.08);
+  box-shadow: 0 14rpx 34rpx rgba(15, 23, 42, 0.06);
+}
+
+.agency-card.selected {
+  border-color: rgba(37, 99, 235, 0.30);
+  box-shadow: 0 16rpx 38rpx rgba(37, 99, 235, 0.14);
+}
+
+.card-head {
+  align-items: flex-start;
+}
+
+.logo-img,
+.logo-placeholder {
+  width: 86rpx;
+  height: 86rpx;
+  border-radius: 24rpx;
+}
+
+.agency-name {
+  color: #101828;
+  font-size: 31rpx;
+  font-weight: 950;
+  line-height: 1.3;
+}
+
+.verified-badge {
+  border-radius: 999rpx;
+  background: #ecfdf3;
+}
+
+.verified-text {
+  color: #039855;
+}
+
+.type-tag {
+  color: #2563eb;
+  background: #eef4ff;
+}
+
+.city-text {
+  color: #667085;
+  font-size: 23rpx;
+}
+
+.rating-block {
+  padding-top: 0;
+}
+
+.r-num {
+  color: #172033;
+  font-weight: 900;
+}
+
+.desc {
+  color: #475467;
+  line-height: 1.65;
+}
+
+.spec-tag {
+  color: #344054;
+  background: #f8fafc;
+  border: 1rpx solid #e6ebf2;
+}
+
+.ai-badge {
+  color: #2563eb;
+  background: #eef4ff;
+}
+
+.ai-badge.pending {
+  color: #b45309;
+  background: #fffbeb;
+}
+
+.arrow {
+  color: #98a2b3;
+}
+
+.check-inner.checked {
+  background: linear-gradient(135deg, #2563eb, #14b8a6);
+  border-color: transparent;
+}
+
+.compare-bar {
+  background: rgba(255,255,255,0.96);
+  border-top: 1rpx solid #eef2f7;
+  box-shadow: 0 -12rpx 30rpx rgba(15, 23, 42, 0.08);
+}
+
+.compare-go-btn,
+.load-more-btn {
+  border-radius: 999rpx;
+}
+
+.compare-go-btn {
+  background: linear-gradient(135deg, #2563eb, #14b8a6);
 }

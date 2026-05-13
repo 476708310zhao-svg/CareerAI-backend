@@ -110,6 +110,18 @@ page { background: var(--bg-raised); }
   padding: 14rpx 0;
 }
 
+.bottom-actions {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.copy-link-btn {
+  font-size: 26rpx;
+  color: var(--brand);
+  padding: 14rpx 0;
+}
+
 .share-btn { height: 72rpx; font-size: 28rpx; }
 
 /* ── category badge colors ── */

@@ -96,16 +96,25 @@ Page({
 
   onLoginSuccess(e) {
     const { profile } = e.detail;
+    const nickName = profile.nickName || '';
     this.setData({
       isLogin: true,
       userInfo: {
-        nickName:  profile.nickName  || '微信用户',
+        nickName:  nickName || '微信用户',
         avatarUrl: profile.avatarUrl || '/images/default-avatar.png',
         school:    (profile.education && profile.education.school) || '',
         major:     (profile.education && profile.education.major)  || ''
       }
     });
     this.updateStats();
+
+    // 昵称是默认值说明是新用户或未完善资料，自动跳转完善页
+    const isDefaultNick = !nickName || nickName === '微信用户';
+    if (isDefaultNick) {
+      setTimeout(() => {
+        wx.navigateTo({ url: '/pages/profile-edit/profile-edit?fromLogin=1' });
+      }, 900);
+    }
   },
 
   goToApplications() {
@@ -148,5 +157,29 @@ Page({
   goToInterviews(){ wx.navigateTo({ url: '/pages/ai-history/ai-history', fail: () => wx.showToast({ title: '请先创建 ai-history 页面', icon: 'none' }) }); },
   goToSettings()  { wx.navigateTo({ url: '/pages/settings/settings' }); },
   goToFeedback()  { wx.navigateTo({ url: '/pages/feedback/feedback' }); },
-  goToAbout()     { wx.navigateTo({ url: '/pages/about/about' }); }
+  goToAbout()     { wx.navigateTo({ url: '/pages/about/about' }); },
+
+  onLogout() {
+    wx.showModal({
+      title: '退出登录',
+      content: '退出后需重新登录才能使用完整功能',
+      confirmText: '退出',
+      confirmColor: '#EF4444',
+      cancelText: '取消',
+      success: (res) => {
+        if (!res.confirm) return;
+        wx.removeStorageSync('token');
+        wx.removeStorageSync('userProfile');
+        wx.removeStorageSync('vipInfo');
+        wx.removeStorageSync('userVipInfo');
+        const app = getApp();
+        app.globalData.isLoggedIn  = false;
+        app.globalData.userProfile = null;
+        app.globalData.vipInfo     = null;
+        app.refreshGlobalData();
+        this.loadUserInfo();
+        this.updateStats();
+      }
+    });
+  }
 });

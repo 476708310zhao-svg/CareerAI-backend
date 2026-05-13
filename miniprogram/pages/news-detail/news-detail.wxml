@@ -27,7 +27,10 @@
   <!-- 底部操作 -->
   <view class="bottom-bar">
     <view class="back-btn" bindtap="onBack">← 返回快讯</view>
-    <c-button class="share-btn" block="{{false}}" open-type="share">分享给朋友</c-button>
+    <view class="bottom-actions">
+      <view wx:if="{{news.url}}" class="copy-link-btn" bindtap="onCopyLink">复制原文链接</view>
+      <c-button class="share-btn" block="{{false}}" open-type="share">分享给朋友</c-button>
+    </view>
   </view>
 
 </view>

@@ -1,6 +1,5 @@
 // pages/messages/messages.js
-const config  = require('../../utils/config.js');
-const API_BASE = config.API_BASE_URL;
+const { getMessages, markMessageRead, markAllMessagesRead } = require('../../utils/api-messages.js');
 
 Page({
   data: {
@@ -31,14 +30,11 @@ Page({
     this.setData({ loading: true });
     const { type } = this._currentType();
 
-    wx.request({
-      url: API_BASE + '/api/messages' + (type ? `?type=${type}` : ''),
-      method: 'GET',
-      header: { 'Authorization': 'Bearer ' + token },
-      success: (res) => {
+    getMessages(type)
+      .then((res) => {
         this.setData({ loading: false });
-        if (res.statusCode === 200 && res.data.code === 0) {
-          const { list, unreadCount } = res.data.data;
+        if (res && res.code === 0) {
+          const { list, unreadCount } = res.data;
           // 将后端字段映射为页面字段
           const messages = list.map(m => ({
             id: m.id, type: m.type,
@@ -54,12 +50,11 @@ Page({
         } else {
           this._loadLocalFallback();
         }
-      },
-      fail: () => {
+      })
+      .catch(() => {
         this.setData({ loading: false });
         this._loadLocalFallback();
-      }
-    });
+      });
   },
 
   // 降级：未登录或网络失败时读本地 Storage
@@ -110,12 +105,7 @@ Page({
       // 同步到后端
       const token = wx.getStorageSync('token');
       if (token) {
-        wx.request({
-          url: `${API_BASE}/api/messages/${msg.id}/read`,
-          method: 'PUT',
-          header: { 'Authorization': 'Bearer ' + token },
-          fail: () => {}
-        });
+        markMessageRead(msg.id).catch(() => {});
       }
     }
 
@@ -137,12 +127,7 @@ Page({
     wx.setStorageSync('unreadMessages', 0);
 
     if (token) {
-      wx.request({
-        url: API_BASE + '/api/messages/read-all',
-        method: 'PUT',
-        header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        fail: () => {}
-      });
+      markAllMessagesRead().catch(() => {});
     }
     wx.showToast({ title: '已全部标记已读', icon: 'none' });
   },

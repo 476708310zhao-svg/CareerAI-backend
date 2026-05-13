@@ -1,5 +1,15 @@
 /* pages/experiences/experiences.wxss */
 page {
+  --bg-panel: #ffffff;
+  --bg-raised: #f6f8fc;
+  --text-primary: #101828;
+  --text-body: #344054;
+  --text-secondary: #667085;
+  --text-muted: #98a2b3;
+  --brand: #2563eb;
+  --r-sm: 14rpx;
+  --r-md: 20rpx;
+  --r-lg: 28rpx;
   background: var(--bg-raised);
   font-family: -apple-system, 'PingFang SC', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -182,7 +192,29 @@ page {
 .diff-pill.mid.active   { background: #FFF8E6; color: #D97706; border-color: #FCD34D; }
 .diff-pill.hard.active  { background: #FEF2F2; color: #DC2626; border-color: #FCA5A5; }
 
-/* 占位由 JS 动态 inline style 控制，此处无需静态高度 */
+.header-spacer {
+  height: 340rpx;
+}
+
+.header-spacer.source-local {
+  height: 354rpx;
+}
+
+.header-spacer.source-local.with-ai {
+  height: 458rpx;
+}
+
+.header-spacer.source-leetcode {
+  height: 258rpx;
+}
+
+.header-spacer.source-topics {
+  height: 178rpx;
+}
+
+.header-spacer.source-picks {
+  height: 224rpx;
+}
 
 /* ── LeetCode 统计卡 ────────────────────────────────────────── */
 .lc-stats-card {

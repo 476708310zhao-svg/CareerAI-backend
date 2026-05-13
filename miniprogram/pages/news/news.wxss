@@ -26,6 +26,32 @@ page { background: var(--bg-raised); }
 }
 .si-clear { font-size: 28rpx; color: var(--text-muted); padding: 0 4rpx; }
 
+/* ── 语言切换 ── */
+.lang-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--bg-panel);
+  padding: 12rpx 24rpx 8rpx;
+  border-bottom: 1rpx solid #F3F4F6;
+  position: relative;
+  z-index: 11;
+}
+.lang-btn {
+  flex: 1;
+  text-align: center;
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  padding: 12rpx 0;
+  border-bottom: 4rpx solid transparent;
+  font-weight: 500;
+}
+.lang-active {
+  color: var(--brand);
+  border-bottom-color: var(--brand);
+  font-weight: 700;
+}
+
 /* ── 分类 Tab ── */
 .tab-wrap {
   background: var(--bg-panel);

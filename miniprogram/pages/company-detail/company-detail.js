@@ -2,6 +2,7 @@
 const { searchCompanyJobs, getCompanyDetail, generateExperience, generateBatchExperiences, generateCompanyQuestions, sendChatToDeepSeek, normalizeCompanyLogo } = require('../../utils/api.js');
 const { formatSalaryRange } = require('../../utils/util.js');
 const safePage = require('../../behaviors/safe-page');
+const { getGlassdoorOverview, getGlassdoorReviews } = require('../../utils/api-news.js');
 
 Page({
   behaviors: [safePage],
@@ -15,7 +16,13 @@ Page({
     introLoading: false,   // AI 自动生成公司简介时的 loading
     insightLoading: false,
     insight: null,
-    tabs: ['职位', '面经', '薪资', 'AI洞察'],
+    tabs: ['职位', '面经', '薪资', 'AI洞察', '评价'],
+    glassdoor: null,
+    glassdoorLoading: false,
+    glassdoorReviews: [],
+    glassdoorReviewsLoading: false,
+    glassdoorPage: 1,
+    glassdoorTotal: 0,
   },
 
   onLoad(options) {
@@ -71,6 +78,7 @@ Page({
       if (!company.description) this.fetchAICompanyIntro(company.name);
       if (!company.jobs.length) this.fetchCompanyJobs(company.name);
       this.loadCachedExperiences(company.name);
+      this.fetchGlassdoorOverview(company.name);
     }).catch(() => {
       const fallback = {
         id: id || 0,
@@ -94,6 +102,7 @@ Page({
       this.fetchAICompanyIntro(fallback.name);
       this.fetchCompanyJobs(fallback.name);
       this.loadCachedExperiences(fallback.name);
+      this.fetchGlassdoorOverview(fallback.name);
     });
     return;
 
@@ -305,6 +314,9 @@ Page({
     if (idx === 3 && !this.data.insight && !this.data.insightLoading) {
       this.fetchAIInsight(this.data.company.name);
     }
+    if (idx === 4 && !this.data.glassdoorReviews.length && !this.data.glassdoorReviewsLoading) {
+      this.fetchGlassdoorReviews(this.data.company.name, 1);
+    }
   },
 
   // ======== AI 公司洞察（面试风格/高频题/求职建议）========
@@ -346,6 +358,52 @@ Page({
     wx.removeStorageSync('aiInsight_' + companyName);
     this._safeSetData({ insight: null });
     this.fetchAIInsight(companyName);
+  },
+
+  // ======== Glassdoor 评价 ========
+  fetchGlassdoorOverview(companyName) {
+    this._safeSetData({ glassdoorLoading: true });
+    getGlassdoorOverview(companyName).then(res => {
+      if (res && res.data && res.data.overallRating) {
+        const gd = res.data;
+        gd.culturePct  = gd.cultureRating  ? Math.round(gd.cultureRating  / 5 * 100) : 0;
+        gd.workLifePct = gd.workLifeRating  ? Math.round(gd.workLifeRating / 5 * 100) : 0;
+        gd.careerPct   = gd.careerRating    ? Math.round(gd.careerRating   / 5 * 100) : 0;
+        gd.mgmtPct     = gd.mgmtRating      ? Math.round(gd.mgmtRating     / 5 * 100) : 0;
+        gd.benefitsPct = gd.benefitsRating  ? Math.round(gd.benefitsRating / 5 * 100) : 0;
+        this._safeSetData({ glassdoor: gd, glassdoorLoading: false });
+      } else {
+        this._safeSetData({ glassdoorLoading: false });
+      }
+    }).catch(() => {
+      this._safeSetData({ glassdoorLoading: false });
+    });
+  },
+
+  fetchGlassdoorReviews(companyName, page) {
+    this._safeSetData({ glassdoorReviewsLoading: true });
+    const employerId = this.data.glassdoor ? this.data.glassdoor.employerId : null;
+    getGlassdoorReviews(companyName, page, employerId).then(res => {
+      const reviews = (res && res.reviews) ? res.reviews : [];
+      const total   = (res && res.total)   ? res.total   : 0;
+      const merged  = page === 1 ? reviews : [...this.data.glassdoorReviews, ...reviews];
+      this._safeSetData({ glassdoorReviews: merged, glassdoorTotal: total, glassdoorPage: page, glassdoorReviewsLoading: false });
+    }).catch(() => {
+      this._safeSetData({ glassdoorReviewsLoading: false });
+    });
+  },
+
+  loadMoreGlassdoorReviews() {
+    if (this.data.glassdoorReviewsLoading) return;
+    this.fetchGlassdoorReviews(this.data.company.name, this.data.glassdoorPage + 1);
+  },
+
+  switchToGlassdoor() {
+    this.setData({ currentTab: 4 });
+    wx.pageScrollTo({ selector: '.tab-bar', duration: 260 });
+    if (!this.data.glassdoorReviews.length && !this.data.glassdoorReviewsLoading) {
+      this.fetchGlassdoorReviews(this.data.company.name, 1);
+    }
   },
 
   goToJobDetail(e) {
