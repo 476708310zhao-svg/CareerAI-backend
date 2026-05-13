@@ -1253,17 +1253,23 @@ page {
   width: 104rpx;
   height: 104rpx;
   border-radius: 28rpx;
-  background: linear-gradient(145deg, #12213a, #2463d7 64%, #16a085);
-  box-shadow: 0 14rpx 30rpx rgba(37, 99, 235, 0.2);
+  background:
+    linear-gradient(145deg, #1d4ed8 0%, #2563eb 58%, #14b8a6 100%);
+  border: 1rpx solid rgba(255, 255, 255, 0.68);
+  box-shadow:
+    0 14rpx 30rpx rgba(37, 99, 235, 0.22),
+    inset 0 1rpx 0 rgba(255, 255, 255, 0.34);
 }
 
 .brief-metric-num {
+  color: #ffffff;
   font-size: 30rpx;
+  text-shadow: 0 2rpx 8rpx rgba(15, 23, 42, 0.22);
 }
 
 .brief-metric-label {
   width: 88rpx;
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(255, 255, 255, 0.9);
   font-size: 17rpx;
   line-height: 1.1;
   text-align: center;
