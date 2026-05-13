@@ -5,9 +5,15 @@ Page({
   data: {
     currentTab: 0,
     tabs: ['全部', '申请通知', '互动消息', '系统通知'],
+    tabCounts: [0, 0, 0, 0],
+    unreadTotal: 0,
     messages: [],
     filteredMessages: [],
-    loading: false
+    loading: false,
+    quickActions: [
+      { title: '查看网申进度', desc: '跟进待初筛、面试中、Offer 状态', type: 'applications' },
+      { title: '开始 AI 面试', desc: '生成练习记录和能力反馈', type: 'interview' }
+    ]
   },
 
   onLoad() {
@@ -44,6 +50,7 @@ Page({
           }));
           this.setData({ messages });
           this.filterMessages();
+          this.updateMessageStats(messages);
           this._syncTabBarBadge(unreadCount);
           wx.setStorageSync('unreadMessages', unreadCount);
           getApp().globalData.unreadCount = unreadCount;
@@ -66,6 +73,7 @@ Page({
     this.setData({ messages, loading: false });
     this.filterMessages();
     const unread = messages.filter(m => !m.isRead).length;
+    this.updateMessageStats(messages);
     this._syncTabBarBadge(unread);
   },
 
@@ -81,6 +89,19 @@ Page({
       ? this.data.messages.filter(m => m.type === type)
       : this.data.messages;
     this.setData({ filteredMessages: filtered });
+  },
+
+  updateMessageStats(messages) {
+    const counts = [
+      messages.length,
+      messages.filter(m => m.type === 'application').length,
+      messages.filter(m => m.type === 'interaction').length,
+      messages.filter(m => m.type === 'system').length
+    ];
+    this.setData({
+      tabCounts: counts,
+      unreadTotal: messages.filter(m => !m.isRead).length
+    });
   },
 
   switchTab(e) {
@@ -99,6 +120,7 @@ Page({
       this.setData({ messages });
       this.filterMessages();
       const unread = messages.filter(m => !m.isRead).length;
+      this.updateMessageStats(messages);
       this._syncTabBarBadge(unread);
       wx.setStorageSync('unreadMessages', unread);
 
@@ -123,6 +145,7 @@ Page({
     const messages = this.data.messages.map(m => ({ ...m, isRead: true }));
     this.setData({ messages });
     this.filterMessages();
+    this.updateMessageStats(messages);
     this._syncTabBarBadge(0);
     wx.setStorageSync('unreadMessages', 0);
 
@@ -140,6 +163,7 @@ Page({
       success: (res) => {
         if (res.confirm) {
           this.setData({ messages: [], filteredMessages: [] });
+          this.updateMessageStats([]);
           wx.removeStorageSync('userMessages');
           wx.setStorageSync('unreadMessages', 0);
           this._syncTabBarBadge(0);
@@ -155,6 +179,15 @@ Page({
 
   goInterview() {
     wx.navigateTo({ url: '/pages/interview-setup/interview-setup' });
+  },
+
+  handleQuickAction(e) {
+    const type = e.currentTarget.dataset.type;
+    if (type === 'applications') {
+      this.goApplications();
+    } else if (type === 'interview') {
+      this.goInterview();
+    }
   },
 
   // ─── 工具方法 ────────────────────────────────────────────────────────────────

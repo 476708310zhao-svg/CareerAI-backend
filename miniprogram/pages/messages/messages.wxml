@@ -1,11 +1,33 @@
 <!-- pages/messages/messages.wxml -->
 <view class="container">
 
+  <view class="message-hero">
+    <view>
+      <text class="hero-kicker">MESSAGE CENTER</text>
+      <text class="hero-title">消息中心</text>
+      <text class="hero-sub">申请进度、互动回复和系统提醒都会同步到这里</text>
+    </view>
+    <view class="hero-count">
+      <text class="count-num">{{unreadTotal}}</text>
+      <text class="count-label">未读</text>
+    </view>
+  </view>
+
+  <view class="quick-panel">
+    <block wx:for="{{quickActions}}" wx:key="type">
+      <view class="quick-card" bindtap="handleQuickAction" data-type="{{item.type}}">
+        <text class="quick-title">{{item.title}}</text>
+        <text class="quick-desc">{{item.desc}}</text>
+      </view>
+    </block>
+  </view>
+
   <!-- Tab 栏 -->
   <view class="tab-bar">
     <block wx:for="{{tabs}}" wx:key="*this">
       <view class="tab-item {{currentTab === index ? 'active' : ''}}" bindtap="switchTab" data-index="{{index}}">
-        {{item}}
+        <text>{{item}}</text>
+        <text class="tab-count">{{tabCounts[index] || 0}}</text>
       </view>
     </block>
     <view class="read-all-btn" bindtap="markAllRead">全部已读</view>
