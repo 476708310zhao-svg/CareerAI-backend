@@ -7,6 +7,15 @@ Page({
     currentTab: 0,
     tabs: ['职位', '面经', '公司', '机构', '校招'],
     favorites: { job: [], experience: [], company: [], agency: [], campus: [] },
+    totalFavorites: 0,
+    currentEmpty: {},
+    emptyStates: [
+      { emoji: '📌', title: '还没有收藏的职位', desc: '看到心动岗位时点一下收藏，之后可以在这里集中对比和投递。', btn: '去浏览职位', action: 'jobs' },
+      { emoji: '📖', title: '还没有收藏的面经', desc: '收藏高价值面经，面试前可以快速回看重点问题和经验。', btn: '去浏览面经', action: 'experiences' },
+      { emoji: '🏢', title: '还没有收藏的公司', desc: '把目标公司先收进来，方便后续比较岗位、地点和投递节奏。', btn: '去浏览公司', action: 'companies' },
+      { emoji: '🧭', title: '还没有收藏的机构', desc: '收藏感兴趣的求职机构，后续可以统一筛选和对比服务。', btn: '去浏览机构', action: 'agencies' },
+      { emoji: '🗓️', title: '还没有收藏的校招', desc: '收藏关键校招日程，避免错过网申、笔试和面试节点。', btn: '去看校招', action: 'campus' }
+    ],
     currentList: [],   // 当前 tab 经排序后的列表
     sortOrder: 'desc', // 'desc' 最新 | 'asc' 最早
     batchMode: false,
@@ -20,7 +29,8 @@ Page({
 
   loadFavorites() {
     const favorites = favUtil.getAll();
-    this.setData({ favorites }, () => {
+    const totalFavorites = TAB_KEYS.reduce((sum, key) => sum + (favorites[key] || []).length, 0);
+    this.setData({ favorites, totalFavorites }, () => {
       this._refreshList();
     });
   },
@@ -38,7 +48,11 @@ Page({
     });
 
     const allSelected = list.length > 0 && list.every(i => this.data.selectedIds.includes(i.targetId));
-    this.setData({ currentList: list, allSelected });
+    this.setData({
+      currentList: list,
+      allSelected,
+      currentEmpty: this.data.emptyStates[this.data.currentTab] || this.data.emptyStates[0]
+    });
   },
 
   switchTab(e) {
@@ -145,5 +159,26 @@ Page({
 
   goToExperiences() {
     wx.switchTab({ url: '/pages/experiences/experiences' });
+  },
+
+  browseCurrent() {
+    const action = this.data.currentEmpty.action;
+    if (action === 'experiences') {
+      this.goToExperiences();
+      return;
+    }
+    if (action === 'companies') {
+      wx.navigateTo({ url: '/pages/companies/companies' });
+      return;
+    }
+    if (action === 'agencies') {
+      wx.navigateTo({ url: '/pages/agencies/agencies' });
+      return;
+    }
+    if (action === 'campus') {
+      wx.navigateTo({ url: '/pages/campus/campus' });
+      return;
+    }
+    this.goToJobs();
   }
 });

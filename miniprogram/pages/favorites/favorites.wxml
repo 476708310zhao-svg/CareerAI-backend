@@ -1,6 +1,18 @@
 <!-- pages/favorites/favorites.wxml -->
 <view class="container">
 
+  <view class="favorites-hero">
+    <view>
+      <text class="hero-kicker">COLLECTIONS</text>
+      <text class="hero-title">收藏夹</text>
+      <text class="hero-sub">集中管理职位、公司、面经和校招信息，方便后续筛选与投递。</text>
+    </view>
+    <view class="hero-count">
+      <text class="count-num">{{totalFavorites}}</text>
+      <text class="count-label">已收藏</text>
+    </view>
+  </view>
+
   <!-- Tab 栏 -->
   <view class="tab-bar">
     <block wx:for="{{tabs}}" wx:key="*this">
@@ -58,12 +70,6 @@
           </view>
         </view>
       </block>
-      <!-- 职位空状态 -->
-      <empty-state wx:if="{{favorites.job.length === 0}}"
-        emoji="📌" title="还没有收藏的职位"
-        desc="在职位页浏览时，点击收藏按钮即可保存"
-        btn-text="去浏览职位" bind:action="goToJobs">
-      </empty-state>
     </block>
 
     <!-- 面经 -->
@@ -84,11 +90,6 @@
           <view class="remove-btn" catchtap="removeFavorite" data-type="experience" data-targetid="{{item.targetId}}" wx:if="{{!batchMode}}">取消</view>
         </view>
       </block>
-      <empty-state wx:if="{{favorites.experience.length === 0}}"
-        emoji="📖" title="还没有收藏的面经"
-        desc="在题库页浏览时，收藏感兴趣的面试经验"
-        btn-text="去浏览面经" bind:action="goToExperiences">
-      </empty-state>
     </block>
 
     <!-- 公司 -->
@@ -110,11 +111,6 @@
           <view class="remove-btn" catchtap="removeFavorite" data-type="company" data-targetid="{{item.targetId}}" wx:if="{{!batchMode}}">取消</view>
         </view>
       </block>
-      <empty-state wx:if="{{favorites.company.length === 0}}"
-        emoji="🏢" title="还没有收藏的公司"
-        desc="在公司详情页点击收藏，方便随时查看"
-        btn-text="去浏览公司" bind:action="goToJobs">
-      </empty-state>
     </block>
 
     <!-- 机构 -->
@@ -135,11 +131,6 @@
           <view class="remove-btn" catchtap="removeFavorite" data-type="agency" data-targetid="{{item.targetId}}" wx:if="{{!batchMode}}">取消</view>
         </view>
       </block>
-      <empty-state wx:if="{{favorites.agency.length === 0}}"
-        emoji="🧭" title="还没有收藏的机构"
-        desc="在机构详情页点击收藏，方便后续对比筛选"
-        btn-text="去浏览机构" bind:action="goToJobs">
-      </empty-state>
     </block>
 
     <!-- 校招 -->
@@ -160,12 +151,21 @@
           <view class="remove-btn" catchtap="removeFavorite" data-type="campus" data-targetid="{{item.targetId}}" wx:if="{{!batchMode}}">取消</view>
         </view>
       </block>
-      <empty-state wx:if="{{favorites.campus.length === 0}}"
-        emoji="🗓️" title="还没有收藏的校招"
-        desc="看到感兴趣的校招日程后，可以先收藏再统一投递"
-        btn-text="去浏览职位" bind:action="goToJobs">
-      </empty-state>
     </block>
+
+    <view wx:if="{{currentList.length === 0}}" class="fav-empty">
+      <view class="empty-icon">{{currentEmpty.emoji}}</view>
+      <text class="empty-title">{{currentEmpty.title}}</text>
+      <text class="empty-desc">{{currentEmpty.desc}}</text>
+      <view class="empty-actions">
+        <view class="empty-primary" bindtap="browseCurrent">{{currentEmpty.btn}}</view>
+        <view class="empty-secondary" bindtap="goToJobs">查看岗位推荐</view>
+      </view>
+      <view class="empty-tips">
+        <view class="tip-item">收藏后可按时间排序</view>
+        <view class="tip-item">支持批量删除整理</view>
+      </view>
+    </view>
 
   </view>
 </view>
