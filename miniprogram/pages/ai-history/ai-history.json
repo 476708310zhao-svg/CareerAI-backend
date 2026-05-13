@@ -4,7 +4,6 @@
   "navigationBarTextStyle": "black",
   "enablePullDownRefresh": true,
   "usingComponents": {
-    "empty-state": "/components/empty-state/empty-state",
     "loading-spinner": "/components/loading-spinner/loading-spinner"
   }
 }

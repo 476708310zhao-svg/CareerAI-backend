@@ -7,7 +7,8 @@ Page({
     isLoading: true,
     activeTab: 'history', // 'history' | 'bookmarks'
     bookmarks: [],
-    dueCount: 0
+    dueCount: 0,
+    bestScore: 0
   },
 
   onLoad() {
@@ -57,9 +58,13 @@ Page({
         };
       });
 
-      this.setData({ records, isLoading: false });
+      this.setData({
+        records,
+        bestScore: records.reduce((max, item) => Math.max(max, item.score || 0), 0),
+        isLoading: false
+      });
     } else {
-      this.setData({ records: [], isLoading: false });
+      this.setData({ records: [], bestScore: 0, isLoading: false });
     }
 
     // 同步加载错题本，计算复习计划
@@ -128,7 +133,7 @@ Page({
         let bqs = wx.getStorageSync('bookmarkedQuestions') || [];
         bqs = bqs.filter(b => b.qid !== qid);
         wx.setStorageSync('bookmarkedQuestions', bqs);
-        this.setData({ bookmarks: bqs });
+        this._loadBookmarks();
         wx.showToast({ title: '已移除', icon: 'none' });
       }
     });
@@ -141,7 +146,7 @@ Page({
       success: (res) => {
         if (!res.confirm) return;
         wx.removeStorageSync('bookmarkedQuestions');
-        this.setData({ bookmarks: [] });
+        this.setData({ bookmarks: [], dueCount: 0 });
         wx.showToast({ title: '已清空', icon: 'success' });
       }
     });
@@ -181,7 +186,7 @@ Page({
       success: (res) => {
         if (res.confirm) {
           wx.removeStorageSync('interviewHistory');
-          this.setData({ records: [] });
+          this.setData({ records: [], bestScore: 0 });
           wx.showToast({ title: '已清空', icon: 'success' });
         }
       }
