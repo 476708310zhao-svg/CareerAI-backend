@@ -1,3 +1,5 @@
 {
-  "navigationBarTitleText": "我的面经"
+  "navigationBarTitleText": "我的面经",
+  "navigationBarBackgroundColor": "#ffffff",
+  "navigationBarTextStyle": "black"
 }

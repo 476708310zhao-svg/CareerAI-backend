@@ -198,3 +198,72 @@ page,
   background: var(--app-page-bg);
   background-color: #ffffff;
 }
+
+/* Profile entry page polish */
+.container {
+  min-height: 100vh;
+  padding-bottom: 40rpx;
+}
+
+.tab-bar {
+  margin: 18rpx 24rpx 8rpx;
+  padding: 8rpx;
+  border-radius: 24rpx;
+  background: rgba(255,255,255,0.94);
+  border: 1rpx solid rgba(220,229,240,0.96);
+  box-shadow: 0 12rpx 30rpx rgba(32,48,70,0.06);
+  top: 0;
+}
+
+.tab-item {
+  padding: 18rpx 20rpx;
+  border-radius: 18rpx;
+  color: #64748b;
+  font-size: 25rpx;
+  font-weight: 800;
+}
+
+.tab-item.active {
+  color: #1d4ed8;
+  background: #eef4ff;
+}
+
+.tab-item.active::after {
+  display: none;
+}
+
+.read-all-btn {
+  align-self: center;
+  padding: 14rpx 16rpx;
+  border-radius: 16rpx;
+  color: #2563eb;
+  background: #f8fbff;
+  font-size: 23rpx;
+  font-weight: 850;
+}
+
+.message-list {
+  padding: 16rpx 24rpx 48rpx;
+}
+
+.message-card {
+  border-radius: 24rpx;
+  padding: 24rpx;
+  background: rgba(255,255,255,0.96);
+  border: 1rpx solid rgba(220,229,240,0.96);
+  box-shadow: 0 12rpx 30rpx rgba(32,48,70,0.06);
+}
+
+.msg-icon-wrap {
+  background: #eef4ff;
+}
+
+.msg-title {
+  color: #111827;
+  font-weight: 900;
+}
+
+.msg-content,
+.msg-time {
+  color: #667085;
+}

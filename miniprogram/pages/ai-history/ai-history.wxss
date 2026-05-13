@@ -395,3 +395,65 @@ page,
   background: var(--app-page-bg);
   background-color: #ffffff;
 }
+
+/* Profile entry page polish */
+.container {
+  padding: 18rpx 24rpx 48rpx;
+}
+
+.page-tabs {
+  margin: 0 0 16rpx;
+  padding: 8rpx;
+  border-radius: 24rpx;
+  background: rgba(255,255,255,0.94);
+  border: 1rpx solid rgba(220,229,240,0.96);
+  box-shadow: 0 12rpx 30rpx rgba(32,48,70,0.06);
+}
+
+.ptab {
+  border-radius: 18rpx;
+  color: #64748b;
+  font-weight: 850;
+}
+
+.ptab.active {
+  color: #1d4ed8;
+  background: #eef4ff;
+}
+
+.top-bar {
+  padding: 18rpx 0;
+  border-bottom: 0;
+}
+
+.record-card,
+.bq-card,
+.review-banner {
+  border-radius: 24rpx;
+  background: rgba(255,255,255,0.96);
+  border: 1rpx solid rgba(220,229,240,0.96);
+  box-shadow: 0 12rpx 30rpx rgba(32,48,70,0.06);
+}
+
+.job-role,
+.bq-title {
+  color: #111827;
+  font-weight: 900;
+}
+
+.company-name,
+.time,
+.duration {
+  color: #667085;
+}
+
+.score-badge.high,
+.bq-score-badge.high {
+  color: #047857;
+  background: #ecfdf5;
+}
+
+.btn {
+  color: #2563eb;
+  background: #eef4ff;
+}

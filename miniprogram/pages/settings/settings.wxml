@@ -1,5 +1,9 @@
 <!-- pages/settings/settings.wxml -->
 <view class="container">
+  <view class="page-intro">
+    <text class="page-title">设置</text>
+    <text class="page-subtitle">管理通知、缓存和账号相关偏好。</text>
+  </view>
 
   <t-cell-group title="通知设置" theme="card">
     <t-cell title="消息推送" hover-class="none">

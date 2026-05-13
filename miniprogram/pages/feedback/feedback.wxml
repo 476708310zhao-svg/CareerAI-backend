@@ -1,5 +1,10 @@
 <!-- pages/feedback/feedback.wxml -->
 <view class="container">
+  <view class="page-intro">
+    <text class="page-title">意见反馈</text>
+    <text class="page-subtitle">告诉我们你遇到的问题或建议，我们会持续优化体验。</text>
+  </view>
+
   <view class="form-section">
     <text class="label">反馈类型</text>
     <picker mode="selector" range="{{types}}" value="{{typeIndex}}" bindchange="onTypeChange">

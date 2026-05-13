@@ -270,3 +270,71 @@ page,
   background: var(--app-page-bg);
   background-color: #ffffff;
 }
+
+/* Profile entry page polish */
+.container {
+  min-height: 100vh;
+}
+
+.tab-bar {
+  margin: 18rpx 24rpx 8rpx;
+  padding: 8rpx;
+  gap: 6rpx;
+  border-radius: 24rpx;
+  background: rgba(255,255,255,0.94);
+  border: 1rpx solid rgba(220,229,240,0.96);
+  box-shadow: 0 12rpx 30rpx rgba(32,48,70,0.06);
+}
+
+.tab-item {
+  padding: 16rpx 0;
+  border-radius: 17rpx;
+  color: #64748b;
+  font-size: 23rpx;
+  font-weight: 850;
+}
+
+.tab-item.active {
+  color: #1d4ed8;
+  background: #eef4ff;
+}
+
+.tab-item.active::after {
+  display: none;
+}
+
+.toolbar,
+.batch-bar {
+  margin: 14rpx 24rpx 0;
+  border-radius: 22rpx;
+  background: rgba(255,255,255,0.94);
+  border: 1rpx solid rgba(220,229,240,0.96);
+  box-shadow: 0 10rpx 24rpx rgba(32,48,70,0.045);
+}
+
+.fav-list {
+  padding: 18rpx 24rpx 48rpx;
+}
+
+.fav-card {
+  border-radius: 24rpx;
+  background: rgba(255,255,255,0.96);
+  border: 1rpx solid rgba(220,229,240,0.96);
+  box-shadow: 0 12rpx 30rpx rgba(32,48,70,0.06);
+}
+
+.fav-title {
+  color: #111827;
+  font-weight: 900;
+}
+
+.fav-subtitle,
+.fav-date {
+  color: #667085;
+}
+
+.remove-btn,
+.batch-btn,
+.sort-btn.active {
+  border-radius: 999rpx;
+}

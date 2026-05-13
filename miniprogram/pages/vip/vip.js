@@ -51,6 +51,11 @@ Page({
   },
 
   onLoad() {
+    wx.setNavigationBarColor({
+      frontColor: '#000000',
+      backgroundColor: '#ffffff'
+    });
+
     // 读本地 VIP 状态
     const vipInfo = wx.getStorageSync('vipInfo');
     if (vipInfo && vipInfo.isVip) {

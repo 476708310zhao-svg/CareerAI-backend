@@ -1373,3 +1373,9 @@ page,
   background: var(--app-page-bg);
   background-color: #ffffff;
 }
+
+/* Profile entry page polish */
+.container,
+.page {
+  background: var(--app-page-bg);
+}

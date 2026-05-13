@@ -1,5 +1,7 @@
 {
   "navigationBarTitleText": "面试记录",
+  "navigationBarBackgroundColor": "#ffffff",
+  "navigationBarTextStyle": "black",
   "enablePullDownRefresh": true,
   "usingComponents": {
     "empty-state": "/components/empty-state/empty-state",
