@@ -282,3 +282,11 @@ page {
 
 /* submit-btn 由 c-button 提供样式，仅保留外部边距 */
 .submit-btn { margin-top: 16rpx; }
+/* Unified homepage background */
+page,
+.page,
+.container {
+  --app-page-bg: radial-gradient(circle at 18% 0%, rgba(43, 92, 230, 0.08) 0%, rgba(43, 92, 230, 0) 34%), linear-gradient(180deg, #f8fbff 0%, #ffffff 42%);
+  background: var(--app-page-bg);
+  background-color: #ffffff;
+}

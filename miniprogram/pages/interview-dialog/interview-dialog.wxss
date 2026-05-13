@@ -232,3 +232,11 @@ page {
   flex-shrink: 0; /* 防止底部被压缩 */
 }
 .close-btn { background: #f2f2f2; color: #666; width: 100%; border-radius: 10rpx; }
+/* Unified homepage background */
+page,
+.page,
+.container {
+  --app-page-bg: radial-gradient(circle at 18% 0%, rgba(43, 92, 230, 0.08) 0%, rgba(43, 92, 230, 0) 34%), linear-gradient(180deg, #f8fbff 0%, #ffffff 42%);
+  background: var(--app-page-bg);
+  background-color: #ffffff;
+}

@@ -178,3 +178,11 @@ page { background: var(--bg-page); font-family: -apple-system, 'PingFang SC', sa
 .modal-btns { display: flex; gap: 16rpx; margin-top: 28rpx; }
 .btn-cancel { flex: 1; }
 .btn-save   { flex: 2; }
+/* Unified homepage background */
+page,
+.page,
+.container {
+  --app-page-bg: radial-gradient(circle at 18% 0%, rgba(43, 92, 230, 0.08) 0%, rgba(43, 92, 230, 0) 34%), linear-gradient(180deg, #f8fbff 0%, #ffffff 42%);
+  background: var(--app-page-bg);
+  background-color: #ffffff;
+}
