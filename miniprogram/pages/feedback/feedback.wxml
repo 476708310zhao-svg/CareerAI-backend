@@ -1,32 +1,69 @@
 <!-- pages/feedback/feedback.wxml -->
 <view class="container">
-  <view class="page-intro">
-    <text class="page-title">意见反馈</text>
-    <text class="page-subtitle">告诉我们你遇到的问题或建议，我们会持续优化体验。</text>
+  <view class="feedback-hero">
+    <view>
+      <text class="hero-kicker">FEEDBACK</text>
+      <text class="hero-title">意见反馈</text>
+      <text class="hero-sub">告诉我们你遇到的问题或建议，我们会持续优化求职体验。</text>
+    </view>
+    <view class="hero-badge">
+      <text class="badge-num">24h</text>
+      <text class="badge-label">内查看</text>
+    </view>
   </view>
 
   <view class="form-section">
-    <text class="label">反馈类型</text>
-    <picker mode="selector" range="{{types}}" value="{{typeIndex}}" bindchange="onTypeChange">
-      <view class="picker-box">
-        <text>{{types[typeIndex]}}</text>
-        <text class="arrow">></text>
-      </view>
-    </picker>
+    <view class="section-head">
+      <text class="label">反馈类型</text>
+      <text class="section-tip">选择最接近的一类，方便我们更快定位</text>
+    </view>
+    <view class="type-grid">
+      <block wx:for="{{typeOptions}}" wx:key="label">
+        <view class="type-card {{typeIndex === index ? 'active' : ''}}" bindtap="selectType" data-index="{{index}}">
+          <text class="type-icon">{{item.icon}}</text>
+          <view class="type-body">
+            <text class="type-title">{{item.label}}</text>
+            <text class="type-desc">{{item.desc}}</text>
+          </view>
+        </view>
+      </block>
+    </view>
   </view>
 
   <view class="form-section">
-    <text class="label">反馈内容</text>
-    <textarea class="textarea" placeholder="请描述您的建议或遇到的问题..." maxlength="500" value="{{content}}" bindinput="onContentInput"></textarea>
-    <text class="char-count">{{content.length}}/500</text>
+    <view class="section-head">
+      <text class="label">反馈内容</text>
+      <text class="section-tip">请尽量说明页面、操作步骤和期望结果</text>
+    </view>
+    <textarea class="textarea" placeholder="例如：在职位详情页点击收藏后没有状态反馈，希望能增加收藏成功提示..." maxlength="500" value="{{content}}" bindinput="onContentInput"></textarea>
+    <view class="textarea-foot">
+      <text class="helper-text">至少 10 个字</text>
+      <text class="char-count {{content.length >= 450 ? 'warn' : ''}}">{{content.length}}/500</text>
+    </view>
   </view>
 
   <view class="form-section">
-    <text class="label">联系方式（选填）</text>
+    <view class="section-head">
+      <text class="label">联系方式（选填）</text>
+      <text class="section-tip">需要进一步确认时才会联系你</text>
+    </view>
     <input class="input" placeholder="邮箱或微信号，方便我们联系您" value="{{contact}}" bindinput="onContactInput" />
   </view>
 
-  <c-button class="submit-btn" bindtap="submitFeedback" disabled="{{submitting}}" loading="{{submitting}}">
-    {{submitting ? '提交中...' : '提交反馈'}}
-  </c-button>
+  <view class="promise-card">
+    <view class="promise-item">
+      <text class="promise-dot"></text>
+      <text>反馈会优先进入产品优化清单</text>
+    </view>
+    <view class="promise-item">
+      <text class="promise-dot"></text>
+      <text>网络异常时会自动保存到本地</text>
+    </view>
+  </view>
+
+  <view class="submit-wrap">
+    <c-button class="submit-btn" bindtap="submitFeedback" disabled="{{submitting}}" loading="{{submitting}}">
+      {{submitting ? '提交中...' : '提交反馈'}}
+    </c-button>
+  </view>
 </view>

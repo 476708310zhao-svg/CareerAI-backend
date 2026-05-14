@@ -4,6 +4,12 @@ const { submitFeedback: submitFeedbackApi } = require('../../utils/api-feedback.
 Page({
   data: {
     types: ['功能建议', 'Bug反馈', '体验问题', '其他'],
+    typeOptions: [
+      { label: '功能建议', desc: '想要新增或改进的能力', icon: '💡' },
+      { label: 'Bug反馈', desc: '页面报错、数据异常、无法使用', icon: '🛠' },
+      { label: '体验问题', desc: '流程不顺、样式错位、交互不清晰', icon: '✨' },
+      { label: '其他', desc: '合作、内容、账号或其他问题', icon: '💬' }
+    ],
     typeIndex: 0,
     content: '',
     contact: '',
@@ -12,6 +18,10 @@ Page({
 
   onTypeChange(e) {
     this.setData({ typeIndex: e.detail.value });
+  },
+
+  selectType(e) {
+    this.setData({ typeIndex: Number(e.currentTarget.dataset.index) });
   },
 
   onContentInput(e) {
