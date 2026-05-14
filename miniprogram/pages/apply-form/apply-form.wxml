@@ -1,0 +1,185 @@
+<!-- pages/apply-form/apply-form.wxml -->
+<view class="page">
+
+  <!-- 职位头部 -->
+  <view class="job-header">
+    <text class="job-company">{{company}}</text>
+    <text class="job-title">{{title}}</text>
+    <view class="source-badge {{source}}">{{source === 'greenhouse' ? 'Greenhouse' : 'Lever'}}</view>
+  </view>
+
+  <!-- 步骤指示器（结果页不显示） -->
+  <view class="steps-bar" wx:if="{{step < 3}}">
+    <view class="step-item {{step >= 1 ? 'done' : ''}} {{step === 1 ? 'current' : ''}}">
+      <view class="step-circle">{{step > 1 ? '✓' : '1'}}</view>
+      <text class="step-label">选简历</text>
+    </view>
+    <view class="step-line {{step > 1 ? 'done' : ''}}"></view>
+    <view class="step-item {{step >= 2 ? 'done' : ''}} {{step === 2 ? 'current' : ''}}">
+      <view class="step-circle">2</view>
+      <text class="step-label">填信息</text>
+    </view>
+  </view>
+
+  <!-- ═══ STEP 1: 选择 PDF ═══ -->
+  <view wx:if="{{step === 1}}" class="step-content">
+    <view class="card">
+      <view class="card-title">选择投递简历</view>
+
+      <!-- 加载中 -->
+      <view wx:if="{{pdfsLoading}}" class="hint-row">加载中…</view>
+
+      <!-- 无简历 -->
+      <view wx:elif="{{pdfs.length === 0}}" class="empty-pdfs">
+        <text class="empty-icon">📂</text>
+        <text class="empty-text">暂无 PDF 简历，请先上传</text>
+      </view>
+
+      <!-- 简历列表 -->
+      <view wx:else class="pdf-list">
+        <view
+          wx:for="{{pdfs}}" wx:key="id"
+          class="pdf-item {{selectedPdfId === item.id+'' ? 'selected' : ''}}"
+          bindtap="selectPdf" data-id="{{item.id}}"
+        >
+          <text class="pdf-icon-text">📄</text>
+          <view class="pdf-info">
+            <text class="pdf-name">{{item.original_name || '简历.pdf'}}</text>
+            <text class="pdf-meta">{{item.file_size > 0 ? (item.file_size / 1024).toFixed(0) + ' KB' : ''}}  {{item.created_at ? item.created_at.slice(0, 10) : ''}}</text>
+          </view>
+          <view class="pdf-radio {{selectedPdfId === item.id+'' ? 'checked' : ''}}"></view>
+          <text class="pdf-del" catchtap="deletePdfItem" data-id="{{item.id}}">删除</text>
+        </view>
+      </view>
+
+      <!-- 上传按钮 -->
+      <view class="upload-btn" bindtap="uploadNewPdf">
+        <text class="upload-icon">＋</text>
+        <text>上传新 PDF 简历</text>
+      </view>
+    </view>
+
+    <!-- 表单加载状态提示 -->
+    <view class="form-status-bar" wx:if="{{formLoading}}">
+      <view class="spinner"></view>
+      <text>正在拉取职位表单…</text>
+    </view>
+    <view class="form-status-bar error" wx:elif="{{formError}}">
+      <text>⚠️ {{formError}}</text>
+    </view>
+    <view class="form-status-bar ok" wx:elif="{{formData}}">
+      <text>✅ 表单已就绪，{{formData.customRequired.length > 0 ? '有 ' + formData.customRequired.length + ' 个附加问题需填写' : '无附加必填项'}}</text>
+    </view>
+
+    <view class="btn-primary {{selectedPdfId ? '' : 'disabled'}}" bindtap="goToStep2">下一步</view>
+  </view>
+
+  <!-- ═══ STEP 2: 填写信息 ═══ -->
+  <view wx:if="{{step === 2}}" class="step-content">
+
+    <!-- 表单加载中占位 -->
+    <view wx:if="{{formLoading}}" class="form-loading-mask">
+      <view class="spinner"></view>
+      <text>加载表单中…</text>
+    </view>
+
+    <view wx:else>
+      <!-- 基础信息 -->
+      <view class="card">
+        <view class="card-title">基础信息</view>
+        <view class="form-item">
+          <text class="form-label">First Name</text>
+          <input class="form-input" value="{{basicInfo.firstName}}" bindinput="onBasicInput" data-field="firstName" placeholder="First name" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">Last Name</text>
+          <input class="form-input" value="{{basicInfo.lastName}}" bindinput="onBasicInput" data-field="lastName" placeholder="Last name" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">邮箱 <text class="required-star">*</text></text>
+          <input class="form-input" value="{{basicInfo.email}}" bindinput="onBasicInput" data-field="email" placeholder="your@email.com" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">电话</text>
+          <input class="form-input" value="{{basicInfo.phone}}" bindinput="onBasicInput" data-field="phone" placeholder="+1 xxx-xxx-xxxx" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">LinkedIn</text>
+          <input class="form-input" value="{{basicInfo.linkedin}}" bindinput="onBasicInput" data-field="linkedin" placeholder="linkedin.com/in/..." />
+        </view>
+        <view class="form-item">
+          <text class="form-label">个人网站</text>
+          <input class="form-input" value="{{basicInfo.website}}" bindinput="onBasicInput" data-field="website" placeholder="https://..." />
+        </view>
+      </view>
+
+      <!-- 附加必填问题 -->
+      <view class="card" wx:if="{{customAnswers.length > 0}}">
+        <view class="card-title">附加问题</view>
+        <block wx:for="{{customAnswers}}" wx:key="fieldName">
+          <view class="form-item">
+            <text class="form-label">
+              {{item.label}}<text wx:if="{{item.required}}" class="required-star"> *</text>
+            </text>
+            <textarea
+              wx:if="{{item.type === 'textarea'}}"
+              class="form-textarea"
+              value="{{item.value}}"
+              bindinput="onCustomInput"
+              data-idx="{{index}}"
+              placeholder="请输入"
+              auto-height
+            />
+            <input
+              wx:else
+              class="form-input"
+              value="{{item.value}}"
+              bindinput="onCustomInput"
+              data-idx="{{index}}"
+              placeholder="请输入"
+            />
+          </view>
+        </block>
+      </view>
+
+      <!-- Lever 说明 -->
+      <view class="lever-note" wx:if="{{formData.leverNote}}">
+        <text class="lever-note-icon">ℹ️</text>
+        <text class="lever-note-text">{{formData.leverNote}}</text>
+      </view>
+
+      <!-- 操作按钮 -->
+      <view class="btn-row">
+        <view class="btn-secondary" bindtap="goBackStep">上一步</view>
+        <view class="btn-primary {{submitting ? 'disabled' : ''}}" bindtap="submitApply">
+          {{submitting ? '提交中…' : '提交申请'}}
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- ═══ STEP 3: 结果 ═══ -->
+  <view wx:if="{{step === 3}}" class="step-content result-page">
+    <view wx:if="{{submitResult.success}}" class="result-card success">
+      <text class="result-icon">✅</text>
+      <text class="result-title">投递成功！</text>
+      <text class="result-sub">已投递「{{company}}{{title ? ' · ' + title : ''}}」</text>
+      <text class="result-tip">可在「投递记录」中查看状态追踪</text>
+      <view class="btn-row center">
+        <view class="btn-secondary" bindtap="goBack">返回职位</view>
+        <view class="btn-primary" bindtap="goApplications">投递记录</view>
+      </view>
+    </view>
+    <view wx:else class="result-card fail">
+      <text class="result-icon">❌</text>
+      <text class="result-title">投递失败</text>
+      <text class="result-sub">{{submitResult.message}}</text>
+      <view class="btn-row center">
+        <view class="btn-secondary" bindtap="retrySubmit">重新填写</view>
+        <view class="btn-primary" bindtap="goBack">返回</view>
+      </view>
+    </view>
+  </view>
+
+  <view style="height: 60rpx;"></view>
+</view>

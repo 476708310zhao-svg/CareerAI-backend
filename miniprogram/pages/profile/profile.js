@@ -172,6 +172,15 @@ Page({
         wx.removeStorageSync('userProfile');
         wx.removeStorageSync('vipInfo');
         wx.removeStorageSync('userVipInfo');
+        // 清除 API 缓存，防止多设备数据串扰
+        const keysToRemove = ['cachedJobsList', 'dailyBriefCache', 'interviewHistory'];
+        keysToRemove.forEach(k => wx.removeStorageSync(k));
+        // 清除每日限额计数，下次登录重置
+        try {
+          const info = wx.getStorageInfoSync();
+          (info.keys || []).filter(k => k.startsWith('dailyLimit_') || k.startsWith('apic_'))
+            .forEach(k => wx.removeStorageSync(k));
+        } catch (e) {}
         const app = getApp();
         app.globalData.isLoggedIn  = false;
         app.globalData.userProfile = null;

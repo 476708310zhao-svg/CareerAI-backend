@@ -1,6 +1,7 @@
 // pages/career-planner/career-planner.js
 const { generateCareerPlan } = require('../../utils/api.js');
 const safePage = require('../../behaviors/safe-page');
+const vipUtil  = require('../../utils/vip.js');
 
 const HISTORY_KEY = 'savedCareerPlans';
 const MAX_HISTORY  = 5;
@@ -102,6 +103,7 @@ Page({
     if (!background.trim()) {
       wx.showToast({ title: '请填写个人背景', icon: 'none' }); return;
     }
+    if (!vipUtil.check('求职路线规划')) return;
     this._startGenerate();
   },
 

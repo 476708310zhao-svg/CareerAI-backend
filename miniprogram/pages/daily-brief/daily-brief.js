@@ -1,5 +1,6 @@
 // pages/daily-brief/daily-brief.js
 const { sendChatToDeepSeek } = require('../../utils/api.js');
+const vipUtil = require('../../utils/vip.js');
 
 const LOADING_TIPS = [
   '正在整理今日求职数据...',
@@ -46,6 +47,7 @@ Page({
         return;
       }
     }
+    if (!vipUtil.checkDailyLimit('dailyBrief', 1, ' AI 求职日报')) return;
     this._collectStats();
   },
 

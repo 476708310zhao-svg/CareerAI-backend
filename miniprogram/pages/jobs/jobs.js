@@ -321,11 +321,28 @@ Page({
     }).catch(err => {
       if (seq !== this._jobRequestSeq) return;
       console.warn('API Exception:', err);
-      // 只有完全没数据时才用 Mock 兜底
+
+      const msg = err && err.message || '';
+      const isNetwork  = /network|timeout|ECONNREFUSED|Failed to fetch/i.test(msg);
+      const isRateLimit = /429|quota|rate.?limit/i.test(msg);
+      const isNoData   = /no data/i.test(msg) || (!msg);
+
       if (this.data.jobs.length === 0) {
+        // 首屏无数据才降级 mock，同时给用户明确提示
         this.loadMockJobs(reset);
+        if (isNetwork) {
+          wx.showToast({ title: '网络连接失败，显示缓存数据', icon: 'none', duration: 2500 });
+        } else if (isRateLimit) {
+          wx.showToast({ title: '今日请求已达上限，显示缓存数据', icon: 'none', duration: 2500 });
+        } else if (isNoData) {
+          // 静默降级，用户无感知
+        } else {
+          wx.showToast({ title: '加载失败，显示缓存数据', icon: 'none', duration: 2000 });
+        }
       } else {
+        // 已有数据时只收尾，给简短提示
         this.setData({ loading: false, isRefreshing: false, hasMore: false });
+        if (isNetwork) wx.showToast({ title: '网络异常，下拉可重试', icon: 'none', duration: 2000 });
       }
     }).finally(() => {
       if (seq === this._jobRequestSeq) wx.stopPullDownRefresh();

@@ -1,0 +1,300 @@
+/* pages/ats-optimize/ats-optimize.wxss */
+.page {
+  min-height: 100vh;
+  background: #f3f4f6;
+  padding-bottom: 60rpx;
+}
+
+/* ── Step 1 头部 ── */
+.step-header {
+  background: linear-gradient(135deg, #1e40af, #6d28d9);
+  padding: 44rpx 32rpx 40rpx;
+  color: #fff;
+}
+.step-title {
+  font-size: 40rpx;
+  font-weight: 800;
+  margin-bottom: 10rpx;
+}
+.step-sub {
+  font-size: 24rpx;
+  opacity: 0.85;
+}
+
+/* ── 卡片 ── */
+.card {
+  background: #fff;
+  margin: 20rpx 24rpx 0;
+  border-radius: 20rpx;
+  padding: 28rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.05);
+}
+.card-title { font-size: 28rpx; font-weight: 700; color: #111827; margin-bottom: 18rpx; }
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+.char-count { font-size: 22rpx; color: #9ca3af; }
+.char-count.warn { color: #dc2626; }
+
+/* ── 简历列表 ── */
+.empty-resume { font-size: 26rpx; color: #6b7280; }
+.link { color: #3b82f6; }
+.resume-list { display: flex; flex-direction: column; gap: 12rpx; }
+.resume-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 20rpx 18rpx;
+  border: 2rpx solid #e5e7eb;
+  border-radius: 14rpx;
+  background: #fafafa;
+}
+.resume-item.selected {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+.resume-icon { font-size: 36rpx; }
+.resume-info { flex: 1; }
+.resume-name { display: block; font-size: 26rpx; font-weight: 600; color: #111827; }
+.resume-date { font-size: 22rpx; color: #9ca3af; }
+.check-icon { color: #3b82f6; font-size: 30rpx; font-weight: 700; }
+
+/* ── JD 输入 ── */
+.jd-title-input {
+  width: 100%;
+  font-size: 28rpx;
+  color: #111827;
+  padding: 16rpx 0;
+  border-bottom: 2rpx solid #e5e7eb;
+}
+.jd-textarea {
+  width: 100%;
+  min-height: 260rpx;
+  font-size: 26rpx;
+  color: #374151;
+  line-height: 1.7;
+}
+
+/* ── 分析按钮 ── */
+.btn-analyze {
+  margin: 32rpx 24rpx 0;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: #fff;
+  font-size: 32rpx;
+  font-weight: 700;
+  text-align: center;
+  padding: 28rpx 0;
+  border-radius: 18rpx;
+  box-shadow: 0 4rpx 20rpx rgba(37,99,235,0.35);
+}
+.btn-analyze.disabled {
+  background: #d1d5db;
+  box-shadow: none;
+  color: #9ca3af;
+}
+.hint-text { text-align: center; font-size: 22rpx; color: #9ca3af; margin-top: 14rpx; }
+
+/* ── Step 2 分析中 ── */
+.analyzing-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120rpx 40rpx 0;
+}
+.analyzing-ring {
+  width: 100rpx;
+  height: 100rpx;
+  border: 8rpx solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 36rpx;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.analyzing-title { font-size: 34rpx; font-weight: 700; color: #1f2937; margin-bottom: 14rpx; }
+.analyzing-sub { font-size: 24rpx; color: #6b7280; text-align: center; margin-bottom: 40rpx; }
+.analyzing-steps { display: flex; flex-direction: column; gap: 14rpx; align-items: center; }
+.anim-dot { font-size: 26rpx; color: #3b82f6; }
+
+/* ── Step 3 评分头部 ── */
+.score-header {
+  background: linear-gradient(135deg, #1e3a8a, #312e81);
+  padding: 36rpx 28rpx;
+  display: flex;
+  align-items: flex-start;
+  gap: 24rpx;
+  color: #fff;
+}
+.score-ring-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 140rpx;
+}
+.score-ring {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  border: 8rpx solid var(--score-color, #16a34a);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.08);
+  margin-bottom: 10rpx;
+}
+.score-num { font-size: 42rpx; font-weight: 900; line-height: 1; }
+.score-unit { font-size: 18rpx; opacity: 0.8; }
+.score-label { font-size: 24rpx; font-weight: 700; margin-bottom: 4rpx; }
+.score-caption { font-size: 20rpx; opacity: 0.7; }
+
+.score-right { flex: 1; }
+.score-badge-row { display: flex; gap: 20rpx; margin-bottom: 18rpx; }
+.score-badge {
+  flex: 1;
+  background: rgba(255,255,255,0.12);
+  border-radius: 14rpx;
+  padding: 14rpx 10rpx;
+  text-align: center;
+}
+.badge-num { display: block; font-size: 32rpx; font-weight: 800; }
+.badge-label { display: block; font-size: 19rpx; opacity: 0.8; margin-top: 4rpx; }
+.overall-advice {
+  background: rgba(255,255,255,0.12);
+  border-radius: 12rpx;
+  padding: 14rpx 16rpx;
+  display: flex;
+  align-items: flex-start;
+  gap: 8rpx;
+}
+.advice-icon { font-size: 26rpx; flex-shrink: 0; }
+.advice-text { font-size: 23rpx; line-height: 1.5; opacity: 0.95; }
+
+/* ── 结果板块卡片 ── */
+.section-card {
+  background: #fff;
+  margin: 20rpx 24rpx 0;
+  border-radius: 20rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.05);
+}
+.section-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 26rpx 28rpx;
+  border-bottom: 1rpx solid #f3f4f6;
+}
+.section-title { font-size: 28rpx; font-weight: 700; color: #111827; }
+.section-arrow { font-size: 22rpx; color: #9ca3af; }
+.section-body { padding: 20rpx 28rpx 24rpx; }
+
+/* ── 关键词 ── */
+.kw-group { }
+.kw-group-title { font-size: 24rpx; color: #6b7280; margin-bottom: 14rpx; }
+.kw-chips { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.kw-chip {
+  font-size: 24rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 100rpx;
+}
+.kw-chip.matched { background: #dcfce7; color: #15803d; }
+.mt16 { margin-top: 20rpx; }
+.missing-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #f9fafb;
+}
+.missing-item:last-child { border-bottom: none; }
+.missing-left { display: flex; align-items: center; gap: 12rpx; }
+.missing-word { font-size: 28rpx; font-weight: 600; color: #1f2937; }
+.priority-tag { font-size: 20rpx; font-weight: 600; }
+.missing-hint { font-size: 22rpx; color: #6b7280; padding-left: 4rpx; }
+
+/* ── 改进建议 ── */
+.suggest-item {
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid #f3f4f6;
+}
+.suggest-item:last-child { border-bottom: none; }
+.suggest-top {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 10rpx;
+}
+.suggest-section {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #fff;
+  background: #374151;
+  padding: 4rpx 16rpx;
+  border-radius: 100rpx;
+}
+.suggest-issue { display: block; font-size: 26rpx; color: #374151; margin-bottom: 8rpx; }
+.suggest-fix { display: block; font-size: 24rpx; color: #2563eb; }
+
+/* ── 重写示例 ── */
+.rewrite-item { margin-bottom: 28rpx; }
+.rewrite-item:last-child { margin-bottom: 0; }
+.rewrite-block {
+  border-radius: 12rpx;
+  padding: 16rpx 18rpx;
+}
+.rewrite-block.before { background: #fff1f2; }
+.rewrite-block.after  { background: #f0fdf4; }
+.rewrite-label {
+  display: block;
+  font-size: 20rpx;
+  font-weight: 700;
+  color: #6b7280;
+  margin-bottom: 6rpx;
+}
+.rewrite-text { font-size: 24rpx; color: #1f2937; line-height: 1.6; }
+.rewrite-arrow {
+  text-align: center;
+  font-size: 22rpx;
+  color: #6b7280;
+  padding: 8rpx 0;
+}
+
+/* ── 格式问题 ── */
+.format-item {
+  display: flex;
+  gap: 10rpx;
+  padding: 10rpx 0;
+}
+.format-dot { color: #d97706; font-size: 28rpx; }
+.format-text { font-size: 26rpx; color: #374151; flex: 1; }
+
+/* ── 底部按钮 ── */
+.bottom-actions {
+  display: flex;
+  gap: 16rpx;
+  margin: 32rpx 24rpx 0;
+}
+.btn-reanalyze {
+  flex: 1;
+  text-align: center;
+  padding: 26rpx 0;
+  border: 2rpx solid #3b82f6;
+  color: #3b82f6;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+.btn-go-resume {
+  flex: 1;
+  text-align: center;
+  padding: 26rpx 0;
+  background: #3b82f6;
+  color: #fff;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+}

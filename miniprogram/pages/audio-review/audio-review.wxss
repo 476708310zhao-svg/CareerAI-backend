@@ -254,11 +254,3 @@ page { background: var(--bg-page); font-family: -apple-system, 'PingFang SC', sa
 .tc-body   { font-size: 24rpx; color: var(--text-muted); line-height: 1.7; display: block; }
 
 .result-actions { padding-top: 8rpx; }
-/* Unified homepage background */
-page,
-.page,
-.container {
-  --app-page-bg: radial-gradient(circle at 18% 0%, rgba(43, 92, 230, 0.08) 0%, rgba(43, 92, 230, 0) 34%), linear-gradient(180deg, #f8fbff 0%, #ffffff 42%);
-  background: var(--app-page-bg);
-  background-color: #ffffff;
-}

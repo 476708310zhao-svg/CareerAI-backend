@@ -1,0 +1,125 @@
+<!-- pages/bigtech-jobs/bigtech-jobs.wxml -->
+<view class="page">
+
+  <!-- 顶部栏 -->
+  <view class="top-bar">
+    <view class="top-left">
+      <text class="page-title">大厂直招</text>
+      <text wx:if="{{total > 0}}" class="total-badge">{{total}}</text>
+    </view>
+    <view class="top-actions">
+      <view class="icon-btn" bindtap="toggleFilter">
+        <text class="icon-btn-text">筛选</text>
+      </view>
+      <view class="icon-btn" bindtap="goToCronStatus">
+        <text class="icon-btn-text">状态</text>
+      </view>
+      <view class="icon-btn refresh-btn {{refreshing ? 'disabled' : ''}}" bindtap="triggerRefresh">
+        <text class="icon-btn-text">{{refreshing ? '抓取中…' : '更新'}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 统计条 -->
+  <view wx:if="{{stats && stats.total > 0}}" class="stats-bar">
+    <view wx:for="{{stats.bySource}}" wx:key="source" class="stat-chip">
+      <text class="stat-src">{{item.source === 'greenhouse' ? 'Greenhouse' : 'Lever'}}</text>
+      <text class="stat-n">{{item.n}}</text>
+    </view>
+    <view class="stat-chip sponsor-yes">
+      <text class="stat-src">可赞助</text>
+      <text class="stat-n">{{stats.bySponsor[0] && stats.bySponsor[0].sponsorship === 'yes' ? stats.bySponsor[0].n : (stats.bySponsor[1] && stats.bySponsor[1].sponsorship === 'yes' ? stats.bySponsor[1].n : 0)}}</text>
+    </view>
+    <text class="stat-hint">上次更新 {{stats.lastFetch ? stats.lastFetch.slice(0,16) : '—'}}</text>
+  </view>
+
+  <!-- 筛选面板 -->
+  <view wx:if="{{showFilter}}" class="filter-panel">
+    <!-- 关键词 -->
+    <view class="filter-row">
+      <text class="filter-label">关键词</text>
+      <input class="filter-input" value="{{filterKeyword}}" bindinput="onKeywordInput" placeholder="职位名称/描述" />
+    </view>
+
+    <!-- 签证赞助 -->
+    <view class="filter-row">
+      <text class="filter-label">签证赞助</text>
+      <view class="chip-row">
+        <view class="chip {{filterSponsor === '' ? 'chip-active' : ''}}" bindtap="selectSponsor" data-val="">全部</view>
+        <view class="chip chip-green {{filterSponsor === 'yes' ? 'chip-active' : ''}}" bindtap="selectSponsor" data-val="yes">可赞助</view>
+        <view class="chip chip-red {{filterSponsor === 'no' ? 'chip-active' : ''}}" bindtap="selectSponsor" data-val="no">不赞助</view>
+        <view class="chip {{filterSponsor === 'unknown' ? 'chip-active' : ''}}" bindtap="selectSponsor" data-val="unknown">未知</view>
+      </view>
+    </view>
+
+    <!-- 远程 -->
+    <view class="filter-row">
+      <text class="filter-label">仅看远程</text>
+      <switch checked="{{filterRemote === '1'}}" bindchange="toggleRemote" color="#2563eb" />
+    </view>
+
+    <!-- 公司列表 -->
+    <view class="filter-row filter-col">
+      <text class="filter-label">公司</text>
+      <scroll-view scroll-x class="company-scroll">
+        <view class="company-chips">
+          <view
+            wx:for="{{companyList}}" wx:key="index"
+            class="chip {{selectedCompanyIdx === index ? 'chip-active' : ''}}"
+            bindtap="selectCompany" data-idx="{{index}}"
+          >{{item}}</view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <view class="filter-btns">
+      <view class="btn-reset" bindtap="resetFilter">重置</view>
+      <view class="btn-apply" bindtap="applyFilter">确定</view>
+    </view>
+  </view>
+
+  <!-- 职位列表 -->
+  <scroll-view class="job-scroll" scroll-y>
+    <!-- 空状态 -->
+    <view wx:if="{{!loading && jobs.length === 0}}" class="empty-state">
+      <text class="empty-icon">🏢</text>
+      <text class="empty-title">暂无职位数据</text>
+      <text class="empty-sub">点击右上角「更新」按钮抓取最新职位</text>
+    </view>
+
+    <!-- 职位卡片 -->
+    <view
+      wx:for="{{jobs}}" wx:key="id"
+      class="job-card"
+      bindtap="openJob" data-url="{{item.apply_url}}"
+    >
+      <view class="card-top">
+        <view class="card-meta">
+          <text class="card-company">{{item.company}}</text>
+          <text class="card-source">{{item.source === 'greenhouse' ? 'GH' : 'LV'}}</text>
+        </view>
+        <view class="sponsor-badge" style="color:{{item.sponsorColor}};border-color:{{item.sponsorColor}}20;background:{{item.sponsorColor}}10;">
+          {{item.sponsorLabel}}
+        </view>
+      </view>
+      <text class="card-title">{{item.title}}</text>
+      <view class="card-row">
+        <text class="card-loc">📍 {{item.locationShort}}</text>
+        <text wx:if="{{item.department}}" class="card-dept">{{item.department}}</text>
+        <text wx:if="{{item.is_remote}}" class="remote-tag">远程</text>
+      </view>
+      <view class="card-footer">
+        <text class="card-type">{{item.job_type || '全职'}}</text>
+        <text class="apply-link">查看 →</text>
+      </view>
+    </view>
+
+    <!-- 加载中 -->
+    <view wx:if="{{loading}}" class="loading-row">
+      <view class="dot"></view><view class="dot"></view><view class="dot"></view>
+    </view>
+
+    <!-- 没有更多 -->
+    <view wx:if="{{!loading && !hasMore && jobs.length > 0}}" class="no-more">共 {{total}} 条职位</view>
+  </scroll-view>
+</view>

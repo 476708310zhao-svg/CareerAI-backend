@@ -2,10 +2,22 @@
   "description": "留学生求职小程序",
   "packOptions": {
     "ignore": [
-      { "type": "folder", "value": "node_modules" },
-      { "type": "folder", "value": ".git" },
-      { "type": "regexp", "value": "\\.map$" },
-      { "type": "regexp", "value": "README\\.md$" }
+      {
+        "value": "node_modules",
+        "type": "folder"
+      },
+      {
+        "value": ".git",
+        "type": "folder"
+      },
+      {
+        "value": "\\.map$",
+        "type": "regexp"
+      },
+      {
+        "value": "README\\.md$",
+        "type": "regexp"
+      }
     ],
     "include": []
   },

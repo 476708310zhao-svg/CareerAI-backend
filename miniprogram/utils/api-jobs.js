@@ -162,8 +162,40 @@ function getIndeedJobs(data) {
   });
 }
 
+// ── 大厂直招（Greenhouse + Lever 聚合）──
+function getBigtechJobs(params) {
+  return request({
+    path: '/api/aggregate/jobs',
+    params: {
+      company:     params.company     || '',
+      source:      params.source      || '',
+      sponsorship: params.sponsorship || '',
+      remote:      params.remote      || '',
+      keyword:     params.keyword     || '',
+      department:  params.department  || '',
+      page:        params.page        || 1,
+      pageSize:    params.pageSize    || 20,
+    },
+    timeout: 10000,
+    noCache: true,
+  });
+}
+
+function getBigtechStats() {
+  return request({ path: '/api/aggregate/stats', params: {}, timeout: 8000 });
+}
+
+function refreshBigtechJobs() {
+  return post({ path: '/api/aggregate/refresh', body: {} });
+}
+
+function getCronLogs() {
+  return request({ path: '/api/aggregate/cron-logs', params: {}, cacheTTL: 0, timeout: 8000 });
+}
+
 module.exports = {
   getJobs, getAggregatedJobs, getJobDetail, searchCompanyJobs, fetchBatchJobs, fetchTrendingJobs,
   getRemoteJobs, getFeaturedJobs, getLinkedInJobs, getIndeedJobs,
-  getEstimatedSalary, getCompanyJobSalary, fetchUserSalaryStats, submitSalaryReport
+  getEstimatedSalary, getCompanyJobSalary, fetchUserSalaryStats, submitSalaryReport,
+  getBigtechJobs, getBigtechStats, refreshBigtechJobs, getCronLogs,
 };

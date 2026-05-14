@@ -187,6 +187,17 @@
           <text class="note-bar-txt">{{item.notes || '添加备注…'}}</text>
           <text class="note-bar-edit">编辑</text>
         </view>
+
+        <!-- 追踪开关（仅 Greenhouse/Lever 投递） -->
+        <view wx:if="{{item.source_type === 'greenhouse' || item.source_type === 'lever'}}" class="track-bar" catchtap="toggleTracking" data-id="{{item.id}}" data-tracking="{{item.tracking}}">
+          <text class="track-icon">{{item.tracking ? '🔔' : '🔕'}}</text>
+          <text class="track-txt">{{item.tracking ? '追踪职位状态（职位下线时通知）' : '开启职位追踪'}}</text>
+          <view class="track-toggle {{item.tracking ? 'on' : ''}}"></view>
+        </view>
+        <!-- 职位已关闭提示 -->
+        <view wx:if="{{item.job_active === 0}}" class="job-closed-bar">
+          <text>⚠️ 该职位已从招聘页下线，请关注后续进展</text>
+        </view>
       </view>
 
       <view class="footer-tip">共 {{filteredApps.length}} 条记录</view>

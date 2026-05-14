@@ -1,6 +1,7 @@
 // pages/applications/applications.js
 const { getApplications } = require('../../utils/api.js');
 const { APPLICATIONS: MOCK_APPLICATIONS } = require('../../utils/mock-data.js');
+const { put } = require('../../utils/api-client.js');
 
 const AVATAR_COLORS = ['#6B4EFF','#FF6B35','#00B894','#0984E3','#E17055','#6C5CE7','#FDCB6E','#00CEC9','#E84393','#74B9FF'];
 
@@ -94,7 +95,7 @@ Page({
       return id;
     })();
 
-    getApplications(userId).then(res => {
+    getApplications(userId, { noCache: true }).then(res => {
       if (!res || !res.data || res.data.length === 0) {
         throw new Error('No API data');
       }
@@ -337,6 +338,26 @@ Page({
 
   quickUpdateStatus: function(e) {
     this.updateApplicationStatus(e.currentTarget.dataset.id);
+  },
+
+  async toggleTracking(e) {
+    const { id, tracking } = e.currentTarget.dataset;
+    const newTracking = tracking ? 0 : 1;
+    try {
+      await put({ path: `/api/applications/${id}/track`, body: { tracking: newTracking } });
+      const applications = this.data.applications.map(a =>
+        String(a.id) === String(id) ? { ...a, tracking: newTracking } : a
+      );
+      this.setData({ applications, filteredApps: applications.filter(a => this._matchFilter(a)) });
+      wx.showToast({ title: newTracking ? '已开启追踪' : '已关闭追踪', icon: 'success' });
+    } catch (e) {
+      wx.showToast({ title: '操作失败', icon: 'none' });
+    }
+  },
+
+  _matchFilter(a) {
+    const tab = this.data.filterTab || 'all';
+    return tab === 'all' || a.statusCode === tab || a.status === tab;
   },
 
   updateApplicationStatus: function(id) {

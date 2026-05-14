@@ -4,6 +4,11 @@
     "pages/auth/auth",
     "pages/jobs/jobs",
     "pages/job-detail/job-detail",
+    "pages/bigtech-jobs/bigtech-jobs",
+    "pages/cron-status/cron-status",
+    "pages/ats-optimize/ats-optimize",
+    "pages/networking/networking",
+    "pages/oa-bank/oa-bank",
 
     "pages/profile/profile",
     "pages/feedback/feedback",

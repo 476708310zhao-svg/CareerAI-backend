@@ -1,6 +1,7 @@
 // pages/offer-compare/offer-compare.js
 const { sendChatToDeepSeek } = require('../../utils/api.js');
 const safePage = require('../../behaviors/safe-page');
+const vipUtil  = require('../../utils/vip.js');
 
 const EMPTY_OFFER = () => ({
   company: '', city: '', base: '', bonus: '', rsu: '',
@@ -74,6 +75,7 @@ Page({
     if (!offerA.company.trim() || !offerB.company.trim()) {
       wx.showToast({ title: '请填写两家公司名称', icon: 'none' }); return;
     }
+    if (!vipUtil.check('Offer 决策助手')) return;
 
     const tips = ['正在分析 Offer...', '对比薪酬结构...', '评估城市成本...', '分析职业发展...', '生成建议中...'];
     let idx = 0;

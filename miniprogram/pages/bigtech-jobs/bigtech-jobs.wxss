@@ -1,0 +1,163 @@
+/* pages/bigtech-jobs/bigtech-jobs.wxss */
+
+page { background: #f7f8fa; }
+
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f7f8fa;
+}
+
+/* ── 顶部栏 ── */
+.top-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20rpx 32rpx 16rpx;
+  background: #fff;
+  border-bottom: 1rpx solid rgba(0,0,0,0.06);
+}
+.top-left { display: flex; align-items: center; gap: 14rpx; }
+.page-title { font-size: 34rpx; font-weight: 800; color: #111827; }
+.total-badge {
+  min-width: 40rpx; height: 36rpx; padding: 0 10rpx;
+  border-radius: 999rpx; background: #2563eb;
+  color: #fff; font-size: 20rpx; font-weight: 700;
+  text-align: center; line-height: 36rpx;
+}
+.top-actions { display: flex; gap: 14rpx; }
+.icon-btn {
+  height: 52rpx; padding: 0 22rpx;
+  border-radius: 26rpx; background: #f4f4f5;
+  display: flex; align-items: center;
+}
+.icon-btn-text { font-size: 24rpx; color: #374151; font-weight: 600; }
+.refresh-btn { background: #eff6ff; }
+.refresh-btn .icon-btn-text { color: #2563eb; }
+.disabled { opacity: 0.5; pointer-events: none; }
+
+/* ── 统计条 ── */
+.stats-bar {
+  display: flex; align-items: center; gap: 12rpx; flex-wrap: wrap;
+  padding: 14rpx 32rpx;
+  background: #fff; border-bottom: 1rpx solid rgba(0,0,0,0.04);
+}
+.stat-chip {
+  display: flex; align-items: center; gap: 6rpx;
+  height: 36rpx; padding: 0 14rpx;
+  border-radius: 999rpx; background: #f3f4f6;
+}
+.stat-chip.sponsor-yes { background: #dcfce7; }
+.stat-chip.sponsor-yes .stat-src,
+.stat-chip.sponsor-yes .stat-n { color: #16a34a; }
+.stat-src { font-size: 20rpx; color: #6b7280; }
+.stat-n   { font-size: 20rpx; font-weight: 700; color: #374151; }
+.stat-hint { font-size: 20rpx; color: #9ca3af; margin-left: auto; }
+
+/* ── 筛选面板 ── */
+.filter-panel {
+  background: #fff;
+  border-bottom: 1rpx solid rgba(0,0,0,0.06);
+  padding: 24rpx 32rpx;
+  display: flex; flex-direction: column; gap: 20rpx;
+}
+.filter-row {
+  display: flex; align-items: center; gap: 20rpx;
+}
+.filter-col { flex-direction: column; align-items: flex-start; gap: 12rpx; }
+.filter-label { font-size: 24rpx; font-weight: 700; color: #374151; width: 120rpx; flex-shrink: 0; }
+.filter-input {
+  flex: 1; height: 64rpx; padding: 0 20rpx;
+  background: #f7f8fa; border-radius: 16rpx;
+  font-size: 25rpx; color: #111827;
+}
+.chip-row { display: flex; flex-wrap: wrap; gap: 10rpx; }
+.company-scroll { width: 100%; }
+.company-chips  { display: flex; gap: 10rpx; padding-bottom: 4rpx; white-space: nowrap; }
+.chip {
+  height: 52rpx; padding: 0 22rpx;
+  border-radius: 999rpx; background: #f3f4f6;
+  font-size: 22rpx; color: #374151;
+  display: inline-flex; align-items: center;
+  border: 1rpx solid transparent; white-space: nowrap;
+}
+.chip-active { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
+.chip-green  { background: #f0fdf4; color: #16a34a; }
+.chip-red    { background: #fef2f2; color: #dc2626; }
+.chip-green.chip-active { border-color: #86efac; }
+.chip-red.chip-active   { border-color: #fca5a5; }
+.filter-btns { display: flex; gap: 16rpx; justify-content: flex-end; }
+.btn-reset {
+  height: 68rpx; padding: 0 36rpx;
+  border-radius: 18rpx; background: #f3f4f6;
+  font-size: 26rpx; color: #6b7280; font-weight: 600;
+  display: flex; align-items: center;
+}
+.btn-apply {
+  height: 68rpx; padding: 0 48rpx;
+  border-radius: 18rpx; background: #2563eb;
+  font-size: 26rpx; color: #fff; font-weight: 700;
+  display: flex; align-items: center;
+}
+
+/* ── 列表 ── */
+.job-scroll { flex: 1; overflow: hidden; }
+
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 16rpx; padding: 120rpx 48rpx;
+}
+.empty-icon  { font-size: 80rpx; }
+.empty-title { font-size: 30rpx; font-weight: 700; color: #374151; }
+.empty-sub   { font-size: 24rpx; color: #9ca3af; text-align: center; }
+
+/* ── 职位卡片 ── */
+.job-card {
+  margin: 20rpx 24rpx 0;
+  padding: 28rpx 28rpx 22rpx;
+  background: #fff; border-radius: 24rpx;
+  border: 1rpx solid rgba(0,0,0,0.05);
+  display: flex; flex-direction: column; gap: 10rpx;
+}
+.job-card:last-child { margin-bottom: 32rpx; }
+.card-top {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-meta { display: flex; align-items: center; gap: 10rpx; }
+.card-company { font-size: 22rpx; font-weight: 700; color: #374151; }
+.card-source {
+  font-size: 18rpx; font-weight: 800; color: #6b7280;
+  background: #f3f4f6; border-radius: 8rpx; padding: 2rpx 8rpx;
+}
+.sponsor-badge {
+  font-size: 20rpx; font-weight: 700;
+  height: 38rpx; padding: 0 14rpx; border-radius: 999rpx;
+  border: 1.5rpx solid; display: flex; align-items: center;
+}
+.card-title { font-size: 28rpx; font-weight: 800; color: #111827; line-height: 1.4; }
+.card-row { display: flex; align-items: center; gap: 14rpx; flex-wrap: wrap; }
+.card-loc  { font-size: 22rpx; color: #6b7280; }
+.card-dept { font-size: 21rpx; color: #9ca3af; }
+.remote-tag {
+  font-size: 20rpx; color: #2563eb; background: #eff6ff;
+  padding: 2rpx 12rpx; border-radius: 999rpx; font-weight: 600;
+}
+.card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 6rpx; }
+.card-type   { font-size: 21rpx; color: #9ca3af; }
+.apply-link  { font-size: 24rpx; color: #2563eb; font-weight: 700; }
+
+/* ── 加载 ── */
+.loading-row {
+  display: flex; justify-content: center; gap: 10rpx; padding: 40rpx;
+}
+.dot {
+  width: 14rpx; height: 14rpx; border-radius: 50%;
+  background: #d1d5db;
+  animation: bounce 1.2s infinite ease-in-out;
+}
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+  40%           { transform: scale(1.2); opacity: 1; }
+}
+.no-more { text-align: center; font-size: 22rpx; color: #9ca3af; padding: 32rpx; }

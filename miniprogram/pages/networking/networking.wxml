@@ -1,0 +1,146 @@
+<!-- pages/networking/networking.wxml -->
+<view class="page">
+
+  <!-- 输入区 -->
+  <view wx:if="{{!result}}">
+    <view class="hero">
+      <view class="hero-title">Networking 消息生成</view>
+      <view class="hero-sub">AI 生成 LinkedIn 私信 + 邮件，帮你打开人脉大门</view>
+    </view>
+
+    <!-- 基本信息 -->
+    <view class="card">
+      <view class="field">
+        <text class="label required">目标公司</text>
+        <input class="input" placeholder="如：Google、字节跳动" data-key="targetCompany" bindinput="onInput" value="{{targetCompany}}" maxlength="100" />
+      </view>
+      <view class="field">
+        <text class="label required">目标职位</text>
+        <input class="input" placeholder="如：Software Engineer、数据分析师" data-key="targetRole" bindinput="onInput" value="{{targetRole}}" maxlength="100" />
+      </view>
+      <view class="field">
+        <text class="label">对方背景（选填）</text>
+        <input class="input" placeholder="如：前Google工程师，现在Meta工作" data-key="recipientBackground" bindinput="onInput" value="{{recipientBackground}}" maxlength="200" />
+      </view>
+    </view>
+
+    <!-- 我的背景 -->
+    <view class="card">
+      <view class="label-row">
+        <text class="label required">我的背景</text>
+        <text class="label-hint">简要描述学历、经验、目标</text>
+      </view>
+      <textarea
+        class="textarea"
+        placeholder="如：计算机硕士在读，有Python/ML实习经验，正在找SDE全职机会"
+        data-key="senderBackground"
+        bindinput="onInput"
+        value="{{senderBackground}}"
+        maxlength="800"
+        auto-height
+        show-confirm-bar="{{false}}"
+      />
+      <!-- 快速预设 -->
+      <view class="preset-row">
+        <view
+          wx:for="{{bgPresets}}" wx:key="index"
+          class="preset-chip"
+          data-text="{{item}}"
+          bindtap="applyPreset"
+        >{{item.slice(0,12)}}…</view>
+      </view>
+    </view>
+
+    <!-- 风格设置 -->
+    <view class="card">
+      <view class="setting-row">
+        <text class="label">语气风格</text>
+        <view class="toggle-group">
+          <view class="toggle-item {{tone==='formal'?'active':''}}" data-val="formal" bindtap="setTone">正式专业</view>
+          <view class="toggle-item {{tone==='casual'?'active':''}}" data-val="casual" bindtap="setTone">轻松友好</view>
+        </view>
+      </view>
+      <view class="setting-row mt12">
+        <text class="label">输出语言</text>
+        <view class="toggle-group">
+          <view class="toggle-item {{lang==='zh'?'active':''}}" data-val="zh" bindtap="setLang">中文</view>
+          <view class="toggle-item {{lang==='en'?'active':''}}" data-val="en" bindtap="setLang">英文</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="btn-generate {{loading?'loading':''}}" bindtap="generate">
+      <text wx:if="{{loading}}" class="btn-spinner">⏳</text>
+      <text>{{loading ? 'AI 生成中…' : '✨ 生成 Networking 消息'}}</text>
+    </view>
+    <view class="hint">免费用户每天5次 · VIP 无限次</view>
+  </view>
+
+
+  <!-- 结果区 -->
+  <view wx:if="{{result}}">
+    <view class="result-header">
+      <view class="result-title">✨ 消息已生成</view>
+      <view class="result-meta">
+        <text class="meta-tag">{{targetCompany}}</text>
+        <text class="meta-tag">{{targetRole}}</text>
+      </view>
+    </view>
+
+    <!-- Tab 切换 -->
+    <view class="tab-bar">
+      <view class="tab-item {{activeTab==='linkedin'?'active':''}}" data-tab="linkedin" bindtap="setTab">
+        <text>LinkedIn 私信</text>
+      </view>
+      <view class="tab-item {{activeTab==='email'?'active':''}}" data-tab="email" bindtap="setTab">
+        <text>邮件</text>
+      </view>
+    </view>
+
+    <!-- LinkedIn 内容 -->
+    <view wx:if="{{activeTab==='linkedin'}}" class="content-card">
+      <view class="content-label">LinkedIn 私信正文</view>
+      <view class="content-text selectable">{{result.linkedin_message}}</view>
+      <view class="copy-btn {{copiedLinkedin?'copied':''}}" data-type="linkedin" bindtap="copyText">
+        {{copiedLinkedin ? '✓ 已复制' : '复制消息'}}
+      </view>
+    </view>
+
+    <!-- 邮件内容 -->
+    <view wx:if="{{activeTab==='email'}}" class="content-card">
+      <view class="email-subject-row">
+        <text class="content-label">邮件主题</text>
+        <text class="subject-text selectable">{{result.email_subject}}</text>
+      </view>
+      <view class="divider"></view>
+      <view class="content-label">邮件正文</view>
+      <view class="content-text selectable">{{result.email_body}}</view>
+      <view class="copy-btn {{copiedEmail?'copied':''}}" data-type="email" bindtap="copyText">
+        {{copiedEmail ? '✓ 已复制' : '复制邮件（含主题）'}}
+      </view>
+    </view>
+
+    <!-- 亮点 & 发送技巧 -->
+    <view class="tips-card">
+      <view wx:if="{{result.key_hooks && result.key_hooks.length}}">
+        <view class="tips-title">💡 消息亮点</view>
+        <view class="hooks-row">
+          <text wx:for="{{result.key_hooks}}" wx:key="*this" class="hook-chip">{{item}}</text>
+        </view>
+      </view>
+      <view wx:if="{{result.cold_tips && result.cold_tips.length}}" class="mt16">
+        <view class="tips-title">📋 发送建议</view>
+        <view wx:for="{{result.cold_tips}}" wx:key="*this" class="tip-item">
+          <text class="tip-dot">›</text>
+          <text class="tip-text">{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部操作 -->
+    <view class="bottom-row">
+      <view class="btn-reset" bindtap="reset">重新生成</view>
+    </view>
+  </view>
+
+</view>

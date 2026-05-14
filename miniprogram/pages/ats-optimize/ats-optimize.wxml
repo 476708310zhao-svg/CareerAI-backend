@@ -1,0 +1,209 @@
+<!-- pages/ats-optimize/ats-optimize.wxml -->
+<view class="page">
+
+  <!-- ══ STEP 1：输入 JD ══ -->
+  <block wx:if="{{step === 1}}">
+    <view class="step-header">
+      <view class="step-title">ATS 简历优化</view>
+      <view class="step-sub">粘贴岗位描述，AI 深度分析关键词匹配度</view>
+    </view>
+
+    <!-- 简历选择 -->
+    <view class="card">
+      <view class="card-title">选择简历</view>
+      <view wx:if="{{serverResumes.length === 0}}" class="empty-resume">
+        <text>暂无简历，</text>
+        <text class="link" bindtap="goToResume">去完善简历 ›</text>
+      </view>
+      <view wx:else class="resume-list">
+        <view
+          wx:for="{{serverResumes}}" wx:key="id"
+          class="resume-item {{selectedResumeId === item.id ? 'selected' : ''}}"
+          data-id="{{item.id}}" data-name="{{item.name}}"
+          bindtap="onSelectResume"
+        >
+          <view class="resume-icon">📄</view>
+          <view class="resume-info">
+            <text class="resume-name">{{item.name}}</text>
+            <text class="resume-date">{{item.updated_at}}</text>
+          </view>
+          <view wx:if="{{selectedResumeId === item.id}}" class="check-icon">✓</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- JD 输入 -->
+    <view class="card">
+      <view class="card-title-row">
+        <text class="card-title">岗位标题（选填）</text>
+      </view>
+      <input
+        class="jd-title-input"
+        placeholder="如：Software Engineer, 数据分析师"
+        value="{{jobTitle}}"
+        bindinput="onTitleInput"
+        maxlength="80"
+      />
+    </view>
+
+    <view class="card">
+      <view class="card-title-row">
+        <text class="card-title">岗位描述 (JD)</text>
+        <text class="char-count {{jdLen > 4500 ? 'warn' : ''}}">{{jdLen}}/5000</text>
+      </view>
+      <textarea
+        class="jd-textarea"
+        placeholder="粘贴完整的 Job Description，至少20字&#10;&#10;例：We are looking for a Software Engineer with 2+ years experience in Python, SQL..."
+        value="{{jobDescription}}"
+        bindinput="onJdInput"
+        maxlength="5000"
+        auto-height
+        show-confirm-bar="{{false}}"
+      />
+    </view>
+
+    <view class="btn-analyze {{(!resumeData || jdLen < 20) ? 'disabled' : ''}}" bindtap="startAnalyze">
+      开始 ATS 分析
+    </view>
+    <view class="hint-text">免费用户每天3次，VIP 无限次</view>
+  </block>
+
+
+  <!-- ══ STEP 2：分析中 ══ -->
+  <block wx:if="{{step === 2}}">
+    <view class="analyzing-wrap">
+      <view class="analyzing-ring"></view>
+      <text class="analyzing-title">AI 深度分析中…</text>
+      <text class="analyzing-sub">正在匹配关键词、诊断简历结构，约需15-30秒</text>
+      <view class="analyzing-steps">
+        <text class="anim-dot">· 解析岗位要求</text>
+        <text class="anim-dot">· 关键词比对</text>
+        <text class="anim-dot">· 生成优化建议</text>
+      </view>
+    </view>
+  </block>
+
+
+  <!-- ══ STEP 3：分析结果 ══ -->
+  <block wx:if="{{step === 3 && result}}">
+
+    <!-- 顶部评分区 -->
+    <view class="score-header">
+      <view class="score-ring-wrap">
+        <view class="score-ring" style="--score-color:{{result.scoreColor}}">
+          <text class="score-num" style="color:{{result.scoreColor}}">{{result.atsScore}}</text>
+          <text class="score-unit">分</text>
+        </view>
+        <text class="score-label" style="color:{{result.scoreColor}}">{{result.scoreLabel}}</text>
+        <text class="score-caption">ATS 评分</text>
+      </view>
+      <view class="score-right">
+        <view class="score-badge-row">
+          <view class="score-badge">
+            <text class="badge-num">{{result.jdMatch}}%</text>
+            <text class="badge-label">JD 匹配度</text>
+          </view>
+          <view class="score-badge">
+            <text class="badge-num">{{result.matchedKeywords.length}}</text>
+            <text class="badge-label">命中关键词</text>
+          </view>
+          <view class="score-badge">
+            <text class="badge-num">{{result.missingKeywords.length}}</text>
+            <text class="badge-label">缺失关键词</text>
+          </view>
+        </view>
+        <view wx:if="{{result.overallAdvice}}" class="overall-advice">
+          <text class="advice-icon">💡</text>
+          <text class="advice-text">{{result.overallAdvice}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 关键词分析 -->
+    <view class="section-card">
+      <view class="section-hd" data-key="expandKeywords" bindtap="toggleSection">
+        <text class="section-title">关键词分析</text>
+        <text class="section-arrow">{{expandKeywords ? '▲' : '▼'}}</text>
+      </view>
+      <view wx:if="{{expandKeywords}}" class="section-body">
+        <view class="kw-group">
+          <view class="kw-group-title">✅ 已命中（{{result.matchedKeywords.length}}）</view>
+          <view class="kw-chips">
+            <text wx:for="{{result.matchedKeywords}}" wx:key="*this" class="kw-chip matched">{{item}}</text>
+          </view>
+        </view>
+        <view wx:if="{{result.missingKeywords.length > 0}}" class="kw-group mt16">
+          <view class="kw-group-title">❌ 建议补充（{{result.missingKeywords.length}}）</view>
+          <view wx:for="{{result.missingKeywords}}" wx:key="word" class="missing-item">
+            <view class="missing-left">
+              <text class="missing-word">{{item.word}}</text>
+              <text class="priority-tag" style="color:{{item.priorityColor}}">{{item.priorityLabel}}优先</text>
+            </view>
+            <text class="missing-hint">{{item.suggestion}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 分板块建议 -->
+    <view wx:if="{{result.sectionSuggestions.length > 0}}" class="section-card">
+      <view class="section-hd" data-key="expandSuggestions" bindtap="toggleSection">
+        <text class="section-title">改进建议（{{result.sectionSuggestions.length}}条）</text>
+        <text class="section-arrow">{{expandSuggestions ? '▲' : '▼'}}</text>
+      </view>
+      <view wx:if="{{expandSuggestions}}" class="section-body">
+        <view wx:for="{{result.sectionSuggestions}}" wx:key="index" class="suggest-item">
+          <view class="suggest-top">
+            <text class="suggest-section">{{item.sectionLabel}}</text>
+            <text class="priority-tag" style="color:{{item.priorityColor}}">{{item.priorityLabel}}</text>
+          </view>
+          <text class="suggest-issue">⚠️ {{item.issue}}</text>
+          <text class="suggest-fix">→ {{item.fix}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 重写示例 -->
+    <view wx:if="{{result.bulletRewrites.length > 0}}" class="section-card">
+      <view class="section-hd" data-key="expandRewrites" bindtap="toggleSection">
+        <text class="section-title">描述重写示例（{{result.bulletRewrites.length}}条）</text>
+        <text class="section-arrow">{{expandRewrites ? '▲' : '▼'}}</text>
+      </view>
+      <view wx:if="{{expandRewrites}}" class="section-body">
+        <view wx:for="{{result.bulletRewrites}}" wx:key="index" class="rewrite-item">
+          <view class="rewrite-block before">
+            <text class="rewrite-label">原始</text>
+            <text class="rewrite-text">{{item.original}}</text>
+          </view>
+          <view class="rewrite-arrow">↓ {{item.reason}}</view>
+          <view class="rewrite-block after">
+            <text class="rewrite-label">优化</text>
+            <text class="rewrite-text">{{item.rewritten}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 格式问题 -->
+    <view wx:if="{{result.formatIssues.length > 0}}" class="section-card">
+      <view class="section-hd" data-key="expandFormat" bindtap="toggleSection">
+        <text class="section-title">格式问题（{{result.formatIssues.length}}条）</text>
+        <text class="section-arrow">{{expandFormat ? '▲' : '▼'}}</text>
+      </view>
+      <view wx:if="{{expandFormat}}" class="section-body">
+        <view wx:for="{{result.formatIssues}}" wx:key="index" class="format-item">
+          <text class="format-dot">•</text>
+          <text class="format-text">{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部操作 -->
+    <view class="bottom-actions">
+      <view class="btn-reanalyze" bindtap="goBack">重新分析</view>
+      <view class="btn-go-resume" bindtap="goToResume">去修改简历</view>
+    </view>
+
+  </block>
+
+</view>

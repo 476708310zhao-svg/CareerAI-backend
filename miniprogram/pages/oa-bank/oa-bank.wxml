@@ -1,0 +1,204 @@
+<!-- pages/oa-bank/oa-bank.wxml -->
+<view class="page">
+
+  <!-- 头部统计 -->
+  <view class="header">
+    <view class="header-title">OA 题库管理</view>
+    <view wx:if="{{stats}}" class="stat-row">
+      <view wx:for="{{stats.byStatus}}" wx:key="status" class="stat-chip"
+        style="background:{{STATUS_MAP[item.status]&&STATUS_MAP[item.status].bg||'#f3f4f6'}};color:{{STATUS_MAP[item.status]&&STATUS_MAP[item.status].color||'#374151'}}">
+        {{STATUS_MAP[item.status]&&STATUS_MAP[item.status].label||item.status}} {{item.n}}
+      </view>
+    </view>
+    <!-- 即将截止 -->
+    <view wx:if="{{stats && stats.upcoming && stats.upcoming.length}}" class="upcoming-bar">
+      <text class="upcoming-icon">⏰</text>
+      <text class="upcoming-text">近期截止：{{stats.upcoming[0].company}} {{stats.upcoming[0].deadline}}</text>
+    </view>
+  </view>
+
+  <!-- 筛选 Tab -->
+  <view class="filter-bar">
+    <view class="filter-item {{filterStatus===''?'active':''}}" data-val="" bindtap="setFilter">全部</view>
+    <view class="filter-item {{filterStatus==='pending'?'active':''}}" data-val="pending" bindtap="setFilter">待完成</view>
+    <view class="filter-item {{filterStatus==='doing'?'active':''}}"  data-val="doing"   bindtap="setFilter">进行中</view>
+    <view class="filter-item {{filterStatus==='done'?'active':''}}"   data-val="done"    bindtap="setFilter">已完成</view>
+  </view>
+
+  <!-- 加载 -->
+  <view wx:if="{{loading}}" class="loading-wrap">
+    <view class="spin"></view>
+  </view>
+
+  <!-- 列表 -->
+  <view wx:if="{{!loading}}" class="list">
+    <view wx:if="{{items.length === 0}}" class="empty-wrap">
+      <text class="empty-icon">📝</text>
+      <text class="empty-text">暂无记录，点击右下角 + 添加</text>
+    </view>
+
+    <view wx:for="{{items}}" wx:key="id" class="item-card {{item.isUrgent?'urgent':''}}">
+      <!-- 主行 -->
+      <view class="item-main" data-id="{{item.id}}" bindtap="toggleExpand">
+        <view class="item-left">
+          <view class="item-top-row">
+            <text class="item-company">{{item.company}}</text>
+            <view class="status-tag" style="background:{{item.statusBg}};color:{{item.statusColor}}">
+              {{item.statusLabel}}
+            </view>
+          </view>
+          <view class="item-meta-row">
+            <text class="meta-pill">{{item.typeLabel}}</text>
+            <text wx:if="{{item.role}}" class="meta-role">{{item.role}}</text>
+            <text wx:if="{{item.deadlineFmt}}" class="meta-deadline {{item.isUrgent?'urgent-text':''}}">
+              截止 {{item.deadlineFmt}}
+            </text>
+          </view>
+        </view>
+        <view class="item-right">
+          <text class="diff-dot" style="color:{{item.diffColor}}">●</text>
+          <text class="expand-arrow">{{expandId===item.id?'▲':'▼'}}</text>
+        </view>
+      </view>
+
+      <!-- 展开详情 -->
+      <view wx:if="{{expandId === item.id}}" class="item-detail">
+        <view wx:if="{{item.platform}}" class="detail-row">
+          <text class="detail-key">平台</text><text class="detail-val">{{item.platform}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-key">难度</text>
+          <text class="detail-val" style="color:{{item.diffColor}}">{{item.diffLabel}}</text>
+        </view>
+        <view wx:if="{{item.duration_min}}" class="detail-row">
+          <text class="detail-key">时长</text><text class="detail-val">{{item.duration_min}} 分钟</text>
+        </view>
+        <view wx:if="{{item.question_cnt}}" class="detail-row">
+          <text class="detail-key">题目数</text><text class="detail-val">{{item.question_cnt}} 题</text>
+        </view>
+        <view wx:if="{{item.topics && item.topics.length}}" class="detail-row">
+          <text class="detail-key">题型</text>
+          <view class="topic-chips">
+            <text wx:for="{{item.topics}}" wx:key="*this" class="topic-chip">{{item}}</text>
+          </view>
+        </view>
+        <view wx:if="{{item.notes}}" class="detail-row notes-row">
+          <text class="detail-key">备注</text>
+          <text class="detail-val notes-text">{{item.notes}}</text>
+        </view>
+        <view wx:if="{{item.source_url}}" class="detail-row">
+          <text class="detail-key">链接</text>
+          <text class="detail-val link-text">{{item.source_url}}</text>
+        </view>
+        <!-- 操作按钮 -->
+        <view class="action-row">
+          <view class="act-btn status-btn" data-id="{{item.id}}" data-status="{{item.status}}" bindtap="quickStatus">
+            {{item.status==='pending'?'开始做':'已完成'?'重置':'标记完成'}}
+          </view>
+          <view class="act-btn edit-btn" data-id="{{item.id}}" catchtap="openEdit">编辑</view>
+          <view class="act-btn del-btn" data-id="{{item.id}}" catchtap="deleteItem">删除</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 新建按钮 -->
+  <view class="fab" bindtap="openCreate">+</view>
+
+
+  <!-- ══ 表单弹窗 ══ -->
+  <view wx:if="{{showForm}}" class="modal-mask" catchtap="closeForm"></view>
+  <view wx:if="{{showForm}}" class="modal-sheet">
+    <view class="modal-hd">
+      <text class="modal-title">{{editId ? '编辑记录' : '新增 OA 记录'}}</text>
+      <text class="modal-close" catchtap="closeForm">✕</text>
+    </view>
+    <scroll-view scroll-y class="modal-body">
+
+      <view class="form-field">
+        <text class="form-label required">公司名</text>
+        <input class="form-input" data-key="company" bindinput="onFormInput" value="{{form.company}}" placeholder="如：Google" maxlength="100" />
+      </view>
+      <view class="form-field">
+        <text class="form-label">职位（选填）</text>
+        <input class="form-input" data-key="role" bindinput="onFormInput" value="{{form.role}}" placeholder="如：Software Engineer" maxlength="100" />
+      </view>
+
+      <view class="form-field">
+        <text class="form-label">OA 类型</text>
+        <view class="chip-row">
+          <view wx:for="{{typeList}}" wx:key="key"
+            class="chip {{form.oa_type===item.key?'chip-active':''}}"
+            data-key="oa_type" data-val="{{item.key}}" bindtap="setFormField">
+            {{item.label}}
+          </view>
+        </view>
+      </view>
+
+      <view class="form-field">
+        <text class="form-label">难度</text>
+        <view class="chip-row">
+          <view wx:for="{{diffList}}" wx:key="key"
+            class="chip {{form.difficulty===item.key?'chip-active':''}}"
+            data-key="difficulty" data-val="{{item.key}}" bindtap="setFormField">
+            {{item.label}}
+          </view>
+        </view>
+      </view>
+
+      <view class="form-field">
+        <text class="form-label">状态</text>
+        <view class="chip-row">
+          <view wx:for="{{statusList}}" wx:key="key"
+            class="chip {{form.status===item.key?'chip-active':''}}"
+            data-key="status" data-val="{{item.key}}" bindtap="setFormField">
+            {{item.label}}
+          </view>
+        </view>
+      </view>
+
+      <view class="form-field">
+        <text class="form-label">截止日期</text>
+        <input class="form-input" data-key="deadline" bindinput="onFormInput" value="{{form.deadline}}" placeholder="格式：2026-06-01" maxlength="10" />
+      </view>
+
+      <view class="form-row">
+        <view class="form-field half">
+          <text class="form-label">时长（分钟）</text>
+          <input class="form-input" type="number" data-key="duration_min" bindinput="onFormInput" value="{{form.duration_min}}" placeholder="如 90" />
+        </view>
+        <view class="form-field half">
+          <text class="form-label">题目数</text>
+          <input class="form-input" type="number" data-key="question_cnt" bindinput="onFormInput" value="{{form.question_cnt}}" placeholder="如 3" />
+        </view>
+      </view>
+
+      <view class="form-field">
+        <text class="form-label">平台</text>
+        <input class="form-input" data-key="platform" bindinput="onFormInput" value="{{form.platform}}" placeholder="如：HackerRank、Codility" maxlength="100" />
+      </view>
+
+      <view class="form-field">
+        <text class="form-label">题型标签（逗号分隔）</text>
+        <input class="form-input" data-key="topics" bindinput="onFormInput" value="{{form.topics}}" placeholder="如：动态规划, 图论, SQL" maxlength="200" />
+      </view>
+
+      <view class="form-field">
+        <text class="form-label">备注</text>
+        <textarea class="form-textarea" data-key="notes" bindinput="onFormInput" value="{{form.notes}}" placeholder="复盘笔记、难点记录…" maxlength="2000" auto-height show-confirm-bar="{{false}}" />
+      </view>
+
+      <view class="form-field">
+        <text class="form-label">OA 链接（选填）</text>
+        <input class="form-input" data-key="source_url" bindinput="onFormInput" value="{{form.source_url}}" placeholder="原始邀请链接" maxlength="500" />
+      </view>
+
+    </scroll-view>
+    <view class="modal-footer">
+      <view class="btn-save {{saving?'loading':''}}" bindtap="saveForm">
+        {{saving ? '保存中…' : '保存'}}
+      </view>
+    </view>
+  </view>
+
+</view>

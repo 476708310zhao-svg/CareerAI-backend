@@ -128,9 +128,9 @@ page {
   padding: 20rpx;       /* 增加内边距 */
   font-size: 30rpx;
   margin-right: 20rpx;
-
+  
   /* ⚠️ 关键：设置最小高度和最大高度 */
-  min-height: 40rpx;
+  min-height: 40rpx;    
   max-height: 200rpx;   /* 超过这个高度后，输入框内部滚动 */
   width: auto;          /* 修复 textarea 宽度问题 */
   line-height: 1.4;
@@ -158,14 +158,14 @@ page {
 
 /* --- 3. 报告弹窗 (修复滚动问题) --- */
 .modal-mask {
-  position: fixed;
+  position: fixed; 
   top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0,0,0,0.6);
   z-index: 999;
   display: flex;
   justify-content: center;
   align-items: flex-end; /* 从底部弹出 */
-
+  
   /* 防止点击穿透滚动背景 */
   touch-action: none;
 }
@@ -175,7 +175,7 @@ page {
   height: 85vh; /* 弹窗高度占屏幕 85% */
   background: #fff;
   border-radius: 24rpx 24rpx 0 0;
-
+  
   /* ✅ 关键布局：让头部和底部固定，中间自适应 */
   display: flex;
   flex-direction: column;
@@ -193,10 +193,10 @@ page {
 .close-icon { position: absolute; right: 30rpx; top: 30rpx; font-size: 40rpx; color: #999; padding: 0 20rpx; }
 
 /* ✅ 关键修复：滚动区域 */
-.report-scroll {
+.report-scroll { 
   flex: 1;            /* 占据剩余所有空间 */
   height: 0;          /* ⚠️ 必须设为0，配合 flex:1 才能触发内部滚动 */
-  background: #f5f5f5;
+  background: #f5f5f5; 
   width: 100%;
 }
 
@@ -224,19 +224,11 @@ page {
 .feedback-box { background: #fffbe6; padding: 15rpx; border-radius: 8rpx; }
 .feedback-text { color: #8a6d3b; font-size: 26rpx; }
 
-.modal-footer {
-  padding: 20rpx;
-  border-top: 1rpx solid #eee;
-  background: #fff;
+.modal-footer { 
+  padding: 20rpx; 
+  border-top: 1rpx solid #eee; 
+  background: #fff; 
   padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
   flex-shrink: 0; /* 防止底部被压缩 */
 }
 .close-btn { background: #f2f2f2; color: #666; width: 100%; border-radius: 10rpx; }
-/* Unified homepage background */
-page,
-.page,
-.container {
-  --app-page-bg: radial-gradient(circle at 18% 0%, rgba(43, 92, 230, 0.08) 0%, rgba(43, 92, 230, 0) 34%), linear-gradient(180deg, #f8fbff 0%, #ffffff 42%);
-  background: var(--app-page-bg);
-  background-color: #ffffff;
-}

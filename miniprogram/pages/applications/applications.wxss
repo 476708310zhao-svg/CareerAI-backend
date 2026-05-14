@@ -1278,11 +1278,41 @@ page {
     transform: translateY(0);
   }
 }
-/* Unified homepage background */
-page,
-.page,
-.container {
-  --app-page-bg: radial-gradient(circle at 18% 0%, rgba(43, 92, 230, 0.08) 0%, rgba(43, 92, 230, 0) 34%), linear-gradient(180deg, #f8fbff 0%, #ffffff 42%);
-  background: var(--app-page-bg);
-  background-color: #ffffff;
+
+/* ── 申请追踪栏 ── */
+.track-bar {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  padding: 14rpx 24rpx;
+  background: #f8faff;
+  border-top: 1rpx solid #f0f0f0;
 }
+.track-icon { font-size: 26rpx; }
+.track-txt  { flex: 1; font-size: 23rpx; color: #6b7280; }
+.track-toggle {
+  width: 60rpx; height: 32rpx;
+  border-radius: 16rpx;
+  background: #d1d5db;
+  position: relative;
+  transition: background 0.2s;
+}
+.track-toggle::after {
+  content: '';
+  position: absolute;
+  top: 4rpx; left: 4rpx;
+  width: 24rpx; height: 24rpx;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+}
+.track-toggle.on { background: #2563eb; }
+.track-toggle.on::after { transform: translateX(28rpx); }
+.job-closed-bar {
+  padding: 12rpx 24rpx;
+  background: #fff7ed;
+  font-size: 22rpx;
+  color: #92400e;
+  border-top: 1rpx solid #fed7aa;
+}
+

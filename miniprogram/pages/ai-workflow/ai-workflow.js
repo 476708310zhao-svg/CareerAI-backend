@@ -10,11 +10,14 @@ const MODULE_ROUTES = {
   agencies:     '/pages/agencies/agencies',
   campus:       '/pages/campus/campus',
   salary:       '/pages/salary/salary',
+  networking:   '/pages/networking/networking',
+  ats:          '/pages/ats-optimize/ats-optimize',
+  oa:           '/pages/oa-bank/oa-bank',
 };
 const MODULE_ICONS = {
   resume: '📄', jobs: '💼', applications: '📋',
   interview: '🎤', career_plan: '🗺️', agencies: '🏢',
-  campus: '📅', salary: '💰',
+  campus: '📅', salary: '💰', networking: '🤝', ats: '🎯', oa: '📝',
 };
 const TAB_MODULES = new Set(['jobs']);
 const CACHE_KEY   = 'ai_workflow_messages';
@@ -94,12 +97,15 @@ Page({
     sessionSearch: '',
     activeSessionId: '',
     quickTools: [
-      { module: 'resume', icon: '🧾', title: '优化简历', desc: '润色经历与匹配 ATS' },
-      { module: 'jobs', icon: '💼', title: '推荐岗位', desc: '根据目标筛选机会' },
-      { module: 'interview', icon: '🎙️', title: '模拟面试', desc: '生成问题并陪练' },
-      { module: 'career_plan', icon: '🗺️', title: '求职规划', desc: '拆解阶段路线图' },
-      { module: 'salary', icon: '💰', title: '查薪资', desc: '岗位与公司薪酬参考' },
-      { module: 'campus', icon: '📅', title: '校招日历', desc: '查看开放与截止' },
+      { module: 'resume',     icon: '🧾', title: '优化简历',   desc: '润色经历与匹配 ATS' },
+      { module: 'ats',        icon: '🎯', title: 'ATS 优化',   desc: '对比 JD 精准匹配' },
+      { module: 'networking', icon: '🤝', title: 'Networking', desc: 'LinkedIn/邮件开场白' },
+      { module: 'jobs',       icon: '💼', title: '推荐岗位',   desc: '根据目标筛选机会' },
+      { module: 'interview',  icon: '🎙️', title: '模拟面试',  desc: '生成问题并陪练' },
+      { module: 'career_plan',icon: '🗺️', title: '求职规划',  desc: '拆解阶段路线图' },
+      { module: 'salary',     icon: '💰', title: '查薪资',     desc: '岗位与公司薪酬参考' },
+      { module: 'campus',     icon: '📅', title: '校招日历',   desc: '查看开放与截止' },
+      { module: 'oa',         icon: '📝', title: 'OA 题库',    desc: '管理笔试记录与截止' },
     ],
   },
 
