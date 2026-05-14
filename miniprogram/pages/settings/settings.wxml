@@ -1,31 +1,97 @@
 <!-- pages/settings/settings.wxml -->
 <view class="container">
-  <view class="page-intro">
-    <text class="page-title">设置</text>
-    <text class="page-subtitle">管理通知、缓存和账号相关偏好。</text>
+  <view class="settings-hero">
+    <view>
+      <text class="hero-kicker">SETTINGS</text>
+      <text class="hero-title">设置中心</text>
+      <text class="hero-sub">管理通知、缓存、偏好和产品信息。</text>
+    </view>
+    <view class="hero-badge">
+      <text class="badge-num">v{{version}}</text>
+      <text class="badge-label">当前版本</text>
+    </view>
   </view>
 
-  <t-cell-group title="通知设置" theme="card">
-    <t-cell title="消息推送" hover-class="none">
-      <t-switch slot="right-icon" value="{{pushEnabled}}" bind:change="togglePush" colors="{{switchColors}}" />
-    </t-cell>
-  </t-cell-group>
+  <view class="setting-section">
+    <view class="section-head">
+      <text class="section-title">通知设置</text>
+      <text class="section-sub">控制重要提醒是否推送给你</text>
+    </view>
+    <view class="setting-card">
+      <view class="setting-row">
+        <view class="setting-icon">🔔</view>
+        <view class="setting-main">
+          <text class="setting-title">消息推送</text>
+          <text class="setting-desc">网申进度、面试提醒和系统通知</text>
+        </view>
+        <switch checked="{{pushEnabled}}" bindchange="togglePush" color="#2563eb" />
+      </view>
+    </view>
+  </view>
 
-  <t-cell-group title="通用" theme="card">
-    <t-cell title="深色模式" hover-class="none">
-      <t-switch slot="right-icon" value="{{darkMode}}" bind:change="toggleDarkMode" colors="{{switchColors}}" />
-    </t-cell>
-    <t-cell title="清除缓存" note="{{cacheSize}}" arrow bind:click="clearCache" />
-  </t-cell-group>
+  <view class="setting-section">
+    <view class="section-head">
+      <text class="section-title">通用偏好</text>
+      <text class="section-sub">调整显示与本地缓存</text>
+    </view>
+    <view class="setting-card">
+      <view class="setting-row">
+        <view class="setting-icon">🌙</view>
+        <view class="setting-main">
+          <text class="setting-title">深色模式</text>
+          <text class="setting-desc">开启后将在下次启动时生效</text>
+        </view>
+        <switch checked="{{darkMode}}" bindchange="toggleDarkMode" color="#2563eb" />
+      </view>
+      <view class="setting-row link" bindtap="clearCache">
+        <view class="setting-icon">🧹</view>
+        <view class="setting-main">
+          <text class="setting-title">清除缓存</text>
+          <text class="setting-desc">搜索历史、浏览记录等本地缓存</text>
+        </view>
+        <view class="row-right">
+          <text class="cache-size">{{cacheSize}}</text>
+          <text class="arrow">›</text>
+        </view>
+      </view>
+    </view>
+  </view>
 
-  <t-cell-group title="其他" theme="card">
-    <t-cell title="意见反馈" arrow bind:click="goToFeedback" />
-    <t-cell title="关于我们" arrow bind:click="goToAbout" />
-    <t-cell title="隐私政策" arrow bind:click="goToPrivacy" />
-  </t-cell-group>
+  <view class="setting-section">
+    <view class="section-head">
+      <text class="section-title">支持与信息</text>
+      <text class="section-sub">反馈问题、查看产品和隐私说明</text>
+    </view>
+    <view class="setting-card">
+      <view class="setting-row link" bindtap="goToFeedback">
+        <view class="setting-icon">💬</view>
+        <view class="setting-main">
+          <text class="setting-title">意见反馈</text>
+          <text class="setting-desc">告诉我们你遇到的问题或建议</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
+      <view class="setting-row link" bindtap="goToAbout">
+        <view class="setting-icon">ℹ️</view>
+        <view class="setting-main">
+          <text class="setting-title">关于我们</text>
+          <text class="setting-desc">了解留学生求职助手</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
+      <view class="setting-row link" bindtap="goToPrivacy">
+        <view class="setting-icon">🔒</view>
+        <view class="setting-main">
+          <text class="setting-title">隐私政策</text>
+          <text class="setting-desc">查看数据使用和隐私保护说明</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
+    </view>
+  </view>
 
-  <view class="version-info">留学生求职助手 v1.0.0</view>
+  <view class="status-card">
+    <text class="status-title">留学生求职助手 v{{version}}</text>
+    <text class="status-desc">当前偏好会保存在本机，清除缓存不会影响收藏、简历和账号信息。</text>
+  </view>
 </view>
-
-<t-toast id="t-toast" />
-<t-dialog id="t-dialog" />
