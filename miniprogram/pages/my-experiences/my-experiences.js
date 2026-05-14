@@ -9,6 +9,8 @@ Page({
     loading: false,
     collectionList: [],
     myPostList: [],
+    displayList: [],
+    totalCount: 0,
 
     // 发布弹窗
     showPublish: false,
@@ -49,17 +51,30 @@ Page({
     // 从 localStorage 加载自己发布的面经
     const myPosts = wx.getStorageSync('myExperiencePosts') || [];
 
-    this.setData({ collectionList, myPostList: myPosts });
+    this.setData({
+      collectionList,
+      myPostList: myPosts,
+      totalCount: collectionList.length + myPosts.length
+    }, () => {
+      this.refreshDisplayList();
+    });
   },
 
   switchTab(e) {
-    this.setData({ currentTab: Number(e.currentTarget.dataset.index) });
+    this.setData({
+      currentTab: Number(e.currentTarget.dataset.index),
+      searchKeyword: ''
+    }, () => {
+      this.refreshDisplayList();
+    });
   },
 
   // 搜索过滤
   onSearchInput(e) {
     const kw = e.detail.value.toLowerCase();
-    this.setData({ searchKeyword: kw });
+    this.setData({ searchKeyword: kw }, () => {
+      this.refreshDisplayList();
+    });
   },
 
   // 获取当前显示的列表（支持搜索过滤）
@@ -71,6 +86,10 @@ Page({
       (item.title || '').toLowerCase().includes(kw) ||
       (item.company || '').toLowerCase().includes(kw)
     );
+  },
+
+  refreshDisplayList() {
+    this.setData({ displayList: this._getDisplayList() });
   },
 
   onPullDownRefresh() {
@@ -93,7 +112,9 @@ Page({
   // 操作自己的文章
   handleMyPostAction(e) {
     if (this.data.currentTab !== 1) return;
-    const index = e.currentTarget.dataset.index;
+    const id = e.currentTarget.dataset.id;
+    const index = this.data.myPostList.findIndex(item => String(item.id) === String(id));
+    if (index < 0) return;
 
     wx.showActionSheet({
       itemList: ['编辑', '删除'],
@@ -120,7 +141,10 @@ Page({
               if (modal.confirm) {
                 const newList = this.data.myPostList.slice();
                 newList.splice(index, 1);
-                this.setData({ myPostList: newList });
+                this.setData({
+                  myPostList: newList,
+                  totalCount: this.data.collectionList.length + newList.length
+                }, () => this.refreshDisplayList());
                 wx.setStorageSync('myExperiencePosts', newList);
                 wx.showToast({ title: '已删除', icon: 'success' });
               }
@@ -138,6 +162,10 @@ Page({
       publishForm: { title: '', company: '', type: '面试', tags: '', content: '' },
       _editIndex: -1
     });
+  },
+
+  goToExperiences() {
+    wx.switchTab({ url: '/pages/experiences/experiences' });
   },
 
   closePublish() {
@@ -197,8 +225,9 @@ Page({
     this.setData({
       myPostList: myPosts,
       showPublish: false,
-      currentTab: 1
-    });
+      currentTab: 1,
+      totalCount: this.data.collectionList.length + myPosts.length
+    }, () => this.refreshDisplayList());
     wx.setStorageSync('myExperiencePosts', myPosts);
     wx.showToast({ title: this.data._editIndex >= 0 ? '已更新' : '发布成功', icon: 'success' });
   },

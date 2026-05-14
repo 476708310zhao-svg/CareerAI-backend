@@ -1,26 +1,57 @@
 <!-- pages/my-experiences/my-experiences.wxml -->
 <view class="container">
 
+  <view class="experience-hero">
+    <view>
+      <text class="hero-kicker">EXPERIENCE NOTES</text>
+      <text class="hero-title">面经工作台</text>
+      <text class="hero-sub">收藏、发布和整理求职经验，面试前快速回看重点内容。</text>
+    </view>
+    <view class="hero-count">
+      <text class="count-num">{{totalCount}}</text>
+      <text class="count-label">篇内容</text>
+    </view>
+  </view>
+
+  <view class="stats-grid">
+    <view class="stat-card">
+      <text class="stat-num">{{collectionList.length}}</text>
+      <text class="stat-label">我的收藏</text>
+    </view>
+    <view class="stat-card">
+      <text class="stat-num">{{myPostList.length}}</text>
+      <text class="stat-label">我发布的</text>
+    </view>
+    <view class="stat-card" bindtap="goToPublish">
+      <text class="stat-num">+</text>
+      <text class="stat-label">写面经</text>
+    </view>
+  </view>
+
   <!-- 1. 顶部固定区 -->
   <view class="header-fixed">
     <view class="search-bar">
       <view class="search-box">
         <icon type="search" size="14" color="#999"></icon>
-        <input placeholder="搜索面经 / 关键词" placeholder-class="ph" bindinput="onSearchInput" confirm-type="search" />
+        <input value="{{searchKeyword}}" placeholder="搜索面经 / 关键词" placeholder-class="ph" bindinput="onSearchInput" confirm-type="search" />
       </view>
     </view>
     <view class="tabs">
-      <view class="tab {{currentTab === 0 ? 'active' : ''}}" bindtap="switchTab" data-index="0">我的收藏</view>
-      <view class="tab {{currentTab === 1 ? 'active' : ''}}" bindtap="switchTab" data-index="1">我发布的</view>
+      <view class="tab {{currentTab === 0 ? 'active' : ''}}" bindtap="switchTab" data-index="0">
+        我的收藏
+        <text class="tab-count">{{collectionList.length}}</text>
+      </view>
+      <view class="tab {{currentTab === 1 ? 'active' : ''}}" bindtap="switchTab" data-index="1">
+        我发布的
+        <text class="tab-count">{{myPostList.length}}</text>
+      </view>
     </view>
   </view>
 
-  <view style="height: 180rpx;"></view>
-
   <!-- 2. 列表内容 -->
   <view class="list-container">
-    <block wx:if="{{ (currentTab === 0 && collectionList.length > 0) || (currentTab === 1 && myPostList.length > 0) }}">
-      <block wx:for="{{currentTab === 0 ? collectionList : myPostList}}" wx:key="id">
+    <block wx:if="{{displayList.length > 0}}">
+      <block wx:for="{{displayList}}" wx:key="id">
         <view class="article-card" bindtap="viewArticle" bindlongpress="handleMyPostAction" data-id="{{item.id}}" data-index="{{index}}">
           <view class="card-header">
             <view class="author-info">
@@ -55,10 +86,18 @@
 
     <!-- 空状态 -->
     <view wx:else class="empty-state">
-      <image src="/images/experience.png" class="empty-img" lazy-load></image>
-      <text class="empty-main">{{currentTab === 0 ? '暂无收藏的面经' : '还没有发布过面经'}}</text>
-      <text class="empty-sub">{{currentTab === 0 ? '在面经广场收藏感兴趣的内容' : '分享你的求职经验帮助更多人'}}</text>
-      <view class="empty-btn" wx:if="{{currentTab === 1}}" bindtap="goToPublish">发布第一篇面经</view>
+      <view class="empty-icon">{{currentTab === 0 ? '📖' : '✍️'}}</view>
+      <text class="empty-main">{{searchKeyword ? '没有找到相关面经' : (currentTab === 0 ? '暂无收藏的面经' : '还没有发布过面经')}}</text>
+      <text class="empty-sub">{{searchKeyword ? '换个关键词试试，或清空搜索后继续浏览' : (currentTab === 0 ? '在面经广场收藏感兴趣的内容，之后会出现在这里' : '分享你的求职经历，帮助更多同学少走弯路')}}</text>
+      <view class="empty-actions">
+        <view class="empty-btn primary" wx:if="{{currentTab === 1}}" bindtap="goToPublish">发布第一篇面经</view>
+        <view class="empty-btn primary" wx:else bindtap="goToExperiences">去面经广场</view>
+        <view class="empty-btn" bindtap="aiGenerateExp">AI 辅助生成</view>
+      </view>
+      <view class="empty-tips">
+        <view class="tip-item">支持关键词搜索</view>
+        <view class="tip-item">长按已发布内容可编辑</view>
+      </view>
     </view>
   </view>
 
