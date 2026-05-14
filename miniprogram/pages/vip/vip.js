@@ -14,6 +14,37 @@ Page({
       { id: 2, name: '年卡会员', price: '199',  original: '358',  tip: '最划算', day: '365天', perDay: '0.54', save: '159'  }
     ],
 
+    benefits: [
+      { icon: '01', title: '无限 AI 模拟面试', desc: '围绕岗位生成真实追问、评分和复盘建议', tag: 'Unlimited' },
+      { icon: '02', title: 'AI 深度简历优化', desc: '按 JD 重写亮点、量化成果并生成多版本', tag: '5x Resume' },
+      { icon: '03', title: 'AI 求职路线规划', desc: '拆解 30/60/90 天求职行动路径', tag: 'Roadmap' },
+      { icon: '04', title: 'AI 项目生成器', desc: '为目标岗位生成可写进简历的项目经历', tag: 'Portfolio' },
+      { icon: '05', title: 'Offer 决策助手', desc: '对比薪资、成长、签证和长期机会', tag: 'Decision' },
+      { icon: '06', title: 'AI 自动化求职工作流', desc: '串联推荐、简历、网申、面试和复盘', tag: 'Agent' }
+    ],
+
+    workflowSteps: [
+      { title: '推荐岗位', desc: '筛选英国 Data Analyst 机会', status: '完成' },
+      { title: '优化简历', desc: '按岗位 JD 重写项目与技能', status: '执行中' },
+      { title: '生成网申', desc: '准备申请材料和动机说明', status: '排队' },
+      { title: '管理投递', desc: '记录进度、提醒下一步动作', status: '排队' },
+      { title: '面试准备', desc: '生成题库、评分与复盘计划', status: '排队' }
+    ],
+    dashboardSteps: [
+      { title: '推荐岗位', desc: '筛选英国 Data Analyst 机会', status: '完成' },
+      { title: '优化简历', desc: '按岗位 JD 重写项目与技能', status: '执行中' },
+      { title: '生成网申', desc: '准备申请材料和动机说明', status: '排队' },
+      { title: '管理投递', desc: '记录进度、提醒下一步动作', status: '排队' }
+    ],
+
+    audienceList: [
+      { title: '北美留学生', desc: '面向实习、校招和全职投递，建立清晰求职节奏。' },
+      { title: '英国工签求职', desc: '围绕岗位匹配、简历定位和面试准备加速行动。' },
+      { title: '大厂校招', desc: '集中准备算法、行为面试、项目经历和公司研究。' },
+      { title: '转专业求职', desc: '把课程、项目和经历转译成目标岗位语言。' },
+      { title: '海外实习', desc: '快速生成投递材料，追踪申请与面试节点。' }
+    ],
+
     useCases: [
       { avatar: '👩‍💻', name: 'Sarah L.', role: 'Data Analyst @ Goldman Sachs',  story: '用AI模拟面试练习18次，精准击中高频行为题',    metric: '面试通过率', value: '3x提升', tag: '金融' },
       { avatar: '🧑‍🎓', name: 'Kevin Z.', role: 'SWE Intern @ TikTok',          story: 'AI出题+LeetCode刷了200道算法题，1个月上岸', metric: '备考周期',   value: '缩短60%', tag: '算法' },
@@ -37,12 +68,13 @@ Page({
     ],
 
     compareList: [
-      { feature: 'AI模拟面试',   free: '每月1次',  vip: '无限次' },
-      { feature: '简历版本数',   free: '1份',      vip: '5份' },
-      { feature: '每日投递上限', free: '10个',     vip: '无限制' },
-      { feature: '薪资报告',     free: '概览',     vip: '完整+趋势' },
-      { feature: '精华面经',     free: '不可查看', vip: '全部解锁' },
-      { feature: 'AI 功能',      free: '受限',     vip: '12项全开' }
+      { feature: 'AI 面试次数', free: '每月 1 次', vip: '无限次模拟 + 复盘' },
+      { feature: '简历版本', free: '1 份基础版', vip: '多岗位版本 + JD 定制' },
+      { feature: 'AI 项目生成', free: '不可用', vip: '按岗位生成项目经历' },
+      { feature: 'Offer 分析', free: '不可用', vip: '薪资/成长/签证多维对比' },
+      { feature: '高级薪资数据', free: '概览', vip: '城市/岗位/趋势完整报告' },
+      { feature: '校招提醒', free: '基础提醒', vip: '关键节点 + 行动建议' },
+      { feature: 'AI 工作流', free: '单点工具', vip: 'Agent 串联完整求职流程' }
     ],
 
     showCompare: false,
@@ -79,6 +111,10 @@ Page({
 
   toggleCompare() {
     this.setData({ showCompare: !this.data.showCompare });
+  },
+
+  jumpBenefits() {
+    wx.pageScrollTo({ selector: '#benefits', duration: 280 });
   },
 
   goToFeature(e) {
