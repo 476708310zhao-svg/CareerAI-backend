@@ -18,23 +18,6 @@
     </view>
   </view>
 
-  <view wx:if="{{showProfileGuide}}" class="onboarding-card">
-    <view class="onboarding-head">
-      <view>
-        <text class="onboarding-kicker">Start here</text>
-        <text class="onboarding-title">先完成档案，推荐会更准</text>
-      </view>
-      <text class="onboarding-score">{{profileCompleteness}}%</text>
-    </view>
-    <view class="onboarding-progress">
-      <view class="onboarding-progress-fill" style="width: {{profileCompleteness}}%;"></view>
-    </view>
-    <view class="onboarding-actions">
-      <view class="onboarding-btn primary" bindtap="goCompleteProfile" hover-class="opacity-hover">完善资料</view>
-      <view class="onboarding-btn" bindtap="navigateToPage" data-url="/pages/career-planner/career-planner" hover-class="opacity-hover">生成规划</view>
-    </view>
-  </view>
-
   <!-- 搜索框 -->
   <view class="search-wrap" bindtap="goToJobSearch">
     <image src="/images/search.png" class="search-icon"></image>

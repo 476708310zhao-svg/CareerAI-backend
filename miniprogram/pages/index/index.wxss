@@ -593,95 +593,12 @@ page, .page {
   border: 1rpx solid rgba(43,92,230,0.16);
 }
 
-.onboarding-card {
-  margin: 0 32rpx 24rpx;
-  padding: 26rpx;
-  border-radius: 30rpx;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,251,255,0.94)),
-    radial-gradient(circle at 100% 0, rgba(43,92,230,0.11), transparent 34%);
-  border: 1.5rpx solid rgba(226,232,240,0.92);
-  box-shadow: 0 16rpx 42rpx rgba(15,23,42,0.065);
-}
-
-.onboarding-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18rpx;
-}
-
-.onboarding-head > view {
-  display: flex;
-  flex-direction: column;
-}
-
-.onboarding-kicker,
 .pro-kicker {
   color: #2b5ce6;
   font-size: 20rpx;
   font-weight: 950;
   letter-spacing: 0.8rpx;
   text-transform: uppercase;
-}
-
-.onboarding-title {
-  margin-top: 6rpx;
-  color: #101828;
-  font-size: 32rpx;
-  font-weight: 950;
-  letter-spacing: -0.4rpx;
-}
-
-.onboarding-score {
-  color: #2557d6;
-  font-size: 34rpx;
-  font-weight: 950;
-}
-
-.onboarding-progress {
-  height: 12rpx;
-  margin-top: 22rpx;
-  border-radius: 999rpx;
-  background: #e5eaf3;
-  overflow: hidden;
-}
-
-.onboarding-progress-fill {
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #2b5ce6, #38bdf8);
-}
-
-.onboarding-copy {
-  margin-top: 16rpx;
-  color: #667085;
-  font-size: 24rpx;
-  line-height: 1.55;
-}
-
-.onboarding-actions {
-  display: flex;
-  gap: 14rpx;
-  margin-top: 20rpx;
-}
-
-.onboarding-btn {
-  flex: 1;
-  height: 66rpx;
-  border-radius: 20rpx;
-  color: #2557d6;
-  background: #eef4ff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24rpx;
-  font-weight: 900;
-}
-
-.onboarding-btn.primary {
-  color: #ffffff;
-  background: #101828;
 }
 
 .search-wrap {
@@ -1213,48 +1130,8 @@ page, .page {
   font-size: 21rpx;
 }
 
-.onboarding-card {
-  margin: 0 32rpx 18rpx;
-  padding: 18rpx 22rpx;
-  border-radius: 26rpx;
-}
-
-.onboarding-kicker,
 .pro-kicker {
   font-size: 18rpx;
-}
-
-.onboarding-title {
-  margin-top: 5rpx;
-  font-size: 28rpx;
-  line-height: 1.22;
-}
-
-.onboarding-score {
-  font-size: 30rpx;
-}
-
-.onboarding-progress {
-  height: 10rpx;
-  margin-top: 12rpx;
-}
-
-.onboarding-copy {
-  display: none;
-  margin-top: 0;
-  font-size: 22rpx;
-  line-height: 1.42;
-}
-
-.onboarding-actions {
-  gap: 12rpx;
-  margin-top: 12rpx;
-}
-
-.onboarding-btn {
-  height: 52rpx;
-  border-radius: 18rpx;
-  font-size: 22rpx;
 }
 
 .search-wrap {
