@@ -1,20 +1,38 @@
 <!-- pages/about/about.wxml -->
 <view class="container">
-  <!-- Logo 区域 -->
-  <view class="logo-section">
-    <image class="app-logo" src="/images/home-active.png" mode="aspectFit"></image>
-    <text class="app-name">留学生求职助手</text>
-    <text class="app-version">Version {{version}}</text>
+
+  <view class="about-hero">
+    <view class="logo-mark">
+      <image class="app-logo" src="/images/home-active.png" mode="aspectFit"></image>
+    </view>
+    <view class="hero-copy">
+      <text class="hero-kicker">CAREER AI</text>
+      <text class="app-name">留学生求职助手</text>
+      <text class="hero-sub">把岗位推荐、AI 面试、面经题库和求职规划放进一个清晰的行动工作台。</text>
+    </view>
+    <view class="version-pill">Version {{version}}</view>
   </view>
 
-  <!-- 简介 -->
-  <view class="intro-card">
-    <text class="intro-text">专为海外留学生打造的一站式求职平台，整合智能推荐、AI面试、薪资查询等核心功能，助你高效拿到心仪Offer。</text>
+  <view class="stats-grid">
+    <block wx:for="{{stats}}" wx:key="label">
+      <view class="stat-card">
+        <text class="stat-value">{{item.value}}</text>
+        <text class="stat-label">{{item.label}}</text>
+      </view>
+    </block>
   </view>
 
-  <!-- 核心功能 -->
-  <view class="section-title">核心功能</view>
-  <view class="feature-list">
+  <view class="mission-card">
+    <text class="section-kicker">OUR MISSION</text>
+    <text class="mission-title">让求职从信息收集，变成可执行的下一步。</text>
+    <text class="mission-text">我们希望帮助海外留学生更高效地理解岗位、准备面试、跟进网申，并把每一次准备沉淀成可复用的求职资产。</text>
+  </view>
+
+  <view class="section-head">
+    <text class="section-title">核心功能</text>
+    <text class="section-sub">围绕投递、准备、复盘三个阶段设计</text>
+  </view>
+  <view class="feature-grid">
     <block wx:for="{{features}}" wx:key="title">
       <view class="feature-item">
         <image class="feature-icon" src="{{item.icon}}" mode="aspectFit" lazy-load></image>
@@ -26,17 +44,30 @@
     </block>
   </view>
 
-  <!-- 联系方式 -->
-  <view class="section-title">联系我们</view>
+  <view class="section-head">
+    <text class="section-title">我们在意</text>
+    <text class="section-sub">产品会继续围绕这些方向打磨</text>
+  </view>
+  <view class="value-list">
+    <block wx:for="{{values}}" wx:key="title">
+      <view class="value-card">
+        <text class="value-title">{{item.title}}</text>
+        <text class="value-desc">{{item.desc}}</text>
+      </view>
+    </block>
+  </view>
+
   <view class="contact-card" bindtap="copyEmail">
-    <text class="contact-label">邮箱</text>
+    <view>
+      <text class="contact-label">联系我们</text>
+      <text class="contact-title">support@jobassistant.com</text>
+      <text class="contact-desc">产品建议、合作沟通或问题反馈都可以通过邮箱联系。</text>
+    </view>
     <view class="contact-row">
-      <text class="contact-value">support@jobassistant.com</text>
       <text class="copy-hint">点击复制</text>
     </view>
   </view>
 
-  <!-- 版权 -->
   <view class="copyright">
     <text>Copyright 2026 留学生求职助手</text>
     <text>All Rights Reserved</text>
