@@ -56,7 +56,7 @@
       <text class="rec-hint">{{phase === 'recording' ? '已录 ' + recordSeconds + 's · 最长 ' + maxSeconds + 's · 再次点击停止' : phase === 'recorded' ? '可播放回听，再点击重录' : '建议1-2分钟'}}</text>
 
       <!-- Main record button -->
-      <view class="rec-btn {{phase === 'recording' ? 'stop-btn' : ''}}" bindtap="{{phase === 'recording' ? 'stopRecord' : 'startRecord'}}">
+      <view class="rec-btn {{phase === 'recording' ? 'stop-btn' : ''}}" bindtap="toggleRecord">
         <text wx:if="{{phase === 'idle'}}">▶ 开始录音</text>
         <text wx:elif="{{phase === 'recording'}}">⏹ 停止录音</text>
         <text wx:else>🔄 重新录音</text>

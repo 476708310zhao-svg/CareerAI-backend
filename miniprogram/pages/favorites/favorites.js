@@ -101,6 +101,14 @@ Page({
     }
   },
 
+  handleCardTap(e) {
+    if (this.data.batchMode) {
+      this.toggleSelect(e);
+      return;
+    }
+    this.goToDetail(e);
+  },
+
   batchDelete() {
     if (this.data.selectedIds.length === 0) {
       wx.showToast({ title: '请先选择要删除的项', icon: 'none' });

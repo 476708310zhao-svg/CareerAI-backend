@@ -98,6 +98,14 @@ Page({
     this._stopTimer();
   },
 
+  toggleRecord() {
+    if (this.data.phase === 'recording') {
+      this.stopRecord();
+      return;
+    }
+    this.startRecord();
+  },
+
   _startTimer() {
     this._stopTimer();
     this._timer = setInterval(() => {
