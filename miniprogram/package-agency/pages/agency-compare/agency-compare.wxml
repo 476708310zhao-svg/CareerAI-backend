@@ -1,4 +1,4 @@
-<!-- pages/agency-compare/agency-compare.wxml -->
+<!-- package-agency/pages/agency-compare/agency-compare.wxml -->
 <view class="page">
 
   <!-- 加载中 -->
