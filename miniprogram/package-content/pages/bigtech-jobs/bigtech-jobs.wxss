@@ -141,9 +141,15 @@ page { background: #f7f8fa; }
   font-size: 20rpx; color: #2563eb; background: #eff6ff;
   padding: 2rpx 12rpx; border-radius: 999rpx; font-weight: 600;
 }
-.card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 6rpx; }
-.card-type   { font-size: 21rpx; color: #9ca3af; }
-.apply-link  { font-size: 24rpx; color: #2563eb; font-weight: 700; }
+.card-footer  { display: flex; justify-content: space-between; align-items: center; margin-top: 6rpx; }
+.card-type    { font-size: 21rpx; color: #9ca3af; }
+.footer-right { display: flex; align-items: center; gap: 16rpx; }
+.apply-link   { font-size: 24rpx; color: #2563eb; font-weight: 700; }
+.quick-apply-btn {
+  font-size: 22rpx; font-weight: 600; color: #fff;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  padding: 6rpx 18rpx; border-radius: 999rpx;
+}
 
 /* ── 加载 ── */
 .loading-row {

@@ -1,6 +1,19 @@
 ﻿// pages/bigtech-jobs/bigtech-jobs.js
 const { getBigtechJobs, getBigtechStats, refreshBigtechJobs } = require('../../../utils/api-jobs.js');
 
+function extractSourceJobId(source, applyUrl) {
+  if (!applyUrl) return '';
+  if (source === 'greenhouse') {
+    const m = applyUrl.match(/\/jobs\/(\d+)/);
+    return m ? m[1] : '';
+  }
+  if (source === 'lever') {
+    const m = applyUrl.match(/lever\.co\/[^/]+\/([^/?#]+)/);
+    return m ? m[1] : '';
+  }
+  return '';
+}
+
 const SPONSOR_LABELS = { yes: '可赞助', no: '不赞助', unknown: '未知' };
 const SPONSOR_COLORS  = { yes: '#16a34a', no: '#dc2626', unknown: '#9ca3af' };
 
@@ -159,6 +172,14 @@ Page({
   },
 
   // 鈹€鈹€ 璺宠浆 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  goApply(e) {
+    const { source, slug, jobid, title, company } = e.currentTarget.dataset;
+    if (!source || !slug || !jobid) return;
+    wx.navigateTo({
+      url: `/package-user/pages/apply-form/apply-form?source=${source}&slug=${slug}&jobId=${jobid}&title=${encodeURIComponent(title || '')}&company=${encodeURIComponent(company || '')}`,
+    });
+  },
+
   openJob(e) {
     const url = e.currentTarget.dataset.url;
     if (!url) return;

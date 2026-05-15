@@ -110,7 +110,19 @@
       </view>
       <view class="card-footer">
         <text class="card-type">{{item.job_type || '全职'}}</text>
-        <text class="apply-link">查看 →</text>
+        <view class="footer-right">
+          <view
+            wx:if="{{item.sourceJobId}}"
+            class="quick-apply-btn"
+            catchtap="goApply"
+            data-source="{{item.source}}"
+            data-slug="{{item.company_slug}}"
+            data-jobid="{{item.sourceJobId}}"
+            data-title="{{item.title}}"
+            data-company="{{item.company}}"
+          >⚡ 申请</view>
+          <text class="apply-link">查看 →</text>
+        </view>
       </view>
     </view>
 
