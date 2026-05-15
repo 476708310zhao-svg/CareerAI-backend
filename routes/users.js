@@ -12,7 +12,9 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '30d';
 const WX_APP_ID     = process.env.WX_APP_ID     || '';
 const WX_APP_SECRET = process.env.WX_APP_SECRET  || '';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-const WX_CONFIGURED = !!(WX_APP_ID && WX_APP_SECRET && WX_APP_ID !== '你的小程序AppID');
+const WX_PLACEHOLDER_PATTERNS = [/^$/, /^your[_-]/i, /^test[_-]/i, /请填写/, /你的小程序/, /你的/];
+const WX_CONFIGURED = !WX_PLACEHOLDER_PATTERNS.some(pattern => pattern.test(WX_APP_ID.trim()))
+  && !WX_PLACEHOLDER_PATTERNS.some(pattern => pattern.test(WX_APP_SECRET.trim()));
 
 const { parseId } = require('../db/utils');
 const { formatUser } = require('../db/formatters');

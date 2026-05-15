@@ -5,6 +5,11 @@ const ROOT = path.resolve(__dirname, '..');
 const MINI_ROOT = path.join(ROOT, 'miniprogram');
 const PACKAGE_ROOTS = new Set(['package-ai', 'package-career', 'package-content', 'package-agency', 'package-user']);
 const TEXT_EXTENSIONS = new Set(['.js', '.json', '.wxml', '.wxss']);
+const MB = 1024 * 1024;
+const PACKAGE_SIZE_LIMITS = {
+  main: 1.8 * MB,
+  subpackage: 1.8 * MB,
+};
 
 function fail(message) {
   console.error(message);
@@ -52,6 +57,102 @@ function checkRegisteredPages() {
 
   if (missing.length) {
     fail(`[miniprogram] app.json registers missing pages:\n${missing.map(item => `  - ${item}`).join('\n')}`);
+  }
+}
+
+function checkProjectConfig() {
+  const configPath = path.join(MINI_ROOT, 'project.config.json');
+  const config = readJson(configPath);
+  const setting = config.setting || {};
+  const issues = [];
+
+  if (setting.urlCheck !== true) {
+    issues.push('setting.urlCheck must be true before upload/review');
+  }
+  if (setting.uploadWithSourceMap !== false) {
+    issues.push('setting.uploadWithSourceMap should be false before production upload');
+  }
+  if (config.compileType !== 'miniprogram') {
+    issues.push('compileType should be miniprogram');
+  }
+
+  if (issues.length) {
+    fail(`[miniprogram] project.config.json release settings need attention:\n${issues.map(item => `  - ${item}`).join('\n')}`);
+  }
+}
+
+function checkRuntimeConfig() {
+  const configPath = path.join(MINI_ROOT, 'utils', 'config.js');
+  const source = fs.readFileSync(configPath, 'utf8');
+  const issues = [];
+
+  if (!/const\s+PROD_API_BASE_URL\s*=\s*['"]https:\/\/api\.zhiyincareer\.com['"]/.test(source)) {
+    issues.push('PROD_API_BASE_URL should point to https://api.zhiyincareer.com');
+  }
+  for (const key of ['API_BASE_URL', 'ASSET_BASE_URL', 'CONTENT_API_BASE_URL']) {
+    const pattern = new RegExp(`${key}\\s*:\\s*PROD_API_BASE_URL`);
+    if (!pattern.test(source)) {
+      issues.push(`${key} should use PROD_API_BASE_URL before release`);
+    }
+  }
+
+  if (issues.length) {
+    fail(`[miniprogram] runtime config is not release-ready:\n${issues.map(item => `  - ${item}`).join('\n')}`);
+  }
+}
+
+function checkTabBarAssets() {
+  const app = readJson(path.join(MINI_ROOT, 'app.json'));
+  const missing = [];
+
+  for (const item of (app.tabBar && app.tabBar.list) || []) {
+    for (const key of ['iconPath', 'selectedIconPath']) {
+      if (!item[key]) continue;
+      const iconPath = path.join(MINI_ROOT, item[key]);
+      if (!fs.existsSync(iconPath)) {
+        missing.push(`${item.pagePath}: ${key} -> ${item[key]}`);
+      }
+    }
+  }
+
+  if (missing.length) {
+    fail(`[miniprogram] missing tabBar assets:\n${missing.map(item => `  - ${item}`).join('\n')}`);
+  }
+}
+
+function checkJsonSyntax() {
+  const issues = [];
+
+  walk(MINI_ROOT, file => {
+    if (!file.endsWith('.json')) return;
+    try {
+      readJson(file);
+    } catch (err) {
+      issues.push(`${path.relative(ROOT, file)}: ${err.message}`);
+    }
+  });
+
+  if (issues.length) {
+    fail(`[miniprogram] invalid JSON files:\n${issues.map(item => `  - ${item}`).join('\n')}`);
+  }
+}
+
+function checkJsSyntax() {
+  const issues = [];
+
+  walk(MINI_ROOT, file => {
+    if (!file.endsWith('.js')) return;
+    try {
+      // Parse only. Do not execute mini program code because it depends on wx.
+      // eslint-disable-next-line no-new-func
+      new Function(fs.readFileSync(file, 'utf8'));
+    } catch (err) {
+      issues.push(`${path.relative(ROOT, file)}: ${err.message}`);
+    }
+  });
+
+  if (issues.length) {
+    fail(`[miniprogram] JavaScript syntax errors:\n${issues.map(item => `  - ${item}`).join('\n')}`);
   }
 }
 
@@ -154,9 +255,23 @@ function reportPackageSizes() {
   for (const [name, bytes] of rows) {
     console.log(`  - ${name}: ${(bytes / 1024 / 1024).toFixed(2)} MB`);
   }
+
+  const oversized = rows.filter(([name, bytes]) => {
+    const limit = name === 'main' ? PACKAGE_SIZE_LIMITS.main : PACKAGE_SIZE_LIMITS.subpackage;
+    return bytes > limit;
+  });
+
+  if (oversized.length) {
+    fail(`[miniprogram] package size is too close to WeChat upload limits:\n${oversized.map(([name, bytes]) => `  - ${name}: ${(bytes / MB).toFixed(2)} MB`).join('\n')}`);
+  }
 }
 
+checkProjectConfig();
+checkRuntimeConfig();
+checkJsonSyntax();
+checkJsSyntax();
 checkRegisteredPages();
+checkTabBarAssets();
 checkRelativeRequires();
 checkCommonPathMistakes();
 checkWxmlRiskyExpressions();
