@@ -2,7 +2,7 @@ const config = require('./config.js');
 
 const ASSET_BASE = config.ASSET_BASE_URL || config.API_BASE_URL;
 const CACHE_VERSION = '20260506a';
-const LOCAL_ASSET_PREFIXES = ['/images/', '../images/', '../../images/'];
+const LOCAL_ASSET_PREFIXES = ['/images/', '../../../images/', '../../../images/'];
 
 function isLocalAsset(url) {
   return LOCAL_ASSET_PREFIXES.some(prefix => url.indexOf(prefix) === 0);

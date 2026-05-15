@@ -1,6 +1,6 @@
 // behaviors/loading-tips.js — AI 加载动画（tips 轮播）
 // 用法：
-//   behaviors: [require('../../behaviors/loading-tips.js')]
+//   behaviors: [require('../../../behaviors/loading-tips.js')]
 //   调用 this._startLoading(['提示1...', '提示2...'])
 //   完成后调用 this._clearLoading()
 

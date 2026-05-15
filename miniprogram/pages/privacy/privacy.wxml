@@ -1,43 +1,48 @@
 <!-- pages/privacy/privacy.wxml -->
 <view class="container">
   <view class="title-block">
-    <text class="main-title">《{{appName}}》隐私政策</text>
+    <text class="main-title">《{{appName}}》用户协议与隐私政策</text>
     <text class="update-date">更新日期：{{updateDate}}</text>
   </view>
 
   <view class="section">
     <text class="section-title">一、我们收集的信息</text>
-    <text class="section-body">本应用仅在您主动授权时收集以下信息：\n\n• 微信昵称和头像（用于个性化展示）\n• 您填写的学校、专业、求职意向等档案信息\n• 您的搜索记录、浏览记录（仅存储在您的设备本地）\n• 您添加的求职申请记录（仅存储在您的设备本地）</text>
+    <text class="section-body">为提供求职服务，我们会在您主动填写、授权或使用相关功能时收集以下信息：&#10;&#10;1. 账号与登录信息：微信 openid、手机号、邮箱、昵称、头像。&#10;2. 求职档案信息：学校、专业、学历、求职方向、目标地区、技能、项目、简历内容、投递记录。&#10;3. 使用记录：收藏、浏览、搜索、AI 对话、面试练习、题库练习、订阅提醒等使用记录。&#10;4. 上传内容：头像、简历文件、申请材料、录音文件或您主动上传的其他求职材料。&#10;5. 设备与日志信息：请求时间、接口状态、错误日志等用于保障服务稳定运行的信息。</text>
   </view>
 
   <view class="section">
-    <text class="section-title">二、信息使用目的</text>
-    <text class="section-body">我们收集的信息仅用于：\n\n• 为您提供个性化的职位和面经推荐\n• 记录您的求职进度和面试历史\n• 改善产品功能和用户体验\n\n我们不会将您的个人信息出售、出租或以任何方式提供给第三方。</text>
+    <text class="section-title">二、敏感权限说明</text>
+    <text class="section-body">本小程序涉及以下系统能力，均会在您主动触发相关功能时使用：&#10;&#10;1. 手机号授权：用于账号登录、身份识别和重要服务通知。&#10;2. 头像选择：用于完善个人资料展示。&#10;3. 录音权限：用于 AI 面试、语音评测、音频转写等功能。录音文件仅在您确认使用相关功能时上传处理。&#10;4. 文件/图片上传：用于上传头像、简历、申请材料或音频内容。&#10;5. 订阅消息：用于投递状态、面试提醒、校园招聘提醒等通知，您可以自主选择是否订阅。&#10;6. web-view：如打开第三方职位详情或外部页面，会跳转至对应业务域名页面。</text>
   </view>
 
   <view class="section">
-    <text class="section-title">三、信息存储</text>
-    <text class="section-body">• 您的个人档案信息存储于您的微信客户端本地存储中\n• 求职记录、面试历史等数据均存储在您的设备本地\n• 我们的服务器仅处理职位搜索、AI 对话等实时请求，不存储您的个人信息</text>
+    <text class="section-title">三、信息使用目的</text>
+    <text class="section-body">我们会将收集的信息用于以下目的：&#10;&#10;1. 提供职位搜索、职位推荐、投递管理、简历管理、机构测评、校园招聘和题库服务。&#10;2. 生成 AI 面试反馈、项目建议、职业规划、简历优化、ATS 评估等个性化内容。&#10;3. 记录您的求职进度、收藏内容、订阅提醒和会员权益。&#10;4. 保障账号安全、接口安全、支付安全和服务稳定性。&#10;5. 改进产品体验、排查故障和优化服务质量。</text>
   </view>
 
   <view class="section">
-    <text class="section-title">四、信息安全</text>
-    <text class="section-body">• 与第三方 API（职位数据、AI服务）的通信均通过 HTTPS 加密传输\n• 我们的服务器不记录您的个人标识信息\n• 我们采用行业标准的安全措施保护数据传输安全</text>
+    <text class="section-title">四、第三方服务</text>
+    <text class="section-body">为实现部分功能，我们可能使用以下第三方服务：&#10;&#10;1. 微信开放能力：登录、手机号授权、订阅消息、微信支付。&#10;2. AI 与语音服务：用于生成求职建议、面试反馈、语音识别等内容。&#10;3. 职位与题库数据服务：用于职位搜索、题库查询、企业信息展示。&#10;4. 邮件、短信或云服务：用于验证码、通知、文件处理和服务部署。&#10;&#10;我们仅会在实现对应功能所必需的范围内传输相关信息。</text>
   </view>
 
   <view class="section">
-    <text class="section-title">五、您的权利</text>
-    <text class="section-body">您随时可以：\n\n• 在"我的 → 编辑资料"中修改或删除您的个人信息\n• 在"设置 → 清除缓存"中清除本地存储的所有数据\n• 停止使用本应用，您的本地数据将随卸载一并删除</text>
+    <text class="section-title">五、信息存储与保护</text>
+    <text class="section-body">1. 我们会采取合理的技术措施保护您的信息安全，包括 HTTPS 传输、接口鉴权、访问控制和必要的日志审计。&#10;2. 您主动填写或上传的资料会根据功能需要存储在本地或服务器端。&#10;3. 对于录音、简历、申请材料等内容，我们仅用于您选择的功能处理，不会出售、出租或以无关目的提供给第三方。&#10;4. 如服务不再需要相关数据，我们会按业务规则删除或匿名化处理。</text>
   </view>
 
   <view class="section">
-    <text class="section-title">六、未成年人保护</text>
-    <text class="section-body">本应用面向18周岁及以上的用户。若您未满18周岁，请在监护人陪同下使用本产品。</text>
+    <text class="section-title">六、您的权利</text>
+    <text class="section-body">您可以通过以下方式管理自己的信息：&#10;&#10;1. 在“我的/编辑资料”中修改个人资料。&#10;2. 在“设置”中清理本地缓存或退出登录。&#10;3. 对订阅消息、录音、手机号等授权，您可以在微信系统设置中管理。&#10;4. 如需删除账号数据或咨询隐私问题，可通过本政策中的联系方式联系我们。</text>
   </view>
 
   <view class="section">
-    <text class="section-title">七、联系我们</text>
-    <text class="section-body">如对本隐私政策有任何疑问，请通过以下方式联系我们：\n\n邮箱：{{contactEmail}}\n\n我们将在收到反馈后 3 个工作日内回复。</text>
+    <text class="section-title">七、未成年人保护</text>
+    <text class="section-body">本产品主要面向具有求职、实习、升学或职业规划需求的用户。如您未满 18 周岁，请在监护人同意和指导下使用本产品。</text>
+  </view>
+
+  <view class="section">
+    <text class="section-title">八、联系我们</text>
+    <text class="section-body">如您对本政策或个人信息保护有任何疑问、投诉或建议，请通过以下方式联系我们：&#10;&#10;邮箱：{{contactEmail}}&#10;&#10;我们会在收到反馈后尽快处理。</text>
   </view>
 
   <view class="footer">

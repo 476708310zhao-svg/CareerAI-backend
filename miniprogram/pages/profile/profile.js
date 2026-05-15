@@ -83,7 +83,7 @@ Page({
   },
 
   goToEditProfile() {
-    wx.navigateTo({ url: '/pages/profile-edit/profile-edit' });
+    wx.navigateTo({ url: '/package-user/pages/profile-edit/profile-edit' });
   },
 
   onLogin() {
@@ -112,39 +112,39 @@ Page({
     const isDefaultNick = !nickName || nickName === '微信用户';
     if (isDefaultNick) {
       setTimeout(() => {
-        wx.navigateTo({ url: '/pages/profile-edit/profile-edit?fromLogin=1' });
+        wx.navigateTo({ url: '/package-user/pages/profile-edit/profile-edit?fromLogin=1' });
       }, 900);
     }
   },
 
   goToApplications() {
-    wx.navigateTo({ url: '/pages/applications/applications' });
+    wx.navigateTo({ url: '/package-user/pages/applications/applications' });
   },
 
   goToResumes() {
     wx.navigateTo({
-      url: '/pages/resume/resume',
+      url: '/package-career/pages/resume/resume',
       fail: () => wx.showToast({ title: '请先创建 resume 页面', icon: 'none' })
     });
   },
 
   goToAIInterview() {
     wx.navigateTo({
-      url: '/pages/ai-history/ai-history',
+      url: '/package-ai/pages/ai-history/ai-history',
       fail: () => wx.showToast({ title: '请先创建 ai-history 页面', icon: 'none' })
     });
   },
 
   goToMyExperiences() {
     wx.navigateTo({
-      url: '/pages/my-experiences/my-experiences',
+      url: '/package-user/pages/my-experiences/my-experiences',
       fail: () => wx.showToast({ title: '请先创建 my-experiences 页面', icon: 'none' })
     });
   },
 
   goToVip() {
     wx.navigateTo({
-      url: '/pages/vip/vip',
+      url: '/package-user/pages/vip/vip',
       fail: (err) => {
         console.error(err);
         wx.showToast({ title: '页面跳转失败', icon: 'none' });
@@ -152,12 +152,12 @@ Page({
     });
   },
 
-  goToFavorites() { wx.navigateTo({ url: '/pages/favorites/favorites' }); },
-  goToMessages()  { wx.navigateTo({ url: '/pages/messages/messages' }); },
-  goToInterviews(){ wx.navigateTo({ url: '/pages/ai-history/ai-history', fail: () => wx.showToast({ title: '请先创建 ai-history 页面', icon: 'none' }) }); },
-  goToSettings()  { wx.navigateTo({ url: '/pages/settings/settings' }); },
-  goToFeedback()  { wx.navigateTo({ url: '/pages/feedback/feedback' }); },
-  goToAbout()     { wx.navigateTo({ url: '/pages/about/about' }); },
+  goToFavorites() { wx.navigateTo({ url: '/package-user/pages/favorites/favorites' }); },
+  goToMessages()  { wx.navigateTo({ url: '/package-user/pages/messages/messages' }); },
+  goToInterviews(){ wx.navigateTo({ url: '/package-ai/pages/ai-history/ai-history', fail: () => wx.showToast({ title: '请先创建 ai-history 页面', icon: 'none' }) }); },
+  goToSettings()  { wx.navigateTo({ url: '/package-user/pages/settings/settings' }); },
+  goToFeedback()  { wx.navigateTo({ url: '/package-user/pages/feedback/feedback' }); },
+  goToAbout()     { wx.navigateTo({ url: '/package-user/pages/about/about' }); },
 
   onLogout() {
     wx.showModal({
@@ -172,15 +172,6 @@ Page({
         wx.removeStorageSync('userProfile');
         wx.removeStorageSync('vipInfo');
         wx.removeStorageSync('userVipInfo');
-        // 清除 API 缓存，防止多设备数据串扰
-        const keysToRemove = ['cachedJobsList', 'dailyBriefCache', 'interviewHistory'];
-        keysToRemove.forEach(k => wx.removeStorageSync(k));
-        // 清除每日限额计数，下次登录重置
-        try {
-          const info = wx.getStorageInfoSync();
-          (info.keys || []).filter(k => k.startsWith('dailyLimit_') || k.startsWith('apic_'))
-            .forEach(k => wx.removeStorageSync(k));
-        } catch (e) {}
         const app = getApp();
         app.globalData.isLoggedIn  = false;
         app.globalData.userProfile = null;

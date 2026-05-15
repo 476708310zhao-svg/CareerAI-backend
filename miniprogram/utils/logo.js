@@ -1,6 +1,6 @@
 // utils/logo.js
 // 统一生成公司 Logo URL，优先走后端代理缓存
-// 用法：const { logoUrl } = require('../../utils/logo');
+// 用法：const { logoUrl } = require('../../../utils/logo');
 //       src="{{logoUrl('google.com')}}"  或  src="{{logoByName('字节跳动')}}"
 
 const { normalizeLogoUrl } = require('./assets.js');

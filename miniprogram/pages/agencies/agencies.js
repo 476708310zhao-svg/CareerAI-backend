@@ -202,7 +202,7 @@ Page({
       return;
     }
     wx.navigateTo({
-      url: `/pages/agency-compare/agency-compare?ids=${compareIds.join(',')}`
+      url: `/package-agency/pages/agency-compare/agency-compare?ids=${compareIds.join(',')}`
     });
   },
 
@@ -217,7 +217,7 @@ Page({
 
   goDetail(e) {
     const id = e.currentTarget.dataset.id;
-    wx.navigateTo({ url: `/pages/agency-detail/agency-detail?id=${id}` });
+    wx.navigateTo({ url: `/package-agency/pages/agency-detail/agency-detail?id=${id}` });
   },
 
   onLogoError(e) {

@@ -480,6 +480,6 @@ Page({
   goToDetail(e) {
     const item = e.currentTarget.dataset.item;
     wx.setStorageSync('currentQuestion', item);
-    wx.navigateTo({ url: '/pages/question-detail/question-detail' });
+    wx.navigateTo({ url: '/package-content/pages/question-detail/question-detail' });
   }
 });

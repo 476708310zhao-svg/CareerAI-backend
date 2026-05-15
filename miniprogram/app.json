@@ -3,62 +3,89 @@
     "pages/index/index",
     "pages/auth/auth",
     "pages/jobs/jobs",
-    "pages/job-detail/job-detail",
-    "pages/bigtech-jobs/bigtech-jobs",
-    "pages/cron-status/cron-status",
-    "pages/ats-optimize/ats-optimize",
-    "pages/networking/networking",
-    "pages/oa-bank/oa-bank",
-
-    "pages/profile/profile",
-    "pages/feedback/feedback",
-    "pages/about/about",
-    "pages/settings/settings",
-    "pages/applications/applications",
     "pages/experiences/experiences",
-    "pages/experience-detail/experience-detail",
-    "pages/interview-dialog/interview-dialog",
-    "pages/interview-setup/interview-setup",
-    "pages/resume/resume",
-    "pages/vip/vip",
-    "pages/ai-history/ai-history",
-    "pages/my-experiences/my-experiences",
-    "pages/profile-edit/profile-edit",
-    "pages/ai-report/ai-report",
-    "pages/search/search",
-    "pages/company-detail/company-detail",
-    "pages/companies/companies",
-    "pages/ai-workflow/ai-workflow",
-    "pages/favorites/favorites",
-    "pages/messages/messages",
-    "pages/news/news",
-    "pages/news-detail/news-detail",
-    "pages/privacy/privacy",
-    "pages/question-detail/question-detail",
     "pages/agencies/agencies",
-    "pages/agency-detail/agency-detail",
-    "pages/agency-compare/agency-compare",
-    "pages/campus/campus",
-    "pages/campus-detail/campus-detail",
-    "pages/career-planner/career-planner",
-    "pages/project-builder/project-builder",
-    "pages/offer-compare/offer-compare",
-    "pages/job-projects/job-projects",
-    "pages/interview-bank/interview-bank",
-    "pages/star-library/star-library",
-    "pages/audio-review/audio-review",
-    "pages/project-review/project-review",
-    "pages/skill-pathways/skill-pathways",
-    "pages/job-insights/job-insights",
-    "pages/daily-brief/daily-brief",
-    "pages/webview/webview",
-    "pages/salary/salary",
-    "pages/ai-assistant/ai-assistant"
+    "pages/profile/profile",
+    "pages/privacy/privacy"
+  ],
+  "subPackages": [
+    {
+      "root": "package-ai",
+      "pages": [
+        "pages/ai-assistant/ai-assistant",
+        "pages/ai-workflow/ai-workflow",
+        "pages/ai-history/ai-history",
+        "pages/ai-report/ai-report",
+        "pages/interview-setup/interview-setup",
+        "pages/interview-dialog/interview-dialog",
+        "pages/audio-review/audio-review",
+        "pages/project-review/project-review",
+        "pages/daily-brief/daily-brief"
+      ]
+    },
+    {
+      "root": "package-career",
+      "pages": [
+        "pages/resume/resume",
+        "pages/career-planner/career-planner",
+        "pages/project-builder/project-builder",
+        "pages/offer-compare/offer-compare",
+        "pages/job-projects/job-projects",
+        "pages/salary/salary",
+        "pages/skill-pathways/skill-pathways",
+        "pages/job-insights/job-insights",
+        "pages/ats-optimize/ats-optimize",
+        "pages/networking/networking",
+        "pages/oa-bank/oa-bank"
+      ]
+    },
+    {
+      "root": "package-content",
+      "pages": [
+        "pages/experience-detail/experience-detail",
+        "pages/question-detail/question-detail",
+        "pages/interview-bank/interview-bank",
+        "pages/star-library/star-library",
+        "pages/news/news",
+        "pages/news-detail/news-detail",
+        "pages/campus/campus",
+        "pages/campus-detail/campus-detail",
+        "pages/bigtech-jobs/bigtech-jobs",
+        "pages/cron-status/cron-status",
+        "pages/webview/webview"
+      ]
+    },
+    {
+      "root": "package-agency",
+      "pages": [
+        "pages/agency-detail/agency-detail",
+        "pages/agency-compare/agency-compare"
+      ]
+    },
+    {
+      "root": "package-user",
+      "pages": [
+        "pages/applications/applications",
+        "pages/apply-form/apply-form",
+        "pages/profile-edit/profile-edit",
+        "pages/favorites/favorites",
+        "pages/messages/messages",
+        "pages/my-experiences/my-experiences",
+        "pages/settings/settings",
+        "pages/feedback/feedback",
+        "pages/about/about",
+        "pages/vip/vip",
+        "pages/companies/companies",
+        "pages/company-detail/company-detail",
+        "pages/search/search",
+        "pages/job-detail/job-detail"
+      ]
+    }
   ],
   "window": {
     "backgroundTextStyle": "light",
     "navigationBarBackgroundColor": "#fff",
-    "navigationBarTitleText": "留学生求职助手",
+    "navigationBarTitleText": "\u7559\u5b66\u751f\u6c42\u804c\u52a9\u624b",
     "navigationBarTextStyle": "black",
     "backgroundColor": "#ffffff",
     "backgroundColorTop": "#ffffff",
@@ -72,31 +99,31 @@
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "首页",
+        "text": "\u9996\u9875",
         "iconPath": "images/home.png",
         "selectedIconPath": "images/home-active.png"
       },
       {
         "pagePath": "pages/jobs/jobs",
-        "text": "职位",
+        "text": "\u804c\u4f4d",
         "iconPath": "images/jobs.png",
         "selectedIconPath": "images/jobs-active.png"
       },
       {
         "pagePath": "pages/experiences/experiences",
-        "text": "题库",
+        "text": "\u9898\u5e93",
         "iconPath": "images/experience.png",
         "selectedIconPath": "images/experience-active.png"
       },
       {
         "pagePath": "pages/agencies/agencies",
-        "text": "测评",
+        "text": "\u6d4b\u8bc4",
         "iconPath": "images/assess.png",
         "selectedIconPath": "images/assess-active.png"
       },
       {
         "pagePath": "pages/profile/profile",
-        "text": "我的",
+        "text": "\u6211\u7684",
         "iconPath": "images/profile.png",
         "selectedIconPath": "images/profile-active.png"
       }
@@ -105,16 +132,16 @@
   "darkmode": false,
   "sitemapLocation": "sitemap.json",
   "usingComponents": {
-    "c-button":       "/components/c-button/c-button",
+    "c-button": "/components/c-button/c-button",
     "c-section-card": "/components/c-section-card/c-section-card",
-    "c-tag":          "/components/c-tag/c-tag",
-    "c-action-bar":   "/components/c-action-bar/c-action-bar",
-    "c-search-bar":   "/components/c-search-bar/c-search-bar",
-    "c-ai-loading":   "/components/c-ai-loading/c-ai-loading",
+    "c-tag": "/components/c-tag/c-tag",
+    "c-action-bar": "/components/c-action-bar/c-action-bar",
+    "c-search-bar": "/components/c-search-bar/c-search-bar",
+    "c-ai-loading": "/components/c-ai-loading/c-ai-loading",
     "c-company-logo": "/components/c-company-logo/c-company-logo",
-    "t-button":       "tdesign-miniprogram/button/button",
-    "t-tag":          "tdesign-miniprogram/tag/tag",
-    "t-icon":         "tdesign-miniprogram/icon/icon",
-    "t-swiper":       "tdesign-miniprogram/swiper/swiper"
+    "t-button": "tdesign-miniprogram/button/button",
+    "t-tag": "tdesign-miniprogram/tag/tag",
+    "t-icon": "tdesign-miniprogram/icon/icon",
+    "t-swiper": "tdesign-miniprogram/swiper/swiper"
   }
 }

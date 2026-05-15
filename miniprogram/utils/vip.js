@@ -28,7 +28,7 @@ function check(featureName) {
     confirmText: '去开通',
     success: (res) => {
       if (res.confirm) {
-        wx.navigateTo({ url: '/pages/vip/vip' });
+        wx.navigateTo({ url: '/package-user/pages/vip/vip' });
       }
     }
   });
@@ -51,7 +51,7 @@ function checkDailyLimit(key, freeLimit, featureName) {
       content: '免费用户每日可使用 ' + freeLimit + ' 次' + (featureName || '') + '，开通 VIP 无限使用',
       confirmText: '去开通',
       success: (res) => {
-        if (res.confirm) wx.navigateTo({ url: '/pages/vip/vip' });
+        if (res.confirm) wx.navigateTo({ url: '/package-user/pages/vip/vip' });
       }
     });
     return false;

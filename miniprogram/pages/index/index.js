@@ -24,14 +24,14 @@ Page({
 
     // 2. 金刚区（8 入口，每个配独立背景色）
     features: [
-      { id: 1, name: '网申助手', icon: '/images/icon-apply.png', url: '/pages/applications/applications', badge: '', bg: 'linear-gradient(145deg,#eef6ff,#f8fbff)' },
-      { id: 2, name: '薪酬查询', icon: '/images/icon-salary.png', url: '/pages/salary/salary', badge: 'Hot', bg: 'linear-gradient(145deg,#ecfdf5,#f8fbff)' },
-      { id: 3, name: 'AI面试',   icon: '/images/icon-interview.png',  url: '/pages/interview-setup/interview-setup', badge: 'New', bg: 'linear-gradient(145deg,#f3e8ff,#f8fbff)' },
-      { id: 4, name: '简历诊断', icon: '/images/icon-resume.png',     url: '/pages/resume/resume', badge: 'New', bg: 'linear-gradient(145deg,#ecfdf5,#f8fbff)' },
-      { id: 5, name: '求职规划', icon: '/images/icon-plan.png', url: '/pages/career-planner/career-planner', badge: 'AI', bg: 'linear-gradient(145deg,#fff7ed,#f8fbff)' },
-      { id: 6, name: 'AI助手', icon: '/images/icon-ai-assistant.png', url: '/pages/ai-workflow/ai-workflow', badge: 'AI', bg: 'linear-gradient(145deg,#eef4ff,#f8fbff)' },
-      { id: 7, name: 'AI项目', icon: '/images/icon-project.png', url: '/pages/project-builder/project-builder', badge: 'New', bg: 'linear-gradient(145deg,#eef2ff,#f8fbff)' },
-      { id: 8, name: '校招日历', icon: '/images/icon-calendar.png', url: '/pages/campus/campus', badge: '', bg: 'linear-gradient(145deg,#f0f9ff,#f8fbff)' }
+      { id: 1, name: '网申助手', icon: '/images/icon-apply.png', url: '/package-user/pages/applications/applications', badge: '', bg: 'linear-gradient(145deg,#eef6ff,#f8fbff)' },
+      { id: 2, name: '薪酬查询', icon: '/images/icon-salary.png', url: '/package-career/pages/salary/salary', badge: 'Hot', bg: 'linear-gradient(145deg,#ecfdf5,#f8fbff)' },
+      { id: 3, name: 'AI面试',   icon: '/images/icon-interview.png',  url: '/package-ai/pages/interview-setup/interview-setup', badge: 'New', bg: 'linear-gradient(145deg,#f3e8ff,#f8fbff)' },
+      { id: 4, name: '简历诊断', icon: '/images/icon-resume.png',     url: '/package-career/pages/resume/resume', badge: 'New', bg: 'linear-gradient(145deg,#ecfdf5,#f8fbff)' },
+      { id: 5, name: '求职规划', icon: '/images/icon-plan.png', url: '/package-career/pages/career-planner/career-planner', badge: 'AI', bg: 'linear-gradient(145deg,#fff7ed,#f8fbff)' },
+      { id: 6, name: 'AI助手', icon: '/images/icon-ai-assistant.png', url: '/package-ai/pages/ai-workflow/ai-workflow', badge: 'AI', bg: 'linear-gradient(145deg,#eef4ff,#f8fbff)' },
+      { id: 7, name: 'AI项目', icon: '/images/icon-project.png', url: '/package-career/pages/project-builder/project-builder', badge: 'New', bg: 'linear-gradient(145deg,#eef2ff,#f8fbff)' },
+      { id: 8, name: '校招日历', icon: '/images/icon-calendar.png', url: '/package-content/pages/campus/campus', badge: '', bg: 'linear-gradient(145deg,#f0f9ff,#f8fbff)' }
     ],
 
     // 3. 热门公司
@@ -190,8 +190,8 @@ Page({
   fetchBanners() {
     const FALLBACK = [
       { id: 1, gradient: 'linear-gradient(135deg,#1C3578 0%,#2B5CE6 100%)', icon: '🚀', title: '海外留学生求职季开启', subtitle: '2026 春招全面启动', url: '/pages/jobs/jobs' },
-      { id: 2, gradient: 'linear-gradient(135deg,#7C3AED 0%,#DB2777 100%)', icon: '🏢', title: '名企校招职位推荐', subtitle: '腾讯 · 字节 · 阿里 热招中', url: '/pages/search/search' },
-      { id: 3, gradient: 'linear-gradient(135deg,#059669 0%,#0EA5E9 100%)', icon: '🤖', title: 'AI 模拟面试上线', subtitle: 'DeepSeek 驱动，智能评分', url: '/pages/interview-setup/interview-setup' }
+      { id: 2, gradient: 'linear-gradient(135deg,#7C3AED 0%,#DB2777 100%)', icon: '🏢', title: '名企校招职位推荐', subtitle: '腾讯 · 字节 · 阿里 热招中', url: '/package-user/pages/search/search' },
+      { id: 3, gradient: 'linear-gradient(135deg,#059669 0%,#0EA5E9 100%)', icon: '🤖', title: 'AI 模拟面试上线', subtitle: 'DeepSeek 驱动，智能评分', url: '/package-ai/pages/interview-setup/interview-setup' }
     ];
 
     // 立即显示缓存或兜底，不阻塞页面
@@ -266,7 +266,7 @@ Page({
   },
 
   goCompleteProfile() {
-    wx.navigateTo({ url: '/pages/profile-edit/profile-edit' });
+    wx.navigateTo({ url: '/package-user/pages/profile-edit/profile-edit' });
   },
 
   getRecommendTitle(profile) {
@@ -489,12 +489,12 @@ Page({
   viewNewsDetail(e) {
     const item = e.currentTarget.dataset.item;
     wx.setStorageSync('currentNewsDetail', item);
-    wx.navigateTo({ url: '/pages/news-detail/news-detail' });
+    wx.navigateTo({ url: '/package-content/pages/news-detail/news-detail' });
   },
 
   // 更多快讯
   goToNews() {
-    wx.navigateTo({ url: '/pages/news/news' });
+    wx.navigateTo({ url: '/package-content/pages/news/news' });
   },
 
   // ======== 导航跳转 ========
@@ -510,7 +510,7 @@ Page({
   },
 
   goToJobSearch() {
-    wx.navigateTo({ url: '/pages/search/search' });
+    wx.navigateTo({ url: '/package-user/pages/search/search' });
   },
 
   goToJobDetail(e) {
@@ -523,13 +523,13 @@ Page({
       if (history.length > 20) history = history.slice(0, 20);
       wx.setStorageSync('viewHistory', history);
     }
-    wx.navigateTo({ url: `/pages/job-detail/job-detail?id=${id}` });
+    wx.navigateTo({ url: `/package-user/pages/job-detail/job-detail?id=${id}` });
   },
 
   goToCompanyDetail(e) {
     const id = e.currentTarget.dataset.id;
     const name = e.currentTarget.dataset.name;
-    wx.navigateTo({ url: `/pages/company-detail/company-detail?id=${id}&name=${encodeURIComponent(name)}` });
+    wx.navigateTo({ url: `/package-user/pages/company-detail/company-detail?id=${id}&name=${encodeURIComponent(name)}` });
   },
 
   viewMoreJobs() {
@@ -537,7 +537,7 @@ Page({
   },
 
   viewMoreCompanies() {
-    wx.navigateTo({ url: '/pages/companies/companies' });
+    wx.navigateTo({ url: '/package-user/pages/companies/companies' });
   },
 
   onBannerChange(e) {

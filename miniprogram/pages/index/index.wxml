@@ -9,7 +9,7 @@
       <text class="hero-subtitle">岗位推荐、名企情报、面试准备和求职规划，一站式 AI 工作台。</text>
       <view class="hero-actions">
         <view class="hero-primary" bindtap="goCompleteProfile" hover-class="opacity-hover">建立求职档案</view>
-        <view class="hero-secondary" bindtap="navigateToPage" data-url="/pages/ai-assistant/ai-assistant" hover-class="opacity-hover">问 AI 助手</view>
+        <view class="hero-secondary" bindtap="navigateToPage" data-url="/package-ai/pages/ai-assistant/ai-assistant" hover-class="opacity-hover">问 AI 助手</view>
       </view>
     </view>
     <view class="hero-orb">
@@ -58,7 +58,7 @@
     </block>
   </view>
 
-  <view class="pro-teaser" bindtap="navigateToPage" data-url="/pages/vip/vip" hover-class="opacity-hover">
+  <view class="pro-teaser" bindtap="navigateToPage" data-url="/package-user/pages/vip/vip" hover-class="opacity-hover">
     <view class="pro-copy">
       <text class="pro-kicker">CareerAI Pro</text>
       <text class="pro-title">把简历、投递、面试连成闭环</text>
@@ -77,7 +77,7 @@
       <view class="career-loop-badge">4 steps</view>
     </view>
     <view class="career-loop-steps">
-      <view class="career-loop-step" bindtap="navigateToPage" data-url="/pages/resume/resume" hover-class="opacity-hover">
+      <view class="career-loop-step" bindtap="navigateToPage" data-url="/package-career/pages/resume/resume" hover-class="opacity-hover">
         <text class="loop-step-index">01</text>
         <text class="loop-step-title">简历定位</text>
         <text class="loop-step-desc">完善亮点</text>
@@ -89,13 +89,13 @@
         <text class="loop-step-desc">推荐机会</text>
         <text class="loop-step-arrow">›</text>
       </view>
-      <view class="career-loop-step" bindtap="navigateToPage" data-url="/pages/interview-setup/interview-setup" hover-class="opacity-hover">
+      <view class="career-loop-step" bindtap="navigateToPage" data-url="/package-ai/pages/interview-setup/interview-setup" hover-class="opacity-hover">
         <text class="loop-step-index">03</text>
         <text class="loop-step-title">面试训练</text>
         <text class="loop-step-desc">模拟问答</text>
         <text class="loop-step-arrow">›</text>
       </view>
-      <view class="career-loop-step" bindtap="navigateToPage" data-url="/pages/career-planner/career-planner" hover-class="opacity-hover">
+      <view class="career-loop-step" bindtap="navigateToPage" data-url="/package-career/pages/career-planner/career-planner" hover-class="opacity-hover">
         <text class="loop-step-index">04</text>
         <text class="loop-step-title">求职规划</text>
         <text class="loop-step-desc">路线拆解</text>
@@ -103,7 +103,7 @@
       </view>
     </view>
     <view class="career-loop-actions">
-      <view class="career-loop-btn primary" bindtap="navigateToPage" data-url="/pages/resume/resume" hover-class="opacity-hover">从简历开始</view>
+      <view class="career-loop-btn primary" bindtap="navigateToPage" data-url="/package-career/pages/resume/resume" hover-class="opacity-hover">从简历开始</view>
       <view class="career-loop-btn" bindtap="navigateToPage" data-url="/pages/jobs/jobs" hover-class="opacity-hover">查看岗位</view>
     </view>
   </view>

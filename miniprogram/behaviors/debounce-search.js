@@ -1,6 +1,6 @@
 // behaviors/debounce-search.js — 搜索防抖
 // 用法：
-//   behaviors: [require('../../behaviors/debounce-search.js')]
+//   behaviors: [require('../../../behaviors/debounce-search.js')]
 //   调用 this._debounce(() => { ... }, 400)
 
 module.exports = Behavior({
