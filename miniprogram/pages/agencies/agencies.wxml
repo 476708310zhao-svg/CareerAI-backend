@@ -93,9 +93,9 @@
         <view class="card-head">
           <view class="logo-wrap">
             <image
-              wx:if="{{item.logoDomain && !item.logoFailed}}"
+              wx:if="{{item.logoProxyUrl && !item.logoFailed}}"
               class="logo-img"
-              src="https://logo.clearbit.com/{{item.logoDomain}}"
+              src="{{item.logoProxyUrl}}"
               mode="aspectFill"
               lazy-load
               binderror="onLogoError"

@@ -1,5 +1,6 @@
 // pages/agencies/agencies.js
 const api = require('../../utils/api');
+const { logoUrl } = require('../../utils/logo');
 const { AGENCIES: MOCK_AGENCIES } = require('../../utils/mock-data');
 
 const TYPE_LIST = ['全部', '猎头', '背景提升', '简历优化', '面试培训', '留学咨询', '综合'];
@@ -25,7 +26,13 @@ function _getInitials(name) {
   return name.slice(0, 2).toUpperCase();
 }
 function _enrichItem(item) {
-  return { ...item, initial: _getInitials(item.name), logoColor: _pickLogoColor(item.name), logoFailed: false };
+  return {
+    ...item,
+    initial:       _getInitials(item.name),
+    logoColor:     _pickLogoColor(item.name),
+    logoFailed:    false,
+    logoProxyUrl:  item.logoDomain ? logoUrl(item.logoDomain) : '',
+  };
 }
 
 const SORT_OPTIONS = [
