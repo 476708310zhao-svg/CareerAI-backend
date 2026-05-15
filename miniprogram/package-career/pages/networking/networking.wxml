@@ -43,11 +43,11 @@
       <!-- 快速预设 -->
       <view class="preset-row">
         <view
-          wx:for="{{bgPresets}}" wx:key="index"
+          wx:for="{{bgPresetChips}}" wx:key="index"
           class="preset-chip"
-          data-text="{{item}}"
+          data-text="{{item.text}}"
           bindtap="applyPreset"
-        >{{item.slice(0,12)}}…</view>
+        >{{item.shortText}}…</view>
       </view>
     </view>
 

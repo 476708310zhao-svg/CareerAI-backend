@@ -30,6 +30,7 @@ Page({
         this.setData({
           detail: {
             ...d,
+            _companyInitial: String(d.company || '').slice(0, 2) || '--',
             _typeStyle:   TYPE_COLOR[d.recruitType]   || TYPE_COLOR['春招'],
             _testStyle:   WRITTEN_COLOR[d.writtenTest] || WRITTEN_COLOR['需要笔试'],
             _locStr: (d.locations || []).join(' / ') || '全国',

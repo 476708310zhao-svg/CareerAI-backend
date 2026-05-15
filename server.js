@@ -1,4 +1,7 @@
 require('dotenv').config();
+const { validateStartupEnv } = require('./utils/envValidation');
+validateStartupEnv();
+
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -129,12 +132,22 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-const server = app.listen(PORT, () => {
-  console.log(`✅ 留学生求职小程序后端运行在 http://localhost:${PORT}`);
-});
+function configureServer(server) {
+  // Keep Node's timeout slightly longer than common nginx keepalive settings.
+  server.keepAliveTimeout = 70000;
+  server.headersTimeout = 75000;
+  return server;
+}
 
-// 防止 nginx 反代场景下 socket 被提前关闭：
-// nginx 默认 keepalive_timeout=65s，Node 默认 5s，导致 "socket closed unexpectedly"
-// 设为 70s，比 nginx 稍长，确保 Node 不会先关闭连接
-server.keepAliveTimeout = 70000;
-server.headersTimeout   = 75000;
+function startServer(port = PORT) {
+  const server = app.listen(port, () => {
+    console.log('Server running at http://localhost:' + port);
+  });
+  return configureServer(server);
+}
+
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = { app, startServer };

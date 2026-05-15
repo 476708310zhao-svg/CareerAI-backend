@@ -8,6 +8,7 @@ const fs      = require('fs');
 
 const router  = express.Router();
 const { aiLimiter } = require('../middleware/rateLimit');
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 // ── 临时存储上传的音频文件 ──────────────────────────────────────
 const upload = multer({
@@ -53,6 +54,9 @@ function callTencentASR(audioBase64, engModelType) {
     const appId     = process.env.TENCENT_ASR_APPID;
 
     if (!secretId || !secretKey || !appId) {
+      if (IS_PRODUCTION) {
+        return reject(new Error('ASR 未完成生产配置'));
+      }
       // Mock mode — no credentials configured
       return resolve({ text: '[ASR未配置] 请在.env中设置 TENCENT_SECRET_ID / TENCENT_SECRET_KEY / TENCENT_ASR_APPID', mock: true });
     }
@@ -146,7 +150,7 @@ router.post('/transcribe', aiLimiter, upload.single('audio'), async (req, res) =
 // Returns whether ASR is properly configured (without exposing secrets)
 router.get('/config', (_req, res) => {
   const configured = !!(process.env.TENCENT_SECRET_ID && process.env.TENCENT_SECRET_KEY && process.env.TENCENT_ASR_APPID);
-  res.json({ configured, message: configured ? 'ASR 已配置' : 'ASR 未配置，将使用 mock 模式' });
+  res.json({ configured, mockAllowed: !IS_PRODUCTION, message: configured ? 'ASR 已配置' : (IS_PRODUCTION ? 'ASR 未完成生产配置' : 'ASR 未配置，将使用 mock 模式') });
 });
 
 module.exports = router;

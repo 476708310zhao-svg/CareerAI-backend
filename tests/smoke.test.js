@@ -1,6 +1,5 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const db = require('../db/database');
@@ -15,33 +14,27 @@ const testAccount = {
 };
 
 let server;
-let serverOutput = '';
 let authToken;
 let adminToken;
 let createdOrderNo;
 const uploadedFiles = [];
 
 function startServer() {
-  server = spawn(process.execPath, ['server.js'], {
-    cwd: process.cwd(),
-    env: {
-      ...process.env,
-      PORT,
-      JWT_SECRET: 'test_secret_please_do_not_use_in_production_1234567890',
-      ADMIN_USERNAME: 'admin',
-      ADMIN_PASSWORD: 'admin_password',
-      ALLOWED_ORIGIN: `http://127.0.0.1:${PORT}`,
-      WEBHOOK_SECRET: 'test_webhook_secret',
-      WXPAY_MCH_ID: '',
-      WXPAY_API_KEY: '',
-      WXPAY_APP_ID: '',
-      WXPAY_NOTIFY_URL: ''
-    },
-    stdio: ['ignore', 'pipe', 'pipe']
+  Object.assign(process.env, {
+    PORT,
+    JWT_SECRET: 'test_secret_please_do_not_use_in_production_1234567890',
+    ADMIN_USERNAME: 'admin',
+    ADMIN_PASSWORD: 'admin_password',
+    ALLOWED_ORIGIN: `http://127.0.0.1:${PORT}`,
+    WEBHOOK_SECRET: 'test_webhook_secret',
+    WXPAY_MCH_ID: '',
+    WXPAY_API_KEY: '',
+    WXPAY_APP_ID: '',
+    WXPAY_NOTIFY_URL: ''
   });
 
-  server.stdout.on('data', chunk => { serverOutput += chunk.toString(); });
-  server.stderr.on('data', chunk => { serverOutput += chunk.toString(); });
+  const { startServer: listen } = require('../server');
+  server = listen(PORT);
 }
 
 async function waitForServer() {
@@ -53,7 +46,7 @@ async function waitForServer() {
     } catch (e) {}
     await new Promise(resolve => setTimeout(resolve, 200));
   }
-  throw new Error('server did not become ready\n' + serverOutput);
+  throw new Error('server did not become ready');
 }
 
 async function readJson(res) {
@@ -87,8 +80,10 @@ test.before(async () => {
   await waitForServer();
 });
 
-test.after(() => {
-  if (server) server.kill();
+test.after(async () => {
+  if (server) {
+    await new Promise(resolve => server.close(resolve));
+  }
   const user = db.prepare('SELECT id FROM users WHERE email = ?').get(testAccount.email);
   if (user) {
     db.prepare('DELETE FROM orders WHERE user_id = ?').run(user.id);

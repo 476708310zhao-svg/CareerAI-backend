@@ -101,10 +101,12 @@ Page({
       const items = rawList.map(item => ({
         ...item,
         companyLogo:    item.companyLogo || logoByName(item.company),
+        _companyInitial: String(item.company || '').slice(0, 2) || '--',
         _typeStyle:     TYPE_COLOR[item.recruitType]    || TYPE_COLOR['春招'],
         _testStyle:     WRITTEN_COLOR[item.writtenTest] || WRITTEN_COLOR['需要笔试'],
         _locLabel:      this._fmtLocations(item.locations),
         _deadlineShort: this._fmtDeadline(item.deadlineDate),
+        _startMonth:    item.startDate ? String(item.startDate).slice(0, 7) : '-',
       }));
       const merged = reset ? items : this.data.list.concat(items);
       this.setData({
@@ -120,6 +122,7 @@ Page({
         const items = MOCK_CAMPUS.map(item => ({
           ...item,
           companyLogo:    item.companyLogo || logoByName(item.company),
+          _companyInitial: String(item.company || '').slice(0, 2) || '--',
           gradYear:       item.gradYear || item.recruitYear,
           positionName:   item.positionName || item.positionType || '',
           deadlineDate:   item.deadlineDate || item.deadlineMonth || '',
@@ -129,7 +132,8 @@ Page({
           _typeStyle:     TYPE_COLOR[item.recruitType]    || TYPE_COLOR['春招'],
           _testStyle:     WRITTEN_COLOR[item.writtenTest] || WRITTEN_COLOR['需要笔试'],
           _locLabel:      item.region,
-          _deadlineShort: item.deadlineMonth ? item.deadlineMonth.slice(5) : (item.deadlineDate || '尽快')
+          _deadlineShort: item.deadlineMonth ? item.deadlineMonth.slice(5) : (item.deadlineDate || '尽快'),
+          _startMonth:    item.startDate || item.appOpenMonth ? String(item.startDate || item.appOpenMonth).slice(0, 7) : '-'
         }));
         this.setData({ list: items, total: items.length, hasMore: false, loading: false });
         wx.showToast({ title: '当前为演示数据', icon: 'none', duration: 1500 });

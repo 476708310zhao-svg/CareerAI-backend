@@ -5,6 +5,10 @@ const SK       = require('../../../utils/store-keys');
 
 const RATING_LABELS = ['很差', '较差', '一般', '不错', '很棒'];
 
+function firstChars(text, len) {
+  return String(text || '').slice(0, len) || '--';
+}
+
 Page({
   data: {
     agency: null,
@@ -62,7 +66,10 @@ Page({
   loadDetail() {
     return api.getAgencyDetail(this.agencyId).then(res => {
       if (res.code !== 0) throw new Error(res.message);
-      const agency = res.data;
+      const agency = {
+        ...res.data,
+        logoText: firstChars(res.data && res.data.name, 2)
+      };
       this.setData({
         agency,
         starList: this._buildStarList(agency.ratingAvg),
@@ -146,7 +153,11 @@ Page({
 
     return api.getAgencyReviews(this.agencyId, page, this.data.reviewsPageSize).then(res => {
       if (res.code !== 0) throw new Error(res.message);
-      const newList = reset ? res.data : [...this.data.reviews, ...res.data];
+      const reviews = (res.data || []).map(item => ({
+        ...item,
+        userInitial: firstChars(item.userName, 1)
+      }));
+      const newList = reset ? reviews : [...this.data.reviews, ...reviews];
       this.setData({
         reviews: newList,
         reviewsPage: page + 1,

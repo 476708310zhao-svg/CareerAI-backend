@@ -30,7 +30,7 @@
       <text class="stat-src">可赞助</text>
       <text class="stat-n">{{stats.bySponsor[0] && stats.bySponsor[0].sponsorship === 'yes' ? stats.bySponsor[0].n : (stats.bySponsor[1] && stats.bySponsor[1].sponsorship === 'yes' ? stats.bySponsor[1].n : 0)}}</text>
     </view>
-    <text class="stat-hint">上次更新 {{stats.lastFetch ? stats.lastFetch.slice(0,16) : '—'}}</text>
+    <text class="stat-hint">上次更新 {{stats.lastFetchText}}</text>
   </view>
 
   <!-- 筛选面板 -->

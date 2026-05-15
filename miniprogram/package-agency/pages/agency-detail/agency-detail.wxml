@@ -9,7 +9,7 @@
       <view class="logo-wrap">
         <image wx:if="{{agency.logo}}" class="logo-img" src="{{agency.logo}}" mode="aspectFill"/>
         <view wx:else class="logo-placeholder">
-          <text class="logo-text">{{agency.name.slice(0,2)}}</text>
+          <text class="logo-text">{{agency.logoText}}</text>
         </view>
       </view>
       <view class="info-main">
@@ -338,7 +338,7 @@
               <view class="avatar-wrap">
                 <image wx:if="{{item.userAvatar}}" class="avatar-img" src="{{item.userAvatar}}" mode="aspectFill" lazy-load/>
                 <view wx:else class="avatar-placeholder">
-                  <text>{{item.userName.slice(0,1)}}</text>
+                  <text>{{item.userInitial}}</text>
                 </view>
               </view>
               <view class="reviewer-detail">

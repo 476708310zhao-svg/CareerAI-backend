@@ -1,6 +1,13 @@
 // pages/networking/networking.js
 const { post } = require('../../../utils/api-client.js');
 
+const BG_PRESETS = [
+  '计算机硕士在读，有2年Python/ML实习经验，求软件工程师岗位',
+  '金融MBA，CFA持证，有投行实习经历，求金融分析师岗位',
+  '数据科学硕士，熟悉SQL/Tableau，有数据分析项目经验',
+  '市场营销硕士，有品牌策划和社交媒体运营经验',
+];
+
 Page({
   data: {
     // 表单
@@ -21,12 +28,11 @@ Page({
     copiedEmail:    false,
 
     // 快速预设背景
-    bgPresets: [
-      '计算机硕士在读，有2年Python/ML实习经验，求软件工程师岗位',
-      '金融MBA，CFA持证，有投行实习经历，求金融分析师岗位',
-      '数据科学硕士，熟悉SQL/Tableau，有数据分析项目经验',
-      '市场营销硕士，有品牌策划和社交媒体运营经验',
-    ],
+    bgPresets: BG_PRESETS,
+    bgPresetChips: BG_PRESETS.map(text => ({
+      text,
+      shortText: text.slice(0, 12)
+    })),
   },
 
   onInput(e) {

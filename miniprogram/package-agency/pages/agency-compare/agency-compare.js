@@ -1,6 +1,10 @@
 // pages/agency-compare/agency-compare.js
 const api = require('../../../utils/api');
 
+function logoText(name) {
+  return String(name || '').slice(0, 2) || '--';
+}
+
 // 对比行定义：label / 取值函数
 const ROWS = [
   {
@@ -95,7 +99,10 @@ Page({
     this.setData({ loading: true });
     api.getAgenciesCompare(this.ids).then(res => {
       if (res.code !== 0) throw new Error(res.message);
-      const agencies = res.data;
+      const agencies = (res.data || []).map(item => ({
+        ...item,
+        logoText: logoText(item.name)
+      }));
       const rows = this._buildRows(agencies);
       this.setData({
         agencies,

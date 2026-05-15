@@ -92,7 +92,14 @@ Page({
 
   _loadStats() {
     getBigtechStats().then(res => {
-      if (res && res.ok) this.setData({ stats: res });
+      if (res && res.ok) {
+        this.setData({
+          stats: {
+            ...res,
+            lastFetchText: res.lastFetch ? String(res.lastFetch).slice(0, 16) : '—'
+          }
+        });
+      }
     }).catch(() => {});
   },
 

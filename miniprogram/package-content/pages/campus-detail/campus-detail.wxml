@@ -14,7 +14,7 @@
       <view class="logo-wrap">
         <image wx:if="{{detail.companyLogo}}" src="{{detail.companyLogo}}" class="logo-img" mode="aspectFit"/>
         <view wx:else class="logo-placeholder">
-          <text class="logo-char">{{detail.company.slice(0,2)}}</text>
+          <text class="logo-char">{{detail._companyInitial}}</text>
         </view>
       </view>
       <view class="hero-info">

@@ -25,12 +25,13 @@ const OTP_MAX_TRIES  = 5;             // 最多尝试次数
 const OTP_SEND_COOLDOWN = 60 * 1000; // 发送冷却 60 秒
 
 // 定期清理过期 OTP
-setInterval(() => {
+const otpCleanupTimer = setInterval(() => {
   const now = Date.now();
   for (const [k, v] of _otpStore) {
     if (now > v.expiry) _otpStore.delete(k);
   }
 }, 2 * 60 * 1000);
+if (otpCleanupTimer.unref) otpCleanupTimer.unref();
 
 function genOtp() {
   return String(Math.floor(100000 + Math.random() * 900000));
