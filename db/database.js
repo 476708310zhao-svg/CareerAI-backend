@@ -355,4 +355,33 @@ if (bannerCols.length > 0 && !bannerCols.includes('image_url')) {
   db.exec(`ALTER TABLE banners ADD COLUMN image_url TEXT DEFAULT ''`);
 }
 
+// ─── resume_pdfs 表（幂等）────────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS resume_pdfs (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      INTEGER NOT NULL,
+    filename     TEXT NOT NULL,
+    original_name TEXT DEFAULT '',
+    file_url     TEXT NOT NULL,
+    file_size    INTEGER DEFAULT 0,
+    created_at   TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_resume_pdfs_user ON resume_pdfs(user_id);
+`);
+
+// ─── 给 applications 表补投递追踪字段（幂等）─────────────────────────────────
+const appCols = db.pragma('table_info(applications)').map(c => c.name);
+[
+  ['source_type',     'TEXT DEFAULT ""'],       // greenhouse | lever | manual
+  ['source_job_id',   'TEXT DEFAULT ""'],        // ATS 系统的 job id
+  ['source_slug',     'TEXT DEFAULT ""'],        // 公司 slug（用于轮询）
+  ['tracking',        'INTEGER DEFAULT 0'],      // 1=开启追踪
+  ['last_checked_at', 'TEXT DEFAULT ""'],        // 最近一次轮询时间
+  ['job_active',      'INTEGER DEFAULT 1'],      // 1=职位仍开放, 0=已关闭
+].forEach(([name, ddl]) => {
+  if (!appCols.includes(name)) {
+    db.exec(`ALTER TABLE applications ADD COLUMN ${name} ${ddl}`);
+  }
+});
+
 module.exports = db;

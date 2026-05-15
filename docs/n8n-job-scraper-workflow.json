@@ -1,0 +1,159 @@
+{
+  "name": "定时抓取职位 (Job Scraper)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "node-schedule",
+      "name": "每6小时触发",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3001/api/aggregate/refresh",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Cron-Secret",
+              "value": "={{ $env.CRON_SECRET }}"
+            },
+            {
+              "name": "X-Triggered-By",
+              "value": "n8n-scheduler"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "node-http-refresh",
+      "name": "触发职位抓取",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-ok",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-if-ok",
+      "name": "是否成功",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst errors = d.errors || [];\nconst results = d.results || [];\n\nconst lines = [\n  `✅ 职位抓取完成`,\n  `新增/更新: ${d.total} 条`,\n  `成功公司: ${results.length} 家`,\n  errors.length ? `失败: ${errors.map(e => e.company).join(', ')}` : `无失败`,\n  `耗时: ${((d.duration_ms || 0) / 1000).toFixed(1)}s`,\n  `时间: ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}`\n];\n\nconsole.log(lines.join('\\n'));\n\nreturn [{\n  json: {\n    ok: true,\n    summary: lines.join('\\n'),\n    total: d.total,\n    successCount: results.length,\n    errorCount: errors.length,\n    durationMs: d.duration_ms\n  }\n}];"
+      },
+      "id": "node-success",
+      "name": "记录成功",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst errors = d.errors || [];\n\nconst msg = [\n  `❌ 职位抓取失败或部分失败`,\n  `status: ${d.status}`,\n  `失败公司: ${errors.map(e => `${e.company}(${e.error})`).join('; ')}`,\n  `时间: ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}`\n].join('\\n');\n\nconsole.error(msg);\n\nreturn [{ json: { ok: false, summary: msg, errors } }];"
+      },
+      "id": "node-failure",
+      "name": "记录失败",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 420]
+    }
+  ],
+  "connections": {
+    "每6小时触发": {
+      "main": [
+        [
+          {
+            "node": "触发职位抓取",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "触发职位抓取": {
+      "main": [
+        [
+          {
+            "node": "是否成功",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "是否成功": {
+      "main": [
+        [
+          {
+            "node": "记录成功",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "记录失败",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    { "name": "jobs" },
+    { "name": "scheduler" }
+  ],
+  "triggerCount": 1,
+  "versionId": "1"
+}

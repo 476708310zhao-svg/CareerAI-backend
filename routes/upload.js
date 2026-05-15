@@ -1,8 +1,9 @@
 const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const router = express.Router();
+const multer  = require('multer');
+const path    = require('path');
+const fs      = require('fs');
+const router  = express.Router();
+const db      = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
 const { imageExtForMime, isAllowedImageMime, rejectInvalidImage } = require('../utils/uploadSecurity');
 
@@ -56,10 +57,85 @@ router.post('/avatar', authMiddleware, upload.single('file'), (req, res) => {
   res.json({ code: 0, message: '上传成功', data: { url: fileUrl } });
 });
 
+// ── PDF 简历上传 ──────────────────────────────────────────────────────────────
+const PDF_DIR = path.join(UPLOAD_DIR, 'resumes');
+if (!fs.existsSync(PDF_DIR)) fs.mkdirSync(PDF_DIR, { recursive: true });
+
+const pdfStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, PDF_DIR),
+  filename: (_req, _file, cb) => {
+    cb(null, `resume_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.pdf`);
+  },
+});
+
+const pdfUpload = multer({
+  storage: pdfStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype !== 'application/pdf') {
+      return cb(new Error('只允许上传 PDF 文件'));
+    }
+    cb(null, true);
+  },
+});
+
+// POST /api/upload/resume-pdf
+// 字段名 "file"，返回 { code:0, data: { id, url, filename, size } }
+router.post('/resume-pdf', authMiddleware, pdfUpload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ code: -1, message: '未收到 PDF 文件' });
+
+  // 验证 PDF 魔数（%PDF-）
+  try {
+    const buf = Buffer.alloc(5);
+    const fd  = fs.openSync(req.file.path, 'r');
+    fs.readSync(fd, buf, 0, 5, 0);
+    fs.closeSync(fd);
+    if (buf.toString('ascii') !== '%PDF-') {
+      fs.unlink(req.file.path, () => {});
+      return res.status(400).json({ code: -1, message: '文件内容不是有效的 PDF' });
+    }
+  } catch (e) {
+    return res.status(400).json({ code: -1, message: '文件读取失败' });
+  }
+
+  const fileUrl      = `/uploads/resumes/${req.file.filename}`;
+  const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8'); // 微信上传文件名编码修复
+
+  const result = db.prepare(`
+    INSERT INTO resume_pdfs (user_id, filename, original_name, file_url, file_size)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(req.user.userId, req.file.filename, originalName.slice(0, 200), fileUrl, req.file.size);
+
+  res.json({ code: 0, message: '上传成功', data: {
+    id:       result.lastInsertRowid,
+    url:      fileUrl,
+    filename: originalName,
+    size:     req.file.size,
+  }});
+});
+
+// GET /api/upload/resume-pdfs — 获取当前用户所有 PDF 简历
+router.get('/resume-pdfs', authMiddleware, (req, res) => {
+  const rows = db.prepare(
+    'SELECT id, original_name, file_url, file_size, created_at FROM resume_pdfs WHERE user_id=? ORDER BY created_at DESC LIMIT 10'
+  ).all(req.user.userId);
+  res.json({ code: 0, data: rows });
+});
+
+// DELETE /api/upload/resume-pdf/:id — 删除 PDF 简历
+router.delete('/resume-pdf/:id', authMiddleware, (req, res) => {
+  const id  = parseInt(req.params.id, 10);
+  const row = db.prepare('SELECT * FROM resume_pdfs WHERE id=? AND user_id=?').get(id, req.user.userId);
+  if (!row) return res.status(404).json({ code: -1, message: '文件不存在' });
+  fs.unlink(path.join(UPLOAD_DIR, 'resumes', row.filename), () => {});
+  db.prepare('DELETE FROM resume_pdfs WHERE id=?').run(id);
+  res.json({ code: 0, message: '已删除' });
+});
+
 // multer 错误统一处理
 router.use((err, req, res, next) => {
   if (err.code === 'LIMIT_FILE_SIZE') {
-    return res.status(400).json({ code: -1, message: '图片不能超过 5MB' });
+    return res.status(400).json({ code: -1, message: '文件不能超过 10MB' });
   }
   res.status(400).json({ code: -1, message: err.message });
 });

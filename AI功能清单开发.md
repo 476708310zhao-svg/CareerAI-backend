@@ -45,6 +45,19 @@
 - 验证结果：`npm test` 通过，18 个 smoke tests 全部通过。
 - 已完成：抽取后台 jobs.json 存储工具和分页工具，降低 `routes/admin.js` 维护成本。
 - 验证结果：`npm test` 通过，19 个 smoke tests 全部通过。
+- 已完成：超长 WXSS 初步整理，在小程序 `app.wxss` 补充共享样式 token，并将 `salary`、`jobs`、`applications` 页面高频硬编码颜色替换为全局变量，降低样式维护成本。
+- 验证结果：完成 WXSS token 引用检查；小程序目录暂无有效自动化测试脚本。
+- 已完成：`salary.wxss` 精简两轮，已合并并删除尾部 `2026 salary readability fix` 和主要 `2026 kingkong polish` 单 selector 重复覆盖块，行数由 1699 降至 1480，保留最终视觉优先级。
+- 已完成：`applications.wxss` 精简两轮，已合并头部 Hero、搜索、筛选、列表/FAB/弹窗、卡片/流程/表单部分最终覆盖样式，行数由 1264 降至 954，重复选择器清零。
+- 已完成：`jobs.wxss` 编译错误修复并完成第一轮精简，删除异常未闭合 `content` 伪元素，合并页面头部、搜索、筛选、列表卡片、地图和安全间距的尾部覆盖样式，行数由 1244 降至 1089。
+- 已完成：`index.wxss` 精简第一轮，合并首页搜索、Banner、功能宫格、区块标题、公司卡、职位卡和新闻卡的尾部覆盖样式，行数降至 988，重复选择器由 29 组降至 2 组。
+- 已完成：`experiences.wxss` 精简第一轮，合并题库页头部、来源 Tab、搜索、筛选、统计和题目卡片覆盖样式，行数由 1114 降至 980，重复选择器清零。
+- 已完成：`resume.wxss` 精简第一轮，合并简历诊断页 Tab、进度卡、按钮、空状态、匹配框和 NLP 面板覆盖样式，行数由 956 降至 863，重复选择器清零。
+- 已完成：`agencies.wxss` 精简第一轮，合并机构评估页筛选、搜索、工具栏、机构卡片、对比条和加载按钮覆盖样式，行数由 782 降至 504，重复选择器清零。
+- 已完成：`project-builder.wxss` 精简第一轮，合并项目生成器 Hero、表单区块、轨道卡、芯片、输入框、生成按钮、历史记录和结果卡覆盖样式，行数由 708 降至 450，重复选择器清零。
+- 已完成：`ai-assistant.wxss` 精简第一轮，合并 AI 助手页头部、消息气泡、快捷问题、建议 chip、加载点和输入栏覆盖样式，行数由 809 降至 656，重复选择器清零。
+- 已完成：`profile.wxss` 精简第一轮，合并个人中心头部、头像、统计卡、VIP 横幅、菜单组和工作区覆盖样式，行数由 542 降至 355，重复选择器清零。
+- 已完成：`career-planner.wxss` 精简第一轮，合并职业规划页 Hero、表单卡、输入框、提示卡、生成按钮、阶段 Tab 和加载页覆盖样式，行数由 708 降至 474，重复选择器清零。
 
 ## 1. 项目总览
 
@@ -126,11 +139,18 @@
 
 ### 超长页面文件
 
-- `miniprogram/pages/salary/salary.wxss`：1460 行。
-- `miniprogram/pages/applications/applications.wxss`：1096 行。
-- `miniprogram/pages/ai-workflow/ai-workflow.wxss`：1081 行。
-- `miniprogram/pages/jobs/jobs.wxss`：1079 行。
-- `miniprogram/pages/index/index.wxss`：1041 行。
+- `miniprogram/pages/salary/salary.wxss`：1573 行。
+- `miniprogram/pages/ai-workflow/ai-workflow.wxss`：1255 行。
+- `miniprogram/pages/experiences/experiences.wxss`：980 行。
+- `miniprogram/pages/applications/applications.wxss`：954 行。
+- `miniprogram/pages/jobs/jobs.wxss`：1089 行。
+- `miniprogram/pages/index/index.wxss`：988 行。
+- `miniprogram/pages/resume/resume.wxss`：863 行。
+- `miniprogram/pages/agencies/agencies.wxss`：504 行。
+- `miniprogram/pages/project-builder/project-builder.wxss`：450 行。
+- `miniprogram/pages/ai-assistant/ai-assistant.wxss`：656 行。
+- `miniprogram/pages/profile/profile.wxss`：355 行。
+- `miniprogram/pages/career-planner/career-planner.wxss`：474 行。
 - `miniprogram/pages/experience-detail/experience-detail.js`：600 行。
 - `miniprogram/pages/resume/resume.js`：536 行。
 - `miniprogram/pages/jobs/jobs.js`：522 行。

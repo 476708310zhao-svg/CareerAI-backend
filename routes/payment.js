@@ -12,7 +12,8 @@ const MCH_ID     = process.env.WXPAY_MCH_ID     || '';
 const API_KEY    = process.env.WXPAY_API_KEY    || '';
 const APP_ID     = process.env.WXPAY_APP_ID     || process.env.WX_APP_ID || '';
 const NOTIFY_URL = process.env.WXPAY_NOTIFY_URL || '';
-const IS_MOCK    = !MCH_ID || !API_KEY || !APP_ID;
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const IS_MOCK    = !MCH_ID || !API_KEY || !APP_ID || !NOTIFY_URL;
 
 if (IS_MOCK) {
   console.warn('[Payment] WXPAY 未配置，将使用 Mock 模式（仅限开发测试）');
@@ -116,6 +117,9 @@ router.post('/create-order', authMiddleware, paymentLimiter, (req, res) => {
 
   // ── Mock 模式 ────────────────────────────────────────────────
   if (IS_MOCK) {
+    if (IS_PRODUCTION) {
+      return res.status(503).json({ error: '微信支付未完成生产配置，暂无法创建订单' });
+    }
     return res.json({ mock: true, orderNo, planName: plan.name, amount: plan.price });
   }
 
@@ -206,6 +210,7 @@ router.post('/notify', express.raw({ type: 'text/xml' }), (req, res) => {
 
 // ── POST /api/payment/mock-confirm  (仅 Mock 模式) ───────────────
 router.post('/mock-confirm', authMiddleware, (req, res) => {
+  if (IS_PRODUCTION) return res.status(404).json({ error: 'Not found' });
   if (!IS_MOCK) return res.status(403).json({ error: '仅在 Mock 模式下可用' });
 
   const { orderNo } = req.body;

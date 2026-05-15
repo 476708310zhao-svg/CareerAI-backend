@@ -1,0 +1,121 @@
+{
+  "name": "申请管道追踪 (Poll Application Status)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "node-schedule",
+      "name": "每6小时触发",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3001/api/applications/poll-status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Cron-Secret",
+              "value": "={{ $env.CRON_SECRET }}"
+            },
+            {
+              "name": "X-Triggered-By",
+              "value": "n8n-poll"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "node-http-poll",
+      "name": "轮询申请状态",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-ok",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "node-if-ok",
+      "name": "是否成功",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconsole.log(`✅ 申请状态轮询完成\\n检查: ${d.checked} 条\\n状态变化: ${d.changed} 条\\n错误: ${(d.errors||[]).length} 条\\n时间: ${new Date().toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'})}`);\nreturn [{ json: { ok: true, checked: d.checked, changed: d.changed } }];"
+      },
+      "id": "node-log-ok",
+      "name": "记录结果",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconsole.error(`❌ 申请状态轮询失败: ${JSON.stringify(d)}`);\nreturn [{ json: { ok: false } }];"
+      },
+      "id": "node-log-err",
+      "name": "记录失败",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 420]
+    }
+  ],
+  "connections": {
+    "每6小时触发": {
+      "main": [[{ "node": "轮询申请状态", "type": "main", "index": 0 }]]
+    },
+    "轮询申请状态": {
+      "main": [[{ "node": "是否成功", "type": "main", "index": 0 }]]
+    },
+    "是否成功": {
+      "main": [
+        [{ "node": "记录结果", "type": "main", "index": 0 }],
+        [{ "node": "记录失败", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true },
+  "staticData": null,
+  "tags": [{ "name": "applications" }, { "name": "scheduler" }],
+  "triggerCount": 1,
+  "versionId": "1"
+}

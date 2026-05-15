@@ -5,15 +5,44 @@ const crypto = require('crypto');
 const router = express.Router();
 const db = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
+const { sendEmailCode } = require('../services/email');
 
 const JWT_SECRET    = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '30d';
 const WX_APP_ID     = process.env.WX_APP_ID     || '';
 const WX_APP_SECRET = process.env.WX_APP_SECRET  || '';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const WX_CONFIGURED = !!(WX_APP_ID && WX_APP_SECRET && WX_APP_ID !== '你的小程序AppID');
 
 const { parseId } = require('../db/utils');
 const { formatUser } = require('../db/formatters');
 const { loginLimiter } = require('../middleware/rateLimit');
+
+// ── OTP 内存存储（phone → { code, expiry, attempts }）──────────────────────
+const _otpStore = new Map();
+const OTP_TTL        = 5 * 60 * 1000; // 5 分钟有效
+const OTP_MAX_TRIES  = 5;             // 最多尝试次数
+const OTP_SEND_COOLDOWN = 60 * 1000; // 发送冷却 60 秒
+
+// 定期清理过期 OTP
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of _otpStore) {
+    if (now > v.expiry) _otpStore.delete(k);
+  }
+}, 2 * 60 * 1000);
+
+function genOtp() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function normalizeEmail(raw) {
+  return (raw || '').trim().toLowerCase();
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
 
 function signToken(userId, openid) {
   return jwt.sign({ userId, openid }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
@@ -55,6 +84,76 @@ function markDeprecatedResumesApi(res) {
   res.set('Link', '</api/resumes>; rel="successor-version"');
 }
 
+// ─── 发送邮箱验证码（官网邮箱登录）──────────────────────────────────────────
+router.post('/send-email-code', loginLimiter, async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body.email);
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ code: -1, message: '请输入有效的邮箱地址' });
+    }
+
+    const existing = _otpStore.get(email);
+    if (existing && Date.now() < existing.sentAt + OTP_SEND_COOLDOWN) {
+      const wait = Math.ceil((existing.sentAt + OTP_SEND_COOLDOWN - Date.now()) / 1000);
+      return res.status(429).json({ code: -1, message: `请 ${wait} 秒后再试` });
+    }
+
+    const code = genOtp();
+    _otpStore.set(email, { code, expiry: Date.now() + OTP_TTL, sentAt: Date.now(), attempts: 0 });
+
+    await sendEmailCode(email, code);
+    res.json({ code: 0, message: '验证码已发送至邮箱' });
+  } catch (err) {
+    console.error('[send-email-code error]', err.message);
+    res.status(500).json({ code: -1, message: '发送失败，请稍后重试' });
+  }
+});
+
+// ─── 邮箱验证码登录（官网）───────────────────────────────────────────────────
+router.post('/email-login', loginLimiter, async (req, res) => {
+  try {
+    const email     = normalizeEmail(req.body.email);
+    const inputCode = String(req.body.code || '').trim();
+
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ code: -1, message: '邮箱格式错误' });
+    }
+    if (!/^\d{6}$/.test(inputCode)) {
+      return res.status(400).json({ code: -1, message: '验证码格式错误' });
+    }
+
+    const entry = _otpStore.get(email);
+    if (!entry || Date.now() > entry.expiry) {
+      return res.status(400).json({ code: -1, message: '验证码已过期，请重新发送' });
+    }
+
+    entry.attempts += 1;
+    if (entry.attempts > OTP_MAX_TRIES) {
+      _otpStore.delete(email);
+      return res.status(400).json({ code: -1, message: '验证码错误次数过多，请重新发送' });
+    }
+
+    if (entry.code !== inputCode) {
+      return res.status(400).json({ code: -1, message: '验证码错误' });
+    }
+
+    _otpStore.delete(email);
+
+    // 找或建用户
+    let user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    if (!user) {
+      const result = db.prepare('INSERT INTO users (email) VALUES (?)').run(email);
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
+    }
+
+    const token = signToken(user.id, user.openid || null);
+    res.json({ code: 0, message: '登录成功', data: { token, user: formatUser(user) } });
+  } catch (err) {
+    console.error('[email-login error]', err.message);
+    res.status(500).json({ code: -1, message: '登录失败，请稍后重试' });
+  }
+});
+
 // ─── 微信登录 ─────────────────────────────────────────────────────────────────
 router.post('/login', loginLimiter, async (req, res) => {
   try {
@@ -62,7 +161,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     if (!code) return res.status(400).json({ code: -1, message: '缺少 code 参数' });
 
     let openid;
-    if (WX_APP_ID && WX_APP_SECRET && WX_APP_ID !== '你的小程序AppID') {
+    if (WX_CONFIGURED) {
       const wxRes = await axios.get('https://api.weixin.qq.com/sns/jscode2session', {
         params: { appid: WX_APP_ID, secret: WX_APP_SECRET, js_code: code, grant_type: 'authorization_code' },
         timeout: 8000
@@ -70,6 +169,9 @@ router.post('/login', loginLimiter, async (req, res) => {
       if (wxRes.data.errcode) return res.status(400).json({ code: -1, message: '微信登录失败: ' + wxRes.data.errmsg });
       openid = wxRes.data.openid;
     } else {
+      if (IS_PRODUCTION) {
+        return res.status(503).json({ code: -1, message: '微信登录未完成生产配置' });
+      }
       openid = 'dev_' + code;
     }
 
@@ -99,7 +201,7 @@ router.post('/phone-login', loginLimiter, async (req, res) => {
 
     let openid, phone;
 
-    if (WX_APP_ID && WX_APP_SECRET && WX_APP_ID !== '你的小程序AppID') {
+    if (WX_CONFIGURED) {
       // Exchange loginCode → openid
       const sessionRes = await axios.get('https://api.weixin.qq.com/sns/jscode2session', {
         params: { appid: WX_APP_ID, secret: WX_APP_SECRET, js_code: loginCode, grant_type: 'authorization_code' },
@@ -123,6 +225,9 @@ router.post('/phone-login', loginLimiter, async (req, res) => {
         phone = phoneRes.data.phone_info && phoneRes.data.phone_info.phoneNumber;
       }
     } else {
+      if (IS_PRODUCTION) {
+        return res.status(503).json({ code: -1, message: '微信手机号登录未完成生产配置' });
+      }
       openid = 'dev_' + loginCode;
       phone  = 'dev_phone_' + phoneCode.slice(0, 8);
     }

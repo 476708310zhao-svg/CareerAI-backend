@@ -3,6 +3,7 @@ const axios  = require('axios');
 const { aiLimiter } = require('../middleware/rateLimit');
 const { authMiddleware } = require('../middleware/auth');
 const { consumeDailyLimit, requireVip } = require('../utils/aiQuota');
+const db     = require('../db/database');
 
 const DEEPSEEK_URL = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/chat/completions';
 
@@ -427,6 +428,239 @@ router.post('/workflow', authMiddleware, aiLimiter, requireVip('AI 工作流'), 
     res.json(parsed);
   } catch (err) {
     aiErrorResponse(res, err, 'workflow');
+  }
+});
+
+// ── ATS 简历优化 ────────────────────────────────────────────────────────────
+// POST /api/ai/ats
+// Body: { resumeData: object, jobDescription: string, jobTitle?: string }
+// Returns: { atsScore, matchedKeywords, missingKeywords, sectionSuggestions, formatIssues, overallAdvice }
+const ATS_DAILY_LIMIT = 3;
+
+router.post('/ats', authMiddleware, aiLimiter, async (req, res) => {
+  const { resumeData, jobDescription, jobTitle } = req.body;
+
+  if (!resumeData || typeof resumeData !== 'object') {
+    return aiFail(res, 400, '简历数据不能为空');
+  }
+  if (!jobDescription || typeof jobDescription !== 'string' || jobDescription.trim().length < 20) {
+    return aiFail(res, 400, '岗位描述至少20字');
+  }
+  if (jobDescription.length > 5000) {
+    return aiFail(res, 400, '岗位描述不能超过5000字');
+  }
+
+  // 配额检查（免费3次/天，VIP无限）
+  const userId = req.user && req.user.userId;
+  const user   = db.prepare('SELECT vip_level, vip_expires_at FROM users WHERE id = ?').get(userId);
+  const vipOk  = user && user.vip_level > 0 && (!user.vip_expires_at || new Date(user.vip_expires_at) >= new Date());
+  if (!vipOk) {
+    const day  = new Date().toISOString().slice(0, 10);
+    const used = db.prepare(
+      `SELECT COALESCE(SUM(count),0) AS n FROM ai_usage WHERE user_id=? AND feature='ats' AND usage_date=?`
+    ).get(userId, day).n;
+    if (used >= ATS_DAILY_LIMIT) {
+      return res.status(429).json({
+        code: -1,
+        message: `ATS优化今日免费次数(${ATS_DAILY_LIMIT}次)已用完，开通VIP可无限使用`,
+        data: { feature: 'ats', limit: ATS_DAILY_LIMIT, used, vipRequired: true }
+      });
+    }
+    db.prepare(`
+      INSERT INTO ai_usage (user_id, feature, usage_date, count, updated_at)
+      VALUES (?, 'ats', ?, 1, datetime('now'))
+      ON CONFLICT(user_id, feature, usage_date)
+      DO UPDATE SET count = count + 1, updated_at = datetime('now')
+    `).run(userId, day);
+  }
+
+  // 精简简历数据，控制 token 量
+  const r = resumeData;
+  const slim = {
+    basicInfo:  r.basicInfo  || {},
+    summary:    (r.summary   || '').slice(0, 500),
+    skills:     (r.skills    || []).slice(0, 30),
+    workExp:    (r.workExp   || []).slice(0, 5).map(w => ({
+      company: w.company, role: w.role,
+      desc: (w.desc || '').slice(0, 400)
+    })),
+    education:  (r.education || []).slice(0, 3).map(e => ({
+      school: e.school, degree: e.degree, major: e.major
+    })),
+    projects:   (r.projects  || []).slice(0, 4).map(p => ({
+      name: p.name || p.title,
+      desc: (p.desc || p.description || '').slice(0, 300)
+    }))
+  };
+
+  const prompt = `你是资深ATS系统专家和简历优化顾问。请对以下简历与岗位描述进行深度匹配分析，严格只输出JSON，不含任何其他内容。
+
+目标岗位：${jobTitle || '未指定'}
+岗位描述：
+${jobDescription.slice(0, 3000)}
+
+简历数据（JSON）：
+${JSON.stringify(slim)}
+
+返回格式（严格遵守，字符串用中文）：
+{
+  "ats_score": <0-100整数，综合ATS友好度>,
+  "jd_match": <0-100整数，与JD的匹配程度>,
+  "matched_keywords": ["已有关键词1","已有关键词2",...],
+  "missing_keywords": [{"word":"缺失关键词","priority":"high|medium|low","suggestion":"在哪个板块补充"},...],
+  "section_suggestions": [
+    {"section":"summary|workExp|skills|projects|education","issue":"问题描述（20字内）","fix":"具体修改建议（40字内）","priority":"high|medium|low"},
+    ...
+  ],
+  "bullet_rewrites": [
+    {"original":"原始描述（前60字）","rewritten":"优化后描述（含量化数据）","reason":"改进说明（20字内）"},
+    ...
+  ],
+  "format_issues": ["格式问题1","格式问题2",...],
+  "overall_advice": "最重要的一条改进建议（30字以内）"
+}
+
+要求：
+- matched_keywords 最多8个，missing_keywords 最多6个
+- section_suggestions 最多5条，按priority排序
+- bullet_rewrites 选最弱的1-3条工作/项目描述重写
+- format_issues 最多3条，没有格式问题则返回[]`;
+
+  try {
+    const result = await axios.post(
+      DEEPSEEK_URL,
+      {
+        model: 'deepseek-chat',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.3,
+        max_tokens: 2500,
+        stream: false
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 90000
+      }
+    );
+
+    const content = result.data?.choices?.[0]?.message?.content || '';
+    const data    = extractJsonObject(content);
+
+    if (!data || typeof data.ats_score !== 'number') {
+      console.error('[ai/ats] schema invalid:', content.slice(0, 300));
+      return aiFail(res, 502, 'AI返回格式异常，请重试', { reason: 'schema_invalid' });
+    }
+
+    res.json({ code: 0, data });
+  } catch (err) {
+    aiErrorResponse(res, err, 'ats');
+  }
+});
+
+// ── Networking 消息生成 ───────────────────────────────────────────────────────
+// POST /api/ai/networking
+// Body: { targetCompany, targetRole, senderBackground, recipientBackground,
+//         platform: 'linkedin'|'email', tone: 'formal'|'casual', lang: 'zh'|'en' }
+// Returns: { code:0, data: { linkedin, email, subject, tips } }
+const NET_DAILY_LIMIT = 5;
+
+router.post('/networking', authMiddleware, aiLimiter, async (req, res) => {
+  const {
+    targetCompany, targetRole, senderBackground,
+    recipientBackground = '',
+    platform = 'both',
+    tone     = 'formal',
+    lang     = 'zh',
+  } = req.body;
+
+  if (!targetCompany || !targetRole || !senderBackground) {
+    return aiFail(res, 400, '目标公司、职位、个人背景不能为空');
+  }
+  if (targetCompany.length > 100 || targetRole.length > 100) {
+    return aiFail(res, 400, '公司或职位名称过长');
+  }
+  if (senderBackground.length > 800 || recipientBackground.length > 600) {
+    return aiFail(res, 400, '背景描述过长');
+  }
+
+  // 配额：免费5次/天，VIP无限
+  const userId = req.user && req.user.userId;
+  const user   = db.prepare('SELECT vip_level, vip_expires_at FROM users WHERE id = ?').get(userId);
+  const vipOk  = user && user.vip_level > 0 && (!user.vip_expires_at || new Date(user.vip_expires_at) >= new Date());
+  if (!vipOk) {
+    const day  = new Date().toISOString().slice(0, 10);
+    const used = db.prepare(
+      `SELECT COALESCE(SUM(count),0) AS n FROM ai_usage WHERE user_id=? AND feature='networking' AND usage_date=?`
+    ).get(userId, day).n;
+    if (used >= NET_DAILY_LIMIT) {
+      return res.status(429).json({
+        code: -1,
+        message: `Networking消息今日免费次数(${NET_DAILY_LIMIT}次)已用完，开通VIP可无限使用`,
+        data: { feature: 'networking', limit: NET_DAILY_LIMIT, used, vipRequired: true }
+      });
+    }
+    db.prepare(`
+      INSERT INTO ai_usage (user_id, feature, usage_date, count, updated_at)
+      VALUES (?, 'networking', ?, 1, datetime('now'))
+      ON CONFLICT(user_id, feature, usage_date)
+      DO UPDATE SET count = count + 1, updated_at = datetime('now')
+    `).run(userId, day);
+  }
+
+  const toneDesc = tone === 'casual' ? '轻松友好、亲切' : '专业得体、简洁有力';
+  const langDesc = lang === 'en' ? '英文' : '中文';
+  const recpDesc = recipientBackground ? `\n对方背景：${recipientBackground}` : '';
+
+  const prompt = `你是顶级职业发展教练，专注帮助留学生建立人脉。请生成专业的 Networking 消息，只输出 JSON，不含任何其他内容。
+
+信息：
+- 目标公司：${targetCompany}
+- 目标职位：${targetRole}
+- 我的背景：${senderBackground}${recpDesc}
+- 语气：${toneDesc}
+- 语言：${langDesc}
+
+输出格式（JSON，所有字段均为${langDesc}）：
+{
+  "linkedin_message": "LinkedIn 私信正文（150字以内，含称呼、自我介绍、目的、行动号召）",
+  "email_subject": "邮件主题（20字以内，吸引眼球）",
+  "email_body": "邮件正文（250字以内，结构：开场/自我介绍/为何联系/具体请求/结尾签名）",
+  "cold_tips": ["发送时机建议（10字内）", "个性化建议（10字内）", "跟进策略（10字内）"],
+  "key_hooks": ["消息中的核心亮点1（8字内）", "核心亮点2（8字内）"]
+}`;
+
+  try {
+    const result = await axios.post(
+      DEEPSEEK_URL,
+      {
+        model: 'deepseek-chat',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.75,
+        max_tokens: 1200,
+        stream: false,
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 60000,
+      }
+    );
+
+    const content = result.data?.choices?.[0]?.message?.content || '';
+    const data    = extractJsonObject(content);
+
+    if (!data || typeof data.linkedin_message !== 'string') {
+      console.error('[ai/networking] schema invalid:', content.slice(0, 300));
+      return aiFail(res, 502, 'AI返回格式异常，请重试', { reason: 'schema_invalid' });
+    }
+
+    res.json({ code: 0, data });
+  } catch (err) {
+    aiErrorResponse(res, err, 'networking');
   }
 });
 
