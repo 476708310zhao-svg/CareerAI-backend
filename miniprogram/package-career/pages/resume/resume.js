@@ -1,6 +1,6 @@
 // pages/resume/resume.js
 const api = require('../../../utils/api.js');
-const safePage = require('../../../behaviors/safe-page');
+const safePage = require('../../behaviors/safe-page');
 const aiMethods = require('./resume-ai');
 const exportMethods = require('./resume-export');
 

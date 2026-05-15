@@ -1,6 +1,6 @@
 // pages/offer-compare/offer-compare.js
 const { sendChatToDeepSeek } = require('../../../utils/api.js');
-const safePage = require('../../../behaviors/safe-page');
+const safePage = require('../../behaviors/safe-page');
 
 const EMPTY_OFFER = () => ({
   company: '', city: '', base: '', bonus: '', rsu: '',

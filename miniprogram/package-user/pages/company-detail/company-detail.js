@@ -1,7 +1,7 @@
 // pages/company-detail/company-detail.js
 const { searchCompanyJobs, getCompanyDetail, generateExperience, generateBatchExperiences, generateCompanyQuestions, sendChatToDeepSeek, normalizeCompanyLogo } = require('../../../utils/api.js');
 const { formatSalaryRange } = require('../../../utils/util.js');
-const safePage = require('../../../behaviors/safe-page');
+const safePage = require('../../behaviors/safe-page');
 const { getGlassdoorOverview, getGlassdoorReviews } = require('../../../utils/api-news.js');
 
 Page({

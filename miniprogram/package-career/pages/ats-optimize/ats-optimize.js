@@ -1,5 +1,5 @@
 ﻿// pages/ats-optimize/ats-optimize.js
-const { analyzeAts }        = require('../../../utils/api-ats.js');
+const { analyzeAts }        = require('../../utils/api-ats.js');
 const { post, request }     = require('../../../utils/api-client.js');
 
 const PRIORITY_MAP = { high: '高', medium: '中', low: '低' };

@@ -1,6 +1,6 @@
 // pages/career-planner/career-planner.js
 const { generateCareerPlan } = require('../../../utils/api.js');
-const safePage = require('../../../behaviors/safe-page');
+const safePage = require('../../behaviors/safe-page');
 
 const HISTORY_KEY = 'savedCareerPlans';
 const MAX_HISTORY  = 5;

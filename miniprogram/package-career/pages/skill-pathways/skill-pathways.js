@@ -1,7 +1,7 @@
 // pages/skill-pathways/skill-pathways.js
 const api = require('../../../utils/api.js');
 const sendChatToDeepSeek = api.sendChatToDeepSeek;
-const safePage = require('../../../behaviors/safe-page');
+const safePage = require('../../behaviors/safe-page');
 
 const HISTORY_KEY = 'skillPathwaysHistory';
 

@@ -1,7 +1,7 @@
 // pages/agency-detail/agency-detail.js
 const api      = require('../../../utils/api');
 const favUtil  = require('../../../utils/favorites');
-const SK       = require('../../../utils/store-keys');
+const SK       = require('../../utils/store-keys');
 
 const RATING_LABELS = ['很差', '较差', '一般', '不错', '很棒'];
 

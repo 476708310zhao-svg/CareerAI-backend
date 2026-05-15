@@ -2,7 +2,7 @@
 
 // 1. 引入模块
 const api = require('../../../utils/api.js');
-const safePage = require('../../../behaviors/safe-page');
+const safePage = require('../../behaviors/safe-page');
 const sendChatToDeepSeek = api.sendChatToDeepSeek;
 const vipUtil  = require('../../../utils/vip.js');
 const config   = require('../../../utils/config.js');

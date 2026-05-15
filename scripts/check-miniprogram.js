@@ -75,9 +75,25 @@ function checkProjectConfig() {
   if (config.compileType !== 'miniprogram') {
     issues.push('compileType should be miniprogram');
   }
+  if (config.lazyCodeLoading !== undefined) {
+    issues.push('lazyCodeLoading belongs in app.json, not project.config.json');
+  }
 
   if (issues.length) {
     fail(`[miniprogram] project.config.json release settings need attention:\n${issues.map(item => `  - ${item}`).join('\n')}`);
+  }
+}
+
+function checkAppReleaseConfig() {
+  const app = readJson(path.join(MINI_ROOT, 'app.json'));
+  const issues = [];
+
+  if (app.lazyCodeLoading !== 'requiredComponents') {
+    issues.push('app.json should enable lazyCodeLoading: requiredComponents');
+  }
+
+  if (issues.length) {
+    fail(`[miniprogram] app.json release settings need attention:\n${issues.map(item => `  - ${item}`).join('\n')}`);
   }
 }
 
@@ -267,6 +283,7 @@ function reportPackageSizes() {
 }
 
 checkProjectConfig();
+checkAppReleaseConfig();
 checkRuntimeConfig();
 checkJsonSyntax();
 checkJsSyntax();

@@ -1,5 +1,5 @@
 ﻿// pages/apply-form/apply-form.js
-const { getMyPdfs, deletePdf, fetchApplyForm, submitApply, uploadPdf } = require('../../../utils/api-apply');
+const { getMyPdfs, deletePdf, fetchApplyForm, submitApply, uploadPdf } = require('../../utils/api-apply');
 
 function extractSourceJobId(source, applyUrl) {
   if (!applyUrl) return '';

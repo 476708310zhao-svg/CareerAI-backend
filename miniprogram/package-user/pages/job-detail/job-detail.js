@@ -3,7 +3,7 @@ const { getJobDetail, post, normalizeCompanyLogo } = require('../../../utils/api
 const favUtil = require('../../../utils/favorites.js');
 const { fromNow, formatSalaryRange } = require('../../../utils/util.js');
 const config = require('../../../utils/config.js');
-const { extractSkillTags } = require('../../../utils/skill-icons.js');
+const { extractSkillTags } = require('../../utils/skill-icons.js');
 const API_BASE = config.API_BASE_URL;
 
 Page({

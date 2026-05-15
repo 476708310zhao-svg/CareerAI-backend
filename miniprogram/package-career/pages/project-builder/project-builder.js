@@ -1,6 +1,6 @@
 // pages/project-builder/project-builder.js
 const { generateProject } = require('../../../utils/api.js');
-const safePage = require('../../../behaviors/safe-page');
+const safePage = require('../../behaviors/safe-page');
 
 const HISTORY_KEY = 'savedProjects';
 const MAX_HISTORY  = 10;

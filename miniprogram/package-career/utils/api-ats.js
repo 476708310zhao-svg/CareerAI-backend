@@ -1,5 +1,5 @@
 // utils/api-ats.js
-const { post } = require('./api-client.js');
+const { post } = require('../../utils/api-client.js');
 
 /**
  * ATS 简历优化分析

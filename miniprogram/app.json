@@ -130,6 +130,7 @@
     ]
   },
   "darkmode": false,
+  "lazyCodeLoading": "requiredComponents",
   "sitemapLocation": "sitemap.json",
   "usingComponents": {
     "c-button": "/components/c-button/c-button",
