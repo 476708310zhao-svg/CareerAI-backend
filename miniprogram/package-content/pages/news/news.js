@@ -25,6 +25,9 @@ Page({
     // 快讯数据
     allNews: [],
     displayList: [],
+    loading: false,
+    refreshing: false,
+    lastUpdatedText: '刚刚',
 
     // 搜索
     searchKeyword: '',
@@ -35,7 +38,8 @@ Page({
   },
 
   onLoad() {
-    this.loadNews();
+    this.buildAllNews();
+    this.loadNews({ silent: true });
   },
 
   normalizeArticle(item) {
@@ -43,27 +47,36 @@ Page({
     return Object.assign({}, item, {
       imageUrl,
       image_url: imageUrl || item.image_url,
-      cover: imageUrl || item.cover
+      cover: imageUrl || item.cover,
+      content: item.content || item.desc || item.summary || item.description || ''
     });
   },
 
   // ======== 从后端拉取新闻，失败降级 mock ========
-  loadNews() {
+  loadNews(options = {}) {
     const lang = this.data.currentLang !== 'all' ? this.data.currentLang : '';
+    if (!options.silent) this.setData({ loading: true });
     getNews({ tab: 'all', lang })
       .then((res) => {
         const articles = res && res.articles;
         if (articles && articles.length > 0) {
           const personalNews = this.data.currentLang === 'all' ? this._buildPersonalNews() : [];
           const allNews = [...personalNews, ...articles.map(item => this.normalizeArticle(item))];
-          this.setData({ allNews });
+          this.setData({
+            allNews,
+            loading: false,
+            refreshing: false,
+            lastUpdatedText: this.getTimeLabel(0)
+          });
           this._applyFilter(this.data.currentTab, this.data.searchKeyword);
         } else {
-          this.buildAllNews();
+          if (!this.data.allNews.length) this.buildAllNews();
+          this.setData({ loading: false, refreshing: false });
         }
       })
       .catch(() => {
-        this.buildAllNews();
+        if (!this.data.allNews.length) this.buildAllNews();
+        this.setData({ loading: false, refreshing: false });
       });
   },
 
@@ -225,8 +238,9 @@ Page({
 
     this.setData({
       allNews,
-      displayList: allNews
+      loading: false
     });
+    this._applyFilter(this.data.currentTab, this.data.searchKeyword);
   },
 
   // ======== 搜索 ========
@@ -267,8 +281,15 @@ Page({
   // ======== 语言切换 ========
   switchLang(e) {
     const lang = e.currentTarget.dataset.id;
-    this.setData({ currentLang: lang, allNews: [] });
-    this.loadNews();
+    this.setData({ currentLang: lang, refreshing: true });
+    this._applyFilter(this.data.currentTab, this.data.searchKeyword);
+    this.loadNews({ silent: true });
+  },
+
+  onPullDownRefresh() {
+    this.setData({ refreshing: true });
+    this.loadNews({ silent: true });
+    setTimeout(() => wx.stopPullDownRefresh(), 600);
   },
 
   // ======== 查看详情 ========
@@ -276,7 +297,9 @@ Page({
     const id = e.currentTarget.dataset.id;
     const news = this.data.allNews.find(n => n.id === id);
     if (news) {
-      wx.setStorageSync('currentNewsDetail', news);
+      wx.setStorageSync('currentNewsDetail', Object.assign({}, news, {
+        content: news.content || news.desc || '暂无正文，建议稍后刷新快讯列表后再试。'
+      }));
       wx.navigateTo({ url: '/package-content/pages/news-detail/news-detail?id=' + id });
     }
   },

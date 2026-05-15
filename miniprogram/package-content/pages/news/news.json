@@ -1,3 +1,5 @@
 {
-  "navigationBarTitleText": "求职快讯"
+  "navigationBarTitleText": "求职快讯",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark"
 }

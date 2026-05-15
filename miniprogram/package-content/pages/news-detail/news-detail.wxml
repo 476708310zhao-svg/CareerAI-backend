@@ -1,36 +1,30 @@
 <!-- pages/news-detail/news-detail.wxml -->
 <view class="page" wx:if="{{news}}">
-
-  <!-- Hero Header -->
-  <view class="hero cat-hero-{{news.type}}">
-    <view class="hero-badges">
-      <text class="hero-badge cat-badge-{{news.type}}">{{typeLabel[news.type]}}</text>
-      <text class="hero-personal" wx:if="{{news.isPersonal}}">为你推荐</text>
-    </view>
-    <text class="hero-title">{{news.title}}</text>
-    <view class="hero-meta">
+  <view class="article-hero cat-{{news.type}}">
+    <view class="hero-top">
+      <text class="type-badge">{{typeLabel[news.type]}}</text>
+      <text class="personal-badge" wx:if="{{news.isPersonal}}">为你推荐</text>
       <text class="hero-time">{{news.time}}</text>
-      <c-button type="ghost" class="hero-share-btn" block="{{false}}" open-type="share">分享</c-button>
     </view>
+    <text class="article-title">{{news.title}}</text>
+    <text class="article-desc" wx:if="{{news.desc}}">{{news.desc}}</text>
   </view>
 
-  <!-- 分割线 -->
-  <view class="divider"></view>
-
-  <!-- 正文内容 -->
-  <view class="article-wrap">
-    <view class="article-body">
-      <text class="article-text" space="nbsp">{{news.content}}</text>
-    </view>
+  <view class="article-card">
+    <text class="article-text" space="nbsp">{{news.content}}</text>
   </view>
 
-  <!-- 底部操作 -->
+  <view class="bottom-space"></view>
+
   <view class="bottom-bar">
-    <view class="back-btn" bindtap="onBack">← 返回快讯</view>
-    <view class="bottom-actions">
-      <view wx:if="{{news.url}}" class="copy-link-btn" bindtap="onCopyLink">复制原文链接</view>
-      <c-button class="share-btn" block="{{false}}" open-type="share">分享给朋友</c-button>
-    </view>
+    <view class="back-btn" bindtap="onBack">返回</view>
+    <view class="copy-btn" wx:if="{{news.url}}" bindtap="onCopyLink">复制原文链接</view>
+    <button class="share-btn" open-type="share">分享</button>
   </view>
+</view>
 
+<view class="empty-page" wx:else>
+  <text class="empty-title">内容加载失败</text>
+  <text class="empty-desc">请返回快讯列表后重新打开。</text>
+  <view class="empty-btn" bindtap="onBack">返回列表</view>
 </view>

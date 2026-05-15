@@ -1,93 +1,108 @@
 <!-- pages/news/news.wxml -->
 <view class="page">
+  <view class="top-panel">
+    <view class="headline-row">
+      <view>
+        <text class="kicker">CAREER BRIEF</text>
+        <text class="title">求职快讯</text>
+      </view>
+      <view class="refresh-pill {{refreshing ? 'spinning' : ''}}" bindtap="onPullDownRefresh">
+        <text>{{refreshing ? '更新中' : '刷新'}}</text>
+      </view>
+    </view>
+    <text class="subtitle">精选校招、签证、简历、面试和行业趋势，进入页面立即可读，后台自动更新。</text>
 
-  <!-- 搜索栏 -->
-  <view class="search-bar">
-    <view class="search-inner">
-      <text class="si-icon">🔍</text>
+    <view class="search-card">
+      <text class="search-icon">⌕</text>
       <input
-        class="si-input"
-        placeholder="搜索资讯标题或关键词"
-        placeholder-style="color:#9CA3AF;"
+        class="search-input"
+        placeholder="搜索公司、岗位、政策或关键词"
+        placeholder-class="search-placeholder"
         value="{{searchKeyword}}"
         bindinput="onSearchInput"
         bindconfirm="onSearchConfirm"
         confirm-type="search"
       />
-      <view class="si-clear" wx:if="{{searchKeyword}}" catchtap="clearSearch">✕</view>
+      <view class="search-clear" wx:if="{{searchKeyword}}" catchtap="clearSearch">×</view>
+    </view>
+
+    <view class="meta-row">
+      <text>{{displayList.length}} 条内容</text>
+      <text>更新 {{lastUpdatedText}}</text>
     </view>
   </view>
 
-  <!-- 语言切换 -->
-  <view class="lang-bar">
-    <view
-      wx:for="{{langTabs}}"
-      wx:key="id"
-      class="lang-btn {{currentLang === item.id ? 'lang-active' : ''}}"
-      bindtap="switchLang"
-      data-id="{{item.id}}"
-    >{{item.name}}</view>
+  <view class="filter-panel">
+    <view class="segmented">
+      <view
+        wx:for="{{langTabs}}"
+        wx:key="id"
+        class="seg-item {{currentLang === item.id ? 'active' : ''}}"
+        bindtap="switchLang"
+        data-id="{{item.id}}"
+      >{{item.name}}</view>
+    </view>
+
+    <scroll-view scroll-x class="tab-scroll" scroll-with-animation>
+      <view class="tab-row">
+        <view
+          wx:for="{{tabs}}"
+          wx:key="id"
+          class="tab {{currentTab === item.id ? 'active' : ''}}"
+          bindtap="switchTab"
+          data-id="{{item.id}}"
+        >{{item.name}}</view>
+      </view>
+    </scroll-view>
   </view>
 
-  <!-- 分类 Tab -->
-  <scroll-view scroll-x class="tab-wrap" scroll-with-animation>
-    <view class="tab-row">
-      <block wx:for="{{tabs}}" wx:key="id">
-        <view class="tab {{currentTab === item.id ? 'active' : ''}}" bindtap="switchTab" data-id="{{item.id}}">
-          {{item.name}}
+  <view class="search-hint" wx:if="{{isSearching}}">
+    <text>找到 {{displayList.length}} 条“{{searchKeyword}}”相关内容</text>
+  </view>
+
+  <view class="loading-strip" wx:if="{{loading || refreshing}}">
+    <view class="loading-dot"></view>
+    <text>{{refreshing ? '正在同步最新快讯' : '正在加载快讯'}}</text>
+  </view>
+
+  <view class="list-wrap">
+    <view wx:if="{{displayList.length > 0}}" class="lead-card cat-{{displayList[0].type}}" bindtap="viewDetail" data-id="{{displayList[0].id}}">
+      <view class="lead-top">
+        <text class="type-badge badge-{{displayList[0].type}}">{{typeLabel[displayList[0].type]}}</text>
+        <text class="personal-badge" wx:if="{{displayList[0].isPersonal}}">为你推荐</text>
+        <text class="lead-time">{{displayList[0].time}}</text>
+      </view>
+      <text class="lead-title">{{displayList[0].title}}</text>
+      <text class="lead-desc">{{displayList[0].desc}}</text>
+      <view class="lead-action">
+        <text>阅读全文</text>
+        <text class="arrow">→</text>
+      </view>
+    </view>
+
+    <view class="news-list" wx:if="{{displayList.length > 1}}">
+      <block wx:for="{{displayList}}" wx:key="id">
+        <view wx:if="{{index > 0}}" class="news-card" bindtap="viewDetail" data-id="{{item.id}}">
+          <view class="card-main">
+            <view class="card-top">
+              <text class="type-badge badge-{{item.type}}">{{typeLabel[item.type]}}</text>
+              <text class="personal-badge small" wx:if="{{item.isPersonal}}">推荐</text>
+              <text class="card-time">{{item.time}}</text>
+            </view>
+            <text class="card-title">{{item.title}}</text>
+            <text class="card-desc">{{item.desc}}</text>
+          </view>
+          <view class="card-action">→</view>
         </view>
       </block>
     </view>
-  </scroll-view>
 
-  <!-- 搜索结果提示 -->
-  <view class="search-hint" wx:if="{{isSearching}}">
-    找到 {{displayList.length}} 条「{{searchKeyword}}」相关资讯
-  </view>
-
-  <!-- 资讯列表 -->
-  <scroll-view scroll-y class="list-wrap" enable-back-to-top>
-
-    <!-- 置顶 featured 卡（第一条） -->
-    <view wx:if="{{displayList.length > 0}}" class="featured-card cat-{{displayList[0].type}}" bindtap="viewDetail" data-id="{{displayList[0].id}}">
-      <view class="fc-badges">
-        <text class="fc-badge cat-badge-{{displayList[0].type}}">{{typeLabel[displayList[0].type]}}</text>
-        <text class="fc-personal" wx:if="{{displayList[0].isPersonal}}">为你推荐</text>
-      </view>
-      <text class="fc-title">{{displayList[0].title}}</text>
-      <text class="fc-desc">{{displayList[0].desc}}</text>
-      <view class="fc-footer">
-        <text class="fc-time">{{displayList[0].time}}</text>
-        <view class="fc-btn">阅读全文 →</view>
-      </view>
-    </view>
-
-    <!-- 普通卡片列表（从第二条开始） -->
-    <block wx:for="{{displayList}}" wx:key="id" wx:if="{{index > 0}}">
-      <view class="news-card" bindtap="viewDetail" data-id="{{item.id}}">
-        <view class="nc-accent cat-accent-{{item.type}}"></view>
-        <view class="nc-body">
-          <view class="nc-top">
-            <text class="nc-badge cat-badge-{{item.type}}">{{typeLabel[item.type]}}</text>
-            <text class="nc-personal" wx:if="{{item.isPersonal}}">为你推荐</text>
-            <text class="nc-time">{{item.time}}</text>
-          </view>
-          <text class="nc-title">{{item.title}}</text>
-          <text class="nc-desc">{{item.desc}}</text>
-          <view class="nc-footer">
-            <text class="nc-read">阅读全文 →</text>
-          </view>
-        </view>
-      </view>
-    </block>
-
-    <!-- 空状态 -->
     <view wx:if="{{displayList.length === 0}}" class="empty-wrap">
-      <text class="empty-emoji">📭</text>
-      <text class="empty-txt">{{isSearching ? '未找到相关资讯' : '暂无该分类资讯'}}</text>
+      <text class="empty-title">{{isSearching ? '没有找到相关快讯' : '暂无该分类内容'}}</text>
+      <text class="empty-desc">可以换个关键词，或切回“全部”查看推荐内容。</text>
+      <view class="empty-btn" bindtap="clearSearch">查看全部</view>
     </view>
 
-    <view class="list-end" wx:if="{{displayList.length > 0}}">— 已展示全部资讯 —</view>
-  </scroll-view>
-
+    <view class="list-end" wx:if="{{displayList.length > 0}}">已展示全部快讯</view>
+  </view>
 </view>
