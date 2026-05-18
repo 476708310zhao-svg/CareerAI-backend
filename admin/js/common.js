@@ -243,6 +243,7 @@ const NAV_ITEMS = [
   { id: 'agencies', icon: 'fa-building', label: '机构管理', href: 'agencies.html' },
   { id: 'announcements', icon: 'fa-newspaper', label: '资讯公告', href: 'announcements.html' },
   { id: 'users', icon: 'fa-users', label: '用户管理', href: 'users.html' },
+  { id: 'memberships', icon: 'fa-crown', label: '会员权益', href: 'memberships.html' },
   { id: 'resumes', icon: 'fa-id-card', label: '简历管理', href: 'resumes.html' }
 ];
 

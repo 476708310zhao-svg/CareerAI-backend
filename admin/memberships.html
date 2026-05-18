@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>会员权益 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    .stats-grid { display:grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:18px; }
+    .stat-card { background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:16px; box-shadow:0 10px 24px rgba(15,23,42,.04); }
+    .stat-label { color:#64748b; font-size:12px; font-weight:800; }
+    .stat-value { margin-top:8px; color:#0f172a; font-size:28px; font-weight:900; }
+    .member-user { display:flex; align-items:center; gap:10px; }
+    .avatar-sm { width:36px; height:36px; border-radius:50%; object-fit:cover; background:#e5e7eb; }
+    .member-name { font-weight:850; color:#0f172a; }
+    .member-meta { margin-top:2px; font-size:12px; color:#94a3b8; }
+    .vip-state { display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:999px; font-size:12px; font-weight:850; }
+    .vip-active { background:#ecfdf5; color:#059669; }
+    .vip-expired { background:#fff7ed; color:#c2410c; }
+    .vip-normal { background:#f1f5f9; color:#64748b; }
+    .quick-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .form-grid .full { grid-column:1 / -1; }
+    .hint-box { margin-top:12px; padding:12px; border-radius:12px; background:#f8fafc; color:#64748b; font-size:12px; line-height:1.6; }
+    @media (max-width: 900px) { .stats-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer"><div class="admin-name" id="adminUsername"></div><button class="nav-item" style="margin-top:6px" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i><span>退出登录</span></button></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span style="font-size:13px;color:#6b7280" id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
+    <div class="content">
+      <div class="page-header">
+        <div><h1>会员权益管理</h1><div class="sub">查看开通会员的用户，并按账号开启、关闭或调整到期时间</div></div>
+      </div>
+
+      <div class="stats-grid" id="statsGrid"></div>
+
+      <div class="toolbar">
+        <input type="text" id="kw" placeholder="搜索昵称、邮箱、手机号..." onkeydown="if(event.key==='Enter')load(1)">
+        <select id="status" onchange="load(1)">
+          <option value="all">全部用户</option>
+          <option value="active">有效会员</option>
+          <option value="expired">已过期会员</option>
+          <option value="normal">普通用户</option>
+          <option value="vip">所有会员记录</option>
+        </select>
+        <button class="btn btn-outline" onclick="load(1)"><i class="fa-solid fa-search"></i> 搜索</button>
+      </div>
+
+      <div class="table-card">
+        <div class="table-wrap"><table>
+          <thead><tr><th>用户</th><th>账号</th><th>会员状态</th><th>到期时间</th><th>注册时间</th><th>操作</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table></div>
+        <div class="pagination" id="pagi"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="vipModal" onclick="if(event.target===this)closeModal('vipModal')">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-header"><h3 id="modalTitle">设置会员权益</h3><button class="modal-close" onclick="closeModal('vipModal')">×</button></div>
+    <div class="modal-body">
+      <div class="hint-box" id="userHint"></div>
+      <div class="form-grid" style="margin-top:16px">
+        <div>
+          <label>会员等级</label>
+          <select id="vipLevel">
+            <option value="0">关闭会员</option>
+            <option value="1">会员</option>
+            <option value="2">VIP</option>
+          </select>
+        </div>
+        <div>
+          <label>到期日期</label>
+          <input type="date" id="vipExpiresAt">
+        </div>
+        <div class="full">
+          <label>快捷设置</label>
+          <div class="quick-actions">
+            <button class="btn btn-outline btn-sm" onclick="setDays(30)">+30天</button>
+            <button class="btn btn-outline btn-sm" onclick="setDays(90)">+90天</button>
+            <button class="btn btn-outline btn-sm" onclick="setDays(365)">+365天</button>
+            <button class="btn btn-outline btn-sm" onclick="clearVip()">关闭会员</button>
+          </div>
+        </div>
+      </div>
+      <div class="hint-box">关闭会员会把会员等级设为 0，并清空到期时间。开通会员后，小程序端会在下次拉取/登录或本地状态同步后识别会员权益。</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('vipModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveVip()">保存权益</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script><script src="js/common.js"></script>
+<script>
+initPage('memberships', '会员权益管理');
+
+let currentPage = 1;
+const pageSize = 20;
+let editUser = null;
+let memberCache = {};
+
+function activeState(u) {
+  if (!u.vip_level) return 'normal';
+  if (!u.vip_expires_at) return 'active';
+  return new Date(u.vip_expires_at) >= new Date(new Date().toISOString().slice(0, 10)) ? 'active' : 'expired';
+}
+
+function stateBadge(u) {
+  const s = activeState(u);
+  if (s === 'normal') return '<span class="vip-state vip-normal">普通用户</span>';
+  if (s === 'expired') return '<span class="vip-state vip-expired">会员已过期</span>';
+  return `<span class="vip-state vip-active">${u.vip_level >= 2 ? 'VIP' : '会员'}有效</span>`;
+}
+
+function renderStats(stats = {}) {
+  const items = [
+    ['总用户', stats.totalUsers || 0, 'fa-users'],
+    ['有效会员', stats.activeVip || 0, 'fa-crown'],
+    ['过期会员', stats.expiredVip || 0, 'fa-clock'],
+    ['普通用户', stats.normalUsers || 0, 'fa-user']
+  ];
+  document.getElementById('statsGrid').innerHTML = items.map(([label, value, icon]) => `
+    <div class="stat-card">
+      <div class="stat-label"><i class="fa-solid ${icon}"></i> ${label}</div>
+      <div class="stat-value">${value}</div>
+    </div>
+  `).join('');
+}
+
+async function load(page = 1) {
+  currentPage = page;
+  const kw = document.getElementById('kw').value.trim();
+  const status = document.getElementById('status').value;
+  const res = await GET(`/admin/api/memberships?page=${page}&pageSize=${pageSize}&keyword=${encodeURIComponent(kw)}&status=${encodeURIComponent(status)}`);
+  if (!res || res.code !== 0) return;
+  const { list, total, stats } = res.data;
+  renderStats(stats);
+  memberCache = {};
+  list.forEach(u => { memberCache[u.id] = u; });
+
+  document.getElementById('tbody').innerHTML = list.length === 0
+    ? '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:40px">暂无用户数据</td></tr>'
+    : list.map(u => `
+      <tr>
+        <td>
+          <div class="member-user">
+            <img class="avatar-sm" src="${esc(u.avatar) || '/images/default-avatar.png'}" onerror="this.src='/images/default-avatar.png'">
+            <div><div class="member-name">${esc(u.nickname) || '未命名用户'}</div><div class="member-meta">UID: ${u.id}</div></div>
+          </div>
+        </td>
+        <td>
+          <div>${esc(u.email) || '-'}</div>
+          <div class="member-meta">${esc(u.phone) || '-'}</div>
+        </td>
+        <td>${stateBadge(u)}</td>
+        <td>${u.vip_expires_at ? esc(u.vip_expires_at) : (u.vip_level > 0 ? '长期有效' : '-')}</td>
+        <td>${fmtDate(u.created_at)}</td>
+        <td><button class="btn btn-outline btn-sm" onclick="openVip(${u.id})"><i class="fa-solid fa-pen"></i> 设置权益</button></td>
+      </tr>
+    `).join('');
+  renderPagination('pagi', page, total, pageSize, 'load');
+}
+
+function openVip(id) {
+  const user = memberCache[id];
+  if (!user) return;
+  editUser = user;
+  document.getElementById('modalTitle').textContent = '设置会员权益 · ' + (user.nickname || '用户' + user.id);
+  document.getElementById('userHint').innerHTML = `
+    <strong>${esc(user.nickname) || '未命名用户'}</strong>
+    <div style="margin-top:6px">邮箱：${esc(user.email) || '-'}　手机：${esc(user.phone) || '-'}</div>
+  `;
+  document.getElementById('vipLevel').value = String(user.vip_level || 0);
+  document.getElementById('vipExpiresAt').value = user.vip_expires_at ? String(user.vip_expires_at).slice(0, 10) : '';
+  openModal('vipModal');
+}
+
+function setDays(days) {
+  document.getElementById('vipLevel').value = '1';
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  document.getElementById('vipExpiresAt').value = d.toISOString().slice(0, 10);
+}
+
+function clearVip() {
+  document.getElementById('vipLevel').value = '0';
+  document.getElementById('vipExpiresAt').value = '';
+}
+
+async function saveVip() {
+  if (!editUser) return;
+  const vipLevel = parseInt(document.getElementById('vipLevel').value, 10) || 0;
+  const expiresAt = document.getElementById('vipExpiresAt').value || null;
+  const res = await PUT(`/admin/api/users/${editUser.id}/vip`, {
+    vip_level: vipLevel,
+    vip_expires_at: expiresAt
+  });
+  if (!res || res.code !== 0) {
+    toast(res?.message || '保存失败', 'error');
+    return;
+  }
+  toast(res.message || '保存成功');
+  closeModal('vipModal');
+  load(currentPage);
+}
+
+load(1);
+</script>
+</body>
+</html>

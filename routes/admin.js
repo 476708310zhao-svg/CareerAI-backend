@@ -395,9 +395,70 @@ router.get('/api/users', adminAuth, (req, res) => {
   const where = keyword ? 'WHERE nickname LIKE ? OR email LIKE ? OR phone LIKE ?' : '';
   const params = keyword ? [k, k, k] : [];
   const total = db.prepare(`SELECT COUNT(*) as c FROM users ${where}`).get(...params).c;
-  const list  = db.prepare(`SELECT id, nickname, avatar, email, phone, vip_level, education, job_preference, created_at FROM users ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`)
+  const list  = db.prepare(`SELECT id, nickname, avatar, email, phone, vip_level, vip_expires_at, education, job_preference, created_at FROM users ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`)
                   .all(...params, Number(pageSize), offset);
   res.json({ code: 0, data: { list, total } });
+});
+
+router.get('/api/memberships', adminAuth, (req, res) => {
+  const { keyword = '', status = 'all' } = req.query;
+  const { pageSize, offset } = parsePagination(req.query, { pageSize: 20 });
+  const today = new Date().toISOString().slice(0, 10);
+  const where = [];
+  const params = [];
+
+  if (keyword) {
+    const k = `%${keyword}%`;
+    where.push('(nickname LIKE ? OR email LIKE ? OR phone LIKE ?)');
+    params.push(k, k, k);
+  }
+  if (status === 'active') {
+    where.push('vip_level > 0 AND (vip_expires_at IS NULL OR vip_expires_at = "" OR date(vip_expires_at) >= date(?))');
+    params.push(today);
+  } else if (status === 'expired') {
+    where.push('vip_level > 0 AND vip_expires_at IS NOT NULL AND vip_expires_at != "" AND date(vip_expires_at) < date(?)');
+    params.push(today);
+  } else if (status === 'normal') {
+    where.push('COALESCE(vip_level, 0) = 0');
+  } else if (status === 'vip') {
+    where.push('vip_level > 0');
+  }
+
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const total = db.prepare(`SELECT COUNT(*) as c FROM users ${whereSql}`).get(...params).c;
+  const list = db.prepare(`
+    SELECT id, nickname, avatar, email, phone, vip_level, vip_expires_at, created_at
+    FROM users
+    ${whereSql}
+    ORDER BY
+      CASE WHEN vip_level > 0 THEN 0 ELSE 1 END,
+      date(COALESCE(vip_expires_at, '9999-12-31')) DESC,
+      created_at DESC
+    LIMIT ? OFFSET ?
+  `).all(...params, Number(pageSize), offset);
+
+  const stats = db.prepare(`
+    SELECT
+      COUNT(*) as totalUsers,
+      SUM(CASE WHEN vip_level > 0 AND (vip_expires_at IS NULL OR vip_expires_at = '' OR date(vip_expires_at) >= date(?)) THEN 1 ELSE 0 END) as activeVip,
+      SUM(CASE WHEN vip_level > 0 AND vip_expires_at IS NOT NULL AND vip_expires_at != '' AND date(vip_expires_at) < date(?) THEN 1 ELSE 0 END) as expiredVip,
+      SUM(CASE WHEN COALESCE(vip_level, 0) = 0 THEN 1 ELSE 0 END) as normalUsers
+    FROM users
+  `).get(today, today);
+
+  res.json({ code: 0, data: { list, total, stats } });
+});
+
+router.put('/api/users/:id/vip', adminAuth, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  const vipLevel = Math.max(0, parseInt(req.body.vip_level ?? req.body.vipLevel ?? 0, 10) || 0);
+  const vipExpiresAt = vipLevel > 0 ? (req.body.vip_expires_at || req.body.vipExpiresAt || null) : null;
+  const r = db.prepare('UPDATE users SET vip_level=?, vip_expires_at=? WHERE id=?')
+    .run(vipLevel, vipExpiresAt, id);
+  if (r.changes === 0) return res.status(404).json({ code: -1, message: '用户不存在' });
+  const user = db.prepare('SELECT id, nickname, email, phone, vip_level, vip_expires_at FROM users WHERE id=?').get(id);
+  res.json({ code: 0, message: vipLevel > 0 ? '会员权益已开通/更新' : '会员权益已关闭', data: user });
 });
 
 router.get('/api/users/:id', adminAuth, (req, res) => {
@@ -416,9 +477,16 @@ router.get('/api/users/:id', adminAuth, (req, res) => {
 router.put('/api/users/:id', adminAuth, (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
-  const { vip_level, nickname, email, phone } = req.body;
-  const r = db.prepare('UPDATE users SET vip_level=?, nickname=?, email=?, phone=? WHERE id=?')
-              .run(vip_level ?? 0, nickname || '', email || '', phone || '', id);
+  const { vip_level, vip_expires_at, nickname, email, phone } = req.body;
+  const existing = db.prepare('SELECT vip_expires_at FROM users WHERE id=?').get(id);
+  if (!existing) return res.status(404).json({ code: -1, message: '用户不存在' });
+  const vipLevel = Math.max(0, parseInt(vip_level ?? 0, 10) || 0);
+  const hasVipExpiresAt = Object.prototype.hasOwnProperty.call(req.body, 'vip_expires_at');
+  const nextVipExpiresAt = vipLevel > 0
+    ? (hasVipExpiresAt ? (vip_expires_at || null) : existing.vip_expires_at)
+    : null;
+  const r = db.prepare('UPDATE users SET vip_level=?, vip_expires_at=?, nickname=?, email=?, phone=? WHERE id=?')
+              .run(vipLevel, nextVipExpiresAt, nickname || '', email || '', phone || '', id);
   if (r.changes === 0) return res.status(404).json({ code: -1, message: '用户不存在' });
   res.json({ code: 0, message: '更新成功' });
 });
