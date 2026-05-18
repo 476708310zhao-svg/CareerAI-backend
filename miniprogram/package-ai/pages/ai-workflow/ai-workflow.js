@@ -1,5 +1,6 @@
 // pages/ai-workflow/ai-workflow.js
 const { post } = require('../../../utils/api-client.js');
+const vip = require('../../../utils/vip.js');
 
 const MODULE_ROUTES = {
   resume:       '/package-career/pages/resume/resume',
@@ -169,6 +170,7 @@ Page({
   onSend() { this.sendMessage(); },
 
   sendMessage() {
+    if (!vip.check('AI 求职工作流')) return;
     const text = this.data.inputText.trim();
     if (!text || this.data.loading) return;
 

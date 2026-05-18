@@ -2,6 +2,7 @@
 const api = require('../../../utils/api.js');
 const sendChatToDeepSeek = api.sendChatToDeepSeek;
 const safePage = require('../../behaviors/safe-page');
+const vip = require('../../../utils/vip.js');
 
 const HISTORY_KEY = 'projectReviewHistory';
 
@@ -65,6 +66,7 @@ Page({
      Generate
   ────────────────────────────────────────── */
   onGenerate() {
+    if (!vip.checkDailyLimit('project_review', 1, '项目经历优化')) return;
     const raw = this.data.raw.trim();
     if (raw.length < 30) {
       wx.showToast({ title: '请输入至少30字的项目描述', icon: 'none' }); return;

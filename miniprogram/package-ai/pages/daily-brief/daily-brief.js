@@ -1,5 +1,6 @@
 // pages/daily-brief/daily-brief.js
 const { sendChatToDeepSeek } = require('../../../utils/api.js');
+const vip = require('../../../utils/vip.js');
 
 const LOADING_TIPS = [
   '正在整理今日求职数据...',
@@ -21,6 +22,7 @@ Page({
   _tipTimer: null,
 
   onLoad() {
+    if (!vip.check('求职日报')) return;
     const now = new Date();
     const month = now.getMonth() + 1;
     const day = now.getDate();

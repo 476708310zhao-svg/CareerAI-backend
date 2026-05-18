@@ -2,6 +2,7 @@
 const api = require('../../../utils/api.js');
 const config = require('../../../utils/config.js');
 const safePage = require('../../behaviors/safe-page');
+const vip = require('../../../utils/vip.js');
 const aiMethods = require('./resume-ai');
 const exportMethods = require('./resume-export');
 
@@ -74,8 +75,7 @@ Page(Object.assign({
 
   onLoad() {
     const token = wx.getStorageSync('token');
-    const vipLevel = (wx.getStorageSync('userInfo') || {}).vipLevel || 0;
-    this.setData({ isLoggedIn: !!token, isVip: vipLevel > 0 });
+    this.setData({ isLoggedIn: !!token, isVip: vip.isVip() });
     if (token) {
       this._syncServerResumes();
       this.loadAttachmentResumes();
@@ -86,8 +86,7 @@ Page(Object.assign({
 
   onShow() {
     const token = wx.getStorageSync('token');
-    const vipLevel = (wx.getStorageSync('userInfo') || {}).vipLevel || 0;
-    this.setData({ isLoggedIn: !!token, isVip: vipLevel > 0 });
+    this.setData({ isLoggedIn: !!token, isVip: vip.isVip() });
     if (token) {
       this._syncServerResumes();
       this.loadAttachmentResumes();
@@ -209,7 +208,7 @@ Page(Object.assign({
 
   async createResume() {
     const { serverResumes } = this.data;
-    const vipLevel = (wx.getStorageSync('userInfo') || {}).vipLevel || 0;
+    const vipLevel = vip.isVip() ? 1 : 0;
     // 免费用户限 1 份；VIP 无限（后端限 999）
     if (vipLevel <= 0 && serverResumes.length >= 1) {
       wx.showModal({

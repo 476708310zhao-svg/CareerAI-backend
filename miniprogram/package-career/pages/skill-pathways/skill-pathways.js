@@ -2,6 +2,7 @@
 const api = require('../../../utils/api.js');
 const sendChatToDeepSeek = api.sendChatToDeepSeek;
 const safePage = require('../../behaviors/safe-page');
+const vip = require('../../../utils/vip.js');
 
 const HISTORY_KEY = 'skillPathwaysHistory';
 
@@ -93,6 +94,7 @@ Page({
 
   /* ── Generate ── */
   onGenerate() {
+    if (!vip.check('技能成长路径')) return;
     if (!this.data.selectedRole) {
       wx.showToast({ title: '请选择目标方向', icon: 'none' }); return;
     }

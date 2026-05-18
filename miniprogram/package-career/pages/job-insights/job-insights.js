@@ -1,5 +1,6 @@
 // pages/job-insights/job-insights.js
 const { sendChatToDeepSeek } = require('../../../utils/api.js');
+const vip = require('../../../utils/vip.js');
 
 const PERIODS = [
   { id: 'week',    label: '本周',  desc: '过去7天' },
@@ -49,6 +50,7 @@ Page({
   },
 
   generate() {
+    if (!vip.check('求职趋势洞察')) return;
     if (this.data.phase === 'loading') return;
     const periodLabel = PERIODS.find(p => p.id === this.data.period)?.label || '本周';
     this.setData({ phase: 'loading', loadingTip: LOADING_TIPS[0], tipIdx: 0 });

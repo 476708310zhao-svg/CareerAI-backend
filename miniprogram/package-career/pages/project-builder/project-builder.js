@@ -1,6 +1,7 @@
 // pages/project-builder/project-builder.js
 const { generateProject } = require('../../../utils/api.js');
 const safePage = require('../../behaviors/safe-page');
+const vip = require('../../../utils/vip.js');
 
 const HISTORY_KEY = 'savedProjects';
 const MAX_HISTORY  = 10;
@@ -124,6 +125,7 @@ Page({
 
   // ── 生成 ─────────────────────────────────────────────────────────────────
   onGenerate() {
+    if (!vip.check('AI 项目生成器')) return;
     if (!this.data.selectedTrack) {
       wx.showToast({ title: '请选择项目方向', icon: 'none' }); return;
     }

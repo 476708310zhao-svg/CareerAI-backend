@@ -95,6 +95,26 @@
     </view>
   </view>
 
+  <view class="section-block feature-entry-section">
+    <view class="section-head">
+      <text class="section-kicker">UNLOCKED TOOLS</text>
+      <text class="section-title">会员功能入口</text>
+      <text class="section-subtitle">开通后可直接进入这些高频求职工具，未开通时点击也会引导开通。</text>
+    </view>
+    <view class="feature-entry-grid">
+      <block wx:for="{{aiFeatures}}" wx:key="name">
+        <view class="feature-entry-card" bindtap="goToFeature" data-url="{{item.url}}" hover-class="feature-entry-press">
+          <view class="feature-entry-top">
+            <text class="feature-entry-icon">{{item.icon}}</text>
+            <text class="feature-entry-badge" wx:if="{{item.badge}}">{{item.badge}}</text>
+          </view>
+          <text class="feature-entry-name">{{item.name}}</text>
+          <text class="feature-entry-desc">{{item.desc}}</text>
+        </view>
+      </block>
+    </view>
+  </view>
+
   <view class="section-block workflow-section">
     <view class="section-head">
       <text class="section-kicker">AI WORKFLOW</text>

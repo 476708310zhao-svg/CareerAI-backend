@@ -1,5 +1,6 @@
 // pages/career-planner/career-planner.js
 const { generateCareerPlan } = require('../../../utils/api.js');
+const vip = require('../../../utils/vip.js');
 const safePage = require('../../behaviors/safe-page');
 
 const HISTORY_KEY = 'savedCareerPlans';
@@ -106,6 +107,7 @@ Page({
   },
 
   _startGenerate() {
+    if (!vip.checkDailyLimit('career_plan', 1, 'AI 求职规划')) return;
     const tips = [
       '正在分析岗位需求...',
       '评估能力差距中...',

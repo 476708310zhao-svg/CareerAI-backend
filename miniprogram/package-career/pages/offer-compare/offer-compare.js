@@ -1,6 +1,7 @@
 // pages/offer-compare/offer-compare.js
 const { sendChatToDeepSeek } = require('../../../utils/api.js');
 const safePage = require('../../behaviors/safe-page');
+const vip = require('../../../utils/vip.js');
 
 const EMPTY_OFFER = () => ({
   company: '', city: '', base: '', bonus: '', rsu: '',
@@ -70,6 +71,7 @@ Page({
 
   // 开始 AI 对比
   onCompare() {
+    if (!vip.check('Offer 决策助手')) return;
     const { offerA, offerB } = this.data;
     if (!offerA.company.trim() || !offerB.company.trim()) {
       wx.showToast({ title: '请填写两家公司名称', icon: 'none' }); return;

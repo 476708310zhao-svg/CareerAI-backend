@@ -469,14 +469,16 @@ page {
 }
 
 .benefit-grid,
-.audience-grid {
+.audience-grid,
+.feature-entry-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16rpx;
 }
 
 .benefit-card,
-.audience-card {
+.audience-card,
+.feature-entry-card {
   min-height: 214rpx;
   padding: 24rpx;
   border-radius: 26rpx;
@@ -487,8 +489,69 @@ page {
 
 .benefit-card:active,
 .audience-card:active,
+.feature-entry-card:active,
 .plan-card:active {
   transform: scale(0.986);
+}
+
+.feature-entry-section {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(31,94,255,0.08), transparent 32%),
+    rgba(255,255,255,0.76);
+}
+
+.feature-entry-card {
+  min-height: 196rpx;
+}
+
+.feature-entry-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
+.feature-entry-icon {
+  width: 54rpx;
+  height: 54rpx;
+  border-radius: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--vip-blue);
+  background: rgba(31,94,255,0.08);
+  font-size: 28rpx;
+  font-weight: 950;
+}
+
+.feature-entry-badge {
+  padding: 5rpx 12rpx;
+  border-radius: 999rpx;
+  color: #ffffff;
+  background: var(--vip-blue-2);
+  font-size: 18rpx;
+  font-weight: 900;
+}
+
+.feature-entry-name {
+  display: block;
+  margin-top: 18rpx;
+  color: var(--vip-ink);
+  font-size: 26rpx;
+  line-height: 1.28;
+  font-weight: 950;
+}
+
+.feature-entry-desc {
+  display: block;
+  margin-top: 9rpx;
+  color: var(--vip-body);
+  font-size: 21rpx;
+  line-height: 1.45;
+}
+
+.feature-entry-press {
+  opacity: 0.78;
 }
 
 .benefit-top {
