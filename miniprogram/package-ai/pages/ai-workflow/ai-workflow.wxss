@@ -301,3 +301,184 @@ page,
   background: var(--app-page-bg);
   background-color: #ffffff;
 }
+
+/* Unified AI chat experience */
+page {
+  background: #ffffff;
+}
+
+.page {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 12% 0, rgba(43, 92, 230, 0.07), transparent 32%),
+    linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.top-bar {
+  min-height: 88rpx;
+  padding: 18rpx 28rpx 16rpx;
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom: 1rpx solid rgba(226, 232, 240, 0.88);
+  box-shadow: 0 10rpx 26rpx rgba(15, 23, 42, 0.04);
+}
+
+.top-icon,
+.brand-mark {
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb, #14b8a6);
+  box-shadow: 0 10rpx 20rpx rgba(37, 99, 235, 0.16);
+}
+
+.top-name,
+.brand-title {
+  color: #101828;
+  font-weight: 900;
+}
+
+.msg-scroll {
+  background: transparent;
+}
+
+.msg-list {
+  padding: 24rpx 24rpx calc(142rpx + env(safe-area-inset-bottom));
+  background: transparent;
+}
+
+.msg-row {
+  margin-bottom: 34rpx;
+}
+
+.ai-avatar {
+  width: 62rpx;
+  height: 62rpx;
+  margin-right: 16rpx;
+  border-radius: 18rpx;
+  background: linear-gradient(135deg, #2563eb, #14b8a6);
+  box-shadow: 0 12rpx 24rpx rgba(37, 99, 235, 0.18);
+}
+
+.ai-avatar-icon {
+  color: #ffffff;
+  font-size: 26rpx;
+}
+
+.bubble-wrap {
+  max-width: 82%;
+}
+
+.bubble {
+  padding: 24rpx 28rpx;
+  border-radius: 28rpx;
+  word-break: break-word;
+}
+
+.ai-bubble {
+  color: #1f2937;
+  background: #ffffff;
+  border: 1.5rpx solid rgba(226, 232, 240, 0.9);
+  border-bottom-left-radius: 12rpx;
+  box-shadow: 0 14rpx 36rpx rgba(15, 23, 42, 0.055);
+}
+
+.user-bubble {
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb, #14b8a6);
+  border-bottom-right-radius: 12rpx;
+  box-shadow: 0 14rpx 28rpx rgba(37, 99, 235, 0.18);
+}
+
+.bubble-text {
+  color: #1f2937;
+  font-size: 28rpx;
+  line-height: 1.72;
+}
+
+.user-bubble .bubble-text {
+  color: #ffffff;
+}
+
+.error-bubble {
+  background: #fff2f2;
+  border: 1.5rpx solid #ffd0d0;
+  border-bottom-left-radius: 12rpx;
+}
+
+.loading-bubble {
+  padding: 22rpx 28rpx;
+}
+
+.dot {
+  background: #14b8a6;
+}
+
+.action-card {
+  border: 1.5rpx solid rgba(37, 99, 235, 0.13);
+  border-radius: 22rpx;
+  background: #ffffff;
+  box-shadow: 0 10rpx 24rpx rgba(37, 99, 235, 0.045);
+}
+
+.sug-chip {
+  color: #2563eb;
+  border: 1.5rpx solid rgba(37, 99, 235, 0.16);
+  border-radius: 20rpx;
+  background: #ffffff;
+  box-shadow: 0 8rpx 20rpx rgba(37, 99, 235, 0.045);
+  font-weight: 850;
+}
+
+.input-bar {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  min-height: 108rpx;
+  padding: 16rpx 22rpx calc(16rpx + env(safe-area-inset-bottom));
+  border-radius: 0;
+  border: 0;
+  border-top: 1rpx solid rgba(226, 232, 240, 0.9);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 -12rpx 32rpx rgba(15, 23, 42, 0.05);
+}
+
+.input-wrap {
+  height: 74rpx;
+  padding: 0 24rpx;
+  border-radius: 28rpx;
+  background: #f8fafc;
+  border: 1.5rpx solid #e6ebf2;
+}
+
+.input {
+  height: 74rpx;
+  color: #101828;
+  font-size: 28rpx;
+  line-height: 74rpx;
+}
+
+.input-ph {
+  color: #9aa5b1;
+}
+
+.send-btn {
+  width: 74rpx;
+  height: 74rpx;
+  border-radius: 24rpx;
+  background: #edf2f7;
+  box-shadow: none;
+}
+
+.send-btn.active {
+  background: linear-gradient(135deg, #2563eb, #14b8a6);
+  box-shadow: 0 12rpx 22rpx rgba(37, 99, 235, 0.18);
+}
+
+.send-btn.disabled {
+  opacity: 1;
+}
+
+.send-icon {
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 900;
+}
