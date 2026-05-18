@@ -9,13 +9,39 @@ function getUsername() {
   return localStorage.getItem('adminUsername') || 'Admin';
 }
 
+function decodeAdminToken() {
+  const token = getToken();
+  if (!token || token.split('.').length < 2) return null;
+  try {
+    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const json = decodeURIComponent(Array.prototype.map.call(atob(payload), ch => {
+      return '%' + ('00' + ch.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(json);
+  } catch (_) {
+    return null;
+  }
+}
+
 function getAdminPermissions() {
   try {
     const permissions = JSON.parse(localStorage.getItem('adminPermissions') || '[]');
-    return Array.isArray(permissions) ? permissions : [];
+    if (Array.isArray(permissions) && permissions.length > 0) return permissions;
   } catch (_) {
-    return [];
+    // Fall through to token payload. This handles users who logged in before
+    // the permissions UI script was refreshed by the browser cache.
   }
+  const payload = decodeAdminToken();
+  const tokenPermissions = Array.isArray(payload && payload.permissions) ? payload.permissions : [];
+  if (tokenPermissions.length > 0) {
+    localStorage.setItem('adminPermissions', JSON.stringify(tokenPermissions));
+    return tokenPermissions;
+  }
+  if (payload && payload.adminRole === 'super_admin') {
+    localStorage.setItem('adminPermissions', JSON.stringify(['*']));
+    return ['*'];
+  }
+  return [];
 }
 
 function canAccess(permission) {
