@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>权限管理 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    .role-badge { display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:999px; font-size:12px; font-weight:850; }
+    .role-super { background:#eef2ff; color:#3730a3; }
+    .role-operator { background:#f1f5f9; color:#475569; }
+    .status-on { color:#059669; font-weight:800; }
+    .status-off { color:#dc2626; font-weight:800; }
+    .permission-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:8px; }
+    .permission-item { display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; background:#fff; font-size:13px; color:#111827; }
+    .permission-item input { width:16px; height:16px; }
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .form-grid .full { grid-column:1 / -1; }
+    .admin-meta { font-size:12px; color:#94a3b8; margin-top:3px; }
+    @media (max-width: 900px) { .permission-grid { grid-template-columns:1fr; } .form-grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer"><div class="admin-name" id="adminUsername"></div><button class="nav-item" style="margin-top:6px" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i><span>退出登录</span></button></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span style="font-size:13px;color:#6b7280" id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
+    <div class="content">
+      <div class="page-header">
+        <div><h1>权限管理</h1><div class="sub">管理内部后台账号，按模块配置访问与操作权限</div></div>
+        <button class="btn btn-primary" onclick="openEditor()"><i class="fa-solid fa-user-plus"></i> 新增账号</button>
+      </div>
+
+      <div class="toolbar">
+        <input type="text" id="kw" placeholder="搜索账号、姓名、角色..." onkeydown="if(event.key==='Enter')load()">
+        <button class="btn btn-outline" onclick="load()"><i class="fa-solid fa-search"></i> 搜索</button>
+      </div>
+
+      <div class="table-card">
+        <div class="table-wrap"><table>
+          <thead><tr><th>账号</th><th>角色</th><th>权限</th><th>状态</th><th>最近登录</th><th>操作</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editModal" onclick="if(event.target===this)closeModal('editModal')">
+  <div class="modal-box" style="max-width:760px">
+    <div class="modal-header"><h3 id="modalTitle">新增后台账号</h3><button class="modal-close" onclick="closeModal('editModal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div>
+          <label>登录账号</label>
+          <input id="username" placeholder="例如 operation01">
+        </div>
+        <div>
+          <label>显示名称</label>
+          <input id="displayName" placeholder="例如 运营同事">
+        </div>
+        <div>
+          <label>角色</label>
+          <select id="role" onchange="syncRole()">
+            <option value="operator">普通管理员</option>
+            <option value="super_admin">超级管理员</option>
+          </select>
+        </div>
+        <div>
+          <label>状态</label>
+          <select id="isActive">
+            <option value="1">启用</option>
+            <option value="0">停用</option>
+          </select>
+        </div>
+        <div class="full">
+          <label>密码 <span style="color:#94a3b8;font-weight:400">编辑账号时留空表示不修改</span></label>
+          <input id="password" type="password" placeholder="至少 6 位">
+        </div>
+        <div class="full">
+          <label>模块权限</label>
+          <div class="permission-grid" id="permissionGrid"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('editModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveAccount()">保存账号</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script><script src="js/common.js"></script>
+<script>
+initPage('admins', '权限管理');
+
+let accounts = [];
+let permissions = [];
+let editingId = null;
+
+async function loadPermissions() {
+  const res = await GET('/admin/api/admin-permissions');
+  if (res && res.code === 0) permissions = res.data.permissions || [];
+}
+
+function permissionNames(list) {
+  if (!Array.isArray(list)) return '-';
+  if (list.includes('*')) return '全部权限';
+  const map = Object.fromEntries(permissions.map(p => [p.id, p.label]));
+  return list.map(id => map[id] || id).join('、') || '-';
+}
+
+async function load() {
+  const kw = document.getElementById('kw').value.trim();
+  const res = await GET(`/admin/api/admin-accounts?keyword=${encodeURIComponent(kw)}`);
+  if (!res || res.code !== 0) return;
+  accounts = res.data || [];
+  document.getElementById('tbody').innerHTML = accounts.length === 0
+    ? '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:40px">暂无后台账号</td></tr>'
+    : accounts.map(a => `
+      <tr>
+        <td><strong>${esc(a.username)}</strong><div class="admin-meta">${esc(a.display_name) || '-'}</div></td>
+        <td><span class="role-badge ${a.role === 'super_admin' ? 'role-super' : 'role-operator'}"><i class="fa-solid ${a.role === 'super_admin' ? 'fa-shield-halved' : 'fa-user-gear'}"></i>${a.role === 'super_admin' ? '超级管理员' : '普通管理员'}</span></td>
+        <td>${esc(permissionNames(a.permissions))}</td>
+        <td class="${a.is_active ? 'status-on' : 'status-off'}">${a.is_active ? '启用' : '停用'}</td>
+        <td>${a.last_login_at || '-'}</td>
+        <td>
+          <button class="btn btn-outline btn-sm" onclick="openEditor(${a.id})"><i class="fa-solid fa-pen"></i> 编辑</button>
+          <button class="btn btn-danger btn-sm" onclick="removeAccount(${a.id})"><i class="fa-solid fa-trash"></i> 删除</button>
+        </td>
+      </tr>
+    `).join('');
+}
+
+function renderPermissionGrid(selected = []) {
+  const all = selected.includes('*');
+  document.getElementById('permissionGrid').innerHTML = permissions.map(p => `
+    <label class="permission-item">
+      <input type="checkbox" value="${p.id}" ${all || selected.includes(p.id) ? 'checked' : ''}>
+      <span>${esc(p.label)}</span>
+    </label>
+  `).join('');
+  syncRole();
+}
+
+function syncRole() {
+  const isSuper = document.getElementById('role').value === 'super_admin';
+  document.querySelectorAll('#permissionGrid input').forEach(el => {
+    el.disabled = isSuper;
+    if (isSuper) el.checked = true;
+  });
+}
+
+function openEditor(id) {
+  editingId = id || null;
+  const account = editingId ? accounts.find(a => a.id === editingId) : null;
+  document.getElementById('modalTitle').textContent = editingId ? '编辑后台账号' : '新增后台账号';
+  document.getElementById('username').value = account ? account.username : '';
+  document.getElementById('username').disabled = !!account;
+  document.getElementById('displayName').value = account ? account.display_name : '';
+  document.getElementById('role').value = account ? account.role : 'operator';
+  document.getElementById('isActive').value = account && !account.is_active ? '0' : '1';
+  document.getElementById('password').value = '';
+  renderPermissionGrid(account ? account.permissions : ['dashboard']);
+  openModal('editModal');
+}
+
+function selectedPermissions() {
+  if (document.getElementById('role').value === 'super_admin') return ['*'];
+  return [...document.querySelectorAll('#permissionGrid input:checked')].map(el => el.value);
+}
+
+async function saveAccount() {
+  const body = {
+    username: document.getElementById('username').value.trim(),
+    display_name: document.getElementById('displayName').value.trim(),
+    role: document.getElementById('role').value,
+    is_active: Number(document.getElementById('isActive').value),
+    permissions: selectedPermissions()
+  };
+  const password = document.getElementById('password').value;
+  if (password) body.password = password;
+  if (!editingId && !password) {
+    toast('新增账号必须设置密码', 'error');
+    return;
+  }
+  const res = editingId
+    ? await PUT(`/admin/api/admin-accounts/${editingId}`, body)
+    : await POST('/admin/api/admin-accounts', body);
+  if (!res || res.code !== 0) {
+    toast(res?.message || '保存失败', 'error');
+    return;
+  }
+  toast(res.message || '保存成功');
+  closeModal('editModal');
+  load();
+}
+
+async function removeAccount(id) {
+  const account = accounts.find(a => a.id === id);
+  if (!account) return;
+  confirm(`确认删除后台账号「${account.username}」？`, async () => {
+    const res = await DELETE(`/admin/api/admin-accounts/${id}`);
+    if (!res || res.code !== 0) {
+      toast(res?.message || '删除失败', 'error');
+      return;
+    }
+    toast(res.message || '删除成功');
+    load();
+  });
+}
+
+(async function init() {
+  await loadPermissions();
+  await load();
+})();
+</script>
+</body>
+</html>

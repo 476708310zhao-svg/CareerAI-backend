@@ -294,6 +294,19 @@ db.exec(`
     updated_at TEXT    DEFAULT (datetime('now')),
     UNIQUE(user_id, feature, usage_date)
   );
+
+  CREATE TABLE IF NOT EXISTS admin_accounts (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    username      TEXT    UNIQUE NOT NULL,
+    password_hash TEXT    NOT NULL,
+    display_name  TEXT    DEFAULT '',
+    role          TEXT    DEFAULT 'operator',
+    permissions   TEXT    DEFAULT '[]',
+    is_active     INTEGER DEFAULT 1,
+    last_login_at TEXT    DEFAULT '',
+    created_at    TEXT    DEFAULT (datetime('now')),
+    updated_at    TEXT    DEFAULT (datetime('now'))
+  );
 `);
 
 // ─── 性能索引（幂等，不存在才创建）────────────────────────────────────────────
@@ -315,6 +328,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_companies_industry_country ON companies(industry_l1, hq_country);
   CREATE INDEX IF NOT EXISTS idx_company_aliases_alias ON company_aliases(alias);
   CREATE INDEX IF NOT EXISTS idx_ai_usage_user_feature_date ON ai_usage(user_id, feature, usage_date);
+  CREATE INDEX IF NOT EXISTS idx_admin_accounts_username ON admin_accounts(username);
 `);
 
 // 兼容旧库：为 campus_schedules 补齐后续迭代新增字段

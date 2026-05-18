@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { hasPermission, permissionForAdminPath } = require('../utils/adminPermissions');
 
 /**
  * 管理员鉴权中间件
@@ -13,6 +14,10 @@ function adminAuth(req, res, next) {
     const payload = jwt.verify(header.slice(7), process.env.JWT_SECRET);
     if (payload.role !== 'admin') throw new Error('not admin');
     req.admin = payload;
+    const permission = permissionForAdminPath(req.originalUrl || req.path);
+    if (permission && !hasPermission(payload, permission)) {
+      return res.status(403).json({ code: -1, message: '没有该模块的管理权限' });
+    }
     next();
   } catch (e) {
     res.status(401).json({ code: -1, message: 'Token 无效或已过期，请重新登录' });

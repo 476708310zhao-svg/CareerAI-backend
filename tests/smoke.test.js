@@ -265,6 +265,53 @@ test('admin jobs list reads jobs json through admin API', async () => {
   assert.ok(body.data.total >= 1);
 });
 
+test('admin account permissions are enforced by module', async () => {
+  assert.ok(adminToken);
+  const username = `ops_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const createRes = await fetch(`${BASE_URL}/admin/api/admin-accounts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...adminHeaders() },
+    body: JSON.stringify({
+      username,
+      password: 'ops_password',
+      display_name: 'Ops Test',
+      role: 'operator',
+      permissions: ['jobs'],
+      is_active: 1
+    })
+  });
+  assert.equal(createRes.status, 200);
+  const created = await readJson(createRes);
+  assert.equal(created.code, 0);
+  assert.deepEqual(created.data.permissions, ['jobs']);
+
+  const loginRes = await fetch(`${BASE_URL}/admin/api/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password: 'ops_password' })
+  });
+  assert.equal(loginRes.status, 200);
+  const loginBody = await readJson(loginRes);
+  const operatorToken = loginBody.data.token;
+  assert.ok(operatorToken);
+
+  const allowedRes = await fetch(`${BASE_URL}/admin/api/jobs?page=1&pageSize=1`, {
+    headers: { Authorization: `Bearer ${operatorToken}` }
+  });
+  assert.equal(allowedRes.status, 200);
+
+  const deniedRes = await fetch(`${BASE_URL}/admin/api/stats`, {
+    headers: { Authorization: `Bearer ${operatorToken}` }
+  });
+  assert.equal(deniedRes.status, 403);
+
+  const deleteRes = await fetch(`${BASE_URL}/admin/api/admin-accounts/${created.data.id}`, {
+    method: 'DELETE',
+    headers: adminHeaders()
+  });
+  assert.equal(deleteRes.status, 200);
+});
+
 test('payment mock create-order, confirm and verify flow works', async () => {
   assert.ok(authToken);
 

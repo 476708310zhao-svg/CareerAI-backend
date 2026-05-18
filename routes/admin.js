@@ -15,6 +15,8 @@ const companyService = require('../services/companyService');
 const { imageExtForMime, isAllowedImageMime, rejectInvalidImage } = require('../utils/uploadSecurity');
 const adminJobsStore = require('../utils/adminJobsStore');
 const { parsePagination, paginateArray } = require('../utils/pagination');
+const adminAccounts = require('../utils/adminAccounts');
+const { ALL_ADMIN_PERMISSIONS, PERMISSION_LABELS } = require('../utils/adminPermissions');
 
 // ─── 管理后台图片上传（Banner 等） ─────────────────────────────────────────────
 const UPLOAD_DIR = path.join(__dirname, '../uploads');
@@ -58,15 +60,70 @@ router.post('/api/login', adminLoginLimiter, (req, res) => {
   if (!username || !password) {
     return res.status(400).json({ code: -1, message: '账号和密码不能为空' });
   }
-  if (username !== process.env.ADMIN_USERNAME || password !== process.env.ADMIN_PASSWORD) {
+  const account = adminAccounts.login(username, password);
+  if (!account) {
     return res.status(401).json({ code: -1, message: '账号或密码错误' });
   }
   const token = jwt.sign(
-    { role: 'admin', sub: username },
+    {
+      role: 'admin',
+      sub: account.username,
+      id: account.id,
+      adminRole: account.role,
+      permissions: account.permissions
+    },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
-  res.json({ code: 0, data: { token, username } });
+  res.json({ code: 0, data: { token, username: account.username, account } });
+});
+
+router.get('/api/admin-permissions', adminAuth, (req, res) => {
+  res.json({
+    code: 0,
+    data: {
+      permissions: ALL_ADMIN_PERMISSIONS.map(id => ({ id, label: PERMISSION_LABELS[id] || id }))
+    }
+  });
+});
+
+router.get('/api/admin-accounts', adminAuth, (req, res) => {
+  const { keyword = '' } = req.query;
+  res.json({ code: 0, data: adminAccounts.listAccounts(keyword) });
+});
+
+router.post('/api/admin-accounts', adminAuth, (req, res) => {
+  try {
+    const account = adminAccounts.createAccount(req.body || {});
+    res.json({ code: 0, message: '后台账号已创建', data: account });
+  } catch (err) {
+    res.status(400).json({ code: -1, message: err.message || '创建失败' });
+  }
+});
+
+router.put('/api/admin-accounts/:id', adminAuth, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  try {
+    const account = adminAccounts.updateAccount(id, req.body || {}, req.admin || {});
+    if (!account) return res.status(404).json({ code: -1, message: '后台账号不存在' });
+    res.json({ code: 0, message: '后台账号已更新', data: account });
+  } catch (err) {
+    res.status(400).json({ code: -1, message: err.message || '更新失败' });
+  }
+});
+
+router.delete('/api/admin-accounts/:id', adminAuth, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  try {
+    if (!adminAccounts.deleteAccount(id, req.admin || {})) {
+      return res.status(404).json({ code: -1, message: '后台账号不存在' });
+    }
+    res.json({ code: 0, message: '后台账号已删除' });
+  } catch (err) {
+    res.status(400).json({ code: -1, message: err.message || '删除失败' });
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════

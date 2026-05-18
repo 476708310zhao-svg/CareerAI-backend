@@ -9,9 +9,25 @@ function getUsername() {
   return localStorage.getItem('adminUsername') || 'Admin';
 }
 
+function getAdminPermissions() {
+  try {
+    const permissions = JSON.parse(localStorage.getItem('adminPermissions') || '[]');
+    return Array.isArray(permissions) ? permissions : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function canAccess(permission) {
+  const permissions = getAdminPermissions();
+  return permissions.includes('*') || permissions.includes(permission);
+}
+
 function logout() {
   localStorage.removeItem('adminToken');
   localStorage.removeItem('adminUsername');
+  localStorage.removeItem('adminAccount');
+  localStorage.removeItem('adminPermissions');
   window.location.href = '/admin/index.html';
 }
 
@@ -244,11 +260,12 @@ const NAV_ITEMS = [
   { id: 'announcements', icon: 'fa-newspaper', label: '资讯公告', href: 'announcements.html' },
   { id: 'users', icon: 'fa-users', label: '用户管理', href: 'users.html' },
   { id: 'memberships', icon: 'fa-crown', label: '会员权益', href: 'memberships.html' },
-  { id: 'resumes', icon: 'fa-id-card', label: '简历管理', href: 'resumes.html' }
+  { id: 'resumes', icon: 'fa-id-card', label: '简历管理', href: 'resumes.html' },
+  { id: 'admins', icon: 'fa-user-shield', label: '权限管理', href: 'admins.html' }
 ];
 
 function renderNav(activeId) {
-  return NAV_ITEMS.map(item => `
+  return NAV_ITEMS.filter(item => canAccess(item.id)).map(item => `
     <a class="nav-item ${item.id === activeId ? 'active' : ''}" href="${item.href}">
       <i class="fa-solid ${item.icon}"></i>
       <span>${item.label}</span>
@@ -313,6 +330,10 @@ function renderLayout(activeId, pageTitle) {
 
 function initPage(activeId, pageTitle, renderFn) {
   if (!requireAuth()) return;
+  if (!canAccess(activeId)) {
+    document.body.innerHTML = '<div style="padding:40px;font-family:Arial,sans-serif;color:#111827"><h2>没有访问权限</h2><p style="color:#6b7280">当前后台账号没有该模块权限，请联系超级管理员开通。</p><button onclick="history.back()" style="padding:10px 16px;border:0;border-radius:8px;background:#2563eb;color:#fff">返回</button></div>';
+    return;
+  }
   hydrateShell(activeId, pageTitle);
   renderFn && renderFn();
 }

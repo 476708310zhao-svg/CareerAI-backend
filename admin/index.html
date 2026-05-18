@@ -48,6 +48,8 @@
       if (data.code === 0) {
         localStorage.setItem('adminToken', data.data.token);
         localStorage.setItem('adminUsername', data.data.username);
+        localStorage.setItem('adminAccount', JSON.stringify(data.data.account || {}));
+        localStorage.setItem('adminPermissions', JSON.stringify((data.data.account && data.data.account.permissions) || ['*']));
         window.location.href = 'dashboard.html';
       } else {
         showErr(data.message || '登录失败');
