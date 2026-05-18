@@ -272,6 +272,22 @@ function renderNav(activeId) {
     </a>`).join('');
 }
 
+function markAdminReady() {
+  if (!document.body) return;
+  document.body.classList.add('admin-shell', 'admin-ready');
+  document.body.classList.remove('admin-navigating');
+}
+
+function bindAdminNavigation() {
+  document.querySelectorAll('#sidebarNav a.nav-item').forEach(link => {
+    link.addEventListener('click', event => {
+      const href = link.getAttribute('href');
+      if (!href || href === location.pathname.split('/').pop()) return;
+      document.body.classList.add('admin-navigating');
+    });
+  });
+}
+
 function hydrateShell(activeId, pageTitle) {
   const brandTitle = document.querySelector('.brand-title');
   const brandSub = document.querySelector('.brand-sub');
@@ -293,10 +309,13 @@ function hydrateShell(activeId, pageTitle) {
     if (btn.classList && btn.classList.contains('btn-logout')) btn.textContent = '退出';
     if (btn.tagName === 'SPAN' && btn.textContent.includes('退')) btn.textContent = '退出登录';
   });
+  bindAdminNavigation();
+  markAdminReady();
 }
 
 function renderLayout(activeId, pageTitle) {
   if (!requireAuth()) return;
+  document.body.classList.add('admin-shell');
   document.body.innerHTML = `
     <div class="layout">
       <aside class="sidebar">
@@ -332,6 +351,7 @@ function initPage(activeId, pageTitle, renderFn) {
   if (!requireAuth()) return;
   if (!canAccess(activeId)) {
     document.body.innerHTML = '<div style="padding:40px;font-family:Arial,sans-serif;color:#111827"><h2>没有访问权限</h2><p style="color:#6b7280">当前后台账号没有该模块权限，请联系超级管理员开通。</p><button onclick="history.back()" style="padding:10px 16px;border:0;border-radius:8px;background:#2563eb;color:#fff">返回</button></div>';
+    markAdminReady();
     return;
   }
   hydrateShell(activeId, pageTitle);
