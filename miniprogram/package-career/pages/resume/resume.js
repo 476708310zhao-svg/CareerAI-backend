@@ -1,5 +1,6 @@
 // pages/resume/resume.js
 const api = require('../../../utils/api.js');
+const config = require('../../../utils/config.js');
 const safePage = require('../../behaviors/safe-page');
 const aiMethods = require('./resume-ai');
 const exportMethods = require('./resume-export');
@@ -77,6 +78,7 @@ Page(Object.assign({
     this.setData({ isLoggedIn: !!token, isVip: vipLevel > 0 });
     if (token) {
       this._syncServerResumes();
+      this.loadAttachmentResumes();
     } else {
       this.loadResume();
     }
@@ -88,6 +90,7 @@ Page(Object.assign({
     this.setData({ isLoggedIn: !!token, isVip: vipLevel > 0 });
     if (token) {
       this._syncServerResumes();
+      this.loadAttachmentResumes();
     } else {
       this.loadResume();
     }
@@ -575,6 +578,205 @@ Page(Object.assign({
           this.setData({ resumeList: files });
           wx.setStorageSync('resumeFiles', files);
           wx.showToast({ title: '已删除', icon: 'success' });
+        }
+      }
+    });
+  },
+
+  _formatAttachmentResume(row, index) {
+    const createdAt = row.created_at || row.date || '';
+    return {
+      id: row.id || Date.now() + index,
+      name: row.original_name || row.filename || row.name || '附件简历.pdf',
+      date: String(createdAt).slice(0, 10) || new Date().toISOString().slice(0, 10),
+      type: 'pdf',
+      url: row.file_url || row.url || '',
+      size: row.file_size || row.size || 0,
+      isDefault: index === 0
+    };
+  },
+
+  loadAttachmentResumes() {
+    const token = wx.getStorageSync('token');
+    if (!token) {
+      const files = wx.getStorageSync('resumeFiles') || [];
+      this.setData({ resumeList: files });
+      return Promise.resolve(files);
+    }
+
+    return new Promise((resolve) => {
+      wx.request({
+        url: config.API_BASE_URL + '/api/upload/resume-pdfs',
+        method: 'GET',
+        header: { Authorization: 'Bearer ' + token },
+        success: (res) => {
+          if (res.statusCode === 200 && res.data && res.data.code === 0) {
+            const files = (res.data.data || []).map((item, idx) => this._formatAttachmentResume(item, idx));
+            this.setData({ resumeList: files });
+            wx.setStorageSync('resumeFiles', files);
+            resolve(files);
+          } else {
+            const files = wx.getStorageSync('resumeFiles') || [];
+            this.setData({ resumeList: files });
+            resolve(files);
+          }
+        },
+        fail: () => {
+          const files = wx.getStorageSync('resumeFiles') || [];
+          this.setData({ resumeList: files });
+          resolve(files);
+        }
+      });
+    });
+  },
+
+  chooseResumeFileFromChat() {
+    return new Promise((resolve, reject) => {
+      wx.chooseMessageFile({
+        count: 1,
+        type: 'file',
+        extension: ['pdf'],
+        success: (res) => {
+          const file = (res.tempFiles || [])[0];
+          file ? resolve(file) : reject(new Error('未选择文件'));
+        },
+        fail: (err) => reject(new Error((err && err.errMsg) || '未选择文件'))
+      });
+    });
+  },
+
+  chooseResumeFileFromDevice() {
+    return new Promise((resolve, reject) => {
+      const choose = wx.chooseFile || wx.chooseMessageFile;
+      if (!choose) {
+        reject(new Error('当前微信版本不支持文件选择，请升级微信后重试'));
+        return;
+      }
+      choose({
+        count: 1,
+        type: 'file',
+        extension: ['pdf'],
+        success: (res) => {
+          const file = (res.tempFiles || [])[0];
+          file ? resolve(file) : reject(new Error('未选择文件'));
+        },
+        fail: (err) => reject(new Error((err && err.errMsg) || '未选择文件'))
+      });
+    });
+  },
+
+  validateResumeFile(file) {
+    const name = file && (file.name || file.path || file.tempFilePath || '');
+    const filePath = file && (file.path || file.tempFilePath);
+    if (!filePath) return '未获取到文件路径';
+    if (!/\.pdf$/i.test(name)) return '请上传 PDF 格式的简历';
+    if (file.size && file.size > 10 * 1024 * 1024) return 'PDF 文件不能超过 10MB';
+    return '';
+  },
+
+  uploadResumePdf(file) {
+    return new Promise((resolve, reject) => {
+      const token = wx.getStorageSync('token');
+      if (!token) {
+        reject(new Error('请先登录后再上传附件简历'));
+        return;
+      }
+
+      wx.uploadFile({
+        url: config.API_BASE_URL + '/api/upload/resume-pdf',
+        filePath: file.path || file.tempFilePath,
+        name: 'file',
+        fileName: file.name || 'resume.pdf',
+        formData: { originalName: file.name || 'resume.pdf' },
+        header: { Authorization: 'Bearer ' + token },
+        success: (res) => {
+          let data = null;
+          try { data = JSON.parse(res.data || '{}'); } catch (e) {}
+          if (res.statusCode >= 200 && res.statusCode < 300 && data && data.code === 0) {
+            resolve(data.data);
+          } else {
+            reject(new Error((data && data.message) || '上传失败，请稍后重试'));
+          }
+        },
+        fail: (err) => reject(new Error((err && err.errMsg) || '上传失败，请检查网络'))
+      });
+    });
+  },
+
+  handleUpload() {
+    wx.showActionSheet({
+      itemList: ['从微信聊天选择', '从手机文件选择'],
+      success: async (res) => {
+        const chooseFile = res.tapIndex === 0
+          ? this.chooseResumeFileFromChat
+          : this.chooseResumeFileFromDevice;
+
+        try {
+          const file = await chooseFile.call(this);
+          const invalidMsg = this.validateResumeFile(file);
+          if (invalidMsg) {
+            wx.showToast({ title: invalidMsg, icon: 'none' });
+            return;
+          }
+
+          wx.showLoading({ title: '上传中...' });
+          const uploaded = await this.uploadResumePdf(file);
+          const nextFile = this._formatAttachmentResume({
+            id: uploaded.id,
+            original_name: file.name || uploaded.filename,
+            file_url: uploaded.url,
+            file_size: uploaded.size,
+            created_at: new Date().toISOString().slice(0, 10)
+          }, 0);
+          const files = [nextFile].concat(this.data.resumeList.map((item) => {
+            return Object.assign({}, item, { isDefault: false });
+          }));
+          this.setData({ resumeList: files });
+          wx.setStorageSync('resumeFiles', files);
+          wx.showToast({ title: '上传成功', icon: 'success' });
+        } catch (err) {
+          const msg = (err && err.message) || '上传失败';
+          if (!/cancel|取消/.test(msg)) wx.showToast({ title: msg, icon: 'none' });
+        } finally {
+          wx.hideLoading();
+        }
+      }
+    });
+  },
+
+  handleAction(e) {
+    const index = e.currentTarget.dataset.index;
+    wx.showActionSheet({
+      itemList: ['设为默认', '删除'],
+      success: (res) => {
+        const files = this.data.resumeList.slice();
+        if (res.tapIndex === 0) {
+          files.forEach((f, i) => { f.isDefault = i === index; });
+          this.setData({ resumeList: files });
+          wx.setStorageSync('resumeFiles', files);
+          wx.showToast({ title: '已设为默认', icon: 'success' });
+        } else if (res.tapIndex === 1) {
+          const target = files[index];
+          const removeLocal = () => {
+            files.splice(index, 1);
+            if (files.length && !files.some((f) => f.isDefault)) files[0].isDefault = true;
+            this.setData({ resumeList: files });
+            wx.setStorageSync('resumeFiles', files);
+            wx.showToast({ title: '已删除', icon: 'success' });
+          };
+
+          if (!target || !target.url) {
+            removeLocal();
+            return;
+          }
+
+          const token = wx.getStorageSync('token');
+          wx.request({
+            url: config.API_BASE_URL + '/api/upload/resume-pdf/' + target.id,
+            method: 'DELETE',
+            header: token ? { Authorization: 'Bearer ' + token } : {},
+            complete: removeLocal
+          });
         }
       }
     });

@@ -72,6 +72,13 @@ const pdfUpload = multer({
   storage: pdfStorage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
   fileFilter: (_req, file, cb) => {
+    const originalName = file.originalname || '';
+    const isPdfMime = file.mimetype === 'application/pdf';
+    const isWeChatBinary = file.mimetype === 'application/octet-stream' || !file.mimetype;
+    const hasPdfExt = path.extname(originalName).toLowerCase() === '.pdf';
+    if (isPdfMime || isWeChatBinary || hasPdfExt) {
+      return cb(null, true);
+    }
     if (file.mimetype !== 'application/pdf') {
       return cb(new Error('只允许上传 PDF 文件'));
     }
