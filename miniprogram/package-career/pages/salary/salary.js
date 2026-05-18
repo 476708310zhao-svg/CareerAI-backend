@@ -73,11 +73,21 @@ Page({
     cmpQuickCompanies: [] // 快捷公司列表（随 region 变化）
   },
 
+  _readVipState: function() {
+    const userInfo = wx.getStorageSync('userInfo') || {};
+    const vipInfo = wx.getStorageSync('vipInfo') || {};
+    const vipInfoActive = !!(vipInfo.isVip && (!vipInfo.expireDate || new Date(vipInfo.expireDate) > new Date()));
+    return vipInfoActive || Number(userInfo.vipLevel || userInfo.vip_level || 0) > 0;
+  },
+
   onLoad: function() {
-    const vipLevel = (wx.getStorageSync('userInfo') || {}).vipLevel || 0;
-    this.setData({ isVip: vipLevel > 0 });
+    this.setData({ isVip: this._readVipState() });
     this._loadHistory();
     this._updateCmpQuick();
+  },
+
+  onShow: function() {
+    this.setData({ isVip: this._readVipState() });
   },
 
   goVip: function() {

@@ -258,6 +258,13 @@ Page({
 
     const vipInfo = { isVip: true, planName, expireDate, purchaseDate: new Date().toISOString().split('T')[0] };
     wx.setStorageSync('vipInfo', vipInfo);
+    const userInfo = wx.getStorageSync('userInfo') || {};
+    wx.setStorageSync('userInfo', Object.assign({}, userInfo, {
+      vipLevel: 1,
+      vip_level: 1,
+      vipExpiresAt: expireDate,
+      vip_expires_at: expireDate
+    }));
     this.setData({ userVipInfo: vipInfo });
 
     wx.showModal({
