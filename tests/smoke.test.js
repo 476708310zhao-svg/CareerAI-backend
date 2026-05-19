@@ -70,6 +70,14 @@ function pngBlob() {
   return new Blob([bytes], { type: 'image/png' });
 }
 
+function pdfBlob(type = 'application/pdf', text = 'Smoke Test User\nsmoke@example.com\nPython SQL React') {
+  const pdfText = text
+    .split('\n')
+    .map(line => `(${line}) Tj`)
+    .join('\n');
+  return new Blob([`%PDF-1.4\n${pdfText}\n%%EOF`], { type });
+}
+
 function trackUploadedUrl(url) {
   if (!url || !url.startsWith('/uploads/')) return;
   uploadedFiles.push(path.join(process.cwd(), url.replace(/^\//, '')));
@@ -382,6 +390,84 @@ test('avatar upload accepts a valid png image', async () => {
   assert.equal(body.code, 0);
   assert.match(body.data.url, /^\/uploads\/\d{4}-\d{2}-\d{2}\//);
   trackUploadedUrl(body.data.url);
+});
+
+test('resume pdf upload accepts valid pdf and preserves original name', async () => {
+  assert.ok(authToken);
+  const form = new FormData();
+  form.append('originalName', '新简历_2026-05-18.pdf');
+  form.append('file', pdfBlob(), 'wechat-temp.pdf');
+
+  const res = await fetch(`${BASE_URL}/api/upload/resume-pdf`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: form
+  });
+  assert.equal(res.status, 200);
+  const body = await readJson(res);
+  assert.equal(body.code, 0);
+  assert.equal(body.data.filename, '新简历_2026-05-18.pdf');
+  assert.match(body.data.url, /^\/uploads\/resumes\/resume_/);
+  trackUploadedUrl(body.data.url);
+
+  const listRes = await fetch(`${BASE_URL}/api/upload/resume-pdfs`, {
+    headers: authHeaders()
+  });
+  assert.equal(listRes.status, 200);
+  const listBody = await readJson(listRes);
+  assert.equal(listBody.code, 0);
+  assert.ok(listBody.data.some(item => item.original_name === '新简历_2026-05-18.pdf'));
+});
+
+test('resume pdf upload rejects non-pdf content', async () => {
+  assert.ok(authToken);
+  const form = new FormData();
+  form.append('originalName', 'fake.pdf');
+  form.append('file', new Blob(['plain text'], { type: 'application/pdf' }), 'fake.pdf');
+
+  const res = await fetch(`${BASE_URL}/api/upload/resume-pdf`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: form
+  });
+  assert.equal(res.status, 400);
+  const body = await readJson(res);
+  assert.equal(body.code, -1);
+  assert.match(body.message, /PDF/);
+});
+
+test('resume pdf extract returns an online resume draft', async () => {
+  assert.ok(authToken);
+  const form = new FormData();
+  form.append('originalName', 'john_doe_resume.pdf');
+  form.append('file', pdfBlob('application/pdf', [
+    'John Doe',
+    'john.doe@example.com',
+    '+1 415 555 1234',
+    'linkedin.com/in/johndoe',
+    'Software Engineer with Python SQL React experience'
+  ].join('\n')), 'john.pdf');
+
+  const uploadRes = await fetch(`${BASE_URL}/api/upload/resume-pdf`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: form
+  });
+  assert.equal(uploadRes.status, 200);
+  const uploadBody = await readJson(uploadRes);
+  trackUploadedUrl(uploadBody.data.url);
+
+  const extractRes = await fetch(`${BASE_URL}/api/upload/resume-pdf/${uploadBody.data.id}/extract`, {
+    method: 'POST',
+    headers: authHeaders()
+  });
+  assert.equal(extractRes.status, 200);
+  const body = await readJson(extractRes);
+  assert.equal(body.code, 0);
+  assert.equal(body.data.resume.basicInfo.name, 'John Doe');
+  assert.equal(body.data.resume.basicInfo.email, 'john.doe@example.com');
+  assert.ok(body.data.resume.skills.includes('Python'));
+  assert.ok(body.data.text.includes('Software Engineer'));
 });
 
 test('webhook rejects missing GitHub signature', async () => {

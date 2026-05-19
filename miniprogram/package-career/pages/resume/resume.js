@@ -646,12 +646,11 @@ Page(Object.assign({
 
   chooseResumeFileFromDevice() {
     return new Promise((resolve, reject) => {
-      const choose = wx.chooseFile || wx.chooseMessageFile;
-      if (!choose) {
-        reject(new Error('当前微信版本不支持文件选择，请升级微信后重试'));
+      if (!wx.chooseFile) {
+        reject(new Error('当前微信不支持直接从手机文件选择，请先把 PDF 发到微信聊天或文件传输助手，再从聊天选择'));
         return;
       }
-      choose({
+      wx.chooseFile({
         count: 1,
         type: 'file',
         extension: ['pdf'],
@@ -664,8 +663,15 @@ Page(Object.assign({
     });
   },
 
+  getResumeFileName(file) {
+    if (!file) return '';
+    const raw = file.name || file.fileName || file.path || file.tempFilePath || '';
+    const parts = String(raw).split(/[\\/]/);
+    return parts[parts.length - 1] || '';
+  },
+
   validateResumeFile(file) {
-    const name = file && (file.name || file.path || file.tempFilePath || '');
+    const name = this.getResumeFileName(file);
     const filePath = file && (file.path || file.tempFilePath);
     if (!filePath) return '未获取到文件路径';
     if (!/\.pdf$/i.test(name)) return '请上传 PDF 格式的简历';
@@ -685,20 +691,141 @@ Page(Object.assign({
         url: config.API_BASE_URL + '/api/upload/resume-pdf',
         filePath: file.path || file.tempFilePath,
         name: 'file',
-        fileName: file.name || 'resume.pdf',
-        formData: { originalName: file.name || 'resume.pdf' },
-        header: { Authorization: 'Bearer ' + token },
+        fileName: this.getResumeFileName(file) || 'resume.pdf',
+        formData: { originalName: this.getResumeFileName(file) || 'resume.pdf' },
+        header: {
+          Authorization: 'Bearer ' + token,
+          Accept: 'application/json'
+        },
+        timeout: 30000,
         success: (res) => {
           let data = null;
           try { data = JSON.parse(res.data || '{}'); } catch (e) {}
           if (res.statusCode >= 200 && res.statusCode < 300 && data && data.code === 0) {
             resolve(data.data);
           } else {
-            reject(new Error((data && data.message) || '上传失败，请稍后重试'));
+            const message = (data && data.message) || `上传失败（${res.statusCode || '无状态码'}）`;
+            reject(new Error(message));
           }
         },
-        fail: (err) => reject(new Error((err && err.errMsg) || '上传失败，请检查网络'))
+        fail: (err) => {
+          console.warn('[resume upload] wx.uploadFile failed', err);
+          reject(new Error((err && err.errMsg) || '上传失败，请检查网络'));
+        }
       });
+    });
+  },
+
+  getAttachmentUrl(file) {
+    const url = file && file.url;
+    if (!url) return '';
+    if (/^https?:\/\//i.test(url)) return url;
+    return config.API_BASE_URL + url;
+  },
+
+  previewAttachmentResume(file) {
+    const url = this.getAttachmentUrl(file);
+    if (!url) {
+      wx.showToast({ title: '文件地址不存在', icon: 'none' });
+      return;
+    }
+
+    wx.showLoading({ title: '打开中...' });
+    wx.downloadFile({
+      url,
+      success: (res) => {
+        if (res.statusCode >= 200 && res.statusCode < 300 && res.tempFilePath) {
+          wx.openDocument({
+            filePath: res.tempFilePath,
+            fileType: 'pdf',
+            showMenu: true,
+            fail: (err) => {
+              wx.showModal({
+                title: '预览失败',
+                content: (err && err.errMsg) || '当前文件无法预览，请确认是 PDF 文件',
+                showCancel: false
+              });
+            }
+          });
+        } else {
+          wx.showModal({
+            title: '预览失败',
+            content: `文件下载失败（${res.statusCode || '无状态码'}）`,
+            showCancel: false
+          });
+        }
+      },
+      fail: (err) => {
+        wx.showModal({
+          title: '预览失败',
+          content: (err && err.errMsg) || '文件下载失败，请检查网络',
+          showCancel: false
+        });
+      },
+      complete: () => wx.hideLoading()
+    });
+  },
+
+  syncAttachmentToOnlineResume(file) {
+    if (!file || !file.id) {
+      wx.showToast({ title: '附件信息缺失', icon: 'none' });
+      return;
+    }
+    const token = wx.getStorageSync('token');
+    if (!token) {
+      wx.showModal({
+        title: '请先登录',
+        content: '同步提取需要登录后读取已上传的附件简历。',
+        showCancel: false
+      });
+      return;
+    }
+
+    wx.showLoading({ title: '提取中...' });
+    wx.request({
+      url: config.API_BASE_URL + '/api/upload/resume-pdf/' + file.id + '/extract',
+      method: 'POST',
+      header: { Authorization: 'Bearer ' + token },
+      success: async (res) => {
+        if (res.statusCode >= 200 && res.statusCode < 300 && res.data && res.data.code === 0) {
+          const parsed = res.data.data && res.data.data.resume;
+          const current = this.data.onlineResume || {};
+          const merged = Object.assign({}, current, parsed, {
+            basicInfo: Object.assign({}, current.basicInfo || {}, parsed.basicInfo || {}),
+            workExp: (parsed.workExp && parsed.workExp.length) ? parsed.workExp : (current.workExp || []),
+            education: (parsed.education && parsed.education.length) ? parsed.education : (current.education || []),
+            projects: (parsed.projects && parsed.projects.length) ? parsed.projects : (current.projects || []),
+            skills: Array.from(new Set([...(current.skills || []), ...((parsed && parsed.skills) || [])]))
+          });
+          merged.score = this._calcScore(merged);
+
+          if (this.data.isLoggedIn && !this.data.currentResumeId) {
+            await this._syncServerResumes();
+          }
+
+          this.setData({ onlineResume: merged, currentTab: 0 });
+          this._saveResume();
+          wx.showModal({
+            title: '同步完成',
+            content: '已从附件简历提取基础信息到在线简历。PDF 自动解析可能不完整，请继续检查工作经历、教育经历和项目经历。',
+            showCancel: false
+          });
+        } else {
+          wx.showModal({
+            title: '同步失败',
+            content: (res.data && res.data.message) || `解析失败（${res.statusCode || '无状态码'}）`,
+            showCancel: false
+          });
+        }
+      },
+      fail: (err) => {
+        wx.showModal({
+          title: '同步失败',
+          content: (err && err.errMsg) || '网络请求失败',
+          showCancel: false
+        });
+      },
+      complete: () => wx.hideLoading()
     });
   },
 
@@ -720,9 +847,10 @@ Page(Object.assign({
 
           wx.showLoading({ title: '上传中...' });
           const uploaded = await this.uploadResumePdf(file);
+          const fileName = this.getResumeFileName(file) || uploaded.filename || 'resume.pdf';
           const nextFile = this._formatAttachmentResume({
             id: uploaded.id,
-            original_name: file.name || uploaded.filename,
+            original_name: fileName,
             file_url: uploaded.url,
             file_size: uploaded.size,
             created_at: new Date().toISOString().slice(0, 10)
@@ -735,7 +863,14 @@ Page(Object.assign({
           wx.showToast({ title: '上传成功', icon: 'success' });
         } catch (err) {
           const msg = (err && err.message) || '上传失败';
-          if (!/cancel|取消/.test(msg)) wx.showToast({ title: msg, icon: 'none' });
+          if (!/cancel|取消/.test(msg)) {
+            wx.showModal({
+              title: '上传失败',
+              content: msg,
+              showCancel: false,
+              confirmText: '知道了'
+            });
+          }
         } finally {
           wx.hideLoading();
         }
@@ -746,16 +881,22 @@ Page(Object.assign({
   handleAction(e) {
     const index = e.currentTarget.dataset.index;
     wx.showActionSheet({
-      itemList: ['设为默认', '删除'],
+      itemList: ['预览附件', '同步到在线简历', '设为默认', '删除'],
       success: (res) => {
         const files = this.data.resumeList.slice();
+        const target = files[index];
+        if (!target) return;
+
         if (res.tapIndex === 0) {
+          this.previewAttachmentResume(target);
+        } else if (res.tapIndex === 1) {
+          this.syncAttachmentToOnlineResume(target);
+        } else if (res.tapIndex === 2) {
           files.forEach((f, i) => { f.isDefault = i === index; });
           this.setData({ resumeList: files });
           wx.setStorageSync('resumeFiles', files);
           wx.showToast({ title: '已设为默认', icon: 'success' });
-        } else if (res.tapIndex === 1) {
-          const target = files[index];
+        } else if (res.tapIndex === 3) {
           const removeLocal = () => {
             files.splice(index, 1);
             if (files.length && !files.some((f) => f.isDefault)) files[0].isDefault = true;

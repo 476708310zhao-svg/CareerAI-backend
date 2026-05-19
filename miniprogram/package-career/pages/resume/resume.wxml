@@ -235,6 +235,7 @@
             <view class="info">
               <text class="name">{{item.name}}</text>
               <text class="date">更新于 {{item.date}}</text>
+              <text class="date">点击可预览 / 同步到在线简历</text>
             </view>
           </view>
           <view class="tag default" wx:if="{{item.isDefault}}">默认</view>

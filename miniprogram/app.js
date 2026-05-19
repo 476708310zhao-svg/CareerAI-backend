@@ -15,6 +15,25 @@ function safeErrorText(error) {
   }
 }
 
+function recordRuntimeError(type, error) {
+  const text = safeErrorText(error);
+  try {
+    wx.setStorageSync('lastRuntimeError', {
+      type,
+      message: text,
+      time: Date.now()
+    });
+  } catch (e) {}
+
+  // Some WeChat DevTools builds can throw inside console.warn/console.error
+  // while handling App.onError, which masks the original exception.
+  try {
+    if (console && typeof console.log === 'function') {
+      console.log(`[${type}] ${text}`);
+    }
+  } catch (e) {}
+}
+
 App({
   onLaunch: function () {
     console.log('小程序启动');
@@ -25,12 +44,12 @@ App({
 
   // 全局 JS 运行时错误捕获
   onError: function(error) {
-    console.warn('[GlobalError]', safeErrorText(error));
+    recordRuntimeError('GlobalError', error);
   },
 
   // 全局未处理的 Promise rejection 捕获
   onUnhandledRejection: function(res) {
-    console.warn('[UnhandledRejection]', safeErrorText(res && res.reason));
+    recordRuntimeError('UnhandledRejection', res && res.reason);
   },
 
   // ─── 全局状态初始化（启动时读取一次）───────────────────────────

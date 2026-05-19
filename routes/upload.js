@@ -86,6 +86,103 @@ const pdfUpload = multer({
   },
 });
 
+function cleanOriginalName(value, fallback = 'resume.pdf') {
+  const raw = String(value || fallback);
+  const safe = path.basename(raw).replace(/[\r\n]/g, ' ').trim();
+  return (safe || fallback).slice(0, 200);
+}
+
+function decodePdfString(value) {
+  return String(value || '')
+    .replace(/\\([nrtbf()\\])/g, (_, ch) => {
+      const map = { n: '\n', r: '\r', t: '\t', b: '', f: '', '(': '(', ')': ')', '\\': '\\' };
+      return map[ch] || ch;
+    })
+    .replace(/\\([0-7]{1,3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 8)));
+}
+
+function extractPdfTextBasic(filePath) {
+  const raw = fs.readFileSync(filePath);
+  const text = raw.toString('latin1');
+  const parts = [];
+  const literalPattern = /\((?:\\.|[^\\)]){2,}\)\s*Tj/g;
+  let match;
+
+  while ((match = literalPattern.exec(text))) {
+    parts.push(decodePdfString(match[0].replace(/\)\s*Tj$/, '').slice(1)));
+  }
+
+  const arrayPattern = /\[((?:\s*\((?:\\.|[^\\)])*\)\s*-?\d*\.?\d*)+)\]\s*TJ/g;
+  while ((match = arrayPattern.exec(text))) {
+    const inner = match[1];
+    const chunk = [];
+    const itemPattern = /\((?:\\.|[^\\)])*\)/g;
+    let item;
+    while ((item = itemPattern.exec(inner))) {
+      chunk.push(decodePdfString(item[0].slice(1, -1)));
+    }
+    if (chunk.length) parts.push(chunk.join(''));
+  }
+
+  const normalized = parts
+    .join('\n')
+    .replace(/\u0000/g, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\r/g, '\n')
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean)
+    .join('\n');
+
+  return normalized.slice(0, 12000);
+}
+
+function buildResumeDraftFromText(text, filename) {
+  const lines = String(text || '')
+    .split(/\n+/)
+    .map(line => line.trim())
+    .filter(line => line && line.length <= 180);
+  const joined = lines.join('\n');
+  const email = (joined.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i) || [])[0] || '';
+  const phone = (joined.match(/(?:\+?\d[\d\s().-]{7,}\d)/) || [])[0] || '';
+  const linkedin = (joined.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/[^\s)]+/i) || [])[0] || '';
+  const nameLine = lines.find(line => {
+    if (line.includes('@') || /linkedin|github|phone|email/i.test(line)) return false;
+    return /^[A-Za-z\u4e00-\u9fa5][A-Za-z\u4e00-\u9fa5\s.-]{1,50}$/.test(line);
+  }) || '';
+  const skillKeywords = [
+    'JavaScript', 'TypeScript', 'Python', 'Java', 'C++', 'SQL', 'React', 'Vue', 'Node.js',
+    'Express', 'Spring', 'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes', 'Tableau', 'Power BI',
+    'Excel', 'Figma', 'Axure', 'Machine Learning', 'Deep Learning', 'NLP', 'Data Analysis'
+  ];
+  const lower = joined.toLowerCase();
+  const skills = skillKeywords.filter(skill => lower.includes(skill.toLowerCase())).slice(0, 20);
+  const summaryLines = lines
+    .filter(line => !line.includes('@') && !/linkedin|github/i.test(line))
+    .slice(0, 6);
+
+  return {
+    score: 65,
+    basicInfo: {
+      name: nameLine,
+      title: '',
+      phone,
+      email,
+      location: '',
+      linkedin
+    },
+    summary: summaryLines.join('；').slice(0, 500),
+    workExp: [],
+    education: [],
+    skills,
+    projects: [],
+    sourceAttachment: {
+      filename,
+      extractedAt: new Date().toISOString()
+    }
+  };
+}
+
 // POST /api/upload/resume-pdf
 // 字段名 "file"，返回 { code:0, data: { id, url, filename, size } }
 router.post('/resume-pdf', authMiddleware, pdfUpload.single('file'), (req, res) => {
@@ -106,12 +203,15 @@ router.post('/resume-pdf', authMiddleware, pdfUpload.single('file'), (req, res) 
   }
 
   const fileUrl      = `/uploads/resumes/${req.file.filename}`;
-  const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8'); // 微信上传文件名编码修复
+  const originalName = cleanOriginalName(
+    (req.body && req.body.originalName) || req.file.originalname,
+    'resume.pdf'
+  );
 
   const result = db.prepare(`
     INSERT INTO resume_pdfs (user_id, filename, original_name, file_url, file_size)
     VALUES (?, ?, ?, ?, ?)
-  `).run(req.user.userId, req.file.filename, originalName.slice(0, 200), fileUrl, req.file.size);
+  `).run(req.user.userId, req.file.filename, originalName, fileUrl, req.file.size);
 
   res.json({ code: 0, message: '上传成功', data: {
     id:       result.lastInsertRowid,
@@ -127,6 +227,35 @@ router.get('/resume-pdfs', authMiddleware, (req, res) => {
     'SELECT id, original_name, file_url, file_size, created_at FROM resume_pdfs WHERE user_id=? ORDER BY created_at DESC LIMIT 10'
   ).all(req.user.userId);
   res.json({ code: 0, data: rows });
+});
+
+router.post('/resume-pdf/:id/extract', authMiddleware, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const row = db.prepare('SELECT * FROM resume_pdfs WHERE id=? AND user_id=?').get(id, req.user.userId);
+  if (!row) return res.status(404).json({ code: -1, message: 'PDF 简历不存在' });
+
+  const pdfPath = path.join(UPLOAD_DIR, 'resumes', row.filename);
+  if (!fs.existsSync(pdfPath)) return res.status(404).json({ code: -1, message: 'PDF 文件不存在' });
+
+  try {
+    const text = extractPdfTextBasic(pdfPath);
+    if (!text || text.length < 20) {
+      return res.status(422).json({
+        code: -1,
+        message: '暂时无法从该 PDF 提取文字，可能是扫描件或加密 PDF。请使用文字版 PDF，或先手动完善在线简历。'
+      });
+    }
+
+    res.json({
+      code: 0,
+      data: {
+        text,
+        resume: buildResumeDraftFromText(text, row.original_name || 'resume.pdf')
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ code: -1, message: '简历解析失败，请稍后重试' });
+  }
 });
 
 // DELETE /api/upload/resume-pdf/:id — 删除 PDF 简历

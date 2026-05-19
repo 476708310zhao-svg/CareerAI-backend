@@ -48,7 +48,7 @@
   <!-- 金刚区 -->
   <view class="feature-grid">
     <block wx:for="{{features}}" wx:key="id">
-      <view class="feature-item {{item.badge == 'AI' ? 'is-ai' : ''}}" bindtap="navigateToPage" data-url="{{item.url}}" hover-class="opacity-hover">
+      <view class="feature-item {{item.isAiClass}}" bindtap="navigateToPage" data-url="{{item.url}}" hover-class="opacity-hover">
         <view class="feature-icon-wrap" style="background: {{item.bg}};">
           <image src="{{item.icon}}" class="feature-icon" mode="aspectFit"></image>
           <view wx:if="{{item.badge}}" class="feature-badge">{{item.badge}}</view>
@@ -124,7 +124,7 @@
         <block wx:for="{{hotCompanies}}" wx:key="id">
           <view class="company-card" bindtap="goToCompanyDetail" data-id="{{item.id}}" data-name="{{item.name}}" hover-class="opacity-hover">
             <c-company-logo
-              logo="{{item.logoFailed ? '' : item.logo}}"
+              logo="{{item.logoSrc}}"
               name="{{item.name}}"
               fallback="{{item.initial}}"
               size="md"
@@ -155,7 +155,7 @@
 
     <!-- 骨架屏 -->
     <block wx:if="{{loadingJobs && recommendJobs.length === 0}}">
-      <view wx:for="{{[1,2,3]}}" wx:key="*this" class="job-card skeleton">
+      <view wx:for="{{skeletonRows}}" wx:key="*this" class="job-card skeleton">
         <view class="job-card-body">
           <view class="skeleton-line" style="width:110rpx;height:22rpx;margin-bottom:14rpx;border-radius:6rpx;"></view>
           <view class="skeleton-line long"></view>
@@ -180,7 +180,7 @@
       <view class="job-card" bindtap="goToJobDetail" data-id="{{item.id}}" data-title="{{item.title}}" hover-class="opacity-hover">
         <view class="job-card-body">
           <view class="job-card-topline">
-            <text class="job-card-loc">{{item.city}}{{item.state ? ', ' + item.state : ''}}</text>
+            <text class="job-card-loc">{{item.city}}{{item.stateSuffix}}</text>
             <text class="job-card-pill">推荐</text>
           </view>
           <text class="job-card-title">{{item.title}}</text>
@@ -191,9 +191,9 @@
           </view>
         </view>
         <c-company-logo
-          logo="{{item.logoFailed ? '' : item.logo}}"
+          logo="{{item.logoSrc}}"
           name="{{item.company}}"
-          fallback="{{item.companyInitial || 'C'}}"
+          fallback="{{item.companyInitial}}"
           size="md"
           lazy-load="{{true}}"
           custom-class="job-card-logo-wrap"
@@ -219,10 +219,10 @@
     <block wx:for="{{newsFeed}}" wx:key="id">
       <view class="news-item" bindtap="viewNewsDetail" data-item="{{item}}" hover-class="opacity-hover">
         <view class="news-content">
-          <text class="news-category {{item.type}}">{{item.type === 'tip' ? '技巧' : item.type === 'news' ? '资讯' : item.type === 'policy' ? '政策' : '数据'}}</text>
+          <text class="news-category {{item.type}}">{{item.categoryLabel}}</text>
           <text class="news-title">{{item.title}}</text>
           <view class="news-meta">
-            <text class="news-source">{{item.source || '求职助手'}}</text>
+            <text class="news-source">{{item.sourceText}}</text>
             <text class="news-dot">·</text>
             <text class="news-time">{{item.time}}</text>
           </view>

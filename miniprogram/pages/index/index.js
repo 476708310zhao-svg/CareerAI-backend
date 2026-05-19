@@ -21,6 +21,7 @@ Page({
     bannerList: [],
     currentBanner: 0,
     apiBase: config.API_BASE_URL,
+    skeletonRows: [1, 2, 3],
 
     // 2. 金刚区（8 入口，每个配独立背景色）
     features: [
@@ -28,8 +29,8 @@ Page({
       { id: 2, name: '薪酬查询', icon: '/images/icon-salary.png', url: '/package-career/pages/salary/salary', badge: 'Hot', bg: 'linear-gradient(145deg,#ecfdf5,#f8fbff)' },
       { id: 3, name: 'AI面试',   icon: '/images/icon-interview.png',  url: '/package-ai/pages/interview-setup/interview-setup', badge: 'New', bg: 'linear-gradient(145deg,#f3e8ff,#f8fbff)' },
       { id: 4, name: '简历诊断', icon: '/images/icon-resume.png',     url: '/package-career/pages/resume/resume', badge: 'New', bg: 'linear-gradient(145deg,#ecfdf5,#f8fbff)' },
-      { id: 5, name: '求职规划', icon: '/images/icon-plan.png', url: '/package-career/pages/career-planner/career-planner', badge: 'AI', bg: 'linear-gradient(145deg,#fff7ed,#f8fbff)' },
-      { id: 6, name: 'AI助手', icon: '/images/icon-ai-assistant.png', url: '/package-ai/pages/ai-workflow/ai-workflow', badge: 'AI', bg: 'linear-gradient(145deg,#eef4ff,#f8fbff)' },
+      { id: 5, name: '求职规划', icon: '/images/icon-plan.png', url: '/package-career/pages/career-planner/career-planner', badge: 'AI', isAi: true, bg: 'linear-gradient(145deg,#fff7ed,#f8fbff)' },
+      { id: 6, name: 'AI助手', icon: '/images/icon-ai-assistant.png', url: '/package-ai/pages/ai-workflow/ai-workflow', badge: 'AI', isAi: true, bg: 'linear-gradient(145deg,#eef4ff,#f8fbff)' },
       { id: 7, name: 'AI项目', icon: '/images/icon-project.png', url: '/package-career/pages/project-builder/project-builder', badge: 'New', bg: 'linear-gradient(145deg,#eef2ff,#f8fbff)' },
       { id: 8, name: '校招日历', icon: '/images/icon-calendar.png', url: '/package-content/pages/campus/campus', badge: '', bg: 'linear-gradient(145deg,#f0f9ff,#f8fbff)' }
     ],
@@ -86,6 +87,7 @@ Page({
   },
 
   onLoad() {
+    this.normalizeHomeData();
     try {
       this.loadUserProfile();
     } catch(e) { wx.showToast({ title: 'E1:' + e.message, icon: 'none', duration: 5000 }); return; }
@@ -104,6 +106,17 @@ Page({
     try {
       this.buildNewsFeed();
     } catch(e) { wx.showToast({ title: 'E5:' + e.message, icon: 'none', duration: 5000 }); }
+  },
+
+  normalizeHomeData() {
+    this.setData({
+      features: (this.data.features || []).map(item => Object.assign({}, item, {
+        isAiClass: item.isAi ? 'is-ai' : ''
+      })),
+      hotCompanies: (this.data.hotCompanies || []).map(item => Object.assign({}, item, {
+        logoSrc: item.logo || ''
+      }))
+    });
   },
 
   onShow() {
@@ -351,7 +364,10 @@ Page({
   onCompanyLogoError(e) {
     const idx = e.currentTarget.dataset.idx;
     if (typeof idx !== 'number' || (this.data.hotCompanies[idx] && this.data.hotCompanies[idx].logoFailed)) return;
-    this.setData({ [`hotCompanies[${idx}].logoFailed`]: true });
+    this.setData({
+      [`hotCompanies[${idx}].logoFailed`]: true,
+      [`hotCompanies[${idx}].logoSrc`]: ''
+    });
   },
 
   fetchHotCompanies() {
@@ -365,6 +381,7 @@ Page({
           description: company.industryL2 || company.industry || company.officialDomain || '',
           domain: company.officialDomain || '',
           logo: company.logo,
+          logoSrc: company.logo || '',
           initial: (company.name || '?').slice(0, 1).toUpperCase(),
           color: company.brandColor || '#2563eb'
         }))
@@ -378,7 +395,10 @@ Page({
   onJobLogoError(e) {
     const index = e.currentTarget.dataset.index;
     if (typeof index !== 'number' || (this.data.recommendJobs[index] && this.data.recommendJobs[index].logoFailed)) return;
-    this.setData({ [`recommendJobs[${index}].logoFailed`]: true });
+    this.setData({
+      [`recommendJobs[${index}].logoFailed`]: true,
+      [`recommendJobs[${index}].logoSrc`]: ''
+    });
   },
 
   buildCompanyLogo(companyName) {
@@ -389,7 +409,9 @@ Page({
   withCompanyLogos(jobs) {
     return (jobs || []).map(job => Object.assign({}, job, {
       logo: this.buildCompanyLogo(job.company) || job.logo || '',
+      logoSrc: this.buildCompanyLogo(job.company) || job.logo || '',
       logoFailed: false,
+      stateSuffix: job.state ? ', ' + job.state : '',
       companyInitial: (job.company || 'C').slice(0, 1).toUpperCase()
     }));
   },
@@ -482,7 +504,19 @@ Page({
       feed.push({ ...item, id: item.id + '_' + i, time: timeLabels[i + (feed.length > needed ? 1 : 0)] || '昨天' });
     }
 
-    this.setData({ newsFeed: feed.slice(0, 5) });
+    const typeLabels = {
+      tip: '技巧',
+      news: '资讯',
+      policy: '政策',
+      data: '数据'
+    };
+
+    this.setData({
+      newsFeed: feed.slice(0, 5).map(item => Object.assign({}, item, {
+        categoryLabel: typeLabels[item.type] || '数据',
+        sourceText: item.source || '求职助手'
+      }))
+    });
   },
 
   // 查看快讯详情
