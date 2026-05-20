@@ -7,11 +7,11 @@ const db      = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
 const { imageExtForMime, isAllowedImageMime, rejectInvalidImage } = require('../utils/uploadSecurity');
 
-let PDFParse = null;
+let parsePdf = null;
 try {
-  ({ PDFParse } = require('pdf-parse'));
+  parsePdf = require('pdf-parse');
 } catch (e) {
-  PDFParse = null;
+  parsePdf = null;
 }
 
 // 确保 uploads 目录存在
@@ -121,20 +121,14 @@ function normalizeExtractedText(value) {
 }
 
 async function extractPdfText(filePath) {
-  if (!PDFParse) return extractPdfTextBasic(filePath);
-  let parser;
+  if (!parsePdf) return extractPdfTextBasic(filePath);
+  const buffer = fs.readFileSync(filePath);
   try {
-    const buffer = fs.readFileSync(filePath);
-    parser = new PDFParse({ data: buffer });
-    const result = await parser.getText();
+    const result = await parsePdf(buffer);
     const text = normalizeExtractedText(result && result.text);
     if (text) return text;
   } catch (e) {
     // 部分损坏或特殊编码 PDF 让基础解析器再尝试一次。
-  } finally {
-    if (parser && typeof parser.destroy === 'function') {
-      try { await parser.destroy(); } catch (e) {}
-    }
   }
 
   return extractPdfTextBasic(filePath);

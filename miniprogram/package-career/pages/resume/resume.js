@@ -789,6 +789,15 @@ Page(Object.assign({
       success: async (res) => {
         if (res.statusCode >= 200 && res.statusCode < 300 && res.data && res.data.code === 0) {
           const parsed = res.data.data && res.data.data.resume;
+          const extraction = (res.data.data && res.data.data.extraction) || {};
+          if (extraction.status === 'empty') {
+            wx.showModal({
+              title: '未提取到内容',
+              content: extraction.warning || '这个 PDF 暂时没有提取到可用文字，可能是扫描件、图片型简历或加密 PDF。请换文字版 PDF，或手动填写在线简历。',
+              showCancel: false
+            });
+            return;
+          }
           const current = this.data.onlineResume || {};
           const merged = Object.assign({}, current, parsed, {
             basicInfo: Object.assign({}, current.basicInfo || {}, parsed.basicInfo || {}),
