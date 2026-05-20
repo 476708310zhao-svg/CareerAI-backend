@@ -445,7 +445,19 @@ test('resume pdf extract returns an online resume draft', async () => {
     'john.doe@example.com',
     '+1 415 555 1234',
     'linkedin.com/in/johndoe',
-    'Software Engineer with Python SQL React experience'
+    'Software Engineer with Python SQL React experience',
+    'Education',
+    'University of California Berkeley',
+    'Master of Science in Computer Science',
+    '2022 - 2024',
+    'Experience',
+    'Google',
+    'Software Engineer Intern',
+    '2023 - 2024',
+    'Built React and Node.js internal tools',
+    'Projects',
+    'Job Matching Platform',
+    'Designed a recommendation engine with Python and SQL'
   ].join('\n')), 'john.pdf');
 
   const uploadRes = await fetch(`${BASE_URL}/api/upload/resume-pdf`, {
@@ -467,6 +479,10 @@ test('resume pdf extract returns an online resume draft', async () => {
   assert.equal(body.data.resume.basicInfo.name, 'John Doe');
   assert.equal(body.data.resume.basicInfo.email, 'john.doe@example.com');
   assert.ok(body.data.resume.skills.includes('Python'));
+  assert.equal(body.data.resume.education[0].school, 'University of California Berkeley');
+  assert.equal(body.data.resume.workExp[0].company, 'Google');
+  assert.equal(body.data.resume.workExp[0].role, 'Software Engineer Intern');
+  assert.equal(body.data.resume.projects[0].name, 'Job Matching Platform');
   assert.ok(body.data.text.includes('Software Engineer'));
 });
 

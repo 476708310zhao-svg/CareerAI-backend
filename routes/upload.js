@@ -160,6 +160,130 @@ function extractPdfTextBasic(filePath) {
   return normalizeExtractedText(parts.join('\n'));
 }
 
+const SECTION_HEADERS = {
+  education: /^(education|academic background|学历|教育经历|教育背景)$/i,
+  work: /^(experience|work experience|professional experience|employment|internship experience|工作经历|实习经历|实践经历|职业经历)$/i,
+  projects: /^(projects|project experience|selected projects|项目经历|项目经验|项目)$/i,
+  skills: /^(skills|technical skills|技能|技能标签|专业技能)$/i,
+  summary: /^(summary|profile|objective|个人优势|自我评价|简介)$/i
+};
+
+const ANY_SECTION_HEADER = new RegExp(
+  Object.values(SECTION_HEADERS).map(r => r.source.replace(/^\^|\$$/g, '')).join('|'),
+  'i'
+);
+
+function isSectionHeader(line) {
+  const value = String(line || '').replace(/[:：]/g, '').trim();
+  return value.length <= 40 && ANY_SECTION_HEADER.test(value);
+}
+
+function extractSection(lines, type) {
+  const header = SECTION_HEADERS[type];
+  const start = lines.findIndex(line => header.test(String(line || '').replace(/[:：]/g, '').trim()));
+  if (start < 0) return [];
+  const out = [];
+  for (let i = start + 1; i < lines.length; i++) {
+    if (isSectionHeader(lines[i])) break;
+    out.push(lines[i]);
+  }
+  return out.filter(Boolean);
+}
+
+function isDateLine(line) {
+  return /(?:20\d{2}|19\d{2}|present|current|now|至今|目前|迄今)/i.test(line || '');
+}
+
+function findDateRange(lines) {
+  const line = (lines || []).find(isDateLine) || '';
+  return line
+    .replace(/.*?((?:19|20)\d{2}(?:[./-]\d{1,2})?\s*(?:-|–|—|~|至|到)\s*(?:(?:19|20)\d{2}(?:[./-]\d{1,2})?|present|current|now|至今|目前|迄今)).*/i, '$1')
+    .trim();
+}
+
+function compactDesc(lines, max = 420) {
+  return (lines || [])
+    .map(line => String(line || '').replace(/^[•·*-]\s*/, '').trim())
+    .filter(Boolean)
+    .join('\n')
+    .slice(0, max);
+}
+
+function splitExperienceBlocks(sectionLines) {
+  const blocks = [];
+  let current = [];
+  for (const line of sectionLines) {
+    const startsNew = current.length >= 3 && isDateLine(line) && !/^[•·*-]/.test(line);
+    if (startsNew) {
+      blocks.push(current);
+      current = [];
+    }
+    current.push(line);
+  }
+  if (current.length) blocks.push(current);
+  return blocks.slice(0, 4);
+}
+
+function parseEducation(lines) {
+  const section = extractSection(lines, 'education');
+  if (!section.length) return [];
+  const schoolRe = /(university|college|institute|school|academy|大学|学院|学校)/i;
+  const degreeRe = /(bachelor|master|ph\.?d|doctor|b\.?s\.?|m\.?s\.?|b\.?a\.?|m\.?a\.?|本科|硕士|博士|学士|研究生)/i;
+  const schoolLine = section.find(line => schoolRe.test(line)) || section[0] || '';
+  const degreeLine = section.find(line => degreeRe.test(line)) || '';
+  const majorLine = section.find(line =>
+    /(major|computer|science|engineering|business|finance|analytics|data|专业|计算机|金融|工程|数据|商业)/i.test(line) &&
+    line !== schoolLine
+  ) || '';
+  const time = findDateRange(section);
+  if (!schoolLine && !degreeLine) return [];
+  return [{
+    id: Date.now(),
+    school: schoolLine.replace(/\s{2,}/g, ' ').trim(),
+    degree: degreeLine.replace(/\s{2,}/g, ' ').trim(),
+    major: majorLine.replace(/\s{2,}/g, ' ').trim(),
+    time
+  }];
+}
+
+function parseWorkExperience(lines) {
+  const section = extractSection(lines, 'work');
+  if (!section.length) return [];
+  const roleRe = /(engineer|developer|manager|analyst|scientist|designer|consultant|researcher|intern|assistant|lead|director|工程师|开发|经理|分析师|实习|助理|研究员|顾问|设计师)/i;
+  return splitExperienceBlocks(section).map((block, index) => {
+    const time = findDateRange(block);
+    const clean = block.filter(line => !isDateLine(line) && !isSectionHeader(line));
+    const roleLine = clean.find(line => roleRe.test(line)) || '';
+    const companyLine = clean.find(line => line !== roleLine && !/^[•·*-]/.test(line)) || clean[0] || '';
+    const descLines = clean.filter(line => line !== companyLine && line !== roleLine);
+    return {
+      id: Date.now() + index,
+      company: companyLine.trim(),
+      role: roleLine.trim(),
+      time,
+      desc: compactDesc(descLines)
+    };
+  }).filter(item => item.company || item.role || item.desc);
+}
+
+function parseProjects(lines) {
+  const section = extractSection(lines, 'projects');
+  if (!section.length) return [];
+  return splitExperienceBlocks(section).map((block, index) => {
+    const time = findDateRange(block);
+    const clean = block.filter(line => !isDateLine(line) && !isSectionHeader(line));
+    const name = (clean.find(line => !/^[•·*-]/.test(line)) || clean[0] || '').trim();
+    const desc = compactDesc(clean.filter(line => line !== name), 360);
+    return {
+      id: Date.now() + index,
+      name,
+      role: '',
+      time,
+      desc
+    };
+  }).filter(item => item.name || item.desc).slice(0, 4);
+}
+
 function buildResumeDraftFromText(text, filename) {
   const lines = String(text || '')
     .split(/\n+/)
@@ -195,10 +319,10 @@ function buildResumeDraftFromText(text, filename) {
       linkedin
     },
     summary: summaryLines.join('；').slice(0, 500),
-    workExp: [],
-    education: [],
+    workExp: parseWorkExperience(lines),
+    education: parseEducation(lines),
     skills,
-    projects: [],
+    projects: parseProjects(lines),
     sourceAttachment: {
       filename,
       extractedAt: new Date().toISOString()
