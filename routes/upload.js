@@ -7,6 +7,13 @@ const db      = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
 const { imageExtForMime, isAllowedImageMime, rejectInvalidImage } = require('../utils/uploadSecurity');
 
+let PDFParse = null;
+try {
+  ({ PDFParse } = require('pdf-parse'));
+} catch (e) {
+  PDFParse = null;
+}
+
 // 确保 uploads 目录存在
 const UPLOAD_DIR = path.join(__dirname, '../uploads');
 if (!fs.existsSync(UPLOAD_DIR)) {
@@ -101,6 +108,38 @@ function decodePdfString(value) {
     .replace(/\\([0-7]{1,3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 8)));
 }
 
+function normalizeExtractedText(value) {
+  return String(value || '')
+    .replace(/\u0000/g, '')
+    .replace(/\r/g, '\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean)
+    .join('\n')
+    .slice(0, 12000);
+}
+
+async function extractPdfText(filePath) {
+  if (!PDFParse) return extractPdfTextBasic(filePath);
+  let parser;
+  try {
+    const buffer = fs.readFileSync(filePath);
+    parser = new PDFParse({ data: buffer });
+    const result = await parser.getText();
+    const text = normalizeExtractedText(result && result.text);
+    if (text) return text;
+  } catch (e) {
+    // 部分损坏或特殊编码 PDF 让基础解析器再尝试一次。
+  } finally {
+    if (parser && typeof parser.destroy === 'function') {
+      try { await parser.destroy(); } catch (e) {}
+    }
+  }
+
+  return extractPdfTextBasic(filePath);
+}
+
 function extractPdfTextBasic(filePath) {
   const raw = fs.readFileSync(filePath);
   const text = raw.toString('latin1');
@@ -124,17 +163,7 @@ function extractPdfTextBasic(filePath) {
     if (chunk.length) parts.push(chunk.join(''));
   }
 
-  const normalized = parts
-    .join('\n')
-    .replace(/\u0000/g, '')
-    .replace(/[ \t]{2,}/g, ' ')
-    .replace(/\r/g, '\n')
-    .split('\n')
-    .map(line => line.trim())
-    .filter(Boolean)
-    .join('\n');
-
-  return normalized.slice(0, 12000);
+  return normalizeExtractedText(parts.join('\n'));
 }
 
 function buildResumeDraftFromText(text, filename) {
@@ -229,7 +258,7 @@ router.get('/resume-pdfs', authMiddleware, (req, res) => {
   res.json({ code: 0, data: rows });
 });
 
-router.post('/resume-pdf/:id/extract', authMiddleware, (req, res) => {
+router.post('/resume-pdf/:id/extract', authMiddleware, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const row = db.prepare('SELECT * FROM resume_pdfs WHERE id=? AND user_id=?').get(id, req.user.userId);
   if (!row) return res.status(404).json({ code: -1, message: 'PDF 简历不存在' });
@@ -238,10 +267,18 @@ router.post('/resume-pdf/:id/extract', authMiddleware, (req, res) => {
   if (!fs.existsSync(pdfPath)) return res.status(404).json({ code: -1, message: 'PDF 文件不存在' });
 
   try {
-    const text = extractPdfTextBasic(pdfPath);
+    const text = await extractPdfText(pdfPath);
     if (!text || text.length < 20) {
-      return res.status(422).json({
-        code: -1,
+      return res.json({
+        code: 0,
+        data: {
+          text: '',
+          resume: buildResumeDraftFromText('', row.original_name || 'resume.pdf'),
+          extraction: {
+            status: 'empty',
+            warning: '该 PDF 可能是扫描件、图片型简历、加密 PDF，或使用了特殊字体编码。已创建空白草稿，请手动补充关键信息。'
+          }
+        },
         message: '暂时无法从该 PDF 提取文字，可能是扫描件或加密 PDF。请使用文字版 PDF，或先手动完善在线简历。'
       });
     }
@@ -250,7 +287,8 @@ router.post('/resume-pdf/:id/extract', authMiddleware, (req, res) => {
       code: 0,
       data: {
         text,
-        resume: buildResumeDraftFromText(text, row.original_name || 'resume.pdf')
+        resume: buildResumeDraftFromText(text, row.original_name || 'resume.pdf'),
+        extraction: { status: 'ok' }
       }
     });
   } catch (e) {
