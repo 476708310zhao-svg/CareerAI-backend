@@ -131,19 +131,111 @@ page {
 }
 
 /* ====== 底部操作栏 ====== */
+.footer,
+.ux-bottom-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 300;
+  min-height: calc(112rpx + env(safe-area-inset-bottom));
+  padding: 14rpx 24rpx calc(14rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.98);
+  border-top: 1rpx solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 -14rpx 34rpx rgba(15, 23, 42, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
 .footer-icons {
   width: 146rpx;
   max-width: 146rpx;
 }
 
-.f-icon-txt {
-  color: inherit;
-  font-size: 30rpx;
+.footer-icons,
+.ux-bottom-icons {
+  flex: 0 0 144rpx;
+  width: 144rpx;
+  max-width: 144rpx;
+  display: grid;
+  grid-template-columns: repeat(2, 64rpx);
+  gap: 12rpx;
+  align-items: center;
+}
+
+.f-icon,
+.ux-icon-action,
+.share-btn {
+  width: 64rpx;
+  min-width: 64rpx;
+  height: 64rpx;
+  padding: 0;
+  margin: 0;
+  border-radius: 20rpx;
+  border: 1rpx solid rgba(226, 232, 240, 0.95);
+  background: #f8fafc;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   line-height: 1;
+}
+
+.share-btn::after {
+  border: none;
+}
+
+.f-icon.active {
+  color: #2563eb;
+  background: #eef4ff;
+  border-color: rgba(37, 99, 235, 0.18);
+}
+
+.f-icon-txt {
+  display: block;
+  color: inherit;
+  font-size: 32rpx;
+  line-height: 1;
+}
+
+.f-btn,
+.ux-sub-cta,
+.ux-main-cta {
+  min-width: 0;
+  height: 72rpx;
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .f-btn-ai {
   font-size: 25rpx;
+}
+
+.ux-sub-cta {
+  flex: 0 0 176rpx;
+  gap: 8rpx;
+  color: #1d4ed8;
+  background: #eef4ff;
+  border: 1rpx solid rgba(37, 99, 235, 0.16);
+  font-size: 25rpx;
+  font-weight: 850;
+}
+
+.ux-main-cta {
+  flex: 1;
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow: 0 12rpx 24rpx rgba(37, 99, 235, 0.22);
+  font-size: 28rpx;
+  font-weight: 900;
 }
 
 .ai-badge {
