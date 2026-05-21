@@ -75,3 +75,27 @@
   color: #999;
   font-size: 28rpx;
 }
+
+/* Global dark AI marks: keep AI icons visible on pale cards. */
+.ai-icon-box,
+.ai-avatar,
+.ai-intro-badge,
+.ai-badge,
+.answer-action-mark,
+.brand-mark,
+.top-icon,
+.drawer-logo,
+.ai-tag,
+.q-ai-tag,
+.fab-text {
+  background: linear-gradient(135deg, #111827 0%, #1e293b 100%) !important;
+  color: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.16) !important;
+}
+
+.ai-icon-txt,
+.ai-avatar-icon,
+.ai-avatar-text,
+.ai-badge-txt {
+  color: #ffffff !important;
+}

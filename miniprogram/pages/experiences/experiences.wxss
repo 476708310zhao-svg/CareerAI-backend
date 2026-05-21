@@ -1038,6 +1038,53 @@ page {
   line-height: 1.6;
 }
 
+/* AI entry contrast pass */
+.fixed-header .ai-bar {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(56, 189, 248, 0.20), transparent 34%),
+    linear-gradient(135deg, #111827 0%, #1e293b 58%, #172554 100%);
+  border: 1rpx solid rgba(96, 165, 250, 0.32);
+  box-shadow: 0 16rpx 34rpx rgba(15, 23, 42, 0.20);
+}
+
+.fixed-header .ai-icon-box {
+  background: #ffffff;
+  border: 1rpx solid rgba(191, 219, 254, 0.85);
+  box-shadow: 0 8rpx 18rpx rgba(0, 0, 0, 0.18);
+}
+
+.fixed-header .ai-icon-txt {
+  color: #0f172a;
+  font-weight: 900;
+}
+
+.fixed-header .ai-bar-title {
+  color: #ffffff;
+}
+
+.fixed-header .ai-bar-desc {
+  color: #cbd5e1;
+}
+
+.fixed-header .ai-gen-btn {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1rpx solid rgba(219, 234, 254, 0.88);
+  box-shadow: 0 10rpx 22rpx rgba(0, 0, 0, 0.20);
+  font-weight: 850;
+}
+
+.fixed-header .ai-gen-btn.disabled {
+  color: #64748b;
+  background: rgba(255, 255, 255, 0.70);
+}
+
+.q-ai-tag {
+  background: #111827;
+  color: #ffffff;
+  border-color: rgba(15, 23, 42, 0.12);
+}
+
 .q-action {
   padding: 8rpx 16rpx;
   border-radius: 999rpx;
