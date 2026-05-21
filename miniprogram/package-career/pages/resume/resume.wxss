@@ -525,13 +525,16 @@ page {
 /* ======================== AI 寮圭獥鏍峰紡 ======================== */
 .ai-modal {
   height: 100%;
+  max-height: 82vh;
   display: flex;
   flex-direction: column;
   padding: 30rpx;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .ai-header {
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -548,14 +551,20 @@ page {
 
 .ai-content-scroll {
   flex: 1;
+  min-height: 0;
+  height: calc(82vh - 230rpx - env(safe-area-inset-bottom));
+  max-height: calc(82vh - 230rpx - env(safe-area-inset-bottom));
   background: #f9faff;
   border-radius: var(--r-md);
   padding: 30rpx;
   box-sizing: border-box;
   margin-bottom: 30rpx;
+  overflow: hidden;
 }
 
 .ai-text {
+  display: block;
+  padding-bottom: 24rpx;
   font-size: 28rpx;
   color: var(--text-body);
   line-height: 1.8;
@@ -563,6 +572,7 @@ page {
 }
 
 .ai-footer {
+  flex-shrink: 0;
   display: flex;
   gap: 20rpx;
 }

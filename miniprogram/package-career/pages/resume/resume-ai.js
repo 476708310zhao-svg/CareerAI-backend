@@ -90,7 +90,7 @@ module.exports = {
   _showResult(title, content, isPolish) {
     this._safeSetData({
       showAiResult: true,
-      _modalStyle: 'height: 60vh; background: #fff; border-radius: 24rpx 24rpx 0 0;',
+      _modalStyle: 'height: 82vh; max-height: 82vh; background: #fff; border-radius: 24rpx 24rpx 0 0;',
       aiResultTitle: title,
       aiResultContent: content,
       isPolishMode: isPolish
