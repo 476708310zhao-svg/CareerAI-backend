@@ -1,13 +1,19 @@
 <!-- pages/search/search.wxml -->
-<view class="container">
+<view class="container search-page">
 
   <!-- 搜索栏 -->
-  <view class="search-bar">
-    <view class="search-input-wrap">
-      <icon type="search" size="14" color="#999"></icon>
-      <input class="search-input" placeholder="搜索职位、公司或面经" value="{{keyword}}" bindinput="onInput" bindconfirm="doSearch" focus="true" />
+  <view class="search-panel">
+    <view class="search-bar">
+      <view class="search-input-wrap">
+        <icon type="search" size="16" color="#8A94A6"></icon>
+        <input class="search-input" placeholder="搜索职位、公司或面经" value="{{keyword}}" bindinput="onInput" bindconfirm="doSearch" confirm-type="search" focus="true" />
+      </view>
+      <view class="search-btn" bindtap="doSearch">搜索</view>
     </view>
-    <view class="search-btn" bindtap="doSearch">搜索</view>
+    <view class="search-hint" wx:if="{{hasSearched}}">
+      <text class="search-hint-main">搜索结果</text>
+      <text class="search-hint-sub">{{keyword}} · {{jobResults.length + companyResults.length + experienceResults.length}} 条相关内容</text>
+    </view>
   </view>
 
   <!-- 搜索前：热门 + 历史 -->
@@ -48,31 +54,49 @@
           bindtap="switchTab"
           data-index="{{index}}"
         >
-          {{item}}
-          <text class="tab-count" wx:if="{{index === 0}}">({{jobResults.length}})</text>
-          <text class="tab-count" wx:if="{{index === 1}}">({{companyResults.length}})</text>
-          <text class="tab-count" wx:if="{{index === 2}}">({{experienceResults.length}})</text>
+          <text class="tab-label">{{item}}</text>
+          <text class="tab-count" wx:if="{{index === 0}}">{{jobResults.length}}</text>
+          <text class="tab-count" wx:if="{{index === 1}}">{{companyResults.length}}</text>
+          <text class="tab-count" wx:if="{{index === 2}}">{{experienceResults.length}}</text>
         </view>
       </block>
     </view>
 
     <!-- Loading -->
-    <view wx:if="{{loading}}" class="loading">搜索中...</view>
+    <view wx:if="{{loading}}" class="loading">
+      <view class="loading-dot"></view>
+      <text>正在搜索匹配机会...</text>
+    </view>
 
     <!-- 职位结果 -->
     <view wx:if="{{currentTab === 0 && !loading}}" class="result-list">
       <block wx:for="{{jobResults}}" wx:key="id">
         <view class="job-card" bindtap="goToJobDetail" data-id="{{item.id}}" data-title="{{item.title}}">
-          <image class="job-logo" src="{{item.logo}}" mode="aspectFit" lazy-load></image>
-          <view class="job-info">
-            <text class="job-title">{{item.title}}</text>
-            <text class="job-company">{{item.company}}</text>
-            <view class="job-meta">
-              <text class="meta-tag">{{item.city}}{{item.state ? ', ' + item.state : ''}}</text>
-              <text class="meta-tag">{{item.type}}</text>
+          <view class="job-card-main">
+            <c-company-logo
+              logo="{{item.logo}}"
+              name="{{item.company}}"
+              fallback="{{item.company}}"
+              size="md"
+              lazy-load="{{true}}"
+              custom-class="job-logo"
+            ></c-company-logo>
+            <view class="job-info">
+              <view class="job-title-row">
+                <text class="job-title">{{item.title}}</text>
+                <text class="job-arrow">›</text>
+              </view>
+              <text class="job-company">{{item.company}}</text>
+              <view class="job-meta">
+                <text class="meta-tag">{{item.city}}{{item.state ? ', ' + item.state : ''}}</text>
+                <text class="meta-tag">{{item.type || 'Full-time'}}</text>
+              </view>
             </view>
           </view>
-          <text class="job-salary">{{item.salary}}</text>
+          <view class="job-card-foot">
+            <text class="salary-label">薪资范围</text>
+            <text class="job-salary">{{item.salary || 'Negotiable'}}</text>
+          </view>
         </view>
       </block>
       <view wx:if="{{jobResults.length === 0}}" class="empty">未找到相关职位</view>
@@ -89,11 +113,23 @@
     <view wx:if="{{currentTab === 1 && !loading}}" class="result-list">
       <block wx:for="{{companyResults}}" wx:key="id">
         <view class="company-card" bindtap="goToCompanyDetail" data-id="{{item.id}}" data-name="{{item.name}}">
-          <image class="company-logo" src="{{item.logo}}" mode="aspectFit" lazy-load></image>
+          <c-company-logo
+            logo="{{item.logo}}"
+            name="{{item.name}}"
+            fallback="{{item.name}}"
+            size="md"
+            lazy-load="{{true}}"
+            custom-class="company-logo"
+          ></c-company-logo>
           <view class="company-info">
             <text class="company-name">{{item.name}}</text>
-            <text class="company-meta">{{item.industry}} · {{item.size}} · {{item.jobCount}}个在招职位</text>
+            <view class="company-meta-row">
+              <text class="company-chip">{{item.industry}}</text>
+              <text class="company-chip">{{item.size}}</text>
+              <text class="company-chip active">{{item.jobCount}} 个在招</text>
+            </view>
           </view>
+          <text class="company-arrow">›</text>
         </view>
       </block>
       <view wx:if="{{companyResults.length === 0}}" class="empty">未找到相关公司</view>
@@ -103,11 +139,14 @@
     <view wx:if="{{currentTab === 2 && !loading}}" class="result-list">
       <block wx:for="{{experienceResults}}" wx:key="id">
         <view class="exp-card" bindtap="goToExperienceDetail" data-id="{{item.id}}">
+          <view class="exp-top">
+            <text class="exp-badge">{{item.type}}</text>
+            <text class="exp-likes">{{item.likesCount}} 赞</text>
+          </view>
           <text class="exp-title">{{item.title}}</text>
           <view class="exp-meta">
             <text class="exp-company">{{item.company}}</text>
-            <text class="exp-type">{{item.type}}</text>
-            <text class="exp-likes">{{item.likesCount}} 赞</text>
+            <text class="exp-arrow">阅读全文 ›</text>
           </view>
         </view>
       </block>
