@@ -182,6 +182,8 @@ const SOURCE_LABELS = {
   indeed: 'Indeed',
   local: '历史职位库'
 };
+const MAP_KEYWORDS = ['software', 'data', 'product', 'finance', 'design', 'consulting'];
+const MAP_MUSE_PAGES = [1, 2];
 
 async function _fetchSearchJobsForWeb(query, page) {
   const searchQuery = query || 'software engineer';
@@ -271,6 +273,28 @@ async function _fetchLiveWebJobs(query) {
       return true;
     })
     .sort((a, b) => new Date(b.postedAt || 0).getTime() - new Date(a.postedAt || 0).getTime());
+}
+
+async function _fetchMapWebJobs(pageSize) {
+  if (!LIVE_JOBS_ENABLED) return [];
+  const batches = await Promise.all(
+    MAP_KEYWORDS.flatMap(keyword => [
+      _fetchSearchJobsForWeb(keyword, 1),
+      ...MAP_MUSE_PAGES.map(page => _fetchMuseJobsForWeb(keyword, page))
+    ])
+  );
+  const seen = new Set();
+  return batches
+    .flat()
+    .map(_toWebJob)
+    .filter(job => {
+      const key = `${job.title}|${job.company}|${job.location}`.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => new Date(b.postedAt || 0).getTime() - new Date(a.postedAt || 0).getTime())
+    .slice(0, pageSize);
 }
 
 // 将 employment_types 映射到 Adzuna contract_time
@@ -781,6 +805,47 @@ router.get('/recommend/list', jobsLimiter, async (req, res) => {
     res.json({ code: 0, message: 'success', data: list });
   } catch (error) {
     console.error(error); res.status(500).json({ code: -1, message: '服务器内部错误' });
+  }
+});
+
+// GET /api/jobs/map
+router.get('/map', jobsLimiter, async (req, res) => {
+  try {
+    const pageSize = Math.min(Math.max(parseInt(req.query.pageSize) || 160, 20), 240);
+    const liveJobs = await _fetchMapWebJobs(pageSize);
+    const localJobs = jobsData.jobs.map(_toLocalWebJob);
+    const hasEnoughLiveCoverage = liveJobs.length >= 30;
+    const list = hasEnoughLiveCoverage
+      ? liveJobs
+      : [...liveJobs, ...localJobs].slice(0, pageSize);
+
+    res.json({
+      code: 0,
+      message: 'success',
+      data: {
+        list,
+        total: list.length,
+        source: hasEnoughLiveCoverage ? 'live' : liveJobs.length ? 'live_with_local_fallback' : 'local_fallback',
+        sources: [...new Set(list.map(job => job.source).filter(Boolean))]
+      },
+      meta: {
+        liveJobsEnabled: LIVE_JOBS_ENABLED,
+        generatedAt: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('[jobs/map]', error.message);
+    const list = jobsData.jobs.map(_toLocalWebJob).slice(0, Math.min(parseInt(req.query.pageSize) || 160, 240));
+    res.json({
+      code: 0,
+      message: 'success',
+      data: {
+        list,
+        total: list.length,
+        source: 'local_fallback',
+        sources: ['local']
+      }
+    });
   }
 });
 
