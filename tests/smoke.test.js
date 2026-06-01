@@ -130,6 +130,34 @@ test('public career tips news endpoint returns articles', async () => {
   assert.ok(body.articles.length > 0);
 });
 
+test('public visa policy endpoint returns official resource items', async () => {
+  const res = await fetch(`${BASE_URL}/api/content/visa-policies?country=${encodeURIComponent('美国')}`);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.code, 0);
+  assert.ok(Array.isArray(body.data.items));
+  assert.ok(body.data.items.length > 0);
+  assert.ok(body.data.items[0].officialUrl);
+});
+
+test('public help center endpoint returns product help articles', async () => {
+  const res = await fetch(`${BASE_URL}/api/content/help-center?keyword=${encodeURIComponent('职位')}`);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.code, 0);
+  assert.ok(Array.isArray(body.data.items));
+  assert.ok(body.data.items.length > 0);
+});
+
+test('public interview experiences endpoint includes curated library content', async () => {
+  const res = await fetch(`${BASE_URL}/api/experiences?page=1&pageSize=20`);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.code, 0);
+  assert.ok(Array.isArray(body.data.list));
+  assert.ok(body.data.list.length >= 8);
+});
+
 test('public companies endpoint returns a data payload', async () => {
   const res = await fetch(`${BASE_URL}/api/companies?page=1&pageSize=1`);
   assert.equal(res.status, 200);
