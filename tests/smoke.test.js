@@ -122,6 +122,14 @@ test('public banners endpoint returns a list payload', async () => {
   assert.ok(Array.isArray(body.data));
 });
 
+test('public career tips news endpoint returns articles', async () => {
+  const res = await fetch(`${BASE_URL}/api/news?tab=tip&limit=5`);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.ok(Array.isArray(body.articles));
+  assert.ok(body.articles.length > 0);
+});
+
 test('public companies endpoint returns a data payload', async () => {
   const res = await fetch(`${BASE_URL}/api/companies?page=1&pageSize=1`);
   assert.equal(res.status, 200);
