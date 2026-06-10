@@ -2,7 +2,7 @@
 // 基础请求封装：三层缓存 + 请求去重 + Token 注入
 // 供各业务模块 require，不直接暴露给页面
 
-const config = require('./config.js');
+const config = require('./app-config.js');
 const API_BASE = config.API_BASE_URL;
 
 const _memCache = {};       // 内存缓存
@@ -163,7 +163,8 @@ function _write(options, _retried) {
           wx.removeStorageSync('userProfile');
           reject(new Error('unauthorized'));
         } else {
-          reject(new Error('HTTP ' + res.statusCode));
+          const message = res.data && (res.data.message || res.data.error);
+          reject(new Error(message || ('HTTP ' + res.statusCode)));
         }
       },
       fail: (err) => {

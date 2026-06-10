@@ -113,7 +113,7 @@ Page({
           formReadyText: customAnswers.length > 0 ? `表单已就绪，有 ${customAnswers.length} 个附加问题需填写` : '表单已就绪，无附加必填项',
         });
       } else {
-        const msg = (res && res.message) || '鑾峰彇琛ㄥ崟澶辫触';
+        const msg = (res && res.message) || '获取表单失败';
         this.setData({ formLoading: false, formError: msg });
         wx.showToast({ title: msg, icon: 'none' });
       }
@@ -122,7 +122,7 @@ Page({
     });
   },
 
-  // 鈹€鈹€ Step 1: PDF 閫夋嫨 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // Step 1: PDF 选择
   selectPdf(e) {
     this.setData({ selectedPdfId: String(e.currentTarget.dataset.id) });
   },
@@ -178,7 +178,7 @@ Page({
     wx.pageScrollTo({ scrollTop: 0, duration: 200 });
   },
 
-  // 鈹€鈹€ Step 2: 濉啓淇℃伅 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // Step 2: 填写信息
   onBasicInput(e) {
     const field = e.currentTarget.dataset.field;
     this.setData({ [`basicInfo.${field}`]: e.detail.value });
@@ -236,7 +236,7 @@ Page({
     });
   },
 
-  // 鈹€鈹€ Step 3: 缁撴灉 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // Step 3: 结果
   retrySubmit() {
     this.setData({ step: 2, submitResult: null });
     wx.pageScrollTo({ scrollTop: 0, duration: 200 });

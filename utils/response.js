@@ -1,8 +1,7 @@
 // backend/utils/response.js
-// 统一 API 响应格式，消除路由间 { code, message, data } 结构不一致的问题
+// Unified API response helpers.
 
 /**
- * 成功响应
  * @param {object} res - Express response
  * @param {*} data
  * @param {string} [message='success']
@@ -12,7 +11,6 @@ function ok(res, data, message) {
 }
 
 /**
- * 失败响应
  * @param {object} res - Express response
  * @param {string} message
  * @param {number} [status=500]

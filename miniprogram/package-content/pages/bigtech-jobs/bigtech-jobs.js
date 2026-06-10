@@ -18,7 +18,7 @@ const SPONSOR_LABELS = { yes: '可赞助', no: '不赞助', unknown: '未知' };
 const SPONSOR_COLORS  = { yes: '#16a34a', no: '#dc2626', unknown: '#9ca3af' };
 
 const COMPANIES = [
-  '鍏ㄩ儴', 'Airbnb', 'Stripe', 'Lyft', 'DoorDash', 'Coinbase', 'Figma',
+  '全部', 'Airbnb', 'Stripe', 'Lyft', 'DoorDash', 'Coinbase', 'Figma',
   'Notion', 'Discord', 'Ramp', 'Brex', 'Scale AI', 'Duolingo', 'Chime',
   'Databricks', 'Airtable', 'Robinhood', 'Flexport', 'Netflix', 'Plaid',
   'Rippling', 'Retool', 'Linear', 'Vercel', 'Hugging Face', 'OpenAI', 'Anthropic',
@@ -33,7 +33,8 @@ Page({
     page: 1,
     total: 0,
 
-    // 绛涢€?    filterCompany:     '',
+    // 筛选
+    filterCompany:     '',
     filterSponsor:     '',   // '' | 'yes' | 'no' | 'unknown'
     filterRemote:      '',   // '' | '1'
     filterKeyword:     '',
@@ -41,17 +42,13 @@ Page({
     companyList:       COMPANIES,
     selectedCompanyIdx: 0,
 
-    // 缁熻
+    // 统计
     stats: null,
   },
 
   onLoad() {
     this.loadJobs(true);
     this._loadStats();
-  },
-
-  goToCronStatus() {
-    wx.navigateTo({ url: '/package-content/pages/cron-status/cron-status' });
   },
 
   onPullDownRefresh() {
@@ -83,9 +80,9 @@ Page({
       const total  = (res && res.total) || 0;
       const items  = raw.map(j => ({
         ...j,
-        sponsorLabel: SPONSOR_LABELS[j.sponsorship] || '鏈煡',
+        sponsorLabel: SPONSOR_LABELS[j.sponsorship] || '未知',
         sponsorColor: SPONSOR_COLORS[j.sponsorship] || '#9ca3af',
-        locationShort: (j.location || '').split(',')[0].trim() || '鏈煡鍦扮偣',
+        locationShort: (j.location || '').split(',')[0].trim() || '未知地点',
       }));
 
       const list = reset ? items : this.data.jobs.concat(items);
@@ -124,7 +121,7 @@ Page({
     const name = this.data.companyList[idx];
     this.setData({
       selectedCompanyIdx: idx,
-      filterCompany: name === '鍏ㄩ儴' ? '' : name,
+      filterCompany: name === '全部' ? '' : name,
     });
   },
 
@@ -164,7 +161,7 @@ Page({
         }).catch(err => {
           wx.hideLoading();
           this.setData({ refreshing: false });
-          wx.showToast({ title: '鎶撳彇澶辫触锛岃閲嶈瘯', icon: 'error' });
+          wx.showToast({ title: '抓取失败，请重试', icon: 'error' });
           console.error('[bigtech refresh]', err);
         });
       }

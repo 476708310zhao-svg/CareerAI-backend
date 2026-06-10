@@ -1,6 +1,14 @@
 // utils/api-payment.js — 微信支付接口
 const { post, request } = require('./api-client.js');
 
+function unwrapPaymentResponse(res, fallbackMessage) {
+  if (res && res.code === 0) return res.data;
+  if (res && (res.orderNo || res.status || res.orders || Object.prototype.hasOwnProperty.call(res, 'configured'))) {
+    return res;
+  }
+  throw new Error((res && (res.message || res.error)) || fallbackMessage);
+}
+
 /**
  * 创建支付订单
  * @param {number} planId  0=月卡 1=季卡 2=年卡
@@ -10,11 +18,10 @@ function createPayOrder(planId) {
   return new Promise((resolve, reject) => {
     post({
       path: '/api/payment/create-order',
-      body: { planId, clientIp: '127.0.0.1' }
+      body: { planId }
     }).then(res => {
-      if (res.code === 0) resolve(res.data);
-      else reject(new Error(res.message || '创建订单失败'));
-    }).catch(reject);
+      resolve(unwrapPaymentResponse(res, '创建订单失败'));
+    }).catch(err => reject(err instanceof Error ? err : new Error(err && err.message || '创建订单失败')));
   });
 }
 
@@ -28,9 +35,8 @@ function mockConfirmPay(orderNo) {
       path: '/api/payment/mock-confirm',
       body: { orderNo }
     }).then(res => {
-      if (res.code === 0) resolve(res.data);
-      else reject(new Error(res.message || '模拟支付失败'));
-    }).catch(reject);
+      resolve(unwrapPaymentResponse(res, '支付确认失败'));
+    }).catch(err => reject(err instanceof Error ? err : new Error(err && err.message || '支付确认失败')));
   });
 }
 
@@ -43,10 +49,9 @@ function verifyOrder(orderNo) {
   return new Promise((resolve, reject) => {
     request({ path: `/api/payment/verify/${orderNo}` })
       .then(res => {
-        if (res.code === 0) resolve(res.data);
-        else reject(new Error(res.message || '查询订单失败'));
+        resolve(unwrapPaymentResponse(res, '查询订单失败'));
       })
-      .catch(reject);
+      .catch(err => reject(err instanceof Error ? err : new Error(err && err.message || '查询订单失败')));
   });
 }
 
@@ -56,8 +61,8 @@ function verifyOrder(orderNo) {
 function getPayConfig() {
   return new Promise((resolve, reject) => {
     request({ path: '/api/payment/config' })
-      .then(res => { if (res.code === 0) resolve(res.data); else reject(); })
-      .catch(reject);
+      .then(res => resolve(unwrapPaymentResponse(res, '获取支付配置失败')))
+      .catch(err => reject(err instanceof Error ? err : new Error(err && err.message || '获取支付配置失败')));
   });
 }
 
@@ -67,8 +72,8 @@ function getPayConfig() {
 function getPayOrders() {
   return new Promise((resolve, reject) => {
     request({ path: '/api/payment/orders' })
-      .then(res => { if (res.code === 0) resolve(res.data); else reject(); })
-      .catch(reject);
+      .then(res => resolve(unwrapPaymentResponse(res, '获取订单失败')))
+      .catch(err => reject(err instanceof Error ? err : new Error(err && err.message || '获取订单失败')));
   });
 }
 

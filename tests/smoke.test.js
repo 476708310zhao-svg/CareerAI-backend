@@ -27,10 +27,15 @@ function startServer() {
     ADMIN_PASSWORD: 'admin_password',
     ALLOWED_ORIGIN: `http://127.0.0.1:${PORT}`,
     WEBHOOK_SECRET: 'test_webhook_secret',
+    ENABLE_MOCK_PAYMENT: 'true',
     WXPAY_MCH_ID: '',
     WXPAY_API_KEY: '',
     WXPAY_APP_ID: '',
-    WXPAY_NOTIFY_URL: ''
+    WXPAY_NOTIFY_URL: '',
+    RAPID_API_KEY: '',
+    ADZUNA_APP_ID: '',
+    ADZUNA_APP_KEY: '',
+    DISABLE_FREE_JOB_SOURCES: 'true'
   });
 
   const { startServer: listen } = require('../server');
@@ -117,6 +122,25 @@ test('public jobs endpoint returns a list payload', async () => {
   assert.ok(Array.isArray(body.data.list));
 });
 
+test('aggregate jobs endpoint returns a paginated recommendation pool sorted by recency', async () => {
+  const res = await fetch(`${BASE_URL}/api/jobs/aggregate?query=Software%20Engineer&page=1&pageSize=20`);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+
+  assert.equal(body.status, 'OK');
+  assert.ok(Array.isArray(body.data));
+  assert.equal(body.data.length, 20);
+  assert.ok(body.total > body.data.length);
+  assert.equal(body.hasMore, true);
+
+  const times = body.data
+    .map(job => Date.parse(job.job_posted_at_datetime_utc || job.postedAt || job.publication_date || ''))
+    .filter(Number.isFinite);
+  for (let i = 1; i < times.length; i++) {
+    assert.ok(times[i - 1] >= times[i]);
+  }
+});
+
 test('public banners endpoint returns a list payload', async () => {
   const res = await fetch(`${BASE_URL}/api/banners`);
   assert.equal(res.status, 200);
@@ -141,6 +165,16 @@ test('protected endpoint rejects anonymous requests', async () => {
 test('payment orders endpoint rejects anonymous requests', async () => {
   const res = await fetch(`${BASE_URL}/api/payment/orders`);
   assert.equal(res.status, 401);
+});
+
+test('payment config uses standard response shape', async () => {
+  const res = await fetch(`${BASE_URL}/api/payment/config`);
+  assert.equal(res.status, 200);
+  const body = await readJson(res);
+  assert.equal(body.code, 0);
+  assert.equal(body.data.enabled, true);
+  assert.equal(body.data.configured, false);
+  assert.equal(body.data.mock, true);
 });
 
 test('web-register creates a user with a hashed password', async () => {
@@ -326,10 +360,12 @@ test('payment mock create-order, confirm and verify flow works', async () => {
   const createRes = await fetch(`${BASE_URL}/api/payment/create-order`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ planId: 0, clientIp: '127.0.0.1' })
+    body: JSON.stringify({ planId: 0 })
   });
   assert.equal(createRes.status, 200);
-  const created = await readJson(createRes);
+  const createBody = await readJson(createRes);
+  assert.equal(createBody.code, 0);
+  const created = createBody.data;
   assert.equal(created.mock, true);
   assert.ok(created.orderNo);
   createdOrderNo = created.orderNo;
@@ -340,23 +376,28 @@ test('payment mock create-order, confirm and verify flow works', async () => {
     body: JSON.stringify({ orderNo: createdOrderNo })
   });
   assert.equal(confirmRes.status, 200);
-  const confirmed = await readJson(confirmRes);
+  const confirmBody = await readJson(confirmRes);
+  assert.equal(confirmBody.code, 0);
+  const confirmed = confirmBody.data;
   assert.equal(confirmed.success, true);
 
   const verifyRes = await fetch(`${BASE_URL}/api/payment/verify/${encodeURIComponent(createdOrderNo)}`, {
     headers: authHeaders()
   });
   assert.equal(verifyRes.status, 200);
-  const verified = await readJson(verifyRes);
+  const verifyBody = await readJson(verifyRes);
+  assert.equal(verifyBody.code, 0);
+  const verified = verifyBody.data;
   assert.equal(verified.status, 'paid');
 
   const ordersRes = await fetch(`${BASE_URL}/api/payment/orders`, {
     headers: authHeaders()
   });
   assert.equal(ordersRes.status, 200);
-  const orders = await readJson(ordersRes);
-  assert.ok(Array.isArray(orders.orders));
-  assert.ok(orders.orders.some(order => order.order_no === createdOrderNo));
+  const ordersBody = await readJson(ordersRes);
+  assert.equal(ordersBody.code, 0);
+  assert.ok(Array.isArray(ordersBody.data.orders));
+  assert.ok(ordersBody.data.orders.some(order => order.order_no === createdOrderNo));
 });
 
 test('avatar upload rejects content that does not match image MIME', async () => {

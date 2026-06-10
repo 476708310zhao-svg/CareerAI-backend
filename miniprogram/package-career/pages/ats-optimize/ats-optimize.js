@@ -8,23 +8,24 @@ const SECTION_LABEL  = { summary: '个人简介', workExp: '工作经历', skill
 
 Page({
   data: {
-    // 姝ラ鎺у埗
-    step: 1,   // 1=杈撳叆JD, 2=鍒嗘瀽涓? 3=缁撴灉
+    // 步骤控制
+    step: 1,   // 1=输入 JD, 2=分析中, 3=结果
 
-    // 杈撳叆
+    // 输入
     jobTitle:       '',
     jobDescription: '',
     jdLen:          0,
 
-    // 绠€鍘嗘潵婧?    serverResumes:  [],
+    // 简历来源
+    serverResumes:  [],
     selectedResumeId: null,
     selectedResumeName: '',
     resumeData:     null,
 
-    // 缁撴灉
+    // 结果
     result: null,
 
-    // 灞曞紑鎺у埗
+    // 展开控制
     expandSuggestions: true,
     expandKeywords:    true,
     expandRewrites:    true,
@@ -32,14 +33,14 @@ Page({
   },
 
   onLoad(options) {
-    // 鏀寔浠庣畝鍘嗛〉鎼哄甫 resumeId 鐩存帴璺冲叆
+    // 支持从简历页携带 resumeId 直接进入
     if (options.resumeId) {
       this._loadResumeById(parseInt(options.resumeId));
     }
     this._loadServerResumes();
   },
 
-  // 鈹€鈹€ 杈撳叆澶勭悊 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // 输入处理
   onJdInput(e) {
     const v = e.detail.value || '';
     this.setData({ jobDescription: v, jdLen: v.length });
@@ -48,13 +49,13 @@ Page({
     this.setData({ jobTitle: e.detail.value || '' });
   },
 
-  // 鈹€鈹€ 绠€鍘嗗姞杞?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // 简历加载
   async _loadServerResumes() {
     try {
       const res = await request({ path: '/api/resumes', params: {}, cacheTTL: 0 });
       if (res && res.code === 0) {
         this.setData({ serverResumes: res.data || [] });
-        // 濡傛灉娌℃湁棰勯€夌畝鍘嗕笖鍙湁涓€浠斤紝鑷姩閫変腑
+        // 如果没有预选简历且只有一份，自动选中
         if (!this.data.selectedResumeId && res.data && res.data.length === 1) {
           this._loadResumeById(res.data[0].id);
         }
@@ -83,11 +84,11 @@ Page({
     this._loadResumeById(id);
   },
 
-  // 鈹€鈹€ 寮€濮嬪垎鏋?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // 开始分析
   async startAnalyze() {
     const { jobDescription, resumeData, jobTitle } = this.data;
     if (!jobDescription || jobDescription.trim().length < 20) {
-      wx.showToast({ title: '璇风矘璐村畬鏁寸殑宀椾綅鎻忚堪', icon: 'none' });
+      wx.showToast({ title: '请粘贴完整的岗位描述', icon: 'none' });
       return;
     }
     if (!resumeData) {
@@ -100,7 +101,7 @@ Page({
     try {
       const res = await analyzeAts({ resumeData, jobDescription, jobTitle });
       if (!res || res.code !== 0) {
-        throw new Error(res && res.message ? res.message : '鍒嗘瀽澶辫触');
+        throw new Error(res && res.message ? res.message : '分析失败');
       }
 
       const d = res.data;
@@ -128,10 +129,10 @@ Page({
 
       this.setData({ result, step: 3 });
     } catch (err) {
-      const msg = err.message || '鍒嗘瀽澶辫触锛岃閲嶈瘯';
+      const msg = err.message || '分析失败，请重试';
       wx.showModal({
-        title: '鍒嗘瀽澶辫触',
-        content: msg.includes('娆℃暟') ? msg : '缃戠粶寮傚父鎴朅I瓒呮椂锛岃閲嶈瘯',
+        title: '分析失败',
+        content: msg.includes('次数') ? msg : '网络异常或 AI 超时，请重试',
         showCancel: false,
       });
       this.setData({ step: 1 });
@@ -142,13 +143,13 @@ Page({
     this.setData({ step: 1, result: null });
   },
 
-  // 鈹€鈹€ 灞曞紑/鎶樺彔 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // 展开/收起
   toggleSection(e) {
     const key = e.currentTarget.dataset.key;
     this.setData({ [key]: !this.data[key] });
   },
 
-  // 鈹€鈹€ 璺宠浆绠€鍘嗛〉 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // 跳转简历页
   goToResume() {
     wx.navigateTo({ url: '/package-career/pages/resume/resume' });
   },

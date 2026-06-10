@@ -6,6 +6,7 @@ const https   = require('https');
 const { authMiddleware } = require('../middleware/auth');
 const { paymentLimiter } = require('../middleware/rateLimit');
 const db = require('../db/database');
+const { ok, fail } = require('../utils/response');
 
 // ── 配置 ────────────────────────────────────────────────────────
 const MCH_ID     = process.env.WXPAY_MCH_ID     || '';
@@ -13,10 +14,17 @@ const API_KEY    = process.env.WXPAY_API_KEY    || '';
 const APP_ID     = process.env.WXPAY_APP_ID     || process.env.WX_APP_ID || '';
 const NOTIFY_URL = process.env.WXPAY_NOTIFY_URL || '';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-const IS_MOCK    = !MCH_ID || !API_KEY || !APP_ID || !NOTIFY_URL;
+const PAYMENT_ENABLED = String(process.env.PAYMENT_ENABLED || 'true').toLowerCase() !== 'false';
+const WXPAY_CONFIGURED = !!(MCH_ID && API_KEY && APP_ID && NOTIFY_URL);
+const IS_MOCK    = PAYMENT_ENABLED && !WXPAY_CONFIGURED;
+const ALLOW_MOCK_PAYMENT = PAYMENT_ENABLED && !IS_PRODUCTION && process.env.ENABLE_MOCK_PAYMENT === 'true';
 
-if (IS_MOCK) {
-  console.warn('[Payment] WXPAY 未配置，将使用 Mock 模式（仅限开发测试）');
+if (!PAYMENT_ENABLED) {
+  console.warn('[Payment] 会员支付入口已关闭');
+} else if (IS_MOCK && !ALLOW_MOCK_PAYMENT) {
+  console.warn('[Payment] WXPAY 未配置，支付下单已关闭');
+} else if (IS_MOCK) {
+  console.warn('[Payment] WXPAY 未配置，已启用开发模拟支付');
 }
 
 // ── 套餐 ─────────────────────────────────────────────────────────
@@ -94,15 +102,26 @@ function callUnifiedOrder(params) {
   });
 }
 
+function getClientIp(req) {
+  return String(req.headers['x-forwarded-for'] || req.ip || req.socket?.remoteAddress || '')
+    .split(',')[0]
+    .trim()
+    .replace(/^::ffff:/, '') || '127.0.0.1';
+}
+
 // ── POST /api/payment/create-order ───────────────────────────────
 router.post('/create-order', authMiddleware, paymentLimiter, (req, res) => {
+  if (!PAYMENT_ENABLED) {
+    return fail(res, '会员开通暂未开放', 503);
+  }
+
   const userId = req.user.userId;
   const openid = req.user.openid;
-  const { planId, clientIp } = req.body;
+  const { planId } = req.body;
   const planIdInt = parseInt(planId, 10);
 
   const plan = PLANS[planIdInt];
-  if (!plan) return res.status(400).json({ error: '无效套餐' });
+  if (!plan) return fail(res, '无效套餐', 400);
 
   const orderNo = genOrderNo(userId);
 
@@ -112,15 +131,15 @@ router.post('/create-order', authMiddleware, paymentLimiter, (req, res) => {
     ).run(orderNo, userId, planIdInt, plan.name, plan.price);
   } catch (e) {
     console.error('[Payment] DB insert order:', e);
-    return res.status(500).json({ error: '创建订单失败' });
+    return fail(res, '创建订单失败', 500);
   }
 
   // ── Mock 模式 ────────────────────────────────────────────────
   if (IS_MOCK) {
-    if (IS_PRODUCTION) {
-      return res.status(503).json({ error: '微信支付未完成生产配置，暂无法创建订单' });
+    if (!ALLOW_MOCK_PAYMENT) {
+      return fail(res, '微信支付未完成生产配置，暂无法创建订单', 503);
     }
-    return res.json({ mock: true, orderNo, planName: plan.name, amount: plan.price });
+    return ok(res, { mock: true, orderNo, planName: plan.name, amount: plan.price }, '订单已创建');
   }
 
   // ── 真实微信支付 ──────────────────────────────────────────────
@@ -129,10 +148,10 @@ router.post('/create-order', authMiddleware, paymentLimiter, (req, res) => {
     appid:            APP_ID,
     mch_id:           MCH_ID,
     nonce_str:        nonce,
-    body:             `留学生求职助手-${plan.name}`,
+    body:             `职引-${plan.name}`,
     out_trade_no:     orderNo,
     total_fee:        plan.price,
-    spbill_create_ip: clientIp || '127.0.0.1',
+    spbill_create_ip: getClientIp(req),
     notify_url:       NOTIFY_URL,
     trade_type:       'JSAPI',
     openid
@@ -143,7 +162,7 @@ router.post('/create-order', authMiddleware, paymentLimiter, (req, res) => {
     .then(result => {
       if (result.return_code !== 'SUCCESS' || result.result_code !== 'SUCCESS') {
         console.error('[WXPay] unifiedorder:', result);
-        return res.status(500).json({ error: result.err_code_des || result.return_msg || '创建订单失败' });
+        return fail(res, result.err_code_des || result.return_msg || '创建订单失败', 500);
       }
 
       db.prepare('UPDATE orders SET prepay_id = ? WHERE order_no = ?').run(result.prepay_id, orderNo);
@@ -159,11 +178,11 @@ router.post('/create-order', authMiddleware, paymentLimiter, (req, res) => {
       };
       payParams.paySign = signMD5(payParams, API_KEY);
 
-      res.json({ mock: false, orderNo, ...payParams });
+      ok(res, { mock: false, orderNo, ...payParams }, '订单已创建');
     })
     .catch(err => {
       console.error('[WXPay] request error:', err);
-      res.status(500).json({ error: '支付服务请求失败，请重试' });
+      fail(res, '支付服务请求失败，请重试', 500);
     });
 });
 
@@ -210,16 +229,16 @@ router.post('/notify', express.raw({ type: 'text/xml' }), (req, res) => {
 
 // ── POST /api/payment/mock-confirm  (仅 Mock 模式) ───────────────
 router.post('/mock-confirm', authMiddleware, (req, res) => {
-  if (IS_PRODUCTION) return res.status(404).json({ error: 'Not found' });
-  if (!IS_MOCK) return res.status(403).json({ error: '仅在 Mock 模式下可用' });
+  if (!ALLOW_MOCK_PAYMENT) return fail(res, 'Not found', 404);
+  if (!IS_MOCK) return fail(res, '仅在 Mock 模式下可用', 403);
 
   const { orderNo } = req.body;
   const userId = req.user.userId;
 
   const order = db.prepare('SELECT * FROM orders WHERE order_no = ? AND user_id = ?').get(orderNo, userId);
-  if (!order) return res.status(404).json({ error: '订单不存在' });
+  if (!order) return fail(res, '订单不存在', 404);
   if (order.status === 'paid') {
-    return res.json({ success: true, already: true, planName: order.plan_name });
+    return ok(res, { success: true, already: true, planName: order.plan_name });
   }
 
   const plan       = PLANS[order.plan_id];
@@ -233,7 +252,7 @@ router.post('/mock-confirm', authMiddleware, (req, res) => {
     .run(expireDateStr, userId);
 
   console.log(`[WXPay Mock] 订单 ${orderNo} 模拟支付成功，用户 ${userId} VIP 至 ${expireDateStr}`);
-  res.json({ success: true, expireDate: expireDateStr, planName: order.plan_name });
+  ok(res, { success: true, expireDate: expireDateStr, planName: order.plan_name });
 });
 
 // ── GET /api/payment/verify/:orderNo ────────────────────────────
@@ -242,20 +261,29 @@ router.get('/verify/:orderNo', authMiddleware, (req, res) => {
   const userId = req.user.userId;
 
   const order = db.prepare('SELECT * FROM orders WHERE order_no = ? AND user_id = ?').get(orderNo, userId);
-  if (!order) return res.status(404).json({ error: '订单不存在' });
+  if (!order) return fail(res, '订单不存在', 404);
 
   // 若已支付，同步 VIP 状态（兜底逻辑）
   if (order.status === 'paid') {
     const user = db.prepare('SELECT vip_expires_at FROM users WHERE id = ?').get(userId);
-    return res.json({ status: 'paid', planName: order.plan_name, expireDate: user && user.vip_expires_at });
+    return ok(res, { status: 'paid', planName: order.plan_name, expireDate: user && user.vip_expires_at });
   }
 
-  res.json({ status: order.status, planName: order.plan_name });
+  ok(res, { status: order.status, planName: order.plan_name });
 });
 
 // ── GET /api/payment/config ──────────────────────────────────────
 router.get('/config', (_req, res) => {
-  res.json({ configured: !IS_MOCK, mock: IS_MOCK });
+  const available = PAYMENT_ENABLED && WXPAY_CONFIGURED;
+  ok(res, {
+    enabled: PAYMENT_ENABLED,
+    configured: PAYMENT_ENABLED && WXPAY_CONFIGURED,
+    mock: PAYMENT_ENABLED && IS_MOCK && ALLOW_MOCK_PAYMENT,
+    available,
+    reason: available
+      ? ''
+      : (PAYMENT_ENABLED ? '微信支付未完成配置' : '会员支付入口已关闭')
+  });
 });
 
 // ── GET /api/payment/orders ──────────────────────────────────────
@@ -263,7 +291,7 @@ router.get('/orders', authMiddleware, (req, res) => {
   const orders = db.prepare(
     'SELECT order_no, plan_name, amount, status, created_at, paid_at FROM orders WHERE user_id = ? ORDER BY created_at DESC LIMIT 20'
   ).all(req.user.userId);
-  res.json({ orders });
+  ok(res, { orders });
 });
 
 module.exports = router;
