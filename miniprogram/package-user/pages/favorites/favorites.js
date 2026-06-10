@@ -35,6 +35,13 @@ Page({
     });
   },
 
+  _decorateSelection(list, selectedIds) {
+    const selected = new Set(selectedIds || []);
+    return (list || []).map(item => Object.assign({}, item, {
+      isSelected: selected.has(item.targetId)
+    }));
+  },
+
   // 根据当前 tab + 排序刷新 currentList
   _refreshList() {
     const typeKey = TAB_KEYS[this.data.currentTab];
@@ -47,9 +54,10 @@ Page({
       return this.data.sortOrder === 'desc' ? tb - ta : ta - tb;
     });
 
-    const allSelected = list.length > 0 && list.every(i => this.data.selectedIds.includes(i.targetId));
+    const selectedIds = this.data.selectedIds;
+    const allSelected = list.length > 0 && list.every(i => selectedIds.includes(i.targetId));
     this.setData({
-      currentList: list,
+      currentList: this._decorateSelection(list, selectedIds),
       allSelected,
       currentEmpty: this.data.emptyStates[this.data.currentTab] || this.data.emptyStates[0]
     });
@@ -75,7 +83,12 @@ Page({
 
   // ── 批量删除 ──
   toggleBatchMode() {
-    this.setData({ batchMode: !this.data.batchMode, selectedIds: [], allSelected: false });
+    this.setData({
+      batchMode: !this.data.batchMode,
+      selectedIds: [],
+      allSelected: false,
+      currentList: this._decorateSelection(this.data.currentList, [])
+    });
   },
 
   toggleSelect(e) {
@@ -89,15 +102,27 @@ Page({
     }
     const allSelected = this.data.currentList.length > 0 &&
       this.data.currentList.every(i => selected.includes(i.targetId));
-    this.setData({ selectedIds: selected, allSelected });
+    this.setData({
+      selectedIds: selected,
+      allSelected,
+      currentList: this._decorateSelection(this.data.currentList, selected)
+    });
   },
 
   toggleSelectAll() {
     if (this.data.allSelected) {
-      this.setData({ selectedIds: [], allSelected: false });
+      this.setData({
+        selectedIds: [],
+        allSelected: false,
+        currentList: this._decorateSelection(this.data.currentList, [])
+      });
     } else {
       const allIds = this.data.currentList.map(i => i.targetId);
-      this.setData({ selectedIds: allIds, allSelected: true });
+      this.setData({
+        selectedIds: allIds,
+        allSelected: true,
+        currentList: this._decorateSelection(this.data.currentList, allIds)
+      });
     }
   },
 
@@ -148,6 +173,18 @@ Page({
     const item = e.currentTarget.dataset.item;
     const typeKey = TAB_KEYS[this.data.currentTab];
     if (typeKey === 'job') {
+      const snapshot = {
+        id: item.targetId,
+        title: item.title,
+        company: item.company || item.subtitle || '',
+        logo: item.logo || '',
+        city: item.city || '',
+        type: item.type || '',
+        salary: item.salary || '',
+        description: ''
+      };
+      wx.setStorageSync('tempJobDetail', snapshot);
+      wx.setStorageSync('jobDetailSnapshot_' + String(item.targetId), snapshot);
       wx.navigateTo({ url: `/package-user/pages/job-detail/job-detail?id=${item.targetId}` });
     } else if (typeKey === 'experience') {
       wx.navigateTo({ url: `/package-content/pages/experience-detail/experience-detail?id=${item.targetId}` });

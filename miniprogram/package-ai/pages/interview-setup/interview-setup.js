@@ -1,6 +1,7 @@
 // pages/interview-setup/interview-setup.js
 const { sendChatToDeepSeek } = require('../../../utils/api.js');
 const matcher = require('../../../utils/matcher.js');
+const vipUtil = require('../../../utils/vip.js');
 
 Page({
   data: {
@@ -109,6 +110,10 @@ Page({
       return;
     }
 
+    if (!vipUtil.checkDailyLimit('ai_interview', 2, 'AI面试')) {
+      return;
+    }
+
     // 构建面试参数，传递给面试对话页
     const params = {
       type: selectedType,
@@ -121,7 +126,11 @@ Page({
     const query = Object.keys(params).map(k => `${k}=${encodeURIComponent(params[k])}`).join('&');
 
     wx.navigateTo({
-      url: `/package-ai/pages/interview-dialog/interview-dialog?${query}`
+      url: `/package-ai/pages/interview-dialog/interview-dialog?${query}`,
+      fail: (err) => {
+        console.error('[interview-setup] navigateTo interview-dialog failed:', err);
+        wx.showToast({ title: '打开面试页失败，请重试', icon: 'none' });
+      }
     });
   }
 });

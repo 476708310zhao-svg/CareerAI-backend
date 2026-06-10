@@ -150,7 +150,7 @@ Page({
 
   onLoad() {
     const saved = wx.getStorageSync('savedStarTemplates') || [];
-    this.setData({ savedIds: saved });
+    this.setData({ savedIds: saved }, () => this._filter());
   },
 
   onSearch(e) {
@@ -162,6 +162,14 @@ Page({
     this.setData({ activeRole: this.data.activeRole === role ? '' : role }, () => this._filter());
   },
 
+  _decorateTemplates(list, savedIds) {
+    const saved = new Set(savedIds || []);
+    return (list || []).map(item => Object.assign({}, item, {
+      isSaved: saved.has(item.id),
+      saveIcon: saved.has(item.id) ? '★' : '☆'
+    }));
+  },
+
   _filter() {
     const { templates, activeRole, searchKey } = this.data;
     let list = templates;
@@ -170,7 +178,7 @@ Page({
       const kw = searchKey.toLowerCase();
       list = list.filter(t => t.title.toLowerCase().includes(kw) || t.tags.some(tag => tag.includes(kw)));
     }
-    this.setData({ filtered: list });
+    this.setData({ filtered: this._decorateTemplates(list, this.data.savedIds) });
   },
 
   toggleExpand(e) {
@@ -190,7 +198,7 @@ Page({
       wx.showToast({ title: '已收藏', icon: 'success' });
     }
     wx.setStorageSync('savedStarTemplates', saved);
-    this.setData({ savedIds: saved });
+    this.setData({ savedIds: saved }, () => this._filter());
   },
 
   /* ── Copy full text ── */

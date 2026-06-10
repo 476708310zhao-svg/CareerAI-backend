@@ -148,7 +148,7 @@
         <!-- 底部 -->
         <view class="card-footer">
           <view class="region-chip">{{item.region}}</view>
-          <view class="apply-btn" catchtap="goApply" data-url="{{item.applyUrl}}">立即投递 →</view>
+          <view class="apply-btn" catchtap="goApply" data-url="{{item.applyUrl}}">复制投递链接</view>
         </view>
 
       </view>

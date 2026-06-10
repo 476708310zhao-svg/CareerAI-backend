@@ -75,7 +75,7 @@
         <view class="setting-icon">ℹ️</view>
         <view class="setting-main">
           <text class="setting-title">关于我们</text>
-          <text class="setting-desc">了解留学生求职助手</text>
+          <text class="setting-desc">了解职引</text>
         </view>
         <text class="arrow">›</text>
       </view>
@@ -87,11 +87,27 @@
         </view>
         <text class="arrow">›</text>
       </view>
+      <view class="setting-row link" bindtap="openWechatPrivacy">
+        <view class="setting-icon">📋</view>
+        <view class="setting-main">
+          <text class="setting-title">微信隐私保护指引</text>
+          <text class="setting-desc">查看微信后台声明的个人信息处理说明</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
+      <view class="setting-row link" bindtap="requestDataDeletion">
+        <view class="setting-icon">🛡️</view>
+        <view class="setting-main">
+          <text class="setting-title">账号与数据处理</text>
+          <text class="setting-desc">申请账号注销、个人信息删除或数据咨询</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
     </view>
   </view>
 
   <view class="status-card">
-    <text class="status-title">留学生求职助手 v{{version}}</text>
+    <text class="status-title">职引 v{{version}}</text>
     <text class="status-desc">当前偏好会保存在本机，清除缓存不会影响收藏、简历和账号信息。</text>
   </view>
 </view>

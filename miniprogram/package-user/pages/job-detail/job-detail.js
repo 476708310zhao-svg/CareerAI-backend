@@ -2,9 +2,11 @@
 const { getJobDetail, post, normalizeCompanyLogo } = require('../../../utils/api.js');
 const favUtil = require('../../../utils/favorites.js');
 const { fromNow, formatSalaryRange } = require('../../../utils/util.js');
-const config = require('../../../utils/config.js');
+const config = require('../../../utils/app-config.js');
+const demoData = require('../../../utils/demo-data.js');
 const { extractSkillTags } = require('../../utils/skill-icons.js');
 const API_BASE = config.API_BASE_URL;
+const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
 Page({
   data: {
@@ -23,6 +25,9 @@ Page({
     this.setData({ jobId, isSaved });
     if (jobId) {
       this.fetchJobDetail(jobId);
+    } else {
+      this.setData({ loading: false });
+      wx.showToast({ title: '职位信息不存在', icon: 'none' });
     }
   },
 
@@ -43,19 +48,68 @@ Page({
     return temp && String(temp.id) === String(id) ? temp : null;
   },
 
-  fetchJobDetail: function(id) {
-    this.setData({ loading: true });
-    const snapshot = this.getJobSnapshot(id);
+  buildSnapshotDetail: function(snapshot) {
+    if (!snapshot) return null;
+    const desc = snapshot.description || '';
+    return {
+      id: snapshot.id,
+      title: snapshot.title,
+      company: snapshot.company,
+      logo: snapshot.logo || this.buildCompanyLogo(snapshot.company),
+      logoFailed: !!snapshot.logoFailed,
+      companyInitial: snapshot.companyInitial || this.getCompanyInitial(snapshot.company),
+      city: snapshot.city || 'Remote',
+      state: snapshot.state,
+      type: snapshot.type || 'Full-time',
+      postedAt: snapshot.postedAt || 'Recently posted',
+      applyLink: snapshot.applyLink || '',
+      description: this.formatDescription(desc) || '暂无职位详情，请通过原始招聘链接查看完整 JD。',
+      salary: snapshot.salary || 'Negotiable',
+      visaSponsored: !!snapshot.optFriendly,
+      skillTags: extractSkillTags(desc || `${snapshot.title || ''} ${snapshot.company || ''}`)
+    };
+  },
 
-    // 模拟数据判断
-    if (String(id).startsWith('mock') || String(id).startsWith('default')) {
+  useFallbackDetail: function(id, snapshotDetail) {
+    if (snapshotDetail) {
+      this.setData({ job: snapshotDetail, loading: false });
+      this._saveBrowseHistory(snapshotDetail);
+      return;
+    }
+    if (ALLOW_DEMO_FALLBACK) {
       this.loadMockDetail(id);
       return;
     }
+    this.setData({ job: null, loading: false });
+    wx.showToast({ title: '职位信息暂不可用', icon: 'none' });
+  },
+
+  fetchJobDetail: function(id) {
+    this.setData({ loading: true });
+    const snapshot = this.getJobSnapshot(id);
+    const snapshotDetail = this.buildSnapshotDetail(snapshot);
+
+    // 模拟数据判断
+    if (String(id).startsWith('mock') || String(id).startsWith('default')) {
+      if (ALLOW_DEMO_FALLBACK) {
+        this.loadMockDetail(id);
+      } else {
+        this.setData({ job: null, loading: false });
+        wx.showToast({ title: '职位信息暂不可用', icon: 'none' });
+      }
+      return;
+    }
+
+    if (snapshotDetail) {
+      this.setData({ job: snapshotDetail, loading: false });
+    }
 
     getJobDetail(id).then(res => {
-      const rawData = res.data && res.data[0] ? res.data[0] : null;
-      if (!rawData) throw new Error('No data');
+      const rawData = Array.isArray(res.data) ? res.data[0] : (res.data && res.data.job_id ? res.data : null);
+      if (!rawData) {
+        this.useFallbackDetail(id, snapshotDetail);
+        return;
+      }
 
       const desc = (rawData.job_description || '') + ' ' + (rawData.job_highlights ? JSON.stringify(rawData.job_highlights) : '');
       const visaSponsored = /\b(opt|cpt|h[- ]?1b|visa\s+sponsor|will\s+sponsor|work\s+authori)/i.test(desc);
@@ -81,8 +135,8 @@ Page({
       this.setData({ job: jobDetail, loading: false });
       this._saveBrowseHistory(jobDetail);
     }).catch(err => {
-      console.error('Fetch Error:', err);
-      this.loadMockDetail(id);
+      console.warn('[job-detail] detail request failed, using fallback:', err && (err.message || err.errMsg || err));
+      this.useFallbackDetail(id, snapshotDetail);
     });
   },
 
@@ -115,6 +169,10 @@ Page({
 
   // 模拟数据
   loadMockDetail: function(id) {
+    if (!ALLOW_DEMO_FALLBACK) {
+      this.setData({ job: null, loading: false });
+      return;
+    }
     const mockJob = {
       id: id,
       title: 'Senior Full Stack Engineer',
@@ -147,6 +205,15 @@ Requirements:
   },
 
   // --- 交互功能 ---
+
+  goBack: function() {
+    const pages = getCurrentPages();
+    if (pages.length > 1) {
+      wx.navigateBack();
+    } else {
+      wx.switchTab({ url: '/pages/jobs/jobs' });
+    }
+  },
 
   // 收藏切换
   toggleSave: function() {

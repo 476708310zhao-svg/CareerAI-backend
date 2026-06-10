@@ -1,5 +1,5 @@
 // pages/ai-assistant/ai-assistant.js
-const config   = require('../../../utils/config.js');
+const config   = require('../../../utils/app-config.js');
 const { post } = require('../../../utils/api-client.js');
 
 const API_BASE    = config.API_BASE_URL;
@@ -8,6 +8,8 @@ const SAVED_KEY   = 'ai_assistant_saved_results';
 const MAX_CACHE   = 30;
 const TIME_GAP_MS = 5 * 60 * 1000;
 const CURSOR      = '▋';
+const TAB_PAGES   = new Set(['/pages/index/index', '/pages/jobs/jobs', '/pages/experiences/experiences', '/pages/agencies/agencies', '/pages/profile/profile']);
+const FALLBACK_SYSTEM = '你是「职引」平台的 AI 求职助手，专注留学生求职。请用中文给出简洁、具体、可执行的建议，控制在 300 字以内，必要时用列表拆解步骤。';
 
 // ─── Markdown → HTML（用于 rich-text，仅处理 AI 输出）─────────
 // 注意：先转义 HTML 实体，防止 AI 输出中的 < > 破坏结构
@@ -42,7 +44,7 @@ function appendWithTimestamp(msgs, newMsg) {
 // Bug1 fix: 直接写 displayText 字符串，不用 getter（setData 序列化会丢失 getter）
 function makeWelcome() {
   const ts   = Date.now();
-  const text = '你好！我是你的 AI 求职助手 ✨\n\n我可以帮你优化简历、推荐职位、准备面试、制定求职计划……\n\n告诉我你现在最需要什么帮助？';
+  const text = '你好，我是 AI 求职助手。\n\n直接告诉我：简历、岗位、面试或求职规划，你想先处理哪一项？';
   return {
     id: ts, role: 'ai', ts,
     content:     text,
@@ -56,10 +58,22 @@ function makeWelcome() {
 
 function friendlyError(err) {
   const msg = String(err && (err.errMsg || err.message || err.error) || err);
+  if (/未登录|登录|Token|401/i.test(msg)) return '登录状态已过期，请重新登录后再试';
   if (/timeout|超时/i.test(msg))       return 'AI 响应超时，请点击下方重试';
   if (/balance|余额不足/i.test(msg))   return '服务暂时不可用，请稍后再试';
   if (/network|fail|连接/i.test(msg))  return '网络连接失败，请检查网络后重试';
   return '出错了，请点击下方重试';
+}
+
+function isUnauthorizedError(err) {
+  const msg = String(err && (err.errMsg || err.message || err.error) || err);
+  return err && (err.statusCode === 401 || err.code === 'UNAUTHORIZED') ||
+    /unauthorized|未登录|Token|401/i.test(msg);
+}
+
+function extractChatContent(res) {
+  return (res && res.choices && res.choices[0] &&
+    res.choices[0].message && res.choices[0].message.content) || '';
 }
 
 // ─── SSE 流式请求 ────────────────────────────────────────────
@@ -67,6 +81,7 @@ function friendlyError(err) {
 // DeepSeek SSE 格式: data: {"choices":[{"delta":{"content":"…"}}]}
 function streamRequest(messages, userContext, onDelta, onDone, onError) {
   let sseBuffer = '';
+  let hasErrored = false;
   const authHeader = {};
   try {
     const token = wx.getStorageSync('token');
@@ -98,14 +113,25 @@ function streamRequest(messages, userContext, onDelta, onDone, onError) {
         if (!data || data === '[DONE]') continue;
         try {
           const json = JSON.parse(data);
-          if (json.error) { onError(new Error(json.error)); return; }
+          if (json.error) { hasErrored = true; onError(new Error(json.error)); return; }
           const delta = (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content) || '';
           if (delta) onDelta(delta);
         } catch (_) {}
       }
     },
-    success() { onDone(); },
-    fail(err)  { onError(err); }
+    success(res) {
+      if (hasErrored) return;
+      if (res && res.statusCode && res.statusCode >= 400) {
+        const msg = res.data && (res.data.message || res.data.error);
+        const err = new Error(msg || ('请求失败：' + res.statusCode));
+        err.statusCode = res.statusCode;
+        if (res.statusCode === 401) err.code = 'UNAUTHORIZED';
+        onError(err);
+        return;
+      }
+      onDone();
+    },
+    fail(err)  { hasErrored = true; onError(err); }
   });
 }
 
@@ -124,12 +150,23 @@ Page({
     safeBottom:  0,
     keyboardHeight: 0,
     sidebarOpen: false,
-    quickActions: ['帮我优化简历', '推荐适合我的职位', '制定求职计划', '准备下周面试'],
+    showMoreTools: false,
+    showLoginPopup: false,
+    loginSubtitle: '登录后可使用 AI 求职助手、保存答案和同步求职记录',
+    aiSuites: [
+      { icon: 'MI', title: '模拟面试', desc: '设定岗位开始训练', url: '/package-ai/pages/interview-setup/interview-setup' },
+      { icon: 'AR', title: '语音复盘', desc: '上传录音生成建议', url: '/package-ai/pages/audio-review/audio-review' },
+      { icon: 'PR', title: '项目复盘', desc: '用 STAR 打磨亮点', url: '/package-ai/pages/project-review/project-review' },
+      { icon: 'CV', title: '简历优化', desc: '经历、关键词、ATS', url: '/package-career/pages/resume/resume' }
+    ],
     assistantTools: [
-      { icon: 'CV', title: '优化简历', desc: '润色经历与匹配 ATS', prompt: '请帮我优化简历，重点提升 ATS 关键词、项目表达和量化结果。' },
-      { icon: 'JD', title: '推荐岗位', desc: '根据背景匹配机会', prompt: '请根据我的背景推荐适合申请的岗位方向，并说明优先级。' },
-      { icon: 'MI', title: '模拟面试', desc: '生成问题与追问', prompt: '请帮我准备一次模拟面试，先从行为面试和项目深挖开始。' },
-      { icon: 'PL', title: '求职规划', desc: '拆解接下来行动', prompt: '请帮我制定一个 30 天求职计划，包含简历、投递、面试和复盘。' }
+      { icon: 'AI', title: '求职问答', desc: '简历、岗位、面试都可以直接问', prompt: '我现在想做一次求职路径梳理，请先问我 3 个关键信息。' },
+      { icon: 'MI', title: '模拟面试', desc: '生成问题、追问和复盘', url: '/package-ai/pages/interview-setup/interview-setup' },
+      { icon: 'AR', title: '语音复盘', desc: '分析回答结构和表达清晰度', url: '/package-ai/pages/audio-review/audio-review' },
+      { icon: 'PR', title: '项目复盘', desc: '把项目经历打磨成面试素材', url: '/package-ai/pages/project-review/project-review' },
+      { icon: 'CV', title: '简历优化', desc: '润色经历与匹配 ATS', url: '/package-career/pages/resume/resume' },
+      { icon: '路', title: '求职规划', desc: '生成阶段路线图', url: '/package-career/pages/career-planner/career-planner' },
+      { icon: '历', title: 'AI 历史', desc: '查看历史对话和报告', url: '/package-ai/pages/ai-history/ai-history' }
     ],
     recentChats: [
       { id: 1, title: '新的求职咨询', preview: '你好！我是你的 AI 求职助手...', time: '刚刚' },
@@ -149,6 +186,7 @@ Page({
   // ── 生命周期 ──────────────────────────────────────────────
 
   onLoad() {
+    this._ensureRuntimeState();
     const info = wx.getSystemInfoSync();
     this.setData({
       statusBarHeight: info.statusBarHeight || 44,
@@ -246,20 +284,69 @@ Page({
   onSend()       { this.sendMessage(); },
   onSendOrStop() { this.data.streaming ? this.onStop() : this.sendMessage(); },
 
-  onQuickAction(e) {
-    if (this.data.loading || this.data.streaming) return;
-    this.setData({ inputText: e.currentTarget.dataset.text });
-    this.sendMessage();
+  _getToken() {
+    try {
+      return wx.getStorageSync('token') || '';
+    } catch (e) {
+      return '';
+    }
+  },
+
+  _showLoginRequired(subtitle) {
+    this.setData({
+      showLoginPopup: true,
+      loginSubtitle: subtitle || '登录后可使用 AI 求职助手、保存答案和同步求职记录'
+    });
+  },
+
+  onLoginPopupClose() {
+    this.setData({ showLoginPopup: false });
+  },
+
+  onLoginSuccess() {
+    this.setData({ showLoginPopup: false });
+    wx.showToast({ title: '已登录，可继续发送', icon: 'none' });
+  },
+
+  goBack() {
+    this.setData({ sidebarOpen: false });
+    const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : [];
+    if (pages.length > 1) {
+      wx.navigateBack({ delta: 1 });
+      return;
+    }
+    wx.switchTab({ url: '/pages/index/index' });
   },
 
   onToolAction(e) {
     if (this.data.loading || this.data.streaming) return;
+    const url = e.currentTarget.dataset.url;
+    if (url) {
+      this.setData({ sidebarOpen: false });
+      this._openToolUrl(url);
+      return;
+    }
     this.setData({ sidebarOpen: false, inputText: e.currentTarget.dataset.text || '' });
     wx.nextTick(() => this.sendMessage());
   },
 
+  _openToolUrl(url) {
+    if (TAB_PAGES.has(url)) {
+      wx.switchTab({ url });
+      return;
+    }
+    wx.navigateTo({ url });
+  },
+
   toggleSidebar() {
-    this.setData({ sidebarOpen: !this.data.sidebarOpen });
+    const sidebarOpen = !this.data.sidebarOpen;
+    const patch = { sidebarOpen };
+    if (sidebarOpen) patch.showMoreTools = false;
+    this.setData(patch);
+  },
+
+  toggleMoreTools() {
+    this.setData({ showMoreTools: !this.data.showMoreTools });
   },
 
   onNewChat() {
@@ -323,8 +410,13 @@ Page({
   },
 
   sendMessage() {
+    this._ensureRuntimeState();
     const rawText = this.data.inputText.trim();
     if (!rawText || this.data.loading || this.data.streaming) return;
+    if (!this._getToken()) {
+      this._showLoginRequired('使用 AI 求职助手需要先登录');
+      return;
+    }
     this._lastRawText = rawText;
 
     // 检测简历意图，注入简历摘要到 API 消息（显示侧不带）
@@ -369,7 +461,15 @@ Page({
       this._userContext,
       (delta) => { this._queueDelta(delta); },
       ()      => { this._flushAndFinalize(); },
-      (err)   => { console.error('[ai-assistant]', err); this._flushAndFinalize(friendlyError(err), true); }
+      (err)   => {
+        if (isUnauthorizedError(err)) {
+          console.warn('[ai-assistant] login required:', err.message || err);
+          this._handleAuthExpired();
+          return;
+        }
+        console.error('[ai-assistant]', err);
+        this._fallbackToChat(err);
+      }
     );
   },
 
@@ -452,6 +552,89 @@ Page({
     wx.nextTick(() => this._scrollTo());
   },
 
+  _fallbackToChat(err) {
+    const idx = this._streamingIdx;
+    const cur = idx >= 0 ? this.data.messages[idx] : null;
+
+    if (cur && cur.content) {
+      this._flushAndFinalize();
+      return;
+    }
+
+    if (idx >= 0) {
+      this.setData({
+        [`messages[${idx}].displayText`]: '正在切换备用通道...',
+        loading: true,
+        streaming: false
+      });
+    }
+
+    const messages = [
+      { role: 'system', content: this._buildFallbackSystemPrompt() },
+      ...this._history.slice(-16)
+    ];
+
+    post({
+      path: '/api/ai/chat',
+      body: { messages, temperature: 0.7 },
+      timeout: 65000
+    }).then((res) => {
+      const content = extractChatContent(res).trim();
+      if (!content) throw new Error(res && (res.message || res.error) || 'AI 返回为空');
+      this._finishWithFallbackContent(content);
+    }).catch((fallbackErr) => {
+      console.error('[ai-assistant:fallback]', fallbackErr);
+      this._flushAndFinalize(friendlyError(fallbackErr || err), true);
+    });
+  },
+
+  _handleAuthExpired() {
+    try {
+      wx.removeStorageSync('token');
+      wx.removeStorageSync('userProfile');
+      const app = getApp();
+      if (app && app.globalData) {
+        app.globalData.isLoggedIn = false;
+        if (typeof app.refreshGlobalData === 'function') app.refreshGlobalData();
+      }
+    } catch (e) {}
+    this._flushAndFinalize('登录状态已过期，请重新登录后点击「重新发送」。', true);
+    this._showLoginRequired('登录状态已过期，请重新登录后继续使用 AI 求职助手');
+  },
+
+  _buildFallbackSystemPrompt() {
+    const ctx = this._userContext || {};
+    const parts = [];
+    if (ctx.targetJob) parts.push('目标岗位：' + ctx.targetJob);
+    if (ctx.location) parts.push('目标地区：' + ctx.location);
+    if (ctx.education) parts.push('学历背景：' + ctx.education);
+    if (ctx.hasResume) parts.push('用户已完善简历信息');
+    return parts.length ? FALLBACK_SYSTEM + '\n\n用户信息：\n' + parts.join('\n') : FALLBACK_SYSTEM;
+  },
+
+  _finishWithFallbackContent(content) {
+    const idx = this._streamingIdx;
+    if (idx < 0) return;
+    this._streamingIdx = -1;
+    const suggestions = this._makeSuggestions(content);
+    this.setData({
+      [`messages[${idx}].content`]: content,
+      [`messages[${idx}].displayText`]: content,
+      [`messages[${idx}].htmlContent`]: mdToHtml(content),
+      [`messages[${idx}].isError`]: false,
+      [`messages[${idx}].isStreaming`]: false,
+      [`messages[${idx}].retryText`]: '',
+      [`messages[${idx}].suggestions`]: suggestions,
+      loading: false,
+      streaming: false,
+      latestAiIdx: idx
+    });
+    this._history.push({ role: 'assistant', content });
+    if (this._history.length > 20) this._history = this._history.slice(-20);
+    this._saveCache(this.data.messages);
+    wx.nextTick(() => this._scrollTo());
+  },
+
   // ── 错误重试 ─────────────────────────────────────────────────
 
   onRetry(e) {
@@ -514,6 +697,7 @@ Page({
   // ── 内部工具 ─────────────────────────────────────────────────
 
   _abortStream() {
+    this._ensureRuntimeState();
     if (this._currentTask) {
       try { this._currentTask.abort(); } catch (e) {}
       this._currentTask = null;
@@ -524,6 +708,14 @@ Page({
   // Perf + Bug5 fix: 永远滚到底部锚点，不依赖 msg-${idx}
   _scrollTo() {
     this.setData({ scrollId: 'scroll-anchor' });
+  },
+
+  _ensureRuntimeState() {
+    if (!Array.isArray(this._history)) this._history = [];
+    if (!this._userContext || typeof this._userContext !== 'object') this._userContext = {};
+    if (typeof this._streamingIdx !== 'number') this._streamingIdx = -1;
+    if (typeof this._pendingDelta !== 'string') this._pendingDelta = '';
+    if (typeof this._lastRawText !== 'string') this._lastRawText = '';
   },
 
   _saveCache(msgs) {

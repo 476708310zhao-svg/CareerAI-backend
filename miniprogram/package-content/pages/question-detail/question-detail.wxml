@@ -70,7 +70,7 @@
     </view>
   </view>
 
-  <view style="height: 160rpx;"></view>
+  <view class="bottom-spacer"></view>
 </view>
 
 <!-- 底部操作栏 -->

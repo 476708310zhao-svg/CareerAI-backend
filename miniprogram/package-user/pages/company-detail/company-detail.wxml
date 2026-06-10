@@ -159,7 +159,7 @@
   </view>
 
   <!-- Tab 内容: AI洞察 -->
-  <view wx:if="{{currentTab === 3}}" class="tab-content">
+  <view wx:if="{{currentTab === 3}}" class="tab-content insight-tab-content">
     <view class="tab-section-head">
       <view>
         <text class="tab-section-kicker">AI Insight</text>
@@ -172,7 +172,7 @@
       <text class="insight-loading-txt">✨ AI 正在生成公司洞察...</text>
     </view>
     <!-- 已生成 -->
-    <view wx:elif="{{insight}}">
+    <view wx:elif="{{insight}}" class="insight-result-stack">
       <view class="insight-card ux-list-card">
         <view class="insight-card-header">
           <text class="insight-icon">🏢</text>

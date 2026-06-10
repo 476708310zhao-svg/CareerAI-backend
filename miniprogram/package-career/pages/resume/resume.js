@@ -1,6 +1,6 @@
 // pages/resume/resume.js
 const api = require('../../../utils/api.js');
-const config = require('../../../utils/config.js');
+const config = require('../../../utils/app-config.js');
 const safePage = require('../../behaviors/safe-page');
 const vip = require('../../../utils/vip.js');
 const aiMethods = require('./resume-ai');
@@ -209,12 +209,12 @@ Page(Object.assign({
   async createResume() {
     const { serverResumes } = this.data;
     const vipLevel = vip.isVip() ? 1 : 0;
-    // 免费用户限 1 份；VIP 无限（后端限 999）
+    // 免费用户限 1 份；权益用户无限（后端限 999）
     if (vipLevel <= 0 && serverResumes.length >= 1) {
       wx.showModal({
-        title: 'VIP 权益',
-        content: 'VIP 用户可无限创建简历，免费用户最多 1 份。升级 VIP 解锁无限简历？',
-        confirmText: '去升级',
+        title: '求职会员权益',
+        content: '无限创建简历属于求职会员权益，可先查看会员能力说明。',
+        confirmText: '查看权益',
         success: r => { if (r.confirm) wx.navigateTo({ url: '/package-user/pages/vip/vip' }); }
       });
       return;
@@ -536,7 +536,7 @@ Page(Object.assign({
   onShareAppMessage() {
     const name = (this.data.onlineResume.basicInfo || {}).name || '我的简历';
     return {
-      title: name + ' 的求职简历 — 留学生求职助手',
+      title: name + ' 的求职简历 - 职引',
       path: '/package-career/pages/resume/resume'
     };
   },

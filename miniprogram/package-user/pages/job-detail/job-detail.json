@@ -1,3 +1,11 @@
 {
-  "navigationBarTitleText": "职位详情"
+  "navigationBarTitleText": "职位详情",
+  "navigationBarBackgroundColor": "#F8FBFF",
+  "navigationBarTextStyle": "black",
+  "backgroundColor": "#F8FBFF",
+  "backgroundColorTop": "#F8FBFF",
+  "usingComponents": {
+    "c-tag": "/components/c-tag/c-tag",
+    "c-company-logo": "/components/c-company-logo/c-company-logo"
+  }
 }

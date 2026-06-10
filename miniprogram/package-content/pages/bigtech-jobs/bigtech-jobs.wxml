@@ -11,9 +11,6 @@
       <view class="icon-btn" bindtap="toggleFilter">
         <text class="icon-btn-text">筛选</text>
       </view>
-      <view class="icon-btn" bindtap="goToCronStatus">
-        <text class="icon-btn-text">状态</text>
-      </view>
       <view class="icon-btn refresh-btn {{refreshing ? 'disabled' : ''}}" bindtap="triggerRefresh">
         <text class="icon-btn-text">{{refreshing ? '抓取中…' : '更新'}}</text>
       </view>

@@ -14,8 +14,7 @@ const router   = express.Router();
 const db       = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
 const { sendToUser }     = require('./notify');
-
-const UPLOAD_DIR = path.join(__dirname, '../uploads');
+const { UPLOAD_DIR } = require('../utils/paths');
 
 // ── 表单结构拉取 ──────────────────────────────────────────────────────────────
 // GET /api/apply/form?source=greenhouse&slug=stripe&jobId=12345

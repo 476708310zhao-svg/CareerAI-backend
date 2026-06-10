@@ -2,86 +2,114 @@
 <view class="page">
 
   <!-- ══ 输入步骤 ══ -->
-  <view wx:if="{{step === 'input'}}">
+  <view wx:if="{{step === 'input'}}" class="input-page">
 
-    <!-- 顶部 Banner -->
-    <view class="hero">
-      <text class="hero-icon">🗺️</text>
-      <text class="hero-title">求职路线规划器</text>
-      <text class="hero-sub">输入目标与背景，AI 定制 3/6/12 个月求职路线图</text>
+    <view class="hub-hero">
+      <view class="hub-copy">
+        <text class="hub-kicker">CAREER WORKSPACE</text>
+        <text class="hub-title">职业工具中心</text>
+        <text class="hub-sub">简历、ATS、薪资、Offer 和求职路线统一管理</text>
+      </view>
+      <view class="hub-count">
+        <text class="hub-count-num">{{careerTools.length}}</text>
+        <text class="hub-count-label">工具</text>
+      </view>
     </view>
 
-    <!-- 预填提示 -->
-    <view class="prefill-tip" wx:if="{{profileFilled}}">
-      <text class="prefill-icon">✨</text>
-      <text class="prefill-txt">已根据你的个人资料预填，可直接修改后生成</text>
+    <view class="section-head">
+      <view>
+        <text class="section-title">常用工具</text>
+        <text class="section-sub">覆盖准备、投递、面试和 Offer 决策</text>
+      </view>
+      <text class="section-chip">快捷入口</text>
     </view>
 
-    <!-- 来自岗位详情 -->
-    <view class="from-job-tip" wx:if="{{fromJobDetail}}">
-      <text class="fj-icon">💼</text>
-      <text class="fj-txt">已载入该岗位信息，AI 将为该职位定制路线</text>
+    <view class="tool-grid">
+      <view
+        wx:for="{{careerTools}}"
+        wx:key="title"
+        class="tool-card {{item.tone}}"
+        bindtap="openCareerTool"
+        data-url="{{item.url}}"
+        hover-class="card-hover"
+      >
+        <view class="tool-card-top">
+          <view class="tool-icon">{{item.icon}}</view>
+          <text class="tool-arrow">›</text>
+        </view>
+        <text class="tool-title">{{item.title}}</text>
+        <text class="tool-desc">{{item.desc}}</text>
+      </view>
     </view>
 
-    <!-- 表单卡片 -->
-    <view class="form-card">
-
-      <view class="field">
-        <view class="field-label"><text class="label-icon">🎯</text>目标岗位<text class="required"> *</text></view>
-        <input class="field-input" placeholder="如：产品经理、数据分析师、前端工程师"
-               value="{{position}}" bindinput="onPositionInput" maxlength="40" />
+    <view class="planner-panel">
+      <view class="planner-head">
+        <view class="planner-head-copy">
+          <text class="section-title">AI 求职规划</text>
+          <text class="section-sub">生成 3 / 6 / 12 个月路线</text>
+        </view>
+        <text class="section-chip ai-chip">AI</text>
       </view>
 
-      <view class="field-divider"></view>
-
-      <view class="field">
-        <view class="field-label"><text class="label-icon">📍</text>目标城市<text class="optional">（选填）</text></view>
-        <input class="field-input" placeholder="如：北京、上海、深圳（不填默认不限）"
-               value="{{location}}" bindinput="onLocationInput" maxlength="30" />
+      <view class="status-row" wx:if="{{profileFilled || fromJobDetail}}">
+        <view class="status-pill" wx:if="{{profileFilled}}">已读取个人资料</view>
+        <view class="status-pill warm" wx:if="{{fromJobDetail}}">已载入岗位信息</view>
       </view>
-
-      <view class="field-divider"></view>
 
       <view class="field">
         <view class="field-label-row">
-          <view class="field-label"><text class="label-icon">📋</text>个人背景<text class="required"> *</text></view>
+          <text class="field-label">目标岗位<text class="required"> *</text></text>
+        </view>
+        <input class="field-input" placeholder="产品经理、数据分析师、前端工程师"
+               value="{{position}}" bindinput="onPositionInput" maxlength="40" />
+      </view>
+
+      <view class="field">
+        <view class="field-label-row">
+          <text class="field-label">目标城市<text class="optional">（选填）</text></text>
+        </view>
+        <input class="field-input" placeholder="北京、上海、深圳，或不限地区"
+               value="{{location}}" bindinput="onLocationInput" maxlength="30" />
+      </view>
+
+      <view class="field">
+        <view class="field-label-row">
+          <text class="field-label">个人背景<text class="required"> *</text></text>
           <text class="char-count">{{background.length}}/400</text>
         </view>
-        <text class="field-hint">学校/专业、毕业年份、实习经历、技能水平</text>
         <textarea class="field-textarea"
-                  placeholder="例：英国曼彻斯特大学计算机硕士，2025年毕业，有互联网后端实习，熟悉 Python/Java，无产品经验"
+                  placeholder="学校/专业、毕业年份、实习经历、技能水平、目标行业"
                   value="{{background}}" bindinput="onBackgroundInput"
                   maxlength="400" auto-height />
       </view>
 
-      <c-button class="gen-btn" bindtap="onGenerate">✨ 立即生成求职规划</c-button>
+      <c-button class="gen-btn" bindtap="onGenerate">生成求职规划</c-button>
     </view>
 
-    <!-- 提示 -->
-    <view class="tips-card">
-      <text class="tips-title">💡 填写越详细，规划越精准</text>
-      <view class="tips-list">
-        <view class="tips-item"><text class="ti-dot">·</text><text class="ti-txt">说明当前技能水平（初级 / 中级 / 熟练）</text></view>
-        <view class="tips-item"><text class="ti-dot">·</text><text class="ti-txt">提及已有的实习或项目经历</text></view>
-        <view class="tips-item"><text class="ti-dot">·</text><text class="ti-txt">注明目标行业偏好（互联网 / 金融 / 外企）</text></view>
-      </view>
-    </view>
-
-    <!-- 历史规划 -->
-    <view class="history-section" wx:if="{{savedPlans.length > 0}}">
+    <view class="history-section {{showHistory ? 'history-open' : ''}}" wx:if="{{savedPlans.length > 0}}">
       <view class="history-head" bindtap="toggleHistory">
-        <text class="history-head-title">📁 历史规划（{{savedPlans.length}}）</text>
-        <text class="history-toggle-icon">{{showHistory ? '▲' : '▼'}}</text>
+        <view>
+          <text class="history-head-title">历史规划</text>
+          <text class="history-head-sub">{{savedPlans.length}} 条记录</text>
+        </view>
+        <text class="history-toggle-icon">{{showHistory ? '收起' : '展开'}}</text>
       </view>
 
       <view class="history-list" wx:if="{{showHistory}}">
         <view wx:for="{{savedPlans}}" wx:key="id"
-              class="history-card" bindtap="onHistoryTap" data-idx="{{index}}">
+              class="history-card" catchtap="onHistoryTap" data-id="{{item.id}}" data-idx="{{index}}">
           <view class="hc-left">
-            <text class="hc-position">{{item.position}}</text>
+            <view class="hc-title-row">
+              <text class="hc-position">{{item.position}}</text>
+              <text class="hc-pill">{{item.phaseCount || 0}}阶段</text>
+            </view>
             <text class="hc-meta">{{item.location || '不限地区'}} · {{item.createdAt}}</text>
+            <text class="hc-preview">{{item.firstGoal || '点击查看完整规划'}}</text>
           </view>
-          <text class="hc-arrow">›</text>
+          <view class="hc-open">
+            <text class="hc-open-txt">查看</text>
+            <text class="hc-arrow">›</text>
+          </view>
         </view>
         <view class="history-clear" bindtap="clearHistory">
           <text class="hc-clear-txt">清空历史</text>
@@ -94,19 +122,33 @@
 
   <!-- ══ 加载步骤 ══ -->
   <view wx:if="{{step === 'loading'}}" class="loading-page">
-    <view class="loading-anim">
-      <view class="pulse-ring"></view>
-      <view class="pulse-core">AI</view>
+    <view class="loading-card">
+      <view class="loading-mark">
+        <view class="mark-ring"></view>
+        <view class="mark-core">AI</view>
+      </view>
+      <text class="loading-eyebrow">CAREER ROADMAP</text>
+      <text class="loading-tip">{{loadingTip}}</text>
+      <text class="loading-desc">正在结合目标岗位、城市偏好和个人背景生成专属求职路线。</text>
+      <view class="loading-progress">
+        <view class="loading-progress-fill" style="width: {{loadingStep >= 5 ? 92 : loadingStep >= 2 ? 62 : 32}}%;"></view>
+      </view>
+      <view class="loading-steps">
+        <view class="lstep {{loadingStep >= 0 ? 'done' : ''}}">
+          <text class="lstep-index">01</text>
+          <text class="lstep-title">岗位分析</text>
+        </view>
+        <view class="lstep {{loadingStep >= 2 ? 'done' : ''}}">
+          <text class="lstep-index">02</text>
+          <text class="lstep-title">路线规划</text>
+        </view>
+        <view class="lstep {{loadingStep >= 5 ? 'done' : ''}}">
+          <text class="lstep-index">03</text>
+          <text class="lstep-title">资源整理</text>
+        </view>
+      </view>
+      <text class="loading-note">预计 15-30 秒，请保持当前页面</text>
     </view>
-    <text class="loading-tip">{{loadingTip}}</text>
-    <view class="loading-steps">
-      <view class="lstep {{loadingStep >= 0 ? 'done' : ''}}">📊 分析岗位</view>
-      <text class="lstep-arrow">›</text>
-      <view class="lstep {{loadingStep >= 2 ? 'done' : ''}}">🗺️ 制定路线</view>
-      <text class="lstep-arrow">›</text>
-      <view class="lstep {{loadingStep >= 5 ? 'done' : ''}}">📚 推荐资源</view>
-    </view>
-    <text class="loading-note">预计 15–30 秒，请耐心等待</text>
   </view>
 
   <!-- ══ 结果步骤 ══ -->

@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "查薪资"
+  "navigationBarTitleText": "查薪资",
+  "usingComponents": {
+    "c-button": "/components/c-button/c-button"
+  }
 }

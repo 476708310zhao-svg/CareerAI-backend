@@ -47,7 +47,17 @@ Page({
   goApply() {
     const url = this.data.detail && this.data.detail.applyUrl;
     if (!url) { wx.showToast({ title: '暂无投递链接', icon: 'none' }); return; }
-    wx.navigateTo({ url: `/package-content/pages/webview/webview?url=${encodeURIComponent(url)}` });
+    wx.setClipboardData({
+      data: url,
+      success: () => {
+        wx.showModal({
+          title: '投递链接已复制',
+          content: '外部投递页面无法在小程序内直接打开，链接已复制到剪贴板，请在手机浏览器中粘贴打开。',
+          showCancel: false,
+          confirmText: '知道了',
+        });
+      },
+    });
   },
 
   copyApplyUrl() {

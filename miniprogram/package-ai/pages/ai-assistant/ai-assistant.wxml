@@ -3,15 +3,19 @@
 
   <!-- 顶部栏（自定义导航，含状态栏占位） -->
   <view class="top-bar" style="padding-top: {{statusBarHeight}}px;">
-    <view class="menu-btn" bindtap="toggleSidebar" hover-class="btn-hover">
-      <view class="menu-line"></view>
-      <view class="menu-line short"></view>
+    <view class="top-left">
+      <view class="nav-back-btn" bindtap="goBack" hover-class="btn-hover">
+        <text class="nav-back-icon">‹</text>
+      </view>
+      <view class="menu-btn" bindtap="toggleSidebar" hover-class="btn-hover">
+        <view class="menu-line"></view>
+        <view class="menu-line short"></view>
+      </view>
     </view>
     <view class="top-title">
       <text class="top-icon">AI</text>
       <view class="top-copy">
         <text class="top-name">AI 求职助手</text>
-        <text class="top-sub">CareerGPT</text>
       </view>
     </view>
     <view class="new-chat-btn" bindtap="onNewChat" hover-class="btn-hover">
@@ -21,42 +25,54 @@
 
   <view wx:if="{{sidebarOpen}}" class="drawer-mask" bindtap="toggleSidebar"></view>
   <view class="drawer {{sidebarOpen ? 'open' : ''}}" style="padding-top: {{statusBarHeight}}px;">
-    <view class="drawer-brand">
-      <view class="drawer-logo">AI</view>
-      <view class="drawer-title-wrap">
-        <text class="drawer-title">求职助手</text>
-        <text class="drawer-sub">你的职业规划工作台</text>
-      </view>
-    </view>
-    <view class="drawer-new" bindtap="onNewChat" hover-class="card-hover">
-      <text class="drawer-new-icon">+</text>
-      <text>新对话</text>
-    </view>
-    <view class="drawer-search">
-      <text class="drawer-search-icon">⌕</text>
-      <text class="drawer-search-placeholder">搜索聊天</text>
-    </view>
-    <view class="drawer-section-title">常用功能</view>
-    <block wx:for="{{assistantTools}}" wx:key="title">
-      <view class="drawer-tool" bindtap="onToolAction" data-text="{{item.prompt}}" hover-class="card-hover">
-        <view class="drawer-tool-icon">{{item.icon}}</view>
-        <view class="drawer-tool-copy">
-          <text class="drawer-tool-title">{{item.title}}</text>
-          <text class="drawer-tool-desc">{{item.desc}}</text>
+    <scroll-view scroll-y enhanced show-scrollbar="{{false}}" class="drawer-scroll">
+      <view class="drawer-brand">
+        <view class="drawer-logo">AI</view>
+        <view class="drawer-title-wrap">
+          <text class="drawer-title">求职助手</text>
         </view>
       </view>
-    </block>
-    <view class="drawer-section-title recent-title">最近对话</view>
-    <block wx:for="{{recentChats}}" wx:key="id">
-      <view class="recent-chat" bindtap="toggleSidebar" hover-class="card-hover">
-        <view class="recent-dot"></view>
-        <view class="recent-copy">
-          <text class="recent-name">{{item.title}}</text>
-          <text class="recent-preview">{{item.preview}}</text>
-        </view>
-        <text class="recent-time">{{item.time}}</text>
+      <view class="drawer-new" bindtap="onNewChat" hover-class="card-hover">
+        <text class="drawer-new-icon">+</text>
+        <text>新对话</text>
       </view>
-    </block>
+      <view class="drawer-search">
+        <text class="drawer-search-icon">⌕</text>
+        <text class="drawer-search-placeholder">搜索聊天</text>
+      </view>
+      <view class="drawer-section-title">AI 功能套件</view>
+      <block wx:for="{{assistantTools}}" wx:key="title">
+        <view
+          wx:if="{{index < 4 || showMoreTools}}"
+          class="drawer-tool"
+          bindtap="onToolAction"
+          data-text="{{item.prompt}}"
+          data-url="{{item.url}}"
+          hover-class="card-hover"
+        >
+          <view class="drawer-tool-icon">{{item.icon}}</view>
+          <view class="drawer-tool-copy">
+            <text class="drawer-tool-title">{{item.title}}</text>
+            <text class="drawer-tool-desc">{{item.desc}}</text>
+          </view>
+        </view>
+      </block>
+      <view wx:if="{{assistantTools.length > 4}}" class="drawer-more" bindtap="toggleMoreTools" hover-class="card-hover">
+        <text>{{showMoreTools ? '收起' : '更多'}}</text>
+        <text class="drawer-more-count" wx:if="{{!showMoreTools}}">其余 {{assistantTools.length - 4}} 个功能</text>
+      </view>
+      <view class="drawer-section-title recent-title">最近对话</view>
+      <block wx:for="{{recentChats}}" wx:key="id">
+        <view class="recent-chat" bindtap="toggleSidebar" hover-class="card-hover">
+          <view class="recent-dot"></view>
+          <view class="recent-copy">
+            <text class="recent-name">{{item.title}}</text>
+            <text class="recent-preview">{{item.preview}}</text>
+          </view>
+          <text class="recent-time">{{item.time}}</text>
+        </view>
+      </block>
+    </scroll-view>
   </view>
 
   <!-- 消息列表 -->
@@ -108,8 +124,8 @@
               <view class="answer-action-head">
                 <view class="answer-action-mark">AI</view>
                 <view class="answer-action-copy">
-                  <text class="answer-action-title">可行动结果</text>
-                  <text class="answer-action-sub">复制、保存，或让 CareerGPT 继续拆解下一步</text>
+                  <text class="answer-action-title">下一步操作</text>
+                  <text class="answer-action-sub">保存答案，或继续细化面试准备</text>
                 </view>
               </view>
               <view class="answer-action-grid">
@@ -130,6 +146,23 @@
                   <text>拆成清单</text>
                 </view>
               </view>
+              <view
+                wx:if="{{item.suggestions && item.suggestions.length && index === latestAiIdx && !loading && !streaming}}"
+                class="answer-suggestions"
+              >
+                <text class="answer-suggestions-title">推荐追问</text>
+                <view class="answer-suggestion-list">
+                  <view
+                    wx:for="{{item.suggestions}}"
+                    wx:for-item="sug"
+                    wx:key="*this"
+                    class="sug-chip"
+                    bindtap="onSuggestion"
+                    data-text="{{sug}}"
+                    hover-class="chip-hover"
+                  >{{sug}}</view>
+                </view>
+              </view>
             </view>
 
             <!-- 错误重试按钮 -->
@@ -144,35 +177,24 @@
               </view>
             </view>
 
-            <!-- 首条欢迎消息：2×2 快捷指令网格 -->
-            <view wx:if="{{item.isWelcome && index === 0}}" class="quick-grid">
+            <!-- 首条欢迎消息：核心功能入口 -->
+            <view wx:if="{{item.isWelcome && index === 0}}" class="suite-grid">
               <view
-                wx:for="{{quickActions}}"
-                wx:for-item="qa"
-                wx:key="*this"
-                class="quick-card {{(loading || streaming) ? 'quick-disabled' : ''}}"
-                bindtap="onQuickAction"
-                data-text="{{qa}}"
+                wx:for="{{aiSuites}}"
+                wx:for-item="suite"
+                wx:key="title"
+                class="suite-card {{(loading || streaming) ? 'quick-disabled' : ''}}"
+                bindtap="onToolAction"
+                data-url="{{suite.url}}"
+                data-text="{{suite.prompt}}"
                 hover-class="card-hover"
               >
-                <text class="quick-text">{{qa}}</text>
+                <view class="suite-icon">{{suite.icon}}</view>
+                <view class="suite-copy">
+                  <text class="suite-title">{{suite.title}}</text>
+                  <text class="suite-desc">{{suite.desc}}</text>
+                </view>
               </view>
-            </view>
-
-            <!-- 后续 AI 回复建议 chips（仅最新 AI 消息且空闲时显示） -->
-            <view
-              wx:if="{{item.suggestions && item.suggestions.length && index === latestAiIdx && !loading && !streaming}}"
-              class="suggestions"
-            >
-              <view
-                wx:for="{{item.suggestions}}"
-                wx:for-item="sug"
-                wx:key="*this"
-                class="sug-chip"
-                bindtap="onSuggestion"
-                data-text="{{sug}}"
-                hover-class="chip-hover"
-              >{{sug}}</view>
             </view>
 
           </view>
@@ -207,9 +229,10 @@
   <!-- 输入栏 -->
   <view class="input-bar" style="padding-bottom: calc(24rpx + {{safeBottom}}px);">
     <view class="input-wrap">
+      <text class="input-leading">AI</text>
       <input
         class="input"
-        placeholder="输入你的求职需求..."
+        placeholder="输入求职问题或具体目标"
         placeholder-class="input-ph"
         value="{{inputText}}"
         bindinput="onInputChange"
@@ -232,5 +255,12 @@
       </view>
     </view>
   </view>
+
+  <c-login-popup
+    show="{{showLoginPopup}}"
+    subtitle="{{loginSubtitle}}"
+    bind:close="onLoginPopupClose"
+    bind:success="onLoginSuccess"
+  />
 
 </view>

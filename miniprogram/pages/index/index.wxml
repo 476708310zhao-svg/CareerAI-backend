@@ -1,22 +1,4 @@
-<page-meta page-style="background-color: #FFFFFF;"></page-meta>
-
 <view class="page">
-
-  <view class="home-hero">
-    <view class="hero-copy">
-      <text class="hero-kicker">CareerAI Workspace</text>
-      <text class="hero-title">留学生求职助手</text>
-      <text class="hero-subtitle">岗位推荐、名企情报、面试准备和求职规划，一站式 AI 工作台。</text>
-      <view class="hero-actions">
-        <view class="hero-primary" bindtap="goCompleteProfile" hover-class="opacity-hover">建立求职档案</view>
-        <view class="hero-secondary" bindtap="navigateToPage" data-url="/package-ai/pages/ai-assistant/ai-assistant" hover-class="opacity-hover">问 AI 助手</view>
-      </view>
-    </view>
-    <view class="hero-orb">
-      <text class="hero-orb-main">AI</text>
-      <text class="hero-orb-sub">Ready</text>
-    </view>
-  </view>
 
   <!-- 搜索框 -->
   <view class="search-wrap" bindtap="goToJobSearch">
@@ -58,13 +40,49 @@
     </block>
   </view>
 
-  <view class="pro-teaser" bindtap="navigateToPage" data-url="/package-user/pages/vip/vip" hover-class="opacity-hover">
-    <view class="pro-copy">
-      <text class="pro-kicker">CareerAI Pro</text>
-      <text class="pro-title">把简历、投递、面试连成闭环</text>
-      <text class="pro-sub">解锁 AI 简历深度优化、无限模拟面试和高优先级求职规划。</text>
+  <view class="ai-zone">
+    <view class="ai-zone-hero" bindtap="navigateToPage" data-url="{{aiSpotlight.primary.url}}" hover-class="opacity-hover">
+      <view class="ai-visual">
+        <view class="ai-orbit orbit-one"></view>
+        <view class="ai-orbit orbit-two"></view>
+        <view class="ai-spark spark-left"></view>
+        <view class="ai-spark spark-right"></view>
+        <view class="ai-hero-mark">
+          <text class="ai-hero-mark-text">AI</text>
+        </view>
+      </view>
+      <view class="ai-hero-copy">
+        <text class="ai-hero-title">{{aiSpotlight.primary.title}}</text>
+        <text class="ai-hero-desc">{{aiSpotlight.primary.desc}}</text>
+      </view>
+      <view class="ai-hero-action">
+        <text>{{aiSpotlight.primary.action}}</text>
+        <text class="ai-hero-action-arrow">›</text>
+      </view>
     </view>
-    <view class="pro-cta">了解会员</view>
+    <view class="ai-tool-grid">
+      <block wx:for="{{aiSpotlight.tools}}" wx:key="id">
+        <view class="ai-tool-item {{item.tone}}" bindtap="navigateToPage" data-url="{{item.url}}" hover-class="opacity-hover">
+          <view class="ai-tool-icon-wrap">
+            <image src="{{item.icon}}" class="ai-tool-icon" mode="aspectFit"></image>
+          </view>
+          <view class="ai-tool-copy">
+            <text class="ai-tool-title">{{item.title}}</text>
+            <text class="ai-tool-desc">{{item.desc}}</text>
+          </view>
+          <text class="ai-tool-arrow">›</text>
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <view class="pro-teaser" bindtap="navigateToPage" data-url="/package-user/pages/vip/vip" hover-class="opacity-hover">
+    <view class="pro-mark">PRO</view>
+    <view class="pro-copy">
+      <text class="pro-title">求职会员权益</text>
+      <text class="pro-sub">简历优化、模拟面试和薪资数据等进阶能力</text>
+    </view>
+    <view class="pro-cta">查看</view>
   </view>
 
   <view class="career-loop">
@@ -72,39 +90,38 @@
       <view class="career-loop-copy">
         <text class="career-loop-kicker">Career Loop</text>
         <text class="career-loop-title">从准备到录用，按这条路径推进</text>
-        <text class="career-loop-sub">先补简历，再匹配岗位，接着练面试，最后生成求职规划。</text>
       </view>
       <view class="career-loop-badge">4 steps</view>
     </view>
     <view class="career-loop-steps">
-      <view class="career-loop-step" bindtap="navigateToPage" data-url="/package-career/pages/resume/resume" hover-class="opacity-hover">
+      <view class="career-loop-step" bindtap="navigateToPage" data-url="/package-career/pages/career-planner/career-planner" hover-class="opacity-hover">
         <text class="loop-step-index">01</text>
+        <text class="loop-step-title">求职规划</text>
+        <text class="loop-step-desc">路线拆解</text>
+        <text class="loop-step-arrow">›</text>
+      </view>
+      <view class="career-loop-step" bindtap="navigateToPage" data-url="/package-career/pages/resume/resume" hover-class="opacity-hover">
+        <text class="loop-step-index">02</text>
         <text class="loop-step-title">简历定位</text>
         <text class="loop-step-desc">完善亮点</text>
         <text class="loop-step-arrow">›</text>
       </view>
       <view class="career-loop-step" bindtap="navigateToPage" data-url="/pages/jobs/jobs" hover-class="opacity-hover">
-        <text class="loop-step-index">02</text>
+        <text class="loop-step-index">03</text>
         <text class="loop-step-title">岗位匹配</text>
         <text class="loop-step-desc">推荐机会</text>
         <text class="loop-step-arrow">›</text>
       </view>
-      <view class="career-loop-step" bindtap="navigateToPage" data-url="/package-ai/pages/interview-setup/interview-setup" hover-class="opacity-hover">
-        <text class="loop-step-index">03</text>
-        <text class="loop-step-title">面试训练</text>
-        <text class="loop-step-desc">模拟问答</text>
-        <text class="loop-step-arrow">›</text>
-      </view>
-      <view class="career-loop-step" bindtap="navigateToPage" data-url="/package-career/pages/career-planner/career-planner" hover-class="opacity-hover">
+      <view class="career-loop-step" bindtap="navigateToPage" data-url="/package-ai/pages/ai-assistant/ai-assistant" hover-class="opacity-hover">
         <text class="loop-step-index">04</text>
-        <text class="loop-step-title">求职规划</text>
-        <text class="loop-step-desc">路线拆解</text>
+        <text class="loop-step-title">AI 训练</text>
+        <text class="loop-step-desc">面试与复盘</text>
         <text class="loop-step-arrow">›</text>
       </view>
     </view>
     <view class="career-loop-actions">
-      <view class="career-loop-btn primary" bindtap="navigateToPage" data-url="/package-career/pages/resume/resume" hover-class="opacity-hover">从简历开始</view>
-      <view class="career-loop-btn" bindtap="navigateToPage" data-url="/pages/jobs/jobs" hover-class="opacity-hover">查看岗位</view>
+      <view class="career-loop-btn primary" bindtap="navigateToPage" data-url="/package-career/pages/career-planner/career-planner" hover-class="opacity-hover">开始规划</view>
+      <view class="career-loop-btn" bindtap="navigateToPage" data-url="/package-ai/pages/ai-assistant/ai-assistant" hover-class="opacity-hover">问 AI 助手</view>
     </view>
   </view>
 

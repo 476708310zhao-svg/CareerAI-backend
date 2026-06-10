@@ -110,6 +110,12 @@
   <view class="detail-safe-tail ux-detail-tail"></view>
 </block>
 
+<view wx:else class="detail-empty">
+  <text class="detail-empty-title">职位信息暂不可用</text>
+  <text class="detail-empty-sub">该职位可能已下线，或当前网络暂时无法获取详情。</text>
+  <view class="detail-empty-btn" bindtap="goBack">返回职位列表</view>
+</view>
+
 <!-- 底部操作栏 -->
 <view class="footer ux-bottom-bar" wx:if="{{job}}">
   <view class="footer-icons ux-bottom-icons">

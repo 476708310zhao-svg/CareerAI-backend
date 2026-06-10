@@ -463,3 +463,117 @@ page,
   background: var(--app-page-bg);
   background-color: #ffffff;
 }
+
+/* AI interview setup layout pass */
+.container {
+  padding: 16rpx 24rpx calc(116rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.page-header {
+  margin-bottom: 16rpx;
+  padding: 30rpx 28rpx;
+  border-radius: 30rpx;
+}
+
+.section {
+  margin-top: 16rpx;
+  padding: 24rpx;
+  border-radius: 28rpx;
+}
+
+.section-title {
+  margin-bottom: 16rpx;
+  font-size: 30rpx;
+  line-height: 1.25;
+}
+
+.section-title::before {
+  height: 26rpx;
+}
+
+.input-box {
+  height: 76rpx;
+  min-height: 76rpx;
+  line-height: 76rpx;
+  margin-bottom: 16rpx;
+  padding: 0 22rpx;
+  border-radius: 20rpx;
+  font-size: 27rpx;
+  box-sizing: border-box;
+}
+
+.tag-list {
+  gap: 12rpx;
+  align-items: center;
+}
+
+.quick-tag {
+  min-height: 48rpx;
+  padding: 7rpx 20rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  line-height: 30rpx;
+  font-size: 23rpx;
+  background: #ffffff;
+}
+
+.difficulty-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14rpx;
+}
+
+.diff-item {
+  min-height: 110rpx;
+  padding: 16rpx 10rpx;
+  border-radius: 20rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.diff-name {
+  margin-bottom: 8rpx;
+  font-size: 27rpx;
+  line-height: 1.2;
+}
+
+.diff-desc {
+  font-size: 21rpx;
+  line-height: 1.25;
+}
+
+.count-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14rpx;
+}
+
+.count-item {
+  height: 108rpx;
+  min-height: 108rpx;
+  padding: 0;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  line-height: 1;
+  font-size: 29rpx;
+}
+
+.diff-item.active,
+.count-item.active {
+  transform: none;
+}
+
+.footer-bar {
+  padding: 14rpx 28rpx;
+  padding-bottom: calc(14rpx + env(safe-area-inset-bottom));
+}

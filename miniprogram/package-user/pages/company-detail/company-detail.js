@@ -1,8 +1,10 @@
 // pages/company-detail/company-detail.js
 const { searchCompanyJobs, getCompanyDetail, generateExperience, generateBatchExperiences, generateCompanyQuestions, sendChatToDeepSeek, normalizeCompanyLogo } = require('../../../utils/api.js');
+const demoData = require('../../../utils/demo-data.js');
 const { formatSalaryRange } = require('../../../utils/util.js');
 const safePage = require('../../behaviors/safe-page');
 const { getGlassdoorOverview, getGlassdoorReviews } = require('../../../utils/api-news.js');
+const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
 Page({
   behaviors: [safePage],
@@ -219,17 +221,18 @@ Page({
       }
 
       // 如果 API 无结果，用兜底数据
-      if (jobs.length === 0) {
+      if (jobs.length === 0 && ALLOW_DEMO_FALLBACK) {
         jobs = this._getMockJobs(companyName);
       }
 
       this._safeSetData({ 'company.jobs': jobs, jobsLoading: false });
     }).catch(() => {
-      this._safeSetData({ 'company.jobs': this._getMockJobs(companyName), jobsLoading: false });
+      this._safeSetData({ 'company.jobs': ALLOW_DEMO_FALLBACK ? this._getMockJobs(companyName) : [], jobsLoading: false });
     });
   },
 
   _getMockJobs(companyName) {
+    if (!ALLOW_DEMO_FALLBACK) return [];
     const hq = this.data.company.headquarters || '';
     const logo = this.data.company.logo;
     const companyInitial = this.data.company.initial || this.getCompanyInitial(companyName);
@@ -247,7 +250,7 @@ Page({
     const cached = wx.getStorageSync(cacheKey) || [];
     if (cached.length > 0) {
       this.setData({ 'company.experiences': cached });
-    } else {
+    } else if (ALLOW_DEMO_FALLBACK) {
       // 显示默认模板
       this.setData({
         'company.experiences': [
@@ -255,6 +258,8 @@ Page({
           { id: 2, title: companyName + ' 技术面试真题汇总', type: '笔试', round: '', likesCount: 156, createdAt: '2026-01-02' }
         ]
       });
+    } else {
+      this.setData({ 'company.experiences': [] });
     }
   },
 
@@ -464,7 +469,7 @@ Page({
 
   onShareAppMessage() {
     return {
-      title: (this.data.company ? this.data.company.name : '') + ' - 留学生求职助手',
+      title: (this.data.company ? this.data.company.name : '') + ' - 职引',
       path: '/package-user/pages/company-detail/company-detail?id=' + this.data.companyId
     };
   }

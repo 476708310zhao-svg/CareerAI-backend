@@ -128,7 +128,7 @@
           </view>
           <view class="salary-row-right">
             <text class="salary-range">{{item.range}}</text>
-            <view class="salary-yoy {{item.yoy && item.yoy.startsWith('+') ? 'up' : 'down'}}">{{item.yoy}}</view>
+            <view class="salary-yoy {{item.trendClass}}">{{item.yoy}}</view>
           </view>
         </view>
       </block>

@@ -8,11 +8,12 @@ const fs      = require('fs');
 
 const router  = express.Router();
 const { aiLimiter } = require('../middleware/rateLimit');
+const { UPLOAD_DIR, ensureDir } = require('../utils/paths');
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 // ── 临时存储上传的音频文件 ──────────────────────────────────────
 const upload = multer({
-  dest: path.join(__dirname, '../uploads/asr_tmp/'),
+  dest: ensureDir(path.join(UPLOAD_DIR, 'asr_tmp')),
   limits: { fileSize: 5 * 1024 * 1024 },  // 5MB
   fileFilter(_req, file, cb) {
     const ok = ['audio/mp3', 'audio/mpeg', 'audio/wav', 'audio/silk', 'audio/webm', 'application/octet-stream'].includes(file.mimetype);
@@ -55,10 +56,12 @@ function callTencentASR(audioBase64, engModelType) {
 
     if (!secretId || !secretKey || !appId) {
       if (IS_PRODUCTION) {
-        return reject(new Error('ASR 未完成生产配置'));
+        const err = new Error('ASR 未完成生产配置');
+        err.code = 'ASR_NOT_CONFIGURED';
+        return reject(err);
       }
       // Mock mode — no credentials configured
-      return resolve({ text: '[ASR未配置] 请在.env中设置 TENCENT_SECRET_ID / TENCENT_SECRET_KEY / TENCENT_ASR_APPID', mock: true });
+      return resolve({ code: 'ASR_NOT_CONFIGURED', text: '', mock: true });
     }
 
     const host    = 'asr.tencentcloudapi.com';
@@ -137,7 +140,8 @@ router.post('/transcribe', aiLimiter, upload.single('audio'), async (req, res) =
     res.json({ success: true, text: result.text, mock: result.mock || false });
   } catch (err) {
     console.error('[ASR] transcribe error:', err.message);
-    res.status(500).json({ error: 'ASR 识别失败', detail: err.message });
+    const status = err.code === 'ASR_NOT_CONFIGURED' ? 503 : 500;
+    res.status(status).json({ code: err.code || 'ASR_TRANSCRIBE_FAILED', error: 'ASR 识别失败', detail: err.message });
   } finally {
     // Clean up temp file
     if (tmpPath) {

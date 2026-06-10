@@ -95,19 +95,33 @@
 
   <!-- ══ 加载步骤 ══ -->
   <view wx:if="{{step === 'loading'}}" class="loading-page">
-    <view class="loading-anim">
-      <view class="pulse-ring"></view>
-      <view class="pulse-core">AI</view>
+    <view class="loading-card">
+      <view class="loading-mark">
+        <view class="mark-ring"></view>
+        <view class="mark-core">AI</view>
+      </view>
+      <text class="loading-eyebrow">PROJECT BUILDER</text>
+      <text class="loading-tip">{{loadingTip}}</text>
+      <text class="loading-desc">正在围绕目标岗位设计可落地、可量化、可写进简历的项目方案。</text>
+      <view class="loading-progress">
+        <view class="loading-progress-fill" style="width: {{loadingStep >= 4 ? 92 : loadingStep >= 2 ? 62 : 32}}%;"></view>
+      </view>
+      <view class="loading-steps">
+        <view class="lstep {{loadingStep >= 0 ? 'done' : ''}}">
+          <text class="lstep-index">01</text>
+          <text class="lstep-title">项目选题</text>
+        </view>
+        <view class="lstep {{loadingStep >= 2 ? 'done' : ''}}">
+          <text class="lstep-index">02</text>
+          <text class="lstep-title">方案设计</text>
+        </view>
+        <view class="lstep {{loadingStep >= 4 ? 'done' : ''}}">
+          <text class="lstep-index">03</text>
+          <text class="lstep-title">成果量化</text>
+        </view>
+      </view>
+      <text class="loading-note">预计 10-20 秒，请保持当前页面</text>
     </view>
-    <text class="loading-tip">{{loadingTip}}</text>
-    <view class="loading-steps">
-      <view class="lstep {{loadingStep >= 0 ? 'done' : ''}}">🎯 选题</view>
-      <text class="lstep-sep">›</text>
-      <view class="lstep {{loadingStep >= 2 ? 'done' : ''}}">🔍 设计</view>
-      <text class="lstep-sep">›</text>
-      <view class="lstep {{loadingStep >= 4 ? 'done' : ''}}">📊 量化</view>
-    </view>
-    <text class="loading-note">预计 10–20 秒，请耐心等待</text>
   </view>
 
   <!-- ══ 结果步骤 ══ -->

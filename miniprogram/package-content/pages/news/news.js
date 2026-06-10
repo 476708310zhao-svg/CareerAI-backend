@@ -83,19 +83,7 @@ Page({
   // ======== 构建个性化快讯（供两个路径复用）========
   _buildPersonalNews() {
     const profile = wx.getStorageSync('userProfile') || {};
-    const interviewHistory = wx.getStorageSync('interviewHistory') || [];
     const personalNews = [];
-
-    if (interviewHistory.length > 0) {
-      const latest = interviewHistory[0];
-      personalNews.push({
-        id: 'p1', type: 'tip', isPersonal: true,
-        title: '你的最近面试得分 ' + (latest.score || '--') + ' 分',
-        desc: '继续练习可以提升面试表现，试试更高难度的模拟面试吧',
-        content: '根据你的最近一次 AI 模拟面试记录，你的得分为 ' + (latest.score || '--') + ' 分。\n\n面试表现提升建议：\n\n1. 回顾弱项：重点复习你回答不够完善的题目类型\n2. 刻意练习：每天花 20 分钟做 2-3 道模拟面试题\n3. 录音回听：用手机录下练习过程，回听找改进点\n4. STAR法则：行为面试题务必用 Situation-Task-Action-Result 结构\n5. 限时训练：给自己限定 2 分钟内回答，训练简洁表达',
-        time: this.getTimeLabel(0)
-      });
-    }
 
     if (profile.major) {
       personalNews.push({
@@ -312,7 +300,7 @@ Page({
 
   onShareAppMessage() {
     return {
-      title: '求职快讯 - 留学生求职助手',
+      title: '求职快讯 - 职引',
       path: '/package-content/pages/news/news'
     };
   }

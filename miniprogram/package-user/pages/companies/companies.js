@@ -14,6 +14,7 @@ Page({
     tabs: TABS,
     currentTab: '',
     list: [],
+    skeletonRows: [1, 2, 3, 4, 5, 6],
     loading: false,
     page: 1,
     hasMore: true

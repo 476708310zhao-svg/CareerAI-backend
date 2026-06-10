@@ -2,6 +2,7 @@
 Page({
   data: {
     version: '1.0.0',
+    contactEmail: '476708310@qq.com',
     stats: [
       { value: 'AI', label: '求职助手' },
       { value: '12+', label: '智能功能' },
@@ -22,7 +23,7 @@ Page({
 
   copyEmail() {
     wx.setClipboardData({
-      data: 'support@jobassistant.com',
+      data: this.data.contactEmail,
       success: () => wx.showToast({ title: '已复制邮箱', icon: 'success' })
     });
   }

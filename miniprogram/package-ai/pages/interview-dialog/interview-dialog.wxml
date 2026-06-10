@@ -28,6 +28,7 @@
 <!-- 聊天滚动区域 -->
 <scroll-view
   scroll-y
+  enable-flex="{{true}}"
   class="chat-list"
   scroll-into-view="{{toView}}"
   scroll-with-animation
@@ -72,7 +73,7 @@
       <view class="system-card">
         <view class="system-icon">🎉</view>
         <text class="system-text">面试结束，AI评估报告已生成</text>
-        <c-button class="check-report-btn" block="{{false}}" bindtap="openReport">查看完整面试报告 →</c-button>
+        <view class="check-report-btn" bindtap="openReport">查看完整面试报告 →</view>
       </view>
     </view>
 
@@ -94,15 +95,15 @@
     <!-- 语音录入按钮 -->
     <view class="mic-btn {{isRecording ? 'recording' : ''}} {{voiceLoading ? 'voice-loading' : ''}}"
           bindtap="toggleVoice">
-      <text wx:if="{{voiceLoading}}" class="mic-icon">⏳</text>
-      <text wx:elif="{{isRecording}}" class="mic-icon">⏹</text>
-      <text wx:else class="mic-icon">🎙</text>
+      <text wx:if="{{voiceLoading}}" class="mic-icon">...</text>
+      <text wx:elif="{{isRecording}}" class="mic-icon">停</text>
+      <text wx:else class="mic-icon">麦</text>
     </view>
     <textarea
       class="input-box"
       value="{{userAnswer}}"
       bindinput="onAnswerInput"
-      placeholder="{{isRecording ? '🔴 录音中…点击⏹停止' : voiceLoading ? '🔄 识别中…' : '输入或点击🎙语音回答'}}"
+      placeholder="{{isRecording ? '录音中，点击麦克风停止' : voiceLoading ? '语音识别中...' : '回答面试问题'}}"
       maxlength="2000"
       auto-height="true"
       show-confirm-bar="{{false}}"

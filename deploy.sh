@@ -7,6 +7,7 @@
 set -e
 
 DEPLOY_DIR=/www/wwwroot/jobapp-server
+DATA_ROOT=/var/lib/jobapp-server
 PM2_NAME=jobapp-server
 
 echo "🚀 开始部署求职小程序后端..."
@@ -50,13 +51,24 @@ fi
 
 # ── 6. 安装依赖 ──────────────────────────────
 cd $DEPLOY_DIR
-npm install --production
+mkdir -p "$DATA_ROOT/db" "$DATA_ROOT/uploads" "$DATA_ROOT/data" /var/log/jobapp-server
+npm ci --omit=dev
+
+# Register daily Feishu campus calendar sync.
+mkdir -p "$DEPLOY_DIR/logs"
+if command -v crontab &> /dev/null; then
+  CAMPUS_SYNC_CRON="0 6 * * * cd $DEPLOY_DIR && /bin/bash -lc 'cd $DEPLOY_DIR && npm run sync:campus' >> $DEPLOY_DIR/logs/campus-sync.log 2>&1"
+  (crontab -l 2>/dev/null | grep -v "sync:campus" | grep -v "sync_feishu_server.js"; echo "$CAMPUS_SYNC_CRON") | crontab -
+  echo "Registered daily Feishu campus sync at 06:00"
+else
+  echo "crontab not found; configure manually: cd $DEPLOY_DIR && npm run sync:campus"
+fi
 echo "✅ 依赖安装完成"
 
 # ── 7. 重启服务 ──────────────────────────────
 pm2 describe $PM2_NAME &> /dev/null \
-  && pm2 restart $PM2_NAME \
-  || pm2 start server.js --name $PM2_NAME
+  && pm2 reload ecosystem.config.cjs --update-env \
+  || pm2 start ecosystem.config.cjs
 pm2 save
 echo "✅ PM2 进程已重启：$PM2_NAME"
 

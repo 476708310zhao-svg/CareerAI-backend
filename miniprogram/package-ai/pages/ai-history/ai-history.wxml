@@ -23,8 +23,8 @@
       <text class="stat-label">错题收藏</text>
     </view>
     <view class="stat-card">
-      <text class="stat-num">{{dueCount}}</text>
-      <text class="stat-label">今日复习</text>
+      <text class="stat-num">{{audioHistory.length}}</text>
+      <text class="stat-label">录音复盘</text>
     </view>
   </view>
 
@@ -37,6 +37,10 @@
     <view class="ptab {{activeTab === 'bookmarks' ? 'active' : ''}}" bindtap="switchTab" data-tab="bookmarks">
       错题本
       <text class="ptab-badge">{{bookmarks.length}}</text>
+    </view>
+    <view class="ptab {{activeTab === 'audio' ? 'active' : ''}}" bindtap="switchTab" data-tab="audio">
+      录音复盘
+      <text class="ptab-badge soft">{{audioHistory.length}}</text>
     </view>
   </view>
 
@@ -159,6 +163,52 @@
       </view>
     </view>
 
+  </block>
+
+  <!-- ===== 录音复盘 Tab ===== -->
+  <block wx:if="{{activeTab === 'audio'}}">
+    <view class="audio-review-entry">
+      <view class="audio-entry-icon">🎙️</view>
+      <view class="audio-entry-copy">
+        <text class="audio-entry-title">录音复盘已并入面试复盘中心</text>
+        <text class="audio-entry-desc">录下模拟回答，AI 会从流畅度、内容质量和自信度给出专项反馈。</text>
+      </view>
+      <view class="audio-entry-btn" bindtap="goToAudioReview">开始录音</view>
+    </view>
+
+    <view class="top-bar" wx:if="{{audioHistory.length > 0}}">
+      <text class="record-count">共 {{audioHistory.length}} 条录音复盘</text>
+    </view>
+
+    <block wx:for="{{audioHistory}}" wx:key="id">
+      <view class="audio-card">
+        <view class="audio-card-head">
+          <view>
+            <text class="audio-card-title">{{item.question || '面试回答复盘'}}</text>
+            <text class="audio-card-date">{{item.date}}</text>
+          </view>
+          <view class="audio-score {{item.analysis.overall >= 80 ? 'high' : (item.analysis.overall >= 60 ? 'mid' : 'low')}}">
+            {{item.analysis.overall || '--'}}
+          </view>
+        </view>
+        <text class="audio-summary">{{item.analysis.summary || '暂无总结'}}</text>
+        <view class="audio-metrics">
+          <text>流畅 {{item.analysis.fluency.score || '--'}}</text>
+          <text>内容 {{item.analysis.content.score || '--'}}</text>
+          <text>自信 {{item.analysis.confidence.score || '--'}}</text>
+        </view>
+      </view>
+    </block>
+
+    <view wx:if="{{audioHistory.length === 0}}" class="history-empty">
+      <view class="empty-icon">🎙️</view>
+      <text class="empty-title">暂无录音复盘</text>
+      <text class="empty-desc">可以先录一段模拟回答，或手动粘贴回答文字，让 AI 给出表达反馈。</text>
+      <view class="empty-actions">
+        <view class="empty-primary" bindtap="goToAudioReview">开始录音复盘</view>
+        <view class="empty-secondary" bindtap="goToInterview">开始模拟面试</view>
+      </view>
+    </view>
   </block>
 
 </view>

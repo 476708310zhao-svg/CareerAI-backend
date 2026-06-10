@@ -7,5 +7,10 @@ Component({
     loading:  { type: Boolean, value: false       },
     openType: { type: String,  value: ''          }, // share | ...
   },
-  methods: {}
+  methods: {
+    handleTap(e) {
+      if (this.data.disabled || this.data.loading) return;
+      this.triggerEvent('tap', e.detail || {}, { bubbles: true, composed: true });
+    }
+  }
 })

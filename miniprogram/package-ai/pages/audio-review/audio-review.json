@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "录音复盘",
+  "navigationBarTitleText": "面试录音复盘",
   "usingComponents": {
     "c-button": "/components/c-button/c-button"
   }

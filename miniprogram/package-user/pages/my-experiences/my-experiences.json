@@ -1,5 +1,8 @@
 {
   "navigationBarTitleText": "我的面经",
   "navigationBarBackgroundColor": "#ffffff",
-  "navigationBarTextStyle": "black"
+  "navigationBarTextStyle": "black",
+  "usingComponents": {
+    "c-button": "/components/c-button/c-button"
+  }
 }

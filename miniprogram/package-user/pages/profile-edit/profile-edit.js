@@ -1,5 +1,5 @@
 // pages/profile-edit/profile-edit.js
-const config = require('../../../utils/config.js');
+const config = require('../../../utils/app-config.js');
 const API_BASE = config.API_BASE_URL;
 
 Page({
@@ -30,12 +30,15 @@ Page({
       'UX/UI 设计师', '市场营销', '运营', '量化研究员',
       '咨询顾问', '金融分析师', '商业分析师',
     ],
+    roleOptions: [],
     locationPresets: ['国内', '美国', '加拿大', '英国', '新加坡', '澳大利亚'],
+    locationOptions: [],
     skillPresets: [
       'Python', 'Java', 'JavaScript', 'TypeScript', 'C++', 'Go',
       'React', 'Vue', 'Node.js', 'SQL', '机器学习',
       '数据分析', 'AWS', 'Docker', 'Git', '产品管理',
     ],
+    skillOptions: [],
 
     customRoleInput: '',
     customSkillInput: '',
@@ -51,12 +54,56 @@ Page({
 
     const cached = wx.getStorageSync('userProfile');
     if (cached) {
-      this.setData({ userInfo: { ...this.data.userInfo, ...cached } });
+      this.setData({ userInfo: this._normalizeUserInfo({ ...this.data.userInfo, ...cached }) });
     } else {
       // 尝试从简历自动填充
       this._autoFillFromResume();
     }
+    this._refreshLocationOptions();
+    this._refreshPresetOptions();
     this._calcCompleteness();
+  },
+
+  _normalizeMultiValue(value) {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value === 'string') {
+      return value.split(/[,，、\s]+/).map(item => item.trim()).filter(Boolean);
+    }
+    return [];
+  },
+
+  _normalizeUserInfo(userInfo) {
+    return {
+      ...userInfo,
+      targetLocation: this._normalizeMultiValue(userInfo.targetLocation),
+      targetRoles: this._normalizeMultiValue(userInfo.targetRoles),
+      skills: this._normalizeMultiValue(userInfo.skills),
+    };
+  },
+
+  _refreshLocationOptions() {
+    const selected = new Set(this._normalizeMultiValue(this.data.userInfo.targetLocation));
+    this.setData({
+      locationOptions: this.data.locationPresets.map(label => ({
+        label,
+        selected: selected.has(label),
+      })),
+    });
+  },
+
+  _refreshPresetOptions() {
+    const selectedRoles = new Set(this._normalizeMultiValue(this.data.userInfo.targetRoles));
+    const selectedSkills = new Set(this._normalizeMultiValue(this.data.userInfo.skills));
+    this.setData({
+      roleOptions: this.data.rolePresets.map(label => ({
+        label,
+        selected: selectedRoles.has(label),
+      })),
+      skillOptions: this.data.skillPresets.map(label => ({
+        label,
+        selected: selectedSkills.has(label),
+      })),
+    });
   },
 
   // ── 从简历自动读取 ──────────────────────────────────────────────────────
@@ -110,10 +157,11 @@ Page({
   // ── 多选切换（targetLocation）────────────────────────────────────────────
   toggleLocation(e) {
     const { value } = e.currentTarget.dataset;
-    const list = [...(this.data.userInfo.targetLocation || [])];
+    const list = this._normalizeMultiValue(this.data.userInfo.targetLocation);
     const idx = list.indexOf(value);
     if (idx >= 0) list.splice(idx, 1); else list.push(value);
     this.setData({ 'userInfo.targetLocation': list });
+    this._refreshLocationOptions();
     this._calcCompleteness();
   },
 
@@ -131,8 +179,10 @@ Page({
       }
       list.push(value);
     }
-    this.setData({ 'userInfo.targetRoles': list });
-    this._calcCompleteness();
+    this.setData({ 'userInfo.targetRoles': list }, () => {
+      this._refreshPresetOptions();
+      this._calcCompleteness();
+    });
   },
 
   // ── 目标岗位：自定义输入 ──────────────────────────────────────────────────
@@ -153,15 +203,19 @@ Page({
       return;
     }
     list.push(val);
-    this.setData({ 'userInfo.targetRoles': list, customRoleInput: '' });
-    this._calcCompleteness();
+    this.setData({ 'userInfo.targetRoles': list, customRoleInput: '' }, () => {
+      this._refreshPresetOptions();
+      this._calcCompleteness();
+    });
   },
 
   removeRole(e) {
     const { value } = e.currentTarget.dataset;
     const list = (this.data.userInfo.targetRoles || []).filter(r => r !== value);
-    this.setData({ 'userInfo.targetRoles': list });
-    this._calcCompleteness();
+    this.setData({ 'userInfo.targetRoles': list }, () => {
+      this._refreshPresetOptions();
+      this._calcCompleteness();
+    });
   },
 
   // ── 技能标签：预设切换 ───────────────────────────────────────────────────
@@ -178,8 +232,10 @@ Page({
       }
       list.push(value);
     }
-    this.setData({ 'userInfo.skills': list });
-    this._calcCompleteness();
+    this.setData({ 'userInfo.skills': list }, () => {
+      this._refreshPresetOptions();
+      this._calcCompleteness();
+    });
   },
 
   onCustomSkillInput(e) {
@@ -199,15 +255,19 @@ Page({
       return;
     }
     list.push(val);
-    this.setData({ 'userInfo.skills': list, customSkillInput: '' });
-    this._calcCompleteness();
+    this.setData({ 'userInfo.skills': list, customSkillInput: '' }, () => {
+      this._refreshPresetOptions();
+      this._calcCompleteness();
+    });
   },
 
   removeSkill(e) {
     const { value } = e.currentTarget.dataset;
     const list = (this.data.userInfo.skills || []).filter(s => s !== value);
-    this.setData({ 'userInfo.skills': list });
-    this._calcCompleteness();
+    this.setData({ 'userInfo.skills': list }, () => {
+      this._refreshPresetOptions();
+      this._calcCompleteness();
+    });
   },
 
   // ── 头像 ─────────────────────────────────────────────────────────────────

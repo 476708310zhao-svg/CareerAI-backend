@@ -1,7 +1,9 @@
 // pages/salary/salary.js
-const { getEstimatedSalary, getCompanyJobSalary, fetchUserSalaryStats, submitSalaryReport } = require('../../../utils/api.js');
+const { getEstimatedSalary, getCompanyJobSalary, fetchUserSalaryStats, submitSalaryReport, getUserProfile } = require('../../../utils/api.js');
 const { getExchangeRates } = require('../../../utils/api-news.js');
-const { SALARY_ROLES, SALARY_COMPANIES, SALARY_CN_MAP, COMPANY_SALARY_BASE } = require('../../../utils/mock-data.js');
+const { SALARY_ROLES, SALARY_COMPANIES, COMPANY_SALARY_BASE } = require('../../utils/salary-data.js');
+const demoData = require('../../../utils/demo-data.js');
+const vipUtil = require('../../../utils/vip.js');
 
 // 货币显示配置
 const CURRENCIES = [
@@ -18,6 +20,7 @@ const CURRENCIES = [
 
 const REGION_NA = 'NA';
 const REGION_CN = 'CN';
+const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
 const LOADING_TIPS = ['分析中...', 'AI 正在分析，请稍候...', '分析时间较长，请耐心等待...'];
 
@@ -74,20 +77,35 @@ Page({
   },
 
   _readVipState: function() {
-    const userInfo = wx.getStorageSync('userInfo') || {};
-    const vipInfo = wx.getStorageSync('vipInfo') || {};
-    const vipInfoActive = !!(vipInfo.isVip && (!vipInfo.expireDate || new Date(vipInfo.expireDate) > new Date()));
-    return vipInfoActive || Number(userInfo.vipLevel || userInfo.vip_level || 0) > 0;
+    return vipUtil.isVip();
+  },
+
+  _syncVipState: function() {
+    this.setData({ isVip: this._readVipState() });
+    const token = wx.getStorageSync('token');
+    if (!token) return;
+
+    getUserProfile().then(res => {
+      const user = res && res.data;
+      if (!user) return;
+      wx.setStorageSync('userInfo', Object.assign({}, wx.getStorageSync('userInfo') || {}, user, {
+        vipLevel:     user.vipLevel || user.vip_level || 0,
+        vip_level:    user.vip_level || user.vipLevel || 0,
+        vipExpiresAt: user.vipExpiresAt || user.vip_expires_at || '',
+        vip_expires_at: user.vip_expires_at || user.vipExpiresAt || ''
+      }));
+      this.setData({ isVip: this._readVipState() });
+    }).catch(() => {});
   },
 
   onLoad: function() {
-    this.setData({ isVip: this._readVipState() });
+    this._syncVipState();
     this._loadHistory();
     this._updateCmpQuick();
   },
 
   onShow: function() {
-    this.setData({ isVip: this._readVipState() });
+    this._syncVipState();
   },
 
   goVip: function() {
@@ -324,7 +342,12 @@ Page({
       .catch(e => {
         this._clearLoadingTips();
         console.warn('[salary] searchGeneral', e);
-        this.loadMockData('general');
+        if (ALLOW_DEMO_FALLBACK) {
+          this.loadMockData('general');
+        } else {
+          this.setData({ loading: false, result: null });
+          wx.showToast({ title: '暂未获取到薪资数据', icon: 'none' });
+        }
         this._loadUserStats(job);
       });
   },
@@ -347,7 +370,12 @@ Page({
       .catch(e => {
         this._clearLoadingTips();
         console.warn('[salary] searchCompany', e);
-        this.loadMockData('company');
+        if (ALLOW_DEMO_FALLBACK) {
+          this.loadMockData('company');
+        } else {
+          this.setData({ loading: false, result: null });
+          wx.showToast({ title: '暂未获取到薪资数据', icon: 'none' });
+        }
         this._loadUserStats(job);
       });
   },
@@ -552,10 +580,14 @@ Page({
   },
 
   loadMockData: function(type) {
+    if (!ALLOW_DEMO_FALLBACK) {
+      this.setData({ loading: false, result: null });
+      return;
+    }
     const isCN = this.data.region === REGION_CN;
     const jobTitle = this.data.jobTitle || (isCN ? '软件工程师' : 'Software Engineer');
     const company  = this.data.company  || (isCN ? '字节跳动' : 'Google');
-    const cnMockMap = SALARY_CN_MAP;
+    const cnMockMap = demoData.getMap('SALARY_CN_MAP');
 
     setTimeout(() => {
       let mockRaw;

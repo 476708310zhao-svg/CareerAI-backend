@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "编辑资料",
-  "usingComponents": {}
+  "usingComponents": {
+    "c-button": "/components/c-button/c-button"
+  }
 }

@@ -1,4 +1,6 @@
 {
-  "usingComponents": {},
+  "usingComponents": {
+    "c-button": "/components/c-button/c-button"
+  },
   "navigationBarTitleText": "面试场景设置"
 }

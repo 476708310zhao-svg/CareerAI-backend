@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "AI模拟面试",
-  "usingComponents": {}
+  "usingComponents": {
+    "c-button": "/components/c-button/c-button"
+  }
 }

@@ -43,9 +43,9 @@ function check(featureName, options) {
   if (isVip()) return true;
   const opts = options || {};
   wx.showModal({
-    title: opts.title || 'VIP 专属功能',
-    content: opts.content || ((featureName || '该功能') + '需要开通 VIP 会员才能使用'),
-    confirmText: opts.confirmText || '去开通',
+    title: opts.title || '求职会员权益',
+    content: opts.content || ((featureName || '该功能') + '属于求职会员权益，可先查看会员能力说明。'),
+    confirmText: opts.confirmText || '查看权益',
     cancelText: opts.cancelText || '稍后',
     success: (res) => {
       if (res.confirm) goVip();
@@ -58,17 +58,18 @@ function checkDailyLimit(key, freeLimit, featureName) {
   if (isVip()) return true;
   const today = new Date().toISOString().slice(0, 10);
   const record = wx.getStorageSync('dailyLimit_' + key) || {};
+  const count = Number(record.count || 0);
 
   if (record.date !== today) {
     wx.setStorageSync('dailyLimit_' + key, { date: today, count: 1 });
     return true;
   }
 
-  if (record.count >= freeLimit) {
+  if (count >= freeLimit) {
     wx.showModal({
       title: '已达今日上限',
-      content: '免费用户每日可使用 ' + freeLimit + ' 次' + (featureName || '') + '，开通 VIP 无限使用',
-      confirmText: '去开通',
+      content: '免费用户每日可使用 ' + freeLimit + ' 次' + (featureName || '') + '。查看求职会员权益，可了解更多使用额度和进阶能力。',
+      confirmText: '查看权益',
       cancelText: '稍后',
       success: (res) => {
         if (res.confirm) goVip();
@@ -77,7 +78,7 @@ function checkDailyLimit(key, freeLimit, featureName) {
     return false;
   }
 
-  record.count++;
+  record.count = count + 1;
   wx.setStorageSync('dailyLimit_' + key, record);
   return true;
 }

@@ -1,13 +1,26 @@
 const fs = require('fs');
 const path = require('path');
+const { DATA_DIR, ensureDir } = require('./paths');
 
-const JOBS_FILE = path.join(__dirname, '../data/jobs.json');
+const DEFAULT_JOBS_FILE = path.join(__dirname, '../data/jobs.json');
+const JOBS_FILE = path.join(ensureDir(DATA_DIR), 'jobs.json');
+
+function ensureJobsFile() {
+  if (fs.existsSync(JOBS_FILE)) return;
+  if (fs.existsSync(DEFAULT_JOBS_FILE)) {
+    fs.copyFileSync(DEFAULT_JOBS_FILE, JOBS_FILE);
+  } else {
+    fs.writeFileSync(JOBS_FILE, JSON.stringify({ jobs: [] }, null, 2));
+  }
+}
 
 function readJobsData() {
+  ensureJobsFile();
   return JSON.parse(fs.readFileSync(JOBS_FILE, 'utf8'));
 }
 
 function writeJobsData(data) {
+  ensureJobsFile();
   fs.writeFileSync(JOBS_FILE, JSON.stringify(data, null, 2));
 }
 

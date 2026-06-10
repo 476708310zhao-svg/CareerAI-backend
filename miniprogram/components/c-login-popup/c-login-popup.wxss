@@ -107,7 +107,7 @@
   border: none;
 }
 
-.btn[disabled] {
+.btn.is-disabled {
   opacity: 0.42;
 }
 
@@ -184,4 +184,50 @@
   font-size: 24rpx;
   color: #2B5CE6;
   line-height: 1.5;
+}
+
+.wechat-privacy-card {
+  margin-top: 24rpx;
+  padding: 22rpx;
+  border-radius: 24rpx;
+  background: #f8fbff;
+  border: 1rpx solid #dbeafe;
+}
+
+.wechat-privacy-text {
+  display: block;
+  color: #475467;
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
+.wechat-privacy-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 18rpx;
+}
+
+.privacy-link-btn,
+.privacy-agree-btn {
+  flex: 1;
+  height: 68rpx;
+  line-height: 68rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.privacy-link-btn {
+  color: #2563eb;
+  background: #ffffff;
+}
+
+.privacy-agree-btn {
+  color: #ffffff;
+  background: #2563eb;
+}
+
+.privacy-link-btn::after,
+.privacy-agree-btn::after {
+  border: 0;
 }

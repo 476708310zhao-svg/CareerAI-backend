@@ -395,8 +395,8 @@
         </view>
         <view class="vip-lock-bar" bindtap="goVip">
           <text class="vlb-icon">🔒</text>
-          <text class="vlb-txt">升级 VIP 解锁 P10/P25/P75/P90 完整分位点</text>
-          <text class="vlb-btn">解锁</text>
+          <text class="vlb-txt">求职会员权益：P10/P25/P75/P90 完整分位点</text>
+          <text class="vlb-btn">查看</text>
         </view>
       </block>
     </view>
@@ -431,8 +431,8 @@
       </block>
       <view wx:else class="vip-lock-bar" bindtap="goVip">
         <text class="vlb-icon">🔒</text>
-        <text class="vlb-txt">VIP 专属：Base / Bonus / RSU 详细拆分</text>
-        <text class="vlb-btn">解锁</text>
+        <text class="vlb-txt">求职会员权益：Base / Bonus / RSU 详细拆分</text>
+        <text class="vlb-btn">查看</text>
       </view>
     </view>
 
@@ -472,8 +472,8 @@
       </block>
       <view wx:else class="vip-lock-bar" bindtap="goVip">
         <text class="vlb-icon">🔒</text>
-        <text class="vlb-txt">VIP 专属：5年薪资涨幅趋势图</text>
-        <text class="vlb-btn">解锁</text>
+        <text class="vlb-txt">求职会员权益：5 年薪资涨幅趋势图</text>
+        <text class="vlb-btn">查看</text>
       </view>
     </view>
 

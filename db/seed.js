@@ -4,6 +4,7 @@
  * 已导入的数据不会重复插入（幂等）
  */
 const db = require('./database');
+const { DB_PATH } = require('../utils/paths');
 const path = require('path');
 const fs = require('fs');
 
@@ -1087,4 +1088,4 @@ if (campusCount === 0) {
 }
 
 console.log(`\n🎉 数据迁移完成，共导入 ${total} 条记录`);
-console.log(`📁 数据库文件：${path.join(__dirname, 'jobapp.db')}`);
+console.log(`📁 数据库文件：${DB_PATH}`);

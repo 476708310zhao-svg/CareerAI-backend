@@ -1,3 +1,6 @@
 {
-  "navigationStyle": "custom"
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "c-login-popup": "/components/c-login-popup/c-login-popup"
+  }
 }

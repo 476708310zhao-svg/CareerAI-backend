@@ -6,7 +6,7 @@ Page({
   data: {
     selectedPlan: 1,
     isPaying: false,
-    payConfigured: false,   // 是否已配置真实微信支付
+    payConfigured: false,
 
     priceList: [
       { id: 0, name: '月卡会员', price: '19.9', original: '29.9', tip: '',      day: '30天',  perDay: '0.66', save: '10.0' },
@@ -47,7 +47,7 @@ Page({
 
     useCases: [
       { avatar: '👩‍💻', name: 'Sarah L.', role: 'Data Analyst @ Goldman Sachs',  story: '用AI模拟面试练习18次，精准击中高频行为题',    metric: '面试通过率', value: '3x提升', tag: '金融' },
-      { avatar: '🧑‍🎓', name: 'Kevin Z.', role: 'SWE Intern @ TikTok',          story: 'AI出题+LeetCode刷了200道算法题，1个月上岸', metric: '备考周期',   value: '缩短60%', tag: '算法' },
+      { avatar: '🧑‍🎓', name: 'Kevin Z.', role: 'SWE Intern @ TikTok',          story: 'AI出题+LeetCode刷题规划，1个月完成高强度备考', metric: '备考周期',   value: '缩短60%', tag: '算法' },
       { avatar: '👨‍💼', name: 'Mike W.',  role: 'PM @ McKinsey',                story: 'AI公司洞察提前了解面试风格，行为面试一轮过',  metric: '面试准备',   value: '有的放矢', tag: '咨询' },
       { avatar: '👩‍🔬', name: 'Lily C.',  role: 'DS @ Amazon',                  story: 'AI项目生成器生成3段经历，简历回复率大幅提升', metric: '简历回复率', value: '提升40%', tag: '数据' }
     ],
@@ -95,7 +95,7 @@ Page({
       if (expired) {
         vipInfo.isVip = false;
         wx.setStorageSync('vipInfo', vipInfo);
-        wx.showToast({ title: 'VIP 已过期', icon: 'none' });
+        wx.showToast({ title: '会员已过期', icon: 'none' });
       }
       this.setData({ userVipInfo: vipInfo });
     }
@@ -122,37 +122,24 @@ Page({
     if (url) wx.navigateTo({ url });
   },
 
-  // ── 支付入口 ────────────────────────────────────────────────────
   handlePay() {
-    if (this.data.isPaying) return;
-
-    // 检查登录态
-    const token = wx.getStorageSync('token');
-    if (!token) {
-      wx.showModal({
-        title: '请先登录',
-        content: '开通 VIP 需要登录账户，是否立即登录？',
-        confirmText: '登录',
-        success: (res) => {
-          if (res.confirm) {
-            login().then(() => this._doPay()).catch(() => {
-              wx.showToast({ title: '登录失败，请重试', icon: 'none' });
-            });
-          }
-        }
-      });
-      return;
-    }
-
-    this._doPay();
+    wx.showModal({
+      title: '会员能力说明',
+      content: '当前页面用于说明求职会员权益，具体服务状态以页面展示为准。',
+      showCancel: false,
+      confirmText: '知道了'
+    });
   },
 
   _doPay() {
+    this.handlePay();
+    return;
+
     const plan = this.data.priceList[this.data.selectedPlan];
     wx.showModal({
-      title: '确认开通',
-      content: `开通 ${plan.name}\n有效期 ${plan.day} · 合计 ¥${plan.price}`,
-      confirmText: '确认支付',
+      title: '会员能力说明',
+      content: `当前可查看 ${plan.name} 的会员能力说明，具体服务状态以页面展示为准。`,
+      confirmText: '知道了',
       confirmColor: '#D97706',
       success: (res) => {
         if (!res.confirm) return;
@@ -170,11 +157,11 @@ Page({
         wx.hideLoading();
 
         if (order.mock) {
-          // ── Mock 模式：模拟支付弹窗 ──────────────────────────
+          // ── Development payment flow ──────────────────────────
           wx.showModal({
-            title: '🧪 模拟支付',
-            content: `【开发测试模式】\n套餐：${order.planName}\n金额：¥${(order.amount / 100).toFixed(2)}\n\n点击确认完成模拟支付`,
-            confirmText: '确认支付',
+            title: '会员能力说明',
+            content: `套餐：${order.planName}\n金额：¥${(order.amount / 100).toFixed(2)}\n\n当前仅用于开发环境联调。`,
+            confirmText: '知道了',
             confirmColor: '#D97706',
             success: (res) => {
               if (!res.confirm) {
@@ -195,7 +182,7 @@ Page({
             }
           });
         } else {
-          // ── 真实微信支付 ──────────────────────────────────────
+          // Real payment flow, kept disabled until payment is available.
           wx.requestPayment({
             timeStamp: order.timeStamp,
             nonceStr:  order.nonceStr,
@@ -268,8 +255,8 @@ Page({
     this.setData({ userVipInfo: vipInfo });
 
     wx.showModal({
-      title: '🎉 开通成功',
-      content: `恭喜！已成功开通${planName}\n有效期至 ${expireDate}\n\n12项AI功能已全部解锁！`,
+      title: '会员已激活',
+      content: `已成功开通${planName}\n有效期至 ${expireDate}\n\nAI 求职会员权益已解锁。`,
       showCancel: false,
       confirmText: '开始使用',
       success: () => wx.navigateBack()

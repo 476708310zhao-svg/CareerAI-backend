@@ -6,11 +6,11 @@ const express = require('express');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
+const { UPLOAD_DIR, ensureDir } = require('../utils/paths');
 
 const router = express.Router();
 
-const CACHE_DIR = path.join(__dirname, '../uploads/logos');
-if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+const CACHE_DIR = ensureDir(path.join(UPLOAD_DIR, 'logos'));
 
 const NAME_TO_DOMAIN = {
   // ── 科技巨头 ──

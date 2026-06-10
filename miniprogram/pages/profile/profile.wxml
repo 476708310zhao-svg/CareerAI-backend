@@ -61,11 +61,11 @@
     <view class="vip-left">
       <view class="vip-title-row">
         <text class="vip-crown">冠</text>
-        <text class="vip-title">升级求职黑卡会员</text>
+        <text class="vip-title">求职会员权益</text>
       </view>
-      <text class="vip-desc">解锁 AI 简历优化 · 无限次模拟面试</text>
+      <text class="vip-desc">简历优化、模拟面试和薪资数据等能力说明</text>
     </view>
-    <view class="vip-btn">立即开通</view>
+    <view class="vip-btn">查看权益</view>
   </view>
 
   <view class="workspace-card">

@@ -1,7 +1,6 @@
 const Database = require('better-sqlite3');
-const path = require('path');
+const { DB_PATH } = require('../utils/paths');
 
-const DB_PATH = path.join(__dirname, 'jobapp.db');
 const db = new Database(DB_PATH);
 
 // WAL 模式提升并发读性能

@@ -49,6 +49,21 @@
   display: block;
 }
 
+.privacy-contract-btn {
+  margin-top: 22rpx;
+  height: 72rpx;
+  line-height: 72rpx;
+  border-radius: 999rpx;
+  color: #ffffff;
+  background: #2563eb;
+  font-size: 26rpx;
+  font-weight: 700;
+}
+
+.privacy-contract-btn::after {
+  border: 0;
+}
+
 .footer {
   text-align: center;
   padding: 32rpx 0 48rpx;

@@ -1,4 +1,7 @@
 {
-  "navigationBarTitleText": "留学生求职",
-  "enablePullDownRefresh": true
+  "navigationBarTitleText": "职引",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "c-company-logo": "/components/c-company-logo/c-company-logo"
+  }
 }

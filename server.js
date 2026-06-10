@@ -47,7 +47,8 @@ app.use(optionalAuth);
 
 // 静态文件服务（头像、Banner、Logo 等上传文件）。文件名带时间戳/随机串，适合长期缓存。
 const path = require('path');
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+const { UPLOAD_DIR } = require('./utils/paths');
+app.use('/uploads', express.static(UPLOAD_DIR, {
   maxAge: '7d',
   immutable: true
 }));

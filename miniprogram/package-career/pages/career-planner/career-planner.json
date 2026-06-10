@@ -1,5 +1,8 @@
 {
-  "navigationBarTitleText": "求职路线规划器",
+  "navigationBarTitleText": "职业工具中心",
   "navigationBarBackgroundColor": "#ffffff",
-  "navigationBarTextStyle": "black"
+  "navigationBarTextStyle": "black",
+  "usingComponents": {
+    "c-button": "/components/c-button/c-button"
+  }
 }

@@ -1,6 +1,6 @@
 // pages/campus/campus.js
 const api = require('../../../utils/api.js');
-const { CAMPUS: MOCK_CAMPUS } = require('../../../utils/mock-data');
+const demoData = require('../../../utils/demo-data');
 const { logoByName } = require('../../../utils/logo.js');
 
 const REGION_LIST      = ['全部', '中国内地', '北美', '英国', '澳洲/新加坡', '欧洲'];
@@ -53,6 +53,14 @@ Page({
     this._loadMeta();
     this.loadList(true);
     setTimeout(() => this._updateSpacerHeight(), 200);
+  },
+
+  onShow() {
+    if (this._loadedOnce) {
+      this.loadList(true);
+      return;
+    }
+    this._loadedOnce = true;
   },
 
   onPullDownRefresh() {
@@ -118,8 +126,8 @@ Page({
       });
       cb && cb();
     }).catch(() => {
-      if (reset && this.data.list.length === 0) {
-        const items = MOCK_CAMPUS.map(item => ({
+      if (reset && this.data.list.length === 0 && demoData.enabled()) {
+        const items = demoData.getList('CAMPUS').map(item => ({
           ...item,
           companyLogo:    item.companyLogo || logoByName(item.company),
           _companyInitial: String(item.company || '').slice(0, 2) || '--',
@@ -136,7 +144,7 @@ Page({
           _startMonth:    item.startDate || item.appOpenMonth ? String(item.startDate || item.appOpenMonth).slice(0, 7) : '-'
         }));
         this.setData({ list: items, total: items.length, hasMore: false, loading: false });
-        wx.showToast({ title: '当前为演示数据', icon: 'none', duration: 1500 });
+        wx.showToast({ title: '已加载推荐内容', icon: 'none', duration: 1500 });
       } else {
         this.setData({ loading: false });
       }
@@ -245,7 +253,17 @@ Page({
     e.stopPropagation && e.stopPropagation();
     const url = e.currentTarget.dataset.url;
     if (!url) return;
-    wx.navigateTo({ url: `/package-content/pages/webview/webview?url=${encodeURIComponent(url)}` });
+    wx.setClipboardData({
+      data: url,
+      success: () => {
+        wx.showModal({
+          title: '投递链接已复制',
+          content: '外部投递页面无法在小程序内直接打开，链接已复制到剪贴板，请在手机浏览器中粘贴打开。',
+          showCancel: false,
+          confirmText: '知道了',
+        });
+      },
+    });
   },
 
   // logo 加载失败 → 清空 URL，让 wx:else 的文字占位符接管

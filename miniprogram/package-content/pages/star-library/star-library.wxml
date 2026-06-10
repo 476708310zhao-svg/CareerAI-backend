@@ -52,7 +52,7 @@
         </view>
         <view class="tpl-header-right">
           <view class="tpl-save-btn" catchtap="saveTemplate" data-id="{{item.id}}">
-            <text>{{savedIds.indexOf(item.id) >= 0 ? '★' : '☆'}}</text>
+            <text>{{item.saveIcon}}</text>
           </view>
           <text class="tpl-arrow">{{expandedId === item.id ? '▲' : '▼'}}</text>
         </view>

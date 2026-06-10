@@ -3,6 +3,26 @@
 
 const { request, post, put } = require('./api-client.js');
 
+function persistUserSession(user) {
+  const u = user || {};
+  const profile = {
+    nickName:  u.nickname  || '微信用户',
+    avatarUrl: u.avatar    || '/images/default-avatar.png',
+    school:    (u.education && u.education.school) || '',
+    major:     (u.education && u.education.major)  || '',
+    userId:    u.id,
+    openid:    u.openid
+  };
+  wx.setStorageSync('userProfile', profile);
+  wx.setStorageSync('userInfo', Object.assign({}, wx.getStorageSync('userInfo') || {}, u, {
+    vipLevel:     u.vipLevel || u.vip_level || 0,
+    vip_level:    u.vip_level || u.vipLevel || 0,
+    vipExpiresAt: u.vipExpiresAt || u.vip_expires_at || '',
+    vip_expires_at: u.vip_expires_at || u.vipExpiresAt || ''
+  }));
+  return profile;
+}
+
 /**
  * 微信登录：wx.login → code → 后端 → JWT token
  * 成功后自动将 token 和 userProfile 存入 Storage
@@ -19,16 +39,7 @@ function login() {
         }).then(res => {
           if (res.code === 0 && res.data) {
             wx.setStorageSync('token', res.data.token);
-            const u = res.data.user;
-            const profile = {
-              nickName:  u.nickname  || '微信用户',
-              avatarUrl: u.avatar    || '/images/default-avatar.png',
-              school:    (u.education && u.education.school) || '',
-              major:     (u.education && u.education.major)  || '',
-              userId:    u.id,
-              openid:    u.openid
-            };
-            wx.setStorageSync('userProfile', profile);
+            persistUserSession(res.data.user);
             resolve(res.data);
           } else {
             reject(new Error(res.message || '登录失败'));
@@ -45,7 +56,7 @@ function updateUserProfileRemote(nickname, avatar) {
 }
 
 function getUserProfile() {
-  return request({ path: '/api/users/profile' });
+  return request({ path: '/api/users/profile', noCache: true });
 }
 
 function updateUserDetail(data) {
@@ -65,16 +76,7 @@ function phoneLogin(phoneCode, loginCode) {
   }).then(res => {
     if (res.code === 0 && res.data) {
       wx.setStorageSync('token', res.data.token);
-      const u = res.data.user;
-      const profile = {
-        nickName:  u.nickname  || '微信用户',
-        avatarUrl: u.avatar    || '/images/default-avatar.png',
-        school:    (u.education && u.education.school) || '',
-        major:     (u.education && u.education.major)  || '',
-        userId:    u.id,
-        openid:    u.openid
-      };
-      wx.setStorageSync('userProfile', profile);
+      persistUserSession(res.data.user);
       return res.data;
     }
     throw new Error(res.message || '手机号登录失败');
@@ -85,4 +87,4 @@ function getApplications() {
   return request({ path: '/api/applications' });
 }
 
-module.exports = { login, phoneLogin, getUserProfile, updateUserProfileRemote, updateUserDetail, getApplications };
+module.exports = { login, phoneLogin, getUserProfile, updateUserProfileRemote, updateUserDetail, getApplications, persistUserSession };

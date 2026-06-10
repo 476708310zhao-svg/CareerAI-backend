@@ -1,4 +1,5 @@
 // pages/question-detail/question-detail.js
+const { QUESTIONS } = require('../../../utils/question-bank.js');
 
 const CAT_NAMES = {
   java: 'Java', frontend: '前端', algorithm: '算法',
@@ -24,8 +25,9 @@ Page({
     isDone: false
   },
 
-  onLoad() {
-    const q = wx.getStorageSync('currentQuestion') || {};
+  onLoad(options) {
+    wx.hideLoading();
+    const q = this.resolveQuestion(options);
     const catName = CAT_NAMES[q.category] || q.category || '';
     const tips = TIPS_MAP[q.category] || ['先理解题目本质，再组织语言', '答题结构清晰：定义→原理→应用→对比', '结合实际项目案例能显著加分'];
 
@@ -45,9 +47,48 @@ Page({
     }
   },
 
+  onShow() {
+    wx.hideLoading();
+  },
+
+  resolveQuestion(options) {
+    const stored = wx.getStorageSync('currentQuestion') || {};
+    const id = options && options.id ? decodeURIComponent(options.id) : '';
+    if (stored && stored.title && (!id || String(stored.id) === String(id))) return stored;
+
+    const source = QUESTIONS || [];
+    const found = id ? source.find(item => String(item.id) === String(id)) : null;
+    if (found) {
+      const q = {
+        id: found.id,
+        qid: String(found.id),
+        title: found.title || found.question || '',
+        question: found.title || found.question || '',
+        answer: found.answer || '',
+        category: found.category || 'behavior',
+        difficulty: found.difficulty || '中等',
+        views: found.views || 0
+      };
+      wx.setStorageSync('currentQuestion', q);
+      return q;
+    }
+
+    return {
+      id: id || 'unknown',
+      title: '题目加载失败',
+      answer: '未找到该题目内容，请返回题库重新打开。',
+      category: 'behavior',
+      difficulty: '中等'
+    };
+  },
+
   // AI 模拟面试此题
   startAiInterview() {
     const q = this.data.q;
+    if (!q || !q.title || q.title === '题目加载失败') {
+      wx.showToast({ title: '题目未加载完成', icon: 'none' });
+      return;
+    }
     wx.navigateTo({
       url: `/package-ai/pages/interview-dialog/interview-dialog?autoQuestion=${encodeURIComponent(q.title)}`
     });

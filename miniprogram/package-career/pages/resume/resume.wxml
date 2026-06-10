@@ -15,7 +15,7 @@
       <view class="switcher-left" bindtap="showResumeManager">
         <text class="switcher-name">{{currentResumeName}}</text>
         <text class="switcher-count">{{serverResumes.length}} 份</text>
-        <view wx:if="{{isVip}}" class="switcher-vip-badge">VIP·无限</view>
+        <view wx:if="{{isVip}}" class="switcher-vip-badge">权益·无限</view>
         <text class="switcher-arrow">›</text>
       </view>
       <view class="switcher-btn" bindtap="createResume">+ 新建</view>
@@ -41,8 +41,8 @@
         <view wx:if="{{!serverResumes.length}}" class="rmp-empty">暂无简历，点击"新建"创建一份</view>
       </scroll-view>
       <view class="rmp-footer">
-        <text class="rmp-tip" wx:if="{{!isVip}}">免费用户1份 · 升级VIP可无限创建</text>
-        <text class="rmp-tip rmp-tip-vip" wx:else>VIP用户 · 无限创建简历</text>
+        <text class="rmp-tip" wx:if="{{!isVip}}">免费用户 1 份 · 查看求职会员权益</text>
+        <text class="rmp-tip rmp-tip-vip" wx:else>已享会员权益 · 无限创建简历</text>
       </view>
     </view>
 
@@ -285,7 +285,7 @@
       <text class="nlp-result-text" user-select>{{nlpResult}}</text>
     </scroll-view>
     <view class="nlp-panel-footer">
-      <c-button bindtap="closeNlpPanel">知道了</c-button>
+      <view class="modal-done-btn" bindtap="closeNlpPanel">知道了</view>
     </view>
   </view>
 
@@ -459,7 +459,7 @@
           <c-button class="ai-modal-confirm" bindtap="applyPolish">一键采纳</c-button>
         </block>
         <block wx:else>
-          <c-button bindtap="closeAiResult">知道了</c-button>
+          <view class="modal-done-btn" bindtap="closeAiResult">知道了</view>
         </block>
       </view>
     </view>

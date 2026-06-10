@@ -5,13 +5,17 @@ Page({
   data: {
     records: [],
     isLoading: true,
-    activeTab: 'history', // 'history' | 'bookmarks'
+    activeTab: 'history', // 'history' | 'bookmarks' | 'audio'
     bookmarks: [],
+    audioHistory: [],
     dueCount: 0,
     bestScore: 0
   },
 
-  onLoad() {
+  onLoad(options = {}) {
+    if (options.tab === 'audio') {
+      this.setData({ activeTab: 'audio' });
+    }
     this.loadHistory();
   },
 
@@ -69,6 +73,7 @@ Page({
 
     // 同步加载错题本，计算复习计划
     this._loadBookmarks();
+    this._loadAudioHistory();
   },
 
   _loadBookmarks() {
@@ -92,6 +97,23 @@ Page({
 
     const dueCount = bookmarks.filter(b => b.isDue).length;
     this.setData({ bookmarks, dueCount });
+  },
+
+  _loadAudioHistory() {
+    const audioHistory = (wx.getStorageSync('audioReviewHistory') || []).map(item => {
+      const analysis = item.analysis || {};
+      return {
+        ...item,
+        analysis: {
+          fluency: analysis.fluency || {},
+          content: analysis.content || {},
+          confidence: analysis.confidence || {},
+          overall: analysis.overall || 0,
+          summary: analysis.summary || ''
+        }
+      };
+    });
+    this.setData({ audioHistory });
   },
 
   _addDays(dateStr, days) {
@@ -176,6 +198,10 @@ Page({
 
   goToInterview() {
     wx.navigateTo({ url: '/package-ai/pages/interview-setup/interview-setup' });
+  },
+
+  goToAudioReview() {
+    wx.navigateTo({ url: '/package-ai/pages/audio-review/audio-review' });
   },
 
   // 清空历史记录

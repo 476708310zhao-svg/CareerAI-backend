@@ -1,9 +1,21 @@
 // pages/agencies/agencies.js
 const api = require('../../utils/api');
 const { logoUrl } = require('../../utils/logo');
-const { AGENCIES: MOCK_AGENCIES } = require('../../utils/mock-data');
+const demoData = require('../../utils/demo-data');
 
 const TYPE_LIST = ['全部', '猎头', '背景提升', '简历优化', '面试培训', '留学咨询', '综合'];
+const REGION_LIST = ['全部地区', '北美', '美国', '加拿大', '英国', '中国内地', '新加坡', '澳洲', '香港', '线上'];
+const REGION_KEYWORDS = {
+  '北美': ['北美', '美国', '加拿大', '纽约', '旧金山', '湾区', '西雅图', '多伦多', '温哥华', '硅谷', '洛杉矶'],
+  '美国': ['美国', '纽约', '旧金山', '湾区', '西雅图', '硅谷', '洛杉矶'],
+  '加拿大': ['加拿大', '多伦多', '温哥华'],
+  '英国': ['英国', '伦敦'],
+  '中国内地': ['中国', '国内', '全国', '北京', '上海', '深圳', '广州', '杭州', '内地'],
+  '新加坡': ['新加坡'],
+  '澳洲': ['澳洲', '澳大利亚', '悉尼', '墨尔本'],
+  '香港': ['香港'],
+  '线上': ['线上', '在线', '远程']
+};
 
 const LOGO_COLORS = [
   'rgba(102,126,234,0.85)', 'rgba(240,147,251,0.85)', 'rgba(79,172,254,0.85)',
@@ -34,6 +46,29 @@ function _enrichItem(item) {
     logoProxyUrl:  item.logoDomain ? logoUrl(item.logoDomain) : '',
   };
 }
+function _matchesRegion(item, region) {
+  if (!region || region === '全部地区') return true;
+  const words = REGION_KEYWORDS[region] || [region];
+  const text = [item.city, item.description, item.services, item.specialties]
+    .flat()
+    .filter(Boolean)
+    .join(' ');
+  return words.some(word => text.indexOf(word) !== -1);
+}
+function _filterMockAgencies(data, filters) {
+  const keyword = (filters.keyword || '').trim().toLowerCase();
+  return data.filter(item => {
+    if (filters.type && filters.type !== '全部' && item.type !== filters.type) return false;
+    if (!_matchesRegion(item, filters.region)) return false;
+    if (!keyword) return true;
+    const searchable = [item.name, item.description, item.type, item.city, item.specialties]
+      .flat()
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return searchable.indexOf(keyword) !== -1;
+  });
+}
 
 const SORT_OPTIONS = [
   { label: '综合排序', value: '' },
@@ -45,7 +80,9 @@ const SORT_OPTIONS = [
 Page({
   data: {
     typeList: TYPE_LIST,
+    regionList: REGION_LIST,
     currentType: '全部',
+    currentRegion: '全部地区',
     keyword: '',
 
     // 排序
@@ -87,6 +124,7 @@ Page({
 
     const params = { page, pageSize: this.data.pageSize };
     if (this.data.currentType !== '全部') params.type = this.data.currentType;
+    if (this.data.currentRegion !== '全部地区') params.region = this.data.currentRegion;
     if (this.data.keyword) params.keyword = this.data.keyword;
     if (this.data.currentSort) params.sort = this.data.currentSort;
 
@@ -103,9 +141,13 @@ Page({
       });
       cb && cb();
     }).catch(() => {
-      // API 不可达时（真机调试局域网问题等）加载兜底数据
-      if (reset && this.data.list.length === 0) {
-        this.setData({ list: MOCK_AGENCIES.map(_enrichItem), total: MOCK_AGENCIES.length, hasMore: false, loading: false });
+      if (reset && this.data.list.length === 0 && demoData.enabled()) {
+        const fallback = _filterMockAgencies(demoData.getList('AGENCIES'), {
+          type: this.data.currentType,
+          region: this.data.currentRegion,
+          keyword: this.data.keyword
+        }).map(_enrichItem);
+        this.setData({ list: fallback, total: fallback.length, hasMore: false, loading: false });
       } else {
         this.setData({ loading: false });
       }
@@ -127,6 +169,13 @@ Page({
     const type = e.currentTarget.dataset.type;
     if (type === this.data.currentType) return;
     this.setData({ currentType: type });
+    this.loadList(true);
+  },
+
+  switchRegion(e) {
+    const region = e.currentTarget.dataset.region;
+    if (region === this.data.currentRegion) return;
+    this.setData({ currentRegion: region });
     this.loadList(true);
   },
 

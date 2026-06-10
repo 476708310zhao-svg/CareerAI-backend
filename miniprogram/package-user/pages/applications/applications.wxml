@@ -76,6 +76,43 @@
     <view class="filter-tab {{filterTab === 'rejected' ? 'active' : ''}}" hover-class="tab-press" hover-stay-time="80" bindtap="setFilter" data-tab="rejected">已结束</view>
   </view>
 
+  <!-- 求职项目模块已并入网申看板 -->
+  <view class="project-panel">
+    <view class="project-panel-head">
+      <view>
+        <text class="project-kicker">PROJECTS</text>
+        <text class="project-title">求职项目</text>
+      </view>
+      <view class="project-add" bindtap="showProjectModal" hover-class="tap-bounce">+ 新建</view>
+    </view>
+    <view class="project-active-filter" wx:if="{{projectFilter}}">
+      <text>正在查看：{{projectName}}</text>
+      <view bindtap="clearProjectFilter">清除</view>
+    </view>
+    <scroll-view wx:if="{{projects.length}}" scroll-x enhanced show-scrollbar="{{false}}" class="project-scroll">
+      <view class="project-track">
+        <block wx:for="{{projects}}" wx:key="id">
+          <view class="project-card {{projectFilter === item.id ? 'selected' : ''}}" bindtap="setProjectFilter" data-id="{{item.id}}" data-name="{{item.name}}" hover-class="card-press">
+            <view class="project-top">
+              <text class="project-name">{{item.name}}</text>
+              <text class="project-type" style="color:{{item.category.color}};background:{{item.category.bg}}">{{item.category.label}}</text>
+            </view>
+            <text class="project-desc">{{item.description || '按方向追踪投递与面试进展'}}</text>
+            <view class="project-stats">
+              <text>{{item.appCount}} 投递</text>
+              <text>{{item.interviewCount}} 面试</text>
+              <text>{{item.offerCount}} Offer</text>
+            </view>
+          </view>
+        </block>
+      </view>
+    </scroll-view>
+    <view wx:else class="project-empty">
+      <text>按北美 Tech、国内校招、金融等方向创建项目，投递记录会在这里汇总。</text>
+      <view bindtap="showProjectModal">创建第一个项目</view>
+    </view>
+  </view>
+
   <!-- Offer AI 对比横幅 -->
   <view class="offer-compare-banner" wx:if="{{stats.offer >= 2}}" hover-class="card-press" hover-stay-time="80" bindtap="goToOfferCompare">
     <view class="ocb-left">
@@ -138,7 +175,7 @@
 
           <!-- Status + date -->
           <view class="right-col">
-            <view wx:if="{{isVip}}" class="vip-priority-badge">VIP优先</view>
+            <view wx:if="{{isVip}}" class="vip-priority-badge">会员优先</view>
             <view class="status-badge {{item.statusCode}}" hover-class="chip-press" hover-stay-time="80" catchtap="quickUpdateStatus" data-id="{{item.id}}">{{item.statusText}}</view>
             <text class="date-text">{{item.applied_at}}</text>
           </view>
@@ -274,6 +311,18 @@
         </view>
       </view>
 
+      <view class="form-item" wx:if="{{projects.length}}">
+        <text class="form-label">所属求职项目（可选）</text>
+        <scroll-view scroll-x enhanced show-scrollbar="{{false}}" class="project-choice-scroll">
+          <view class="project-choice-row">
+            <view class="project-choice {{!form.projectId ? 'active' : ''}}" bindtap="selectFormProject" data-id="">不归属项目</view>
+            <block wx:for="{{projects}}" wx:key="id">
+              <view class="project-choice {{form.projectId === item.id ? 'active' : ''}}" bindtap="selectFormProject" data-id="{{item.id}}">{{item.name}}</view>
+            </block>
+          </view>
+        </scroll-view>
+      </view>
+
       <!-- 备注 -->
       <view class="form-item">
         <text class="form-label">备注（可选）</text>
@@ -345,6 +394,67 @@
       <view class="modal-btns">
         <c-button type="secondary" class="modal-btn-cancel" bindtap="closeNoteModal">取消</c-button>
         <c-button class="modal-btn-save" bindtap="saveNote">保存</c-button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 求职项目弹窗 -->
+  <view class="modal-mask" wx:if="{{showProjectModal}}" bindtap="hideProjectModal">
+    <view class="modal-card" catchtap="noop">
+      <view class="modal-handle"></view>
+      <text class="modal-title">新建求职项目</text>
+
+      <view class="form-item">
+        <text class="form-label">项目名称 <text class="form-required">*</text></text>
+        <input class="form-input" placeholder="如：2026 秋招冲刺" value="{{projectForm.name}}" bindinput="onProjectInput" data-field="name" />
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">求职方向</text>
+        <view class="project-cat-grid">
+          <block wx:for="{{projectCategories}}" wx:key="id">
+            <view
+              class="project-cat {{projectForm.categoryId === item.id ? 'active' : ''}}"
+              style="{{projectForm.categoryId === item.id ? 'border-color:' + item.color + ';background:' + item.bg + ';color:' + item.color : ''}}"
+              bindtap="selectProjectCategory"
+              data-id="{{item.id}}"
+            >{{item.label}}</view>
+          </block>
+        </view>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">项目说明（选填）</text>
+        <input class="form-input" placeholder="如：冲刺大厂 SWE，目标 30 天投递 40 个岗位" value="{{projectForm.description}}" bindinput="onProjectInput" data-field="description" />
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">目标公司（可选）</text>
+        <input class="form-input" placeholder="如：Google、Meta、Microsoft" value="{{projectForm.targetCompanies}}" bindinput="onProjectInput" data-field="targetCompanies" />
+      </view>
+
+      <view class="form-row">
+        <view class="form-item half">
+          <text class="form-label">开始日期</text>
+          <picker mode="date" value="{{projectForm.startDate}}" bindchange="onProjectStartPick">
+            <view class="form-input picker-input">
+              <text class="{{projectForm.startDate ? 'picker-val' : 'picker-placeholder'}}">{{projectForm.startDate || '选择'}}</text>
+            </view>
+          </picker>
+        </view>
+        <view class="form-item half">
+          <text class="form-label">目标截止</text>
+          <picker mode="date" value="{{projectForm.deadline}}" bindchange="onProjectDeadlinePick">
+            <view class="form-input picker-input">
+              <text class="{{projectForm.deadline ? 'picker-val' : 'picker-placeholder'}}">{{projectForm.deadline || '选择'}}</text>
+            </view>
+          </picker>
+        </view>
+      </view>
+
+      <view class="modal-btns">
+        <c-button type="secondary" class="modal-btn-cancel" bindtap="hideProjectModal">取消</c-button>
+        <c-button class="modal-btn-save" bindtap="saveProject">创建项目</c-button>
       </view>
     </view>
   </view>

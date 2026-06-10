@@ -2,9 +2,11 @@
 const { getJobs, getAggregatedJobs, normalizeCompanyLogo } = require('../../utils/api.js');
 const { getCountries } = require('../../utils/api-news.js');
 const favUtil = require('../../utils/favorites.js');
-const { JOBS: MOCK_JOBS } = require('../../utils/mock-data.js');
+const demoData = require('../../utils/demo-data.js');
 const { fromNow, formatSalaryRange } = require('../../utils/util.js');
 const matcher = require('../../utils/matcher.js');
+const ALLOW_DEMO_FALLBACK = demoData.enabled();
+const JOB_LIST_CACHE_TTL = 30 * 60 * 1000;
 
 // ── 城市坐标表（NA + CN 主要科技城市）────────────────────────────────────────
 const CITY_COORDS = {
@@ -35,6 +37,14 @@ const CITY_COORDS = {
   'Miami':         { lat: 25.7617, lng: -80.1918 },
   'Phoenix':       { lat: 33.4484, lng: -112.0740 },
   'Minneapolis':   { lat: 44.9778, lng: -93.2650 },
+  'Cupertino':     { lat: 37.3230, lng: -122.0322 },
+  'Redmond':       { lat: 47.6740, lng: -122.1215 },
+  'Santa Clara':   { lat: 37.3541, lng: -121.9552 },
+  'Los Gatos':     { lat: 37.2358, lng: -121.9624 },
+  'Vancouver':     { lat: 49.2827, lng: -123.1207 },
+  'Toronto':       { lat: 43.6532, lng: -79.3832 },
+  'London':        { lat: 51.5072, lng: -0.1276 },
+  'Singapore':     { lat: 1.3521, lng: 103.8198 },
   'Remote':        { lat: 39.5000, lng: -98.3500 },
   // 国内
   '北京':  { lat: 39.9042, lng: 116.4074 },
@@ -59,13 +69,45 @@ const CITY_COORDS = {
 const MAP_CENTER_NA = { latitude: 37.8, longitude: -96.9, scale: 4 };
 const MAP_CENTER_CN = { latitude: 33.0, longitude: 108.0, scale: 4 };
 
+function resolveMapCity(location) {
+  const raw = String(location || '').trim();
+  if (!raw) return '';
+  const normalized = raw
+    .replace(/\s*\(.*?\)\s*/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (/remote|anywhere|work from home|wfh/i.test(normalized)) return 'Remote';
+  if (CITY_COORDS[normalized]) return normalized;
+
+  const parts = normalized.split(/[,/|;]+/).map(s => s.trim()).filter(Boolean);
+  for (const part of parts) {
+    if (CITY_COORDS[part]) return part;
+    const withoutState = part.replace(/\s+(CA|WA|NY|MA|TX|IL|CO|GA|OR|FL|AZ|MN|BC|ON)$/i, '').trim();
+    if (CITY_COORDS[withoutState]) return withoutState;
+  }
+
+  const aliases = [
+    'San Francisco', 'San Jose', 'Mountain View', 'Sunnyvale', 'Palo Alto', 'Menlo Park',
+    'Seattle', 'Bellevue', 'New York City', 'New York', 'Boston', 'Austin', 'Los Angeles',
+    'Chicago', 'Denver', 'Atlanta', 'Portland', 'San Diego', 'Dallas', 'Washington',
+    'Miami', 'Phoenix', 'Minneapolis', 'Cupertino', 'Redmond', 'Santa Clara', 'Los Gatos',
+    'Vancouver', 'Toronto', 'London', 'Singapore',
+    '北京', '上海', '深圳', '杭州', '成都', '广州', '南京', '武汉', '西安', '重庆', '苏州',
+    '天津', '长沙', '合肥', '厦门', '郑州'
+  ];
+  const lower = normalized.toLowerCase();
+  return aliases.find(city => lower.includes(city.toLowerCase())) || '';
+}
+
 Page({
   data: {
     jobs: [],
     isMockData: false,
+    skeletonRows: [1, 2, 3, 4, 5],
     searchKeyword: '',
     currentPage: 1,
-    pageSize: 10,
+    pageSize: 20,
+    totalJobs: 0,
     hasMore: true,
     loading: false,
     isRefreshing: false,
@@ -109,6 +151,16 @@ Page({
   _jobRequestSeq: 0,
   _lastJobRequestKey: '',
 
+  _jobsCacheKey: function() {
+    const dateMap = { today: 'today', week: '3days', month: 'month' };
+    return [
+      this.data.searchKeyword || 'Software Engineer jobs',
+      this.data.filterCountry || 'us',
+      dateMap[this.data.filterDate] || 'auto',
+      this.data.filterType || 'any'
+    ].join('|');
+  },
+
   onShow: function() {
     // 从详情页返回时同步最新收藏状态
     if (this.data.jobs.length > 0) {
@@ -150,10 +202,17 @@ Page({
   // 优先加载缓存，保证秒开
   loadCachedOrMock: function() {
     const cached = wx.getStorageSync('cachedJobsList');
-    if (cached && cached.length > 0) {
-      this.setData({ jobs: this.enrichJobLogos(cached), loading: false });
-    } else {
+    const cachedItems = cached && !Array.isArray(cached) ? cached.items : [];
+    const fresh = cached && !Array.isArray(cached)
+      && cached.key === this._jobsCacheKey()
+      && (Date.now() - (cached.t || 0)) < JOB_LIST_CACHE_TTL;
+
+    if (fresh && cachedItems && cachedItems.length > 0) {
+      this.setData({ jobs: this.enrichJobLogos(cachedItems), loading: false });
+    } else if (ALLOW_DEMO_FALLBACK) {
       this.loadMockJobs(true);
+    } else {
+      this.setData({ loading: false, isMockData: false });
     }
   },
 
@@ -264,11 +323,13 @@ Page({
   loadJobs: function(reset) {
     const query = this.data.searchKeyword || 'Software Engineer jobs';
     const dateMap = { today: 'today', week: '3days', month: 'month' };
+    const datePosted = dateMap[this.data.filterDate] || '';
     const page = reset ? 1 : this.data.currentPage + 1;
     const requestKey = [
       query,
       page,
       this.data.pageSize,
+      this.data.filterCountry || 'us',
       this.data.filterDate || 'all',
       this.data.filterType || 'any'
     ].join('|');
@@ -289,6 +350,8 @@ Page({
       page,
       size: this.data.pageSize,
       country: this.data.filterCountry || 'us',
+      date_posted: datePosted,
+      employment_types: this.data.filterType || '',
       noCache: reset
     }).then(res => {
       if (seq !== this._jobRequestSeq) return;
@@ -307,25 +370,33 @@ Page({
       this.setData({
         jobs: reset ? processedJobs : [...this.data.jobs, ...processedJobs],
         currentPage: page,
-        hasMore: res.data.length >= this.data.pageSize,
+        totalJobs: Number(res.total || 0),
+        hasMore: typeof res.hasMore === 'boolean' ? res.hasMore : res.data.length >= this.data.pageSize,
         loading: false,
         isRefreshing: false,
         isMockData: false
       });
+      if (this.data.viewMode === 'map') {
+        this._buildMapMarkers();
+      }
 
       // 缓存首页结果，下次秒开
       if (reset) {
-        wx.setStorageSync('cachedJobsList', processedJobs);
+        wx.setStorageSync('cachedJobsList', {
+          key: this._jobsCacheKey(),
+          t: Date.now(),
+          items: processedJobs
+        });
       }
 
     }).catch(err => {
       if (seq !== this._jobRequestSeq) return;
       console.warn('API Exception:', err);
       // 只有完全没数据时才用 Mock 兜底
-      if (this.data.jobs.length === 0) {
+      if (ALLOW_DEMO_FALLBACK && this.data.jobs.length === 0) {
         this.loadMockJobs(reset);
       } else {
-        this.setData({ loading: false, isRefreshing: false, hasMore: false });
+        this.setData({ loading: false, isRefreshing: false, hasMore: false, isMockData: false });
       }
     }).finally(() => {
       if (seq === this._jobRequestSeq) wx.stopPullDownRefresh();
@@ -350,10 +421,13 @@ Page({
         state: job.job_state,
         type: job.job_employment_type || 'Full-time',
         description: job.job_description ? job.job_description.substring(0, 80).replace(/\n/g, ' ') + '...' : '',
+        rawDescription: job.job_description || '',
+        applyLink: job.job_apply_link || '',
         logo: this.buildCompanyLogo(company) || job.employer_logo || '',
         logoFailed: false,
         companyInitial: this.getCompanyInitial(company),
         postedAt: job.job_posted_at_datetime_utc ? fromNow(job.job_posted_at_datetime_utc) : 'Recently posted',
+        postedAtRaw: job.job_posted_at_datetime_utc || '',
         isSaved: favUtil.isFavorited('job', String(job.job_id)),
         optFriendly
       };
@@ -384,10 +458,14 @@ Page({
   },
 
   loadMockJobs: function(reset) {
-    let mockJobs = MOCK_JOBS;
+    if (!ALLOW_DEMO_FALLBACK) {
+      this.setData({ loading: false, isRefreshing: false, hasMore: false, isMockData: false });
+      return;
+    }
+    let mockJobs = demoData.getList('JOBS');
     if (this.data.matchMode) {
       const profile = wx.getStorageSync('userProfile') || {};
-      mockJobs = matcher.matchJobs(profile, MOCK_JOBS);
+      mockJobs = matcher.matchJobs(profile, mockJobs);
     }
     mockJobs = this.enrichJobLogos(mockJobs);
     this.setData({
@@ -502,7 +580,10 @@ Page({
         type: job.type,
         salary: job.salary,
         postedAt: job.postedAt,
-        optFriendly: job.optFriendly
+        postedAtRaw: job.postedAtRaw,
+        optFriendly: job.optFriendly,
+        applyLink: job.applyLink,
+        description: job.rawDescription || job.description || ''
       };
       wx.setStorageSync('tempJobDetail', snapshot);
       wx.setStorageSync('jobDetailSnapshot_' + String(jobId), snapshot);
@@ -523,18 +604,24 @@ Page({
 
   _buildMapMarkers: function() {
     const jobs = this.data.jobs;
-    if (!jobs.length) return;
+    if (!jobs.length) {
+      this._cityJobsMap = {};
+      this.setData({ mapMarkers: [], mapCityJobs: [], mapShowPanel: false });
+      return;
+    }
 
     // 按城市归组，同步检测是否为国内数据（单次遍历）
     const cityMap = {};
     let isCN = false;
     jobs.forEach(job => {
-      const city = job.city || 'Remote';
+      const displayLocation = [job.city, job.state].filter(Boolean).join(', ') || job.city || 'Remote';
+      const city = resolveMapCity(displayLocation);
+      if (!city) return;
       if (!cityMap[city]) cityMap[city] = [];
-      cityMap[city].push(job);
-      if (!isCN && /[一-龥]/.test(city)) isCN = true;
+      cityMap[city].push(Object.assign({}, job, { mapCity: city }));
+      if (!isCN && /[\u4e00-\u9fa5]/.test(city)) isCN = true;
     });
-    this._cityJobsMap = cityMap; // 非响应式存储，供 tap 读取
+    this._cityJobsMap = cityMap;
 
     // 构建 markers
     const markers = [];
@@ -571,6 +658,8 @@ Page({
   },
 
   onMarkerTap: function(e) {
+    this._ignoreNextMapTap = true;
+    setTimeout(() => { this._ignoreNextMapTap = false; }, 250);
     const id = e.markerId;
     const marker = this.data.mapMarkers.find(m => m.id === id);
     if (!marker) return;
@@ -584,6 +673,7 @@ Page({
   },
 
   onMapTap: function() {
+    if (this._ignoreNextMapTap) return;
     if (this.data.mapShowPanel) this.setData({ mapShowPanel: false });
   },
 

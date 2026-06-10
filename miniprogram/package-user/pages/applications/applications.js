@@ -1,8 +1,18 @@
 // pages/applications/applications.js
 const { getApplications } = require('../../../utils/api.js');
-const { APPLICATIONS: MOCK_APPLICATIONS } = require('../../../utils/mock-data.js');
+const demoData = require('../../../utils/demo-data.js');
+const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
 const AVATAR_COLORS = ['#6B4EFF','#FF6B35','#00B894','#0984E3','#E17055','#6C5CE7','#FDCB6E','#00CEC9','#E84393','#74B9FF'];
+const PROJECT_STORAGE_KEY = 'jobProjects';
+const PROJECT_CATEGORIES = [
+  { id: 'na_tech',     label: '北美 Tech', color: '#3B82F6', bg: '#EFF6FF' },
+  { id: 'uk_consult',  label: '英国咨询',  color: '#8B5CF6', bg: '#F5F3FF' },
+  { id: 'cn_campus',   label: '国内校招',  color: '#EF4444', bg: '#FEF2F2' },
+  { id: 'sg_finance',  label: '新加坡金融', color: '#F59E0B', bg: '#FFFBEB' },
+  { id: 'au_general',  label: '澳洲求职',  color: '#10B981', bg: '#ECFDF5' },
+  { id: 'custom',      label: '自定义',    color: '#6B7280', bg: '#F9FAFB' },
+];
 
 Page({
   data: {
@@ -13,7 +23,7 @@ Page({
     isVip: false,
     filterTab: 'all',
     showModal: false,
-    form: { company: '', job_title: '', city: '', salary: '', status: 'pending', deadline: '' },
+    form: { company: '', job_title: '', city: '', salary: '', status: 'pending', deadline: '', projectId: '' },
     statusOptions: [
       { code: 'pending',   text: '⏳ 待初筛' },
       { code: 'interview', text: '📅 面试中' },
@@ -28,6 +38,13 @@ Page({
     editId: '',
     searchKeyword: '',
     sortBy: 'date',  // 'date' | 'deadline'
+    projectCategories: PROJECT_CATEGORIES,
+    projects: [],
+    projectFilter: '',
+    projectName: '',
+    showProjectModal: false,
+    projectEditId: '',
+    projectForm: { name: '', categoryId: 'na_tech', description: '', targetCompanies: '', startDate: '', deadline: '' },
 
     // Offer 追踪
     showOfferModal: false,
@@ -37,15 +54,23 @@ Page({
 
   _searchTimer: null,
 
-  onLoad: function() {
+  onLoad: function(options = {}) {
     const vipLevel = (wx.getStorageSync('userInfo') || {}).vipLevel || 0;
     this.setData({ isVip: vipLevel > 0 });
+    if (options.projectFilter) {
+      this.setData({
+        projectFilter: decodeURIComponent(options.projectFilter),
+        projectName: options.projectName ? decodeURIComponent(options.projectName) : '求职项目'
+      });
+    }
+    this.loadProjects();
     this.loadApplications();
   },
 
   onShow: function() {
     const vipLevel = (wx.getStorageSync('userInfo') || {}).vipLevel || 0;
     this.setData({ isVip: vipLevel > 0 });
+    this.loadProjects();
     this.checkDeadlineReminders();
   },
 
@@ -96,14 +121,19 @@ Page({
 
     getApplications(userId).then(res => {
       if (!res || !res.data || res.data.length === 0) {
-        throw new Error('No API data');
+        this.updateList(this.mergeApps([], localApps));
+        return;
       }
       const apiList = this.processData(res.data);
       // Merge: local additions take priority (dedup by id)
       const merged = this.mergeApps(apiList, localApps);
       this.updateList(merged);
     }).catch(() => {
-      this.loadMockData(localApps);
+      if (ALLOW_DEMO_FALLBACK) {
+        this.loadMockData(localApps);
+      } else {
+        this.updateList(this.mergeApps([], localApps));
+      }
     }).finally(() => {
       if (this.data.isRefreshing) {
         wx.stopPullDownRefresh();
@@ -117,12 +147,17 @@ Page({
     const apiProcessed = apiList.filter(a => !localIds.has(String(a.id)));
     const localProcessed = localList.map(a => {
       const cfg = this.getStatusConfig(a.status);
-      return { ...a, statusCode: a.status, statusText: cfg.text, stageLevel: this.getStageLevel(a.status), avatarInitial: this.getInitial(a.company), avatarColor: this.getAvatarColor(a.company) };
+      return { ...a, projectId: a.projectId || '', statusCode: a.status, statusText: cfg.text, stageLevel: this.getStageLevel(a.status), avatarInitial: this.getInitial(a.company), avatarColor: this.getAvatarColor(a.company) };
     });
     return [...localProcessed, ...this.processData(apiProcessed)];
   },
 
   loadMockData: function(localApps) {
+    if (!ALLOW_DEMO_FALLBACK) {
+      this.updateList(this.mergeApps([], localApps || []));
+      return;
+    }
+    const MOCK_APPLICATIONS = demoData.getList('APPLICATIONS');
     this.updateList(this.mergeApps(this.processData(MOCK_APPLICATIONS), localApps));
   },
 
@@ -136,12 +171,14 @@ Page({
         && deadline >= today && deadline <= threeDaysLater;
       return {
         id: item.id,
+        job_id: item.job_id || item.sourceJobId || item.source_job_id || '',
         job_title: item.job_title || 'Unknown Position',
         company: item.company || 'Unknown Company',
         city: item.city || '',
         salary: item.salary || '面议',
         applied_at: item.applied_at || '',
         notes: item.notes || '',
+        projectId: item.projectId || '',
         deadline,
         deadlineUrgent,
         statusCode: item.status,
@@ -164,6 +201,7 @@ Page({
     const offerRate = total > 0 ? Math.round(offer / total * 100) : 0;
     const stats = { total, pending, interviewing, offer, rejected, interviewRate, offerRate };
     this.setData({ applications: list, stats, loading: false });
+    this.loadProjects(list);
     this.applyFilter(this.data.filterTab, list);
   },
 
@@ -171,6 +209,9 @@ Page({
     const src = list || this.data.applications;
     const keyword = (this.data.searchKeyword || '').trim().toLowerCase();
     let filtered = tab === 'all' ? src : src.filter(a => a.statusCode === tab);
+    if (this.data.projectFilter) {
+      filtered = filtered.filter(a => String(a.projectId || '') === String(this.data.projectFilter));
+    }
     if (keyword) {
       filtered = filtered.filter(a =>
         (a.company || '').toLowerCase().includes(keyword) ||
@@ -280,12 +321,31 @@ Page({
           idx--;
         }
         if (hasJobDetail) {
-          if (idx === 0) { wx.navigateTo({ url: `/package-user/pages/job-detail/job-detail?id=${app.job_id}` }); return; }
+          if (idx === 0) {
+            this.cacheJobDetailSnapshot(app);
+            wx.navigateTo({ url: `/package-user/pages/job-detail/job-detail?id=${app.job_id}` });
+            return;
+          }
           idx--;
         }
         this.deleteApplication(id);
       }
     });
+  },
+
+  cacheJobDetailSnapshot: function(app) {
+    if (!app || !app.job_id) return;
+    const snapshot = {
+      id: app.job_id,
+      title: app.job_title,
+      company: app.company,
+      city: app.city,
+      salary: app.salary,
+      postedAt: app.applied_at,
+      description: app.notes || ''
+    };
+    wx.setStorageSync('tempJobDetail', snapshot);
+    wx.setStorageSync('jobDetailSnapshot_' + String(app.job_id), snapshot);
   },
 
   openEditModal: function(id) {
@@ -301,6 +361,7 @@ Page({
         salary:    app.salary !== '面议' ? app.salary : '',
         notes:     app.notes     || '',
         deadline:  app.deadline  || '',
+        projectId: app.projectId || '',
         status:    app.statusCode || 'pending'
       }
     });
@@ -384,7 +445,7 @@ Page({
   },
 
   showAddModal: function() {
-    this.setData({ showModal: true, editId: '', form: { company: '', job_title: '', city: '', salary: '', notes: '', deadline: '', status: 'pending' } });
+    this.setData({ showModal: true, editId: '', form: { company: '', job_title: '', city: '', salary: '', notes: '', deadline: '', status: 'pending', projectId: this.data.projectFilter || '' } });
   },
 
   hideAddModal: function() {
@@ -413,7 +474,7 @@ Page({
   },
 
   saveApplication: function() {
-    const { company, job_title, city, salary, status, notes, deadline } = this.data.form;
+    const { company, job_title, city, salary, status, notes, deadline, projectId } = this.data.form;
     const { editId } = this.data;
     if (!company.trim() || !job_title.trim()) {
       wx.showToast({ title: '请填写公司和职位', icon: 'none' });
@@ -434,6 +495,7 @@ Page({
           salary: salary.trim() || '面议',
           notes: (notes || '').trim(),
           deadline: (deadline || '').trim(),
+          projectId: projectId || '',
           status
         };
       }
@@ -454,6 +516,7 @@ Page({
         salary: salary.trim() || '面议',
         notes: (notes || '').trim(),
         deadline: (deadline || '').trim(),
+        projectId: projectId || '',
         status,
         applied_at: new Date().toISOString().slice(0, 10)
       };
@@ -514,6 +577,99 @@ Page({
 
   goToOfferCompare: function() {
     wx.navigateTo({ url: '/package-career/pages/offer-compare/offer-compare' });
+  },
+
+  loadProjects: function(sourceApps) {
+    const raw = wx.getStorageSync(PROJECT_STORAGE_KEY) || [];
+    const apps = sourceApps || this.data.applications || [];
+    const projects = raw.map(project => {
+      const category = PROJECT_CATEGORIES.find(item => item.id === project.categoryId) || PROJECT_CATEGORIES[PROJECT_CATEGORIES.length - 1];
+      const linked = apps.filter(app => String(app.projectId || '') === String(project.id));
+      return {
+        ...project,
+        category,
+        appCount: linked.length,
+        interviewCount: linked.filter(app => app.statusCode === 'interview' || app.status === 'interview').length,
+        offerCount: linked.filter(app => app.statusCode === 'offer' || app.status === 'offer').length
+      };
+    });
+    this.setData({ projects });
+  },
+
+  setProjectFilter: function(e) {
+    const { id, name } = e.currentTarget.dataset;
+    this.setData({ projectFilter: id || '', projectName: name || '', filterTab: 'all' });
+    this.applyFilter('all');
+  },
+
+  clearProjectFilter: function() {
+    this.setData({ projectFilter: '', projectName: '', filterTab: 'all' });
+    this.applyFilter('all');
+  },
+
+  showProjectModal: function() {
+    this.setData({
+      showProjectModal: true,
+      projectEditId: '',
+      projectForm: { name: '', categoryId: 'na_tech', description: '', targetCompanies: '', startDate: '', deadline: '' }
+    });
+  },
+
+  hideProjectModal: function() {
+    this.setData({ showProjectModal: false, projectEditId: '' });
+  },
+
+  onProjectInput: function(e) {
+    this.setData({ ['projectForm.' + e.currentTarget.dataset.field]: e.detail.value });
+  },
+
+  selectProjectCategory: function(e) {
+    this.setData({ 'projectForm.categoryId': e.currentTarget.dataset.id });
+  },
+
+  onProjectStartPick: function(e) {
+    this.setData({ 'projectForm.startDate': e.detail.value });
+  },
+
+  onProjectDeadlinePick: function(e) {
+    this.setData({ 'projectForm.deadline': e.detail.value });
+  },
+
+  selectFormProject: function(e) {
+    this.setData({ 'form.projectId': e.currentTarget.dataset.id || '' });
+  },
+
+  saveProject: function() {
+    const { name, categoryId, description, targetCompanies, startDate, deadline } = this.data.projectForm;
+    if (!name.trim()) {
+      wx.showToast({ title: '请填写项目名称', icon: 'none' });
+      return;
+    }
+
+    const companies = targetCompanies.trim()
+      ? targetCompanies.split(/[，,、\n]/).map(item => item.trim()).filter(Boolean)
+      : [];
+    const list = wx.getStorageSync(PROJECT_STORAGE_KEY) || [];
+    list.unshift({
+      id: 'proj_' + Date.now(),
+      name: name.trim(),
+      categoryId,
+      description: description.trim(),
+      targetCompanies: companies,
+      startDate,
+      deadline,
+      createdAt: new Date().toISOString().slice(0, 10),
+      updatedAt: new Date().toISOString().slice(0, 10)
+    });
+
+    wx.setStorageSync(PROJECT_STORAGE_KEY, list);
+    this.setData({ showProjectModal: false });
+    this.loadProjects();
+    wx.showToast({ title: '项目已创建', icon: 'success' });
+  },
+
+  goToCareerPlanner: function() {
+    wx.navigateTo({ url: '/package-career/pages/career-planner/career-planner' });
   },
 
   goToJobs: function() {

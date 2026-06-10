@@ -2,7 +2,7 @@ Component({
   externalClasses: ['custom-class'],
 
   properties: {
-    logo: { type: String, value: '' },
+    logo: { type: null, value: '' },
     name: { type: String, value: '' },
     fallback: { type: String, value: '' },
     size: { type: String, value: 'md' },

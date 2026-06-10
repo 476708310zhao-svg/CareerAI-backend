@@ -1,4 +1,7 @@
 // pages/ai-report/ai-report.js
+const demoData = require('../../../utils/demo-data.js');
+const ALLOW_DEMO_FALLBACK = demoData.enabled();
+
 Page({
   data: {
     report: null,
@@ -72,13 +75,20 @@ Page({
         setTimeout(() => this.drawRadarChart(dimensions), 300);
         this.buildBookmarkSet(qaList);
       } else {
-        // 兜底模拟数据
-        this.loadMockReport(id);
+        if (ALLOW_DEMO_FALLBACK) {
+          this.loadMockReport(id);
+        } else {
+          this.setData({ loading: false, report: null });
+        }
       }
     }, 600);
   },
 
   loadMockReport(id) {
+    if (!ALLOW_DEMO_FALLBACK) {
+      this.setData({ loading: false, report: null });
+      return;
+    }
     const mockDimensions = [
       { name: '语言表达', score: 82 },
       { name: '内容逻辑', score: 78 },
@@ -471,7 +481,7 @@ Page({
     ctx.font = '18px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText('留学生求职助手 · AI面试报告 · ' + (report.createTime || ''), W / 2, H - 20);
+    ctx.fillText('职引 · AI面试报告 · ' + (report.createTime || ''), W / 2, H - 20);
 
     wx.canvasToTempFilePath({
       canvas: offscreen,

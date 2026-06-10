@@ -36,6 +36,12 @@ function warnOptionalGroup(names, label) {
   }
 }
 
+function isFlagEnabled(name, defaultValue = true) {
+  const value = envValue(name).toLowerCase();
+  if (!value) return defaultValue;
+  return !['0', 'false', 'off', 'no', 'disabled'].includes(value);
+}
+
 function validateStartupEnv() {
   const isProduction = process.env.NODE_ENV === 'production';
   if (!isProduction) return;
@@ -44,7 +50,9 @@ function validateStartupEnv() {
   requireEnv(['JWT_SECRET'], 'auth');
   requireEnv(['ALLOWED_ORIGIN'], 'browser admin CORS');
   requireEnv(['WX_APP_ID', 'WX_APP_SECRET'], 'WeChat login');
-  requireEnv(['WXPAY_MCH_ID', 'WXPAY_API_KEY', 'WXPAY_APP_ID', 'WXPAY_NOTIFY_URL'], 'WeChat Pay');
+  if (isFlagEnabled('PAYMENT_ENABLED', true)) {
+    requireEnv(['WXPAY_MCH_ID', 'WXPAY_API_KEY', 'WXPAY_APP_ID', 'WXPAY_NOTIFY_URL'], 'WeChat Pay');
+  }
   requireEnv(['ADMIN_USERNAME', 'ADMIN_PASSWORD'], 'admin console');
   requireEnv(['WEBHOOK_SECRET'], 'deployment webhook');
 
@@ -61,4 +69,4 @@ function validateStartupEnv() {
   warnOptionalGroup(['WX_TPL_APPLICATION', 'WX_TPL_INTERVIEW', 'WX_TPL_SYSTEM'], 'WeChat subscribe templates');
 }
 
-module.exports = { isMissing, validateStartupEnv };
+module.exports = { isMissing, validateStartupEnv, isFlagEnabled };

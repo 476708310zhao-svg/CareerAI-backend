@@ -4,8 +4,7 @@
 const api = require('../../../utils/api.js');
 const safePage = require('../../behaviors/safe-page');
 const sendChatToDeepSeek = api.sendChatToDeepSeek;
-const vipUtil  = require('../../../utils/vip.js');
-const config   = require('../../../utils/config.js');
+const config   = require('../../../utils/app-config.js');
 const API_BASE = config.API_BASE_URL;
 
 // 录音管理器（全局单例）
@@ -90,12 +89,6 @@ Page({
       this.maxQuestions = MAX_QUESTIONS;
     }
     this.setData({ maxQDisplay: this.maxQuestions });
-
-    // VIP 权限检查：免费用户每日限 2 次
-    if (!vipUtil.checkDailyLimit('ai_interview', 2, 'AI面试')) {
-      setTimeout(() => wx.navigateBack(), 100);
-      return;
-    }
 
     setTimeout(() => {
       this.initInterview();
@@ -462,6 +455,10 @@ ${firstInstruction}
 
     recorderMgr.onStop((res) => {
       if (this._unmounted) return;
+      if (this._recTimer) {
+        clearTimeout(this._recTimer);
+        this._recTimer = null;
+      }
       if (!res.tempFilePath) {
         this.setData({ isRecording: false, voiceLoading: false });
         return;
@@ -500,14 +497,21 @@ ${firstInstruction}
 
   _startRecord: function() {
     this._initRecorder();
-    recorderMgr.start({
-      duration: 60000,
-      sampleRate: 16000,
-      numberOfChannels: 1,
-      encodeBitRate: 48000,
-      format: 'mp3',
-    });
-    this.setData({ isRecording: true });
+    try {
+      recorderMgr.start({
+        duration: 60000,
+        sampleRate: 16000,
+        numberOfChannels: 1,
+        encodeBitRate: 48000,
+        format: 'mp3',
+      });
+      this.setData({ isRecording: true });
+    } catch (err) {
+      console.error('[ASR] recorder start error', err);
+      this.setData({ isRecording: false, voiceLoading: false });
+      wx.showToast({ title: '录音启动失败，请检查麦克风权限', icon: 'none' });
+      return;
+    }
     // 自动最长60秒停止
     this._recTimer = setTimeout(() => {
       if (this.data.isRecording) {
@@ -527,18 +531,30 @@ ${firstInstruction}
       success: (res) => {
         if (this._unmounted) return;
         try {
-          const data = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
-          if (data.text && !data.mock) {
+          const body = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
+          const data = body && body.data && typeof body.data === 'object' ? body.data : body;
+          const text = (data && (data.text || data.result || data.transcript) || '').trim();
+          const isMock = !!(data && (data.mock || data.code === 'ASR_NOT_CONFIGURED'));
+
+          if (res.statusCode && res.statusCode >= 400) {
+            const detail = data && data.code === 'ASR_NOT_CONFIGURED'
+              ? '语音识别暂不可用，请手动输入'
+              : ((data && (data.detail || data.error || data.message)) || '语音识别服务异常');
+            throw new Error(detail);
+          }
+
+          if (text && !isMock) {
             // Append recognised text to existing input
             const cur = this.data.userAnswer;
-            this.setData({ userAnswer: (cur ? cur + ' ' : '') + data.text.trim() });
-          } else if (data.mock) {
-            wx.showToast({ title: 'ASR未配置，请文字输入', icon: 'none', duration: 2500 });
+            this.setData({ userAnswer: (cur ? cur + ' ' : '') + text });
+          } else if (isMock) {
+            wx.showToast({ title: '语音识别暂不可用，请手动输入', icon: 'none', duration: 2500 });
           } else {
             wx.showToast({ title: '识别失败，请重试', icon: 'none' });
           }
-        } catch (_) {
-          wx.showToast({ title: '识别解析失败', icon: 'none' });
+        } catch (err) {
+          const message = err && /ASR|语音|识别/.test(err.message || '') ? err.message : '识别解析失败';
+          wx.showToast({ title: message.substring(0, 18), icon: 'none' });
         }
         this.setData({ voiceLoading: false });
       },

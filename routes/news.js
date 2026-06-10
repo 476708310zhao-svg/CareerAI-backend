@@ -2,15 +2,36 @@
 const express = require('express');
 const router  = express.Router();
 const Parser  = require('rss-parser');
+const axios   = require('axios');
+const db      = require('../db/database');
 
 const rssParser = new Parser({ timeout: 8000 });
 const CACHE_TTL  = 30 * 60 * 1000; // 30 分钟
+const OFFICIAL_SOURCE_NAME = process.env.OFFICIAL_NEWS_SOURCE_NAME || '职引官网';
 
 // 简单内存缓存
 const _cache = {};
 
+function splitEnvList(value) {
+  return String(value || '')
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+const OFFICIAL_RSS_FEEDS = splitEnvList(process.env.OFFICIAL_NEWS_FEEDS).map((url) => ({
+  url,
+  source: OFFICIAL_SOURCE_NAME,
+  type: 'news',
+  lang: 'zh',
+  official: true
+}));
+
+const OFFICIAL_API_URLS = splitEnvList(process.env.OFFICIAL_NEWS_API_URLS);
+
 // RSS 源配置（均可从服务器访问）
 const RSS_FEEDS = [
+  ...OFFICIAL_RSS_FEEDS,
   // ── 中文职场/科技 ──
   { url: 'https://36kr.com/feed',                         source: '36氪',         type: 'news', lang: 'zh' },
   { url: 'https://www.woshipm.com/feed',                  source: '人人都是PM',    type: 'tip',  lang: 'zh' },
@@ -38,7 +59,7 @@ async function fetchAllFeeds() {
     RSS_FEEDS.map(async (feed) => {
       const parsed = await rssParser.parseURL(feed.url);
       return (parsed.items || []).slice(0, 20).map((item) => ({
-        id:         item.guid || item.link || (feed.source + '_' + (item.title || '')),
+        id:         (feed.official ? 'official_rss_' : 'rss_') + (item.guid || item.link || (feed.source + '_' + (item.title || ''))),
         title:      (item.title || '').trim(),
         desc:       (item.contentSnippet || item.summary || item.title || '').slice(0, 200),
         content:    (item.content || item['content:encoded'] || item.contentSnippet || '')
@@ -49,6 +70,7 @@ async function fetchAllFeeds() {
         time:       relativeTime(item.pubDate || item.isoDate),
         pubDate:    item.pubDate || item.isoDate || '',
         type:       feed.type,
+        isOfficial: !!feed.official,
         isPersonal: false,
       }));
     })
@@ -73,6 +95,103 @@ async function fetchAllFeeds() {
   return articles;
 }
 
+function pickArticleList(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== 'object') return [];
+  if (Array.isArray(payload.articles)) return payload.articles;
+  if (Array.isArray(payload.items)) return payload.items;
+  if (Array.isArray(payload.list)) return payload.list;
+  if (Array.isArray(payload.data)) return payload.data;
+  if (payload.data && Array.isArray(payload.data.articles)) return payload.data.articles;
+  if (payload.data && Array.isArray(payload.data.items)) return payload.data.items;
+  if (payload.data && Array.isArray(payload.data.list)) return payload.data.list;
+  return [];
+}
+
+function stripHtml(input) {
+  return String(input || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function detectType(category) {
+  const text = String(category || '').toLowerCase();
+  if (/政策|签证|opt|cpt|h1b|visa|policy/.test(text)) return 'policy';
+  if (/攻略|技巧|简历|面试|tip|guide|interview|resume/.test(text)) return 'tip';
+  if (/数据|报告|薪资|data|report|salary/.test(text)) return 'data';
+  return 'news';
+}
+
+function normalizeOfficialArticle(item, idx, url) {
+  const title = item.title || item.name || item.headline || '';
+  const content = item.content || item.body || item.html || item.markdown || item.detail || '';
+  const desc = item.desc || item.summary || item.excerpt || item.description || stripHtml(content).slice(0, 200) || title;
+  const pubDate = item.pubDate || item.publishedAt || item.published_at || item.createdAt || item.created_at || item.date || '';
+  const articleUrl = item.url || item.link || item.permalink || item.sourceUrl || item.source_url || '';
+  const category = item.category || item.type || item.tag || '';
+  return {
+    id:         'official_api_' + (item.id || item.slug || item.guid || articleUrl || `${url}_${idx}`),
+    title:      String(title).trim(),
+    desc:       String(desc || '').slice(0, 200),
+    content:    (content ? stripHtml(content) : String(desc || '')) + '\n\n来源：' + OFFICIAL_SOURCE_NAME,
+    url:        articleUrl,
+    source:     OFFICIAL_SOURCE_NAME,
+    lang:       item.lang || item.language || 'zh',
+    time:       relativeTime(pubDate),
+    pubDate,
+    type:       ['news', 'tip', 'data', 'policy'].includes(item.type) ? item.type : detectType(category),
+    imageUrl:   item.imageUrl || item.image_url || item.cover || item.cover_url || item.thumbnail || '',
+    isOfficial: true,
+    isPersonal: false,
+  };
+}
+
+async function fetchOfficialApis() {
+  if (!OFFICIAL_API_URLS.length) return [];
+  const results = await Promise.allSettled(
+    OFFICIAL_API_URLS.map(async (url) => {
+      const res = await axios.get(url, { timeout: 8000 });
+      return pickArticleList(res.data)
+        .slice(0, 50)
+        .map((item, idx) => normalizeOfficialArticle(item, idx, url));
+    })
+  );
+  return results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
+}
+
+function fetchLocalAnnouncements() {
+  try {
+    return db.prepare(`
+      SELECT id, title, content, category, cover_url, is_pinned, created_at, updated_at
+      FROM announcements
+      WHERE is_published = 1
+      ORDER BY is_pinned DESC, created_at DESC
+      LIMIT 50
+    `).all().map(row => ({
+      id:         'announcement_' + row.id,
+      title:      row.title,
+      desc:       stripHtml(row.content).slice(0, 200),
+      content:    stripHtml(row.content) + '\n\n来源：职引',
+      url:        '',
+      source:     '职引',
+      lang:       'zh',
+      time:       relativeTime(row.updated_at || row.created_at),
+      pubDate:    row.updated_at || row.created_at || '',
+      type:       detectType(row.category),
+      imageUrl:   row.cover_url || '',
+      isPinned:   !!row.is_pinned,
+      isOfficial: true,
+      isPersonal: false,
+    }));
+  } catch (err) {
+    console.warn('[News announcements]', err.message);
+    return [];
+  }
+}
+
 // GET /api/news?tab=all&keyword=xxx&lang=zh|en
 router.get('/', async (req, res) => {
   const tab     = req.query.tab     || 'all';
@@ -87,7 +206,26 @@ router.get('/', async (req, res) => {
   }
 
   try {
-    let articles = await fetchAllFeeds();
+    const [rssArticles, officialApiArticles] = await Promise.all([
+      fetchAllFeeds(),
+      fetchOfficialApis()
+    ]);
+
+    let articles = [...fetchLocalAnnouncements(), ...officialApiArticles, ...rssArticles];
+    const seen = new Set();
+    articles = articles.filter((a) => {
+      const key = String(a.url || a.id || a.title).toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return !!a.title;
+    });
+
+    articles.sort((a, b) => {
+      if ((b.isPinned ? 1 : 0) !== (a.isPinned ? 1 : 0)) return (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
+      const ta = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+      const tb = b.pubDate ? new Date(b.pubDate).getTime() : 0;
+      return tb - ta;
+    });
 
     // 语言过滤
     if (lang === 'zh' || lang === 'en') {

@@ -1,4 +1,4 @@
-const config = require('./config.js');
+const config = require('./app-config.js');
 
 const ASSET_BASE = config.ASSET_BASE_URL || config.API_BASE_URL;
 const CACHE_VERSION = '20260506a';

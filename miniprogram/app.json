@@ -1,7 +1,6 @@
 {
   "pages": [
     "pages/index/index",
-    "pages/auth/auth",
     "pages/jobs/jobs",
     "pages/experiences/experiences",
     "pages/agencies/agencies",
@@ -13,7 +12,6 @@
       "root": "package-ai",
       "pages": [
         "pages/ai-assistant/ai-assistant",
-        "pages/ai-workflow/ai-workflow",
         "pages/ai-history/ai-history",
         "pages/ai-report/ai-report",
         "pages/interview-setup/interview-setup",
@@ -30,7 +28,6 @@
         "pages/career-planner/career-planner",
         "pages/project-builder/project-builder",
         "pages/offer-compare/offer-compare",
-        "pages/job-projects/job-projects",
         "pages/salary/salary",
         "pages/skill-pathways/skill-pathways",
         "pages/job-insights/job-insights",
@@ -44,14 +41,12 @@
       "pages": [
         "pages/experience-detail/experience-detail",
         "pages/question-detail/question-detail",
-        "pages/interview-bank/interview-bank",
         "pages/star-library/star-library",
         "pages/news/news",
         "pages/news-detail/news-detail",
         "pages/campus/campus",
         "pages/campus-detail/campus-detail",
         "pages/bigtech-jobs/bigtech-jobs",
-        "pages/cron-status/cron-status",
         "pages/webview/webview"
       ]
     },
@@ -85,7 +80,7 @@
   "window": {
     "backgroundTextStyle": "light",
     "navigationBarBackgroundColor": "#fff",
-    "navigationBarTitleText": "\u7559\u5b66\u751f\u6c42\u804c\u52a9\u624b",
+    "navigationBarTitleText": "职引",
     "navigationBarTextStyle": "black",
     "backgroundColor": "#ffffff",
     "backgroundColorTop": "#ffffff",
@@ -99,50 +94,36 @@
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "\u9996\u9875",
+        "text": "首页",
         "iconPath": "images/home.png",
         "selectedIconPath": "images/home-active.png"
       },
       {
         "pagePath": "pages/jobs/jobs",
-        "text": "\u804c\u4f4d",
+        "text": "职位",
         "iconPath": "images/jobs.png",
         "selectedIconPath": "images/jobs-active.png"
       },
       {
         "pagePath": "pages/experiences/experiences",
-        "text": "\u9898\u5e93",
+        "text": "题库",
         "iconPath": "images/experience.png",
         "selectedIconPath": "images/experience-active.png"
       },
       {
         "pagePath": "pages/agencies/agencies",
-        "text": "\u6d4b\u8bc4",
+        "text": "测评",
         "iconPath": "images/assess.png",
         "selectedIconPath": "images/assess-active.png"
       },
       {
         "pagePath": "pages/profile/profile",
-        "text": "\u6211\u7684",
+        "text": "我的",
         "iconPath": "images/profile.png",
         "selectedIconPath": "images/profile-active.png"
       }
     ]
   },
   "darkmode": false,
-  "lazyCodeLoading": "requiredComponents",
-  "sitemapLocation": "sitemap.json",
-  "usingComponents": {
-    "c-button": "/components/c-button/c-button",
-    "c-section-card": "/components/c-section-card/c-section-card",
-    "c-tag": "/components/c-tag/c-tag",
-    "c-action-bar": "/components/c-action-bar/c-action-bar",
-    "c-search-bar": "/components/c-search-bar/c-search-bar",
-    "c-ai-loading": "/components/c-ai-loading/c-ai-loading",
-    "c-company-logo": "/components/c-company-logo/c-company-logo",
-    "t-button": "tdesign-miniprogram/button/button",
-    "t-tag": "tdesign-miniprogram/tag/tag",
-    "t-icon": "tdesign-miniprogram/icon/icon",
-    "t-swiper": "tdesign-miniprogram/swiper/swiper"
-  }
+  "sitemapLocation": "sitemap.json"
 }

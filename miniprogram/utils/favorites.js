@@ -1,6 +1,6 @@
 // utils/favorites.js - 收藏管理工具（跨页面统一）
 const STORAGE_KEY = 'userFavorites';
-const API_BASE = require('./config.js').API_BASE_URL;
+const API_BASE = require('./app-config.js').API_BASE_URL;
 
 function _getAll() {
   return wx.getStorageSync(STORAGE_KEY) || {

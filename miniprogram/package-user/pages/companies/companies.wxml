@@ -15,7 +15,7 @@
   <!-- 公司列表 -->
   <view class="list">
     <view wx:if="{{loading && list.length === 0}}" class="skeleton-list">
-      <view wx:for="{{[1,2,3,4,5,6]}}" wx:key="*this" class="skeleton-row">
+      <view wx:for="{{skeletonRows}}" wx:key="*this" class="skeleton-row">
         <view class="sk-avatar ux-skeleton"></view>
         <view class="sk-info">
           <view class="sk-line sk-title ux-skeleton"></view>

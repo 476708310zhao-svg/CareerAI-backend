@@ -4,8 +4,8 @@
   <!-- Hero -->
   <view class="hero">
     <view class="hero-left">
-      <text class="hero-title">录音复盘</text>
-      <text class="hero-sub">录下你的面试练习，AI 给出专项反馈</text>
+      <text class="hero-title">面试录音复盘</text>
+      <text class="hero-sub">作为面试复盘中心的录音练习子流程，AI 会给出表达反馈</text>
     </view>
     <view class="hero-icon-wrap"><text class="hero-icon">🎙️</text></view>
   </view>

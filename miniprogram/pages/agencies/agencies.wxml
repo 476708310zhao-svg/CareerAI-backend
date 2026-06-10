@@ -18,6 +18,20 @@
       </view>
     </scroll-view>
 
+    <!-- 服务地区 -->
+    <scroll-view scroll-x class="region-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
+      <view class="region-inner">
+        <block wx:for="{{regionList}}" wx:key="*this">
+          <view
+            class="region-pill {{currentRegion === item ? 'active' : ''}}"
+            bindtap="switchRegion"
+            data-region="{{item}}"
+            hover-class="tap-soft"
+          >{{item}}</view>
+        </block>
+      </view>
+    </scroll-view>
+
     <!-- 搜索栏 -->
     <view class="search-bar">
       <view class="search-wrap">

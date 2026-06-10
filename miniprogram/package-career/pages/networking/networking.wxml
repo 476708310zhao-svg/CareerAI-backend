@@ -73,7 +73,7 @@
       <text wx:if="{{loading}}" class="btn-spinner">⏳</text>
       <text>{{loading ? 'AI 生成中…' : '✨ 生成 Networking 消息'}}</text>
     </view>
-    <view class="hint">免费用户每天5次 · VIP 无限次</view>
+    <view class="hint">免费用户每天 5 次 · 会员不限次数</view>
   </view>
 
 

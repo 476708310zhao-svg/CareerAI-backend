@@ -1,4 +1,7 @@
 {
-  "usingComponents": {},
+  "usingComponents": {
+    "c-tag": "/components/c-tag/c-tag",
+    "c-company-logo": "/components/c-company-logo/c-company-logo"
+  },
   "navigationBarTitleText": "公司详情"
 }

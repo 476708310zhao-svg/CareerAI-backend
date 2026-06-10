@@ -9,6 +9,23 @@ const { formatAgency, formatAgencyReview: formatReview } = require('../db/format
 
 const DEEPSEEK_URL = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/chat/completions';
 
+const REGION_KEYWORDS = {
+  '北美': ['北美', '美国', '加拿大', '纽约', '旧金山', '湾区', '西雅图', '多伦多', '温哥华', '硅谷', '洛杉矶'],
+  '美国': ['美国', '纽约', '旧金山', '湾区', '西雅图', '硅谷', '洛杉矶'],
+  '加拿大': ['加拿大', '多伦多', '温哥华'],
+  '英国': ['英国', '伦敦'],
+  '中国内地': ['中国', '国内', '全国', '北京', '上海', '深圳', '广州', '杭州', '内地'],
+  '新加坡': ['新加坡'],
+  '澳洲': ['澳洲', '澳大利亚', '悉尼', '墨尔本'],
+  '香港': ['香港'],
+  '线上': ['线上', '在线', '远程']
+};
+
+function getRegionKeywords(region) {
+  if (!region || region === '全部地区') return [];
+  return REGION_KEYWORDS[region] || [region];
+}
+
 // ─── 重新计算机构平均评分（评测增删后调用）────────────────────────────────────
 
 function refreshRating(agencyId) {
@@ -61,9 +78,9 @@ router.get('/compare', (req, res) => {
 });
 
 // ─── GET /api/agencies ────────────────────────────────────────────────────────
-// 机构列表（关键词 / 类型 / 城市 / 排序筛选 + 分页）
+// 机构列表（关键词 / 类型 / 服务地区 / 城市 / 排序筛选 + 分页）
 router.get('/', (req, res) => {
-  const { keyword, type, city, sort, page = 1, pageSize = 15 } = req.query;
+  const { keyword, type, city, region, sort, page = 1, pageSize = 15 } = req.query;
   const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(pageSize);
   const limit  = Math.min(50, Math.max(1, parseInt(pageSize)));
 
@@ -82,6 +99,17 @@ router.get('/', (req, res) => {
   if (city && city !== '全部') {
     where.push('city LIKE ?');
     params.push(`%${city}%`);
+  }
+  const regionKeywords = getRegionKeywords(region);
+  if (regionKeywords.length) {
+    const regionFields = ['city', 'description', 'services', 'specialties'];
+    const regionClauses = [];
+    regionKeywords.forEach(word => {
+      regionClauses.push(`(${regionFields.map(field => `${field} LIKE ?`).join(' OR ')})`);
+      const likeWord = `%${word}%`;
+      regionFields.forEach(() => params.push(likeWord));
+    });
+    where.push(`(${regionClauses.join(' OR ')})`);
   }
 
   const whereSQL = where.length ? `WHERE ${where.join(' AND ')}` : '';

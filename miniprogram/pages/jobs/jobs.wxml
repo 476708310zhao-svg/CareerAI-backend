@@ -1,7 +1,7 @@
 <!-- pages/jobs/jobs.wxml -->
 <view class="page">
   <view wx:if="{{isMockData}}" class="mock-tip">
-    网络暂时不可用，当前展示示例岗位
+    网络暂时不可用，当前展示本地备用职位
   </view>
 
   <view class="fixed-header">
@@ -57,7 +57,7 @@
       <text class="brief-subtitle">按匹配度、岗位新鲜度和投递价值排序</text>
     </view>
     <view class="brief-metric">
-      <text class="brief-metric-num">{{jobs.length || 18}}+</text>
+      <text class="brief-metric-num">{{totalJobs || jobs.length || 18}}+</text>
       <text class="brief-metric-label">精选岗位</text>
     </view>
   </view>
@@ -131,7 +131,7 @@
   <view class="result-bar" wx:if="{{!loading && jobs.length > 0}}">
     <view class="result-copy">
       <text class="result-label">为你筛选</text>
-        <text class="result-count">{{jobs.length}}+ 个机会</text>
+        <text class="result-count">{{totalJobs || jobs.length}}+ 个机会</text>
       <text class="result-kw">{{searchKeyword || '全部职位'}}</text>
     </view>
     <view class="view-toggle">
@@ -244,7 +244,7 @@
     </view>
 
     <view wx:if="{{loading && jobs.length === 0}}" class="skeleton-list">
-      <view wx:for="{{[1,2,3,4,5]}}" wx:key="*this" class="skeleton-card">
+      <view wx:for="{{skeletonRows}}" wx:key="*this" class="skeleton-card">
         <view class="sk-top">
           <view class="sk-logo shimmer"></view>
           <view class="sk-info">

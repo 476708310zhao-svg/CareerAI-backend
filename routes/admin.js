@@ -17,14 +17,12 @@ const adminJobsStore = require('../utils/adminJobsStore');
 const { parsePagination, paginateArray } = require('../utils/pagination');
 const adminAccounts = require('../utils/adminAccounts');
 const { ALL_ADMIN_PERMISSIONS, PERMISSION_LABELS } = require('../utils/adminPermissions');
+const { UPLOAD_DIR, ensureDir } = require('../utils/paths');
 
 // ─── 管理后台图片上传（Banner 等） ─────────────────────────────────────────────
-const UPLOAD_DIR = path.join(__dirname, '../uploads');
-
 const adminStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dir = path.join(UPLOAD_DIR, 'banners');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const dir = ensureDir(path.join(UPLOAD_DIR, 'banners'));
     cb(null, dir);
   },
   filename: (req, file, cb) => {

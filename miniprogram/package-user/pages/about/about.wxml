@@ -7,7 +7,7 @@
     </view>
     <view class="hero-copy">
       <text class="hero-kicker">CAREER AI</text>
-      <text class="app-name">留学生求职助手</text>
+      <text class="app-name">职引</text>
       <text class="hero-sub">把岗位推荐、AI 面试、面经题库和求职规划放进一个清晰的行动工作台。</text>
     </view>
     <view class="version-pill">Version {{version}}</view>
@@ -60,7 +60,7 @@
   <view class="contact-card" bindtap="copyEmail">
     <view>
       <text class="contact-label">联系我们</text>
-      <text class="contact-title">support@jobassistant.com</text>
+      <text class="contact-title">{{contactEmail}}</text>
       <text class="contact-desc">产品建议、合作沟通或问题反馈都可以通过邮箱联系。</text>
     </view>
     <view class="contact-row">
@@ -69,7 +69,7 @@
   </view>
 
   <view class="copyright">
-    <text>Copyright 2026 留学生求职助手</text>
+    <text>Copyright 2026 职引</text>
     <text>All Rights Reserved</text>
   </view>
 </view>

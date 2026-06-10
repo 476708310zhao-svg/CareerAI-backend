@@ -49,6 +49,34 @@ page {
   border-color: rgba(43,92,230,0.28);
   font-weight: 600;
 }
+.region-scroll { width: 100%; }
+.region-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 10rpx;
+  padding: 0 24rpx 14rpx;
+  white-space: nowrap;
+}
+.region-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 48rpx;
+  min-width: 84rpx;
+  padding: 0 22rpx;
+  border-radius: 999rpx;
+  flex-shrink: 0;
+  color: #667085;
+  font-size: 23rpx;
+  font-weight: 800;
+  background: #ffffff;
+  border: 1rpx solid #e6ebf2;
+}
+.region-pill.active {
+  color: #0f766e;
+  background: #ecfdf5;
+  border-color: rgba(20,184,166,0.24);
+}
 
 /* 鈹€鈹€ 鎼滅储鏍?鈹€鈹€ */
 .search-bar { padding: 0 20rpx 14rpx; }
@@ -130,7 +158,7 @@ page {
 }
 
 /* 鈹€鈹€ 鍗犱綅 鈹€鈹€ */
-.spacer { height: 270rpx; }
+.spacer { height: 336rpx; }
 
 /* 鈹€鈹€ 鏈烘瀯鍒楄〃 鈹€鈹€ */
 .list { padding: 4rpx 16rpx 60rpx; }
@@ -539,6 +567,30 @@ page {
   background: linear-gradient(135deg, #2563eb, #14b8a6);
   border-color: transparent;
   box-shadow: 0 12rpx 24rpx rgba(37, 99, 235, 0.18);
+}
+
+.region-scroll {
+  padding: 0 0 12rpx;
+}
+
+.region-inner {
+  padding: 0 24rpx;
+}
+
+.region-pill {
+  height: 50rpx;
+  padding: 0 22rpx;
+  border-radius: 999rpx;
+  color: #667085;
+  background: #ffffff;
+  border: 1rpx solid #e6ebf2;
+  box-shadow: 0 8rpx 18rpx rgba(15, 23, 42, 0.035);
+}
+
+.region-pill.active {
+  color: #0f766e;
+  background: #ecfdf5;
+  border-color: rgba(20, 184, 166, 0.28);
 }
 
 .search-wrap {

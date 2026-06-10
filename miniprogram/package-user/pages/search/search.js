@@ -1,7 +1,8 @@
 // pages/search/search.js
-const { getJobs, getCompanies } = require('../../../utils/api.js');
-const { JOBS: MOCK_JOBS, COMPANIES, EXPERIENCES } = require('../../../utils/mock-data.js');
+const { getJobs, getCompanies, getExperiences } = require('../../../utils/api.js');
+const demoData = require('../../../utils/demo-data.js');
 const { formatSalaryRange } = require('../../../utils/util.js');
+const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
 Page({
   data: {
@@ -69,7 +70,10 @@ Page({
               city: job.job_city || 'Remote',
               state: job.job_state || '',
               type: job.job_employment_type || 'Full-time',
-              logo: job.employer_logo || '/images/default-company.png'
+              logo: job.employer_logo || '/images/default-company.png',
+              postedAt: job.job_posted_at_datetime_utc || '',
+              rawDescription: job.job_description || '',
+              applyLink: job.job_apply_link || ''
             };
           });
           const jobs = isLoadMore ? this.data.jobResults.concat(newJobs) : newJobs;
@@ -81,12 +85,12 @@ Page({
             jobHasMore: res.data.length >= 10
           });
         } else {
-          if (!isLoadMore) this.searchJobsLocal(kw);
+          if (!isLoadMore && ALLOW_DEMO_FALLBACK) this.searchJobsLocal(kw);
           this.setData({ loading: false, loadingMore: false, jobHasMore: false });
         }
       })
       .catch(() => {
-        if (!isLoadMore) this.searchJobsLocal(kw);
+        if (!isLoadMore && ALLOW_DEMO_FALLBACK) this.searchJobsLocal(kw);
         this.setData({ loading: false, loadingMore: false, jobHasMore: false });
       });
   },
@@ -108,7 +112,12 @@ Page({
 
   // 职位本地兜底
   searchJobsLocal(kw) {
+    if (!ALLOW_DEMO_FALLBACK) {
+      this.setData({ jobResults: [], loading: false });
+      return;
+    }
     const lower = kw.toLowerCase();
+    const MOCK_JOBS = demoData.getList('JOBS');
     const results = MOCK_JOBS.filter(j => j.title.toLowerCase().includes(lower) || j.company.toLowerCase().includes(lower));
     this.setData({ jobResults: results, loading: false });
   },
@@ -122,21 +131,49 @@ Page({
           this.setData({ companyResults: list });
           return;
         }
-        const lower = kw.toLowerCase();
-        const results = COMPANIES.filter(c => c.name.toLowerCase().includes(lower) || c.industry.toLowerCase().includes(lower));
-        this.setData({ companyResults: results });
+        this.searchCompaniesLocal(kw);
       })
-      .catch(() => {
-        const lower = kw.toLowerCase();
-        const results = COMPANIES.filter(c => c.name.toLowerCase().includes(lower) || c.industry.toLowerCase().includes(lower));
-        this.setData({ companyResults: results });
-      });
+      .catch(() => this.searchCompaniesLocal(kw));
   },
 
-  // 搜索面经（本地数据）
-  searchExperiences(kw) {
+  searchCompaniesLocal(kw) {
+    if (!ALLOW_DEMO_FALLBACK) {
+      this.setData({ companyResults: [] });
+      return;
+    }
     const lower = kw.toLowerCase();
-    const results = EXPERIENCES.filter(e => e.title.toLowerCase().includes(lower) || e.company.toLowerCase().includes(lower));
+    const results = demoData.getList('COMPANIES').filter(c => c.name.toLowerCase().includes(lower) || c.industry.toLowerCase().includes(lower));
+    this.setData({ companyResults: results });
+  },
+
+  // 搜索面经（真实接口优先）
+  searchExperiences(kw) {
+    getExperiences({ keyword: kw, page: 1, pageSize: 20 })
+      .then(res => {
+        const data = res && res.data;
+        const list = Array.isArray(data && data.list) ? data.list : (Array.isArray(data) ? data : []);
+        if (list.length) {
+          this.setData({ experienceResults: list.map(item => ({
+            id: item.id,
+            title: item.title || item.content || '',
+            company: item.company || '',
+            type: item.type || '面经',
+            likesCount: item.likesCount || item.likes_count || 0
+          })) });
+          return;
+        }
+        this.searchExperiencesLocal(kw);
+      })
+      .catch(() => this.searchExperiencesLocal(kw));
+  },
+
+  searchExperiencesLocal(kw) {
+    if (!ALLOW_DEMO_FALLBACK) {
+      this.setData({ experienceResults: [] });
+      return;
+    }
+    const lower = kw.toLowerCase();
+    const results = demoData.getList('EXPERIENCES').filter(e => e.title.toLowerCase().includes(lower) || e.company.toLowerCase().includes(lower));
     this.setData({ experienceResults: results });
   },
 
@@ -163,6 +200,24 @@ Page({
   // 跳转
   goToJobDetail(e) {
     const id = e.currentTarget.dataset.id;
+    const job = (this.data.jobResults || []).find(item => String(item.id) === String(id));
+    if (job) {
+      const snapshot = {
+        id: job.id,
+        title: job.title,
+        company: job.company,
+        logo: job.logo,
+        city: job.city,
+        state: job.state,
+        type: job.type,
+        salary: job.salary,
+        postedAt: job.postedAt,
+        applyLink: job.applyLink,
+        description: job.rawDescription || job.description || ''
+      };
+      wx.setStorageSync('tempJobDetail', snapshot);
+      wx.setStorageSync('jobDetailSnapshot_' + String(id), snapshot);
+    }
     const title = e.currentTarget.dataset.title || '';
     // 记录浏览历史
     if (title) {

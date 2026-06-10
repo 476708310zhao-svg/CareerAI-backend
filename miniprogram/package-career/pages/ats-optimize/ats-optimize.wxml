@@ -65,7 +65,7 @@
     <view class="btn-analyze {{(!resumeData || jdLen < 20) ? 'disabled' : ''}}" bindtap="startAnalyze">
       开始 ATS 分析
     </view>
-    <view class="hint-text">免费用户每天3次，VIP 无限次</view>
+    <view class="hint-text">免费用户每天 3 次，会员不限次数</view>
   </block>
 
 

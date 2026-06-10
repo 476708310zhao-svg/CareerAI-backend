@@ -1,6 +1,7 @@
 // pages/experience-detail/experience-detail.js
 const api = require('../../../utils/api.js');
 const favUtil = require('../../../utils/favorites.js');
+const demoData = require('../../../utils/demo-data.js');
 
 Page({
   data: {
@@ -91,9 +92,7 @@ Page({
       return;
     }
 
-    // 先用 Mock 快速渲染，再尝试从后端拉取
-    this._loadMockExperience();
-    // 尝试从后端加载（数字 id 才请求）
+    // 生产环境只展示真实接口/用户本地内容；开发兜底需显式开启。
     const numId = parseInt(this.data.expId);
     if (numId && numId > 0) {
       api.getExperienceDetail(numId).then(res => {
@@ -116,10 +115,40 @@ Page({
             createdAt: e.createdAt || e.created_at || ''
           };
           this.setData({ experience: exp, hasRichContent: true });
+          this._loadLikeCollectState(this.data.expId);
+          return;
         }
-      }).catch(() => {});
+        this._handleMissingExperience();
+      }).catch(() => this._handleMissingExperience());
+    } else {
+      this._handleMissingExperience();
     }
-    this._loadLikeCollectState(this.data.expId);
+  },
+
+  _handleMissingExperience() {
+    if (demoData.enabled()) {
+      this._loadMockExperience();
+      this._loadLikeCollectState(this.data.expId);
+      return;
+    }
+    const exp = {
+      id: this.data.expId || 'unknown',
+      userName: '',
+      userAvatar: '/images/default-avatar.png',
+      company: '',
+      position: '',
+      type: '面经',
+      round: '',
+      title: '面经加载失败',
+      richContent: [{ type: 'text', content: '未找到该面经内容，请返回列表重新打开。' }],
+      content: '未找到该面经内容，请返回列表重新打开。',
+      tags: [],
+      likesCount: 0,
+      commentsCount: 0,
+      createdAt: ''
+    };
+    this.setData({ experience: exp, hasRichContent: true });
+    wx.setNavigationBarTitle({ title: '面经详情' });
   },
 
   // 加载点赞/收藏持久化状态
@@ -553,7 +582,7 @@ Page({
       ctx.fillRect(0, H - 64, W, 64);
       ctx.fillStyle = '#9CA3AF';
       ctx.font = '22px -apple-system, PingFang SC, sans-serif';
-      ctx.fillText('留学生求职助手 · CareerAO', 40, H - 22);
+      ctx.fillText('职引 · CareerAI', 40, H - 22);
       const likesTxt = '♥ ' + (exp.likesCount || 0) + '  ✎ ' + (exp.commentsCount || 0);
       ctx.fillText(likesTxt, W - 40 - ctx.measureText(likesTxt).width, H - 22);
 

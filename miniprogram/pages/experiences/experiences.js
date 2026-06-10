@@ -4,7 +4,7 @@ const {
   fetchLeetCodeProblems,
   fetchLeetCodeStats
 } = require('../../utils/api.js');
-const { QUESTIONS } = require('../../utils/mock-data.js');
+const { QUESTIONS } = require('../../utils/question-bank.js');
 const matcher = require('../../utils/matcher.js');
 
 Page({
@@ -39,7 +39,7 @@ Page({
     ],
     currentCat: 'all',
 
-    // 本地精选题库（从 mock-data.js 加载）
+    // 本地精选题库（产品内容）
     allQuestions: QUESTIONS,
 
     // LeetCode 在线题目
@@ -474,6 +474,23 @@ Page({
       filtered = filtered.filter(q => topic.cats.includes(q.category));
     }
     this.setData({ displayList: filtered });
+  },
+
+  startBehaviorDrill() {
+    this.setData({
+      sourceTab: 'local',
+      currentCat: 'behavior',
+      currentDiff: '',
+      featuredFilter: '',
+      searchKeyword: ''
+    });
+    this._updateLcDisplayCount(this.data.lcStats, '');
+    this.filterLocal();
+    wx.pageScrollTo({ scrollTop: 0, duration: 200 });
+  },
+
+  goToMockInterview() {
+    wx.navigateTo({ url: '/package-ai/pages/interview-setup/interview-setup' });
   },
 
   // ======== 题目交互 ========

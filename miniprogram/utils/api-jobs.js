@@ -120,14 +120,17 @@ function getRemoteJobs(data) {
 
 // ── 多源聚合（JSearch/Adzuna + The Muse，一次请求拿多源合并结果）──
 function getAggregatedJobs(data) {
+  const params = {
+    query:    data.keyword || 'software engineer',
+    country:  data.country  || 'us',
+    page:     data.page     || 1,
+    pageSize: data.size     || 20
+  };
+  if (data.date_posted) params.date_posted = data.date_posted;
+  if (data.employment_types) params.employment_types = data.employment_types;
   return request({
     path: '/api/jobs/aggregate',
-    params: {
-      query:    data.keyword || 'software engineer',
-      country:  data.country  || 'us',
-      page:     data.page     || 1,
-      pageSize: data.size     || 20
-    },
+    params,
     timeout: 15000,
     noCache: !!data.noCache
   });

@@ -12,12 +12,15 @@ Component({
     agreed:        false,
     loadingWechat: false,
     loadingPhone:  false,
+    wechatPrivacyReady: true,
+    privacyContractName: '《职引隐私保护指引》',
   },
 
   observers: {
     'show': function(val) {
       if (val) {
         this.setData({ loadingWechat: false, loadingPhone: false });
+        this.checkWechatPrivacySetting();
       }
     }
   },
@@ -33,6 +36,30 @@ Component({
       this.setData({ agreed: !this.data.agreed });
     },
 
+    checkWechatPrivacySetting() {
+      if (!wx.getPrivacySetting) return;
+      wx.getPrivacySetting({
+        success: (res) => {
+          this.setData({
+            wechatPrivacyReady: !res.needAuthorization,
+            privacyContractName: res.privacyContractName || '《职引隐私保护指引》'
+          });
+        }
+      });
+    },
+
+    onAgreeWechatPrivacy() {
+      this.setData({ wechatPrivacyReady: true });
+      wx.showToast({ title: '已同意隐私授权', icon: 'none' });
+    },
+
+    onOpenWechatPrivacy() {
+      if (!wx.openPrivacyContract) return;
+      wx.openPrivacyContract({
+        fail: () => wx.showToast({ title: '请稍后重试', icon: 'none' })
+      });
+    },
+
     onPrivacyTap() {
       wx.navigateTo({ url: '/pages/privacy/privacy' });
     },
@@ -41,12 +68,14 @@ Component({
     onUnagreedTap() {
       if (!this.data.agreed) {
         wx.showToast({ title: '请先同意用户协议', icon: 'none', duration: 1500 });
+      } else if (!this.data.wechatPrivacyReady) {
+        wx.showToast({ title: '请先同意微信隐私授权', icon: 'none', duration: 1500 });
       }
     },
 
     // ── 微信一键登录 ─────────────────────────────────────────────────
     async onWechatLogin() {
-      if (!this.data.agreed || this.data.loadingWechat || this.data.loadingPhone) return;
+      if (!this.data.agreed || !this.data.wechatPrivacyReady || this.data.loadingWechat || this.data.loadingPhone) return;
       this.setData({ loadingWechat: true });
       try {
         const data = await api.login();
@@ -62,6 +91,7 @@ Component({
     // open-type="getPhoneNumber" 触发，e.detail.code 为临时授权码
     // 参考：https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/getPhoneNumber.html
     async onGetPhoneNumber(e) {
+      if (!this.data.agreed || !this.data.wechatPrivacyReady) return;
       if (!e.detail.code) return; // 用户取消授权
 
       this.setData({ loadingPhone: true });

@@ -1,10 +1,10 @@
 <!-- pages/ai-report/ai-report.wxml -->
 <view class="container" wx:if="{{report}}">
 
-  <!-- 1. 头部总分卡片（渐变背景） -->
+  <!-- 1. 头部总分卡片 -->
   <view class="score-card">
-    <view class="score-circle" style="border-color: {{report.scoreColor}}40;">
-      <text class="score-val" style="color: #fff;">{{report.totalScore}}</text>
+    <view class="score-circle" style="border-color: {{report.scoreColor}};">
+      <text class="score-val" style="color: {{report.scoreColor}};">{{report.totalScore}}</text>
       <text class="score-label">综合得分</text>
     </view>
     <view class="role-info">
@@ -198,14 +198,20 @@
   <!-- 底部操作栏 -->
   <view class="bottom-bar">
     <view class="btn-secondary" bindtap="retryInterview">再次面试</view>
-    <view class="btn-primary" bindtap="saveAsImage">保存截图</view>
+    <view class="btn-primary" bindtap="saveAsImage">保存报告</view>
   </view>
 
-  <view style="height: 140rpx;"></view>
+  <view class="bottom-spacer"></view>
 </view>
 
 <!-- Loading -->
 <view wx:if="{{loading}}" class="loading-page">
   <view class="loading-spinner"></view>
   <text class="loading-text">正在生成面试报告...</text>
+</view>
+
+<view wx:if="{{!loading && !report}}" class="report-empty">
+  <text class="report-empty-title">暂无面试报告</text>
+  <text class="report-empty-sub">完成一次 AI 面试后，这里会展示你的复盘结果。</text>
+  <view class="report-empty-btn" bindtap="retryInterview">开始 AI 面试</view>
 </view>

@@ -9,6 +9,7 @@ const REQUIRED_ENV = {
   ALLOWED_ORIGIN: 'https://admin.zhiyincareer.com',
   WX_APP_ID: 'wx1234567890abcdef',
   WX_APP_SECRET: 'wechat_secret_value',
+  PAYMENT_ENABLED: 'true',
   WXPAY_MCH_ID: '1234567890',
   WXPAY_API_KEY: 'pay_api_key_12345678901234567890',
   WXPAY_APP_ID: 'wx1234567890abcdef',
@@ -77,6 +78,22 @@ test('production startup validation rejects missing required env vars', () => {
 
 test('production startup validation accepts complete required env vars', () => {
   withEnv(REQUIRED_ENV, () => {
+    silenceWarnings(() => {
+      assert.doesNotThrow(() => validateStartupEnv());
+    });
+  });
+});
+
+test('production startup validation allows disabled payment without WXPAY vars', () => {
+  const env = Object.assign({}, REQUIRED_ENV, {
+    PAYMENT_ENABLED: 'false',
+    WXPAY_MCH_ID: '',
+    WXPAY_API_KEY: '',
+    WXPAY_APP_ID: '',
+    WXPAY_NOTIFY_URL: '',
+  });
+
+  withEnv(env, () => {
     silenceWarnings(() => {
       assert.doesNotThrow(() => validateStartupEnv());
     });

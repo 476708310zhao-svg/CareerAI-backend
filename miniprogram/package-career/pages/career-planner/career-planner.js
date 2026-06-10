@@ -6,6 +6,44 @@ const safePage = require('../../behaviors/safe-page');
 const HISTORY_KEY = 'savedCareerPlans';
 const MAX_HISTORY  = 5;
 
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function normalizeCareerPlan(plan) {
+  if (!plan) return null;
+
+  if (typeof plan === 'string') {
+    try {
+      plan = JSON.parse(plan);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  if (plan.plan) {
+    return normalizeCareerPlan(plan.plan);
+  }
+
+  if (!plan || typeof plan !== 'object') return null;
+
+  return Object.assign({}, plan, {
+    gap_analysis: Object.assign({
+      core_skills: [],
+      gaps: [],
+      strengths: []
+    }, plan.gap_analysis || {}),
+    phases: asArray(plan.phases),
+    resources: asArray(plan.resources),
+    milestones: asArray(plan.milestones)
+  });
+}
+
+function getRecordPlan(record) {
+  if (!record) return null;
+  return normalizeCareerPlan(record.plan || record.result || record.data || record.content || record);
+}
+
 Page({
   behaviors: [safePage],
   data: {
@@ -36,6 +74,17 @@ Page({
 
     // 加载提示轮换（非响应式，放 data 里方便 _clearLoadingTimer 读取）
     _loadingTimer: null,
+
+    careerTools: [
+      { title: '简历中心', desc: '诊断简历、补亮点、优化表达', icon: 'CV', tone: 'blue', url: '/package-career/pages/resume/resume' },
+      { title: 'ATS 优化', desc: '按目标 JD 检查关键词匹配', icon: 'ATS', tone: 'indigo', url: '/package-career/pages/ats-optimize/ats-optimize' },
+      { title: '项目生成', desc: '把经历整理成可讲的项目', icon: 'PRJ', tone: 'cyan', url: '/package-career/pages/project-builder/project-builder' },
+      { title: '薪资查询', desc: '查看岗位和公司薪酬参考', icon: 'PAY', tone: 'green', url: '/package-career/pages/salary/salary' },
+      { title: 'Offer 对比', desc: '拆解现金、股票和成长性', icon: 'OFF', tone: 'orange', url: '/package-career/pages/offer-compare/offer-compare' },
+      { title: '岗位洞察', desc: '分析职责、技能和求职策略', icon: 'INS', tone: 'purple', url: '/package-career/pages/job-insights/job-insights' },
+      { title: '人脉话术', desc: '生成 LinkedIn / 邮件开场白', icon: 'NET', tone: 'slate', url: '/package-career/pages/networking/networking' },
+      { title: 'OA 题库', desc: '管理笔试题和截止提醒', icon: 'OA', tone: 'teal', url: '/package-career/pages/oa-bank/oa-bank' }
+    ],
   },
 
   onLoad(options) {
@@ -73,9 +122,17 @@ Page({
     const profileFilled = !!(position || background);
 
     // 3. 读取历史记录
-    const savedPlans = wx.getStorageSync(HISTORY_KEY) || [];
+    const savedPlans = this._normalizeHistory(wx.getStorageSync(HISTORY_KEY) || []);
 
-    this._safeSetData({ position, location, background, profileFilled, fromJobDetail, savedPlans });
+    this._safeSetData({
+      position,
+      location,
+      background,
+      profileFilled,
+      fromJobDetail,
+      savedPlans,
+      showHistory: savedPlans.length > 0
+    });
   },
 
   onUnload() {
@@ -130,12 +187,13 @@ Page({
     generateCareerPlan(location.trim(), position.trim(), background.trim())
       .then(res => {
         this._clearLoadingTimer();
-        if (res && res.plan) {
+        const plan = normalizeCareerPlan(res && res.plan);
+        if (plan && plan.phases.length) {
           // 保存到历史
-          this._savePlanToHistory(res.plan, position, location);
+          this._savePlanToHistory(plan, position, location);
           this._safeSetData({
             step: 'result',
-            plan: res.plan,
+            plan,
             activePhaseIdx: 0,
             activeMilestones: false
           });
@@ -155,15 +213,38 @@ Page({
   },
 
   // ── 历史记录 ───────────────────────────────────────────────────────────────
+  _normalizeHistory(list) {
+    if (!Array.isArray(list)) return [];
+    return list
+      .map((item, index) => {
+        const plan = getRecordPlan(item);
+        if (!plan || !plan.phases.length) return null;
+        const source = item && typeof item === 'object' ? item : {};
+        return Object.assign({}, source, {
+          id: source.id || source.createdAt || index,
+          position: source.position || source.role || source.targetRole || this.data.position || '求职规划',
+          location: source.location || source.city || '',
+          createdAt: source.createdAt || source.date || '历史记录',
+          phaseCount: plan.phases.length,
+          firstGoal: plan.phases[0] && plan.phases[0].goal || '点击查看完整规划',
+          plan
+        });
+      })
+      .filter(Boolean)
+      .slice(0, MAX_HISTORY);
+  },
+
   _savePlanToHistory(plan, position, location) {
     try {
-      const list = wx.getStorageSync(HISTORY_KEY) || [];
+      const normalizedPlan = normalizeCareerPlan(plan);
+      if (!normalizedPlan) return;
+      const list = this._normalizeHistory(wx.getStorageSync(HISTORY_KEY) || []);
       list.unshift({
         id:        Date.now(),
         position:  position || '',
         location:  location || '',
         createdAt: new Date().toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }),
-        plan
+        plan: normalizedPlan
       });
       if (list.length > MAX_HISTORY) list.splice(MAX_HISTORY);
       wx.setStorageSync(HISTORY_KEY, list);
@@ -172,21 +253,46 @@ Page({
   },
 
   toggleHistory() {
-    this.setData({ showHistory: !this.data.showHistory });
+    const savedPlans = this._normalizeHistory(this.data.savedPlans);
+    this.setData({
+      savedPlans,
+      showHistory: savedPlans.length ? !this.data.showHistory : false
+    });
   },
 
   onHistoryTap(e) {
+    const id = e.currentTarget.dataset.id;
     const idx = e.currentTarget.dataset.idx;
-    const record = this.data.savedPlans[idx];
-    if (!record || !record.plan) return;
-    this.setData({
+    const list = this._normalizeHistory(this.data.savedPlans);
+    const record = list.find(item => String(item.id) === String(id)) || list[idx];
+    const plan = getRecordPlan(record);
+
+    if (!record || !plan || !plan.phases.length) {
+      wx.showToast({ title: '该历史规划已失效，请重新生成', icon: 'none' });
+      this._safeSetData({ savedPlans: list });
+      return;
+    }
+
+    this._safeSetData({
       step: 'result',
-      plan: record.plan,
-      position: record.position,
-      location: record.location,
+      plan,
+      position: record.position || this.data.position,
+      location: record.location || this.data.location,
       activePhaseIdx: 0,
-      activeMilestones: false
+      activeMilestones: false,
+      showHistory: false,
+      savedPlans: list
     });
+
+    wx.nextTick(() => {
+      wx.pageScrollTo({ scrollTop: 0, duration: 180 });
+    });
+  },
+
+  openCareerTool(e) {
+    const url = e.currentTarget.dataset.url;
+    if (!url) return;
+    wx.navigateTo({ url });
   },
 
   clearHistory() {

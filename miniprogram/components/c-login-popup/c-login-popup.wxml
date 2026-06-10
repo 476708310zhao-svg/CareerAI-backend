@@ -22,10 +22,10 @@
     <!-- 微信一键登录 -->
     <view class="btn-area" catchtap="onUnagreedTap">
       <button
-        class="btn btn-wechat"
+        class="btn btn-wechat {{(!agreed || !wechatPrivacyReady || loadingWechat || loadingPhone) ? 'is-disabled' : ''}}"
         bindtap="onWechatLogin"
         loading="{{loadingWechat}}"
-        disabled="{{!agreed || loadingWechat || loadingPhone}}"
+        disabled="{{!agreed || !wechatPrivacyReady || loadingWechat || loadingPhone}}"
       >
         <text class="btn-icon">💬</text>
         <text class="btn-text">微信一键登录</text>
@@ -35,11 +35,11 @@
     <!-- 手机号快速验证 -->
     <view class="btn-area" catchtap="onUnagreedTap">
       <button
-        class="btn btn-phone"
+        class="btn btn-phone {{(!agreed || !wechatPrivacyReady || loadingWechat || loadingPhone) ? 'is-disabled' : ''}}"
         open-type="getPhoneNumber"
         bindgetphonenumber="onGetPhoneNumber"
         loading="{{loadingPhone}}"
-        disabled="{{!agreed || loadingWechat || loadingPhone}}"
+        disabled="{{!agreed || !wechatPrivacyReady || loadingWechat || loadingPhone}}"
       >
         <text class="btn-icon">📱</text>
         <text class="btn-text">手机号快速验证</text>
@@ -54,6 +54,18 @@
       <view class="privacy-desc">
         <text class="privacy-text">我已阅读并同意</text>
         <text class="privacy-link" catchtap="onPrivacyTap">《用户协议与隐私政策》</text>
+      </view>
+    </view>
+
+    <view class="wechat-privacy-card" wx:if="{{!wechatPrivacyReady}}">
+      <text class="wechat-privacy-text">继续使用登录、手机号等能力前，请先阅读并同意{{privacyContractName}}。</text>
+      <view class="wechat-privacy-actions">
+        <button class="privacy-link-btn" bindtap="onOpenWechatPrivacy">查看指引</button>
+        <button
+          class="privacy-agree-btn"
+          open-type="agreePrivacyAuthorization"
+          bindagreeprivacyauthorization="onAgreeWechatPrivacy"
+        >同意并继续</button>
       </view>
     </view>
 

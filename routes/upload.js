@@ -6,6 +6,7 @@ const router  = express.Router();
 const db      = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
 const { imageExtForMime, isAllowedImageMime, rejectInvalidImage } = require('../utils/uploadSecurity');
+const { UPLOAD_DIR, ensureDir } = require('../utils/paths');
 
 let parsePdf = null;
 try {
@@ -14,18 +15,11 @@ try {
   parsePdf = null;
 }
 
-// 确保 uploads 目录存在
-const UPLOAD_DIR = path.join(__dirname, '../uploads');
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-}
-
 // multer 配置：按日期分目录，用随机文件名防止冲突
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const today = new Date().toISOString().slice(0, 10); // 2026-03-30
-    const dir = path.join(UPLOAD_DIR, today);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const dir = ensureDir(path.join(UPLOAD_DIR, today));
     cb(null, dir);
   },
   filename: (req, file, cb) => {
@@ -65,8 +59,7 @@ router.post('/avatar', authMiddleware, upload.single('file'), (req, res) => {
 });
 
 // ── PDF 简历上传 ──────────────────────────────────────────────────────────────
-const PDF_DIR = path.join(UPLOAD_DIR, 'resumes');
-if (!fs.existsSync(PDF_DIR)) fs.mkdirSync(PDF_DIR, { recursive: true });
+const PDF_DIR = ensureDir(path.join(UPLOAD_DIR, 'resumes'));
 
 const pdfStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, PDF_DIR),

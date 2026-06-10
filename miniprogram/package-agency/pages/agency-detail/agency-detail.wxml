@@ -348,7 +348,7 @@
             </view>
             <!-- 综合评分星 -->
             <view class="review-rating">
-              <block wx:for="{{[1,2,3,4,5]}}" wx:for-item="s" wx:key="*this">
+              <block wx:for="{{ratingStars}}" wx:for-item="s" wx:key="*this">
                 <text class="star {{s <= item.ratingOverall ? 'full' : 'empty'}}">★</text>
               </block>
               <text class="rating-num-sm">{{item.ratingOverall}}</text>
@@ -414,7 +414,7 @@
   </view>
 
   <!-- 页面底部占位 -->
-  <view style="height: 160rpx;"></view>
+  <view class="bottom-spacer"></view>
 
   <!-- ── 底部固定操作栏 ── -->
   <view class="bottom-bar">
@@ -439,7 +439,7 @@
     <view class="modal-section">
       <text class="modal-label">综合评分 <text class="required">*</text></text>
       <view class="star-selector">
-        <block wx:for="{{[1,2,3,4,5]}}" wx:for-item="s" wx:key="*this">
+        <block wx:for="{{ratingStars}}" wx:for-item="s" wx:key="*this">
           <text
             class="star-sel {{s <= reviewForm.ratingOverall ? 'selected' : ''}}"
             bindtap="setRating"
@@ -457,7 +457,7 @@
       <view class="dim-score-row">
         <text class="dim-score-lbl">实际效果</text>
         <view class="star-selector">
-          <block wx:for="{{[1,2,3,4,5]}}" wx:for-item="s" wx:key="*this">
+          <block wx:for="{{ratingStars}}" wx:for-item="s" wx:key="*this">
             <text class="star-sel sm {{s <= reviewForm.ratingEffect ? 'selected' : ''}}" bindtap="setRating" data-dim="ratingEffect" data-val="{{s}}">★</text>
           </block>
         </view>
@@ -465,7 +465,7 @@
       <view class="dim-score-row">
         <text class="dim-score-lbl">性价比</text>
         <view class="star-selector">
-          <block wx:for="{{[1,2,3,4,5]}}" wx:for-item="s" wx:key="*this">
+          <block wx:for="{{ratingStars}}" wx:for-item="s" wx:key="*this">
             <text class="star-sel sm {{s <= reviewForm.ratingValue ? 'selected' : ''}}" bindtap="setRating" data-dim="ratingValue" data-val="{{s}}">★</text>
           </block>
         </view>
@@ -473,7 +473,7 @@
       <view class="dim-score-row">
         <text class="dim-score-lbl">服务态度</text>
         <view class="star-selector">
-          <block wx:for="{{[1,2,3,4,5]}}" wx:for-item="s" wx:key="*this">
+          <block wx:for="{{ratingStars}}" wx:for-item="s" wx:key="*this">
             <text class="star-sel sm {{s <= reviewForm.ratingService ? 'selected' : ''}}" bindtap="setRating" data-dim="ratingService" data-val="{{s}}">★</text>
           </block>
         </view>

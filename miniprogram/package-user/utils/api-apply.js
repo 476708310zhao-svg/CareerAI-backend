@@ -1,6 +1,6 @@
 // utils/api-apply.js — 半自动投递 API 封装
 const { request, post, _write } = require('../../utils/api-client');
-const config = require('../../utils/config');
+const config = require('../../utils/app-config.js');
 
 function getMyPdfs() {
   return request({ path: '/api/upload/resume-pdfs', noCache: true });

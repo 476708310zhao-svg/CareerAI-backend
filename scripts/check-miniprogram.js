@@ -88,8 +88,8 @@ function checkAppReleaseConfig() {
   const app = readJson(path.join(MINI_ROOT, 'app.json'));
   const issues = [];
 
-  if (app.lazyCodeLoading !== 'requiredComponents') {
-    issues.push('app.json should enable lazyCodeLoading: requiredComponents');
+  if (app.lazyCodeLoading === 'requiredComponents') {
+    issues.push('app.json should omit lazyCodeLoading: requiredComponents because it can trigger WeChat renderer FLOW_DEPTH errors');
   }
 
   if (issues.length) {
@@ -98,7 +98,7 @@ function checkAppReleaseConfig() {
 }
 
 function checkRuntimeConfig() {
-  const configPath = path.join(MINI_ROOT, 'utils', 'config.js');
+  const configPath = path.join(MINI_ROOT, 'utils', 'app-config.js');
   const source = fs.readFileSync(configPath, 'utf8');
   const issues = [];
 
@@ -226,6 +226,29 @@ function checkCommonPathMistakes() {
   }
 }
 
+function checkDemoDataBoundary() {
+  const issues = [];
+  const allowed = new Set([
+    'utils/demo-data.js',
+    'utils/question-bank.js',
+    'utils/mock-data.js',
+  ]);
+
+  walk(MINI_ROOT, file => {
+    if (!file.endsWith('.js')) return;
+    const rel = path.relative(MINI_ROOT, file).replace(/\\/g, '/');
+    if (allowed.has(rel)) return;
+    const source = stripComments(fs.readFileSync(file, 'utf8'));
+    if (/require\(['"][^'"]*mock-data(?:\.js)?['"]\)/.test(source)) {
+      issues.push(`${rel}: import demo fixtures through utils/demo-data.js, or curated content through utils/question-bank.js`);
+    }
+  });
+
+  if (issues.length) {
+    fail(`[miniprogram] demo fixture boundary violations:\n${issues.map(item => `  - ${item}`).join('\n')}`);
+  }
+}
+
 function checkWxmlRiskyExpressions() {
   const issues = [];
   const methodPattern = /\{\{[^}]*\.(toFixed|slice|trim|map|filter|reduce|join|split)\s*\(/;
@@ -291,6 +314,7 @@ checkRegisteredPages();
 checkTabBarAssets();
 checkRelativeRequires();
 checkCommonPathMistakes();
+checkDemoDataBoundary();
 checkWxmlRiskyExpressions();
 reportPackageSizes();
 

@@ -15,7 +15,9 @@
     </view>
     <view class="progress-wrap">
       <text class="progress-label">资料完整度</text>
-      <t-progress percentage="{{completeness}}" color="#2B5CE6" track-color="#EEF2FF" />
+      <view class="profile-progress">
+        <view class="profile-progress-fill" style="width: {{completeness}}%;"></view>
+      </view>
       <text class="progress-tip">资料越完整，匹配的岗位和题目越精准</text>
     </view>
   </view>
@@ -90,12 +92,12 @@
   </view>
   <view class="form-card pad">
     <view class="chip-row wrap">
-      <block wx:for="{{locationPresets}}" wx:key="*this">
+      <block wx:for="{{locationOptions}}" wx:key="label">
         <view
-          class="chip {{userInfo.targetLocation.indexOf(item) >= 0 ? 'chip-active' : ''}}"
+          class="chip {{item.selected ? 'chip-active' : ''}}"
           bindtap="toggleLocation"
-          data-value="{{item}}"
-        >{{item}}</view>
+          data-value="{{item.label}}"
+        >{{item.label}}</view>
       </block>
     </view>
   </view>
@@ -117,12 +119,12 @@
 
     <text class="sub-label {{userInfo.targetRoles.length > 0 ? 'mt' : ''}}">常见岗位</text>
     <view class="chip-row wrap">
-      <block wx:for="{{rolePresets}}" wx:key="*this">
+      <block wx:for="{{roleOptions}}" wx:key="label">
         <view
-          class="chip {{userInfo.targetRoles.indexOf(item) >= 0 ? 'chip-active' : ''}}"
+          class="chip {{item.selected ? 'chip-active' : ''}}"
           bindtap="toggleRole"
-          data-value="{{item}}"
-        >{{item}}</view>
+          data-value="{{item.label}}"
+        >{{item.label}}</view>
       </block>
     </view>
 
@@ -157,12 +159,12 @@
 
     <text class="sub-label {{userInfo.skills.length > 0 ? 'mt' : ''}}">常用技能</text>
     <view class="chip-row wrap">
-      <block wx:for="{{skillPresets}}" wx:key="*this">
+      <block wx:for="{{skillOptions}}" wx:key="label">
         <view
-          class="chip {{userInfo.skills.indexOf(item) >= 0 ? 'chip-active' : ''}}"
+          class="chip {{item.selected ? 'chip-active' : ''}}"
           bindtap="toggleSkill"
-          data-value="{{item}}"
-        >{{item}}</view>
+          data-value="{{item.label}}"
+        >{{item.label}}</view>
       </block>
     </view>
 

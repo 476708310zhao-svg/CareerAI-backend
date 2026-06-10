@@ -36,9 +36,20 @@ Page({
       const last = history[0];
       const age = Date.now() - last.ts;
       if (age < 7 * 24 * 60 * 60 * 1000) {
-        this.setData({ result: last.result, period: last.period, phase: 'done' });
+        this.setData({ result: this._normalizeResult(last.result), period: last.period, phase: 'done' });
       }
     }
+  },
+
+  _normalizeResult(result) {
+    if (!result) return result;
+    const salaryTrend = result.salaryTrend || {};
+    const items = (salaryTrend.items || []).map(item => Object.assign({}, item, {
+      trendClass: item.yoy && String(item.yoy).charAt(0) === '+' ? 'up' : 'down'
+    }));
+    return Object.assign({}, result, {
+      salaryTrend: Object.assign({}, salaryTrend, { items })
+    });
   },
 
   onUnload() {
@@ -105,6 +116,7 @@ Page({
           this.setData({ phase: 'idle' });
           return;
         }
+        result = this._normalizeResult(result);
         const entry = { period: this.data.period, result, ts: Date.now() };
         const history = [entry, ...this.data.history].slice(0, 10);
         wx.setStorageSync('jobInsightsHistory', history);
@@ -124,6 +136,6 @@ Page({
 
   loadHistoryItem(e) {
     const item = this.data.history[e.currentTarget.dataset.idx];
-    this.setData({ result: item.result, period: item.period, phase: 'done' });
+    this.setData({ result: this._normalizeResult(item.result), period: item.period, phase: 'done' });
   }
 });

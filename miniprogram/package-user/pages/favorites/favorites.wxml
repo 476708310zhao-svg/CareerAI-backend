@@ -51,12 +51,12 @@
     <!-- 职位 -->
     <block wx:if="{{currentTab === 0}}">
       <block wx:for="{{currentList}}" wx:key="targetId">
-        <view class="fav-card {{batchMode && selectedIds.indexOf(item.targetId) !== -1 ? 'selected' : ''}}"
+        <view class="fav-card {{batchMode && item.isSelected ? 'selected' : ''}}"
               bindtap="handleCardTap"
               data-item="{{item}}"
               data-targetid="{{item.targetId}}">
           <view class="select-circle" wx:if="{{batchMode}}">
-            <view class="select-dot" wx:if="{{selectedIds.indexOf(item.targetId) !== -1}}"></view>
+            <view class="select-dot" wx:if="{{item.isSelected}}"></view>
           </view>
           <image class="fav-logo" src="{{item.logo || '/images/default-company.png'}}" mode="aspectFit" lazy-load></image>
           <view class="fav-info">
@@ -75,12 +75,12 @@
     <!-- 面经 -->
     <block wx:elif="{{currentTab === 1}}">
       <block wx:for="{{currentList}}" wx:key="targetId">
-        <view class="fav-card {{batchMode && selectedIds.indexOf(item.targetId) !== -1 ? 'selected' : ''}}"
+        <view class="fav-card {{batchMode && item.isSelected ? 'selected' : ''}}"
               bindtap="handleCardTap"
               data-item="{{item}}"
               data-targetid="{{item.targetId}}">
           <view class="select-circle" wx:if="{{batchMode}}">
-            <view class="select-dot" wx:if="{{selectedIds.indexOf(item.targetId) !== -1}}"></view>
+            <view class="select-dot" wx:if="{{item.isSelected}}"></view>
           </view>
           <view class="fav-info full">
             <text class="fav-title">{{item.title}}</text>
@@ -95,12 +95,12 @@
     <!-- 公司 -->
     <block wx:elif="{{currentTab === 2}}">
       <block wx:for="{{currentList}}" wx:key="targetId">
-        <view class="fav-card {{batchMode && selectedIds.indexOf(item.targetId) !== -1 ? 'selected' : ''}}"
+        <view class="fav-card {{batchMode && item.isSelected ? 'selected' : ''}}"
               bindtap="handleCardTap"
               data-item="{{item}}"
               data-targetid="{{item.targetId}}">
           <view class="select-circle" wx:if="{{batchMode}}">
-            <view class="select-dot" wx:if="{{selectedIds.indexOf(item.targetId) !== -1}}"></view>
+            <view class="select-dot" wx:if="{{item.isSelected}}"></view>
           </view>
           <image class="fav-logo" src="{{item.logo || '/images/default-company.png'}}" mode="aspectFit" lazy-load></image>
           <view class="fav-info">
@@ -116,12 +116,12 @@
     <!-- 机构 -->
     <block wx:elif="{{currentTab === 3}}">
       <block wx:for="{{currentList}}" wx:key="targetId">
-        <view class="fav-card {{batchMode && selectedIds.indexOf(item.targetId) !== -1 ? 'selected' : ''}}"
+        <view class="fav-card {{batchMode && item.isSelected ? 'selected' : ''}}"
               bindtap="handleCardTap"
               data-item="{{item}}"
               data-targetid="{{item.targetId}}">
           <view class="select-circle" wx:if="{{batchMode}}">
-            <view class="select-dot" wx:if="{{selectedIds.indexOf(item.targetId) !== -1}}"></view>
+            <view class="select-dot" wx:if="{{item.isSelected}}"></view>
           </view>
           <view class="fav-info full">
             <text class="fav-title">{{item.title}}</text>
@@ -136,12 +136,12 @@
     <!-- 校招 -->
     <block wx:elif="{{currentTab === 4}}">
       <block wx:for="{{currentList}}" wx:key="targetId">
-        <view class="fav-card {{batchMode && selectedIds.indexOf(item.targetId) !== -1 ? 'selected' : ''}}"
+        <view class="fav-card {{batchMode && item.isSelected ? 'selected' : ''}}"
               bindtap="handleCardTap"
               data-item="{{item}}"
               data-targetid="{{item.targetId}}">
           <view class="select-circle" wx:if="{{batchMode}}">
-            <view class="select-dot" wx:if="{{selectedIds.indexOf(item.targetId) !== -1}}"></view>
+            <view class="select-dot" wx:if="{{item.isSelected}}"></view>
           </view>
           <view class="fav-info full">
             <text class="fav-title">{{item.title}}</text>

@@ -4,14 +4,14 @@
     <view class="hero-copy">
       <view class="eyebrow-row">
         <text class="eyebrow">CAREERAI ACCELERATOR</text>
-        <text class="hero-status {{userVipInfo.isVip ? 'active' : ''}}">{{userVipInfo.isVip ? '已激活' : 'VIP'}}</text>
+        <text class="hero-status {{userVipInfo.isVip ? 'active' : ''}}">{{userVipInfo.isVip ? '已激活' : '会员能力说明'}}</text>
       </view>
       <text class="hero-title">AI 帮你更快拿 Offer</text>
       <text class="hero-subtitle">从简历优化、AI 面试到自动化求职工作流，让 AI 成为你的专属求职助手。</text>
       <view class="hero-actions">
-        <view class="primary-cta" bindtap="handlePay" wx:if="{{!userVipInfo.isVip}}">立即开通 VIP</view>
-        <view class="primary-cta" bindtap="jumpBenefits" wx:else>查看已解锁权益</view>
-        <view class="secondary-cta" bindtap="jumpBenefits">查看会员权益</view>
+        <view class="primary-cta" bindtap="jumpBenefits" wx:if="{{!userVipInfo.isVip}}">查看权益</view>
+        <view class="primary-cta" bindtap="jumpBenefits" wx:else>查看已享权益</view>
+        <view class="secondary-cta" bindtap="jumpBenefits">会员能力说明</view>
       </view>
     </view>
 
@@ -49,13 +49,13 @@
     </view>
   </view>
 
-  <view class="plans-panel" wx:if="{{!userVipInfo.isVip}}">
+  <view class="plans-panel" wx:if="{{false}}">
     <view class="section-head compact">
       <view>
-        <text class="section-kicker">PRICING</text>
-        <text class="section-title">选择 AI 求职加速方案</text>
+        <text class="section-kicker">PREVIEW</text>
+        <text class="section-title">求职会员权益</text>
       </view>
-      <text class="section-note">推荐季卡覆盖完整投递周期</text>
+      <text class="section-note">会员能力说明</text>
     </view>
     <view class="plan-list">
       <block wx:for="{{priceList}}" wx:key="id">
@@ -98,8 +98,8 @@
   <view class="section-block feature-entry-section">
     <view class="section-head">
       <text class="section-kicker">UNLOCKED TOOLS</text>
-      <text class="section-title">会员功能入口</text>
-      <text class="section-subtitle">开通后可直接进入这些高频求职工具，未开通时点击也会引导开通。</text>
+      <text class="section-title">会员能力说明</text>
+      <text class="section-subtitle">集中展示简历、投递、面试和规划相关的进阶求职能力。</text>
     </view>
     <view class="feature-entry-grid">
       <block wx:for="{{aiFeatures}}" wx:key="name">
@@ -144,14 +144,14 @@
   <view class="section-block">
     <view class="section-head">
       <text class="section-kicker">COMPARE</text>
-      <text class="section-title">免费版 VS VIP</text>
-      <text class="section-subtitle">VIP 解锁完整 AI Agent 工作流和高频求职场景。</text>
+      <text class="section-title">免费版 VS 会员版</text>
+      <text class="section-subtitle">对比完整 AI Agent 工作流和高频求职场景中的能力差异。</text>
     </view>
     <view class="compare-table">
       <view class="compare-row compare-head">
         <text>能力</text>
         <text>免费版</text>
-        <text class="vip-col">VIP</text>
+        <text class="vip-col">会员版</text>
       </view>
       <block wx:for="{{compareList}}" wx:key="feature">
         <view class="compare-row">
@@ -180,30 +180,30 @@
   </view>
 
   <view class="final-cta">
-    <text class="final-kicker">START NOW</text>
-    <text class="final-title">现在开始，让 AI 成为你的求职助手</text>
-    <text class="final-subtitle">把重复准备、信息筛选和面试复盘交给 AI，你专注于拿到更好的 Offer。</text>
-    <view class="final-button" bindtap="handlePay" wx:if="{{!userVipInfo.isVip}}">立即开通 VIP</view>
+    <text class="final-kicker">PREVIEW</text>
+    <text class="final-title">查看求职会员权益</text>
+    <text class="final-subtitle">这里集中说明简历、投递、面试和规划相关的会员能力。</text>
+    <view class="final-button" bindtap="jumpBenefits" wx:if="{{!userVipInfo.isVip}}">查看权益</view>
     <view class="final-button" bindtap="jumpBenefits" wx:else>查看会员权益</view>
   </view>
 
   <view class="vip-active-card" wx:if="{{userVipInfo.isVip}}">
-    <text class="active-title">VIP 已激活</text>
+    <text class="active-title">会员已激活</text>
     <text class="active-sub">有效期至 {{userVipInfo.expireDate}}</text>
-    <text class="active-hint">全部 AI 求职加速权益已解锁。</text>
+    <text class="active-hint">全部 AI 求职会员权益已解锁。</text>
   </view>
 
-  <view class="restore-link" wx:if="{{!userVipInfo.isVip}}" bindtap="restorePurchase">已购买？点击恢复</view>
-  <view class="disclaimer">价格为人民币，订阅周期到期后自动停止，退订请联系客服。</view>
+  <view class="restore-link" wx:if="{{false}}" bindtap="restorePurchase">已购买？点击恢复</view>
+  <view class="disclaimer">会员权益以页面说明和实际服务状态为准。</view>
   <view class="bottom-space"></view>
 
-  <view class="footer-bar" wx:if="{{!userVipInfo.isVip}}">
+  <view class="footer-bar" wx:if="{{false}}">
     <view class="footer-price">
       <text class="fp-label">当前方案</text>
       <text class="fp-plan">{{priceList[selectedPlan].name}}</text>
     </view>
     <view class="pay-btn {{isPaying ? 'paying' : ''}}" bindtap="handlePay">
-      <text class="pay-main">{{isPaying ? '处理中...' : '立即开通 VIP'}}</text>
+      <text class="pay-main">{{isPaying ? '处理中...' : '查看权益'}}</text>
       <text class="pay-sub">¥{{priceList[selectedPlan].price}} · 解锁 AI 求职加速器</text>
     </view>
   </view>

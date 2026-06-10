@@ -107,13 +107,13 @@
     <text class="source-txt">{{detail.viewCount}} 人浏览 · 数据综合整理自公开信息</text>
   </view>
 
-  <view style="height:180rpx;"></view>
+  <view class="bottom-spacer"></view>
 
   <!-- ════ 底部投递按钮 ════ -->
   <view class="bottom-bar">
     <view class="bottom-actions">
       <view class="collect-btn {{isFavorited ? 'collected' : ''}}" bindtap="toggleFavorite">{{isFavorited ? '已收藏' : '收藏'}}</view>
-      <view class="apply-btn" bindtap="goApply">立即投递</view>
+      <view class="apply-btn" bindtap="goApply">复制投递链接</view>
     </view>
   </view>
 

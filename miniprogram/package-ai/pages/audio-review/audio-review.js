@@ -1,7 +1,7 @@
 // pages/audio-review/audio-review.js
 const api = require('../../../utils/api.js');
 const sendChatToDeepSeek = api.sendChatToDeepSeek;
-const config   = require('../../../utils/config.js');
+const config   = require('../../../utils/app-config.js');
 const API_BASE = config.API_BASE_URL;
 
 let recorderMgr = null;
@@ -159,10 +159,15 @@ Page({
       success: (res) => {
         try {
           const data = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
+          if (res.statusCode && res.statusCode >= 400) {
+            this.setData({ phase: 'recorded' });
+            wx.showToast({ title: '语音识别暂不可用，请手动输入', icon: 'none', duration: 3000 });
+            return;
+          }
           if (data.text) {
             this.setData({ transcript: data.text });
             if (data.mock) {
-              wx.showToast({ title: 'ASR未配置，请手动填写文字', icon: 'none', duration: 3000 });
+              wx.showToast({ title: '语音识别暂不可用，请手动输入', icon: 'none', duration: 3000 });
               this.setData({ phase: 'recorded' });
             } else {
               this.setData({ phase: 'analysing' });

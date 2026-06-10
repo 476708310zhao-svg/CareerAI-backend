@@ -14,12 +14,14 @@ function getCampusList(params) {
       region, position_type: positionType, year, keyword,
       recruit_type: recruitType, written_test: writtenTest,
       grad_year: gradYear, page, pageSize
-    }
+    },
+    noCache: true,
+    cacheTTL: 0
   });
 }
 
 function getCampusMeta() {
-  return request({ path: '/api/campus/meta', params: {} });
+  return request({ path: '/api/campus/meta', params: {}, noCache: true, cacheTTL: 0 });
 }
 
 function getCampusDetail(id) {

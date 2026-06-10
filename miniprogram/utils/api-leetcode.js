@@ -1,7 +1,7 @@
 // utils/api-leetcode.js
 // LeetCode 题库模块（直连 leetcode.cn GraphQL）
 
-const config = require('./config.js');
+const config = require('./app-config.js');
 const LEETCODE_API_URL = config.LEETCODE_API_URL;
 
 const CATEGORY_TO_LEETCODE_TAGS = {

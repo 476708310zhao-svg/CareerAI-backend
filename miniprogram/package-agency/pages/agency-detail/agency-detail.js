@@ -14,6 +14,7 @@ Page({
     agency: null,
     activeTab: 'ai',          // 'ai' | 'reviews'
     starList: [],             // ['full','full','half','empty','empty']
+    ratingStars: [1, 2, 3, 4, 5],
 
     // AI 测评
     aiLoading: false,

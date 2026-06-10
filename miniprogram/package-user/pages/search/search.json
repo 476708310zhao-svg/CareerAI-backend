@@ -1,4 +1,6 @@
 {
-  "usingComponents": {},
+  "usingComponents": {
+    "c-company-logo": "/components/c-company-logo/c-company-logo"
+  },
   "navigationBarTitleText": "搜索"
 }
