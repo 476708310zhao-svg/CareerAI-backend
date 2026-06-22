@@ -77,13 +77,9 @@ Page({
 
     careerTools: [
       { title: '简历中心', desc: '诊断简历、补亮点、优化表达', icon: 'CV', tone: 'blue', url: '/package-career/pages/resume/resume' },
-      { title: 'ATS 优化', desc: '按目标 JD 检查关键词匹配', icon: 'ATS', tone: 'indigo', url: '/package-career/pages/ats-optimize/ats-optimize' },
-      { title: '项目生成', desc: '把经历整理成可讲的项目', icon: 'PRJ', tone: 'cyan', url: '/package-career/pages/project-builder/project-builder' },
       { title: '薪资查询', desc: '查看岗位和公司薪酬参考', icon: 'PAY', tone: 'green', url: '/package-career/pages/salary/salary' },
       { title: 'Offer 对比', desc: '拆解现金、股票和成长性', icon: 'OFF', tone: 'orange', url: '/package-career/pages/offer-compare/offer-compare' },
-      { title: '岗位洞察', desc: '分析职责、技能和求职策略', icon: 'INS', tone: 'purple', url: '/package-career/pages/job-insights/job-insights' },
-      { title: '人脉话术', desc: '生成 LinkedIn / 邮件开场白', icon: 'NET', tone: 'slate', url: '/package-career/pages/networking/networking' },
-      { title: 'OA 题库', desc: '管理笔试题和截止提醒', icon: 'OA', tone: 'teal', url: '/package-career/pages/oa-bank/oa-bank' }
+      { title: '岗位洞察', desc: '分析职责、技能和求职策略', icon: 'INS', tone: 'purple', url: '/package-career/pages/job-insights/job-insights' }
     ],
   },
 

@@ -51,36 +51,40 @@
   <view class="spacer {{searchHistory.length > 0 && !searchKeyword ? 'spacer-history' : ''}}"></view>
 
   <view class="jobs-brief">
-    <view class="jobs-brief-copy">
-      <text class="brief-kicker">CAREER MATCH</text>
-      <text class="brief-title">岗位推荐</text>
-      <text class="brief-subtitle">按匹配度、岗位新鲜度和投递价值排序</text>
-    </view>
-    <view class="brief-metric">
-      <text class="brief-metric-num">{{totalJobs || jobs.length || 18}}+</text>
-      <text class="brief-metric-label">精选岗位</text>
-    </view>
-  </view>
-
-  <view class="match-bar">
-    <view class="match-toggle {{matchMode ? 'match-on' : ''}}" bindtap="toggleMatchMode">
-      <text class="match-toggle-icon">AI</text>
-      <text class="match-toggle-txt">智能匹配</text>
-      <view class="match-toggle-badge" wx:if="{{matchMode}}">ON</view>
-    </view>
-    <scroll-view scroll-x class="match-kw-scroll" wx:if="{{matchMode && matchKeywords.length > 0}}" enhanced="{{true}}" show-scrollbar="{{false}}">
-      <view class="match-kw-inner">
-        <block wx:for="{{matchKeywords}}" wx:key="*this">
-          <view class="match-kw-pill">{{item}}</view>
-        </block>
+    <view class="jobs-brief-main">
+      <view class="jobs-brief-copy">
+        <text class="brief-kicker">CAREER MATCH</text>
+        <view class="brief-title-row">
+          <text class="brief-title">岗位推荐</text>
+          <view class="match-toggle brief-match-toggle {{matchMode ? 'match-on' : ''}}" bindtap="toggleMatchMode" hover-class="tap-soft">
+            <text class="match-toggle-icon">AI</text>
+            <text class="match-toggle-txt">智能匹配</text>
+            <view class="match-toggle-badge" wx:if="{{matchMode}}">ON</view>
+          </view>
+        </view>
+        <text class="brief-subtitle">按匹配度与岗位新鲜度智能排序</text>
       </view>
-    </scroll-view>
-    <view class="match-incomplete" bindtap="goToProfile" wx:if="{{matchMode && profileComplete < 60}}">
-      <text class="match-incomplete-txt">完善资料 →</text>
+      <view class="brief-metric">
+        <text class="brief-metric-num">{{totalJobs || jobs.length || 18}}+</text>
+        <text class="brief-metric-label">精选岗位</text>
+      </view>
     </view>
-    <view class="match-no-profile" wx:if="{{matchMode && matchKeywords.length === 0}}">
-      <text class="match-no-txt">先完善画像，推荐会更准</text>
-      <view class="match-setup-btn" bindtap="goToProfile">去完善</view>
+
+    <view class="brief-match-detail" wx:if="{{matchMode}}">
+      <scroll-view scroll-x class="match-kw-scroll" wx:if="{{matchKeywords.length > 0}}" enhanced="{{true}}" show-scrollbar="{{false}}">
+        <view class="match-kw-inner">
+          <block wx:for="{{matchKeywords}}" wx:key="*this">
+            <view class="match-kw-pill">{{item}}</view>
+          </block>
+        </view>
+      </scroll-view>
+      <view class="match-incomplete" bindtap="goToProfile" wx:if="{{matchKeywords.length > 0 && profileComplete < 60}}">
+        <text class="match-incomplete-txt">完善资料 →</text>
+      </view>
+      <view class="match-no-profile" wx:if="{{matchKeywords.length === 0}}">
+        <text class="match-no-txt">先完善画像，推荐会更准</text>
+        <view class="match-setup-btn" bindtap="goToProfile">去完善</view>
+      </view>
     </view>
   </view>
 

@@ -4,20 +4,6 @@
   <!-- ── 顶部固定区 ── -->
   <view class="fixed-header" id="fixed-header">
 
-    <!-- 类型 Tab -->
-    <scroll-view scroll-x class="type-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
-      <view class="type-inner">
-        <block wx:for="{{typeList}}" wx:key="*this">
-          <view
-            class="type-pill {{currentType === item ? 'active' : ''}}"
-            bindtap="switchType"
-            data-type="{{item}}"
-            hover-class="tap-soft"
-          >{{item}}</view>
-        </block>
-      </view>
-    </scroll-view>
-
     <!-- 服务地区 -->
     <scroll-view scroll-x class="region-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
       <view class="region-inner">
@@ -77,7 +63,7 @@
     <view class="assessment-copy">
       <text class="assessment-kicker">Agency Decision Lab</text>
       <text class="assessment-title">求职机构测评</text>
-      <text class="assessment-sub">用真实评价、AI 测评和机构对比，快速判断哪家更适合你的求职阶段。</text>
+      <text class="assessment-sub">真实评价、AI 测评与机构对比</text>
     </view>
     <view class="assessment-meter">
       <text class="assessment-meter-num">{{total || list.length}}</text>
@@ -145,14 +131,14 @@
         </view>
 
         <!-- 描述 -->
-        <text class="desc">{{item.description}}</text>
+        <view class="desc">{{item.description}}</view>
 
         <!-- 专长标签 -->
         <view class="spec-tags" wx:if="{{item.specialties && item.specialties.length}}">
           <block wx:for="{{item.specialties}}" wx:for-item="tag" wx:key="*this">
-            <view class="spec-tag" wx:if="{{index < 4}}">{{tag}}</view>
+            <view class="spec-tag" wx:if="{{index < 3}}">{{tag}}</view>
           </block>
-          <view class="spec-more" wx:if="{{item.specialties.length > 4}}">+{{item.specialties.length - 4}}</view>
+          <view class="spec-more" wx:if="{{item.specialties.length > 3}}">+{{item.specialties.length - 3}}</view>
         </view>
 
         <!-- 底部：AI 测评标识 + 箭头（非对比模式显示） -->

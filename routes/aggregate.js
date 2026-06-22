@@ -8,6 +8,7 @@ const express = require('express');
 const axios   = require('axios');
 const router  = express.Router();
 const db      = require('../db/database');
+const { internalTaskAuth } = require('../middleware/internalAuth');
 
 // ── 建表 ──────────────────────────────────────────────────────────────────────
 db.exec(`
@@ -196,24 +197,13 @@ const insertMany = db.transaction(jobs => {
   return count;
 });
 
-// ── CRON_SECRET 鉴权中间件 ────────────────────────────────────────────────────
-function cronAuth(req, res, next) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return next(); // 未配置则跳过（开发模式）
-  const provided = req.headers['x-cron-secret'] || req.query.secret;
-  if (provided && provided === secret) return next();
-  // 也接受管理员 token（兼容手动调用）
-  const auth = require('../middleware/auth');
-  auth.requireAdmin(req, res, next);
-}
-
 const insertLog = db.prepare(`
   INSERT INTO cron_logs (triggered_by, total_saved, success_count, error_count, errors_json, results_json, duration_ms, status, ran_at)
   VALUES (@triggered_by, @total_saved, @success_count, @error_count, @errors_json, @results_json, @duration_ms, @status, datetime('now'))
 `);
 
 // ── POST /api/aggregate/refresh ──────────────────────────────────────────────
-router.post('/refresh', cronAuth, async (req, res) => {
+router.post('/refresh', internalTaskAuth, async (req, res) => {
   const startTime   = Date.now();
   const triggeredBy = req.headers['x-triggered-by'] || (req.headers['x-cron-secret'] ? 'n8n' : 'manual');
   const results     = [];
@@ -318,7 +308,7 @@ router.get('/stats', (_req, res) => {
 });
 
 // ── GET /api/aggregate/cron-logs ─────────────────────────────────────────────
-router.get('/cron-logs', (_req, res) => {
+router.get('/cron-logs', internalTaskAuth, (_req, res) => {
   const logs = db.prepare(
     `SELECT id, triggered_by, total_saved, success_count, error_count,
             errors_json, duration_ms, status, ran_at

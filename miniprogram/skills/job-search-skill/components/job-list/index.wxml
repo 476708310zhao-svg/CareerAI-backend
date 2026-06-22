@@ -1,0 +1,47 @@
+<view class="skill-job-list">
+  <view class="skill-summary" wx:if="{{total > 0}}">
+    <text class="summary-title">相关岗位</text>
+    <text class="summary-count">{{total}} 个结果</text>
+  </view>
+
+  <view class="empty" wx:if="{{!jobs || jobs.length === 0}}">
+    <text class="empty-title">暂时没有匹配岗位</text>
+    <text class="empty-desc">可以调整关键词、城市、岗位类型、签证标签或更新时间。</text>
+  </view>
+
+  <view
+    wx:for="{{jobs}}"
+    wx:key="jobId"
+    class="job-card"
+    bindtap="onJobTap"
+    data-id="{{item.jobId}}"
+    hover-class="job-card-hover"
+  >
+    <view class="card-head">
+      <view class="company-logo" wx:if="{{item.companyLogo}}">
+        <image class="company-logo-img" src="{{item.companyLogo}}" mode="aspectFit" />
+      </view>
+      <view class="company-fallback" wx:else>{{item.companyInitial}}</view>
+      <view class="card-title-wrap">
+        <text class="job-title">{{item.title}}</text>
+        <text class="company-name">{{item.company}}</text>
+      </view>
+    </view>
+
+    <view class="meta-row">
+      <text class="meta-item">{{item.location}}</text>
+      <text class="meta-dot">·</text>
+      <text class="meta-item">{{item.jobType}}</text>
+    </view>
+
+    <view class="tag-row" wx:if="{{item.visaTags && item.visaTags.length}}">
+      <text wx:for="{{item.visaTags}}" wx:key="*this" class="visa-tag">{{item}}</text>
+    </view>
+
+    <view class="foot-row">
+      <text class="updated">{{item.updatedAt || 'Recently posted'}}</text>
+      <text class="salary" wx:if="{{item.salaryRange}}">{{item.salaryRange}}</text>
+      <text class="detail-link">查看详情</text>
+    </view>
+  </view>
+</view>

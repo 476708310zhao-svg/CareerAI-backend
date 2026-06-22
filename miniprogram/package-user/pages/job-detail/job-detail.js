@@ -5,6 +5,7 @@ const { fromNow, formatSalaryRange } = require('../../../utils/util.js');
 const config = require('../../../utils/app-config.js');
 const demoData = require('../../../utils/demo-data.js');
 const { extractSkillTags } = require('../../utils/skill-icons.js');
+const browseHistory = require('../../../utils/browse-history.js');
 const API_BASE = config.API_BASE_URL;
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
@@ -23,6 +24,11 @@ Page({
     const jobId = options.id;
     const isSaved = jobId ? favUtil.isFavorited('job', jobId) : false;
     this.setData({ jobId, isSaved });
+    if (jobId && wx.getStorageSync('token')) {
+      favUtil.syncFromServer().then(() => {
+        this.setData({ isSaved: favUtil.isFavorited('job', jobId) });
+      });
+    }
     if (jobId) {
       this.fetchJobDetail(jobId);
     } else {
@@ -142,18 +148,13 @@ Page({
 
   _saveBrowseHistory: function(job) {
     try {
-      let history = wx.getStorageSync('jobBrowseHistory') || [];
-      history = history.filter(h => String(h.id) !== String(job.id));
-      history.unshift({
+      browseHistory.add({
         id: job.id,
         title: job.title,
         company: job.company,
         city: job.city,
-        salary: job.salary,
-        timestamp: Date.now()
+        salary: job.salary
       });
-      if (history.length > 20) history = history.slice(0, 20);
-      wx.setStorageSync('jobBrowseHistory', history);
     } catch (e) {}
   },
 
@@ -280,18 +281,22 @@ Requirements:
     const text = lines.length ? lines.join('\n') : '（请先完善简历信息）';
 
     // 2. 复制到剪贴板
-    wx.setClipboardData({ data: text });
+    wx.setClipboardData({
+      data: job.applyLink ? ('投递链接：' + job.applyLink + '\n\n' + text) : text
+    });
 
     // 3. 加入投递看板
     this.addToBoard();
 
-    // 4. 关闭弹窗，稍后打开外链
+    // 4. 关闭弹窗并提示用户到浏览器完成官方投递
     this.hideApplyModal();
-    if (job.applyLink) {
-      setTimeout(() => {
-        wx.navigateTo({ url: '/package-content/pages/webview/webview?url=' + encodeURIComponent(job.applyLink) });
-      }, 600);
-    }
+    wx.showModal({
+      title: job.applyLink ? '投递链接已复制' : '投递记录已保存',
+      content: job.applyLink
+        ? '岗位已加入投递看板。请在浏览器中粘贴链接，进入官方招聘页完成申请。'
+        : '岗位已加入投递看板。当前职位暂无官方投递链接，可在看板中继续跟进。',
+      showCancel: false
+    });
   },
 
   // 加入投递看板（同时请求订阅授权 + 同步后端）

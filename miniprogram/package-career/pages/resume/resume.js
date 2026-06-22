@@ -491,7 +491,12 @@ Page(Object.assign({
   // 项目经历
   // ==========================================
   goToProjectBuilder() {
-    wx.navigateTo({ url: '/package-career/pages/project-builder/project-builder' });
+    wx.showModal({
+      title: '功能规划中',
+      content: 'AI 项目生成器会在后续 AI 工具版中开放。当前可以先手动添加项目经历。',
+      showCancel: false,
+      confirmText: '知道了'
+    });
   },
   addProject() {
     this.setData({ showEditProject: true, _modalStyle: 'height: 72vh; background: #fff; border-radius: 24rpx 24rpx 0 0;', editProjectIndex: -1, editProjectForm: { name: '', role: '', time: '', desc: '' } });

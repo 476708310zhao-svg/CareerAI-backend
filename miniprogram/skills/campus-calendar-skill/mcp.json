@@ -1,0 +1,81 @@
+{
+  "name": "campus-calendar",
+  "description": "职引校招日历 Skill，支持查询春招、秋招、暑期实习、New Grad 和即将截止机会。",
+  "version": "1.0.0",
+  "apis": [
+    {
+      "name": "searchCampusOpportunities",
+      "description": "按关键词、地区、方向、招聘类型和毕业届别查询真实校招机会，最多返回 5 条。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "keyword": { "type": "string", "description": "关键词，例如 AI、SDE、Data。"},
+          "region": { "type": "string", "description": "地区，例如 North America、北美、中国内地。"},
+          "direction": { "type": "string", "description": "岗位方向，例如 AI、SDE、数据、产品、金融。"},
+          "recruitmentType": { "type": "string", "description": "招聘类型，例如 summer-internship、fall、spring、暑期实习。"},
+          "graduationYear": { "type": "string", "description": "毕业届别，例如 2027。"},
+          "deadlineWithinDays": { "type": "number", "description": "只看未来多少天内截止。"}
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "isError": { "type": "boolean" },
+          "content": { "type": "array" },
+          "structuredContent": { "type": "object" },
+          "_meta": { "type": "object" }
+        }
+      },
+      "_meta": {
+        "ui": {
+          "componentPath": "components/campus-list/index"
+        },
+        "relatedPage": "/pages/campus/campus"
+      }
+    },
+    {
+      "name": "getUpcomingDeadlines",
+      "description": "查询即将截止的真实校招机会，最多返回 5 条。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "keyword": { "type": "string" },
+          "region": { "type": "string" },
+          "direction": { "type": "string" },
+          "recruitmentType": { "type": "string" },
+          "graduationYear": { "type": "string" },
+          "deadlineWithinDays": { "type": "number", "description": "未来多少天内截止，默认 7 天。"}
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "isError": { "type": "boolean" },
+          "content": { "type": "array" },
+          "structuredContent": { "type": "object" },
+          "_meta": { "type": "object" }
+        }
+      },
+      "_meta": {
+        "ui": {
+          "componentPath": "components/deadline-list/index"
+        },
+        "relatedPage": "/pages/campus/campus"
+      }
+    }
+  ],
+  "components": [
+    {
+      "name": "campus-list",
+      "path": "components/campus-list/index",
+      "relatedPage": "/pages/campus/campus"
+    },
+    {
+      "name": "deadline-list",
+      "path": "components/deadline-list/index",
+      "relatedPage": "/pages/campus/campus"
+    }
+  ]
+}

@@ -595,7 +595,7 @@ scroll-view {
 }
 
 .list {
-  padding: 20rpx 24rpx calc(58rpx + env(safe-area-inset-bottom));
+  padding: 20rpx 24rpx calc(190rpx + env(safe-area-inset-bottom));
 }
 
 .card {

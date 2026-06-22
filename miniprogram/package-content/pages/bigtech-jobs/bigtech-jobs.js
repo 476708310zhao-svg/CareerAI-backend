@@ -29,6 +29,7 @@ Page({
     jobs: [],
     loading: false,
     refreshing: false,
+    showInternalRefresh: false,
     hasMore: true,
     page: 1,
     total: 0,
@@ -180,6 +181,15 @@ Page({
   openJob(e) {
     const url = e.currentTarget.dataset.url;
     if (!url) return;
-    wx.navigateTo({ url: `/package-content/pages/webview/webview?url=${encodeURIComponent(url)}` });
+    wx.setClipboardData({
+      data: url,
+      success: () => {
+        wx.showModal({
+          title: '职位链接已复制',
+          content: '请在浏览器中粘贴链接，打开公司官方招聘页查看详情。',
+          showCancel: false
+        });
+      }
+    });
   },
 });

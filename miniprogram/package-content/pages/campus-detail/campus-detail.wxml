@@ -93,12 +93,12 @@
     <view class="remind-left">
       <text class="remind-icon">{{isSubscribed ? '🔔' : '🔕'}}</text>
       <view class="remind-info">
-        <text class="remind-title">{{isSubscribed ? '已订阅截止提醒' : '订阅截止日期提醒'}}</text>
-        <text class="remind-sub">{{isSubscribed ? '截止前7天和当天将提醒你' : '截止前7天 · 截止当天 · 岗位更新'}}</text>
+        <text class="remind-title">{{reminderTitle}}</text>
+        <text class="remind-sub">{{reminderSub}}</text>
       </view>
     </view>
     <view class="remind-action {{isSubscribed ? 'subscribed' : ''}}">
-      <text>{{isSubscribed ? '已订阅' : (subscribing ? '订阅中...' : '订阅')}}</text>
+      <text>{{reminderAction}}</text>
     </view>
   </view>
 

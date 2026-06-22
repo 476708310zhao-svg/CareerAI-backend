@@ -25,10 +25,10 @@ Page({
     showModal: false,
     form: { company: '', job_title: '', city: '', salary: '', status: 'pending', deadline: '', projectId: '' },
     statusOptions: [
-      { code: 'pending',   text: '⏳ 待初筛' },
-      { code: 'interview', text: '📅 面试中' },
-      { code: 'offer',     text: '🎉 已录用' },
-      { code: 'rejected',  text: '❌ 已结束' }
+      { code: 'pending',   text: '待投递' },
+      { code: 'interview', text: '面试中' },
+      { code: 'offer',     text: '已录用' },
+      { code: 'rejected',  text: '已结束' }
     ],
     stats: { total: 0, pending: 0, interviewing: 0, offer: 0, rejected: 0, interviewRate: 0, offerRate: 0 },
     showNoteModal: false,
@@ -120,13 +120,16 @@ Page({
     })();
 
     getApplications(userId).then(res => {
-      if (!res || !res.data || res.data.length === 0) {
+      const payload = res && res.data;
+      const rows = Array.isArray(payload)
+        ? payload
+        : (payload && Array.isArray(payload.list) ? payload.list : []);
+      if (rows.length === 0) {
         this.updateList(this.mergeApps([], localApps));
         return;
       }
-      const apiList = this.processData(res.data);
       // Merge: local additions take priority (dedup by id)
-      const merged = this.mergeApps(apiList, localApps);
+      const merged = this.mergeApps(rows, localApps);
       this.updateList(merged);
     }).catch(() => {
       if (ALLOW_DEMO_FALLBACK) {
@@ -143,11 +146,12 @@ Page({
   },
 
   mergeApps: function(apiList, localList) {
-    const localIds = new Set(localList.map(a => String(a.id)));
-    const apiProcessed = apiList.filter(a => !localIds.has(String(a.id)));
+    const localKeys = new Set((localList || []).map(a => this.getAppDedupeKey(a)));
+    const apiProcessed = (apiList || []).filter(a => !localKeys.has(this.getAppDedupeKey(a)));
     const localProcessed = localList.map(a => {
-      const cfg = this.getStatusConfig(a.status);
-      return { ...a, projectId: a.projectId || '', statusCode: a.status, statusText: cfg.text, stageLevel: this.getStageLevel(a.status), avatarInitial: this.getInitial(a.company), avatarColor: this.getAvatarColor(a.company) };
+      const status = this.normalizeStatus(a.status);
+      const cfg = this.getStatusConfig(status);
+      return { ...a, projectId: a.projectId || '', statusCode: status, statusText: cfg.text, stageLevel: this.getStageLevel(status), avatarInitial: this.getInitial(a.company), avatarColor: this.getAvatarColor(a.company) };
     });
     return [...localProcessed, ...this.processData(apiProcessed)];
   },
@@ -164,31 +168,47 @@ Page({
   processData: function(rawData) {
     const today = new Date().toISOString().slice(0, 10);
     const threeDaysLater = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    return rawData.map(item => {
-      const cfg = this.getStatusConfig(item.status);
+    return (rawData || []).map(item => {
+      const snap = item.jobSnapshot || item.job_snapshot || {};
+      const status = this.normalizeStatus(item.status);
+      const cfg = this.getStatusConfig(status);
       const deadline = item.deadline || '';
-      const deadlineUrgent = deadline && item.status !== 'offer' && item.status !== 'rejected'
+      const deadlineUrgent = deadline && status !== 'offer' && status !== 'rejected'
         && deadline >= today && deadline <= threeDaysLater;
       return {
         id: item.id,
-        job_id: item.job_id || item.sourceJobId || item.source_job_id || '',
-        job_title: item.job_title || 'Unknown Position',
-        company: item.company || 'Unknown Company',
-        city: item.city || '',
-        salary: item.salary || '面议',
-        applied_at: item.applied_at || '',
+        job_id: item.job_id || item.jobId || item.sourceJobId || item.source_job_id || '',
+        sourceJobId: item.sourceJobId || item.source_job_id || item.job_id || item.jobId || '',
+        job_title: item.job_title || item.title || snap.title || 'Unknown Position',
+        company: item.company || snap.company || 'Unknown Company',
+        city: item.city || item.location || snap.city || snap.location || '',
+        salary: item.salary || snap.salary || '面议',
+        applied_at: item.applied_at || item.appliedAt || '',
         notes: item.notes || '',
         projectId: item.projectId || '',
         deadline,
         deadlineUrgent,
-        statusCode: item.status,
+        statusCode: status,
         statusText: cfg.text,
-        stageLevel: this.getStageLevel(item.status),
-        avatarInitial: this.getInitial(item.company || 'U'),
-        avatarColor: this.getAvatarColor(item.company || 'U'),
+        stageLevel: this.getStageLevel(status),
+        avatarInitial: this.getInitial(item.company || snap.company || 'U'),
+        avatarColor: this.getAvatarColor(item.company || snap.company || 'U'),
         offer: item.offer || null,
       };
     });
+  },
+
+  normalizeStatus: function(status) {
+    if (status === 'applied' || status === 'viewed') return 'pending';
+    return status || 'pending';
+  },
+
+  getAppDedupeKey: function(app) {
+    const sourceId = app && (app.sourceJobId || app.source_job_id || app.job_id || app.jobId);
+    if (sourceId) return 'job:' + String(sourceId);
+    const company = app && (app.company || '');
+    const title = app && (app.job_title || app.title || '');
+    return 'manual:' + String(company).trim() + ':' + String(title).trim();
   },
 
   updateList: function(list) {
@@ -271,7 +291,7 @@ Page({
       case 'interview': return { text: '面试中' };
       case 'rejected':  return { text: '已结束' };
       case 'pending':
-      default:          return { text: '待初筛' };
+      default:          return { text: '待投递' };
     }
   },
 
@@ -402,7 +422,7 @@ Page({
 
   updateApplicationStatus: function(id) {
     wx.showActionSheet({
-      itemList: ['⏳ 待初筛', '📅 面试中', '🎉 已录用', '❌ 已结束'],
+      itemList: ['待投递', '面试中', '已录用', '已结束'],
       success: (res) => {
         const codes = ['pending', 'interview', 'offer', 'rejected'];
         const newStatus = codes[res.tapIndex];

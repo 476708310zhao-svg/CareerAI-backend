@@ -189,9 +189,10 @@
 .wechat-privacy-card {
   margin-top: 24rpx;
   padding: 22rpx;
-  border-radius: 24rpx;
-  background: #f8fbff;
-  border: 1rpx solid #dbeafe;
+  border-radius: var(--card-radius, 26rpx);
+  background: var(--card-bg, linear-gradient(145deg, #ffffff, #f6f9ff));
+  border: 1rpx solid var(--card-border, #dbeafe);
+  box-shadow: var(--card-shadow, 0 14rpx 34rpx rgba(36,58,92,0.07));
 }
 
 .wechat-privacy-text {

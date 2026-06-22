@@ -8,6 +8,7 @@ const fs      = require('fs');
 
 const router  = express.Router();
 const { aiLimiter } = require('../middleware/rateLimit');
+const { authMiddleware } = require('../middleware/auth');
 const { UPLOAD_DIR, ensureDir } = require('../utils/paths');
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
@@ -125,7 +126,7 @@ function callTencentASR(audioBase64, engModelType) {
 
 // ── POST /api/asr/transcribe ─────────────────────────────────────
 // Body: multipart form-data, field "audio" = audio file
-router.post('/transcribe', aiLimiter, upload.single('audio'), async (req, res) => {
+router.post('/transcribe', authMiddleware, aiLimiter, upload.single('audio'), async (req, res) => {
   let tmpPath = null;
   try {
     if (!req.file) return res.status(400).json({ error: '缺少音频文件' });

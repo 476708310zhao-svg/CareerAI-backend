@@ -1,0 +1,98 @@
+.custom-tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 18rpx;
+  bottom: calc(18rpx + env(safe-area-inset-bottom));
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.tabbar-panel {
+  width: calc(100vw - 64rpx);
+  max-width: 686rpx;
+  min-height: 112rpx;
+  padding: 10rpx 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 34rpx;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1.5rpx solid rgba(226, 232, 240, 0.8);
+  box-shadow:
+    0 16rpx 38rpx rgba(15, 23, 42, 0.12),
+    inset 0 1rpx 0 rgba(255, 255, 255, 0.96);
+  pointer-events: auto;
+}
+
+.tabbar-item {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 94rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 28rpx;
+  transition: background 0.08s ease;
+}
+
+.tabbar-item.is-active {
+  background: linear-gradient(180deg, rgba(43, 92, 230, 0.1) 0%, rgba(43, 92, 230, 0.055) 100%);
+}
+
+.tabbar-icon-wrap {
+  position: relative;
+  width: 52rpx;
+  height: 52rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 5rpx;
+}
+
+.tabbar-item.is-active .tabbar-icon-wrap {
+  background: transparent;
+}
+
+.tabbar-icon {
+  width: 42rpx;
+  height: 42rpx;
+  display: block;
+}
+
+.tabbar-text {
+  max-width: 100%;
+  color: #6B7280;
+  font-size: 21rpx;
+  line-height: 25rpx;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.tabbar-item.is-active .tabbar-text {
+  color: #2B5CE6;
+  font-weight: 800;
+}
+
+.tabbar-badge {
+  position: absolute;
+  top: -10rpx;
+  right: -18rpx;
+  min-width: 30rpx;
+  height: 30rpx;
+  padding: 0 8rpx;
+  border-radius: 999rpx;
+  background: #EF4444;
+  border: 3rpx solid rgba(255, 255, 255, 0.92);
+  color: #FFFFFF;
+  font-size: 18rpx;
+  font-weight: 800;
+  line-height: 30rpx;
+  text-align: center;
+  box-shadow: 0 8rpx 18rpx rgba(239, 68, 68, 0.3);
+}

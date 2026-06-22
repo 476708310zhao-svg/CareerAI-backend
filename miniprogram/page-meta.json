@@ -1,0 +1,34 @@
+{
+  "pages": [
+    {
+      "path": "pages/jobs/jobs",
+      "name": "职引岗位列表",
+      "description": "展示留学生求职岗位，支持关键词、地区、城市、岗位类型、签证标签、毕业届别和更新时间筛选"
+    },
+    {
+      "path": "package-user/pages/job-detail/job-detail",
+      "name": "职引岗位详情",
+      "description": "展示岗位名称、公司、地点、岗位类型、签证标签、更新时间和完整 JD"
+    },
+    {
+      "path": "pages/campus/campus",
+      "name": "职引校招日历",
+      "description": "展示春招、秋招、暑期实习、New Grad 和即将截止机会，支持地区、方向、届别和招聘类型筛选"
+    },
+    {
+      "path": "package-content/pages/campus-detail/campus-detail",
+      "name": "职引校招详情",
+      "description": "展示公司、岗位、地点、招聘类型、毕业届别、截止时间、笔试信息和投递链接"
+    },
+    {
+      "path": "pages/experiences/experiences",
+      "name": "职引面试准备",
+      "description": "展示精选题库、LeetCode、话题专题和面试准备内容"
+    },
+    {
+      "path": "package-content/pages/experience-detail/experience-detail",
+      "name": "职引面经详情",
+      "description": "展示真实面经的公司、岗位、面试类型、轮次、正文摘要、标签和互动信息"
+    }
+  ]
+}

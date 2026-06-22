@@ -1,0 +1,42 @@
+<view class="deadline-list">
+  <view class="summary" wx:if="{{total > 0}}">
+    <text class="summary-title">即将截止</text>
+    <text class="summary-count">{{total}} 个机会</text>
+  </view>
+
+  <view class="empty" wx:if="{{!opportunities || opportunities.length === 0}}">
+    <text class="empty-title">近期暂无匹配截止项</text>
+    <text class="empty-desc">可以放宽截止时间、地区、方向或毕业届别。</text>
+  </view>
+
+  <view
+    wx:for="{{opportunities}}"
+    wx:key="opportunityId"
+    class="deadline-card"
+    bindtap="openCampusDetail"
+    data-id="{{item.opportunityId}}"
+    hover-class="deadline-card-hover"
+  >
+    <view class="deadline-top">
+      <view class="date-box">
+        <text class="date-label">截止</text>
+        <text class="date-value">{{item.deadline || '待确认'}}</text>
+      </view>
+      <view class="body">
+        <text class="company">{{item.company}}</text>
+        <text class="title">{{item.title}}</text>
+      </view>
+    </view>
+
+    <view class="meta-row">
+      <text class="meta-pill">{{item.location}}</text>
+      <text class="meta-pill">{{item.recruitmentType}}</text>
+      <text class="meta-pill">{{item.graduationYear}}届</text>
+    </view>
+
+    <view class="foot-row">
+      <text class="written" wx:if="{{item.writtenTest}}">{{item.writtenTest}}</text>
+      <text class="detail-link">进入职引查看</text>
+    </view>
+  </view>
+</view>

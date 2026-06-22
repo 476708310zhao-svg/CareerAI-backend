@@ -14,6 +14,7 @@ const axios   = require('axios');
 const router  = express.Router();
 const db      = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
+const { scheduleReminderData } = require('../utils/wechatTemplates');
 
 const WX_APP_ID     = process.env.WX_APP_ID     || '';
 const WX_APP_SECRET = process.env.WX_APP_SECRET  || '';
@@ -130,18 +131,19 @@ router.post('/campus-subscribe', authMiddleware, async (req, res) => {
 
     // 如有微信模板，发送一条确认通知
     const tplId = TEMPLATES.system_notice;
-    if (tplId) {
+    if (tplId && deadlineDate && deadlineDate !== '尽快投递') {
       const deadlineStr = deadlineDate && deadlineDate !== '尽快投递' ? deadlineDate : '尽快';
       await sendToUser(userId, {
         type:       'campus_reminder',
         title:      `已订阅 ${company} 截止提醒`,
         content:    `截止日期：${deadlineStr}，我们将在截止前7天和当天提醒你。`,
         templateId: tplId,
-        wxData: {
-          thing1: { value: `${company} 校招截止提醒` },
-          time2:  { value: deadlineStr },
-          thing3: { value: '截止前7天及当天将推送提醒' }
-        }
+        wxData: scheduleReminderData({
+          topic: `${company} 校招截止提醒`,
+          description: positionName ? `${positionName} 截止提醒` : '截止前7天及当天提醒',
+          time: deadlineStr,
+          status: '已订阅',
+        })
       });
     }
 

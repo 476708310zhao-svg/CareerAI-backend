@@ -3,10 +3,9 @@
   "navigationBarBackgroundColor": "#FFFFFF",
   "navigationBarTextStyle": "black",
   "enablePullDownRefresh": true,
-  "backgroundColor": "#F1F5F9",
+  "backgroundColor": "#F5F7FB",
   "usingComponents": {
     "c-button": "/components/c-button/c-button",
-    "empty-state": "/components/empty-state/empty-state",
     "loading-spinner": "/components/loading-spinner/loading-spinner"
   }
 }

@@ -7,6 +7,10 @@
         "type": "folder"
       },
       {
+        "value": "miniprogram_npm",
+        "type": "folder"
+      },
+      {
         "value": ".git",
         "type": "folder"
       },
@@ -16,6 +20,14 @@
       },
       {
         "value": "README\\.md$",
+        "type": "regexp"
+      },
+      {
+        "value": "package\\.json$",
+        "type": "regexp"
+      },
+      {
+        "value": "package-lock\\.json$",
         "type": "regexp"
       }
     ],

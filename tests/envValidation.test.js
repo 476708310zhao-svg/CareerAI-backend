@@ -5,18 +5,19 @@ const { isMissing, validateStartupEnv } = require('../utils/envValidation');
 
 const REQUIRED_ENV = {
   NODE_ENV: 'production',
-  JWT_SECRET: 'prod_jwt_secret_please_rotate_1234567890',
+  JWT_SECRET: 'a7f7e0a93bd84e6cbdbcc46df08d5c2ef9cfae5b1d0d4f8cb7580bf7a7a56d41',
   ALLOWED_ORIGIN: 'https://admin.zhiyincareer.com',
   WX_APP_ID: 'wx1234567890abcdef',
   WX_APP_SECRET: 'wechat_secret_value',
   PAYMENT_ENABLED: 'true',
   WXPAY_MCH_ID: '1234567890',
-  WXPAY_API_KEY: 'pay_api_key_12345678901234567890',
+  WXPAY_API_KEY: '0123456789abcdef0123456789abcdef',
   WXPAY_APP_ID: 'wx1234567890abcdef',
   WXPAY_NOTIFY_URL: 'https://api.zhiyincareer.com/api/payment/notify',
   ADMIN_USERNAME: 'admin',
-  ADMIN_PASSWORD: 'strong_admin_password',
-  WEBHOOK_SECRET: 'webhook_secret_value',
+  ADMIN_PASSWORD: 'ConsoleStrong2026!',
+  CRON_SECRET: '83d3f2675a7a4f0cab7a2d43e47226f2',
+  WEBHOOK_SECRET: '7f9a6c2e85b54bd5a67a803cdef479a8',
 };
 
 function withEnv(values, fn) {
@@ -81,6 +82,30 @@ test('production startup validation accepts complete required env vars', () => {
     silenceWarnings(() => {
       assert.doesNotThrow(() => validateStartupEnv());
     });
+  });
+});
+
+test('production startup validation rejects placeholder-like JWT secret', () => {
+  withEnv({
+    ...REQUIRED_ENV,
+    JWT_SECRET: 'jobapp_super_secret_key_change_in_production_2026',
+  }, () => {
+    assert.throws(
+      () => validateStartupEnv(),
+      /auth missing required env vars: JWT_SECRET/
+    );
+  });
+});
+
+test('production startup validation rejects weak admin password', () => {
+  withEnv({
+    ...REQUIRED_ENV,
+    ADMIN_PASSWORD: 'admin_password',
+  }, () => {
+    assert.throws(
+      () => validateStartupEnv(),
+      /admin console missing required env vars: ADMIN_PASSWORD|ADMIN_PASSWORD is too weak/
+    );
   });
 });
 

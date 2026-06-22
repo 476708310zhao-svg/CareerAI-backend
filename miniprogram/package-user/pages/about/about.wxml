@@ -1,30 +1,35 @@
 <!-- pages/about/about.wxml -->
-<view class="container">
+<view class="about-page">
 
-  <view class="about-hero">
-    <view class="logo-mark">
-      <image class="app-logo" src="/images/home-active.png" mode="aspectFit"></image>
+  <view class="brand-hero">
+    <view class="hero-top">
+      <view class="brand-logo">
+        <image class="brand-logo-img" src="/images/home-active.png" mode="aspectFit"></image>
+      </view>
+      <view class="version-chip">v{{version}}</view>
     </view>
-    <view class="hero-copy">
-      <text class="hero-kicker">CAREER AI</text>
-      <text class="app-name">职引</text>
-      <text class="hero-sub">把岗位推荐、AI 面试、面经题库和求职规划放进一个清晰的行动工作台。</text>
+    <text class="hero-kicker">CAREER AI WORKSPACE</text>
+    <text class="hero-title">职引</text>
+    <text class="hero-desc">面向留学生的 AI 求职工作台，把岗位筛选、简历优化、面试准备和网申跟进整理成清晰的下一步。</text>
+    <view class="hero-tags">
+      <view class="hero-tag">岗位推荐</view>
+      <view class="hero-tag">AI 面试</view>
+      <view class="hero-tag">求职规划</view>
     </view>
-    <view class="version-pill">Version {{version}}</view>
   </view>
 
-  <view class="stats-grid">
+  <view class="stats-row">
     <block wx:for="{{stats}}" wx:key="label">
-      <view class="stat-card">
+      <view class="stat-item">
         <text class="stat-value">{{item.value}}</text>
         <text class="stat-label">{{item.label}}</text>
       </view>
     </block>
   </view>
 
-  <view class="mission-card">
+  <view class="mission-section">
     <text class="section-kicker">OUR MISSION</text>
-    <text class="mission-title">让求职从信息收集，变成可执行的下一步。</text>
+    <text class="mission-title">让求职从信息收集，变成可执行的行动系统。</text>
     <text class="mission-text">我们希望帮助海外留学生更高效地理解岗位、准备面试、跟进网申，并把每一次准备沉淀成可复用的求职资产。</text>
   </view>
 
@@ -34,11 +39,27 @@
   </view>
   <view class="feature-grid">
     <block wx:for="{{features}}" wx:key="title">
-      <view class="feature-item">
-        <image class="feature-icon" src="{{item.icon}}" mode="aspectFit" lazy-load></image>
-        <view class="feature-info">
-          <text class="feature-title">{{item.title}}</text>
-          <text class="feature-desc">{{item.desc}}</text>
+      <view class="feature-card">
+        <view class="feature-icon-wrap">
+          <image class="feature-icon" src="{{item.icon}}" mode="aspectFit" lazy-load></image>
+        </view>
+        <text class="feature-title">{{item.title}}</text>
+        <text class="feature-desc">{{item.desc}}</text>
+      </view>
+    </block>
+  </view>
+
+  <view class="section-head">
+    <text class="section-title">使用流程</text>
+    <text class="section-sub">把模糊的求职目标拆成连续动作</text>
+  </view>
+  <view class="process-list">
+    <block wx:for="{{processSteps}}" wx:key="title">
+      <view class="process-item">
+        <view class="process-index">{{index + 1}}</view>
+        <view class="process-body">
+          <text class="process-title">{{item.title}}</text>
+          <text class="process-desc">{{item.desc}}</text>
         </view>
       </view>
     </block>
@@ -50,22 +71,23 @@
   </view>
   <view class="value-list">
     <block wx:for="{{values}}" wx:key="title">
-      <view class="value-card">
-        <text class="value-title">{{item.title}}</text>
-        <text class="value-desc">{{item.desc}}</text>
+      <view class="value-item">
+        <view class="value-dot"></view>
+        <view class="value-copy">
+          <text class="value-title">{{item.title}}</text>
+          <text class="value-desc">{{item.desc}}</text>
+        </view>
       </view>
     </block>
   </view>
 
-  <view class="contact-card" bindtap="copyEmail">
-    <view>
+  <view class="contact-section" bindtap="copyEmail" hover-class="tap-soft">
+    <view class="contact-main">
       <text class="contact-label">联系我们</text>
       <text class="contact-title">{{contactEmail}}</text>
       <text class="contact-desc">产品建议、合作沟通或问题反馈都可以通过邮箱联系。</text>
     </view>
-    <view class="contact-row">
-      <text class="copy-hint">点击复制</text>
-    </view>
+    <view class="copy-button">复制</view>
   </view>
 
   <view class="copyright">

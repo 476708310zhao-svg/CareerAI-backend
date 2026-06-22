@@ -5,7 +5,6 @@ const {
   fetchLeetCodeStats
 } = require('../../utils/api.js');
 const { QUESTIONS } = require('../../utils/question-bank.js');
-const matcher = require('../../utils/matcher.js');
 
 Page({
   data: {
@@ -54,9 +53,6 @@ Page({
     // fixed-header 占位高度已由 WXSS class 控制，保留字段兼容旧逻辑
     spacerHeight: 0,
 
-    // 精华区筛选
-    featuredFilter: '', // '' | 'featured' | 'hot'
-
     // 精华区子 Tab
     picksTab: 'hot',   // 'hot' | 'editor' | 'trending'
     trendingCompanies: [
@@ -86,29 +82,26 @@ Page({
   },
 
   onLoad() {
-    // 根据 profile 自动切换到相关分类
-    const profile = wx.getStorageSync('userProfile');
-    let initialCat = 'all';
-    if (profile) {
-      const recommended = matcher.getRecommendedCategories(profile);
-      // 找第一个题库中存在的分类
-      const validIds = this.data.categories.map(c => c.id);
-      const match = recommended.find(c => validIds.includes(c));
-      if (match && match !== 'all') initialCat = match;
-    }
     // Enrich questions with isFeatured + likes for featured filter
     const enriched = this.data.allQuestions.map((q, i) => ({
       ...q,
       isFeatured: !!(i % 4 === 0 || (q.views && q.views > 120)),
       likes: q.views ? Math.floor(q.views * 0.6) : (20 + i * 8)
     }));
-    const filtered = initialCat === 'all'
-      ? enriched
-      : enriched.filter(q => q.category === initialCat);
-    this.setData({ currentCat: initialCat, allQuestions: enriched, displayList: filtered });
-    this.loadLeetCodeStats();
+    this.setData({ currentCat: 'all', allQuestions: enriched, displayList: enriched });
+    clearTimeout(this._initialStatsTimer);
+    this._initialStatsTimer = setTimeout(() => this.loadLeetCodeStats(), 80);
     // 初次测量 fixed-header 高度，需等渲染完成
     setTimeout(() => this._updateSpacerHeight(), 100);
+  },
+
+  onShow() {
+    const app = getApp();
+    if (app && typeof app.syncCustomTabBar === 'function') app.syncCustomTabBar();
+  },
+
+  onUnload() {
+    clearTimeout(this._initialStatsTimer);
   },
 
   // 占位高度由 WXSS 根据当前 tab 控制，保留方法避免切换逻辑报错
@@ -285,7 +278,7 @@ Page({
     const source = e.currentTarget.dataset.source;
     if (source === this.data.sourceTab) return;
 
-    this.setData({ sourceTab: source, searchKeyword: '', currentDiff: '', featuredFilter: '', selectedTrendingCompany: null });
+    this.setData({ sourceTab: source, searchKeyword: '', currentDiff: '', selectedTrendingCompany: null });
     this._updateLcDisplayCount(this.data.lcStats, '');
     wx.pageScrollTo({ scrollTop: 0, duration: 0 });
     setTimeout(() => this._updateSpacerHeight(), 80);
@@ -346,13 +339,6 @@ Page({
         q.title.toLowerCase().includes(keyword) ||
         (q.answer && q.answer.toLowerCase().includes(keyword))
       );
-    }
-
-    // 精华区筛选
-    if (this.data.featuredFilter === 'featured') {
-      filtered = filtered.filter(q => q.isFeatured);
-    } else if (this.data.featuredFilter === 'hot') {
-      filtered = filtered.slice().sort((a, b) => (b.likes || 0) - (a.likes || 0));
     }
 
     this.setData({ displayList: filtered });
@@ -445,14 +431,6 @@ Page({
     });
   },
 
-  // ======== 精华筛选 ========
-  switchFeatured(e) {
-    const val = e.currentTarget.dataset.val;
-    const cur = this.data.featuredFilter;
-    this.setData({ featuredFilter: cur === val ? '' : val });
-    this.applyFilters();
-  },
-
   // ======== 话题讨论 ========
   selectTopic(e) {
     const idx = e.currentTarget.dataset.idx;
@@ -474,19 +452,6 @@ Page({
       filtered = filtered.filter(q => topic.cats.includes(q.category));
     }
     this.setData({ displayList: filtered });
-  },
-
-  startBehaviorDrill() {
-    this.setData({
-      sourceTab: 'local',
-      currentCat: 'behavior',
-      currentDiff: '',
-      featuredFilter: '',
-      searchKeyword: ''
-    });
-    this._updateLcDisplayCount(this.data.lcStats, '');
-    this.filterLocal();
-    wx.pageScrollTo({ scrollTop: 0, duration: 200 });
   },
 
   goToMockInterview() {

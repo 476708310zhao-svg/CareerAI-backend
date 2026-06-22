@@ -11,7 +11,7 @@
       <view class="icon-btn" bindtap="toggleFilter">
         <text class="icon-btn-text">筛选</text>
       </view>
-      <view class="icon-btn refresh-btn {{refreshing ? 'disabled' : ''}}" bindtap="triggerRefresh">
+      <view wx:if="{{showInternalRefresh}}" class="icon-btn refresh-btn {{refreshing ? 'disabled' : ''}}" bindtap="triggerRefresh">
         <text class="icon-btn-text">{{refreshing ? '抓取中…' : '更新'}}</text>
       </view>
     </view>
@@ -81,7 +81,7 @@
     <view wx:if="{{!loading && jobs.length === 0}}" class="empty-state">
       <text class="empty-icon">🏢</text>
       <text class="empty-title">暂无职位数据</text>
-      <text class="empty-sub">点击右上角「更新」按钮抓取最新职位</text>
+      <text class="empty-sub">职位池正在更新中，请稍后再试或调整筛选条件</text>
     </view>
 
     <!-- 职位卡片 -->

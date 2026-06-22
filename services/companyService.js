@@ -110,6 +110,7 @@ function upsertAliases(companyId, aliases) {
 function upsertCompany(item) {
   const slug = item.slug || slugify(item.name_en || item.display_name || item.name_zh);
   const row = db.prepare('SELECT id FROM companies WHERE slug = ?').get(slug);
+  const lastSyncedAt = item.last_synced_at || item.lastSyncedAt || null;
   const payload = [
     slug,
     item.display_name || item.name_en || item.name_zh,
@@ -138,7 +139,8 @@ function upsertCompany(item) {
     JSON.stringify(item.tags || []),
     item.source_primary || 'seed',
     JSON.stringify(item),
-    item.data_status || 'published'
+    item.data_status || 'published',
+    lastSyncedAt
   ];
 
   let companyId;
@@ -150,7 +152,8 @@ function upsertCompany(item) {
         industry_l1=?, industry_l2=?, hq_country=?, hq_city=?, founded_year=?,
         employee_count=?, employee_range=?, market=?, ticker=?, exchange_name=?,
         is_public=?, description_zh=?, description_en=?, tags=?, source_primary=?,
-        source_payload=?, data_status=?, updated_at=datetime('now')
+        source_payload=?, data_status=?, last_synced_at=COALESCE(?, last_synced_at),
+        updated_at=datetime('now')
       WHERE id=?
     `).run(...payload, row.id);
     companyId = row.id;
@@ -162,12 +165,15 @@ function upsertCompany(item) {
         industry_l1, industry_l2, hq_country, hq_city, founded_year,
         employee_count, employee_range, market, ticker, exchange_name,
         is_public, description_zh, description_en, tags, source_primary,
-        source_payload, data_status
+        source_payload, data_status, last_synced_at
       ) VALUES (${payload.map(() => '?').join(',')})
     `).run(...payload);
     companyId = result.lastInsertRowid;
   }
 
+  if (item.replace_aliases) {
+    db.prepare('DELETE FROM company_aliases WHERE company_id = ?').run(companyId);
+  }
   upsertAliases(companyId, [
     item.display_name,
     item.name_zh,
@@ -354,6 +360,7 @@ function deleteCompany(id) {
 }
 
 module.exports = {
+  upsertCompany,
   ensureSeedCompanies,
   importSeedCompanies,
   listCompanies,

@@ -1,0 +1,118 @@
+{
+  "name": "job-search",
+  "description": "职引岗位搜索 Skill，支持按关键词、地区、城市、岗位类型、毕业届别、签证标签和更新时间筛选适合留学生的岗位。",
+  "version": "1.0.0",
+  "apis": [
+    {
+      "name": "searchJobs",
+      "description": "搜索真实岗位，返回最多 5 个可展示岗位卡片。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "keyword": {
+            "type": "string",
+            "description": "岗位关键词，例如 AI Engineer、SDE New Grad、Data Analyst。"
+          },
+          "region": {
+            "type": "string",
+            "description": "地区或国家，例如 United States、North America、Canada。"
+          },
+          "city": {
+            "type": "string",
+            "description": "城市，例如 New York、Toronto、Seattle。"
+          },
+          "jobType": {
+            "type": "string",
+            "description": "岗位类型，例如 internship、fulltime、parttime、contract。"
+          },
+          "graduationYear": {
+            "type": "string",
+            "description": "毕业届别，例如 2027。"
+          },
+          "visaTags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["OPT", "CPT", "H-1B", "E-Verify"]
+            },
+            "description": "签证友好标签。"
+          },
+          "updatedWithinDays": {
+            "type": "number",
+            "description": "只看最近多少天更新的岗位。"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "isError": { "type": "boolean" },
+          "content": { "type": "array" },
+          "structuredContent": {
+            "type": "object",
+            "properties": {
+              "jobs": { "type": "array" },
+              "total": { "type": "number" },
+              "hasMore": { "type": "boolean" }
+            }
+          },
+          "_meta": { "type": "object" }
+        }
+      },
+      "_meta": {
+        "ui": {
+          "componentPath": "components/job-list/index"
+        },
+        "relatedPage": "/pages/jobs/jobs"
+      }
+    },
+    {
+      "name": "getJobDetail",
+      "description": "根据 searchJobs 返回的真实 jobId 获取岗位详情。",
+      "inputSchema": {
+        "type": "object",
+        "required": ["jobId"],
+        "additionalProperties": false,
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "description": "必须来自 searchJobs 返回结果。"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "isError": { "type": "boolean" },
+          "content": { "type": "array" },
+          "structuredContent": {
+            "type": "object",
+            "properties": {
+              "job": { "type": "object" }
+            }
+          },
+          "_meta": { "type": "object" }
+        }
+      },
+      "_meta": {
+        "ui": {
+          "componentPath": "components/job-detail-card/index"
+        },
+        "relatedPage": "/package-user/pages/job-detail/job-detail"
+      }
+    }
+  ],
+  "components": [
+    {
+      "name": "job-list",
+      "path": "components/job-list/index",
+      "relatedPage": "/pages/jobs/jobs"
+    },
+    {
+      "name": "job-detail-card",
+      "path": "components/job-detail-card/index",
+      "relatedPage": "/package-user/pages/job-detail/job-detail"
+    }
+  ]
+}

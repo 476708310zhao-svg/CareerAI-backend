@@ -3,12 +3,14 @@ const router  = express.Router();
 const axios   = require('axios');
 const db      = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
+const { internalTaskAuth } = require('../middleware/internalAuth');
 const { sendToUser } = require('./notify');
 
 const { parseId } = require('../db/utils');
 const { formatApp } = require('../db/formatters');
 const { ja } = require('../db/utils');
 const { findJobById, findJobsByIds, toApplicationJob } = require('../utils/jobData');
+const { applicationFeedbackData } = require('../utils/wechatTemplates');
 
 // ─── 获取申请列表 ─────────────────────────────────────────────────────────────
 router.get('/', authMiddleware, (req, res) => {
@@ -45,7 +47,7 @@ router.get('/', authMiddleware, (req, res) => {
         list, total: list.length,
         statistics: {
           total: all.length,
-          applied: count('applied'), viewed: count('viewed'),
+          pending: count('pending'), applied: count('applied'), viewed: count('viewed'),
           interview: count('interview'), offer: count('offer'), rejected: count('rejected')
         }
       }
@@ -79,26 +81,20 @@ router.post('/', authMiddleware, (req, res) => {
 
     const result = db.prepare(`
       INSERT INTO applications (user_id, job_id, job_snapshot, resume_id, status, status_text)
-      VALUES (?, ?, ?, ?, 'applied', '已投递')
+      VALUES (?, ?, ?, ?, 'pending', '待投递')
     `).run(req.user.userId, String(jobId), JSON.stringify(jobSnapshot || {}), resumeId || null);
 
     const newApp = db.prepare('SELECT * FROM applications WHERE id = ?').get(result.lastInsertRowid);
 
-    // 写站内消息通知
+    // 保存到看板不等于已完成官方投递，避免给用户造成误解。
     const snap = jobSnapshot || {};
     sendToUser(req.user.userId, {
       type:    'application',
-      title:   '投递成功',
-      content: `你已成功投递「${snap.company || ''}${snap.company && snap.title ? ' · ' : ''}${snap.title || '职位'}」，请等待HR审核`,
-      templateId: process.env.WX_TPL_APPLICATION,
-      wxData: {
-        thing1: { value: (snap.title  || '职位').slice(0, 20) },
-        thing2: { value: (snap.company || '').slice(0, 20) },
-        phrase3: { value: '已投递' }
-      }
+      title:   '投递记录已保存',
+      content: `已将「${snap.company || ''}${snap.company && snap.title ? ' · ' : ''}${snap.title || '职位'}」保存到投递看板，请通过官方招聘链接完成投递`,
     }).catch(() => {});
 
-    res.json({ code: 0, message: '投递成功', data: formatApp(newApp) });
+    res.json({ code: 0, message: '投递记录已保存', data: formatApp(newApp) });
   } catch (error) {
     console.error(error); res.status(500).json({ code: -1, message: '服务器内部错误' });
   }
@@ -111,7 +107,7 @@ router.delete('/:id', authMiddleware, (req, res) => {
     if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
     const a = db.prepare('SELECT * FROM applications WHERE id = ? AND user_id = ?').get(id, req.user.userId);
     if (!a) return res.status(404).json({ code: -1, message: '申请记录不存在' });
-    if (a.status !== 'applied') return res.status(400).json({ code: -1, message: '该申请已被查看，无法撤回' });
+    if (!['pending', 'applied'].includes(a.status)) return res.status(400).json({ code: -1, message: '该申请已进入后续阶段，无法撤回' });
     db.prepare('DELETE FROM applications WHERE id = ?').run(a.id);
     res.json({ code: 0, message: '撤回成功' });
   } catch (error) {
@@ -136,15 +132,7 @@ router.put('/:id/track', authMiddleware, (req, res) => {
 // POST /api/applications/poll-status
 // Header: X-Cron-Secret: <secret>
 // 检查所有开启追踪的 Greenhouse/Lever 申请，职位关闭时推送微信通知
-router.post('/poll-status', async (req, res) => {
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const provided = req.headers['x-cron-secret'];
-    if (!provided || provided !== secret) {
-      return res.status(401).json({ code: -1, message: 'unauthorized' });
-    }
-  }
-
+router.post('/poll-status', internalTaskAuth, async (req, res) => {
   const tracked = db.prepare(`
     SELECT a.id, a.user_id, a.source_type, a.source_job_id, a.source_slug,
            a.job_active, a.status, a.job_snapshot
@@ -181,11 +169,12 @@ router.post('/poll-status', async (req, res) => {
           title:    '职位状态变化',
           content:  `${companyName}${jobTitle ? ' · ' + jobTitle : ''} 的职位已从招聘页下线，建议关注投递进展`,
           templateId: process.env.WX_TPL_APPLICATION || '',
-          wxData: {
-            thing1:  { value: (companyName + (jobTitle ? ' - ' + jobTitle : '')).slice(0, 20) || '职位追踪' },
-            phrase2: { value: '职位下线' },
-            time3:   { value: new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }).slice(0, 17) },
-          },
+          wxData: applicationFeedbackData({
+            title: jobTitle || '职位追踪',
+            company: companyName,
+            result: '职位下线',
+            remark: '建议关注投递进展',
+          }),
         }).catch(e => console.warn('[poll] notify failed:', e.message));
 
         results.push({ appId: app.id, userId: app.user_id, changed: true, active: false });

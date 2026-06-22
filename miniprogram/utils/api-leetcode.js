@@ -3,6 +3,10 @@
 
 const config = require('./app-config.js');
 const LEETCODE_API_URL = config.LEETCODE_API_URL;
+const LC_CACHE_PREFIX = 'lc_cache_';
+const LC_LIST_TTL = 30 * 60 * 1000;
+const LC_STATS_TTL = 6 * 60 * 60 * 1000;
+const _pending = {};
 
 const CATEGORY_TO_LEETCODE_TAGS = {
   java:      [],
@@ -25,12 +29,34 @@ const LC_HEADER = {
   'Origin':  'https://leetcode.cn'
 };
 
+function _cacheKey(name, params) {
+  return LC_CACHE_PREFIX + name + '_' + JSON.stringify(params || {});
+}
+
+function _getCache(key, ttl) {
+  try {
+    const cached = wx.getStorageSync(key);
+    if (cached && (Date.now() - cached.t) < ttl) return cached.d;
+  } catch (e) {}
+  return null;
+}
+
+function _setCache(key, data) {
+  try {
+    wx.setStorageSync(key, { d: data, t: Date.now() });
+  } catch (e) {}
+}
+
 /**
  * 从 LeetCode 拉取真实编程题
  */
 function fetchLeetCodeProblems(category, difficulty, limit, skip) {
   limit = limit || 20;
   skip  = skip  || 0;
+  const cacheKey = _cacheKey('list', { category: category || 'all', difficulty: difficulty || '', limit, skip });
+  const cached = _getCache(cacheKey, LC_LIST_TTL);
+  if (cached) return Promise.resolve(cached);
+  if (_pending[cacheKey]) return _pending[cacheKey];
 
   const tags = CATEGORY_TO_LEETCODE_TAGS[category] || [];
   const filters = {};
@@ -47,20 +73,27 @@ function fetchLeetCodeProblems(category, difficulty, limit, skip) {
     }
   }`;
 
-  return new Promise((resolve) => {
+  _pending[cacheKey] = new Promise((resolve) => {
     let resolved = false;
     const timer = setTimeout(() => {
-      if (!resolved) { resolved = true; console.warn('LeetCode API 超时'); resolve([]); }
-    }, 8000);
+      if (!resolved) {
+        resolved = true;
+        delete _pending[cacheKey];
+        console.warn('LeetCode API 超时');
+        resolve(_getCache(cacheKey, 24 * 60 * 60 * 1000) || []);
+      }
+    }, 6000);
 
     wx.request({
       url: LEETCODE_API_URL,
       method: 'POST',
       header: LC_HEADER,
       data: { query, variables: { categorySlug: '', limit, skip, filters } },
+      timeout: 6000,
       success: (res) => {
         if (resolved) return;
         resolved = true;
+        delete _pending[cacheKey];
         clearTimeout(timer);
         try {
           const raw = res.data.data.problemsetQuestionList.questions || [];
@@ -82,6 +115,7 @@ function fetchLeetCodeProblems(category, difficulty, limit, skip) {
               isAI: false
             };
           });
+          _setCache(cacheKey, formatted);
           resolve(formatted);
         } catch (e) {
           console.error('LeetCode 解析失败:', e);
@@ -91,38 +125,51 @@ function fetchLeetCodeProblems(category, difficulty, limit, skip) {
       fail: (err) => {
         if (resolved) return;
         resolved = true;
+        delete _pending[cacheKey];
         clearTimeout(timer);
         console.error('LeetCode 请求失败:', err);
-        resolve([]);
+        resolve(_getCache(cacheKey, 24 * 60 * 60 * 1000) || []);
       }
     });
   });
+  return _pending[cacheKey];
 }
 
 /**
  * 获取 LeetCode 题库总数统计
  */
 function fetchLeetCodeStats() {
+  const cacheKey = _cacheKey('stats', {});
+  const cached = _getCache(cacheKey, LC_STATS_TTL);
+  if (cached) return Promise.resolve(cached);
+  if (_pending[cacheKey]) return _pending[cacheKey];
   const query = `query problemsetQuestionList {
     problemsetQuestionList(categorySlug: "", limit: 1, skip: 0, filters: {}) { total }
   }`;
-  return new Promise((resolve) => {
+  _pending[cacheKey] = new Promise((resolve) => {
     wx.request({
       url: LEETCODE_API_URL,
       method: 'POST',
       header: LC_HEADER,
       data: { query },
+      timeout: 6000,
       success: (res) => {
         try {
           const total = res.data.data.problemsetQuestionList.total || 3000;
-          resolve({ total, easy: Math.round(total * 0.27), medium: Math.round(total * 0.48), hard: Math.round(total * 0.25) });
+          const stats = { total, easy: Math.round(total * 0.27), medium: Math.round(total * 0.48), hard: Math.round(total * 0.25) };
+          _setCache(cacheKey, stats);
+          resolve(stats);
         } catch (e) {
           resolve({ total: 3000, easy: 810, medium: 1440, hard: 750 });
         }
       },
-      fail: () => resolve({ total: 3000, easy: 800, medium: 1500, hard: 700 })
+      fail: () => resolve(_getCache(cacheKey, 24 * 60 * 60 * 1000) || { total: 3000, easy: 800, medium: 1500, hard: 700 }),
+      complete: () => {
+        delete _pending[cacheKey];
+      }
     });
   });
+  return _pending[cacheKey];
 }
 
 module.exports = { fetchLeetCodeProblems, fetchLeetCodeStats };

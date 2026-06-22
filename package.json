@@ -11,6 +11,7 @@
     "check:data": "node scripts/check-data-content.js",
     "check:release": "npm test && npm run check:miniprogram && npm run check:data",
     "sync:campus": "node scripts/sync_feishu_server.js",
+    "sync:companies": "node scripts/sync_feishu_companies.js",
     "refresh:aggregate": "node scripts/refresh_aggregate_jobs.js"
   },
   "dependencies": {

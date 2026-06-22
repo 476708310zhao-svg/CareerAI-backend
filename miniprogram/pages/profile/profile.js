@@ -1,6 +1,7 @@
 // pages/profile/profile.js
 const favUtil = require('../../utils/favorites.js');
 const api     = require('../../utils/api.js');
+const browseHistory = require('../../utils/browse-history.js');
 
 Page({
   data: {
@@ -26,19 +27,29 @@ Page({
   },
 
   onShow() {
+    const app = getApp();
+    if (app && typeof app.syncCustomTabBar === 'function') app.syncCustomTabBar();
     this.loadUserInfo();
     this.updateStats();
     this._syncMessageBadge();
+    clearTimeout(this._profileSyncTimer);
+    this._profileSyncTimer = setTimeout(() => this._refreshRemoteStats(), 160);
+  },
+
+  onUnload() {
+    clearTimeout(this._profileSyncTimer);
+  },
+
+  _refreshRemoteStats() {
+    favUtil.syncFromServer().then(() => {
+      this.updateStats();
+    });
   },
 
   // 同步消息未读角标到 TabBar
   _syncMessageBadge() {
     const count = wx.getStorageSync('unreadMessages') || 0;
-    if (count > 0) {
-      wx.setTabBarBadge({ index: 4, text: count > 99 ? '99+' : String(count) });
-    } else {
-      wx.removeTabBarBadge({ index: 4 });
-    }
+    getApp().setUnreadCount(count);
   },
 
   loadUserInfo() {
@@ -69,7 +80,7 @@ Page({
   updateStats() {
     const favCount = favUtil.getCount();
     const interviewHistory = wx.getStorageSync('interviewHistory') || [];
-    const viewHistory = wx.getStorageSync('viewHistory') || [];
+    const viewHistory = browseHistory.getList();
     const applications = wx.getStorageSync('localApplications') || [];
 
     this.setData({
@@ -107,6 +118,7 @@ Page({
       }
     });
     this.updateStats();
+    favUtil.syncFromServer().then(() => this.updateStats());
 
     // 昵称是默认值说明是新用户或未完善资料，自动跳转完善页
     const isDefaultNick = !nickName || nickName === '微信用户';

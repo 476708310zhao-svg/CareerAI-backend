@@ -7,11 +7,16 @@
     <view class="hero-orb hero-orb-b"></view>
     <view class="hero-inner">
       <view class="hero-left">
-        <text class="hero-title">我的网申</text>
-        <text class="hero-sub">追踪每一个求职机会</text>
+        <text class="hero-title">网申进度</text>
+        <text class="hero-sub">清晰记录每一步，稳稳推进好机会</text>
       </view>
       <view class="hero-icon-wrap">
-        <text class="hero-icon">📋</text>
+        <view class="hero-document">
+          <view class="document-dot"></view>
+          <view class="document-line document-line-long"></view>
+          <view class="document-line"></view>
+          <view class="document-line document-line-short"></view>
+        </view>
       </view>
     </view>
 
@@ -19,12 +24,12 @@
     <view class="hero-stats">
       <view class="stat-item" hover-class="tap-bounce" hover-stay-time="80" bindtap="setFilter" data-tab="all">
         <text class="stat-num">{{stats.total}}</text>
-        <text class="stat-label">累计投递</text>
+        <text class="stat-label">全部记录</text>
       </view>
       <view class="stat-divider"></view>
       <view class="stat-item" hover-class="tap-bounce" hover-stay-time="80" bindtap="setFilter" data-tab="pending">
         <text class="stat-num orange">{{stats.pending}}</text>
-        <text class="stat-label">待初筛</text>
+        <text class="stat-label">待投递</text>
       </view>
       <view class="stat-divider"></view>
       <view class="stat-item" hover-class="tap-bounce" hover-stay-time="80" bindtap="setFilter" data-tab="interview">
@@ -57,20 +62,21 @@
   <!-- 搜索 + 排序 -->
   <view class="search-sort-row">
     <view class="search-wrap">
-      <text class="search-icon-txt">🔍</text>
-      <input class="search-input" placeholder="搜索公司或职位" value="{{searchKeyword}}" bindinput="onSearchInput" />
+      <view class="search-icon"></view>
+      <input class="search-input" placeholder="搜索公司、职位" placeholder-style="color:#98A2B3" value="{{searchKeyword}}" bindinput="onSearchInput" />
       <text wx:if="{{searchKeyword}}" class="search-clear" catchtap="clearSearch">✕</text>
     </view>
     <view class="sort-btn" hover-class="tap-bounce" hover-stay-time="80" catchtap="toggleSort">
-      <text class="sort-icon">{{sortBy === 'date' ? '📅' : '⏰'}}</text>
-      <text class="sort-txt">{{sortBy === 'date' ? '投递时间' : '截止日期'}}</text>
+      <text class="sort-label">排序</text>
+      <text class="sort-txt">{{sortBy === 'date' ? '按投递' : '按截止'}}</text>
+      <text class="sort-chevron">⌄</text>
     </view>
   </view>
 
   <!-- Filter Tabs -->
   <view class="filter-row">
     <view class="filter-tab {{filterTab === 'all' ? 'active' : ''}}" hover-class="tab-press" hover-stay-time="80" bindtap="setFilter" data-tab="all">全部</view>
-    <view class="filter-tab {{filterTab === 'pending' ? 'active' : ''}}" hover-class="tab-press" hover-stay-time="80" bindtap="setFilter" data-tab="pending">待初筛</view>
+    <view class="filter-tab {{filterTab === 'pending' ? 'active' : ''}}" hover-class="tab-press" hover-stay-time="80" bindtap="setFilter" data-tab="pending">待投递</view>
     <view class="filter-tab {{filterTab === 'interview' ? 'active' : ''}}" hover-class="tab-press" hover-stay-time="80" bindtap="setFilter" data-tab="interview">面试中</view>
     <view class="filter-tab {{filterTab === 'offer' ? 'active' : ''}}" hover-class="tab-press" hover-stay-time="80" bindtap="setFilter" data-tab="offer">已录用</view>
     <view class="filter-tab {{filterTab === 'rejected' ? 'active' : ''}}" hover-class="tab-press" hover-stay-time="80" bindtap="setFilter" data-tab="rejected">已结束</view>
@@ -80,10 +86,13 @@
   <view class="project-panel">
     <view class="project-panel-head">
       <view>
-        <text class="project-kicker">PROJECTS</text>
         <text class="project-title">求职项目</text>
+        <text class="project-subtitle">按方向分组管理投递</text>
       </view>
-      <view class="project-add" bindtap="showProjectModal" hover-class="tap-bounce">+ 新建</view>
+      <view class="project-add" bindtap="showProjectModal" hover-class="tap-bounce">
+        <text class="project-add-plus">＋</text>
+        <text>新建</text>
+      </view>
     </view>
     <view class="project-active-filter" wx:if="{{projectFilter}}">
       <text>正在查看：{{projectName}}</text>
@@ -108,18 +117,21 @@
       </view>
     </scroll-view>
     <view wx:else class="project-empty">
-      <text>按北美 Tech、国内校招、金融等方向创建项目，投递记录会在这里汇总。</text>
-      <view bindtap="showProjectModal">创建第一个项目</view>
+      <view class="project-empty-copy">
+        <text class="project-empty-title">还没有求职项目</text>
+        <text class="project-empty-desc">按行业、地区或招聘季分组，查看进度更清楚</text>
+      </view>
+      <view class="project-empty-link" bindtap="showProjectModal">创建项目 <text>›</text></view>
     </view>
   </view>
 
   <!-- Offer AI 对比横幅 -->
   <view class="offer-compare-banner" wx:if="{{stats.offer >= 2}}" hover-class="card-press" hover-stay-time="80" bindtap="goToOfferCompare">
     <view class="ocb-left">
-      <text class="ocb-icon">🤖</text>
+      <text class="ocb-icon">AI</text>
       <view class="ocb-info">
-        <text class="ocb-title">你有 {{stats.offer}} 个 Offer！</text>
-        <text class="ocb-sub">AI 帮你对比 TC、签证、发展路径</text>
+        <text class="ocb-title">对比你的 {{stats.offer}} 个 Offer</text>
+        <text class="ocb-sub">综合分析薪酬、签证与发展空间</text>
       </view>
     </view>
     <text class="ocb-arrow">›</text>
@@ -129,10 +141,10 @@
   <view class="list-area">
     <view class="list-head" wx:if="{{!loading}}">
       <view class="list-head-left">
-        <text class="list-kicker">APPLICATIONS</text>
-        <text class="list-title">申请进度</text>
+        <text class="list-title">投递记录</text>
+        <text class="list-subtitle">持续更新，重要节点不遗漏</text>
       </view>
-      <text class="list-count">共 {{filteredApps.length}} 条</text>
+      <text class="list-count">{{filteredApps.length}} 条</text>
     </view>
 
     <!-- Loading -->
@@ -164,12 +176,12 @@
             <text class="job-title">{{item.job_title}}</text>
             <text class="company-name">{{item.company}}</text>
             <view class="meta-row">
-              <text wx:if="{{item.city}}" class="meta-chip">📍 {{item.city}}</text>
-              <text wx:if="{{item.salary && item.salary !== '面议'}}" class="meta-chip salary-chip">💰 {{item.salary}}</text>
+              <text wx:if="{{item.city}}" class="meta-chip">{{item.city}}</text>
+              <text wx:if="{{item.salary && item.salary !== '面议'}}" class="meta-chip salary-chip">{{item.salary}}</text>
             </view>
-            <text wx:if="{{item.notes}}" class="notes-preview">📝 {{item.notes}}</text>
+            <text wx:if="{{item.notes}}" class="notes-preview">备注 · {{item.notes}}</text>
             <view wx:if="{{item.deadline}}" class="deadline-row {{item.deadlineUrgent ? 'urgent' : ''}}">
-              <text class="deadline-text">⏰ 截止 {{item.deadline}}</text>
+              <text class="deadline-text">截止 {{item.deadline}}</text>
             </view>
           </view>
 
@@ -207,20 +219,20 @@
         <!-- Offer 详情行（仅 offer 状态且已录入） -->
         <view wx:if="{{item.statusCode === 'offer' && item.offer && (item.offer.offerBase || item.offer.offerBonus || item.offer.offerRsu)}}" class="offer-panel" hover-class="soft-press" hover-stay-time="80" catchtap="openOfferModal" data-id="{{item.id}}">
           <view class="offer-panel-inner">
-            <view wx:if="{{item.offer.offerBase}}"  class="offer-chip offer-base">💰 Base {{item.offer.offerBase}}</view>
-            <view wx:if="{{item.offer.offerBonus}}" class="offer-chip offer-bonus">🎁 Bonus {{item.offer.offerBonus}}</view>
-            <view wx:if="{{item.offer.offerRsu}}"   class="offer-chip offer-rsu">📈 RSU {{item.offer.offerRsu}}</view>
+            <view wx:if="{{item.offer.offerBase}}"  class="offer-chip offer-base">Base {{item.offer.offerBase}}</view>
+            <view wx:if="{{item.offer.offerBonus}}" class="offer-chip offer-bonus">Bonus {{item.offer.offerBonus}}</view>
+            <view wx:if="{{item.offer.offerRsu}}"   class="offer-chip offer-rsu">RSU {{item.offer.offerRsu}}</view>
           </view>
           <text class="offer-edit-hint">编辑</text>
         </view>
         <view wx:elif="{{item.statusCode === 'offer'}}" class="offer-empty-bar" hover-class="soft-press" hover-stay-time="80" catchtap="openOfferModal" data-id="{{item.id}}">
-          <text class="offer-empty-icon">🎉</text>
-          <text class="offer-empty-txt">点击录入 Offer 详情（Base / Bonus / RSU）</text>
+          <text class="offer-empty-icon">OFFER</text>
+          <text class="offer-empty-txt">补充薪酬与权益信息</text>
         </view>
 
         <!-- 备注快捷行 -->
         <view class="note-bar" hover-class="soft-press" hover-stay-time="80" catchtap="openNoteModal" data-id="{{item.id}}">
-          <text class="note-bar-icon">📝</text>
+          <text class="note-bar-icon">记</text>
           <text class="note-bar-txt">{{item.notes || '添加备注…'}}</text>
           <text class="note-bar-edit">编辑</text>
         </view>
@@ -230,18 +242,30 @@
     </block>
 
     <!-- Empty state -->
-    <empty-state wx:else
-      emoji="📭"
-      title="{{filterTab === 'all' ? '暂无申请记录' : '该状态暂无记录'}}"
-      desc="记录每次投递，追踪求职进度"
-      btn-text="{{filterTab === 'all' ? '+ 添加第一条记录' : ''}}"
-      bind:action="showAddModal">
-    </empty-state>
+    <view class="application-empty" wx:else>
+      <view class="empty-visual">
+        <view class="empty-sheet">
+          <view class="empty-sheet-mark"></view>
+          <view class="empty-sheet-line empty-sheet-line-long"></view>
+          <view class="empty-sheet-line"></view>
+        </view>
+        <view class="empty-visual-dot empty-visual-dot-a"></view>
+        <view class="empty-visual-dot empty-visual-dot-b"></view>
+      </view>
+      <text class="empty-title">{{filterTab === 'all' ? '从第一条投递开始' : '当前状态暂无记录'}}</text>
+      <text class="empty-desc">{{filterTab === 'all' ? '记录公司、岗位和当前阶段，让每次跟进都有迹可循' : '切换到其他状态，查看完整的投递进度'}}</text>
+      <view wx:if="{{filterTab === 'all'}}" class="empty-primary" hover-class="tap-bounce" bindtap="showAddModal">
+        <text class="empty-primary-plus">＋</text>
+        <text>添加投递记录</text>
+      </view>
+      <view wx:else class="empty-primary empty-primary-ghost" hover-class="tap-bounce" bindtap="setFilter" data-tab="all">查看全部记录</view>
+      <view wx:if="{{filterTab === 'all'}}" class="empty-secondary" hover-class="tap-bounce" bindtap="goToJobs">先去看看职位 <text>›</text></view>
+    </view>
 
   </view>
 
   <!-- FAB -->
-  <view class="fab" hover-class="fab-press" hover-stay-time="80" bindtap="showAddModal">
+  <view wx:if="{{applications.length > 0}}" class="fab" hover-class="fab-press" hover-stay-time="80" bindtap="showAddModal">
     <text class="fab-plus">＋</text>
   </view>
 
@@ -294,7 +318,7 @@
         <view class="status-grid">
           <view class="sg-item {{form.status === 'pending' ? 'sg-active sg-pending' : ''}}" bindtap="selectStatus" data-code="pending">
             <view class="sg-dot dot-pending"></view>
-            <text class="sg-txt">待初筛</text>
+            <text class="sg-txt">待投递</text>
           </view>
           <view class="sg-item {{form.status === 'interview' ? 'sg-active sg-interview' : ''}}" bindtap="selectStatus" data-code="interview">
             <view class="sg-dot dot-interview"></view>

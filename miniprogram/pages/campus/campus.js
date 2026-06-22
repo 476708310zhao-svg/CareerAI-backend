@@ -1,7 +1,9 @@
 // pages/campus/campus.js
-const api = require('../../../utils/api.js');
-const demoData = require('../../../utils/demo-data');
-const { logoByName } = require('../../../utils/logo.js');
+const api = require('../../utils/api.js');
+const demoData = require('../../utils/demo-data');
+const { logoByName } = require('../../utils/logo.js');
+const CAMPUS_LIST_CACHE_KEY = 'cachedCampusList_v1';
+const CAMPUS_LIST_CACHE_TTL = 30 * 60 * 1000;
 
 const REGION_LIST      = ['全部', '中国内地', '北美', '英国', '澳洲/新加坡', '欧洲'];
 const RECRUIT_TYPE_LIST = ['全部', '春招', '秋招', '暑期实习'];
@@ -50,17 +52,31 @@ Page({
   },
 
   onLoad() {
-    this._loadMeta();
-    this.loadList(true);
+    const hasCache = this.loadCachedList();
+    clearTimeout(this._initialLoadTimer);
+    this._initialLoadTimer = setTimeout(() => {
+      this._loadMeta();
+      this.loadList(true);
+    }, hasCache ? 220 : 80);
     setTimeout(() => this._updateSpacerHeight(), 200);
   },
 
   onShow() {
-    if (this._loadedOnce) {
-      this.loadList(true);
+    const app = getApp();
+    if (app && typeof app.syncCustomTabBar === 'function') app.syncCustomTabBar();
+
+    if (!this._loadedOnce) {
+      this._loadedOnce = true;
       return;
     }
-    this._loadedOnce = true;
+    clearTimeout(this._returnRefreshTimer);
+    this._returnRefreshTimer = setTimeout(() => this.loadList(true), 180);
+  },
+
+  onUnload() {
+    clearTimeout(this._initialLoadTimer);
+    clearTimeout(this._returnRefreshTimer);
+    clearTimeout(this._searchTimer);
   },
 
   onPullDownRefresh() {
@@ -77,6 +93,36 @@ Page({
         this.setData({ gradYears: res.data.gradYears || [] });
       }
     }).catch(() => {});
+  },
+
+  _cacheKey() {
+    return [
+      'campus',
+      this.data.currentRegion || '',
+      this.data.currentRecruitType || '',
+      this.data.currentType || '',
+      this.data.currentWrittenTest || '',
+      this.data.currentGradYear || '',
+      this.data.keyword || ''
+    ].join('|');
+  },
+
+  loadCachedList() {
+    try {
+      const cached = wx.getStorageSync(CAMPUS_LIST_CACHE_KEY);
+      if (!cached || cached.key !== this._cacheKey() || (Date.now() - (cached.t || 0)) > CAMPUS_LIST_CACHE_TTL) return false;
+      if (!Array.isArray(cached.list) || cached.list.length === 0) return false;
+      this.setData({
+        list: cached.list,
+        total: cached.total || cached.list.length,
+        page: 1,
+        hasMore: cached.hasMore !== false,
+        loading: false
+      });
+      return true;
+    } catch (e) {
+      return false;
+    }
   },
 
   _updateSpacerHeight() {
@@ -124,6 +170,17 @@ Page({
         hasMore: items.length >= this.data.pageSize,
         loading: false
       });
+      if (reset) {
+        try {
+          wx.setStorageSync(CAMPUS_LIST_CACHE_KEY, {
+            key: this._cacheKey(),
+            list: merged,
+            total,
+            hasMore: items.length >= this.data.pageSize,
+            t: Date.now()
+          });
+        } catch (e) {}
+      }
       cb && cb();
     }).catch(() => {
       if (reset && this.data.list.length === 0 && demoData.enabled()) {
@@ -233,6 +290,8 @@ Page({
   },
 
   _reload() {
+    clearTimeout(this._initialLoadTimer);
+    clearTimeout(this._returnRefreshTimer);
     wx.pageScrollTo({ scrollTop: 0, duration: 0 });
     this.loadList(true);
   },

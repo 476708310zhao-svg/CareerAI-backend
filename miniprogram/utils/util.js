@@ -5,7 +5,7 @@ const TAB_URLS = [
   '/pages/index/index',
   '/pages/jobs/jobs',
   '/pages/experiences/experiences',
-  '/pages/agencies/agencies',
+  '/pages/campus/campus',
   '/pages/profile/profile'
 ];
 

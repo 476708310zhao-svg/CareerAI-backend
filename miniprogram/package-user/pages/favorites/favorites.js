@@ -25,6 +25,9 @@ Page({
 
   onShow() {
     this.loadFavorites();
+    favUtil.syncFromServer().then(() => {
+      this.loadFavorites();
+    });
   },
 
   loadFavorites() {
@@ -221,7 +224,7 @@ Page({
       return;
     }
     if (action === 'campus') {
-      wx.navigateTo({ url: '/package-content/pages/campus/campus' });
+      wx.switchTab({ url: '/pages/campus/campus' });
       return;
     }
     this.goToJobs();

@@ -15,6 +15,7 @@ const db       = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
 const { sendToUser }     = require('./notify');
 const { UPLOAD_DIR } = require('../utils/paths');
+const { applicationFeedbackData } = require('../utils/wechatTemplates');
 
 // ── 表单结构拉取 ──────────────────────────────────────────────────────────────
 // GET /api/apply/form?source=greenhouse&slug=stripe&jobId=12345
@@ -179,11 +180,12 @@ router.post('/submit', authMiddleware, async (req, res) => {
       title:   '投递成功',
       content: `已成功投递「${snap.company}${snap.title ? ' · ' + snap.title : ''}」`,
       templateId: process.env.WX_TPL_APPLICATION,
-      wxData: {
-        thing1:  { value: snap.title.slice(0, 20) || '职位' },
-        thing2:  { value: snap.company.slice(0, 20) },
-        phrase3: { value: '已投递' },
-      },
+      wxData: applicationFeedbackData({
+        title: snap.title,
+        company: snap.company,
+        result: '已投递',
+        remark: '请等待HR审核',
+      }),
     }).catch(() => {});
 
     res.json({

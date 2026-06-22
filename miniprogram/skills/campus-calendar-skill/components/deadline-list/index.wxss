@@ -1,0 +1,188 @@
+.deadline-list {
+  padding: 20rpx;
+  color: #111827;
+}
+
+.summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.summary-title {
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.summary-count {
+  font-size: 24rpx;
+  color: #64748b;
+}
+
+.empty,
+.deadline-card {
+  border: 1rpx solid var(--card-border, rgba(190,208,232,0.62));
+  border-radius: var(--card-radius, 26rpx);
+  background: var(--card-bg, linear-gradient(145deg, #ffffff, #f8fbff));
+  box-shadow: var(--card-shadow, 0 14rpx 34rpx rgba(36,58,92,0.07));
+}
+
+.empty {
+  padding: 28rpx;
+}
+
+.empty-title,
+.empty-desc {
+  display: block;
+}
+
+.empty-title {
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.empty-desc {
+  margin-top: 8rpx;
+  color: #64748b;
+  font-size: 24rpx;
+}
+
+.deadline-card {
+  margin-bottom: 16rpx;
+  padding: 24rpx;
+}
+
+.deadline-card-hover {
+  background: #f8fafc;
+}
+
+.deadline-top {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.date-box {
+  width: 140rpx;
+  flex: 0 0 140rpx;
+  padding: 12rpx 10rpx;
+  border-radius: 8rpx;
+  background: #fff7ed;
+  color: #9a3412;
+  text-align: center;
+}
+
+.date-label,
+.date-value {
+  display: block;
+}
+
+.date-label {
+  font-size: 20rpx;
+}
+
+.date-value {
+  margin-top: 4rpx;
+  font-size: 23rpx;
+  font-weight: 800;
+}
+
+.body {
+  min-width: 0;
+  margin-left: 18rpx;
+}
+
+.company,
+.title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.company {
+  font-size: 30rpx;
+  font-weight: 800;
+  color: #111827;
+}
+
+.title {
+  margin-top: 4rpx;
+  color: #64748b;
+  font-size: 24rpx;
+}
+
+.meta-row,
+.foot-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10rpx;
+}
+
+.meta-row {
+  margin-top: 18rpx;
+}
+
+.meta-pill {
+  padding: 6rpx 10rpx;
+  border-radius: 6rpx;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 23rpx;
+}
+
+.foot-row {
+  margin-top: 18rpx;
+  font-size: 24rpx;
+  color: #64748b;
+}
+
+.written {
+  color: #0f766e;
+}
+
+.detail-link {
+  margin-left: auto;
+  color: #2b5ce6;
+  font-weight: 700;
+}
+
+@media (prefers-color-scheme: dark) {
+  .deadline-list {
+    color: #f8fafc;
+  }
+
+  .empty,
+  .deadline-card {
+    background: #111827;
+    border-color: #334155;
+  }
+
+  .deadline-card-hover {
+    background: #1f2937;
+  }
+
+  .company,
+  .empty-title {
+    color: #f8fafc;
+  }
+
+  .summary-count,
+  .title,
+  .empty-desc,
+  .foot-row {
+    color: #cbd5e1;
+  }
+
+  .date-box {
+    background: #431407;
+    color: #fed7aa;
+  }
+
+  .meta-pill {
+    background: #1e293b;
+    color: #cbd5e1;
+  }
+}

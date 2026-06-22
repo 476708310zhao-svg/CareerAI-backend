@@ -88,8 +88,8 @@
       <view class="action-card" bindtap="applyJob">
         <text class="action-icon doc">↗</text>
         <view class="action-copy">
-          <text class="action-title">一键投递</text>
-          <text class="action-sub">复制简历摘要并加入看板</text>
+          <text class="action-title">保存投递</text>
+          <text class="action-sub">复制投递链接并加入看板</text>
         </view>
       </view>
     </view>
@@ -132,14 +132,14 @@
     <text>面试</text>
   </view>
 
-  <view class="f-btn f-btn-apply ux-main-cta" bindtap="applyJob">一键投递</view>
+  <view class="f-btn f-btn-apply ux-main-cta" bindtap="applyJob">保存投递</view>
 </view>
 
-<!-- 一键投递弹窗 -->
+<!-- 保存投递弹窗 -->
 <view class="apply-mask" wx:if="{{showApplyModal}}" bindtap="hideApplyModal"></view>
 <view class="apply-panel {{showApplyModal ? 'show' : ''}}">
   <view class="ap-header">
-    <text class="ap-title">一键投递</text>
+    <text class="ap-title">保存投递</text>
     <text class="ap-close" bindtap="hideApplyModal">✕</text>
   </view>
 
@@ -178,10 +178,10 @@
   <view class="ap-btns">
     <view class="ap-btn-cancel" bindtap="hideApplyModal">取消</view>
     <view class="ap-btn-submit" bindtap="doOneClickApply">
-      <text>一键投递</text>
+      <text>保存并复制</text>
     </view>
   </view>
-  <text class="ap-tip">投递后：简历摘要已复制 · 记录到看板 · 跳转外部投递页</text>
+  <text class="ap-tip">保存后：投递信息已复制 · 记录到看板 · 请在浏览器完成官方投递</text>
 </view>
 
 </view>

@@ -49,8 +49,8 @@ function request(options) {
   const now = Date.now();
   const requestData = options.params || options.data || {};
   const key = _cacheKey(options.path, requestData);
-  const ttl = options.cacheTTL || CACHE_TTL;
-  const noCache = !!options.noCache;
+  const ttl = typeof options.cacheTTL === 'number' ? options.cacheTTL : CACHE_TTL;
+  const noCache = !!options.noCache || ttl <= 0;
 
   // 层1：内存缓存
   if (!noCache && _memCache[key] && (now - _memCache[key].t) < ttl) {
@@ -95,6 +95,7 @@ function request(options) {
       method: 'GET',
       data: requestData,
       header: Object.assign({ 'Content-Type': 'application/json' }, _getAuthHeader()),
+      timeout: options.timeout || 10000,
       success: (res) => {
         clearTimeout(timer);
         if (res.statusCode === 200 && res.data) {

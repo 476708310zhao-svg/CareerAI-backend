@@ -195,7 +195,7 @@ router.post('/assistant', authMiddleware, aiLimiter, async (req, res) => {
 // ── AI 对话（面试/面经/题库生成） ────────────────
 // POST /api/ai/chat
 // Body: { messages: [...], temperature: 0.7 }
-router.post('/chat', aiLimiter, async (req, res) => {
+router.post('/chat', authMiddleware, aiLimiter, async (req, res) => {
   const { messages, temperature } = req.body;
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -287,7 +287,7 @@ JSON结构（每个字符串字段控制在20字以内，数组最多3项）：
 // ── AI 项目生成器 ──────────────────────────────
 // POST /api/ai/project-builder
 // Body: { track, role, background, seniority }
-router.post('/project-builder', aiLimiter, async (req, res) => {
+router.post('/project-builder', authMiddleware, aiLimiter, async (req, res) => {
   const { track, role, background, seniority } = req.body;
   if (!track) {
     return aiFail(res, 400, '请选择项目方向');

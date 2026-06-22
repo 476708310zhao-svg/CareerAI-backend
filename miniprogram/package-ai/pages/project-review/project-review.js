@@ -15,9 +15,11 @@ Page({
     raw:         '',    // user's original project text
     targetRole:  '',    // optional: target job role
     highlights:  '',    // optional: specific aspects to focus on
+    rolePresets: ['产品经理', 'Data Analyst', '软件工程师', '咨询分析师'],
+    focusPresets: ['量化结果', '技术栈表达', '领导力贡献', '业务影响'],
 
     // Loading
-    loadingTip:  '正在理解项目内容...',
+    loadingTip:  '读取项目经历与关键信息',
     loadingStep: 0,
 
     // Result
@@ -62,6 +64,22 @@ Page({
   onRoleInput(e)       { this.setData({ targetRole: e.detail.value }); },
   onHighlightsInput(e) { this.setData({ highlights: e.detail.value }); },
 
+  useRolePreset(e) {
+    const value = e.currentTarget.dataset.value || '';
+    this.setData({ targetRole: value });
+  },
+
+  appendHighlightPreset(e) {
+    const value = e.currentTarget.dataset.value || '';
+    if (!value) return;
+    const parts = (this.data.highlights || '')
+      .split(/[、,，]/)
+      .map(item => item.trim())
+      .filter(Boolean);
+    if (!parts.includes(value)) parts.push(value);
+    this.setData({ highlights: parts.join('、') });
+  },
+
   /* ──────────────────────────────────────────
      Generate
   ────────────────────────────────────────── */
@@ -75,7 +93,7 @@ Page({
   },
 
   _startGenerate(raw) {
-    this._safe({ step: 'loading', loadingStep: 0, loadingTip: '正在理解项目内容...' });
+    this._safe({ step: 'loading', loadingStep: 0, loadingTip: '读取项目经历与关键信息' });
     this._startLoadingAnim();
 
     const role       = this.data.targetRole.trim();
@@ -147,10 +165,16 @@ ${roleCtx}${hlCtx}
 
   _startLoadingAnim() {
     this._clearTimer();
-    const tips = ['正在理解项目内容...', '分析 STAR 结构...', '寻找量化机会...', '生成优化版本...'];
+    const tips = [
+      '读取项目经历与关键信息',
+      '梳理 STAR 结构与表达逻辑',
+      '提炼成果数据与业务影响',
+      '生成简历级优化版本'
+    ];
     let step = 0;
     this._loadTimer = setInterval(() => {
-      step = (step + 1) % tips.length;
+      if (step >= tips.length - 1) return;
+      step += 1;
       if (!this._unmounted) this.setData({ loadingStep: step, loadingTip: tips[step] });
     }, 2200);
   },

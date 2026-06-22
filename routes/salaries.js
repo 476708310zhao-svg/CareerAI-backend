@@ -73,6 +73,10 @@ router.get('/market', aiLimiter, async (req, res) => {
   }
 
   // ③ DeepSeek AI 生成真实估算
+  if (!req.user || !req.user.userId) {
+    return res.status(401).json({ code: -1, message: '登录后可使用 AI 薪资估算' });
+  }
+
   const companyPart = company ? `公司：${company}，` : '';
   const prompt = isCN
     ? `你是薪资数据专家。请根据中国劳动力市场真实数据，为以下岗位提供年度薪资估算。

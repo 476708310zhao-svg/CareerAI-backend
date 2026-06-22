@@ -1,210 +1,180 @@
-<!-- pages/vip/vip.wxml -->
 <view class="vip-page">
-  <view class="hero-section">
-    <view class="hero-copy">
-      <view class="eyebrow-row">
-        <text class="eyebrow">CAREERAI ACCELERATOR</text>
-        <text class="hero-status {{userVipInfo.isVip ? 'active' : ''}}">{{userVipInfo.isVip ? '已激活' : '会员能力说明'}}</text>
+  <view id="top" class="page-shell">
+    <view class="hero">
+      <view class="hero-head">
+        <text class="hero-kicker">CAREER AI ACCELERATOR</text>
+        <text class="hero-badge">留学生求职加速器</text>
       </view>
-      <text class="hero-title">AI 帮你更快拿 Offer</text>
-      <text class="hero-subtitle">从简历优化、AI 面试到自动化求职工作流，让 AI 成为你的专属求职助手。</text>
-      <view class="hero-actions">
-        <view class="primary-cta" bindtap="jumpBenefits" wx:if="{{!userVipInfo.isVip}}">查看权益</view>
-        <view class="primary-cta" bindtap="jumpBenefits" wx:else>查看已享权益</view>
-        <view class="secondary-cta" bindtap="jumpBenefits">会员能力说明</view>
-      </view>
-    </view>
+      <text class="hero-title">AI 求职会员权益</text>
+      <text class="hero-subtitle">从简历优化、模拟面试到自动化求职，让 AI 成为你的专属求职助手。</text>
 
-    <view class="agent-dashboard">
-      <view class="dash-top">
-        <text class="dash-label">AI Agent Dashboard</text>
-        <text class="dash-live">Live</text>
-      </view>
-      <view class="prompt-card">
-        <text class="prompt-user">User</text>
-        <text class="prompt-text">帮我找英国 Data Analyst 岗位，并准备申请材料。</text>
-      </view>
-      <view class="agent-flow">
-        <block wx:for="{{dashboardSteps}}" wx:key="title">
-          <view class="flow-row {{index === 1 ? 'running' : ''}}">
-            <text class="flow-dot"></text>
-            <view class="flow-main">
-              <text class="flow-title">{{item.title}}</text>
-              <text class="flow-desc">{{item.desc}}</text>
+      <view class="workflow-visual">
+        <view class="resume-card">
+          <text class="mini-label">RESUME</text>
+          <view class="avatar-line">
+            <view class="avatar-dot"></view>
+            <view class="line-stack">
+              <view></view>
+              <view></view>
+              <view></view>
             </view>
-            <text class="flow-status">{{item.status}}</text>
           </view>
-        </block>
-      </view>
-      <view class="dash-metrics">
-        <view class="metric-card">
-          <text class="metric-num">92</text>
-          <text class="metric-label">面试准备分</text>
+          <view class="resume-row"></view>
+          <view class="resume-row short"></view>
         </view>
-        <view class="metric-card">
-          <text class="metric-num">18</text>
-          <text class="metric-label">推荐岗位</text>
-        </view>
-      </view>
-    </view>
-  </view>
 
-  <view class="plans-panel" wx:if="{{false}}">
-    <view class="section-head compact">
-      <view>
-        <text class="section-kicker">PREVIEW</text>
-        <text class="section-title">求职会员权益</text>
-      </view>
-      <text class="section-note">会员能力说明</text>
-    </view>
-    <view class="plan-list">
-      <block wx:for="{{priceList}}" wx:key="id">
-        <view class="plan-card {{selectedPlan === index ? 'selected' : ''}}" bindtap="selectPlan" data-index="{{index}}">
-          <text class="plan-ribbon" wx:if="{{item.tip}}">{{item.tip}}</text>
-          <view class="plan-info">
-            <text class="plan-name">{{item.name}}</text>
-            <text class="plan-sub">{{item.day}} · ¥{{item.perDay}}/天</text>
-          </view>
-          <view class="plan-price">
-            <text class="price-now">¥{{item.price}}</text>
-            <text class="price-old">¥{{item.original}}</text>
-          </view>
-          <text class="plan-check" wx:if="{{selectedPlan === index}}">✓</text>
+        <view class="match-lens">
+          <text>岗位匹配</text>
         </view>
-      </block>
-    </view>
-  </view>
 
-  <view id="benefits" class="section-block">
-    <view class="section-head">
-      <text class="section-kicker">CORE BENEFITS</text>
-      <text class="section-title">核心会员权益</text>
-      <text class="section-subtitle">不是更多工具，而是一套完整的 AI 求职操作系统。</text>
+        <view class="interview-card">
+          <text class="mini-label blue">模拟面试</text>
+          <view class="bubble">
+            <text>•••</text>
+          </view>
+        </view>
+
+        <view class="check-card">
+          <view><text>✓</text><view></view></view>
+          <view><text>✓</text><view></view></view>
+          <view><text>✓</text><view></view></view>
+        </view>
+
+        <view class="flow-line">
+          <view class="step active"><text>找岗</text></view>
+          <view class="step"><text>优化</text></view>
+          <view class="step"><text>网申</text></view>
+          <view class="step"><text>面试</text></view>
+          <view class="done-check">✓</view>
+        </view>
+      </view>
     </view>
-    <view class="benefit-grid">
-      <block wx:for="{{benefits}}" wx:key="title">
+
+    <view class="benefits-panel">
+      <view class="section-title-row">
+        <view class="spark"></view>
+        <text class="section-title">六大核心会员权益</text>
+      </view>
+      <text class="section-subtitle">不是增加更多工具，而是提供一套完整的 AI 求职操作系统。</text>
+
+      <view class="benefit-grid">
         <view class="benefit-card">
-          <view class="benefit-top">
-            <text class="benefit-icon">{{item.icon}}</text>
-            <text class="benefit-tag">{{item.tag}}</text>
+          <view class="benefit-num">01</view>
+          <view class="benefit-icon dots">•••</view>
+          <view class="benefit-copy">
+            <text class="benefit-title">无限 AI 模拟面试</text>
+            <text class="benefit-desc">根据目标岗位生成真实追问，提供评分、复盘与改进建议。</text>
           </view>
-          <text class="benefit-title">{{item.title}}</text>
-          <text class="benefit-desc">{{item.desc}}</text>
         </view>
-      </block>
-    </view>
-  </view>
 
-  <view class="section-block feature-entry-section">
-    <view class="section-head">
-      <text class="section-kicker">UNLOCKED TOOLS</text>
-      <text class="section-title">会员能力说明</text>
-      <text class="section-subtitle">集中展示简历、投递、面试和规划相关的进阶求职能力。</text>
-    </view>
-    <view class="feature-entry-grid">
-      <block wx:for="{{aiFeatures}}" wx:key="name">
-        <view class="feature-entry-card" bindtap="goToFeature" data-url="{{item.url}}" hover-class="feature-entry-press">
-          <view class="feature-entry-top">
-            <text class="feature-entry-icon">{{item.icon}}</text>
-            <text class="feature-entry-badge" wx:if="{{item.badge}}">{{item.badge}}</text>
+        <view class="benefit-card">
+          <view class="benefit-num">02</view>
+          <view class="benefit-icon doc">JD</view>
+          <view class="benefit-copy">
+            <text class="benefit-title">JD 定制简历优化</text>
+            <text class="benefit-desc">提炼个人亮点、量化成果，针对不同岗位生成多版本简历。</text>
           </view>
-          <text class="feature-entry-name">{{item.name}}</text>
-          <text class="feature-entry-desc">{{item.desc}}</text>
         </view>
-      </block>
-    </view>
-  </view>
 
-  <view class="section-block workflow-section">
-    <view class="section-head">
-      <text class="section-kicker">AI WORKFLOW</text>
-      <text class="section-title">让 AI 自动帮你完成求职流程</text>
-      <text class="section-subtitle">从岗位发现到面试准备，AI Agent 持续推进每一个动作。</text>
-    </view>
-    <view class="workflow-shell">
-      <view class="chat-panel">
-        <view class="chat-bubble user">帮我找英国 Data Analyst 岗位</view>
-        <view class="chat-bubble ai">已开始执行：职位筛选、简历匹配、网申材料生成和面试准备。</view>
-      </view>
-      <view class="task-stream">
-        <block wx:for="{{workflowSteps}}" wx:key="title">
-          <view class="task-row {{index === 0 ? 'done' : index === 1 ? 'active' : ''}}">
-            <view class="task-index">{{index + 1}}</view>
-            <view class="task-copy">
-              <text class="task-title">{{item.title}}</text>
-              <text class="task-desc">{{item.desc}}</text>
-            </view>
-            <text class="task-status">{{item.status}}</text>
+        <view class="benefit-card">
+          <view class="benefit-num">03</view>
+          <view class="benefit-icon calendar">90</view>
+          <view class="benefit-copy">
+            <text class="benefit-title">30 / 60 / 90 天求职路线</text>
+            <text class="benefit-desc">拆解阶段目标、关键动作与时间节点，让求职更有节奏。</text>
           </view>
-        </block>
+        </view>
+
+        <view class="benefit-card">
+          <view class="benefit-num">04</view>
+          <view class="benefit-icon layers">AI</view>
+          <view class="benefit-copy">
+            <text class="benefit-title">AI 项目经历生成</text>
+            <text class="benefit-desc">围绕目标岗位生成可落地的练手项目与作品集框架。</text>
+          </view>
+        </view>
+
+        <view class="benefit-card">
+          <view class="benefit-num">05</view>
+          <view class="benefit-icon balance">Offer</view>
+          <view class="benefit-copy">
+            <text class="benefit-title">Offer 多维决策助手</text>
+            <text class="benefit-desc">综合对比薪资、成长空间、签证支持与长期发展机会。</text>
+          </view>
+        </view>
+
+        <view class="benefit-card">
+          <view class="benefit-num">06</view>
+          <view class="benefit-icon agent">Agent</view>
+          <view class="benefit-copy">
+            <text class="benefit-title">AI 求职 Agent 工作流</text>
+            <text class="benefit-desc">串联找岗、岗位匹配、简历优化、网申与面试准备。</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="compare-section">
+        <view class="section-title-row small">
+          <view class="bars">
+            <view></view><view></view><view></view>
+          </view>
+          <text class="compare-title">免费版 VS 会员版</text>
+        </view>
+        <view class="compare-cards">
+          <view class="free-card">
+            <text class="plan-title">免费版</text>
+            <text class="plan-item muted">✓ 每月 1 次模拟面试</text>
+            <text class="plan-item muted">✓ 1 份基础简历</text>
+            <text class="plan-item muted">✓ 基础节点提醒</text>
+            <text class="plan-item muted">✓ 单点 AI 工具</text>
+          </view>
+
+          <view class="vs-badge">VS</view>
+
+          <view class="member-card">
+            <text class="plan-title light">会员版</text>
+            <text class="plan-item">✓ 无限模拟面试与复盘</text>
+            <text class="plan-item">✓ 多岗位 JD 定制简历</text>
+            <text class="plan-item">✓ AI 项目经历生成</text>
+            <text class="plan-item">✓ Offer 多维决策分析</text>
+            <text class="plan-item">✓ 关键节点与行动建议</text>
+            <text class="plan-item">✓ Agent 串联完整求职流程</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="audience-section">
+        <view class="section-title-row small">
+          <view class="people-icon"></view>
+          <text class="audience-title">适合哪些求职人群？</text>
+        </view>
+        <view class="audience-chips">
+          <view class="audience-chip">北美留学生</view>
+          <view class="audience-chip">英国工签求职</view>
+          <view class="audience-chip">大厂校招</view>
+          <view class="audience-chip">转专业求职</view>
+          <view class="audience-chip">海外实习</view>
+        </view>
       </view>
     </view>
   </view>
 
-  <view class="section-block">
-    <view class="section-head">
-      <text class="section-kicker">COMPARE</text>
-      <text class="section-title">免费版 VS 会员版</text>
-      <text class="section-subtitle">对比完整 AI Agent 工作流和高频求职场景中的能力差异。</text>
-    </view>
-    <view class="compare-table">
-      <view class="compare-row compare-head">
-        <text>能力</text>
-        <text>免费版</text>
-        <text class="vip-col">会员版</text>
+  <view class="bottom-safe-space"></view>
+
+  <view class="member-footer">
+    <view class="footer-main" bindtap="handlePay" hover-class="footer-press">
+      <view class="member-card-icon">
+        <text class="member-card-crown">冠</text>
       </view>
-      <block wx:for="{{compareList}}" wx:key="feature">
-        <view class="compare-row">
-          <text class="feature-name">{{item.feature}}</text>
-          <text class="free-value">{{item.free}}</text>
-          <text class="vip-value">{{item.vip}}</text>
-        </view>
-      </block>
+      <view class="footer-copy">
+        <text class="footer-title">查看会员权益</text>
+        <text class="footer-subtitle">开通入口筹备中，当前不产生支付</text>
+      </view>
     </view>
-  </view>
 
-  <view class="section-block">
-    <view class="section-head">
-      <text class="section-kicker">WHO IT IS FOR</text>
-      <text class="section-title">适用人群</text>
-      <text class="section-subtitle">为海外留学生的真实求职路径设计。</text>
-    </view>
-    <view class="audience-grid">
-      <block wx:for="{{audienceList}}" wx:key="title">
-        <view class="audience-card">
-          <text class="audience-title">{{item.title}}</text>
-          <text class="audience-desc">{{item.desc}}</text>
-        </view>
-      </block>
-    </view>
-  </view>
-
-  <view class="final-cta">
-    <text class="final-kicker">PREVIEW</text>
-    <text class="final-title">查看求职会员权益</text>
-    <text class="final-subtitle">这里集中说明简历、投递、面试和规划相关的会员能力。</text>
-    <view class="final-button" bindtap="jumpBenefits" wx:if="{{!userVipInfo.isVip}}">查看权益</view>
-    <view class="final-button" bindtap="jumpBenefits" wx:else>查看会员权益</view>
-  </view>
-
-  <view class="vip-active-card" wx:if="{{userVipInfo.isVip}}">
-    <text class="active-title">会员已激活</text>
-    <text class="active-sub">有效期至 {{userVipInfo.expireDate}}</text>
-    <text class="active-hint">全部 AI 求职会员权益已解锁。</text>
-  </view>
-
-  <view class="restore-link" wx:if="{{false}}" bindtap="restorePurchase">已购买？点击恢复</view>
-  <view class="disclaimer">会员权益以页面说明和实际服务状态为准。</view>
-  <view class="bottom-space"></view>
-
-  <view class="footer-bar" wx:if="{{false}}">
-    <view class="footer-price">
-      <text class="fp-label">当前方案</text>
-      <text class="fp-plan">{{priceList[selectedPlan].name}}</text>
-    </view>
-    <view class="pay-btn {{isPaying ? 'paying' : ''}}" bindtap="handlePay">
-      <text class="pay-main">{{isPaying ? '处理中...' : '查看权益'}}</text>
-      <text class="pay-sub">¥{{priceList[selectedPlan].price}} · 解锁 AI 求职加速器</text>
+    <view class="benefit-pill" catchtap="scrollToTop" hover-class="pill-press">
+      <text>查看会员权益</text>
+      <text class="pill-arrow">›</text>
     </view>
   </view>
 </view>

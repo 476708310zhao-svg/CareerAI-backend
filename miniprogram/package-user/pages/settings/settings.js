@@ -1,4 +1,5 @@
 // pages/settings/settings.js
+const browseHistory = require('../../../utils/browse-history.js');
 Page({
   data: {
     version: '1.0.0',
@@ -64,7 +65,8 @@ Page({
       success: (res) => {
         if (!res.confirm) return;
         wx.removeStorageSync('searchHistory');
-        wx.removeStorageSync('viewHistory');
+        wx.removeStorageSync('jobSearchHistory');
+        browseHistory.clear();
         wx.removeStorageSync('recentSearches');
         this.calcCacheSize();
         wx.showToast({ title: '清除成功', icon: 'success' });

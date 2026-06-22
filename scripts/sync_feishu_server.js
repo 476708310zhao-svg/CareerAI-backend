@@ -7,9 +7,15 @@ const db = require('../db/database');
 
 const APP_ID = process.env.FEISHU_CAMPUS_APP_ID || process.env.FEISHU_APP_ID;
 const APP_SECRET = process.env.FEISHU_CAMPUS_APP_SECRET || process.env.FEISHU_APP_SECRET;
-const BASE_TOKEN = process.env.FEISHU_CAMPUS_BASE_TOKEN || process.env.FEISHU_BASE_TOKEN || 'SAHbbOc68aH0sPscYu7cbKZjnnr';
-const TABLE_ID = process.env.FEISHU_CAMPUS_TABLE_ID || process.env.FEISHU_TABLE_ID || 'tblnJnFOgllO4FYe';
+const BASE_TOKEN = process.env.FEISHU_CAMPUS_BASE_TOKEN || process.env.FEISHU_BASE_TOKEN;
+const TABLE_ID = process.env.FEISHU_CAMPUS_TABLE_ID || process.env.FEISHU_TABLE_ID;
 const SOURCE = '飞书校招日历';
+const SHANGHAI_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Asia/Shanghai',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
+});
 
 function assertConfig() {
   const missing = [];
@@ -125,7 +131,11 @@ function dateValue(value) {
   if (!value) return '';
   if (typeof value === 'number') {
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+    if (Number.isNaN(date.getTime())) return '';
+    const parts = Object.fromEntries(
+      SHANGHAI_DATE_FORMATTER.formatToParts(date).map(part => [part.type, part.value])
+    );
+    return `${parts.year}-${parts.month}-${parts.day}`;
   }
   const raw = text(value);
   if (/^\d{4}-\d{1,2}-\d{1,2}/.test(raw)) return raw.slice(0, 10);

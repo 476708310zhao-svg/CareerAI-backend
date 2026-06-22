@@ -1,0 +1,28 @@
+<view class="detail-card" wx:if="{{experience}}">
+  <view class="head">
+    <view class="company-mark">{{experience.companyInitial || experience.company}}</view>
+    <view class="title-wrap">
+      <text class="title">{{experience.title}}</text>
+      <text class="company">{{experience.company}}{{experience.jobTitle ? ' · ' + experience.jobTitle : ''}}</text>
+    </view>
+  </view>
+
+  <view class="meta-row">
+    <text class="meta-pill">{{experience.interviewType}}</text>
+    <text class="meta-pill" wx:if="{{experience.round}}">{{experience.round}}</text>
+    <text class="meta-pill" wx:if="{{experience.difficulty}}">{{experience.difficulty}}</text>
+    <text class="meta-pill" wx:if="{{experience.updatedAt}}">{{experience.updatedAt}}</text>
+  </view>
+
+  <view class="tag-row" wx:if="{{experience.tags && experience.tags.length}}">
+    <text wx:for="{{experience.tags}}" wx:key="*this" class="tag"># {{item}}</text>
+  </view>
+
+  <text class="summary-text">{{experience.summary}}</text>
+
+  <button class="primary-btn" bindtap="openExperienceDetail">进入职引查看完整内容</button>
+</view>
+
+<view class="detail-card empty" wx:else>
+  <text class="empty-title">面经信息暂不可用</text>
+</view>

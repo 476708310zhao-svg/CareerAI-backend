@@ -1,0 +1,49 @@
+<view class="campus-list">
+  <view class="summary" wx:if="{{total > 0}}">
+    <text class="summary-title">校招机会</text>
+    <text class="summary-count">{{total}} 个结果</text>
+  </view>
+
+  <view class="empty" wx:if="{{!opportunities || opportunities.length === 0}}">
+    <text class="empty-title">暂时没有匹配机会</text>
+    <text class="empty-desc">可以调整地区、方向、毕业届别或截止时间范围。</text>
+    <button class="ghost-btn" bindtap="openCampusList">进入校招日历</button>
+  </view>
+
+  <view
+    wx:for="{{opportunities}}"
+    wx:key="opportunityId"
+    class="campus-card"
+    bindtap="openCampusDetail"
+    data-id="{{item.opportunityId}}"
+    hover-class="campus-card-hover"
+  >
+    <view class="card-head">
+      <view class="company-logo" wx:if="{{item.companyLogo}}">
+        <image class="company-logo-img" src="{{item.companyLogo}}" mode="aspectFit" />
+      </view>
+      <view class="company-fallback" wx:else>{{item.companyInitial}}</view>
+      <view class="title-wrap">
+        <text class="company">{{item.company}}</text>
+        <text class="title">{{item.title}}</text>
+      </view>
+    </view>
+
+    <view class="meta-row">
+      <text class="meta-pill">{{item.location}}</text>
+      <text class="meta-pill">{{item.recruitmentType}}</text>
+      <text class="meta-pill">{{item.graduationYear}}届</text>
+      <text class="meta-pill" wx:if="{{item.direction}}">{{item.direction}}</text>
+    </view>
+
+    <view class="tag-row" wx:if="{{item.visaTags && item.visaTags.length}}">
+      <text wx:for="{{item.visaTags}}" wx:key="*this" class="visa-tag">{{item}}</text>
+    </view>
+
+    <view class="foot-row">
+      <text class="deadline">截止：{{item.deadline || '待确认'}}</text>
+      <text class="verified" wx:if="{{item.isVerified}}">已核验</text>
+      <text class="detail-link">查看</text>
+    </view>
+  </view>
+</view>

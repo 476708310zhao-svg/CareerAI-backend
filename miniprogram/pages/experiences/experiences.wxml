@@ -55,30 +55,15 @@
       </view>
     </view>
 
-    <!-- 合并筛选栏：分类 / 难度 / 精华一行横滑 -->
-    <scroll-view scroll-x enhanced show-scrollbar="{{false}}" class="filter-scroll" wx:if="{{sourceTab !== 'topics'}}">
+    <!-- 分类筛选 -->
+    <scroll-view scroll-x enhanced show-scrollbar="{{false}}" class="filter-scroll" wx:if="{{sourceTab === 'local'}}">
       <view class="filter-inner">
-        <block wx:if="{{sourceTab === 'local'}}">
-          <block wx:for="{{categories}}" wx:key="id">
-            <view
-              class="filter-pill cat-pill {{currentCat === item.id ? 'active' : ''}}"
-              bindtap="switchCategory"
-              data-id="{{item.id}}"
-            >{{item.id === 'all' ? '全部分类' : item.name}}</view>
-          </block>
-          <view class="filter-divider"></view>
-        </block>
-
-        <view class="filter-pill diff-pill {{currentDiff === '' ? 'active' : ''}}" bindtap="switchDifficulty" data-diff="">全部难度</view>
-        <view class="filter-pill diff-pill easy {{currentDiff === 'EASY' ? 'active' : ''}}" bindtap="switchDifficulty" data-diff="EASY">简单</view>
-        <view class="filter-pill diff-pill mid {{currentDiff === 'MEDIUM' ? 'active' : ''}}" bindtap="switchDifficulty" data-diff="MEDIUM">中等</view>
-        <view class="filter-pill diff-pill hard {{currentDiff === 'HARD' ? 'active' : ''}}" bindtap="switchDifficulty" data-diff="HARD">困难</view>
-
-        <block wx:if="{{sourceTab === 'local'}}">
-          <view class="filter-divider"></view>
-          <view class="filter-pill feat-pill {{featuredFilter === '' ? 'active' : ''}}" bindtap="switchFeatured" data-val="">全部内容</view>
-          <view class="filter-pill feat-pill feat-featured {{featuredFilter === 'featured' ? 'active' : ''}}" bindtap="switchFeatured" data-val="featured">精华</view>
-          <view class="filter-pill feat-pill feat-hot {{featuredFilter === 'hot' ? 'active' : ''}}" bindtap="switchFeatured" data-val="hot">高赞</view>
+        <block wx:for="{{categories}}" wx:key="id">
+          <view
+            class="filter-pill cat-pill {{currentCat === item.id ? 'active' : ''}}"
+            bindtap="switchCategory"
+            data-id="{{item.id}}"
+          >{{item.id === 'all' ? '全部分类' : item.name}}</view>
         </block>
       </view>
     </scroll-view>
@@ -107,17 +92,16 @@
 
   <view class="training-hero">
     <view class="training-copy">
-      <text class="training-kicker">Interview Training OS</text>
-      <text class="training-title">面试题库训练台</text>
-      <text class="training-sub">整合精选题、LeetCode、话题专题和精华内容，用 AI 帮你更快进入练习状态。</text>
-      <view class="training-actions">
-        <view class="training-action primary" bindtap="startBehaviorDrill" hover-class="tap-soft">
-          <text>行为题专项</text>
-        </view>
-        <view class="training-action" bindtap="goToMockInterview" hover-class="tap-soft">
-          <text>AI 模拟面试</text>
+      <view class="training-topline">
+        <text class="training-kicker">INTERVIEW TRAINING</text>
+        <view class="training-ai-entry" bindtap="goToMockInterview" hover-class="tap-soft">
+          <text class="training-ai-mark">AI</text>
+          <text>AI 面试</text>
+          <text class="training-ai-arrow">›</text>
         </view>
       </view>
+      <text class="training-title">面试题库</text>
+      <text class="training-sub">精选真题 · LeetCode · 高频面经</text>
     </view>
     <view class="training-meter">
       <text class="training-meter-num">{{displayList.length || allQuestions.length}}</text>

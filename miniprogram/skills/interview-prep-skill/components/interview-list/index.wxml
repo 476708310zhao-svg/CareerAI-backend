@@ -1,0 +1,46 @@
+<view class="interview-list">
+  <view class="similar-tip" wx:if="{{usedSimilarFallback}}">
+    未找到完全匹配项，以下为真实相似面经。
+  </view>
+
+  <view class="summary" wx:if="{{total > 0}}">
+    <text class="summary-title">真实面经</text>
+    <text class="summary-count">{{total}} 条结果</text>
+  </view>
+
+  <view class="empty" wx:if="{{!experiences || experiences.length === 0}}">
+    <text class="empty-title">暂时没有匹配面经</text>
+    <text class="empty-desc">可以换公司、岗位、面试类型或关键词再试。</text>
+  </view>
+
+  <view
+    wx:for="{{experiences}}"
+    wx:key="experienceId"
+    class="interview-card"
+    bindtap="onExperienceTap"
+    data-id="{{item.experienceId}}"
+    hover-class="interview-card-hover"
+  >
+    <view class="card-head">
+      <view class="company-mark">{{item.companyInitial || item.company}}</view>
+      <view class="title-wrap">
+        <text class="title">{{item.title}}</text>
+        <text class="company">{{item.company}}{{item.jobTitle ? ' · ' + item.jobTitle : ''}}</text>
+      </view>
+    </view>
+
+    <view class="meta-row">
+      <text class="meta-pill">{{item.interviewType}}</text>
+      <text class="meta-pill" wx:if="{{item.round}}">{{item.round}}</text>
+      <text class="meta-pill" wx:if="{{item.difficulty}}">{{item.difficulty}}</text>
+      <text class="meta-pill similar" wx:if="{{item.isSimilar}}">相似岗位</text>
+    </view>
+
+    <text class="summary-text" wx:if="{{item.summary}}">{{item.summary}}</text>
+
+    <view class="foot-row">
+      <text>{{item.updatedAt || '时间待确认'}}</text>
+      <text class="detail-link">查看详情</text>
+    </view>
+  </view>
+</view>

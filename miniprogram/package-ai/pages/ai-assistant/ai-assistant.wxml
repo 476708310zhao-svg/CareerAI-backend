@@ -118,7 +118,7 @@
             </view>
 
             <view
-              wx:if="{{item.role === 'ai' && !item.isWelcome && !item.isStreaming && !item.isError}}"
+              wx:if="{{item.role === 'ai' && !item.isWelcome && !item.isStreaming && !item.isError && (item.content || item.displayText || item.htmlContent)}}"
               class="answer-action-card ux-ai-result-card"
             >
               <view class="answer-action-head">

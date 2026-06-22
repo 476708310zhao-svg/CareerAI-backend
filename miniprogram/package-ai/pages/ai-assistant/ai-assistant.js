@@ -8,7 +8,7 @@ const SAVED_KEY   = 'ai_assistant_saved_results';
 const MAX_CACHE   = 30;
 const TIME_GAP_MS = 5 * 60 * 1000;
 const CURSOR      = '▋';
-const TAB_PAGES   = new Set(['/pages/index/index', '/pages/jobs/jobs', '/pages/experiences/experiences', '/pages/agencies/agencies', '/pages/profile/profile']);
+const TAB_PAGES   = new Set(['/pages/index/index', '/pages/jobs/jobs', '/pages/experiences/experiences', '/pages/campus/campus', '/pages/profile/profile']);
 const FALLBACK_SYSTEM = '你是「职引」平台的 AI 求职助手，专注留学生求职。请用中文给出简洁、具体、可执行的建议，控制在 300 字以内，必要时用列表拆解步骤。';
 
 // ─── Markdown → HTML（用于 rich-text，仅处理 AI 输出）─────────
@@ -72,8 +72,56 @@ function isUnauthorizedError(err) {
 }
 
 function extractChatContent(res) {
-  return (res && res.choices && res.choices[0] &&
-    res.choices[0].message && res.choices[0].message.content) || '';
+  if (!res) return '';
+
+  if (typeof res === 'string') {
+    const text = res.trim();
+    if (!text) return '';
+
+    if (text.indexOf('data:') !== -1) {
+      let content = '';
+      const lines = text.split(/\r?\n/);
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line.startsWith('data:')) continue;
+        const data = line.slice(5).trim();
+        if (!data || data === '[DONE]') continue;
+        try {
+          content += extractChatContent(JSON.parse(data));
+        } catch (_) {}
+      }
+      if (content) return content;
+    }
+
+    try {
+      return extractChatContent(JSON.parse(text));
+    } catch (_) {
+      return text;
+    }
+  }
+
+  if (res.data && res.data !== res) {
+    const nested = extractChatContent(res.data);
+    if (nested) return nested;
+  }
+
+  if (res.result && res.result !== res) {
+    const nested = extractChatContent(res.result);
+    if (nested) return nested;
+  }
+
+  if (typeof res.reply === 'string') return res.reply;
+  if (typeof res.content === 'string') return res.content;
+  if (typeof res.answer === 'string') return res.answer;
+  if (typeof res.message === 'string') return res.message;
+  if (res.message && typeof res.message.content === 'string') return res.message.content;
+
+  const choice = res.choices && res.choices[0];
+  return (choice && (
+    choice.message && choice.message.content ||
+    choice.delta && choice.delta.content ||
+    choice.text
+  )) || '';
 }
 
 // ─── SSE 流式请求 ────────────────────────────────────────────
@@ -82,6 +130,7 @@ function extractChatContent(res) {
 function streamRequest(messages, userContext, onDelta, onDone, onError) {
   let sseBuffer = '';
   let hasErrored = false;
+  let receivedText = '';
   const authHeader = {};
   try {
     const token = wx.getStorageSync('token');
@@ -114,8 +163,11 @@ function streamRequest(messages, userContext, onDelta, onDone, onError) {
         try {
           const json = JSON.parse(data);
           if (json.error) { hasErrored = true; onError(new Error(json.error)); return; }
-          const delta = (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content) || '';
-          if (delta) onDelta(delta);
+          const delta = extractChatContent(json);
+          if (delta) {
+            receivedText += delta;
+            onDelta(delta);
+          }
         } catch (_) {}
       }
     },
@@ -127,6 +179,26 @@ function streamRequest(messages, userContext, onDelta, onDone, onError) {
         err.statusCode = res.statusCode;
         if (res.statusCode === 401) err.code = 'UNAUTHORIZED';
         onError(err);
+        return;
+      }
+      if (sseBuffer) {
+        const bufferedContent = extractChatContent(sseBuffer);
+        if (bufferedContent) {
+          receivedText += bufferedContent;
+          onDelta(bufferedContent);
+        }
+        sseBuffer = '';
+      }
+      if (!receivedText) {
+        const responseContent = extractChatContent(res && (res.data || res));
+        if (responseContent) {
+          receivedText += responseContent;
+          onDelta(responseContent);
+        }
+      }
+      if (!receivedText) {
+        hasErrored = true;
+        onError(new Error('AI 返回为空'));
         return;
       }
       onDone();
@@ -250,20 +322,19 @@ Page({
   // ── 恢复 / 初始化 ────────────────────────────────────────
 
   _restoreOrInit() {
-    try {
-      const cached = wx.getStorageSync(CACHE_KEY);
-      if (Array.isArray(cached) && cached.length) {
-        this._history = cached
-          .filter(m => !m.isError)
-          .map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }));
-        const latestAiIdx = cached.reduce((acc, m, i) => m.role === 'ai' ? i : acc, 0);
-        this.setData({ messages: cached, latestAiIdx });
-        wx.nextTick(() => this._scrollTo());
-        return;
-      }
-    } catch (e) {}
+    this._history = [];
+    this._streamingIdx = -1;
+    this._lastRawText = '';
+    try { wx.removeStorageSync(CACHE_KEY); } catch (e) {}
     const welcome = makeWelcome();
-    this.setData({ messages: [welcome], latestAiIdx: 0 });
+    this.setData({
+      messages: [welcome],
+      latestAiIdx: 0,
+      loading: false,
+      streaming: false,
+      inputText: '',
+      inputLen: 0
+    });
     wx.nextTick(() => this._scrollTo());
   },
 
@@ -516,11 +587,17 @@ Page({
 
     const idx = this._streamingIdx;
     if (idx < 0) return;
-    this._streamingIdx = -1;
 
     const cur = this.data.messages[idx];
     if (!cur) return;
-    const finalContent = cur.content || '';
+    const finalContent = (cur.content || '').trim();
+
+    if (!isError && !finalContent) {
+      this._fallbackToChat(new Error('AI 返回为空'));
+      return;
+    }
+
+    this._streamingIdx = -1;
 
     if (isError) {
       this.setData({

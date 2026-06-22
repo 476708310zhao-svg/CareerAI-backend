@@ -6,13 +6,14 @@ const demoData = require('../../utils/demo-data.js');
 const matcher = require('../../utils/matcher.js');
 const { formatSalaryRange } = require('../../utils/util.js');
 const { normalizeBannerUrl } = require('../../utils/assets.js');
+const browseHistory = require('../../utils/browse-history.js');
 const BANNER_CACHE_KEY = 'cachedBanners_v2';
 const HOME_NEWS_CACHE_KEY = 'cachedHomeNews_v1';
 const HOT_COMPANIES_CACHE_KEY = 'cachedHotCompanies_v1';
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
 // TabBar 页面路径列表，用于判断跳转方式
-const TAB_PAGES = ['/pages/index/index', '/pages/jobs/jobs', '/pages/experiences/experiences', '/pages/agencies/agencies', '/pages/profile/profile'];
+const TAB_PAGES = ['/pages/index/index', '/pages/jobs/jobs', '/pages/experiences/experiences', '/pages/campus/campus', '/pages/profile/profile'];
 
 Page({
   data: {
@@ -31,7 +32,7 @@ Page({
       { id: 1, name: '网申助手', icon: '/images/icon-apply.png', url: '/package-user/pages/applications/applications', badge: '', bg: 'linear-gradient(145deg,#eef6ff,#f8fbff)' },
       { id: 2, name: '薪酬查询', icon: '/images/icon-salary.png', url: '/package-career/pages/salary/salary', badge: 'Hot', bg: 'linear-gradient(145deg,#ecfdf5,#f8fbff)' },
       { id: 3, name: '求职规划', icon: '/images/icon-plan.png', url: '/package-career/pages/career-planner/career-planner', badge: 'AI', isAi: true, bg: 'linear-gradient(145deg,#fff7ed,#f8fbff)' },
-      { id: 4, name: '校招日历', icon: '/images/icon-calendar.png', url: '/package-content/pages/campus/campus', badge: '', bg: 'linear-gradient(145deg,#f0f9ff,#f8fbff)' }
+      { id: 4, name: '机构测评', icon: '/images/assess-active.png', url: '/pages/agencies/agencies', badge: '', bg: 'linear-gradient(145deg,#eef2ff,#f8fbff)' }
     ],
 
     aiSpotlight: {
@@ -107,12 +108,18 @@ Page({
     try {
       this.fetchBanners();
     } catch(e) { wx.showToast({ title: 'E2:' + e.message, icon: 'none', duration: 5000 }); return; }
+    let hasCachedJobs = false;
     try {
-      this.loadCachedOrMockJobs();
+      hasCachedJobs = this.loadCachedOrMockJobs();
     } catch(e) { wx.showToast({ title: 'E3:' + e.message, icon: 'none', duration: 5000 }); return; }
-    try {
-      this.fetchRecommendJobs();
-    } catch(e) { wx.showToast({ title: 'E4:' + e.message, icon: 'none', duration: 5000 }); return; }
+    clearTimeout(this._initialRecommendTimer);
+    this._initialRecommendTimer = setTimeout(() => {
+      try {
+        this.fetchRecommendJobs();
+      } catch(e) {
+        console.warn('[fetchRecommendJobs]', e);
+      }
+    }, hasCachedJobs ? 240 : 100);
     this.scheduleDeferredHomeData();
   },
 
@@ -128,6 +135,8 @@ Page({
   },
 
   onShow() {
+    const app = getApp();
+    if (app && typeof app.syncCustomTabBar === 'function') app.syncCustomTabBar();
     this.loadUserProfile();
     this.updateMessageBadge();
     this.syncPageChrome();
@@ -156,6 +165,7 @@ Page({
 
   // 下拉刷新
   onPullDownRefresh() {
+    clearTimeout(this._initialRecommendTimer);
     this.fetchRecommendJobs({ force: true });
     this.fetchHotCompanies({ force: true });
     this.buildNewsFeed({ force: true });
@@ -167,6 +177,7 @@ Page({
   },
 
   clearDeferredHomeTimers() {
+    clearTimeout(this._initialRecommendTimer);
     (this._homeTimers || []).forEach(timer => clearTimeout(timer));
     this._homeTimers = [];
   },
@@ -271,11 +282,14 @@ Page({
     const cached = wx.getStorageSync('cachedRecommendJobs');
     if (cached && cached.length >= 3) {
       this.setData({ recommendJobs: this.withCompanyLogos(cached).slice(0, 5), loadingJobs: false });
+      return true;
     } else if (ALLOW_DEMO_FALLBACK) {
       this.loadMockJobs();
+      return true;
     } else {
       this.setData({ loadingJobs: false });
     }
+    return false;
   },
 
   // ======== 用户画像 ========
@@ -295,7 +309,7 @@ Page({
     const sourceKws = [];
     matcher.getJobKeywords(profile).forEach(kw => sourceKws.push({ kw, source: '专业' }));
     [...new Set(wx.getStorageSync('jobSearchHistory') || [])].slice(0, 3).forEach(kw => sourceKws.push({ kw, source: '搜索' }));
-    [...(wx.getStorageSync('jobBrowseHistory') || []), ...(wx.getStorageSync('viewHistory') || [])]
+    browseHistory.getList()
       .map(v => v.title).filter(Boolean).slice(0, 2).forEach(kw => sourceKws.push({ kw, source: '浏览' }));
     favUtil.getList('job').map(f => f.title).filter(Boolean).slice(0, 3).forEach(kw => sourceKws.push({ kw, source: '收藏' }));
 
@@ -334,12 +348,7 @@ Page({
   updateMessageBadge() {
     const msgs = wx.getStorageSync('unreadMessages');
     const count = typeof msgs === 'number' ? msgs : 3;
-    // 同步 TabBar "我的" 角标
-    if (count > 0) {
-      wx.setTabBarBadge({ index: 4, text: count > 99 ? '99+' : String(count) });
-    } else {
-      wx.removeTabBarBadge({ index: 4 });
-    }
+    getApp().setUnreadCount(count);
   },
 
   // ======== 职位数据 ========
@@ -385,6 +394,7 @@ Page({
     } else {
       this.setData({ activePrefTag: tag });
     }
+    clearTimeout(this._initialRecommendTimer);
     this.fetchRecommendJobs({ force: true });
   },
 
@@ -398,6 +408,7 @@ Page({
       this.userSourceKws.push(this.userSourceKws.shift());
     }
     this.setData({ activePrefTag: '' });
+    clearTimeout(this._initialRecommendTimer);
     this.fetchRecommendJobs({ force: true });
   },
 
@@ -668,12 +679,7 @@ Page({
     }
     // 记录浏览历史（供推荐算法使用）
     const title = e.currentTarget.dataset.title || '';
-    if (title) {
-      let history = wx.getStorageSync('viewHistory') || [];
-      history.unshift({ id, title, time: Date.now() });
-      if (history.length > 20) history = history.slice(0, 20);
-      wx.setStorageSync('viewHistory', history);
-    }
+    if (title) browseHistory.add({ id, title });
     wx.navigateTo({ url: `/package-user/pages/job-detail/job-detail?id=${id}` });
   },
 

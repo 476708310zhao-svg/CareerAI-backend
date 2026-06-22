@@ -17,11 +17,21 @@ Page({
   },
 
   onLoad() {
+    this._didInitialShow = false;
     this.loadMessages();
   },
 
   onShow() {
-    this.loadMessages();
+    if (!this._didInitialShow) {
+      this._didInitialShow = true;
+      return;
+    }
+    clearTimeout(this._refreshTimer);
+    this._refreshTimer = setTimeout(() => this.loadMessages(), 120);
+  },
+
+  onUnload() {
+    clearTimeout(this._refreshTimer);
   },
 
   // ─── 从后端拉取消息 ──────────────────────────────────────────────────────────
@@ -192,11 +202,7 @@ Page({
 
   // ─── 工具方法 ────────────────────────────────────────────────────────────────
   _syncTabBarBadge(count) {
-    if (count > 0) {
-      wx.setTabBarBadge({ index: 4, text: count > 99 ? '99+' : String(count) });
-    } else {
-      wx.removeTabBarBadge({ index: 4 });
-    }
+    getApp().setUnreadCount(count);
   },
 
   _typeIcon(type) {

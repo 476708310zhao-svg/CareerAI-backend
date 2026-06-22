@@ -25,6 +25,7 @@ function startServer() {
     JWT_SECRET: 'test_secret_please_do_not_use_in_production_1234567890',
     ADMIN_USERNAME: 'admin',
     ADMIN_PASSWORD: 'admin_password',
+    CRON_SECRET: 'smoke_cron_secret_1234567890abcdef',
     ALLOWED_ORIGIN: `http://127.0.0.1:${PORT}`,
     WEBHOOK_SECRET: 'test_webhook_secret',
     ENABLE_MOCK_PAYMENT: 'true',
@@ -35,6 +36,7 @@ function startServer() {
     RAPID_API_KEY: '',
     ADZUNA_APP_ID: '',
     ADZUNA_APP_KEY: '',
+    LIVE_JOBS_ENABLED: 'false',
     DISABLE_FREE_JOB_SOURCES: 'true'
   });
 
@@ -198,6 +200,39 @@ test('protected endpoint rejects anonymous requests', async () => {
   assert.equal(res.status, 401);
 });
 
+test('internal task endpoints reject anonymous requests', async () => {
+  const logsRes = await fetch(`${BASE_URL}/api/aggregate/cron-logs`);
+  assert.equal(logsRes.status, 401);
+
+  const pollRes = await fetch(`${BASE_URL}/api/applications/poll-status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({})
+  });
+  assert.equal(pollRes.status, 401);
+});
+
+test('internal task endpoints accept cron secret', async () => {
+  const logsRes = await fetch(`${BASE_URL}/api/aggregate/cron-logs`, {
+    headers: { 'X-Cron-Secret': 'smoke_cron_secret_1234567890abcdef' }
+  });
+  assert.equal(logsRes.status, 200);
+  const logsBody = await readJson(logsRes);
+  assert.equal(logsBody.ok, true);
+
+  const pollRes = await fetch(`${BASE_URL}/api/applications/poll-status`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Cron-Secret': 'smoke_cron_secret_1234567890abcdef'
+    },
+    body: JSON.stringify({})
+  });
+  assert.equal(pollRes.status, 200);
+  const pollBody = await readJson(pollRes);
+  assert.equal(pollBody.ok, true);
+});
+
 test('payment orders endpoint rejects anonymous requests', async () => {
   const res = await fetch(`${BASE_URL}/api/payment/orders`);
   assert.equal(res.status, 401);
@@ -267,9 +302,10 @@ test('ai workflow requires vip', async () => {
 });
 
 test('ai chat validation uses standard error shape', async () => {
+  assert.ok(authToken);
   const res = await fetch(`${BASE_URL}/api/ai/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ messages: [] })
   });
   assert.equal(res.status, 400);
@@ -278,10 +314,20 @@ test('ai chat validation uses standard error shape', async () => {
   assert.match(body.message, /messages/);
 });
 
-test('ai project builder validation uses standard error shape', async () => {
-  const res = await fetch(`${BASE_URL}/api/ai/project-builder`, {
+test('ai chat rejects anonymous requests before spending AI quota', async () => {
+  const res = await fetch(`${BASE_URL}/api/ai/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [{ role: 'user', content: 'hi' }] })
+  });
+  assert.equal(res.status, 401);
+});
+
+test('ai project builder validation uses standard error shape', async () => {
+  assert.ok(authToken);
+  const res = await fetch(`${BASE_URL}/api/ai/project-builder`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({})
   });
   assert.equal(res.status, 400);

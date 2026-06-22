@@ -3,13 +3,15 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const MINI_ROOT = path.join(ROOT, 'miniprogram');
-const PACKAGE_ROOTS = new Set(['package-ai', 'package-career', 'package-content', 'package-agency', 'package-user']);
+const PACKAGE_ROOTS = new Set(['skills', 'package-ai', 'package-career', 'package-content', 'package-agency', 'package-user']);
 const TEXT_EXTENSIONS = new Set(['.js', '.json', '.wxml', '.wxss']);
 const MB = 1024 * 1024;
 const PACKAGE_SIZE_LIMITS = {
-  main: 1.8 * MB,
+  main: 1.5 * MB,
   subpackage: 1.8 * MB,
 };
+const MEDIA_SIZE_LIMIT = 200 * 1024;
+const MEDIA_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.mp3', '.mp4', '.wav', '.aac', '.m4a']);
 
 function fail(message) {
   console.error(message);
@@ -88,8 +90,8 @@ function checkAppReleaseConfig() {
   const app = readJson(path.join(MINI_ROOT, 'app.json'));
   const issues = [];
 
-  if (app.lazyCodeLoading === 'requiredComponents') {
-    issues.push('app.json should omit lazyCodeLoading: requiredComponents because it can trigger WeChat renderer FLOW_DEPTH errors');
+  if (app.lazyCodeLoading !== 'requiredComponents') {
+    issues.push('app.json should enable lazyCodeLoading: requiredComponents for component lazy injection');
   }
 
   if (issues.length) {
@@ -273,12 +275,216 @@ function checkWxmlRiskyExpressions() {
   }
 }
 
+function normalizeAppPath(value) {
+  return String(value || '').replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '');
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function findOwningSubPackage(app, relPath) {
+  return (app.subPackages || []).find(subPackage => {
+    const root = normalizeAppPath(subPackage.root);
+    return relPath === root || relPath.startsWith(`${root}/`);
+  });
+}
+
+function checkAgentSkillManifests() {
+  const app = readJson(path.join(MINI_ROOT, 'app.json'));
+  const ignoreRules = getPackIgnoreRules();
+  const agent = app.agent || {};
+  const declaredSkills = Array.isArray(agent.skills) ? agent.skills : [];
+  const declaredPaths = new Set(declaredSkills.map(skill => normalizeAppPath(skill.path)).filter(Boolean));
+  const skillsDir = path.join(MINI_ROOT, 'skills');
+  const diskSkillPaths = fs.existsSync(skillsDir)
+    ? fs.readdirSync(skillsDir, { withFileTypes: true })
+      .filter(entry => entry.isDirectory())
+      .map(entry => `skills/${entry.name}`)
+    : [];
+  const issues = [];
+
+  if (!declaredSkills.length) return;
+
+  for (const diskSkillPath of diskSkillPaths) {
+    if (!declaredPaths.has(diskSkillPath)) {
+      issues.push(`${diskSkillPath}: skill directory is not declared in app.json agent.skills`);
+    }
+  }
+
+  for (const field of [
+    ['instruction', 10000],
+    ['pageMetadata', 8000],
+  ]) {
+    const [name, maxBytes] = field;
+    const rel = normalizeAppPath(agent[name]);
+    if (!rel) continue;
+    const fullPath = path.join(MINI_ROOT, rel);
+    if (!fs.existsSync(fullPath)) {
+      issues.push(`agent.${name}: missing ${rel}`);
+    } else if (isPackIgnored(rel, ignoreRules)) {
+      issues.push(`agent.${name}: ${rel} is ignored by project.config.json packOptions`);
+    } else {
+      const size = fs.statSync(fullPath).size;
+      if (size > maxBytes) issues.push(`agent.${name}: ${rel} exceeds ${maxBytes} bytes`);
+    }
+  }
+
+  for (const skill of declaredSkills) {
+    const skillPath = normalizeAppPath(skill.path);
+
+    if (!skill.name) {
+      issues.push(`${skillPath || '<unnamed skill>'}: missing name`);
+    }
+    if (!skill.description) {
+      issues.push(`${skill.name || skillPath || '<unnamed skill>'}: missing description`);
+    }
+    if (!skillPath) {
+      issues.push(`${skill.name || '<unnamed skill>'}: missing path`);
+      continue;
+    }
+
+    if (isPackIgnored(skillPath, ignoreRules)) {
+      issues.push(`${skillPath}: ignored by project.config.json packOptions`);
+    }
+
+    const owningSubPackage = findOwningSubPackage(app, skillPath);
+    if (!owningSubPackage) {
+      issues.push(`${skillPath}: must be inside a declared independent subPackage`);
+    } else if (owningSubPackage.independent !== true) {
+      issues.push(`${skillPath}: owning subPackage "${owningSubPackage.root}" must set independent: true`);
+    }
+
+    const skillRoot = path.join(MINI_ROOT, skillPath);
+    if (!fs.existsSync(skillRoot)) {
+      issues.push(`${skillPath}: missing skill directory`);
+      continue;
+    }
+
+    const docPath = path.join(skillRoot, 'SKILL.md');
+    if (!fs.existsSync(docPath)) {
+      issues.push(`${skillPath}: missing SKILL.md`);
+    }
+
+    const indexPath = path.join(skillRoot, 'index.js');
+    let indexSource = '';
+    if (!fs.existsSync(indexPath)) {
+      issues.push(`${skillPath}: missing index.js`);
+    } else {
+      indexSource = fs.readFileSync(indexPath, 'utf8');
+      const createSkillPattern = new RegExp(`wx\\.modelContext\\.createSkill\\(\\s*['"]${escapeRegExp(skillPath)}['"]\\s*\\)`);
+      if (!createSkillPattern.test(indexSource)) {
+        issues.push(`${skillPath}/index.js: must register with wx.modelContext.createSkill('${skillPath}')`);
+      }
+    }
+
+    const manifestPath = path.join(skillRoot, 'mcp.json');
+    if (!fs.existsSync(manifestPath)) {
+      issues.push(`${skillPath}: missing mcp.json`);
+      continue;
+    }
+
+    let manifest;
+    try {
+      manifest = readJson(manifestPath);
+    } catch (err) {
+      issues.push(`${skillPath}/mcp.json: ${err.message}`);
+      continue;
+    }
+
+    if (!Array.isArray(manifest.apis) || !manifest.apis.length) {
+      issues.push(`${skillPath}/mcp.json: missing apis`);
+    }
+
+    (manifest.apis || []).forEach((api, index) => {
+      if (!api.name) {
+        issues.push(`${skillPath}/mcp.json apis[${index}]: missing name`);
+        return;
+      }
+      if (!api.description) issues.push(`${skillPath}/mcp.json apis[${index}]: missing description`);
+      if (!api.inputSchema) issues.push(`${skillPath}/mcp.json apis[${index}]: missing inputSchema`);
+      if (!api.outputSchema) issues.push(`${skillPath}/mcp.json apis[${index}]: missing outputSchema`);
+
+      const apiFile = path.join(skillRoot, 'apis', `${api.name}.js`);
+      if (!fs.existsSync(apiFile)) issues.push(`${skillPath}: missing apis/${api.name}.js`);
+      const registerPattern = new RegExp(`registerAPI\\(\\s*['"]${escapeRegExp(api.name)}['"]`);
+      if (indexSource && !registerPattern.test(indexSource)) {
+        issues.push(`${skillPath}/index.js: does not register API ${api.name}`);
+      }
+    });
+
+    (manifest.components || []).forEach((component, index) => {
+      if (!component.path) {
+        issues.push(`${skillPath}/mcp.json components[${index}]: missing path`);
+      } else {
+        const componentJson = path.join(skillRoot, `${component.path}.json`);
+        if (!fs.existsSync(componentJson)) {
+          issues.push(`${skillPath}/mcp.json components[${index}]: missing component ${component.path}.json`);
+        }
+      }
+      if (!component.relatedPage) {
+        issues.push(`${skillPath}/mcp.json components[${index}]: missing relatedPage`);
+      }
+    });
+  }
+
+  if (issues.length) {
+    fail(`[miniprogram] invalid agent skill manifests:\n${issues.map(item => `  - ${item}`).join('\n')}`);
+  }
+}
+
+function getPackIgnoreRules() {
+  const projectConfig = readJson(path.join(MINI_ROOT, 'project.config.json'));
+  const ignore = (projectConfig.packOptions && projectConfig.packOptions.ignore) || [];
+  return {
+    folders: new Set(
+      ignore
+        .filter(item => item.type === 'folder')
+        .map(item => item.value.replace(/\\/g, '/').replace(/\/$/, ''))
+    ),
+    regexps: ignore
+      .filter(item => item.type === 'regexp')
+      .map(item => new RegExp(item.value)),
+  };
+}
+
+function isPackIgnored(rel, rules) {
+  return (
+    Array.from(rules.folders).some(folder => rel === folder || rel.startsWith(`${folder}/`)) ||
+    rules.regexps.some(pattern => pattern.test(rel))
+  );
+}
+
+function checkMediaAssetSizes() {
+  const issues = [];
+  const ignoreRules = getPackIgnoreRules();
+
+  walk(MINI_ROOT, file => {
+    const ext = path.extname(file).toLowerCase();
+    if (!MEDIA_EXTENSIONS.has(ext)) return;
+
+    const rel = path.relative(MINI_ROOT, file).replace(/\\/g, '/');
+    if (isPackIgnored(rel, ignoreRules)) return;
+
+    const size = fs.statSync(file).size;
+    if (size > MEDIA_SIZE_LIMIT) {
+      issues.push(`${rel}: ${(size / 1024).toFixed(1)} KB`);
+    }
+  });
+
+  if (issues.length) {
+    fail(`[miniprogram] media assets must be <= 200 KB:\n${issues.map(item => `  - ${item}`).join('\n')}`);
+  }
+}
+
 function reportPackageSizes() {
+  const ignoreRules = getPackIgnoreRules();
+
   function sumFiles(dir, excludeSubpackages) {
     let total = 0;
     walk(dir, file => {
       const rel = path.relative(MINI_ROOT, file).replace(/\\/g, '/');
-      if (rel.startsWith('node_modules/') || rel.startsWith('miniprogram_npm/')) return;
+      if (isPackIgnored(rel, ignoreRules)) return;
       if (excludeSubpackages && PACKAGE_ROOTS.has(rel.split('/')[0])) return;
       total += fs.statSync(file).size;
     });
@@ -316,6 +522,8 @@ checkRelativeRequires();
 checkCommonPathMistakes();
 checkDemoDataBoundary();
 checkWxmlRiskyExpressions();
+checkAgentSkillManifests();
+checkMediaAssetSizes();
 reportPackageSizes();
 
 if (process.exitCode) {

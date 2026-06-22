@@ -4,14 +4,16 @@
  *
  * 用法：node scripts/sync_feishu_campus.js
  *
- * 飞书表: https://scngpvah6mts.feishu.cn/base/SAHbbOc68aH0sPscYu7cbKZjnnr?table=tblnJnFOgllO4FYe
+ * 飞书表通过 FEISHU_CAMPUS_BASE_TOKEN / FEISHU_CAMPUS_TABLE_ID 配置。
  */
+
+require('dotenv').config();
 
 const { execSync } = require('child_process');
 const db = require('../db/database');
 
-const BASE_TOKEN = 'SAHbbOc68aH0sPscYu7cbKZjnnr';
-const TABLE_ID   = 'tblnJnFOgllO4FYe';
+const BASE_TOKEN = process.env.FEISHU_CAMPUS_BASE_TOKEN || process.env.FEISHU_BASE_TOKEN;
+const TABLE_ID   = process.env.FEISHU_CAMPUS_TABLE_ID || process.env.FEISHU_TABLE_ID;
 
 // ── 字段位置映射（通过数据内容分析确认）─────────────────────────────────────
 // [0]  公司名称
@@ -173,6 +175,9 @@ function transformRecord(row) {
 
 // ── 主流程 ────────────────────────────────────────────────────────────────────
 function main() {
+  if (!BASE_TOKEN || !TABLE_ID) {
+    throw new Error('Missing FEISHU_CAMPUS_BASE_TOKEN / FEISHU_CAMPUS_TABLE_ID');
+  }
   console.log('=== 飞书校招日历同步 ===');
   console.log('拉取飞书数据...');
 

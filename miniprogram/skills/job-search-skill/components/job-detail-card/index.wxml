@@ -1,0 +1,31 @@
+<view class="detail-card" wx:if="{{job}}">
+  <view class="detail-head">
+    <view class="company-logo" wx:if="{{job.companyLogo}}">
+      <image class="company-logo-img" src="{{job.companyLogo}}" mode="aspectFit" />
+    </view>
+    <view class="company-fallback" wx:else>{{job.companyInitial}}</view>
+    <view class="title-wrap">
+      <text class="job-title">{{job.title}}</text>
+      <text class="company-name">{{job.company}}</text>
+    </view>
+  </view>
+
+  <view class="meta-grid">
+    <text class="meta-pill">{{job.location}}</text>
+    <text class="meta-pill">{{job.jobType}}</text>
+    <text class="meta-pill" wx:if="{{job.updatedAt}}">{{job.updatedAt}}</text>
+    <text class="meta-pill salary" wx:if="{{job.salaryRange}}">{{job.salaryRange}}</text>
+  </view>
+
+  <view class="tag-row" wx:if="{{job.visaTags && job.visaTags.length}}">
+    <text wx:for="{{job.visaTags}}" wx:key="*this" class="visa-tag">{{item}}</text>
+  </view>
+
+  <text class="description">{{job.description}}</text>
+
+  <button class="primary-btn" bindtap="openJobDetail">进入职引查看完整详情</button>
+</view>
+
+<view class="detail-card empty" wx:else>
+  <text class="empty-title">职位信息暂不可用</text>
+</view>

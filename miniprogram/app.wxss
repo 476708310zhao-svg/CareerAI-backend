@@ -1,4 +1,14 @@
 /* app.wxss */
+page {
+  --card-radius: 26rpx;
+  --card-radius-lg: 30rpx;
+  --card-bg: linear-gradient(145deg, rgba(255,255,255,0.99) 0%, rgba(248,251,255,0.98) 100%);
+  --card-bg-feature: linear-gradient(135deg, rgba(255,255,255,0.99) 0%, rgba(241,247,255,0.98) 66%, rgba(238,251,248,0.98) 100%);
+  --card-border: rgba(190,208,232,0.62);
+  --card-shadow: 0 14rpx 34rpx rgba(36,58,92,0.07), inset 0 1rpx 0 rgba(255,255,255,0.94);
+  --card-shadow-raised: 0 20rpx 48rpx rgba(37,68,112,0.105), inset 0 1rpx 0 rgba(255,255,255,0.96);
+  --card-shadow-press: 0 8rpx 20rpx rgba(36,58,92,0.055), inset 0 1rpx 0 rgba(255,255,255,0.9);
+}
 .container {
   padding: 20rpx;
   background-color: #f5f5f5;
@@ -33,11 +43,189 @@
 
 /* 卡片样式 */
 .card {
-  background: #fff;
-  border-radius: 10rpx;
+  background: var(--card-bg);
+  border: 1rpx solid var(--card-border);
+  border-radius: var(--card-radius);
   padding: 30rpx;
   margin-bottom: 20rpx;
-  box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.05);
+  box-shadow: var(--card-shadow);
+}
+
+/* Unified neutral surfaces across pages and subpackages. */
+.card,
+.job-card,
+.company-card,
+.agency-card,
+.q-card,
+.app-card,
+.fav-card,
+.message-card,
+.article-card,
+.section-card,
+.info-card,
+.content-card,
+.form-card,
+.role-card,
+.item-card,
+.review-card,
+.title-card,
+.answer-card,
+.summary-card,
+.progress-card,
+.resume-card,
+.tool-card,
+.service-card,
+.workspace-card,
+.setting-card,
+.status-card,
+.feature-card,
+.detail-card,
+.head-card,
+.desc-card {
+  border-radius: var(--card-radius) !important;
+  border-color: var(--card-border) !important;
+  box-shadow: var(--card-shadow) !important;
+  background-clip: padding-box;
+}
+
+/* Semantic and specialist cards keep their own fill colors. */
+.ai-trigger-card,
+.eval-score-card,
+.tpl-card,
+.modal-card,
+.type-card,
+.lc-stats-card,
+.lc-hint-card,
+.tips-card,
+.system-card,
+.loading-card,
+.dim-card,
+.transcript-card,
+.idle-card,
+.highlight-card,
+.focus-card,
+.advice-card,
+.motivation-card,
+.track-card,
+.history-card,
+.two-col-card,
+.resume-bullet-card,
+.diff-summary-card,
+.salary-summary-card,
+.lead-card,
+.search-card,
+.recommend-card,
+.recorder-card,
+.benefit-card,
+.free-card,
+.member-card,
+.check-card,
+.project-card,
+.quick-card,
+.promise-card,
+.intel-card,
+.insight-card,
+.gd-review-card,
+.ap-resume-card,
+.action-card,
+.remind-card,
+.author-card,
+.tags-card,
+.comment-card,
+.news-icon-card,
+.jobs-empty-card,
+.compare-card,
+.share-card,
+.fx-card,
+.user-stats-card,
+.cmp-form-card,
+.cmp-result-card,
+.bq-card,
+.audio-card,
+.campus-card,
+.deadline-card,
+.exp-card,
+.salary-card {
+  border-radius: var(--card-radius) !important;
+  box-shadow: var(--card-shadow) !important;
+  background-clip: padding-box;
+}
+
+.ai-loading-card,
+.answer-action-card,
+.interview-card,
+.mcp-card,
+.news-card,
+.sec-card,
+.stat-card,
+.suite-card,
+.topic-card,
+.trending-card,
+.wechat-privacy-card {
+  border-radius: var(--card-radius) !important;
+  box-shadow: var(--card-shadow) !important;
+  background-clip: padding-box;
+}
+
+.card,
+.job-card,
+.company-card,
+.agency-card,
+.q-card,
+.app-card,
+.fav-card,
+.message-card,
+.article-card,
+.section-card,
+.info-card,
+.content-card,
+.form-card,
+.role-card,
+.item-card,
+.review-card,
+.title-card,
+.answer-card,
+.resume-card,
+.tool-card,
+.service-card,
+.workspace-card,
+.setting-card,
+.feature-card,
+.detail-card,
+.head-card,
+.desc-card {
+  background-image: var(--card-bg) !important;
+}
+
+/* Hero and data-result surfaces sit one level higher. */
+.jobs-brief,
+.training-hero,
+.assessment-hero,
+.hero-card,
+.score-card,
+.result-card,
+.percentile-card,
+.analysis-card,
+.gd-overview-card {
+  border-radius: var(--card-radius-lg) !important;
+  box-shadow: var(--card-shadow-raised) !important;
+  background-clip: padding-box;
+}
+
+.card:active,
+.job-card:active,
+.company-card:active,
+.agency-card:active,
+.q-card:active,
+.app-card:active,
+.fav-card:active,
+.message-card:active,
+.article-card:active,
+.role-card:active,
+.item-card:active,
+.tool-card:active,
+.detail-card:active {
+  box-shadow: var(--card-shadow-press) !important;
 }
 
 /* 列表项样式 */

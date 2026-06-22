@@ -1,0 +1,76 @@
+{
+  "name": "interview-prep",
+  "description": "职引面试准备 Skill，按公司和岗位查询真实面经、面试轮次和准备信息。",
+  "version": "1.0.0",
+  "apis": [
+    {
+      "name": "searchInterviewExperiences",
+      "description": "按公司、岗位、面试类型和关键词搜索真实面经，最多返回 5 条。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "company": { "type": "string", "description": "公司名称，例如 Amazon、Google。"},
+          "jobTitle": { "type": "string", "description": "岗位名称，例如 SDE Intern、New Grad。"},
+          "interviewType": { "type": "string", "description": "面试类型，例如 technical、behavioral、case。"},
+          "keyword": { "type": "string", "description": "搜索关键词，例如 coding、SQL。"},
+          "updatedWithinDays": { "type": "number", "description": "最近多少天更新。"}
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "isError": { "type": "boolean" },
+          "content": { "type": "array" },
+          "structuredContent": { "type": "object" },
+          "_meta": { "type": "object" }
+        }
+      },
+      "_meta": {
+        "ui": {
+          "componentPath": "components/interview-list/index"
+        },
+        "relatedPage": "/pages/experiences/experiences"
+      }
+    },
+    {
+      "name": "getInterviewExperienceDetail",
+      "description": "根据 searchInterviewExperiences 返回的真实 experienceId 获取面经详情。",
+      "inputSchema": {
+        "type": "object",
+        "required": ["experienceId"],
+        "additionalProperties": false,
+        "properties": {
+          "experienceId": { "type": "string", "description": "必须来自 searchInterviewExperiences 返回结果。"}
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "isError": { "type": "boolean" },
+          "content": { "type": "array" },
+          "structuredContent": { "type": "object" },
+          "_meta": { "type": "object" }
+        }
+      },
+      "_meta": {
+        "ui": {
+          "componentPath": "components/interview-detail-card/index"
+        },
+        "relatedPage": "/package-content/pages/experience-detail/experience-detail"
+      }
+    }
+  ],
+  "components": [
+    {
+      "name": "interview-list",
+      "path": "components/interview-list/index",
+      "relatedPage": "/pages/experiences/experiences"
+    },
+    {
+      "name": "interview-detail-card",
+      "path": "components/interview-detail-card/index",
+      "relatedPage": "/package-content/pages/experience-detail/experience-detail"
+    }
+  ]
+}

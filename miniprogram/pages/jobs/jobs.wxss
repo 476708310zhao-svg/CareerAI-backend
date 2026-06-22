@@ -1143,7 +1143,7 @@ page {
   height: 68rpx;
   line-height: 68rpx;
   font-size: 25rpx;
-  font-weight: 650;
+  font-weight: 400;
 }
 
 .filter-btn {
@@ -1210,6 +1210,7 @@ page {
 }
 
 .jobs-brief {
+  display: block;
   min-height: 112rpx;
   margin: 12rpx 24rpx 12rpx;
   padding: 24rpx 24rpx 22rpx;
@@ -1218,6 +1219,74 @@ page {
     linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(241,248,255,0.98) 62%, rgba(238,252,248,0.98) 100%);
   border: 1rpx solid rgba(218, 227, 238, 0.95);
   box-shadow: 0 14rpx 34rpx rgba(32, 48, 70, 0.07);
+}
+
+.jobs-brief-main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.brief-title-row {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  min-width: 0;
+}
+
+.brief-match-toggle {
+  height: 46rpx;
+  padding: 0 13rpx;
+  gap: 6rpx;
+  border-radius: 14rpx;
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(37, 99, 235, 0.16);
+  box-shadow: 0 5rpx 14rpx rgba(37, 99, 235, 0.07);
+}
+
+.brief-match-toggle .match-toggle-icon {
+  min-width: 31rpx;
+  height: 27rpx;
+  border-radius: 8rpx;
+  font-size: 15rpx;
+  line-height: 27rpx;
+}
+
+.brief-match-toggle .match-toggle-txt {
+  color: #3f4d60;
+  font-size: 21rpx;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.brief-match-toggle.match-on .match-toggle-txt {
+  color: #047857;
+}
+
+.brief-match-toggle .match-toggle-badge {
+  padding: 1rpx 6rpx;
+  font-size: 14rpx;
+}
+
+.brief-match-detail {
+  position: relative;
+  z-index: 1;
+  min-height: 48rpx;
+  margin-top: 17rpx;
+  padding-top: 15rpx;
+  border-top: 1rpx solid rgba(148, 163, 184, 0.18);
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  overflow: hidden;
+}
+
+.brief-match-detail .match-kw-scroll {
+  min-width: 0;
+  flex: 1;
 }
 
 .jobs-brief::after {
@@ -1253,23 +1322,20 @@ page {
   width: 104rpx;
   height: 104rpx;
   border-radius: 28rpx;
-  background:
-    linear-gradient(145deg, #1d4ed8 0%, #2563eb 58%, #14b8a6 100%);
-  border: 1rpx solid rgba(255, 255, 255, 0.68);
-  box-shadow:
-    0 14rpx 30rpx rgba(37, 99, 235, 0.22),
-    inset 0 1rpx 0 rgba(255, 255, 255, 0.34);
+  background: linear-gradient(145deg, #edf4ff 0%, #f8fbff 100%);
+  border: 1rpx solid rgba(96, 145, 224, 0.22);
+  box-shadow: 0 12rpx 28rpx rgba(37, 99, 235, 0.1);
 }
 
 .brief-metric-num {
-  color: #ffffff;
+  color: #2459b8;
   font-size: 30rpx;
-  text-shadow: 0 2rpx 8rpx rgba(15, 23, 42, 0.22);
+  text-shadow: none;
 }
 
 .brief-metric-label {
   width: 88rpx;
-  color: rgba(255, 255, 255, 0.9);
+  color: #718096;
   font-size: 17rpx;
   line-height: 1.1;
   text-align: center;

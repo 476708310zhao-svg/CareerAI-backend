@@ -2,6 +2,7 @@
 const { getJobs, getCompanies, getExperiences } = require('../../../utils/api.js');
 const demoData = require('../../../utils/demo-data.js');
 const { formatSalaryRange } = require('../../../utils/util.js');
+const browseHistory = require('../../../utils/browse-history.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
 Page({
@@ -220,12 +221,7 @@ Page({
     }
     const title = e.currentTarget.dataset.title || '';
     // 记录浏览历史
-    if (title) {
-      let history = wx.getStorageSync('viewHistory') || [];
-      history.unshift({ id, title, time: Date.now() });
-      if (history.length > 20) history = history.slice(0, 20);
-      wx.setStorageSync('viewHistory', history);
-    }
+    if (title) browseHistory.add({ id, title });
     wx.navigateTo({ url: '/package-user/pages/job-detail/job-detail?id=' + encodeURIComponent(id) });
   },
 

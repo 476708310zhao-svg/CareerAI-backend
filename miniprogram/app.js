@@ -38,7 +38,7 @@ App({
   onLaunch: function () {
     console.log('小程序启动');
     this._initGlobalData();
-    this._silentLogin();
+    setTimeout(() => this._silentLogin(), 500);
     this._initTheme();
   },
 
@@ -135,6 +135,25 @@ App({
     gd.favorites      = favUtil.getAll();
   },
 
+  syncCustomTabBar: function(isRetry) {
+    const pages = getCurrentPages();
+    const currentPage = pages[pages.length - 1];
+    if (!currentPage || typeof currentPage.getTabBar !== 'function') return false;
+
+    const tabBar = currentPage.getTabBar();
+    if (!tabBar) {
+      if (!isRetry) setTimeout(() => this.syncCustomTabBar(true), 30);
+      return false;
+    }
+
+    if (typeof tabBar.syncState === 'function') {
+      tabBar.syncState();
+    } else if (typeof tabBar.setUnreadCount === 'function') {
+      tabBar.setUnreadCount(this.globalData.unreadCount || 0);
+    }
+    return true;
+  },
+
   /**
    * 更新未读消息数，同步到 Storage 和 TabBar 角标
    * @param {number} count
@@ -142,10 +161,16 @@ App({
   setUnreadCount: function(count) {
     this.globalData.unreadCount = count;
     wx.setStorageSync('unreadMessages', count);
+    if (this.syncCustomTabBar()) return;
+
     if (count > 0) {
-      wx.setTabBarBadge({ index: 4, text: count > 99 ? '99+' : String(count) });
+      try {
+        wx.setTabBarBadge({ index: 4, text: count > 99 ? '99+' : String(count) });
+      } catch (e) {}
     } else {
-      wx.removeTabBarBadge({ index: 4 });
+      try {
+        wx.removeTabBarBadge({ index: 4 });
+      } catch (e) {}
     }
   },
 

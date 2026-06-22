@@ -14,11 +14,12 @@
  * ════════════════════════════════════════════════════════════════════ */
 
 .sc-wrap {
-  background: var(--bg-panel);
-  border-radius: var(--r-lg);
+  background: var(--card-bg, var(--bg-panel));
+  border-radius: var(--card-radius, var(--r-lg));
   padding: 28rpx 28rpx 24rpx;
   margin-bottom: 20rpx;
-  border: 1.5rpx solid var(--border);
+  border: 1rpx solid var(--card-border, var(--border));
+  box-shadow: var(--card-shadow, 0 14rpx 34rpx rgba(36,58,92,0.07));
 }
 
 .sc-header {
@@ -45,9 +46,9 @@
 
 /* 2026 product component polish */
 .sc-wrap {
-  border-radius: var(--radius-lg, 28rpx);
-  border: 1rpx solid var(--color-line-soft, rgba(16, 24, 40, 0.05));
-  box-shadow: var(--shadow-card, 0 12rpx 34rpx rgba(16, 24, 40, 0.06));
+  border-radius: var(--card-radius, var(--radius-lg, 28rpx));
+  border: 1rpx solid var(--card-border, var(--color-line-soft, rgba(16, 24, 40, 0.05)));
+  box-shadow: var(--card-shadow, var(--shadow-card, 0 12rpx 34rpx rgba(16, 24, 40, 0.06)));
   padding: 30rpx 28rpx 26rpx;
 }
 

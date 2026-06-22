@@ -162,7 +162,13 @@ Page({
   },
 
   onShow: function() {
-    // 从详情页返回时同步最新收藏状态
+    const app = getApp();
+    if (app && typeof app.syncCustomTabBar === 'function') app.syncCustomTabBar();
+    clearTimeout(this._onShowSyncTimer);
+    this._onShowSyncTimer = setTimeout(() => this._syncVisibleJobState(), 80);
+  },
+
+  _syncVisibleJobState: function() {
     if (this.data.jobs.length > 0) {
       const jobs = this.data.jobs.map(j => ({
         ...j,
@@ -170,10 +176,8 @@ Page({
       }));
       this.setData({ jobs });
     }
-    // 同步搜索历史（可能从其他页面返回时已更新）
     const searchHistory = wx.getStorageSync('jobSearchHistory') || [];
     this.setData({ searchHistory });
-    // 若智能匹配模式开着，刷新画像（用户可能刚完善了资料）
     if (this.data.matchMode) {
       this._refreshMatchProfile();
     }
@@ -186,9 +190,17 @@ Page({
     if (options.keyword) {
       this.setData({ searchKeyword: options.keyword, activeTag: options.keyword });
     }
-    this.loadCachedOrMock();
-    this.loadJobs(true);
-    this._loadCountries();
+    const hasFreshCache = this.loadCachedOrMock();
+    clearTimeout(this._initialLoadTimer);
+    this._initialLoadTimer = setTimeout(() => {
+      if (!hasFreshCache || options.keyword) this.loadJobs(true);
+      this._loadCountries();
+    }, hasFreshCache ? 180 : 80);
+  },
+
+  onUnload: function() {
+    clearTimeout(this._onShowSyncTimer);
+    clearTimeout(this._initialLoadTimer);
   },
 
   _loadCountries: function() {
@@ -209,11 +221,13 @@ Page({
 
     if (fresh && cachedItems && cachedItems.length > 0) {
       this.setData({ jobs: this.enrichJobLogos(cachedItems), loading: false });
+      return true;
     } else if (ALLOW_DEMO_FALLBACK) {
       this.loadMockJobs(true);
     } else {
       this.setData({ loading: false, isMockData: false });
     }
+    return false;
   },
 
   onPullDownRefresh: function() {

@@ -2,8 +2,8 @@
 const api = require('../../utils/api');
 const { logoUrl } = require('../../utils/logo');
 const demoData = require('../../utils/demo-data');
+const AGENCY_LIST_CACHE_TTL = 30 * 60 * 1000;
 
-const TYPE_LIST = ['全部', '猎头', '背景提升', '简历优化', '面试培训', '留学咨询', '综合'];
 const REGION_LIST = ['全部地区', '北美', '美国', '加拿大', '英国', '中国内地', '新加坡', '澳洲', '香港', '线上'];
 const REGION_KEYWORDS = {
   '北美': ['北美', '美国', '加拿大', '纽约', '旧金山', '湾区', '西雅图', '多伦多', '温哥华', '硅谷', '洛杉矶'],
@@ -58,7 +58,6 @@ function _matchesRegion(item, region) {
 function _filterMockAgencies(data, filters) {
   const keyword = (filters.keyword || '').trim().toLowerCase();
   return data.filter(item => {
-    if (filters.type && filters.type !== '全部' && item.type !== filters.type) return false;
     if (!_matchesRegion(item, filters.region)) return false;
     if (!keyword) return true;
     const searchable = [item.name, item.description, item.type, item.city, item.specialties]
@@ -79,9 +78,7 @@ const SORT_OPTIONS = [
 
 Page({
   data: {
-    typeList: TYPE_LIST,
     regionList: REGION_LIST,
-    currentType: '全部',
     currentRegion: '全部地区',
     keyword: '',
 
@@ -104,7 +101,14 @@ Page({
   },
 
   onLoad() {
-    this.loadList(true);
+    const hasCache = this.loadCachedList();
+    clearTimeout(this._initialLoadTimer);
+    this._initialLoadTimer = setTimeout(() => this.loadList(true), hasCache ? 220 : 80);
+  },
+
+  onShow() {
+    const app = getApp();
+    if (app && typeof app.syncCustomTabBar === 'function') app.syncCustomTabBar();
   },
 
   onPullDownRefresh() {
@@ -112,10 +116,38 @@ Page({
   },
 
   onUnload() {
+    clearTimeout(this._initialLoadTimer);
     clearTimeout(this.searchTimer);
   },
 
   // ── 加载列表 ──────────────────────────────────────────────────────────────
+  _cacheKey() {
+    return [
+      'agencies',
+      this.data.currentRegion || 'all',
+      this.data.keyword || '',
+      this.data.currentSort || ''
+    ].join('|');
+  },
+
+  loadCachedList() {
+    try {
+      const cached = wx.getStorageSync('cachedAgencyList');
+      if (!cached || cached.key !== this._cacheKey() || (Date.now() - (cached.t || 0)) > AGENCY_LIST_CACHE_TTL) return false;
+      if (!Array.isArray(cached.list) || cached.list.length === 0) return false;
+      this.setData({
+        list: cached.list,
+        total: cached.total || cached.list.length,
+        page: 2,
+        hasMore: cached.hasMore !== false,
+        loading: false
+      });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  },
+
   loadList(reset = false, cb) {
     if (this.data.loading) return;
     const page = reset ? 1 : this.data.page;
@@ -123,7 +155,6 @@ Page({
     this.setData({ loading: true });
 
     const params = { page, pageSize: this.data.pageSize };
-    if (this.data.currentType !== '全部') params.type = this.data.currentType;
     if (this.data.currentRegion !== '全部地区') params.region = this.data.currentRegion;
     if (this.data.keyword) params.keyword = this.data.keyword;
     if (this.data.currentSort) params.sort = this.data.currentSort;
@@ -139,11 +170,21 @@ Page({
         hasMore: newList.length < res.total,
         loading: false
       });
+      if (reset) {
+        try {
+          wx.setStorageSync('cachedAgencyList', {
+            key: this._cacheKey(),
+            list: newList,
+            total: res.total,
+            hasMore: newList.length < res.total,
+            t: Date.now()
+          });
+        } catch (e) {}
+      }
       cb && cb();
     }).catch(() => {
       if (reset && this.data.list.length === 0 && demoData.enabled()) {
         const fallback = _filterMockAgencies(demoData.getList('AGENCIES'), {
-          type: this.data.currentType,
           region: this.data.currentRegion,
           keyword: this.data.keyword
         }).map(_enrichItem);
@@ -162,14 +203,6 @@ Page({
 
   onReachBottom() {
     this.loadMore();
-  },
-
-  // ── 切换类型 ─────────────────────────────────────────────────────────────
-  switchType(e) {
-    const type = e.currentTarget.dataset.type;
-    if (type === this.data.currentType) return;
-    this.setData({ currentType: type });
-    this.loadList(true);
   },
 
   switchRegion(e) {

@@ -3,10 +3,12 @@
     "pages/index/index",
     "pages/jobs/jobs",
     "pages/experiences/experiences",
+    "pages/campus/campus",
     "pages/agencies/agencies",
     "pages/profile/profile",
     "pages/privacy/privacy"
   ],
+  "lazyCodeLoading": "requiredComponents",
   "subPackages": [
     {
       "root": "package-ai",
@@ -44,7 +46,6 @@
         "pages/star-library/star-library",
         "pages/news/news",
         "pages/news-detail/news-detail",
-        "pages/campus/campus",
         "pages/campus-detail/campus-detail",
         "pages/bigtech-jobs/bigtech-jobs",
         "pages/webview/webview"
@@ -87,6 +88,7 @@
     "backgroundColorBottom": "#ffffff"
   },
   "tabBar": {
+    "custom": true,
     "color": "#9CA3AF",
     "selectedColor": "#2B5CE6",
     "backgroundColor": "#ffffff",
@@ -111,10 +113,10 @@
         "selectedIconPath": "images/experience-active.png"
       },
       {
-        "pagePath": "pages/agencies/agencies",
-        "text": "测评",
-        "iconPath": "images/assess.png",
-        "selectedIconPath": "images/assess-active.png"
+        "pagePath": "pages/campus/campus",
+        "text": "校招",
+        "iconPath": "images/icon-calendar.png",
+        "selectedIconPath": "images/icon-calendar.png"
       },
       {
         "pagePath": "pages/profile/profile",
