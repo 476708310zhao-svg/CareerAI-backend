@@ -338,7 +338,7 @@ page {
 
 .contact-section {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 22rpx;
   margin-top: 28rpx;
@@ -380,6 +380,14 @@ page {
   line-height: 1.5;
 }
 
+.contact-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  flex-shrink: 0;
+}
+
+.customer-button,
 .copy-button {
   height: 58rpx;
   min-width: 94rpx;
@@ -395,6 +403,17 @@ page {
   font-weight: 900;
   flex-shrink: 0;
   box-sizing: border-box;
+}
+
+.customer-button {
+  margin: 0;
+  border: 0;
+  line-height: 58rpx;
+  background: #111827;
+}
+
+.customer-button::after {
+  border: 0;
 }
 
 .copyright {

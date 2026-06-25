@@ -1,6 +1,8 @@
 <!-- pages/project-builder/project-builder.wxml -->
 <view class="page">
 
+  <c-ai-disclosure text="项目方案与简历描述由人工智能生成，请核验并按真实经历修改。" />
+
   <!-- ══ 输入步骤 ══ -->
   <view wx:if="{{step === 'input'}}">
 

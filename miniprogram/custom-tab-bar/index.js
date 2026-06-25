@@ -1,3 +1,40 @@
+const featureFlags = require('../utils/feature-flags.js');
+
+const FULL_TAB_LIST = [
+  {
+    pagePath: 'pages/index/index',
+    text: '首页',
+    iconPath: '/images/home.png',
+    selectedIconPath: '/images/home-active.png'
+  },
+  {
+    pagePath: 'pages/jobs/jobs',
+    text: '职位',
+    iconPath: '/images/jobs.png',
+    selectedIconPath: '/images/jobs-active.png',
+    feature: 'recruitment'
+  },
+  {
+    pagePath: 'pages/experiences/experiences',
+    text: '题库',
+    iconPath: '/images/experience.png',
+    selectedIconPath: '/images/experience-active.png'
+  },
+  {
+    pagePath: 'pages/campus/campus',
+    text: '校招',
+    iconPath: '/images/icon-calendar.png',
+    selectedIconPath: '/images/icon-calendar.png'
+  },
+  {
+    pagePath: 'pages/profile/profile',
+    text: '我的',
+    iconPath: '/images/profile.png',
+    selectedIconPath: '/images/profile-active.png',
+    showBadge: true
+  }
+];
+
 Component({
   options: {
     addGlobalClass: true
@@ -7,39 +44,7 @@ Component({
     selected: 0,
     unreadCount: 0,
     badgeText: '',
-    list: [
-      {
-        pagePath: 'pages/index/index',
-        text: '首页',
-        iconPath: '/images/home.png',
-        selectedIconPath: '/images/home-active.png'
-      },
-      {
-        pagePath: 'pages/jobs/jobs',
-        text: '职位',
-        iconPath: '/images/jobs.png',
-        selectedIconPath: '/images/jobs-active.png'
-      },
-      {
-        pagePath: 'pages/experiences/experiences',
-        text: '题库',
-        iconPath: '/images/experience.png',
-        selectedIconPath: '/images/experience-active.png'
-      },
-      {
-        pagePath: 'pages/campus/campus',
-        text: '校招',
-        iconPath: '/images/icon-calendar.png',
-        selectedIconPath: '/images/icon-calendar.png'
-      },
-      {
-        pagePath: 'pages/profile/profile',
-        text: '我的',
-        iconPath: '/images/profile.png',
-        selectedIconPath: '/images/profile-active.png',
-        showBadge: true
-      }
-    ]
+    list: FULL_TAB_LIST
   },
 
   lifetimes: {
@@ -58,7 +63,9 @@ Component({
     syncState() {
       const pages = getCurrentPages();
       const current = pages[pages.length - 1] || {};
-      const selected = this.routeToIndex(current.route);
+      const recruitmentEnabled = featureFlags.isRecruitmentEnabled();
+      const list = FULL_TAB_LIST.filter(item => item.feature !== 'recruitment' || recruitmentEnabled);
+      const selected = this.routeToIndex(current.route, list);
       const app = getApp();
       const storedCount = Number(wx.getStorageSync('unreadMessages')) || 0;
       const appCount = app && app.globalData && typeof app.globalData.unreadCount === 'number'
@@ -71,19 +78,21 @@ Component({
       if (
         nextSelected === this.data.selected &&
         unreadCount === this.data.unreadCount &&
-        nextBadgeText === this.data.badgeText
+        nextBadgeText === this.data.badgeText &&
+        list.map(item => item.pagePath).join('|') === this.data.list.map(item => item.pagePath).join('|')
       ) return;
 
       this.setData({
         selected: nextSelected,
         unreadCount,
-        badgeText: nextBadgeText
+        badgeText: nextBadgeText,
+        list
       });
     },
 
-    routeToIndex(route) {
+    routeToIndex(route, list) {
       const currentRoute = String(route || '').replace(/^\/+/, '');
-      return this.data.list.findIndex(item => item.pagePath === currentRoute);
+      return (list || this.data.list).findIndex(item => item.pagePath === currentRoute);
     },
 
     setUnreadCount(count) {

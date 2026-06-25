@@ -11,7 +11,7 @@ function unwrapPaymentResponse(res, fallbackMessage) {
 
 /**
  * 创建支付订单
- * @param {number} planId  0=月卡 1=季卡 2=年卡
+ * @param {number} planId  0=月卡 1=季卡 2=年卡 3=体验卡
  * @returns Promise<{ mock, orderNo, planName, amount, ... }>
  */
 function createPayOrder(planId) {
@@ -60,7 +60,7 @@ function verifyOrder(orderNo) {
  */
 function getPayConfig() {
   return new Promise((resolve, reject) => {
-    request({ path: '/api/payment/config' })
+    request({ path: '/api/payment/config', noCache: true })
       .then(res => resolve(unwrapPaymentResponse(res, '获取支付配置失败')))
       .catch(err => reject(err instanceof Error ? err : new Error(err && err.message || '获取支付配置失败')));
   });
@@ -77,4 +77,32 @@ function getPayOrders() {
   });
 }
 
-module.exports = { createPayOrder, mockConfirmPay, verifyOrder, getPayConfig, getPayOrders };
+function sendPayReminder(orderNo, reason) {
+  return new Promise((resolve, reject) => {
+    post({
+      path: '/api/payment/unpaid-reminder',
+      body: { orderNo, reason: reason || '' }
+    }).then(res => resolve(unwrapPaymentResponse(res, '发送支付提醒失败')))
+      .catch(err => reject(err instanceof Error ? err : new Error(err && err.message || '发送支付提醒失败')));
+  });
+}
+
+function subscribeNotifyTemplates(templateIds) {
+  return new Promise((resolve, reject) => {
+    post({
+      path: '/api/notify/subscribe',
+      body: { templateIds: Array.isArray(templateIds) ? templateIds : [] }
+    }).then(res => resolve(unwrapPaymentResponse(res, '订阅记录失败')))
+      .catch(err => reject(err instanceof Error ? err : new Error(err && err.message || '订阅记录失败')));
+  });
+}
+
+module.exports = {
+  createPayOrder,
+  getPayConfig,
+  getPayOrders,
+  mockConfirmPay,
+  sendPayReminder,
+  subscribeNotifyTemplates,
+  verifyOrder,
+};

@@ -74,17 +74,37 @@ npm test
 | `JWT_SECRET` | 用户鉴权 JWT 签名 | 是 |
 | `JWT_EXPIRES_IN` | JWT 过期时间 | 否 |
 | `WX_APP_ID` / `WX_APP_SECRET` | 微信登录和手机号能力 | 使用微信登录时必填 |
-| `DEEPSEEK_API_KEY` / `DEEPSEEK_API_URL` | AI 功能 | 使用 AI 时必填 |
+| `AI_PROVIDER` / `ARK_API_KEY` / `ARK_API_URL` / `ARK_MODEL` | AI 功能（火山方舟/豆包） | 使用 AI 时必填 |
+| `AI_API_KEY` / `AI_API_URL` / `AI_MODEL` | AI 通用覆盖配置 | 可选 |
+| `DEEPSEEK_API_KEY` / `DEEPSEEK_API_URL` / `DEEPSEEK_MODEL` | DeepSeek 兼容配置 | 切回 DeepSeek 时填写 |
 | `RAPID_API_KEY` / `RAPID_API_HOST` / `RAPID_API_URL` | JSearch 职位搜索 | 使用真实职位搜索时必填 |
+| `RECRUITMENT_FEATURE_ENABLED` | 职位功能总开关，默认 `false` | 否 |
 | `WEBHOOK_SECRET` | GitHub Webhook 签名 | 部署 Webhook 必填 |
-| `WXPAY_MCH_ID` / `WXPAY_API_KEY` / `WXPAY_APP_ID` / `WXPAY_NOTIFY_URL` | 微信支付 | 真实支付必填，缺失时为 Mock 模式 |
+| `PAYMENT_ENABLED` / `PAYMENT_PROVIDER` | 会员支付开关和支付方式 | 支付上线时配置 |
+| `VIRTUAL_PAY_*` | 小程序虚拟支付 | `PAYMENT_PROVIDER=virtual` 时必填 |
+| `WXPAY_MCH_ID` / `WXPAY_API_KEY` / `WXPAY_APP_ID` / `WXPAY_NOTIFY_URL` | 普通微信支付 JSAPI | `PAYMENT_PROVIDER=wxpay` 时必填 |
 | `ALLOWED_ORIGIN` | 浏览器管理后台跨域来源 | 浏览器访问时按需配置 |
 
 不要提交 `.env` 或任何真实密钥。`ALLOWED_ORIGIN` 需要配置精确来源，多个来源用逗号分隔。
 
+### 职位功能开关
+
+在服务端 `.env` 中设置：
+
+```dotenv
+RECRUITMENT_FEATURE_ENABLED=false
+```
+
+重启后端后，小程序会从 `/api/features` 同步状态。关闭时会隐藏职位列表、详情、搜索和一键申请入口，并拒绝对应服务端接口；Banner、校招日历、热门公司、公司资料和用户手动维护的网申进度仍正常开放。恢复为 `true` 并重启后即可重新开放职位功能，管理后台的职位数据维护能力不受此开关影响。
+
 ## 支付模式
 
-当前支付只做 Mock 模式流程验证。未配置完整微信支付变量时，系统会使用 Mock 模式，覆盖下单、模拟确认、订单校验、VIP 开通和订单列表。
+支付支持两种方式：
+
+- `PAYMENT_PROVIDER=virtual`：小程序虚拟支付，道具直购模式。后端创建订单并返回 `wx.requestVirtualPayment` 所需的 `signData`、`paySig`、`signature`，微信发货通知到 `/api/payment/virtual-notify` 或 `/api/payment/notify` 后开通 VIP。
+- `PAYMENT_PROVIDER=wxpay`：普通微信支付 JSAPI v2，保留兼容旧链路。
+
+未配置完整真实支付变量时，本地可通过 `ENABLE_MOCK_PAYMENT=true` 使用 Mock 模式，覆盖下单、模拟确认、订单校验、VIP 开通和订单列表。
 
 真实微信支付分阶段上线：营业执照和微信商户资质完成后，再单独评审并配置真实支付参数。详细方案见 `docs/PAYMENT_ROLLOUT_PLAN.md`。
 
@@ -111,3 +131,18 @@ npm test
 ## 提交规则
 
 不要提交 `.env`、`node_modules/`、`uploads/`、数据库运行文件、微信私有配置和密钥文件。
+## AI Provider
+
+The backend uses an OpenAI-compatible chat completions client for AI features.
+For Volcengine Ark / Doubao, set:
+
+```dotenv
+AI_PROVIDER=ark
+ARK_API_KEY=YOUR_ARK_API_KEY_HERE
+ARK_API_URL=https://ark.cn-beijing.volces.com/api/v3/chat/completions
+ARK_MODEL=doubao-seed-2-1-pro-260628
+```
+
+`AI_API_KEY`, `AI_API_URL`, and `AI_MODEL` can be used as generic overrides.
+DeepSeek remains supported with `AI_PROVIDER=deepseek`, `DEEPSEEK_API_KEY`,
+`DEEPSEEK_API_URL`, and `DEEPSEEK_MODEL`.

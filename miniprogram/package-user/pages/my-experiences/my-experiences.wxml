@@ -58,6 +58,7 @@
               <image src="{{item.avatar}}" class="avatar" lazy-load></image>
               <text class="author-name">{{item.author}}</text>
               <text class="type-badge" wx:if="{{item.type}}">{{item.type}}</text>
+              <text class="type-badge" wx:if="{{item.isAI}}">AI生成</text>
             </view>
             <text class="post-date">{{item.date}}</text>
           </view>
@@ -120,6 +121,11 @@
         <text class="publish-title">{{_editIndex >= 0 ? '编辑面经' : '发布面经'}}</text>
         <view class="close-btn" bindtap="closePublish">X</view>
       </view>
+
+      <c-ai-disclosure
+        wx:if="{{aiGeneratedDraft}}"
+        text="当前面经草稿由人工智能生成，请按真实经历核验、修改后再发布。"
+      />
 
       <scroll-view scroll-y class="publish-form">
         <view class="form-item">

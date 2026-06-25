@@ -1,6 +1,8 @@
 <!-- pages/project-review/project-review.wxml -->
 <view class="page project-review-page">
 
+  <c-ai-disclosure text="项目评分、STAR 拆解与改写建议由人工智能生成，请核验后使用。" />
+
   <!-- STEP: input -->
   <block wx:if="{{step === 'input'}}">
     <view class="tool-hero">

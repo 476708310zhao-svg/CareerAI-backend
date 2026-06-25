@@ -12,6 +12,21 @@
     </view>
   </view>
 
+  <view class="support-card">
+    <view class="support-main">
+      <text class="support-title">需要马上沟通？</text>
+      <text class="support-desc">可以直接进入微信客服会话，适合账号、会员、投递和紧急问题。</text>
+    </view>
+    <button
+      class="support-contact-btn"
+      open-type="contact"
+      session-from="feedback"
+      show-message-card="true"
+      send-message-title="职引客服"
+      send-message-path="/package-user/pages/feedback/feedback"
+    >联系客服</button>
+  </view>
+
   <view class="form-section">
     <view class="section-head">
       <text class="label">反馈类型</text>

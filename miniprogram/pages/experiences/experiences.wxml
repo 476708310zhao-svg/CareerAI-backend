@@ -90,6 +90,11 @@
   <!-- 固定头部占位 -->
   <view class="header-spacer source-{{sourceTab}} {{sourceTab === 'local' && currentCat !== 'all' ? 'with-ai' : ''}}"></view>
 
+  <c-ai-disclosure
+    wx:if="{{sourceTab === 'local' && currentCat !== 'all'}}"
+    text="智能出题生成的题目与参考答案由人工智能生成，仅供面试练习参考。"
+  />
+
   <view class="training-hero">
     <view class="training-copy">
       <view class="training-topline">

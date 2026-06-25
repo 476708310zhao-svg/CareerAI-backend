@@ -5,7 +5,7 @@
     <view>
       <text class="hero-kicker">COLLECTIONS</text>
       <text class="hero-title">收藏夹</text>
-      <text class="hero-sub">集中管理职位、公司、面经和校招信息，方便后续筛选与投递。</text>
+      <text class="hero-sub">{{recruitmentEnabled ? '集中管理职位、公司、面经和校招信息，方便后续筛选与投递。' : '集中管理公司、面经、机构和校招收藏，方便后续筛选与回看。'}}</text>
     </view>
     <view class="hero-count">
       <text class="count-num">{{totalFavorites}}</text>
@@ -16,7 +16,7 @@
   <!-- Tab 栏 -->
   <view class="tab-bar">
     <block wx:for="{{tabs}}" wx:key="*this">
-      <view class="tab-item {{currentTab === index ? 'active' : ''}}" bindtap="switchTab" data-index="{{index}}">
+      <view wx:if="{{recruitmentEnabled || index !== 0}}" class="tab-item {{currentTab === index ? 'active' : ''}}" bindtap="switchTab" data-index="{{index}}">
         {{item}}
         <text class="tab-count" wx:if="{{index === 0}}">({{favorites.job.length}})</text>
         <text class="tab-count" wx:if="{{index === 1}}">({{favorites.experience.length}})</text>
@@ -159,7 +159,7 @@
       <text class="empty-desc">{{currentEmpty.desc}}</text>
       <view class="empty-actions">
         <view class="empty-primary" bindtap="browseCurrent">{{currentEmpty.btn}}</view>
-        <view class="empty-secondary" bindtap="goToJobs">查看岗位推荐</view>
+        <view wx:if="{{recruitmentEnabled}}" class="empty-secondary" bindtap="goToJobs">查看岗位推荐</view>
       </view>
       <view class="empty-tips">
         <view class="tip-item">收藏后可按时间排序</view>

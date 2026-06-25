@@ -7,10 +7,17 @@ const matcher = require('../../utils/matcher.js');
 const { formatSalaryRange } = require('../../utils/util.js');
 const { normalizeBannerUrl } = require('../../utils/assets.js');
 const browseHistory = require('../../utils/browse-history.js');
+const featureFlags = require('../../utils/feature-flags.js');
 const BANNER_CACHE_KEY = 'cachedBanners_v2';
 const HOME_NEWS_CACHE_KEY = 'cachedHomeNews_v1';
 const HOT_COMPANIES_CACHE_KEY = 'cachedHotCompanies_v1';
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
+const HOME_FEATURES = [
+  { id: 1, name: '网申助手', icon: '/images/icon-apply.png', url: '/package-user/pages/applications/applications', badge: '', bg: 'linear-gradient(145deg,#eef6ff,#f8fbff)' },
+  { id: 2, name: '薪酬查询', icon: '/images/icon-salary.png', url: '/package-career/pages/salary/salary', badge: 'Hot', bg: 'linear-gradient(145deg,#ecfdf5,#f8fbff)' },
+  { id: 3, name: '求职规划', icon: '/images/icon-plan.png', url: '/package-career/pages/career-planner/career-planner', badge: 'AI', isAi: true, bg: 'linear-gradient(145deg,#fff7ed,#f8fbff)' },
+  { id: 4, name: '机构测评', icon: '/images/assess-active.png', url: '/pages/agencies/agencies', badge: '', bg: 'linear-gradient(145deg,#eef2ff,#f8fbff)' }
+];
 
 // TabBar 页面路径列表，用于判断跳转方式
 const TAB_PAGES = ['/pages/index/index', '/pages/jobs/jobs', '/pages/experiences/experiences', '/pages/campus/campus', '/pages/profile/profile'];
@@ -26,14 +33,11 @@ Page({
     currentBanner: 0,
     apiBase: config.API_BASE_URL,
     skeletonRows: [1, 2, 3],
+    recruitmentEnabled: true,
+    membershipEnabled: false,
 
     // 2. 金刚区：保留 4 个非 AI 专题入口，重复的 AI 功能下沉到专题区
-    features: [
-      { id: 1, name: '网申助手', icon: '/images/icon-apply.png', url: '/package-user/pages/applications/applications', badge: '', bg: 'linear-gradient(145deg,#eef6ff,#f8fbff)' },
-      { id: 2, name: '薪酬查询', icon: '/images/icon-salary.png', url: '/package-career/pages/salary/salary', badge: 'Hot', bg: 'linear-gradient(145deg,#ecfdf5,#f8fbff)' },
-      { id: 3, name: '求职规划', icon: '/images/icon-plan.png', url: '/package-career/pages/career-planner/career-planner', badge: 'AI', isAi: true, bg: 'linear-gradient(145deg,#fff7ed,#f8fbff)' },
-      { id: 4, name: '机构测评', icon: '/images/assess-active.png', url: '/pages/agencies/agencies', badge: '', bg: 'linear-gradient(145deg,#eef2ff,#f8fbff)' }
-    ],
+    features: HOME_FEATURES,
 
     aiSpotlight: {
       primary: {
@@ -101,6 +105,9 @@ Page({
   },
 
   onLoad() {
+    const flags = featureFlags.getCurrentFlags();
+    const recruitmentEnabled = !!flags.recruitment;
+    this.applyFeatureState(flags);
     this.normalizeHomeData();
     try {
       this.loadUserProfile();
@@ -108,19 +115,50 @@ Page({
     try {
       this.fetchBanners();
     } catch(e) { wx.showToast({ title: 'E2:' + e.message, icon: 'none', duration: 5000 }); return; }
-    let hasCachedJobs = false;
-    try {
-      hasCachedJobs = this.loadCachedOrMockJobs();
-    } catch(e) { wx.showToast({ title: 'E3:' + e.message, icon: 'none', duration: 5000 }); return; }
-    clearTimeout(this._initialRecommendTimer);
-    this._initialRecommendTimer = setTimeout(() => {
+    if (recruitmentEnabled) {
+      let hasCachedJobs = false;
       try {
-        this.fetchRecommendJobs();
-      } catch(e) {
-        console.warn('[fetchRecommendJobs]', e);
-      }
-    }, hasCachedJobs ? 240 : 100);
+        hasCachedJobs = this.loadCachedOrMockJobs();
+      } catch(e) { wx.showToast({ title: 'E3:' + e.message, icon: 'none', duration: 5000 }); return; }
+      clearTimeout(this._initialRecommendTimer);
+      this._initialRecommendTimer = setTimeout(() => {
+        try {
+          this.fetchRecommendJobs();
+        } catch(e) {
+          console.warn('[fetchRecommendJobs]', e);
+        }
+      }, hasCachedJobs ? 240 : 100);
+    } else {
+      this.setData({ loadingJobs: false, recommendJobs: [] });
+    }
     this.scheduleDeferredHomeData();
+  },
+
+  applyRecruitmentState(enabled) {
+    const recruitmentEnabled = !!enabled;
+    this.setData({
+      recruitmentEnabled,
+      features: HOME_FEATURES
+        .filter(item => item.feature !== 'recruitment' || recruitmentEnabled)
+        .map(item => Object.assign({}, item, { isAiClass: item.isAi ? 'is-ai' : '' })),
+      recommendJobs: recruitmentEnabled ? this.data.recommendJobs : [],
+      loadingJobs: recruitmentEnabled ? this.data.loadingJobs : false
+    });
+  },
+
+  applyFeatureState(flags) {
+    const nextFlags = flags || {};
+    this.applyRecruitmentState(!!nextFlags.recruitment);
+    this.setData({ membershipEnabled: !!nextFlags.membership });
+  },
+
+  _onFeatureFlagsChange(flags) {
+    const wasEnabled = this.data.recruitmentEnabled;
+    this.applyFeatureState(flags);
+    if (flags.recruitment && !wasEnabled) {
+      this.loadCachedOrMockJobs();
+      this.fetchRecommendJobs();
+    }
   },
 
   normalizeHomeData() {
@@ -140,6 +178,7 @@ Page({
     this.loadUserProfile();
     this.updateMessageBadge();
     this.syncPageChrome();
+    featureFlags.refreshFeatureFlags();
   },
 
   syncPageChrome() {
@@ -166,7 +205,7 @@ Page({
   // 下拉刷新
   onPullDownRefresh() {
     clearTimeout(this._initialRecommendTimer);
-    this.fetchRecommendJobs({ force: true });
+    if (this.data.recruitmentEnabled) this.fetchRecommendJobs({ force: true });
     this.fetchHotCompanies({ force: true });
     this.buildNewsFeed({ force: true });
     setTimeout(() => wx.stopPullDownRefresh(), 800);
@@ -233,7 +272,10 @@ Page({
   },
 
   normalizeBanners(list) {
-    return (list || []).map(item => Object.assign({}, item, {
+    const membershipEnabled = this.data ? this.data.membershipEnabled : featureFlags.isMembershipEnabled();
+    return (list || [])
+      .filter(item => membershipEnabled || !featureFlags.isMembershipUrl(item.url))
+      .map(item => Object.assign({}, item, {
       imageUrl: this.normalizeAssetUrl(item.imageUrl || item.image_url)
     }));
   },
@@ -642,6 +684,7 @@ Page({
   navigateToPage(e) {
     const url = e.currentTarget.dataset.url;
     if (!url) return;
+    if (!featureFlags.allowNavigation(url)) return;
     const isTab = TAB_PAGES.some(p => url.includes(p.replace('/pages/', '')));
     if (isTab) {
       wx.switchTab({ url, fail: () => wx.navigateTo({ url }) });
@@ -651,10 +694,12 @@ Page({
   },
 
   goToJobSearch() {
+    if (!featureFlags.allowNavigation('/package-user/pages/search/search')) return;
     wx.navigateTo({ url: '/package-user/pages/search/search' });
   },
 
   goToJobDetail(e) {
+    if (!featureFlags.allowNavigation('/package-user/pages/job-detail/job-detail')) return;
     const id = e.currentTarget.dataset.id;
     const job = (this.data.recommendJobs || []).find(item => String(item.id) === String(id));
     if (job) {
@@ -684,16 +729,19 @@ Page({
   },
 
   goToCompanyDetail(e) {
+    if (!featureFlags.allowNavigation('/package-user/pages/company-detail/company-detail')) return;
     const id = e.currentTarget.dataset.id;
     const name = e.currentTarget.dataset.name;
     wx.navigateTo({ url: `/package-user/pages/company-detail/company-detail?id=${id}&name=${encodeURIComponent(name)}` });
   },
 
   viewMoreJobs() {
+    if (!featureFlags.allowNavigation('/pages/jobs/jobs')) return;
     wx.switchTab({ url: '/pages/jobs/jobs' });
   },
 
   viewMoreCompanies() {
+    if (!featureFlags.allowNavigation('/package-user/pages/companies/companies')) return;
     wx.navigateTo({ url: '/package-user/pages/companies/companies' });
   },
 

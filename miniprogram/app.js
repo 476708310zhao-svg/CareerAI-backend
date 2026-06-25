@@ -2,6 +2,7 @@
 const favUtil = require('./utils/favorites.js');
 const vipUtil  = require('./utils/vip.js');
 const api      = require('./utils/api.js');
+const featureFlags = require('./utils/feature-flags.js');
 
 function safeErrorText(error) {
   if (!error) return '';
@@ -38,6 +39,7 @@ App({
   onLaunch: function () {
     console.log('小程序启动');
     this._initGlobalData();
+    featureFlags.refreshFeatureFlags({ force: true });
     setTimeout(() => this._silentLogin(), 500);
     this._initTheme();
   },
@@ -133,6 +135,7 @@ App({
     gd.vipInfo        = vipUtil.getInfo();
     gd.unreadCount    = wx.getStorageSync('unreadMessages') || 0;
     gd.favorites      = favUtil.getAll();
+    gd.featureFlags   = featureFlags.getCachedFlags();
   },
 
   syncCustomTabBar: function(isRetry) {
@@ -247,6 +250,7 @@ App({
     vipInfo:     null,   // { isVip, planName, expireDate }
     unreadCount: 0,      // 未读消息数（驱动 TabBar 角标）
     favorites:   null,   // { job:[], experience:[], company:[] }
-    theme:       'auto'  // 'dark' | 'light' | 'auto'
+    theme:       'auto', // 'dark' | 'light' | 'auto'
+    featureFlags: { recruitment: false, membership: true }
   }
 });

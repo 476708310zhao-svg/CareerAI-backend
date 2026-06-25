@@ -118,6 +118,8 @@
       <text class="modal-title">✨ AI 个性化改写</text>
       <text class="modal-sub">基于模板「{{customTarget.title}}」</text>
 
+      <c-ai-disclosure text="个性化 STAR 内容由人工智能生成，请按真实经历核验并修改。" />
+
       <view class="form-item">
         <text class="form-label">描述你的真实经历背景 <text class="req">*</text></text>
         <textarea

@@ -2,6 +2,8 @@
 const favUtil = require('../../utils/favorites.js');
 const api     = require('../../utils/api.js');
 const browseHistory = require('../../utils/browse-history.js');
+const featureFlags = require('../../utils/feature-flags.js');
+const vipUtil = require('../../utils/vip.js');
 
 Page({
   data: {
@@ -19,10 +21,17 @@ Page({
     },
     isLogin: false,
     isVip: false,
-    showLoginPopup: false
+    vipInfo: {
+      planName: '',
+      expireDate: ''
+    },
+    showLoginPopup: false,
+    recruitmentEnabled: true,
+    membershipEnabled: false
   },
 
   onLoad() {
+    this._applyFeatureFlags(featureFlags.getCurrentFlags());
     this.loadUserInfo();
   },
 
@@ -32,8 +41,21 @@ Page({
     this.loadUserInfo();
     this.updateStats();
     this._syncMessageBadge();
+    this.refreshUserSession();
     clearTimeout(this._profileSyncTimer);
     this._profileSyncTimer = setTimeout(() => this._refreshRemoteStats(), 160);
+    featureFlags.refreshFeatureFlags();
+  },
+
+  _applyFeatureFlags(flags) {
+    this.setData({
+      recruitmentEnabled: !!(flags && flags.recruitment),
+      membershipEnabled: !!(flags && flags.membership)
+    });
+  },
+
+  _onFeatureFlagsChange(flags) {
+    this._applyFeatureFlags(flags);
   },
 
   onUnload() {
@@ -54,18 +76,24 @@ Page({
 
   loadUserInfo() {
     const cachedUser = wx.getStorageSync('userProfile');
-    const vipInfo = wx.getStorageSync('vipInfo') || {};
-    const isVip = !!(vipInfo.isVip && vipInfo.expireDate && new Date(vipInfo.expireDate) > new Date());
+    const vipInfo = vipUtil.getInfo();
+    const isVip = vipInfo.isVip;
 
     if (cachedUser) {
       this.setData({
         isLogin: true,
         isVip,
+        vipInfo,
         userInfo: cachedUser
       });
     } else {
       this.setData({
         isLogin: false,
+        isVip: false,
+        vipInfo: {
+          planName: '',
+          expireDate: ''
+        },
         userInfo: {
           nickName: '未登录用户',
           avatarUrl: '/images/default-avatar.png',
@@ -77,8 +105,26 @@ Page({
   },
 
   // 动态计算统计数据
+  refreshUserSession() {
+    if (!wx.getStorageSync('token') || typeof api.getUserProfile !== 'function') return;
+    api.getUserProfile()
+      .then(res => {
+        const user = res && res.code === 0 ? res.data : (res && res.id ? res : null);
+        if (!user || typeof api.persistUserSession !== 'function') return;
+        api.persistUserSession(user);
+        const app = getApp();
+        if (app && typeof app.refreshGlobalData === 'function') app.refreshGlobalData();
+        this.loadUserInfo();
+      })
+      .catch(() => {});
+  },
+
   updateStats() {
-    const favCount = favUtil.getCount();
+    const favorites = favUtil.getAll();
+    const favCount = this.data.recruitmentEnabled
+      ? favUtil.getCount()
+      : Object.keys(favorites).reduce((sum, key) =>
+        key === 'job' ? sum : sum + (favorites[key] || []).length, 0);
     const interviewHistory = wx.getStorageSync('interviewHistory') || [];
     const viewHistory = browseHistory.getList();
     const applications = wx.getStorageSync('localApplications') || [];
@@ -130,6 +176,7 @@ Page({
   },
 
   goToApplications() {
+    if (!featureFlags.allowNavigation('/package-user/pages/applications/applications')) return;
     wx.navigateTo({ url: '/package-user/pages/applications/applications' });
   },
 
@@ -155,13 +202,8 @@ Page({
   },
 
   goToVip() {
-    wx.navigateTo({
-      url: '/package-user/pages/vip/vip',
-      fail: (err) => {
-        console.error(err);
-        wx.showToast({ title: '页面跳转失败', icon: 'none' });
-      }
-    });
+    if (!featureFlags.allowNavigation('/package-user/pages/vip/vip')) return;
+    wx.navigateTo({ url: '/package-user/pages/vip/vip' });
   },
 
   goToFavorites() { wx.navigateTo({ url: '/package-user/pages/favorites/favorites' }); },

@@ -16,7 +16,7 @@ function getUser(userId) {
 function isVipUser(user) {
   if (!user || user.vip_level <= 0) return false;
   if (!user.vip_expires_at) return true;
-  return new Date(user.vip_expires_at) >= new Date();
+  return String(user.vip_expires_at).slice(0, 10) >= todayKey();
 }
 
 function getUsage(userId, feature, day) {

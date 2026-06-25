@@ -1,10 +1,10 @@
 # 支付上线分阶段方案
 
-更新时间：2026-06-10
+更新时间：2026-06-24
 
 ## 结论
 
-支付按三阶段推进。当前阶段生产环境关闭真实收款入口；Mock 只允许本地或测试环境显式开启，不能进入正式环境。
+支付按三阶段推进。当前推荐使用小程序虚拟支付（道具直购）接入会员套餐；Mock 只允许本地或测试环境显式开启，不能进入正式环境。
 
 ## 阶段 1：开发环境 Mock 模式验证流程
 
@@ -19,16 +19,25 @@
 - 不配置真实 `WXPAY_MCH_ID`、`WXPAY_API_KEY`、`WXPAY_APP_ID`、`WXPAY_NOTIFY_URL` 时，生产环境不得创建订单。
 - 本阶段不得主动接入真实支付回调，也不得让用户通过 Mock 开通真实权益。
 
-## 阶段 2：资质准备
+## 阶段 2：虚拟支付配置
 
-- 完成营业执照、微信商户号、小程序支付产品开通。
-- 准备正式域名和 HTTPS 回调地址。
-- 补充真实支付沙箱或灰度验收清单。
+- 微信公众平台已开通小程序虚拟支付。
+- 在虚拟支付后台配置 3 个道具，分别对应月卡、季卡、年卡，价格需与后端 `PLANS` 一致。
+- 生产 `.env` 配置：
+  - `PAYMENT_ENABLED=true`
+  - `PAYMENT_PROVIDER=virtual`
+  - `MEMBERSHIP_FEATURE_ENABLED=true`
+  - `VIRTUAL_PAY_ENV=0`
+  - `VIRTUAL_PAY_OFFER_ID`
+  - `VIRTUAL_PAY_APP_KEY`
+  - `VIRTUAL_PAY_MONTH_PRODUCT_ID`
+  - `VIRTUAL_PAY_QUARTER_PRODUCT_ID`
+  - `VIRTUAL_PAY_YEAR_PRODUCT_ID`
+  - `VIRTUAL_PAY_NOTIFY_TOKEN`
+- 在微信后台把发货通知地址配置为 `https://yourdomain.com/api/payment/virtual-notify`，或复用 `https://yourdomain.com/api/payment/notify`。
 
 ## 阶段 3：真实支付灰度上线
 
-- 配置真实微信支付参数。
-- 将生产 `PAYMENT_ENABLED` 改为 `true`。
-- 访问 `GET /api/payment/config` 确认 `data.available=true`、`data.mock=false`。
-- 小流量灰度，重点验证金额校验、签名校验、回调幂等、订单状态和 VIP 到期时间。
+- 访问 `GET /api/payment/config` 确认 `data.provider=virtual`、`data.available=true`、`data.mock=false`。
+- 小流量灰度，重点验证 `wx.requestVirtualPayment` 拉起、`paySig/signature` 签名、发货通知验签、订单幂等、订单状态和 VIP 到期时间。
 - 真实支付上线前必须单独评审，不和普通 P1/P2 优化混合提交。

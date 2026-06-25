@@ -1,0 +1,4 @@
+<view class="ai-disclosure" role="note" aria-label="AI 生成内容说明">
+  <text class="ai-disclosure-badge">AI生成</text>
+  <text class="ai-disclosure-text">{{text}}</text>
+</view>

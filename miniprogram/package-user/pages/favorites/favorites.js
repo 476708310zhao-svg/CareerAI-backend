@@ -1,5 +1,6 @@
 // pages/favorites/favorites.js
 const favUtil = require('../../../utils/favorites.js');
+const featureFlags = require('../../../utils/feature-flags.js');
 const TAB_KEYS = ['job', 'experience', 'company', 'agency', 'campus'];
 
 Page({
@@ -20,19 +21,36 @@ Page({
     sortOrder: 'desc', // 'desc' 最新 | 'asc' 最早
     batchMode: false,
     selectedIds: [],
-    allSelected: false
+    allSelected: false,
+    recruitmentEnabled: true
   },
 
   onShow() {
+    this._applyFeatureFlags(featureFlags.getCurrentFlags());
+    featureFlags.refreshFeatureFlags();
     this.loadFavorites();
     favUtil.syncFromServer().then(() => {
       this.loadFavorites();
     });
   },
 
+  _applyFeatureFlags(flags) {
+    const recruitmentEnabled = !!(flags && flags.recruitment);
+    this.setData({
+      recruitmentEnabled,
+      currentTab: !recruitmentEnabled && this.data.currentTab === 0 ? 1 : this.data.currentTab
+    });
+  },
+
+  _onFeatureFlagsChange(flags) {
+    this._applyFeatureFlags(flags);
+    this.loadFavorites();
+  },
+
   loadFavorites() {
     const favorites = favUtil.getAll();
-    const totalFavorites = TAB_KEYS.reduce((sum, key) => sum + (favorites[key] || []).length, 0);
+    const visibleKeys = this.data.recruitmentEnabled ? TAB_KEYS : TAB_KEYS.filter(key => key !== 'job');
+    const totalFavorites = visibleKeys.reduce((sum, key) => sum + (favorites[key] || []).length, 0);
     this.setData({ favorites, totalFavorites }, () => {
       this._refreshList();
     });
@@ -175,6 +193,7 @@ Page({
   goToDetail(e) {
     const item = e.currentTarget.dataset.item;
     const typeKey = TAB_KEYS[this.data.currentTab];
+    if (typeKey === 'job' && !featureFlags.allowNavigation('/package-user/pages/job-detail/job-detail')) return;
     if (typeKey === 'job') {
       const snapshot = {
         id: item.targetId,
@@ -202,6 +221,7 @@ Page({
 
   // ── 空状态 CTA ──
   goToJobs() {
+    if (!featureFlags.allowNavigation('/pages/jobs/jobs')) return;
     wx.switchTab({ url: '/pages/jobs/jobs' });
   },
 
@@ -216,6 +236,7 @@ Page({
       return;
     }
     if (action === 'companies') {
+      if (!featureFlags.allowNavigation('/package-user/pages/companies/companies')) return;
       wx.navigateTo({ url: '/package-user/pages/companies/companies' });
       return;
     }
@@ -224,6 +245,7 @@ Page({
       return;
     }
     if (action === 'campus') {
+      if (!featureFlags.allowNavigation('/pages/campus/campus')) return;
       wx.switchTab({ url: '/pages/campus/campus' });
       return;
     }

@@ -355,6 +355,9 @@ const userCols = db.pragma('table_info(users)').map(c => c.name);
 if (!userCols.includes('password')) {
   db.exec(`ALTER TABLE users ADD COLUMN password TEXT DEFAULT ''`);
 }
+if (!userCols.includes('wechat_session_key')) {
+  db.exec(`ALTER TABLE users ADD COLUMN wechat_session_key TEXT DEFAULT ''`);
+}
 
 // ─── T-5修复：给 resumes 表补 data 字段，用于存储完整前端简历 JSON（幂等）──
 const resumeCols = db.pragma('table_info(resumes)').map(c => c.name);

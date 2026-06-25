@@ -1,4 +1,5 @@
 // pages/jobs/jobs.js
+const featureFlags = require('../../utils/feature-flags.js');
 const { getJobs, getAggregatedJobs, normalizeCompanyLogo } = require('../../utils/api.js');
 const { getCountries } = require('../../utils/api-news.js');
 const favUtil = require('../../utils/favorites.js');
@@ -162,6 +163,7 @@ Page({
   },
 
   onShow: function() {
+    if (!featureFlags.guardRecruitmentPage()) return;
     const app = getApp();
     if (app && typeof app.syncCustomTabBar === 'function') app.syncCustomTabBar();
     clearTimeout(this._onShowSyncTimer);
@@ -184,6 +186,7 @@ Page({
   },
 
   onLoad: function(options) {
+    if (!featureFlags.guardRecruitmentPage()) return;
     const searchHistory = wx.getStorageSync('jobSearchHistory') || [];
     this.setData({ searchHistory });
 

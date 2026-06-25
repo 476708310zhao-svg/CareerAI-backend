@@ -18,6 +18,8 @@
     </view>
   </view>
 
+  <c-ai-disclosure text="本小程序涉及 AI 问答、简历优化、模拟面试等功能，相关内容由人工智能生成，仅供参考，请核验后使用。" />
+
   <view class="stats-row">
     <block wx:for="{{stats}}" wx:key="label">
       <view class="stat-item">
@@ -81,13 +83,23 @@
     </block>
   </view>
 
-  <view class="contact-section" bindtap="copyEmail" hover-class="tap-soft">
+  <view class="contact-section">
     <view class="contact-main">
       <text class="contact-label">联系我们</text>
-      <text class="contact-title">{{contactEmail}}</text>
-      <text class="contact-desc">产品建议、合作沟通或问题反馈都可以通过邮箱联系。</text>
+      <text class="contact-title">在线客服与邮箱反馈</text>
+      <text class="contact-desc">产品建议、合作沟通或问题反馈都可以通过微信客服或邮箱联系。</text>
     </view>
-    <view class="copy-button">复制</view>
+    <view class="contact-actions">
+      <button
+        class="customer-button"
+        open-type="contact"
+        session-from="about"
+        show-message-card="true"
+        send-message-title="职引客服"
+        send-message-path="/pages/index/index"
+      >在线客服</button>
+      <view class="copy-button" bindtap="copyEmail" hover-class="tap-soft">复制邮箱</view>
+    </view>
   </view>
 
   <view class="copyright">

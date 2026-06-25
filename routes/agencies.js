@@ -1,13 +1,11 @@
 const express = require('express');
 const router  = express.Router();
-const axios   = require('axios');
 const db      = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
 const { writeLimiter, aiLimiter } = require('../middleware/rateLimit');
 const { parseId } = require('../db/utils');
 const { formatAgency, formatAgencyReview: formatReview } = require('../db/formatters');
-
-const DEEPSEEK_URL = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/chat/completions';
+const { createChatCompletion } = require('../utils/aiClient');
 
 const REGION_KEYWORDS = {
   '北美': ['北美', '美国', '加拿大', '纽约', '旧金山', '湾区', '西雅图', '多伦多', '温哥华', '硅谷', '洛杉矶'],
@@ -286,7 +284,7 @@ router.delete('/reviews/:reviewId', authMiddleware, (req, res) => {
 });
 
 // ─── POST /api/agencies/:id/ai-eval ──────────────────────────────────────────
-// 触发 DeepSeek 生成 10 维结构化机构测评（AI 限速，需登录）
+// 触发 AI 生成 10 维结构化机构测评（AI 限速，需登录）
 router.post('/:id/ai-eval', aiLimiter, authMiddleware, async (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
@@ -337,26 +335,20 @@ router.post('/:id/ai-eval', aiLimiter, authMiddleware, async (req, res) => {
 }`;
 
   try {
-    const result = await axios.post(
-      DEEPSEEK_URL,
+    const result = await createChatCompletion(
       {
-        model: 'deepseek-chat',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.5,
         stream: false
       },
       {
-        headers: {
-          'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
         timeout: 90000
       }
     );
 
     const raw = result.data.choices?.[0]?.message?.content || '';
 
-    // 提取 JSON（防止 DeepSeek 在前后加 ```json 标记）
+    // 提取 JSON（防止模型在前后加 ```json 标记）
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return res.status(502).json({ code: -1, message: 'AI 返回格式异常，请重试' });
@@ -378,7 +370,7 @@ router.post('/:id/ai-eval', aiLimiter, authMiddleware, async (req, res) => {
       return res.status(504).json({ code: -1, message: 'AI 响应超时，请重试' });
     }
     if (status === 402) {
-      return res.status(402).json({ code: -1, message: 'DeepSeek 余额不足' });
+      return res.status(402).json({ code: -1, message: 'AI服务额度不足' });
     }
     console.error(err); res.status(500).json({ code: -1, message: '服务器内部错误' });
   }

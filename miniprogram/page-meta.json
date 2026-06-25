@@ -1,34 +1,176 @@
 {
+  "appName": "职引",
+  "updatedAt": "2026-06-25",
+  "description": "职引是面向留学生和新职人的求职助手，提供岗位搜索、校招日历、面试题库、公司资料、薪资参考和求职资讯。",
   "pages": [
     {
+      "path": "pages/index/index",
+      "name": "职引首页",
+      "category": "首页",
+      "description": "展示岗位推荐、校招机会、面试题库、企业库、求职工具和最新求职资讯入口。"
+    },
+    {
       "path": "pages/jobs/jobs",
-      "name": "职引岗位列表",
-      "description": "展示留学生求职岗位，支持关键词、地区、城市、岗位类型、签证标签、毕业届别和更新时间筛选"
+      "name": "岗位推荐",
+      "category": "岗位",
+      "description": "展示适合留学生和新职人的岗位列表，支持关键词、地区、城市、岗位类型、签证标签、毕业届别和更新时间筛选。"
     },
     {
       "path": "package-user/pages/job-detail/job-detail",
-      "name": "职引岗位详情",
-      "description": "展示岗位名称、公司、地点、岗位类型、签证标签、更新时间和完整 JD"
-    },
-    {
-      "path": "pages/campus/campus",
-      "name": "职引校招日历",
-      "description": "展示春招、秋招、暑期实习、New Grad 和即将截止机会，支持地区、方向、届别和招聘类型筛选"
-    },
-    {
-      "path": "package-content/pages/campus-detail/campus-detail",
-      "name": "职引校招详情",
-      "description": "展示公司、岗位、地点、招聘类型、毕业届别、截止时间、笔试信息和投递链接"
+      "name": "职位详情",
+      "category": "岗位",
+      "params": ["id"],
+      "description": "展示职位名称、公司、地点、岗位类型、薪资、技能标签、签证友好信息、岗位描述和投递入口。"
     },
     {
       "path": "pages/experiences/experiences",
-      "name": "职引面试准备",
-      "description": "展示精选题库、LeetCode、话题专题和面试准备内容"
+      "name": "面试题库",
+      "category": "面试",
+      "description": "展示精选题库、LeetCode 练习、热门面试话题和面试准备内容。"
     },
     {
       "path": "package-content/pages/experience-detail/experience-detail",
-      "name": "职引面经详情",
-      "description": "展示真实面经的公司、岗位、面试类型、轮次、正文摘要、标签和互动信息"
+      "name": "面经详情",
+      "category": "面试",
+      "params": ["id"],
+      "description": "展示真实面经的公司、岗位、面试类型、轮次、正文摘要、标签和互动信息。"
+    },
+    {
+      "path": "package-content/pages/question-detail/question-detail",
+      "name": "题目详情",
+      "category": "面试",
+      "params": ["id"],
+      "description": "展示面试题目、考察方向、参考思路和练习入口。"
+    },
+    {
+      "path": "package-content/pages/star-library/star-library",
+      "name": "STAR 模板库",
+      "category": "面试",
+      "description": "展示行为面试 STAR 答题模板、常见场景和可复用表达。"
+    },
+    {
+      "path": "pages/campus/campus",
+      "name": "校招日历",
+      "category": "校招",
+      "description": "展示春招、秋招、暑期实习、New Grad 和即将截止机会，支持地区、方向、届别和招聘类型筛选。"
+    },
+    {
+      "path": "package-content/pages/campus-detail/campus-detail",
+      "name": "校招详情",
+      "category": "校招",
+      "params": ["id"],
+      "description": "展示公司、岗位、地点、招聘类型、毕业届别、截止时间、笔试信息和投递链接。"
+    },
+    {
+      "path": "pages/agencies/agencies",
+      "name": "求职机构测评",
+      "category": "机构",
+      "description": "展示求职机构列表、服务方向、城市、评价摘要和对比入口。"
+    },
+    {
+      "path": "package-agency/pages/agency-detail/agency-detail",
+      "name": "机构详情",
+      "category": "机构",
+      "params": ["id"],
+      "description": "展示求职机构介绍、服务标签、评价、AI 测评摘要和用户反馈。"
+    },
+    {
+      "path": "package-agency/pages/agency-compare/agency-compare",
+      "name": "机构对比",
+      "category": "机构",
+      "params": ["ids"],
+      "description": "按服务方向、城市、评分、优势和风险点对比多个求职机构。"
+    },
+    {
+      "path": "package-content/pages/news/news",
+      "name": "求职快讯",
+      "category": "资讯",
+      "description": "展示求职新闻、行业动态、招聘提示和职业发展内容。"
+    },
+    {
+      "path": "package-content/pages/news-detail/news-detail",
+      "name": "资讯详情",
+      "category": "资讯",
+      "params": ["id"],
+      "description": "展示单篇求职资讯、来源、发布时间、正文摘要和相关阅读。"
+    },
+    {
+      "path": "package-content/pages/bigtech-jobs/bigtech-jobs",
+      "name": "大厂直招",
+      "category": "岗位",
+      "description": "聚合大厂和热门科技公司的招聘入口、岗位方向和投递提示。"
+    },
+    {
+      "path": "package-user/pages/companies/companies",
+      "name": "热门企业",
+      "category": "企业",
+      "description": "展示热门公司、行业、规模、地点、岗位和面经入口。"
+    },
+    {
+      "path": "package-user/pages/company-detail/company-detail",
+      "name": "公司详情",
+      "category": "企业",
+      "params": ["id", "name"],
+      "description": "展示公司介绍、行业标签、岗位列表、面经、官网和求职参考信息。"
+    },
+    {
+      "path": "package-user/pages/search/search",
+      "name": "全站搜索",
+      "category": "搜索",
+      "description": "支持搜索岗位、公司、面经、校招机会和求职内容。"
+    },
+    {
+      "path": "package-career/pages/salary/salary",
+      "name": "查薪资",
+      "category": "薪资",
+      "description": "按岗位、地区和公司查询薪资范围，支持公司薪资对比和薪资经验分享。"
+    },
+    {
+      "path": "package-career/pages/skill-pathways/skill-pathways",
+      "name": "技能成长路径",
+      "category": "职业工具",
+      "description": "展示不同岗位方向的技能学习路线、能力拆解和成长建议。"
+    },
+    {
+      "path": "package-career/pages/job-insights/job-insights",
+      "name": "求职趋势洞察",
+      "category": "职业工具",
+      "description": "展示岗位趋势、热门方向、招聘变化和留学生求职观察。"
+    },
+    {
+      "path": "package-career/pages/oa-bank/oa-bank",
+      "name": "OA 题库",
+      "category": "笔试",
+      "description": "展示在线笔试题库、常见算法题、练习统计和刷题入口。"
     }
+  ],
+  "excludedPages": [
+    "pages/profile/profile",
+    "pages/privacy/privacy",
+    "package-user/pages/applications/applications",
+    "package-user/pages/apply-form/apply-form",
+    "package-user/pages/profile-edit/profile-edit",
+    "package-user/pages/favorites/favorites",
+    "package-user/pages/messages/messages",
+    "package-user/pages/my-experiences/my-experiences",
+    "package-user/pages/settings/settings",
+    "package-user/pages/feedback/feedback",
+    "package-user/pages/about/about",
+    "package-user/pages/vip/vip",
+    "package-career/pages/resume/resume",
+    "package-career/pages/career-planner/career-planner",
+    "package-career/pages/project-builder/project-builder",
+    "package-career/pages/offer-compare/offer-compare",
+    "package-career/pages/ats-optimize/ats-optimize",
+    "package-career/pages/networking/networking",
+    "package-ai/pages/ai-assistant/ai-assistant",
+    "package-ai/pages/ai-history/ai-history",
+    "package-ai/pages/ai-report/ai-report",
+    "package-ai/pages/interview-setup/interview-setup",
+    "package-ai/pages/interview-dialog/interview-dialog",
+    "package-ai/pages/audio-review/audio-review",
+    "package-ai/pages/project-review/project-review",
+    "package-ai/pages/daily-brief/daily-brief",
+    "package-content/pages/webview/webview"
   ]
 }

@@ -30,6 +30,8 @@ Page({
     chatList: [],
     userAnswer: '',
     loading: false,
+    loadError: '',
+    errorRequiresLogin: false,
     toView: '',
 
     // 状态控制
@@ -90,6 +92,14 @@ Page({
     }
     this.setData({ maxQDisplay: this.maxQuestions });
 
+    if (!wx.getStorageSync('token')) {
+      this.setData({
+        loadError: '登录后才能开始 AI 模拟面试，请返回完成登录。',
+        errorRequiresLogin: true
+      });
+      return;
+    }
+
     setTimeout(() => {
       this.initInterview();
     }, 100);
@@ -107,6 +117,8 @@ Page({
       questionCount: 0,
       showReport: false,
       loading: true,
+      loadError: '',
+      errorRequiresLogin: false,
       userAnswer: ''
     });
 
@@ -206,10 +218,11 @@ ${firstInstruction}
   callAI: function(history, mode) {
     if (!sendChatToDeepSeek) {
       console.error('API函数未找到，请检查utils/api.js');
-      this.setData({ loading: false });
+      this.setData({ loading: false, loadError: 'AI 服务初始化失败，请返回后重试。' });
       return;
     }
 
+    this._pendingAiRequest = { history, mode };
     sendChatToDeepSeek(history).then(res => {
       // 容错处理：确保 content 存在
       const content = res.choices?.[0]?.message?.content || 'AI 暂时无法响应，请重试。';
@@ -219,11 +232,19 @@ ${firstInstruction}
       } else {
         this.handleResponse(content, mode);
       }
+      this._pendingAiRequest = null;
 
     }).catch(err => {
       console.error('AI请求失败:', err);
-      this.setData({ loading: false });
-      wx.showToast({ title: '网络请求超时', icon: 'none' });
+      const message = (err && err.message) || '';
+      const requiresLogin = /unauthorized|未登录|登录/.test(message);
+      this.setData({
+        loading: false,
+        loadError: requiresLogin
+          ? '登录状态已失效，请返回重新登录后再试。'
+          : 'AI 服务暂时未响应，请检查网络后重试。',
+        errorRequiresLogin: requiresLogin
+      });
     });
   },
 
@@ -446,6 +467,26 @@ ${firstInstruction}
   // --- 6. 交互辅助 ---
   onAnswerInput: function(e) {
     this.setData({ userAnswer: e.detail.value });
+  },
+
+  retryInterview: function() {
+    if (!wx.getStorageSync('token')) {
+      this.backToSetup();
+      return;
+    }
+    if (this._pendingAiRequest) {
+      const { history, mode } = this._pendingAiRequest;
+      this.setData({ loading: true, loadError: '', errorRequiresLogin: false });
+      this.callAI(history, mode);
+      return;
+    }
+    this.initInterview();
+  },
+
+  backToSetup: function() {
+    wx.navigateBack({
+      fail: () => wx.redirectTo({ url: '/package-ai/pages/interview-setup/interview-setup' })
+    });
   },
 
   // --- 7. 语音输入 ---

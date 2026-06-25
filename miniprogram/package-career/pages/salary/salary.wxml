@@ -235,6 +235,11 @@
   <!-- ── 结果卡片 ── -->
   <view class="result-card" wx:if="{{result}}">
 
+    <c-ai-disclosure
+      wx:if="{{result.dataSource === 'ai'}}"
+      text="本次薪资数据与市场说明由人工智能生成，仅供参考，不构成薪酬承诺。"
+    />
+
     <!-- 职位 + 地区 -->
     <view class="result-header">
       <text class="res-title">{{result.title}}</text>
@@ -393,7 +398,7 @@
           <view class="pct-item pct-locked"><text class="pct-label">P75</text><text class="pct-val pct-blur">****</text></view>
           <view class="pct-item pct-locked"><text class="pct-label">P90</text><text class="pct-val pct-blur">****</text></view>
         </view>
-        <view class="vip-lock-bar" bindtap="goVip">
+        <view wx:if="{{membershipEnabled}}" class="vip-lock-bar" bindtap="goVip">
           <text class="vlb-icon">🔒</text>
           <text class="vlb-txt">求职会员权益：P10/P25/P75/P90 完整分位点</text>
           <text class="vlb-btn">查看</text>
@@ -429,7 +434,7 @@
           <view class="tc-item"><view class="tc-dot dot-eq"></view><text class="tc-text">RSU   {{result.tcBreakdown.equityStr}}</text></view>
         </view>
       </block>
-      <view wx:else class="vip-lock-bar" bindtap="goVip">
+      <view wx:else hidden="{{!membershipEnabled}}" class="vip-lock-bar" bindtap="goVip">
         <text class="vlb-icon">🔒</text>
         <text class="vlb-txt">求职会员权益：Base / Bonus / RSU 详细拆分</text>
         <text class="vlb-btn">查看</text>
@@ -470,7 +475,7 @@
         </view>
         <text class="trend-note">* 基于行业平均增长率估算，仅供参考</text>
       </block>
-      <view wx:else class="vip-lock-bar" bindtap="goVip">
+      <view wx:else hidden="{{!membershipEnabled}}" class="vip-lock-bar" bindtap="goVip">
         <text class="vlb-icon">🔒</text>
         <text class="vlb-txt">求职会员权益：5 年薪资涨幅趋势图</text>
         <text class="vlb-btn">查看</text>

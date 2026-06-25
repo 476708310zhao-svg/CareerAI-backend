@@ -1,6 +1,8 @@
 <!-- pages/skill-pathways/skill-pathways.wxml -->
 <view class="page">
 
+  <c-ai-disclosure text="技能路线、学习资源与项目建议由人工智能生成，仅供规划参考。" />
+
   <!-- Hero -->
   <view class="hero">
     <view class="hero-left">

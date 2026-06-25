@@ -24,6 +24,7 @@ Page(Object.assign({
     // 多份简历（T-5）
     isLoggedIn: false,
     isVip: false,
+    membershipEnabled: false,
     currentResumeId: null,
     currentResumeName: '我的简历',
     serverResumes: [],
@@ -75,7 +76,7 @@ Page(Object.assign({
 
   onLoad() {
     const token = wx.getStorageSync('token');
-    this.setData({ isLoggedIn: !!token, isVip: vip.isVip() });
+    this.setData({ isLoggedIn: !!token, isVip: vip.isVip(), membershipEnabled: vip.isMembershipEnabled() });
     if (token) {
       this._syncServerResumes();
       this.loadAttachmentResumes();
@@ -86,13 +87,17 @@ Page(Object.assign({
 
   onShow() {
     const token = wx.getStorageSync('token');
-    this.setData({ isLoggedIn: !!token, isVip: vip.isVip() });
+    this.setData({ isLoggedIn: !!token, isVip: vip.isVip(), membershipEnabled: vip.isMembershipEnabled() });
     if (token) {
       this._syncServerResumes();
       this.loadAttachmentResumes();
     } else {
       this.loadResume();
     }
+  },
+
+  _onFeatureFlagsChange(flags) {
+    this.setData({ membershipEnabled: !!(flags && flags.membership) });
   },
 
   // 从 localStorage 加载简历（未登录时使用）
@@ -211,11 +216,20 @@ Page(Object.assign({
     const vipLevel = vip.isVip() ? 1 : 0;
     // 免费用户限 1 份；权益用户无限（后端限 999）
     if (vipLevel <= 0 && serverResumes.length >= 1) {
+      if (!vip.isMembershipEnabled()) {
+        wx.showModal({
+          title: '暂不支持创建多份简历',
+          content: '当前版本仅支持 1 份在线简历管理。',
+          showCancel: false,
+          confirmText: '知道了'
+        });
+        return;
+      }
       wx.showModal({
         title: '求职会员权益',
         content: '无限创建简历属于求职会员权益，可先查看会员能力说明。',
         confirmText: '查看权益',
-        success: r => { if (r.confirm) wx.navigateTo({ url: '/package-user/pages/vip/vip' }); }
+        success: r => { if (r.confirm) vip.goVip(); }
       });
       return;
     }

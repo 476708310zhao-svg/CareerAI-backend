@@ -6,6 +6,7 @@ const config = require('../../../utils/app-config.js');
 const demoData = require('../../../utils/demo-data.js');
 const { extractSkillTags } = require('../../utils/skill-icons.js');
 const browseHistory = require('../../../utils/browse-history.js');
+const featureFlags = require('../../../utils/feature-flags.js');
 const API_BASE = config.API_BASE_URL;
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
@@ -21,6 +22,7 @@ Page({
   },
 
   onLoad: function(options) {
+    if (!featureFlags.guardRecruitmentPage()) return;
     const jobId = options.id;
     const isSaved = jobId ? favUtil.isFavorited('job', jobId) : false;
     this.setData({ jobId, isSaved });

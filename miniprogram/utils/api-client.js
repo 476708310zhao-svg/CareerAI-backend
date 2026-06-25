@@ -15,6 +15,17 @@ const STALE_TTL        = 24 * 60 * 60 * 1000;   // 过期缓存保留 24 小时�
 
 let _rateLimitUntil = 0;
 
+function _createNetworkError(err) {
+  const detail = err && (err.errMsg || err.message || String(err));
+  const message = /timeout/i.test(detail || '')
+    ? '请求超时，请稍后重试'
+    : '网络连接失败，请检查网络后重试';
+  const error = new Error(message);
+  error.code = 'NETWORK_ERROR';
+  error.detail = detail || '';
+  return error;
+}
+
 function _cacheKey(url, data) {
   const s = url + (data ? JSON.stringify(data) : '');
   let h = 0;
@@ -175,7 +186,7 @@ function _write(options, _retried) {
             _write(options, true).then(resolve).catch(reject);
           }, 1000);
         } else {
-          reject(err);
+          reject(_createNetworkError(err));
         }
       }
     });

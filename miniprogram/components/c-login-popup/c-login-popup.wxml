@@ -19,34 +19,7 @@
       <text class="sheet-subtitle">{{subtitle}}</text>
     </view>
 
-    <!-- 微信一键登录 -->
-    <view class="btn-area" catchtap="onUnagreedTap">
-      <button
-        class="btn btn-wechat {{(!agreed || !wechatPrivacyReady || loadingWechat || loadingPhone) ? 'is-disabled' : ''}}"
-        bindtap="onWechatLogin"
-        loading="{{loadingWechat}}"
-        disabled="{{!agreed || !wechatPrivacyReady || loadingWechat || loadingPhone}}"
-      >
-        <text class="btn-icon">💬</text>
-        <text class="btn-text">微信一键登录</text>
-      </button>
-    </view>
-
-    <!-- 手机号快速验证 -->
-    <view class="btn-area" catchtap="onUnagreedTap">
-      <button
-        class="btn btn-phone {{(!agreed || !wechatPrivacyReady || loadingWechat || loadingPhone) ? 'is-disabled' : ''}}"
-        open-type="getPhoneNumber"
-        bindgetphonenumber="onGetPhoneNumber"
-        loading="{{loadingPhone}}"
-        disabled="{{!agreed || !wechatPrivacyReady || loadingWechat || loadingPhone}}"
-      >
-        <text class="btn-icon">📱</text>
-        <text class="btn-text">手机号快速验证</text>
-      </button>
-    </view>
-
-    <!-- 隐私协议 -->
+    <!-- 先展示授权项，避免在矮屏幕上被按钮和 TabBar 遮住 -->
     <view class="privacy-row" bindtap="toggleAgree">
       <view class="checkbox {{agreed ? 'checked' : ''}}">
         <text wx:if="{{agreed}}" class="check-mark">✓</text>
@@ -67,6 +40,42 @@
           bindagreeprivacyauthorization="onAgreeWechatPrivacy"
         >同意并继续</button>
       </view>
+    </view>
+
+    <!-- 微信一键登录：未授权时仍可点击并得到明确提示 -->
+    <view class="btn-area">
+      <button
+        class="btn btn-wechat {{(!agreed || !wechatPrivacyReady || loadingWechat || loadingPhone) ? 'is-disabled' : ''}}"
+        bindtap="onWechatLogin"
+        loading="{{loadingWechat}}"
+        disabled="{{loadingWechat || loadingPhone}}"
+      >
+        <text class="btn-icon">💬</text>
+        <text class="btn-text">微信一键登录</text>
+      </button>
+    </view>
+
+    <!-- 手机号快速验证 -->
+    <view class="btn-area">
+      <button
+        wx:if="{{agreed && wechatPrivacyReady}}"
+        class="btn btn-phone {{(!agreed || !wechatPrivacyReady || loadingWechat || loadingPhone) ? 'is-disabled' : ''}}"
+        open-type="getPhoneNumber"
+        bindgetphonenumber="onGetPhoneNumber"
+        loading="{{loadingPhone}}"
+        disabled="{{loadingWechat || loadingPhone}}"
+      >
+        <text class="btn-icon">📱</text>
+        <text class="btn-text">手机号快速验证</text>
+      </button>
+      <button
+        wx:else
+        class="btn btn-phone is-disabled"
+        bindtap="onUnagreedTap"
+      >
+        <text class="btn-icon">📱</text>
+        <text class="btn-text">手机号快速验证</text>
+      </button>
     </view>
 
   </view>

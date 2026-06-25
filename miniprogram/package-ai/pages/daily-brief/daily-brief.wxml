@@ -1,6 +1,8 @@
 <!-- pages/daily-brief/daily-brief.wxml -->
 <view class="page">
 
+  <c-ai-disclosure text="求职总结与行动建议由人工智能生成，仅供规划参考。" />
+
   <!-- 顶部日期 Header -->
   <view class="date-header">
     <view class="date-left">

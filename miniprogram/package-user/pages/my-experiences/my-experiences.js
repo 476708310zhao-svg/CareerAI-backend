@@ -14,6 +14,7 @@ Page({
 
     // 发布弹窗
     showPublish: false,
+    aiGeneratedDraft: false,
     publishForm: {
       title: '',
       company: '',
@@ -42,6 +43,7 @@ Page({
       author: item.author || '匿名用户',
       avatar: '/images/default-avatar.png',
       summary: item.subtitle || item.desc || '',
+      isAI: !!item.isAI,
       tags: item.tags || [],
       read: item.read || 0,
       likes: item.likes || 0,
@@ -124,6 +126,7 @@ Page({
           const item = this.data.myPostList[index];
           this.setData({
             showPublish: true,
+            aiGeneratedDraft: !!item.isAI,
             publishForm: {
               title: item.title,
               company: item.company || '',
@@ -159,6 +162,7 @@ Page({
   goToPublish() {
     this.setData({
       showPublish: true,
+      aiGeneratedDraft: false,
       publishForm: { title: '', company: '', type: '面试', tags: '', content: '' },
       _editIndex: -1
     });
@@ -200,6 +204,7 @@ Page({
     const postData = {
       id: Date.now(),
       title: form.title.trim(),
+      isAI: !!this.data.aiGeneratedDraft,
       company: form.company.trim(),
       type: form.type,
       author: profile.nickName || '我',
@@ -257,6 +262,7 @@ Page({
           // 预填充到发布表单
           this.setData({
             showPublish: true,
+            aiGeneratedDraft: true,
             _editIndex: -1,
             publishForm: {
               title: exp.title || companyName + ' 面试经验分享',

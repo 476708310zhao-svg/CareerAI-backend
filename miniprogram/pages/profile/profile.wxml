@@ -25,7 +25,7 @@
         <view class="info-text">
           <view class="name-row">
             <text class="nickname">{{userInfo.nickName}}</text>
-            <view class="vip-badge" wx:if="{{isVip}}">PRO</view>
+            <view class="vip-badge" wx:if="{{isVip}}">会员已开通</view>
             <text class="profile-chevron">›</text>
           </view>
           <text class="school">{{userInfo.school || '点击完善学校信息'}}{{userInfo.major ? ' · ' + userInfo.major : ''}}</text>
@@ -45,16 +45,24 @@
     </view>
   </view>
 
-  <view class="vip-banner" bindtap="goToVip" hover-class="panel-press">
+  <view wx:if="{{membershipEnabled}}" class="vip-banner {{isVip ? 'vip-banner-active' : ''}}" bindtap="goToVip" hover-class="panel-press">
     <view class="vip-left">
       <view class="vip-title-row">
-        <text class="vip-crown">PRO</text>
-        <text class="vip-title">解锁求职进阶能力</text>
+        <text class="vip-crown">{{isVip ? 'VIP' : 'PRO'}}</text>
+        <text class="vip-title">{{isVip ? '会员已生效' : '解锁求职进阶能力'}}</text>
       </view>
-      <text class="vip-desc">简历优化、AI 面试与薪资洞察</text>
+      <text wx:if="{{isVip}}" class="vip-desc">有效期至 {{vipInfo.expireDate || '长期有效'}} · 高级工具已解锁</text>
+      <text wx:else class="vip-desc">简历优化、AI 面试与薪资洞察</text>
+      <view wx:if="{{isVip}}" class="vip-unlocked-row">
+        <text>ATS不限次</text>
+        <text>AI面试</text>
+        <text>薪资高级数据</text>
+      </view>
     </view>
-    <view class="vip-btn">查看权益 ›</view>
+    <view class="vip-btn">{{isVip ? '查看权益 ›' : '去开通 ›'}}</view>
   </view>
+
+  <c-ai-disclosure text="我的页面中的简历优化、AI 面试与智能建议由人工智能生成，仅供求职参考，请核验后使用。" />
 
   <view class="stats-card">
     <view class="stat-item" bindtap="goToFavorites" hover-class="tap-soft">
@@ -157,7 +165,7 @@
         <view class="service-icon service-green"><image class="service-icon-image" src="/images/profile-about.png" mode="aspectFit" /></view>
         <text>关于我们</text>
       </view>
-      <view class="service-item" bindtap="goToVip" hover-class="tile-press">
+      <view wx:if="{{membershipEnabled}}" class="service-item" bindtap="goToVip" hover-class="tile-press">
         <view class="service-icon service-orange"><image class="service-icon-image" src="/images/profile-vip.png" mode="aspectFit" /></view>
         <text>会员权益</text>
       </view>

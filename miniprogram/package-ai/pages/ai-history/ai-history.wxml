@@ -1,6 +1,8 @@
 <!-- pages/ai-history/ai-history.wxml -->
 <view class="container">
 
+  <c-ai-disclosure text="面试评分、点评与复盘建议由人工智能生成，仅供练习参考。" />
+
   <view class="history-hero">
     <view>
       <text class="hero-kicker">AI INTERVIEW</text>

@@ -67,6 +67,11 @@ function warnOptionalGroup(names, label) {
   }
 }
 
+function warnOptionalAny(names, label) {
+  if (names.some(name => !isMissing(name))) return;
+  console.warn(`[env] ${label} is not configured; related production feature should remain disabled.`);
+}
+
 function isFlagEnabled(name, defaultValue = true) {
   const value = envValue(name).toLowerCase();
   if (!value) return defaultValue;
@@ -82,13 +87,25 @@ function validateStartupEnv() {
   requireEnv(['ALLOWED_ORIGIN'], 'browser admin CORS');
   requireEnv(['WX_APP_ID', 'WX_APP_SECRET'], 'WeChat login');
   if (isFlagEnabled('PAYMENT_ENABLED', true)) {
-    requireEnv(['WXPAY_MCH_ID', 'WXPAY_API_KEY', 'WXPAY_APP_ID', 'WXPAY_NOTIFY_URL'], 'WeChat Pay');
+    const paymentProvider = envValue('PAYMENT_PROVIDER').toLowerCase();
+    if (['virtual', 'virtual-pay', 'wechat-virtual', 'wechat_virtual'].includes(paymentProvider)) {
+      requireEnv([
+        'VIRTUAL_PAY_OFFER_ID',
+        'VIRTUAL_PAY_APP_KEY',
+        'VIRTUAL_PAY_MONTH_PRODUCT_ID',
+        'VIRTUAL_PAY_QUARTER_PRODUCT_ID',
+        'VIRTUAL_PAY_YEAR_PRODUCT_ID',
+        'VIRTUAL_PAY_NOTIFY_TOKEN',
+      ], 'WeChat virtual payment');
+    } else {
+      requireEnv(['WXPAY_MCH_ID', 'WXPAY_API_KEY', 'WXPAY_APP_ID', 'WXPAY_NOTIFY_URL'], 'WeChat Pay');
+    }
   }
   requireStrongAdminPassword();
   requireStrongEnv('CRON_SECRET', 'internal task auth', 32);
   requireStrongEnv('WEBHOOK_SECRET', 'deployment webhook', 32);
 
-  warnOptionalGroup(['DEEPSEEK_API_KEY'], 'AI service');
+  warnOptionalAny(['AI_API_KEY', 'ARK_API_KEY', 'VOLCENGINE_API_KEY', 'DOUBAO_API_KEY', 'DEEPSEEK_API_KEY'], 'AI service');
   warnOptionalGroup(['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS'], 'email service');
   warnOptionalGroup(['TENCENT_SECRET_ID', 'TENCENT_SECRET_KEY', 'TENCENT_ASR_APPID'], 'Tencent ASR');
   warnOptionalGroup([
@@ -98,7 +115,13 @@ function validateStartupEnv() {
     'TENCENT_SMS_SIGN_NAME',
     'TENCENT_SMS_TEMPLATE_ID',
   ], 'Tencent SMS');
-  warnOptionalGroup(['WX_TPL_APPLICATION', 'WX_TPL_INTERVIEW', 'WX_TPL_SYSTEM'], 'WeChat subscribe templates');
+  warnOptionalGroup([
+    'WX_TPL_APPLICATION',
+    'WX_TPL_INTERVIEW',
+    'WX_TPL_SYSTEM',
+    'WX_TPL_PAYMENT_SUCCESS',
+    'WX_TPL_PAYMENT_REMINDER',
+  ], 'WeChat subscribe templates');
 }
 
 module.exports = { isMissing, validateStartupEnv, isFlagEnabled };

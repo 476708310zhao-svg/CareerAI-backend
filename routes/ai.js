@@ -1,11 +1,19 @@
 const router = require('express').Router();
-const axios  = require('axios');
 const { aiLimiter } = require('../middleware/rateLimit');
 const { authMiddleware } = require('../middleware/auth');
 const { consumeDailyLimit, requireVip } = require('../utils/aiQuota');
+const { createChatCompletion, streamChatCompletion } = require('../utils/aiClient');
 const db     = require('../db/database');
 
-const DEEPSEEK_URL = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/chat/completions';
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isVipActive(user) {
+  if (!user || user.vip_level <= 0) return false;
+  if (!user.vip_expires_at) return true;
+  return String(user.vip_expires_at).slice(0, 10) >= todayKey();
+}
 
 function aiFail(res, status, message, data) {
   return res.status(status).json({ code: -1, message, data });
@@ -14,6 +22,9 @@ function aiFail(res, status, message, data) {
 function aiErrorResponse(res, err, scope) {
   const status = err.response?.status || 500;
   console.error(`[ai/${scope}]`, status, err.message);
+  if (err.code === 'AI_CONFIG_MISSING') {
+    return aiFail(res, 503, 'AI服务未配置，请稍后再试', { reason: 'config_missing' });
+  }
   if (err.code === 'ECONNABORTED' || /timeout|超时/i.test(err.message)) {
     return aiFail(res, 504, 'AI响应超时，请重试', { reason: 'timeout' });
   }
@@ -148,17 +159,9 @@ router.post('/assistant', authMiddleware, aiLimiter, async (req, res) => {
   res.flushHeaders();
 
   try {
-    const streamRes = await axios.post(
-      DEEPSEEK_URL,
-      { model: 'deepseek-chat', messages: fullMessages, temperature: 0.7, stream: true },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        responseType: 'stream',
-        timeout: 60000
-      }
+    const streamRes = await streamChatCompletion(
+      { messages: fullMessages, temperature: 0.7, stream: true },
+      { timeout: 60000 }
     );
 
     // 直接将 DeepSeek SSE 流透传给客户端
@@ -211,19 +214,13 @@ router.post('/chat', authMiddleware, aiLimiter, async (req, res) => {
   }
 
   try {
-    const result = await axios.post(
-      DEEPSEEK_URL,
+    const result = await createChatCompletion(
       {
-        model: 'deepseek-chat',
         messages,
         temperature: temperature ?? 0.7,
         stream: false
       },
       {
-        headers: {
-          'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
         timeout: 60000   // AI 生成最长等 60 秒
       }
     );
@@ -254,20 +251,14 @@ JSON结构（每个字符串字段控制在20字以内，数组最多3项）：
 {"gap_analysis":{"core_skills":["技能1","技能2","技能3"],"gaps":["差距1","差距2"],"strengths":["优势1","优势2"]},"phases":[{"duration":"3个月","goal":"目标一句话","skills":["技能1","技能2"],"projects":["项目1"],"resume":"简历要点","interview":"面试策略","job_search":"求职策略"},{"duration":"6个月","goal":"","skills":[],"projects":[],"resume":"","interview":"","job_search":""},{"duration":"12个月","goal":"","skills":[],"projects":[],"resume":"","interview":"","job_search":""}],"resources":[{"category":"技术提升","items":["资源1","资源2"]},{"category":"求职平台","items":["平台1","平台2"]}],"milestones":[{"month":1,"focus":"启动重心一句话","actions":["具体行动1","具体行动2"]},{"month":2,"focus":"重心","actions":["行动1","行动2"]},{"month":3,"focus":"重心","actions":["行动1","行动2"]},{"month":6,"focus":"重心","actions":["行动1","行动2"]},{"month":9,"focus":"重心","actions":["行动1","行动2"]},{"month":12,"focus":"重心","actions":["行动1","行动2"]}]}`;
 
   try {
-    const result = await axios.post(
-      DEEPSEEK_URL,
+    const result = await createChatCompletion(
       {
-        model: 'deepseek-chat',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.5,
         max_tokens: 2000,
         stream: false
       },
       {
-        headers: {
-          'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
         timeout: 120000
       }
     );
@@ -319,20 +310,14 @@ router.post('/project-builder', authMiddleware, aiLimiter, async (req, res) => {
 {"title":"项目标题（10字以内）","background":"项目背景（2-3句，说明项目场景、业务问题、你的角色）","methodology":"核心方法（2-3句，使用的方法论/框架/分析流程）","data_sources":["来源1","来源2"],"tech_stack":["技术或工具1","技术或工具2","技术或工具3","技术或工具4"],"key_results":["量化成果1（含具体数字）","量化成果2（含具体数字）","量化成果3（含具体数字）"],"resume_bullet":"一行简历描述（含数字，30字以内，适合直接放入简历）","duration":"项目周期（如：2个月）"}`;
 
   try {
-    const result = await axios.post(
-      DEEPSEEK_URL,
+    const result = await createChatCompletion(
       {
-        model: 'deepseek-chat',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.8,
         max_tokens: 1200,
         stream: false
       },
       {
-        headers: {
-          'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
         timeout: 90000
       }
     );
@@ -408,14 +393,9 @@ router.post('/workflow', authMiddleware, aiLimiter, requireVip('AI 工作流'), 
   ];
 
   try {
-    const result = await axios.post(
-      DEEPSEEK_URL,
-      { model: 'deepseek-chat', messages, temperature: 0.6, stream: false },
+    const result = await createChatCompletion(
+      { messages, temperature: 0.6, stream: false },
       {
-        headers: {
-          'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
         timeout: 30000
       }
     );
@@ -453,7 +433,7 @@ router.post('/ats', authMiddleware, aiLimiter, async (req, res) => {
   // 配额检查（免费3次/天，VIP无限）
   const userId = req.user && req.user.userId;
   const user   = db.prepare('SELECT vip_level, vip_expires_at FROM users WHERE id = ?').get(userId);
-  const vipOk  = user && user.vip_level > 0 && (!user.vip_expires_at || new Date(user.vip_expires_at) >= new Date());
+  const vipOk  = isVipActive(user);
   if (!vipOk) {
     const day  = new Date().toISOString().slice(0, 10);
     const used = db.prepare(
@@ -527,20 +507,14 @@ ${JSON.stringify(slim)}
 - format_issues 最多3条，没有格式问题则返回[]`;
 
   try {
-    const result = await axios.post(
-      DEEPSEEK_URL,
+    const result = await createChatCompletion(
       {
-        model: 'deepseek-chat',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
         max_tokens: 2500,
         stream: false
       },
       {
-        headers: {
-          'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
         timeout: 90000
       }
     );
@@ -588,7 +562,7 @@ router.post('/networking', authMiddleware, aiLimiter, async (req, res) => {
   // 配额：免费5次/天，VIP无限
   const userId = req.user && req.user.userId;
   const user   = db.prepare('SELECT vip_level, vip_expires_at FROM users WHERE id = ?').get(userId);
-  const vipOk  = user && user.vip_level > 0 && (!user.vip_expires_at || new Date(user.vip_expires_at) >= new Date());
+  const vipOk  = isVipActive(user);
   if (!vipOk) {
     const day  = new Date().toISOString().slice(0, 10);
     const used = db.prepare(
@@ -632,20 +606,14 @@ router.post('/networking', authMiddleware, aiLimiter, async (req, res) => {
 }`;
 
   try {
-    const result = await axios.post(
-      DEEPSEEK_URL,
+    const result = await createChatCompletion(
       {
-        model: 'deepseek-chat',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.75,
         max_tokens: 1200,
         stream: false,
       },
       {
-        headers: {
-          'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
         timeout: 60000,
       }
     );

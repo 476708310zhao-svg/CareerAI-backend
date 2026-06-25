@@ -13,6 +13,11 @@
     </view>
   </view>
 
+  <c-ai-disclosure
+    wx:if="{{experience.isAI}}"
+    text="本篇面经由人工智能生成，仅供面试准备参考，不代表真实面试经历。"
+  />
+
   <!-- 2. 标题 -->
   <view class="title-card">
     <text class="exp-title">{{experience.title}}</text>

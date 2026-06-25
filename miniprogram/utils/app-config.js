@@ -27,5 +27,11 @@ module.exports = {
 
   // Keep production surfaces free of demo/mock-looking content. Developers can
   // temporarily enable this in a local build when they need offline fixtures.
-  ENABLE_DEMO_FALLBACK: false
+  ENABLE_DEMO_FALLBACK: false,
+
+  // Used only until the public feature endpoint responds for the first time.
+  DEFAULT_FEATURE_FLAGS: {
+    recruitment: false,
+    membership: true
+  }
 };

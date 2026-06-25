@@ -6,6 +6,7 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const { optionalAuth } = require('./middleware/auth');
+const { requireFeature } = require('./utils/featureFlags');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -48,6 +49,9 @@ app.use(optionalAuth);
 // 静态文件服务（头像、Banner、Logo 等上传文件）。文件名带时间戳/随机串，适合长期缓存。
 const path = require('path');
 const { UPLOAD_DIR } = require('./utils/paths');
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '5m'
+}));
 app.use('/uploads', express.static(UPLOAD_DIR, {
   maxAge: '7d',
   immutable: true
@@ -83,9 +87,13 @@ const glassdoorRoutes   = require('./routes/glassdoor');
 const aggregateRoutes   = require('./routes/aggregate');
 const oaRoutes          = require('./routes/oa');
 const applyRoutes       = require('./routes/apply');
+const featureRoutes     = require('./routes/features');
 
 // 注册路由
-app.use('/api/jobs',         jobRoutes);
+const requireRecruitment = requireFeature('recruitment');
+
+app.use('/api/features',     featureRoutes);
+app.use('/api/jobs',         requireRecruitment, jobRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/experiences',  experienceRoutes);
 app.use('/api/salaries',     salaryRoutes);
@@ -110,9 +118,9 @@ app.use('/api/payment',     paymentRoutes);
 app.use('/api/exchange-rates', exchangeRoutes);
 app.use('/api/countries',     countriesRoutes);
 app.use('/api/glassdoor',     glassdoorRoutes);
-app.use('/api/aggregate',    aggregateRoutes);
+app.use('/api/aggregate',    requireRecruitment, aggregateRoutes);
 app.use('/api/oa',           oaRoutes);
-app.use('/api/apply',        applyRoutes);
+app.use('/api/apply',        requireRecruitment, applyRoutes);
 app.use('/admin',           adminRoutes);
 
 // 管理后台静态文件（需放在 adminRoutes 之后，避免 /admin/api/* 被静态文件拦截）

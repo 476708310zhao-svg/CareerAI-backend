@@ -1,6 +1,8 @@
 <!-- pages/job-insights/job-insights.wxml -->
 <view class="page">
 
+  <c-ai-disclosure text="趋势报告由人工智能基于可用信息生成，请结合最新招聘信息核验。" />
+
   <!-- 顶部 Hero -->
   <view class="hero">
     <view class="hero-icon-box">

@@ -1,6 +1,6 @@
 <view class="search-bar">
   <view class="search-wrap">
-    <text class="search-icon">🔍</text>
+    <icon class="search-icon" type="search" size="15" color="#94A3B8"></icon>
     <input
       class="search-input"
       placeholder="{{placeholder}}"

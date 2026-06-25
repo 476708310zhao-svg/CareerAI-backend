@@ -4,6 +4,7 @@ const demoData = require('../../../utils/demo-data.js');
 const { formatSalaryRange } = require('../../../utils/util.js');
 const safePage = require('../../behaviors/safe-page');
 const { getGlassdoorOverview, getGlassdoorReviews } = require('../../../utils/api-news.js');
+const featureFlags = require('../../../utils/feature-flags.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
 Page({
@@ -12,10 +13,12 @@ Page({
     companyId: '',
     company: null,
     currentTab: 0,
+    recruitmentEnabled: true,
     loading: true,
     jobsLoading: false,
     expLoading: false,
     introLoading: false,   // AI 自动生成公司简介时的 loading
+    introGeneratedByAI: false,
     insightLoading: false,
     insight: null,
     tabs: ['职位', '面经', '薪资', 'AI洞察', '评价'],
@@ -28,9 +31,14 @@ Page({
   },
 
   onLoad(options) {
+    const recruitmentEnabled = featureFlags.isRecruitmentEnabled();
     const id = options.id;
     const name = options.name ? decodeURIComponent(options.name) : '';
-    this.setData({ companyId: id });
+    this.setData({
+      companyId: id,
+      recruitmentEnabled,
+      currentTab: recruitmentEnabled ? 0 : 1
+    });
     this.loadCompanyDetail(id, name);
   },
 
@@ -54,7 +62,7 @@ Page({
       company.initial = this.getCompanyInitial(company.name);
       company.logoFailed = false;
 
-      company.jobs = (company.jobs || []).map(job => ({
+      company.jobs = (this.data.recruitmentEnabled ? company.jobs || [] : []).map(job => ({
         id: job.id,
         title: job.title,
         salary: job.salary || 'Negotiable',
@@ -78,7 +86,7 @@ Page({
       this.setData({ company, loading: false });
       wx.setNavigationBarTitle({ title: company.name });
       if (!company.description) this.fetchAICompanyIntro(company.name);
-      if (!company.jobs.length) this.fetchCompanyJobs(company.name);
+      if (this.data.recruitmentEnabled && !company.jobs.length) this.fetchCompanyJobs(company.name);
       this.loadCachedExperiences(company.name);
       this.fetchGlassdoorOverview(company.name);
     }).catch(() => {
@@ -176,7 +184,7 @@ Page({
     const cacheKey = 'aiIntro_' + companyName;
     const cached = wx.getStorageSync(cacheKey);
     if (cached) {
-      this.setData({ 'company.description': cached });
+      this.setData({ 'company.description': cached, introGeneratedByAI: true });
       return;
     }
 
@@ -188,7 +196,7 @@ Page({
       const intro = res?.choices?.[0]?.message?.content?.trim() || '';
       if (intro) {
         wx.setStorageSync(cacheKey, intro);
-        this._safeSetData({ 'company.description': intro, introLoading: false });
+        this._safeSetData({ 'company.description': intro, introLoading: false, introGeneratedByAI: true });
       } else {
         this._safeSetData({ introLoading: false });
       }

@@ -1,6 +1,8 @@
 <!-- pages/ats-optimize/ats-optimize.wxml -->
 <view class="page">
 
+  <c-ai-disclosure text="ATS 匹配分析与简历优化建议由人工智能生成，仅供参考。" />
+
   <!-- ══ STEP 1：输入 JD ══ -->
   <block wx:if="{{step === 1}}">
     <view class="step-header">

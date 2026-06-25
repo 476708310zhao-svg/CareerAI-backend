@@ -164,6 +164,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     if (!code) return res.status(400).json({ code: -1, message: '缺少 code 参数' });
 
     let openid;
+    let sessionKey = '';
     if (WX_CONFIGURED) {
       const wxRes = await axios.get('https://api.weixin.qq.com/sns/jscode2session', {
         params: { appid: WX_APP_ID, secret: WX_APP_SECRET, js_code: code, grant_type: 'authorization_code' },
@@ -171,6 +172,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       });
       if (wxRes.data.errcode) return res.status(400).json({ code: -1, message: '微信登录失败: ' + wxRes.data.errmsg });
       openid = wxRes.data.openid;
+      sessionKey = wxRes.data.session_key || '';
     } else {
       if (IS_PRODUCTION) {
         return res.status(503).json({ code: -1, message: '微信登录未完成生产配置' });
@@ -184,6 +186,10 @@ router.post('/login', loginLimiter, async (req, res) => {
         'INSERT INTO users (openid) VALUES (?)'
       ).run(openid);
       user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
+    }
+    if (sessionKey) {
+      db.prepare('UPDATE users SET wechat_session_key = ? WHERE id = ?').run(sessionKey, user.id);
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
     }
 
     const token = signToken(user.id, user.openid);
@@ -202,7 +208,7 @@ router.post('/phone-login', loginLimiter, async (req, res) => {
     const { phoneCode, loginCode } = req.body;
     if (!phoneCode || !loginCode) return res.status(400).json({ code: -1, message: '缺少参数' });
 
-    let openid, phone;
+    let openid, phone, sessionKey = '';
 
     if (WX_CONFIGURED) {
       // Exchange loginCode → openid
@@ -212,21 +218,28 @@ router.post('/phone-login', loginLimiter, async (req, res) => {
       });
       if (sessionRes.data.errcode) return res.status(400).json({ code: -1, message: '微信登录失败: ' + sessionRes.data.errmsg });
       openid = sessionRes.data.openid;
+      sessionKey = sessionRes.data.session_key || '';
 
       // Get access token then exchange phoneCode → phone number
       const tokenRes = await axios.get('https://api.weixin.qq.com/cgi-bin/token', {
         params: { grant_type: 'client_credential', appid: WX_APP_ID, secret: WX_APP_SECRET },
         timeout: 8000
       });
-      const accessToken = tokenRes.data.access_token;
-      if (accessToken) {
-        const phoneRes = await axios.post(
-          `https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=${accessToken}`,
-          { code: phoneCode },
-          { timeout: 8000 }
-        );
-        phone = phoneRes.data.phone_info && phoneRes.data.phone_info.phoneNumber;
+      if (tokenRes.data.errcode || !tokenRes.data.access_token) {
+        console.warn('[phone-login token error]', tokenRes.data.errcode, tokenRes.data.errmsg);
+        return res.status(400).json({ code: -1, message: '手机号验证服务暂不可用，请稍后重试' });
       }
+      const accessToken = tokenRes.data.access_token;
+      const phoneRes = await axios.post(
+        `https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=${accessToken}`,
+        { code: phoneCode },
+        { timeout: 8000 }
+      );
+      if (phoneRes.data.errcode || !phoneRes.data.phone_info) {
+        console.warn('[phone-login phone error]', phoneRes.data.errcode, phoneRes.data.errmsg);
+        return res.status(400).json({ code: -1, message: '手机号验证失败，请重新授权' });
+      }
+      phone = phoneRes.data.phone_info.phoneNumber;
     } else {
       if (IS_PRODUCTION) {
         return res.status(503).json({ code: -1, message: '微信手机号登录未完成生产配置' });
@@ -236,6 +249,7 @@ router.post('/phone-login', loginLimiter, async (req, res) => {
     }
 
     if (!openid) return res.status(400).json({ code: -1, message: '获取用户身份失败' });
+    if (!phone) return res.status(400).json({ code: -1, message: '获取手机号失败，请重新授权' });
 
     // Find or create user (prefer openid match, fall back to phone match)
     let user = db.prepare('SELECT * FROM users WHERE openid = ?').get(openid);
@@ -248,6 +262,9 @@ router.post('/phone-login', loginLimiter, async (req, res) => {
       user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
     } else if (phone && !user.phone) {
       db.prepare('UPDATE users SET phone = ? WHERE id = ?').run(phone, user.id);
+    }
+    if (sessionKey) {
+      db.prepare('UPDATE users SET wechat_session_key = ? WHERE id = ?').run(sessionKey, user.id);
     }
     user = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
 

@@ -1,5 +1,4 @@
 // pages/interview-setup/interview-setup.js
-const { sendChatToDeepSeek } = require('../../../utils/api.js');
 const matcher = require('../../../utils/matcher.js');
 const vipUtil = require('../../../utils/vip.js');
 
@@ -34,7 +33,9 @@ Page({
 
     // 题目数量
     questionCounts: [3, 5, 8, 10],
-    selectedCount: 5
+    selectedCount: 5,
+    showLoginPopup: false,
+    pendingStart: false
   },
 
   onLoad() {
@@ -110,12 +111,22 @@ Page({
       return;
     }
 
+    if (!wx.getStorageSync('token')) {
+      this.setData({ showLoginPopup: true, pendingStart: true });
+      return;
+    }
+
+    this._openInterview({ selectedType, companyInput, positionInput, selectedDifficulty, selectedCount });
+  },
+
+  _openInterview(selections) {
+    const { selectedType, companyInput, positionInput, selectedDifficulty, selectedCount } = selections;
     if (!vipUtil.checkDailyLimit('ai_interview', 2, 'AI面试')) {
       return;
     }
 
     // 构建面试参数，传递给面试对话页
-    const params = {
+    const navigationParams = {
       type: selectedType,
       company: companyInput || '未指定公司',
       position: positionInput,
@@ -123,7 +134,9 @@ Page({
       questionCount: selectedCount
     };
 
-    const query = Object.keys(params).map(k => `${k}=${encodeURIComponent(params[k])}`).join('&');
+    const query = Object.keys(navigationParams)
+      .map(k => `${k}=${encodeURIComponent(navigationParams[k])}`)
+      .join('&');
 
     wx.navigateTo({
       url: `/package-ai/pages/interview-dialog/interview-dialog?${query}`,
@@ -132,5 +145,15 @@ Page({
         wx.showToast({ title: '打开面试页失败，请重试', icon: 'none' });
       }
     });
+  },
+
+  onLoginPopupClose() {
+    this.setData({ showLoginPopup: false, pendingStart: false });
+  },
+
+  onLoginSuccess() {
+    const shouldStart = this.data.pendingStart;
+    this.setData({ showLoginPopup: false, pendingStart: false });
+    if (shouldStart) this.startInterview();
   }
 });

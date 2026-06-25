@@ -1,6 +1,8 @@
 <!-- pages/audio-review/audio-review.wxml -->
 <view class="page">
 
+  <c-ai-disclosure text="录音转录后的评分与表达建议由人工智能生成，仅供练习参考。" />
+
   <!-- Hero -->
   <view class="hero">
     <view class="hero-left">

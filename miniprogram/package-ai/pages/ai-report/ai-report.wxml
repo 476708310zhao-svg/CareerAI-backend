@@ -17,6 +17,11 @@
     </view>
   </view>
 
+  <view class="ai-generated-notice">
+    <text class="ai-generated-badge">AI生成</text>
+    <text class="ai-generated-text">本报告由人工智能生成，仅供面试练习与自我提升参考</text>
+  </view>
+
   <!-- 2. Tab 切换 -->
   <view class="report-tabs">
     <view class="rtab {{activeTab === 0 ? 'active' : ''}}" bindtap="switchTab" data-index="0">能力分析</view>

@@ -64,6 +64,7 @@ Page({
 
     // VIP 状态
     isVip: false,
+    membershipEnabled: false,
 
     // 历史查询记录
     historyList: [],
@@ -81,7 +82,10 @@ Page({
   },
 
   _syncVipState: function() {
-    this.setData({ isVip: this._readVipState() });
+    this.setData({
+      isVip: this._readVipState(),
+      membershipEnabled: vipUtil.isMembershipEnabled()
+    });
     const token = wx.getStorageSync('token');
     if (!token) return;
 
@@ -94,8 +98,15 @@ Page({
         vipExpiresAt: user.vipExpiresAt || user.vip_expires_at || '',
         vip_expires_at: user.vip_expires_at || user.vipExpiresAt || ''
       }));
-      this.setData({ isVip: this._readVipState() });
+      this.setData({
+        isVip: this._readVipState(),
+        membershipEnabled: vipUtil.isMembershipEnabled()
+      });
     }).catch(() => {});
+  },
+
+  _onFeatureFlagsChange: function(flags) {
+    this.setData({ membershipEnabled: !!(flags && flags.membership) });
   },
 
   onLoad: function() {
@@ -109,7 +120,7 @@ Page({
   },
 
   goVip: function() {
-    wx.navigateTo({ url: '/package-user/pages/vip/vip' });
+    vipUtil.goVip();
   },
 
   _resetForm: function() {

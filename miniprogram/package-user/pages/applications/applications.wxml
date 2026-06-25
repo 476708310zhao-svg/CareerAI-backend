@@ -126,6 +126,7 @@
   </view>
 
   <!-- Offer AI 对比横幅 -->
+  <c-ai-disclosure wx:if="{{stats.offer >= 2}}" text="Offer 对比分析由人工智能生成，仅供求职决策参考，不构成职业或财务建议。" />
   <view class="offer-compare-banner" wx:if="{{stats.offer >= 2}}" hover-class="card-press" hover-stay-time="80" bindtap="goToOfferCompare">
     <view class="ocb-left">
       <text class="ocb-icon">AI</text>

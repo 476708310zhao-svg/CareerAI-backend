@@ -36,10 +36,10 @@
     <view class="intel-head">
       <text class="intel-kicker">Company Intelligence</text>
       <text class="intel-title">名企情报工作台</text>
-      <text class="intel-sub">把公司背景、在招岗位、面试风格和薪资信息集中到一个决策页。</text>
+      <text class="intel-sub">{{recruitmentEnabled ? '把公司背景、在招岗位、面试风格和薪资信息集中到一个决策页。' : '把公司背景、面试风格和薪资信息集中到一个决策页。'}}</text>
     </view>
     <view class="intel-grid">
-      <view class="intel-card" bindtap="switchTab" data-index="0">
+      <view wx:if="{{recruitmentEnabled}}" class="intel-card" bindtap="switchTab" data-index="0">
         <text class="intel-num">{{company.jobs.length || 0}}</text>
         <text class="intel-label">在招职位</text>
       </view>
@@ -61,6 +61,10 @@
       <text class="intro-loading-text">✨ AI 正在生成简介...</text>
     </view>
     <text wx:else class="desc-text">{{company.description || '暂无公司介绍'}}</text>
+    <c-ai-disclosure
+      wx:if="{{introGeneratedByAI}}"
+      text="本公司简介由人工智能基于公开信息生成，请以公司官方信息为准。"
+    />
     <view class="info-row">
       <view class="info-item">
         <text class="info-label">成立时间</text>
@@ -81,6 +85,7 @@
   <view class="tab-bar">
     <block wx:for="{{tabs}}" wx:key="*this">
       <view
+        wx:if="{{recruitmentEnabled || index !== 0}}"
         class="tab-item {{currentTab === index ? 'active' : ''}}"
         bindtap="switchTab"
         data-index="{{index}}"
@@ -89,7 +94,7 @@
   </view>
 
   <!-- Tab 内容: 职位 (JSearch API) -->
-  <view wx:if="{{currentTab === 0}}" class="tab-content">
+  <view wx:if="{{recruitmentEnabled && currentTab === 0}}" class="tab-content">
     <view class="tab-section-head">
       <view>
         <text class="tab-section-kicker">Open Roles</text>
@@ -116,6 +121,7 @@
 
   <!-- Tab 内容: 面经 (DeepSeek AI) -->
   <view wx:if="{{currentTab === 1}}" class="tab-content">
+    <c-ai-disclosure text="带“AI生成”标识的面经由人工智能生成，仅供面试准备参考。" />
     <view class="ai-exp-bar">
       <view class="ai-exp-btn {{expLoading ? 'disabled' : ''}}" bindtap="aiGenerateExperience">
         <text wx:if="{{!expLoading}}">AI 生成最新面经</text>
@@ -126,7 +132,7 @@
       <view class="exp-card ux-list-card" bindtap="goToExperienceDetail" data-id="{{item.id}}">
         <view class="exp-title-row">
           <text class="exp-title">{{item.title}}</text>
-          <text class="ai-tag" wx:if="{{item.isAI}}">AI</text>
+          <text class="ai-tag" wx:if="{{item.isAI}}">AI生成</text>
         </view>
         <view class="exp-meta">
           <text class="exp-type">{{item.type}} {{item.round}}</text>
@@ -160,6 +166,7 @@
 
   <!-- Tab 内容: AI洞察 -->
   <view wx:if="{{currentTab === 3}}" class="tab-content insight-tab-content">
+    <c-ai-disclosure text="公司洞察、面试题与求职建议由人工智能生成，请结合官方信息核验。" />
     <view class="tab-section-head">
       <view>
         <text class="tab-section-kicker">AI Insight</text>
@@ -343,7 +350,8 @@
         <text>↗</text>
       </button>
     </view>
-    <view class="footer-primary ux-main-cta" bindtap="focusCompanyJobs">查看在招岗位</view>
+    <view wx:if="{{recruitmentEnabled}}" class="footer-primary ux-main-cta" bindtap="focusCompanyJobs">查看在招岗位</view>
+    <view wx:else class="footer-primary ux-main-cta" bindtap="switchTab" data-index="1">查看面经</view>
   </view>
 
 </view>

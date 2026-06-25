@@ -3,6 +3,36 @@
 
 const { request, post, put } = require('./api-client.js');
 
+function isVipActive(vipLevel, expireDate) {
+  if (Number(vipLevel || 0) <= 0) return false;
+  if (!expireDate) return true;
+  const today = new Date();
+  const todayStr = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, '0'),
+    String(today.getDate()).padStart(2, '0')
+  ].join('-');
+  return String(expireDate).slice(0, 10) >= todayStr;
+}
+
+function syncVipSession(user) {
+  const u = user || {};
+  const vipLevel = u.vipLevel || u.vip_level || 0;
+  const expireDate = u.vipExpiresAt || u.vip_expires_at || '';
+  const current = wx.getStorageSync('vipInfo') || {};
+
+  if (isVipActive(vipLevel, expireDate)) {
+    wx.setStorageSync('vipInfo', Object.assign({}, current, {
+      isVip: true,
+      planName: current.planName || 'VIP',
+      expireDate,
+      purchaseDate: current.purchaseDate || ''
+    }));
+  } else if (current.isVip) {
+    wx.setStorageSync('vipInfo', Object.assign({}, current, { isVip: false }));
+  }
+}
+
 function persistUserSession(user) {
   const u = user || {};
   const profile = {
@@ -20,6 +50,7 @@ function persistUserSession(user) {
     vipExpiresAt: u.vipExpiresAt || u.vip_expires_at || '',
     vip_expires_at: u.vip_expires_at || u.vipExpiresAt || ''
   }));
+  syncVipSession(u);
   return profile;
 }
 

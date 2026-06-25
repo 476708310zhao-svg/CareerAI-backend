@@ -1106,3 +1106,15 @@ page,
   font-weight: 850;
   box-sizing: border-box;
 }
+
+.ai-generated-label {
+  margin: 0 0 8rpx 4rpx;
+  padding: 5rpx 10rpx;
+  align-self: flex-start;
+  border-radius: 9rpx;
+  color: #ffffff;
+  background: #2563eb;
+  font-size: 20rpx;
+  font-weight: 900;
+  line-height: 1.2;
+}

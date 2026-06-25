@@ -4,7 +4,7 @@
 .popup-root {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: 20000;
 }
 
 /* ── 遮罩 ── */
@@ -29,6 +29,9 @@
   background: #ffffff;
   border-radius: 36rpx 36rpx 0 0;
   padding: 0 48rpx calc(env(safe-area-inset-bottom) + 56rpx);
+  max-height: calc(100vh - 24rpx);
+  overflow-y: auto;
+  box-sizing: border-box;
   animation: slideUp 0.28s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
@@ -138,7 +141,7 @@
 .privacy-row {
   display: flex;
   align-items: center;
-  margin-top: 32rpx;
+  margin: 0 0 28rpx;
   padding: 4rpx 0;
 }
 

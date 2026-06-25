@@ -275,6 +275,41 @@ function checkWxmlRiskyExpressions() {
   }
 }
 
+function checkReviewCompliance() {
+  const issues = [];
+  const readMini = rel => fs.readFileSync(path.join(MINI_ROOT, rel), 'utf8');
+  const loginWxml = readMini('components/c-login-popup/c-login-popup.wxml');
+  const loginWxss = readMini('components/c-login-popup/c-login-popup.wxss');
+  const tabWxss = readMini('custom-tab-bar/index.wxss');
+
+  const popupZ = Number((loginWxss.match(/\.popup-root\s*\{[\s\S]*?z-index:\s*(\d+)/) || [])[1] || 0);
+  const tabZ = Number((tabWxss.match(/\.custom-tabbar\s*\{[\s\S]*?z-index:\s*(\d+)/) || [])[1] || 0);
+  if (popupZ <= tabZ) {
+    issues.push(`login popup z-index (${popupZ}) must stay above custom tab bar (${tabZ})`);
+  }
+  if (loginWxml.indexOf('class="privacy-row"') > loginWxml.indexOf('btn-wechat')) {
+    issues.push('login consent row must appear before login buttons on short screens');
+  }
+  if (!/bindtap="onWechatLogin"[\s\S]*?disabled="\{\{loadingWechat \|\| loadingPhone\}\}"/.test(loginWxml)) {
+    issues.push('WeChat login button must remain tappable before consent so it can show guidance');
+  }
+
+  for (const rel of [
+    'package-ai/pages/ai-assistant/ai-assistant.wxml',
+    'package-ai/pages/interview-setup/interview-setup.wxml',
+    'package-ai/pages/interview-dialog/interview-dialog.wxml',
+    'package-ai/pages/ai-report/ai-report.wxml',
+  ]) {
+    if (!readMini(rel).includes('AI生成')) {
+      issues.push(`${rel}: missing visible AI生成 disclosure`);
+    }
+  }
+
+  if (issues.length) {
+    fail(`[miniprogram] review compliance checks failed:\n${issues.map(item => `  - ${item}`).join('\n')}`);
+  }
+}
+
 function normalizeAppPath(value) {
   return String(value || '').replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '');
 }
@@ -522,6 +557,7 @@ checkRelativeRequires();
 checkCommonPathMistakes();
 checkDemoDataBoundary();
 checkWxmlRiskyExpressions();
+checkReviewCompliance();
 checkAgentSkillManifests();
 checkMediaAssetSizes();
 reportPackageSizes();

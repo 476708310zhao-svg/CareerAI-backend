@@ -7,6 +7,11 @@
     <text class="page-subtitle">选择你的面试场景，开始模拟练习</text>
   </view>
 
+  <view class="ai-disclosure">
+    <text class="ai-disclosure-badge">AI生成</text>
+    <text class="ai-disclosure-text">面试问题、点评与报告由人工智能生成，仅供练习参考</text>
+  </view>
+
   <!-- 个性化预填提示 -->
   <view class="profile-hint" wx:if="{{profileHint}}">
     <text class="hint-icon">✨</text>
@@ -110,5 +115,12 @@
   <view class="footer-bar">
     <c-button bindtap="startInterview">开始模拟面试</c-button>
   </view>
+
+  <c-login-popup
+    show="{{showLoginPopup}}"
+    subtitle="登录后开始 AI 模拟面试"
+    bind:close="onLoginPopupClose"
+    bind:success="onLoginSuccess"
+  />
 
 </view>

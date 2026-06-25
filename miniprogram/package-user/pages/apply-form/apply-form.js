@@ -1,5 +1,6 @@
 ﻿// pages/apply-form/apply-form.js
 const { getMyPdfs, deletePdf, fetchApplyForm, submitApply, uploadPdf } = require('../../utils/api-apply');
+const featureFlags = require('../../../utils/feature-flags.js');
 
 function extractSourceJobId(source, applyUrl) {
   if (!applyUrl) return '';
@@ -40,6 +41,7 @@ Page({
   },
 
   onLoad(query) {
+    if (!featureFlags.guardRecruitmentPage()) return;
     const source  = query.source  || '';
     const slug    = query.slug    || '';
     const jobId   = query.jobId   || '';

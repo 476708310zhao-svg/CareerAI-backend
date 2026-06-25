@@ -1,8 +1,112 @@
 {
-  "desc": "关于本文件的更多信息，请参考文档 https://developers.weixin.qq.com/miniprogram/dev/framework/sitemap.html",
+  "desc": "微信小程序页面内容接入与搜索收录配置。只允许公开内容页，个人资料、消息、收藏、支付、编辑和 AI 会话等私域页面不参与收录。",
   "rules": [
     {
       "action": "allow",
+      "page": "pages/index/index"
+    },
+    {
+      "action": "allow",
+      "page": "pages/jobs/jobs"
+    },
+    {
+      "action": "allow",
+      "page": "package-user/pages/job-detail/job-detail",
+      "params": ["id"],
+      "matching": "inclusive"
+    },
+    {
+      "action": "allow",
+      "page": "pages/experiences/experiences"
+    },
+    {
+      "action": "allow",
+      "page": "package-content/pages/experience-detail/experience-detail",
+      "params": ["id"],
+      "matching": "inclusive"
+    },
+    {
+      "action": "allow",
+      "page": "package-content/pages/question-detail/question-detail",
+      "params": ["id"],
+      "matching": "inclusive"
+    },
+    {
+      "action": "allow",
+      "page": "package-content/pages/star-library/star-library"
+    },
+    {
+      "action": "allow",
+      "page": "pages/campus/campus"
+    },
+    {
+      "action": "allow",
+      "page": "package-content/pages/campus-detail/campus-detail",
+      "params": ["id"],
+      "matching": "inclusive"
+    },
+    {
+      "action": "allow",
+      "page": "pages/agencies/agencies"
+    },
+    {
+      "action": "allow",
+      "page": "package-agency/pages/agency-detail/agency-detail",
+      "params": ["id"],
+      "matching": "inclusive"
+    },
+    {
+      "action": "allow",
+      "page": "package-agency/pages/agency-compare/agency-compare",
+      "params": ["ids"],
+      "matching": "inclusive"
+    },
+    {
+      "action": "allow",
+      "page": "package-content/pages/news/news"
+    },
+    {
+      "action": "allow",
+      "page": "package-content/pages/news-detail/news-detail",
+      "params": ["id"],
+      "matching": "inclusive"
+    },
+    {
+      "action": "allow",
+      "page": "package-content/pages/bigtech-jobs/bigtech-jobs"
+    },
+    {
+      "action": "allow",
+      "page": "package-user/pages/companies/companies"
+    },
+    {
+      "action": "allow",
+      "page": "package-user/pages/company-detail/company-detail",
+      "params": ["id", "name"],
+      "matching": "inclusive"
+    },
+    {
+      "action": "allow",
+      "page": "package-user/pages/search/search"
+    },
+    {
+      "action": "allow",
+      "page": "package-career/pages/salary/salary"
+    },
+    {
+      "action": "allow",
+      "page": "package-career/pages/skill-pathways/skill-pathways"
+    },
+    {
+      "action": "allow",
+      "page": "package-career/pages/job-insights/job-insights"
+    },
+    {
+      "action": "allow",
+      "page": "package-career/pages/oa-bank/oa-bank"
+    },
+    {
+      "action": "disallow",
       "page": "*"
     }
   ]

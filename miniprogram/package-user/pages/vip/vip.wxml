@@ -1,160 +1,120 @@
-<view class="vip-page">
-  <view id="top" class="page-shell">
+<view wx:if="{{membershipEnabled}}" class="vip-page">
+  <view class="page-shell">
     <view class="hero">
       <view class="hero-head">
-        <text class="hero-kicker">CAREER AI ACCELERATOR</text>
-        <text class="hero-badge">留学生求职加速器</text>
+        <text class="hero-kicker">CAREER PRO</text>
+        <text class="hero-badge">留学生求职会员</text>
       </view>
-      <text class="hero-title">AI 求职会员权益</text>
-      <text class="hero-subtitle">从简历优化、模拟面试到自动化求职，让 AI 成为你的专属求职助手。</text>
+      <text class="hero-title">把求职准备做成一套流程</text>
+      <text class="hero-subtitle">简历、面试、项目经历与 Offer 分析统一提效，适合集中投递和面试冲刺。</text>
 
-      <view class="workflow-visual">
-        <view class="resume-card">
-          <text class="mini-label">RESUME</text>
-          <view class="avatar-line">
-            <view class="avatar-dot"></view>
-            <view class="line-stack">
-              <view></view>
-              <view></view>
-              <view></view>
-            </view>
+      <view class="hero-flow">
+        <view class="flow-node active">
+          <text class="flow-icon">简</text>
+          <text class="flow-title">简历优化</text>
+        </view>
+        <view class="flow-line"></view>
+        <view class="flow-node">
+          <text class="flow-icon">面</text>
+          <text class="flow-title">模拟面试</text>
+        </view>
+        <view class="flow-line"></view>
+        <view class="flow-node">
+          <text class="flow-icon">策</text>
+          <text class="flow-title">Offer 决策</text>
+        </view>
+      </view>
+    </view>
+
+    <c-ai-disclosure text="会员权益中的 AI 内容仅供求职参考，关键信息请结合自身情况核验。" />
+
+    <view class="pricing-panel">
+      <view class="section-head">
+        <view class="section-icon price-icon">¥</view>
+        <view class="section-copy">
+          <text class="section-title">选择会员套餐</text>
+          <text class="section-subtitle">支付后自动开通，权益状态可在服务端校验。</text>
+        </view>
+      </view>
+
+      <view class="pricing-grid">
+        <view
+          wx:for="{{plans}}"
+          wx:key="id"
+          class="price-card {{selectedPlanId === item.id ? 'active' : ''}} {{item.disabled ? 'disabled' : ''}}"
+          data-plan-id="{{item.id}}"
+          bindtap="selectPlan"
+          hover-class="price-card-press"
+        >
+          <view class="price-card-head">
+            <text class="price-name">{{item.name}}</text>
+            <text wx:if="{{item.badgeText}}" class="price-tag {{item.disabled ? 'muted' : ''}}">{{item.badgeText}}</text>
           </view>
-          <view class="resume-row"></view>
-          <view class="resume-row short"></view>
-        </view>
-
-        <view class="match-lens">
-          <text>岗位匹配</text>
-        </view>
-
-        <view class="interview-card">
-          <text class="mini-label blue">模拟面试</text>
-          <view class="bubble">
-            <text>•••</text>
+          <view class="price-main">
+            <text class="price-symbol">¥</text>
+            <text class="price-value">{{item.price}}</text>
           </view>
-        </view>
-
-        <view class="check-card">
-          <view><text>✓</text><view></view></view>
-          <view><text>✓</text><view></view></view>
-          <view><text>✓</text><view></view></view>
-        </view>
-
-        <view class="flow-line">
-          <view class="step active"><text>找岗</text></view>
-          <view class="step"><text>优化</text></view>
-          <view class="step"><text>网申</text></view>
-          <view class="step"><text>面试</text></view>
-          <view class="done-check">✓</view>
+          <text class="price-unit">{{item.unit}}</text>
+          <text class="price-desc">{{item.displayDesc}}</text>
         </view>
       </view>
     </view>
 
     <view class="benefits-panel">
-      <view class="section-title-row">
-        <view class="spark"></view>
-        <text class="section-title">六大核心会员权益</text>
+      <view class="section-head">
+        <view class="section-icon benefit-icon">+</view>
+        <view class="section-copy">
+          <text class="section-title">会员权益</text>
+          <text class="section-subtitle">少解释，多帮你把求职动作往前推。</text>
+        </view>
       </view>
-      <text class="section-subtitle">不是增加更多工具，而是提供一套完整的 AI 求职操作系统。</text>
 
       <view class="benefit-grid">
         <view class="benefit-card">
-          <view class="benefit-num">01</view>
-          <view class="benefit-icon dots">•••</view>
-          <view class="benefit-copy">
-            <text class="benefit-title">无限 AI 模拟面试</text>
-            <text class="benefit-desc">根据目标岗位生成真实追问，提供评分、复盘与改进建议。</text>
-          </view>
+          <text class="benefit-num">01</text>
+          <text class="benefit-title">AI 面试训练</text>
+          <text class="benefit-desc">按目标岗位练习追问与复盘。</text>
         </view>
-
         <view class="benefit-card">
-          <view class="benefit-num">02</view>
-          <view class="benefit-icon doc">JD</view>
-          <view class="benefit-copy">
-            <text class="benefit-title">JD 定制简历优化</text>
-            <text class="benefit-desc">提炼个人亮点、量化成果，针对不同岗位生成多版本简历。</text>
-          </view>
+          <text class="benefit-num">02</text>
+          <text class="benefit-title">JD 定制简历</text>
+          <text class="benefit-desc">突出匹配点、量化成果。</text>
         </view>
-
         <view class="benefit-card">
-          <view class="benefit-num">03</view>
-          <view class="benefit-icon calendar">90</view>
-          <view class="benefit-copy">
-            <text class="benefit-title">30 / 60 / 90 天求职路线</text>
-            <text class="benefit-desc">拆解阶段目标、关键动作与时间节点，让求职更有节奏。</text>
-          </view>
+          <text class="benefit-num">03</text>
+          <text class="benefit-title">求职节奏规划</text>
+          <text class="benefit-desc">拆出 30/60/90 天行动表。</text>
         </view>
-
         <view class="benefit-card">
-          <view class="benefit-num">04</view>
-          <view class="benefit-icon layers">AI</view>
-          <view class="benefit-copy">
-            <text class="benefit-title">AI 项目经历生成</text>
-            <text class="benefit-desc">围绕目标岗位生成可落地的练手项目与作品集框架。</text>
-          </view>
+          <text class="benefit-num">04</text>
+          <text class="benefit-title">项目经历优化</text>
+          <text class="benefit-desc">把经历包装成可讲故事。</text>
         </view>
-
         <view class="benefit-card">
-          <view class="benefit-num">05</view>
-          <view class="benefit-icon balance">Offer</view>
-          <view class="benefit-copy">
-            <text class="benefit-title">Offer 多维决策助手</text>
-            <text class="benefit-desc">综合对比薪资、成长空间、签证支持与长期发展机会。</text>
-          </view>
+          <text class="benefit-num">05</text>
+          <text class="benefit-title">Offer 分析</text>
+          <text class="benefit-desc">对比薪资、成长和风险。</text>
         </view>
-
         <view class="benefit-card">
-          <view class="benefit-num">06</view>
-          <view class="benefit-icon agent">Agent</view>
-          <view class="benefit-copy">
-            <text class="benefit-title">AI 求职 Agent 工作流</text>
-            <text class="benefit-desc">串联找岗、岗位匹配、简历优化、网申与面试准备。</text>
-          </view>
+          <text class="benefit-num">06</text>
+          <text class="benefit-title">Agent 工作流</text>
+          <text class="benefit-desc">串联找岗、优化、面试准备。</text>
         </view>
       </view>
+    </view>
 
-      <view class="compare-section">
-        <view class="section-title-row small">
-          <view class="bars">
-            <view></view><view></view><view></view>
-          </view>
-          <text class="compare-title">免费版 VS 会员版</text>
-        </view>
-        <view class="compare-cards">
-          <view class="free-card">
-            <text class="plan-title">免费版</text>
-            <text class="plan-item muted">✓ 每月 1 次模拟面试</text>
-            <text class="plan-item muted">✓ 1 份基础简历</text>
-            <text class="plan-item muted">✓ 基础节点提醒</text>
-            <text class="plan-item muted">✓ 单点 AI 工具</text>
-          </view>
-
-          <view class="vs-badge">VS</view>
-
-          <view class="member-card">
-            <text class="plan-title light">会员版</text>
-            <text class="plan-item">✓ 无限模拟面试与复盘</text>
-            <text class="plan-item">✓ 多岗位 JD 定制简历</text>
-            <text class="plan-item">✓ AI 项目经历生成</text>
-            <text class="plan-item">✓ Offer 多维决策分析</text>
-            <text class="plan-item">✓ 关键节点与行动建议</text>
-            <text class="plan-item">✓ Agent 串联完整求职流程</text>
-          </view>
+    <view class="use-panel">
+      <view class="section-head compact">
+        <view class="section-icon use-icon">✓</view>
+        <view class="section-copy">
+          <text class="section-title">适合这些阶段</text>
         </view>
       </view>
-
-      <view class="audience-section">
-        <view class="section-title-row small">
-          <view class="people-icon"></view>
-          <text class="audience-title">适合哪些求职人群？</text>
-        </view>
-        <view class="audience-chips">
-          <view class="audience-chip">北美留学生</view>
-          <view class="audience-chip">英国工签求职</view>
-          <view class="audience-chip">大厂校招</view>
-          <view class="audience-chip">转专业求职</view>
-          <view class="audience-chip">海外实习</view>
-        </view>
+      <view class="audience-chips">
+        <view class="audience-chip">集中投递</view>
+        <view class="audience-chip">面试准备</view>
+        <view class="audience-chip">简历重写</view>
+        <view class="audience-chip">Offer 选择</view>
       </view>
     </view>
   </view>
@@ -163,17 +123,17 @@
 
   <view class="member-footer">
     <view class="footer-main" bindtap="handlePay" hover-class="footer-press">
-      <view class="member-card-icon">
-        <text class="member-card-crown">冠</text>
+      <view class="vip-mark">
+        <text>VIP</text>
       </view>
       <view class="footer-copy">
-        <text class="footer-title">查看会员权益</text>
-        <text class="footer-subtitle">开通入口筹备中，当前不产生支付</text>
+        <text class="footer-title">{{paying ? '正在开通...' : '解锁会员权益'}}</text>
+        <text class="footer-subtitle">{{paymentAvailable ? selectedPlanName + ' ¥' + selectedPlanPrice + ' · 支付后生效' : paymentReason}}</text>
       </view>
     </view>
 
-    <view class="benefit-pill" catchtap="scrollToTop" hover-class="pill-press">
-      <text>查看会员权益</text>
+    <view class="benefit-pill" catchtap="handlePay" hover-class="pill-press">
+      <text>{{paying ? '请稍候' : '确认开通'}}</text>
       <text class="pill-arrow">›</text>
     </view>
   </view>

@@ -1,6 +1,8 @@
 <!-- pages/career-planner/career-planner.wxml -->
 <view class="page">
 
+  <c-ai-disclosure text="职业路线与阶段行动建议由人工智能生成，请结合个人情况核验。" />
+
   <!-- ══ 输入步骤 ══ -->
   <view wx:if="{{step === 'input'}}" class="input-page">
 

@@ -137,6 +137,8 @@
   ══════════════════════════════════════════════════ -->
   <view wx:if="{{activeTab === 'ai'}}">
 
+    <c-ai-disclosure text="机构测评由人工智能基于公开信息生成，不代表机构官方意见，不构成消费建议。" />
+
     <!-- 生成中 loading -->
     <view class="ai-loading-card" wx:if="{{aiLoading}}">
       <view class="spinner"></view>

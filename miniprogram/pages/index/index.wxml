@@ -1,7 +1,7 @@
 <view class="page">
 
   <!-- 搜索框 -->
-  <view class="search-wrap" bindtap="goToJobSearch">
+  <view wx:if="{{recruitmentEnabled}}" class="search-wrap" bindtap="goToJobSearch">
     <image src="/images/search.png" class="search-icon"></image>
     <text class="search-text">搜索职位、公司或面经</text>
   </view>
@@ -76,7 +76,7 @@
     </view>
   </view>
 
-  <view class="pro-teaser" bindtap="navigateToPage" data-url="/package-user/pages/vip/vip" hover-class="opacity-hover">
+  <view wx:if="{{membershipEnabled}}" class="pro-teaser" bindtap="navigateToPage" data-url="/package-user/pages/vip/vip" hover-class="opacity-hover">
     <view class="pro-mark">PRO</view>
     <view class="pro-copy">
       <text class="pro-title">求职会员权益</text>
@@ -91,7 +91,7 @@
         <text class="career-loop-kicker">Career Loop</text>
         <text class="career-loop-title">从准备到录用，按这条路径推进</text>
       </view>
-      <view class="career-loop-badge">4 steps</view>
+      <view class="career-loop-badge">{{recruitmentEnabled ? '4' : '3'}} steps</view>
     </view>
     <view class="career-loop-steps">
       <view class="career-loop-step" bindtap="navigateToPage" data-url="/package-career/pages/career-planner/career-planner" hover-class="opacity-hover">
@@ -106,7 +106,7 @@
         <text class="loop-step-desc">完善亮点</text>
         <text class="loop-step-arrow">›</text>
       </view>
-      <view class="career-loop-step" bindtap="navigateToPage" data-url="/pages/jobs/jobs" hover-class="opacity-hover">
+      <view wx:if="{{recruitmentEnabled}}" class="career-loop-step" bindtap="navigateToPage" data-url="/pages/jobs/jobs" hover-class="opacity-hover">
         <text class="loop-step-index">03</text>
         <text class="loop-step-title">岗位匹配</text>
         <text class="loop-step-desc">推荐机会</text>
@@ -159,7 +159,7 @@
   </view>
 
   <!-- 今日热门 -->
-  <view class="section">
+  <view wx:if="{{recruitmentEnabled}}" class="section">
     <view class="section-header">
       <view class="section-heading">
         <text class="section-title">今日热门</text>

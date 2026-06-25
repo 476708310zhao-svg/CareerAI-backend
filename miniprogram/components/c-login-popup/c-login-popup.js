@@ -75,7 +75,11 @@ Component({
 
     // ── 微信一键登录 ─────────────────────────────────────────────────
     async onWechatLogin() {
-      if (!this.data.agreed || !this.data.wechatPrivacyReady || this.data.loadingWechat || this.data.loadingPhone) return;
+      if (!this.data.agreed || !this.data.wechatPrivacyReady) {
+        this.onUnagreedTap();
+        return;
+      }
+      if (this.data.loadingWechat || this.data.loadingPhone) return;
       this.setData({ loadingWechat: true });
       try {
         const data = await api.login();
@@ -91,8 +95,14 @@ Component({
     // open-type="getPhoneNumber" 触发，e.detail.code 为临时授权码
     // 参考：https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/getPhoneNumber.html
     async onGetPhoneNumber(e) {
-      if (!this.data.agreed || !this.data.wechatPrivacyReady) return;
-      if (!e.detail.code) return; // 用户取消授权
+      if (!this.data.agreed || !this.data.wechatPrivacyReady) {
+        this.onUnagreedTap();
+        return;
+      }
+      if (!e.detail.code) {
+        wx.showToast({ title: '已取消手机号授权', icon: 'none' });
+        return;
+      }
 
       this.setData({ loadingPhone: true });
       try {

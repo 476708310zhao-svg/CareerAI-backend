@@ -6,8 +6,8 @@ const { authMiddleware } = require('../middleware/auth');
 const { formatSalary: format } = require('../db/formatters');
 const { parsePage, pageResult } = require('../db/paginate');
 const { aiLimiter } = require('../middleware/rateLimit');
+const { createChatCompletion } = require('../utils/aiClient');
 
-const DEEPSEEK_URL = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/chat/completions';
 const RAPID_BASE   = process.env.RAPID_API_URL    || 'https://jsearch.p.rapidapi.com';
 const RAPID_HEADERS = {
   'X-RapidAPI-Key':  process.env.RAPID_API_KEY  || '',
@@ -18,7 +18,7 @@ function _validRapidKey() {
   return k.length >= 30 && !/\s/.test(k);
 }
 
-// ─── 市场薪资聚合（优先级：本地DB → RapidAPI → DeepSeek AI）─────────────────
+// ─── 市场薪资聚合（优先级：本地DB → RapidAPI → AI）─────────────────
 // GET /api/salaries/market?job_title=...&location=...&company=...&region=NA
 router.get('/market', aiLimiter, async (req, res) => {
   const { job_title = '', location = '', company = '', region = 'NA' } = req.query;
@@ -72,7 +72,7 @@ router.get('/market', aiLimiter, async (req, res) => {
     } catch (e) { console.warn('[market/rapid]', e.message); }
   }
 
-  // ③ DeepSeek AI 生成真实估算
+  // ③ AI 生成真实估算
   if (!req.user || !req.user.userId) {
     return res.status(401).json({ code: -1, message: '登录后可使用 AI 薪资估算' });
   }
@@ -91,11 +91,10 @@ Output JSON only, no other content:
 {"min_salary":100000,"median_salary":160000,"max_salary":240000,"p25_salary":130000,"p75_salary":200000,"currency":"USD","trend":[{"year":${curYear-4},"salary":0},{"year":${curYear-3},"salary":0},{"year":${curYear-2},"salary":0},{"year":${curYear-1},"salary":0},{"year":${curYear},"salary":0}],"breakdown":{"base_pct":65,"bonus_pct":15,"equity_pct":20},"market_note":"Brief market note (under 20 words)"}`;
 
   try {
-    const aiRes = await axios.post(DEEPSEEK_URL,
-      { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }],
+    const aiRes = await createChatCompletion(
+      { messages: [{ role: 'user', content: prompt }],
         temperature: 0.3, max_tokens: 600, stream: false },
-      { headers: { Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`, 'Content-Type': 'application/json' },
-        timeout: 25000 }
+      { timeout: 25000 }
     );
     const raw = aiRes.data?.choices?.[0]?.message?.content?.trim() || '';
     const match = raw.match(/\{[\s\S]*\}/);

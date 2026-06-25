@@ -7,7 +7,7 @@
   <view class="fixed-header">
     <view class="search-bar">
       <view class="search-wrap">
-        <text class="search-icon">搜</text>
+        <icon class="search-icon" type="search" size="15" color="#94A3B8"></icon>
         <input
           class="search-input"
           placeholder="搜索职位、公司、关键词"
@@ -69,6 +69,8 @@
         <text class="brief-metric-label">精选岗位</text>
       </view>
     </view>
+
+    <c-ai-disclosure wx:if="{{matchMode}}" text="岗位智能匹配结果由人工智能生成，仅供求职参考，请结合岗位详情自行核验。" />
 
     <view class="brief-match-detail" wx:if="{{matchMode}}">
       <scroll-view scroll-x class="match-kw-scroll" wx:if="{{matchKeywords.length > 0}}" enhanced="{{true}}" show-scrollbar="{{false}}">

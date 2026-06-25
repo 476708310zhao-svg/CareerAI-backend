@@ -1,6 +1,8 @@
 <!-- pages/resume/resume.wxml -->
 <view class="container">
 
+  <c-ai-disclosure text="简历诊断、润色与岗位匹配建议由人工智能生成，请核验后使用。" />
+
   <!-- 1. 顶部 Tab 切换 -->
   <view class="tabs">
     <view class="tab-item {{currentTab === 0 ? 'active' : ''}}" bindtap="switchTab" data-index="0">在线简历</view>
@@ -41,8 +43,9 @@
         <view wx:if="{{!serverResumes.length}}" class="rmp-empty">暂无简历，点击"新建"创建一份</view>
       </scroll-view>
       <view class="rmp-footer">
-        <text class="rmp-tip" wx:if="{{!isVip}}">免费用户 1 份 · 查看求职会员权益</text>
-        <text class="rmp-tip rmp-tip-vip" wx:else>已享会员权益 · 无限创建简历</text>
+        <text class="rmp-tip" wx:if="{{!isVip && membershipEnabled}}">免费用户 1 份 · 查看求职会员权益</text>
+        <text class="rmp-tip rmp-tip-vip" wx:elif="{{isVip && membershipEnabled}}">已享会员权益 · 无限创建简历</text>
+        <text class="rmp-tip" wx:else>当前版本支持 1 份在线简历</text>
       </view>
     </view>
 

@@ -66,6 +66,8 @@
     </view>
   </view>
 
+  <c-ai-disclosure text="本页模拟面试追问与求职路线规划由人工智能生成，仅供求职准备参考，请核验后使用。" />
+
   <!-- 职位描述 -->
   <view class="desc-card">
     <view class="desc-title">职位描述</view>

@@ -71,6 +71,8 @@
     </view>
   </view>
 
+  <c-ai-disclosure text="机构 AI 测评与对比建议由人工智能生成，仅供求职服务选择参考，请结合真实评价核验。" />
+
   <!-- ── 机构列表 ── -->
   <view class="list">
     <block wx:for="{{list}}" wx:key="id">

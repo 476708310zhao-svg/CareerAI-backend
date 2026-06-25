@@ -1,6 +1,8 @@
 <!-- pages/networking/networking.wxml -->
 <view class="page">
 
+  <c-ai-disclosure text="LinkedIn 私信与邮件文案由人工智能生成，请确认内容真实准确后发送。" />
+
   <!-- 输入区 -->
   <view wx:if="{{!result}}">
     <view class="hero">

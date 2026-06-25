@@ -712,3 +712,33 @@ page {
   font-weight: 900;
   box-shadow: 0 14rpx 26rpx rgba(37, 99, 235, 0.2);
 }
+
+.ai-generated-notice {
+  margin: 20rpx 0 24rpx;
+  padding: 18rpx 20rpx;
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  border: 1.5rpx solid #bfdbfe;
+  border-radius: 20rpx;
+  background: #eff6ff;
+  box-sizing: border-box;
+}
+
+.ai-generated-badge {
+  flex-shrink: 0;
+  padding: 6rpx 12rpx;
+  border-radius: 10rpx;
+  color: #ffffff;
+  background: #2563eb;
+  font-size: 21rpx;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.ai-generated-text {
+  color: #1e3a8a;
+  font-size: 23rpx;
+  font-weight: 650;
+  line-height: 1.5;
+}

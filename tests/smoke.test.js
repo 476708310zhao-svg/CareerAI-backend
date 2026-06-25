@@ -28,6 +28,8 @@ function startServer() {
     CRON_SECRET: 'smoke_cron_secret_1234567890abcdef',
     ALLOWED_ORIGIN: `http://127.0.0.1:${PORT}`,
     WEBHOOK_SECRET: 'test_webhook_secret',
+    PAYMENT_ENABLED: 'true',
+    PAYMENT_PROVIDER: 'wxpay',
     ENABLE_MOCK_PAYMENT: 'true',
     WXPAY_MCH_ID: '',
     WXPAY_API_KEY: '',
@@ -37,7 +39,9 @@ function startServer() {
     ADZUNA_APP_ID: '',
     ADZUNA_APP_KEY: '',
     LIVE_JOBS_ENABLED: 'false',
-    DISABLE_FREE_JOB_SOURCES: 'true'
+    DISABLE_FREE_JOB_SOURCES: 'true',
+    RECRUITMENT_FEATURE_ENABLED: 'true',
+    MEMBERSHIP_FEATURE_ENABLED: 'false'
   });
 
   const { startServer: listen } = require('../server');
@@ -114,6 +118,38 @@ test('health endpoint is available', async () => {
   assert.equal(res.status, 200);
   const body = await res.json();
   assert.equal(body.status, 'ok');
+});
+
+test('public feature flags expose recruitment availability', async () => {
+  const res = await fetch(`${BASE_URL}/api/features`);
+  assert.equal(res.status, 200);
+  const body = await readJson(res);
+  assert.equal(body.code, 0);
+  assert.equal(body.data.recruitment, true);
+  assert.equal(body.data.membership, false);
+});
+
+test('recruitment switch blocks recruitment APIs without affecting other features', async () => {
+  const previous = process.env.RECRUITMENT_FEATURE_ENABLED;
+  process.env.RECRUITMENT_FEATURE_ENABLED = 'false';
+  try {
+    const jobsRes = await fetch(`${BASE_URL}/api/jobs?page=1&pageSize=1`);
+    assert.equal(jobsRes.status, 503);
+    const jobsBody = await readJson(jobsRes);
+    assert.equal(jobsBody.code, -1);
+    assert.equal(jobsBody.data.feature, 'recruitment');
+
+    const experiencesRes = await fetch(`${BASE_URL}/api/experiences?page=1&pageSize=1`);
+    assert.equal(experiencesRes.status, 200);
+
+    const campusRes = await fetch(`${BASE_URL}/api/campus?page=1&pageSize=1`);
+    assert.equal(campusRes.status, 200);
+
+    const companiesRes = await fetch(`${BASE_URL}/api/companies?page=1&pageSize=1`);
+    assert.equal(companiesRes.status, 200);
+  } finally {
+    process.env.RECRUITMENT_FEATURE_ENABLED = previous;
+  }
 });
 
 test('public jobs endpoint returns a list payload', async () => {

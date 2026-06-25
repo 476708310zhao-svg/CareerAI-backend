@@ -24,6 +24,8 @@ const TEMPLATES = {
   application_update: process.env.WX_TPL_APPLICATION || '',  // 投递状态更新
   interview_done:     process.env.WX_TPL_INTERVIEW   || '',  // 面试完成提醒
   system_notice:      process.env.WX_TPL_SYSTEM      || '',  // 系统通知
+  payment_success:    process.env.WX_TPL_PAYMENT_SUCCESS || '',  // 订单支付成功通知
+  payment_reminder:   process.env.WX_TPL_PAYMENT_REMINDER || '', // 订单支付提醒
 };
 
 // 启动时检查模板配置
@@ -93,6 +95,7 @@ async function sendToUser(userId, { type = 'system', title, content, templateId,
 }
 
 module.exports.sendToUser = sendToUser;
+module.exports.TEMPLATES = TEMPLATES;
 
 // ─── 前端登记订阅（记录用户已授权的模板）────────────────────────────────────
 // POST /api/notify/subscribe
@@ -161,6 +164,8 @@ router.get('/templates', (req, res) => {
   if (TEMPLATES.system_notice)      configured.system_notice      = TEMPLATES.system_notice;
   if (TEMPLATES.application_update) configured.application_update = TEMPLATES.application_update;
   if (TEMPLATES.interview_done)     configured.interview_done     = TEMPLATES.interview_done;
+  if (TEMPLATES.payment_success)    configured.payment_success    = TEMPLATES.payment_success;
+  if (TEMPLATES.payment_reminder)   configured.payment_reminder   = TEMPLATES.payment_reminder;
   res.json({ code: 0, data: configured });
 });
 

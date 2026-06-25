@@ -3,6 +3,7 @@ const { getJobs, getCompanies, getExperiences } = require('../../../utils/api.js
 const demoData = require('../../../utils/demo-data.js');
 const { formatSalaryRange } = require('../../../utils/util.js');
 const browseHistory = require('../../../utils/browse-history.js');
+const featureFlags = require('../../../utils/feature-flags.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
 Page({
@@ -23,6 +24,7 @@ Page({
   },
 
   onLoad() {
+    if (!featureFlags.guardRecruitmentPage()) return;
     const history = wx.getStorageSync('searchHistory') || [];
     this.setData({ searchHistory: history });
   },

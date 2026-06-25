@@ -9,6 +9,10 @@
     <text class="progress-pos">{{position || '综合面试'}}</text>
     <text wx:if="{{company && company !== '未指定公司'}}" class="progress-company"> @ {{company}}</text>
   </view>
+  <view class="ai-disclosure">
+    <text class="ai-disclosure-badge">AI生成</text>
+    <text class="ai-disclosure-text">问题、点评与报告由人工智能生成，仅供练习参考</text>
+  </view>
   <view class="progress-info">
     <text class="progress-label">答题进度</text>
     <text class="progress-count">{{questionCount}} / {{maxQDisplay}}</text>
@@ -35,12 +39,18 @@
 >
   <view class="padding-top"></view>
 
+  <view class="load-error-card" wx:if="{{loadError}}">
+    <view class="load-error-title">暂时无法开始面试</view>
+    <text class="load-error-text">{{loadError}}</text>
+  </view>
+
   <block wx:for="{{chatList}}" wx:key="index">
 
     <!-- AI 问题消息 -->
     <view wx:if="{{item.type === 'ai'}}" id="msg-{{index}}" class="message-group ai-group">
       <view class="avatar ai-avatar"><text class="ai-avatar-text">AI</text></view>
       <view class="content-wrapper">
+        <view class="message-source">AI生成</view>
         <view class="bubble ai-bubble">
           <text user-select>{{item.content}}</text>
         </view>
@@ -51,6 +61,7 @@
     <view wx:if="{{item.type === 'feedback'}}" id="msg-{{index}}" class="message-group ai-group">
       <view class="avatar ai-avatar"><text class="ai-avatar-text">AI</text></view>
       <view class="content-wrapper">
+        <view class="message-source">AI生成 · 点评</view>
         <view class="bubble feedback-bubble">
           <text class="feedback-tag">点评</text>
           <text user-select>{{item.content}}</text>
@@ -91,7 +102,7 @@
 
 <!-- 底部输入栏 -->
 <view class="footer-bar">
-  <block wx:if="{{!isFinished}}">
+  <block wx:if="{{!isFinished && !loadError}}">
     <!-- 语音录入按钮 -->
     <view class="mic-btn {{isRecording ? 'recording' : ''}} {{voiceLoading ? 'voice-loading' : ''}}"
           bindtap="toggleVoice">
@@ -112,10 +123,15 @@
     />
     <view class="send-btn {{!userAnswer || loading ? 'disabled' : ''}}" bindtap="submitAnswer">发送</view>
   </block>
-  <block wx:else>
+  <block wx:elif="{{isFinished}}">
     <view class="finished-bar">
       <c-button type="secondary" class="action-btn" bindtap="restartInterview">重新面试</c-button>
       <c-button class="action-btn" bindtap="openReport">查看报告</c-button>
+    </view>
+  </block>
+  <block wx:else>
+    <view class="error-action-btn" bindtap="retryInterview">
+      {{errorRequiresLogin ? '返回并登录' : '重新尝试'}}
     </view>
   </block>
 </view>

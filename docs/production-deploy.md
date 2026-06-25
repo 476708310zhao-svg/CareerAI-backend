@@ -82,7 +82,7 @@ UPLOAD_DIR=/var/lib/jobapp-server/uploads
 DB_PATH=/var/lib/jobapp-server/db/jobapp.db
 
 JWT_SECRET=<随机长字符串>
-ALLOWED_ORIGIN=https://api.zhiyincareer.com
+ALLOWED_ORIGIN=https://api.zhiyincareer.com,https://mp.weixin.qq.com
 
 WX_APP_ID=<小程序 AppID>
 WX_APP_SECRET=<小程序 AppSecret>
@@ -93,14 +93,22 @@ ADMIN_PASSWORD=<强密码>
 WEBHOOK_SECRET=<GitHub webhook secret>
 
 PAYMENT_ENABLED=false
-# 微信支付开通后再改为 true，并填写以下 WXPAY_* 配置：
-WXPAY_MCH_ID=<微信支付商户号>
-WXPAY_API_KEY=<微信支付 v2 API 密钥>
-WXPAY_APP_ID=<小程序 AppID>
-WXPAY_NOTIFY_URL=https://api.zhiyincareer.com/api/payment/notify
+# 虚拟支付正式上线时改为 true，并填写以下 VIRTUAL_PAY_* 配置：
+PAYMENT_PROVIDER=virtual
+MEMBERSHIP_FEATURE_ENABLED=true
+VIRTUAL_PAY_ENV=0
+VIRTUAL_PAY_CURRENCY=CNY
+VIRTUAL_PAY_MODE=short_series_goods
+VIRTUAL_PAY_OFFER_ID=<微信虚拟支付 Offer ID>
+VIRTUAL_PAY_APP_KEY=<微信虚拟支付现网 AppKey>
+VIRTUAL_PAY_SANDBOX_APP_KEY=
+VIRTUAL_PAY_MONTH_PRODUCT_ID=<月卡道具 productId>
+VIRTUAL_PAY_QUARTER_PRODUCT_ID=<季卡道具 productId>
+VIRTUAL_PAY_YEAR_PRODUCT_ID=<年卡道具 productId>
+VIRTUAL_PAY_NOTIFY_TOKEN=<微信消息推送 Token>
 ```
 
-生产启动会强校验 `NODE_ENV=production` 下的必要变量。`PAYMENT_ENABLED=true` 时必须填写完整微信支付变量；微信支付资质未完成时请保持 `PAYMENT_ENABLED=false`，避免正式环境出现模拟支付。
+生产启动会强校验 `NODE_ENV=production` 下的必要变量。`PAYMENT_ENABLED=true` 时必须填写完整虚拟支付变量；虚拟支付参数未补齐前请保持 `PAYMENT_ENABLED=false`，避免正式环境出现半配置状态。
 
 ## 5. 初始化数据
 
@@ -200,9 +208,9 @@ curl https://api.zhiyincareer.com/api/health
 - `DB_PATH` 指向 `/var/lib/jobapp-server/db/jobapp.db`
 - `UPLOAD_DIR` 指向 `/var/lib/jobapp-server/uploads`
 - `DATA_DIR` 指向 `/var/lib/jobapp-server/data`
-- 微信支付回调地址是 HTTPS
-- 未开通微信支付前，`PAYMENT_ENABLED=false`
-- 开通微信支付后，`/api/payment/config` 返回 `data.available=true` 且 `data.mock=false`
+- 虚拟支付发货通知地址是 HTTPS，推荐 `https://api.zhiyincareer.com/api/payment/virtual-notify`
+- 未补齐虚拟支付参数前，`PAYMENT_ENABLED=false`
+- 开通虚拟支付后，`/api/payment/config` 返回 `data.provider=virtual`、`data.available=true` 且 `data.mock=false`
 - Nginx 证书有效
 - 微信小程序后台合法域名已配置
 - PM2 已设置开机自启

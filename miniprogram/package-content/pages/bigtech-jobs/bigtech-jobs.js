@@ -1,5 +1,6 @@
 ﻿// pages/bigtech-jobs/bigtech-jobs.js
 const { getBigtechJobs, getBigtechStats, refreshBigtechJobs } = require('../../../utils/api-jobs.js');
+const featureFlags = require('../../../utils/feature-flags.js');
 
 function extractSourceJobId(source, applyUrl) {
   if (!applyUrl) return '';
@@ -48,6 +49,7 @@ Page({
   },
 
   onLoad() {
+    if (!featureFlags.guardRecruitmentPage()) return;
     this.loadJobs(true);
     this._loadStats();
   },

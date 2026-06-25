@@ -1,6 +1,8 @@
 <!-- pages/offer-compare/offer-compare.wxml -->
 <view class="page">
 
+  <c-ai-disclosure text="Offer 对比分析与决策建议由人工智能生成，不构成职业或财务建议。" />
+
   <!-- ══ 输入步骤 ══ -->
   <view wx:if="{{step === 'input'}}">
 

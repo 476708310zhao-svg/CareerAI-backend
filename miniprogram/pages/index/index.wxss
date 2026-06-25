@@ -1224,3 +1224,190 @@
   background: var(--app-page-bg);
   background-color: #ffffff;
 }
+
+/* Reference-inspired card and search polish */
+.page {
+  background:
+    linear-gradient(160deg, rgba(255,255,255,0.96) 0%, rgba(241,247,250,0.94) 42%, rgba(249,250,252,1) 100%);
+}
+
+.search-wrap {
+  height: 78rpx;
+  margin: calc(env(safe-area-inset-top) + 18rpx) 32rpx 22rpx;
+  padding: 0 24rpx;
+  border-radius: 30rpx;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fafc 100%);
+  border: 1rpx solid rgba(205, 216, 228, 0.82);
+  box-shadow:
+    0 16rpx 34rpx rgba(31, 45, 61, 0.07),
+    inset 0 1rpx 0 rgba(255,255,255,0.96);
+}
+
+.search-icon {
+  width: 31rpx;
+  height: 31rpx;
+  margin-right: 16rpx;
+  opacity: 0.48;
+}
+
+.search-text {
+  color: #8a96a8;
+  font-size: 27rpx;
+  font-weight: 500;
+}
+
+.section-header {
+  padding-bottom: 16rpx;
+}
+
+.section-title {
+  color: #162033;
+  font-size: 31rpx;
+  letter-spacing: 0;
+}
+
+.section-subtitle {
+  color: #8a96a8;
+}
+
+.section-more {
+  color: #2365ca;
+  background: #eef6ff;
+  border: 1rpx solid rgba(66, 153, 225, 0.14);
+}
+
+.company-card {
+  border-radius: 30rpx !important;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%) !important;
+  border: 1rpx solid rgba(210, 221, 232, 0.82) !important;
+  box-shadow:
+    0 16rpx 34rpx rgba(31, 45, 61, 0.06),
+    inset 0 1rpx 0 rgba(255,255,255,0.96) !important;
+}
+
+.company-avatar {
+  border-radius: 24rpx;
+  background: linear-gradient(145deg, #ffffff 0%, #eef5fb 100%) !important;
+  border: 1rpx solid rgba(203, 213, 225, 0.82);
+  box-shadow:
+    0 10rpx 22rpx rgba(31, 45, 61, 0.062),
+    inset 0 1rpx 0 rgba(255,255,255,0.96);
+}
+
+.job-card {
+  position: relative;
+  flex-direction: row-reverse;
+  align-items: flex-start;
+  min-height: 138rpx;
+  padding: 24rpx;
+  margin: 0 32rpx 16rpx;
+  border-radius: 30rpx !important;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%) !important;
+  border: 1rpx solid rgba(210, 221, 232, 0.82) !important;
+  box-shadow:
+    0 18rpx 40rpx rgba(31, 45, 61, 0.072),
+    inset 0 1rpx 0 rgba(255,255,255,0.98) !important;
+  overflow: hidden;
+}
+
+.job-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 28rpx;
+  bottom: 28rpx;
+  width: 6rpx;
+  border-radius: 0 999rpx 999rpx 0;
+  background: linear-gradient(180deg, #4bc0ec 0%, #27c987 100%);
+}
+
+.job-card:active {
+  transform: translateY(2rpx) scale(0.988);
+  opacity: 0.9;
+}
+
+.job-card-body {
+  flex: 1;
+  min-width: 0;
+  margin: 0 0 0 18rpx;
+}
+
+.job-card-topline {
+  margin-bottom: 9rpx;
+}
+
+.job-card-loc {
+  color: #64748b;
+  font-size: 22rpx;
+  font-weight: 800;
+}
+
+.job-card-pill {
+  margin-left: 12rpx;
+  padding: 4rpx 12rpx;
+  color: #0b8b68;
+  background: #ecfbf5;
+  border: 1rpx solid rgba(39, 201, 135, 0.18);
+  font-size: 18rpx;
+}
+
+.job-card-title {
+  color: #162033;
+  font-size: 30rpx;
+  line-height: 1.28;
+  letter-spacing: 0;
+}
+
+.job-card-meta {
+  margin-top: 10rpx;
+}
+
+.job-card-co {
+  position: relative;
+  max-width: 230rpx;
+  padding-right: 22rpx;
+  color: #536174;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-card-co::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  width: 10rpx;
+  height: 10rpx;
+  margin-top: -5rpx;
+  border-radius: 50%;
+  background: #27c987;
+  box-shadow: 0 0 0 4rpx rgba(39, 201, 135, 0.12);
+}
+
+.job-card-dot {
+  color: #c0cad6;
+}
+
+.job-card-sal {
+  color: #152238;
+  font-weight: 850;
+}
+
+.job-card-logo-wrap {
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 25rpx;
+  background: linear-gradient(145deg, #ffffff 0%, #eef5fb 100%) !important;
+  border: 1rpx solid rgba(203, 213, 225, 0.82) !important;
+  box-shadow:
+    0 12rpx 24rpx rgba(31, 45, 61, 0.072),
+    inset 0 1rpx 0 rgba(255,255,255,0.96);
+}
+
+.jobs-empty-card {
+  border-radius: 30rpx !important;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%) !important;
+  border: 1rpx solid rgba(210, 221, 232, 0.82) !important;
+}

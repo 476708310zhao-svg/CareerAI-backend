@@ -1,6 +1,7 @@
 {
   "usingComponents": {
-    "c-button": "/components/c-button/c-button"
+    "c-button": "/components/c-button/c-button",
+    "c-login-popup": "/components/c-login-popup/c-login-popup"
   },
   "navigationBarTitleText": "面试场景设置"
 }

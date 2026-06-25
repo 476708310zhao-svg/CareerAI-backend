@@ -18,6 +18,11 @@
     <view class="done-badge" wx:if="{{isDone}}">✓ 已完成</view>
   </view>
 
+  <c-ai-disclosure
+    wx:if="{{q.isAI}}"
+    text="本题及参考答案由人工智能生成，仅供练习参考，请自行核验。"
+  />
+
   <!-- LeetCode 统计信息 -->
   <view class="lc-stats-card" wx:if="{{q.source === 'leetcode'}}">
     <view class="lc-stat-item">
