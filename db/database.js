@@ -221,6 +221,14 @@ db.exec(`
     updated_at TEXT    DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS feature_flags (
+    feature     TEXT PRIMARY KEY,
+    label       TEXT DEFAULT '',
+    description TEXT DEFAULT '',
+    enabled     INTEGER DEFAULT 0,
+    updated_at  TEXT DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS campus_schedules (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     company        TEXT    NOT NULL,
@@ -341,6 +349,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_ai_usage_user_feature_date ON ai_usage(user_id, feature, usage_date);
   CREATE INDEX IF NOT EXISTS idx_admin_accounts_username ON admin_accounts(username);
   CREATE INDEX IF NOT EXISTS idx_share_configs_route ON share_configs(route);
+  CREATE INDEX IF NOT EXISTS idx_feature_flags_feature ON feature_flags(feature);
 `);
 
 // 兼容旧库：为 campus_schedules 补齐后续迭代新增字段

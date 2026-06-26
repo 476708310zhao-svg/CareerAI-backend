@@ -19,6 +19,7 @@ const adminAccounts = require('../utils/adminAccounts');
 const { ALL_ADMIN_PERMISSIONS, PERMISSION_LABELS } = require('../utils/adminPermissions');
 const { UPLOAD_DIR, ensureDir } = require('../utils/paths');
 const shareConfig = require('../utils/shareConfig');
+const featureFlags = require('../utils/featureFlags');
 
 // ─── 管理后台图片上传（Banner 等） ─────────────────────────────────────────────
 const adminStorage = multer.diskStorage({
@@ -151,6 +152,23 @@ router.get('/api/stats', adminAuth, (req, res) => {
     pendingReviews: db.prepare('SELECT COUNT(*) as c FROM agency_reviews').get().c,
   };
   res.json({ code: 0, data: stats });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// 功能开关
+// ═══════════════════════════════════════════════════════════════
+router.get('/api/feature-flags', adminAuth, (_req, res) => {
+  res.json({ code: 0, data: featureFlags.listFeatureFlags() });
+});
+
+router.put('/api/feature-flags/:feature', adminAuth, (req, res) => {
+  try {
+    const row = featureFlags.updateFeatureFlag(req.params.feature, !!req.body.enabled);
+    res.json({ code: 0, message: '功能开关已更新', data: row });
+  } catch (err) {
+    const status = err.code === 'UNKNOWN_FEATURE' ? 404 : 400;
+    res.status(status).json({ code: -1, message: err.message || '更新失败' });
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════

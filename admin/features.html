@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>功能开关 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    .switch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+    }
+    .switch-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 22px;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, .06);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .switch-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: flex-start;
+    }
+    .switch-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #111827;
+      margin-bottom: 6px;
+    }
+    .switch-desc {
+      color: #64748b;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .status-pill.on { background: #dcfce7; color: #166534; }
+    .status-pill.off { background: #f1f5f9; color: #64748b; }
+    .toggle {
+      width: 58px;
+      height: 32px;
+      border: 0;
+      border-radius: 999px;
+      background: #cbd5e1;
+      padding: 3px;
+      cursor: pointer;
+      transition: background .18s ease, opacity .18s ease;
+      flex-shrink: 0;
+    }
+    .toggle::before {
+      content: "";
+      display: block;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 3px 8px rgba(15, 23, 42, .18);
+      transition: transform .18s ease;
+    }
+    .toggle.on { background: #2563eb; }
+    .toggle.on::before { transform: translateX(26px); }
+    .toggle[disabled] { opacity: .55; cursor: wait; }
+    .switch-meta {
+      border-top: 1px solid #f1f5f9;
+      padding-top: 14px;
+      color: #94a3b8;
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .impact-list {
+      margin: 0;
+      padding-left: 18px;
+      color: #475569;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+  </style>
+</head>
+<body class="admin-shell">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">🎯 求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer"><div class="admin-name" id="adminUsername"></div><button class="nav-item" style="margin-top:6px" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i><span>退出登录</span></button></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span style="font-size:13px;color:#6b7280" id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
+    <div class="content">
+      <div class="page-header">
+        <div>
+          <h1>功能开关</h1>
+          <div class="sub">控制小程序线上功能入口和对应服务端接口</div>
+        </div>
+        <button class="btn btn-outline" onclick="load()"><i class="fa-solid fa-rotate"></i> 刷新状态</button>
+      </div>
+
+      <div id="switchGrid" class="switch-grid"></div>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script><script src="js/common.js"></script>
+<script>
+initPage('features', '功能开关');
+
+let flags = [];
+let saving = {};
+
+const IMPACTS = {
+  recruitment: [
+    '关闭后隐藏职位 Tab、首页职位推荐、职位搜索和申请入口',
+    '关闭后 /api/jobs、/api/aggregate、/api/apply 等招聘接口会返回未开放',
+    '管理后台岗位数据维护不受影响'
+  ],
+  membership: [
+    '关闭后隐藏会员页入口和会员权益跳转',
+    '支付与权益正式上线前建议保持关闭'
+  ]
+};
+
+function render() {
+  const box = document.getElementById('switchGrid');
+  box.innerHTML = flags.map(item => {
+    const enabled = !!item.enabled;
+    const disabled = saving[item.feature] ? 'disabled' : '';
+    const impacts = IMPACTS[item.feature] || [];
+    return `
+      <section class="switch-card">
+        <div class="switch-head">
+          <div>
+            <div class="switch-title">${esc(item.label || item.feature)}</div>
+            <div class="switch-desc">${esc(item.description || '')}</div>
+          </div>
+          <button class="toggle ${enabled ? 'on' : ''}" ${disabled} onclick="toggleFeature('${esc(item.feature)}', ${enabled ? 'false' : 'true'})" aria-label="切换${esc(item.label || item.feature)}"></button>
+        </div>
+        <div>
+          <span class="status-pill ${enabled ? 'on' : 'off'}">
+            <i class="fa-solid ${enabled ? 'fa-circle-check' : 'fa-circle-pause'}"></i>
+            ${enabled ? '已开启' : '已关闭'}
+          </span>
+        </div>
+        ${impacts.length ? `<ul class="impact-list">${impacts.map(text => `<li>${esc(text)}</li>`).join('')}</ul>` : ''}
+        <div class="switch-meta">
+          <span>Key：${esc(item.feature)}</span>
+          <span>更新时间：${esc(item.updatedAt || '-')}</span>
+        </div>
+      </section>
+    `;
+  }).join('');
+}
+
+async function load() {
+  const res = await GET('/admin/api/feature-flags');
+  if (!res || res.code !== 0) return;
+  flags = res.data || [];
+  render();
+}
+
+async function toggleFeature(feature, nextEnabled) {
+  const enabled = nextEnabled === true || nextEnabled === 'true';
+  saving[feature] = true;
+  render();
+  const res = await PUT(`/admin/api/feature-flags/${feature}`, { enabled });
+  delete saving[feature];
+  if (!res || res.code !== 0) {
+    render();
+    return;
+  }
+  const idx = flags.findIndex(item => item.feature === feature);
+  if (idx >= 0) flags[idx] = res.data;
+  toast(`${res.data.label || feature}已${res.data.enabled ? '开启' : '关闭'}`);
+  render();
+}
+
+load();
+</script>
+</body>
+</html>

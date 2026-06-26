@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const db = require('../db/database');
+const featureFlags = require('../utils/featureFlags');
 
 const PORT = String(4100 + Math.floor(Math.random() * 1000));
 const BASE_URL = `http://127.0.0.1:${PORT}`;
@@ -43,6 +44,9 @@ function startServer() {
     RECRUITMENT_FEATURE_ENABLED: 'true',
     MEMBERSHIP_FEATURE_ENABLED: 'false'
   });
+
+  featureFlags.updateFeatureFlag('recruitment', true);
+  featureFlags.updateFeatureFlag('membership', false);
 
   const { startServer: listen } = require('../server');
   server = listen(PORT);
@@ -130,8 +134,8 @@ test('public feature flags expose recruitment availability', async () => {
 });
 
 test('recruitment switch blocks recruitment APIs without affecting other features', async () => {
-  const previous = process.env.RECRUITMENT_FEATURE_ENABLED;
-  process.env.RECRUITMENT_FEATURE_ENABLED = 'false';
+  const previous = featureFlags.isFeatureEnabled('recruitment');
+  featureFlags.updateFeatureFlag('recruitment', false);
   try {
     const jobsRes = await fetch(`${BASE_URL}/api/jobs?page=1&pageSize=1`);
     assert.equal(jobsRes.status, 503);
@@ -148,7 +152,7 @@ test('recruitment switch blocks recruitment APIs without affecting other feature
     const companiesRes = await fetch(`${BASE_URL}/api/companies?page=1&pageSize=1`);
     assert.equal(companiesRes.status, 200);
   } finally {
-    process.env.RECRUITMENT_FEATURE_ENABLED = previous;
+    featureFlags.updateFeatureFlag('recruitment', previous);
   }
 });
 
@@ -433,6 +437,34 @@ test('admin jobs list reads jobs json through admin API', async () => {
   assert.ok(Array.isArray(body.data.list));
   assert.equal(body.data.list.length, 1);
   assert.ok(body.data.total >= 1);
+});
+
+test('admin can toggle recruitment feature flag', async () => {
+  assert.ok(adminToken);
+  const listRes = await fetch(`${BASE_URL}/admin/api/feature-flags`, {
+    headers: adminHeaders()
+  });
+  assert.equal(listRes.status, 200);
+  const listBody = await readJson(listRes);
+  assert.ok(listBody.data.some(item => item.feature === 'recruitment'));
+
+  const offRes = await fetch(`${BASE_URL}/admin/api/feature-flags/recruitment`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...adminHeaders() },
+    body: JSON.stringify({ enabled: false })
+  });
+  assert.equal(offRes.status, 200);
+  const featuresOff = await readJson(await fetch(`${BASE_URL}/api/features`));
+  assert.equal(featuresOff.data.recruitment, false);
+
+  const onRes = await fetch(`${BASE_URL}/admin/api/feature-flags/recruitment`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...adminHeaders() },
+    body: JSON.stringify({ enabled: true })
+  });
+  assert.equal(onRes.status, 200);
+  const featuresOn = await readJson(await fetch(`${BASE_URL}/api/features`));
+  assert.equal(featuresOn.data.recruitment, true);
 });
 
 test('admin can update page share config', async () => {

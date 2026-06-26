@@ -276,6 +276,7 @@ function renderPagination(containerId, currentPage, total, pageSize, onPageChang
 
 const NAV_ITEMS = [
   { id: 'dashboard', icon: 'fa-gauge-high', label: '概览', href: 'dashboard.html' },
+  { id: 'features', icon: 'fa-toggle-on', label: '功能开关', href: 'features.html' },
   { id: 'banners', icon: 'fa-images', label: 'Banner管理', href: 'banners.html' },
   { id: 'share', icon: 'fa-share-nodes', label: '分享配置', href: 'share.html' },
   { id: 'jobs', icon: 'fa-briefcase', label: '岗位管理', href: 'jobs.html' },
