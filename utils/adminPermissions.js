@@ -1,6 +1,7 @@
 const ALL_ADMIN_PERMISSIONS = [
   'dashboard',
   'banners',
+  'share',
   'jobs',
   'companies',
   'experiences',
@@ -17,6 +18,7 @@ const ALL_ADMIN_PERMISSIONS = [
 const PERMISSION_LABELS = {
   dashboard: '数据概览',
   banners: 'Banner 管理',
+  share: '分享配置',
   jobs: '岗位管理',
   companies: '公司管理',
   experiences: '面经管理',
@@ -52,6 +54,7 @@ function hasPermission(admin, permission) {
 function permissionForAdminPath(path = '') {
   if (path.includes('/api/stats')) return 'dashboard';
   if (path.includes('/api/upload/banner') || path.includes('/api/banners')) return 'banners';
+  if (path.includes('/api/upload/share') || path.includes('/api/share-configs')) return 'share';
   if (path.includes('/api/jobs')) return 'jobs';
   if (path.includes('/api/companies')) return 'companies';
   if (path.includes('/api/experiences')) return 'experiences';

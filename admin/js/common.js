@@ -277,6 +277,7 @@ function renderPagination(containerId, currentPage, total, pageSize, onPageChang
 const NAV_ITEMS = [
   { id: 'dashboard', icon: 'fa-gauge-high', label: '概览', href: 'dashboard.html' },
   { id: 'banners', icon: 'fa-images', label: 'Banner管理', href: 'banners.html' },
+  { id: 'share', icon: 'fa-share-nodes', label: '分享配置', href: 'share.html' },
   { id: 'jobs', icon: 'fa-briefcase', label: '岗位管理', href: 'jobs.html' },
   { id: 'companies', icon: 'fa-building-user', label: '公司管理', href: 'companies.html' },
   { id: 'experiences', icon: 'fa-file-lines', label: '面经管理', href: 'experiences.html' },

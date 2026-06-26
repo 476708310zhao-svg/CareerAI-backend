@@ -3,6 +3,9 @@ const favUtil = require('./utils/favorites.js');
 const vipUtil  = require('./utils/vip.js');
 const api      = require('./utils/api.js');
 const featureFlags = require('./utils/feature-flags.js');
+const share = require('./utils/share.js');
+
+share.installPageShare();
 
 function safeErrorText(error) {
   if (!error) return '';
@@ -39,6 +42,7 @@ App({
   onLaunch: function () {
     console.log('小程序启动');
     this._initGlobalData();
+    share.loadShareConfig();
     featureFlags.refreshFeatureFlags({ force: true });
     setTimeout(() => this._silentLogin(), 500);
     this._initTheme();

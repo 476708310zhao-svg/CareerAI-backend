@@ -88,11 +88,13 @@ const aggregateRoutes   = require('./routes/aggregate');
 const oaRoutes          = require('./routes/oa');
 const applyRoutes       = require('./routes/apply');
 const featureRoutes     = require('./routes/features');
+const shareRoutes       = require('./routes/share');
 
 // 注册路由
 const requireRecruitment = requireFeature('recruitment');
 
 app.use('/api/features',     featureRoutes);
+app.use('/api/share',        shareRoutes);
 app.use('/api/jobs',         requireRecruitment, jobRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/experiences',  experienceRoutes);

@@ -187,6 +187,16 @@ test('public banners endpoint returns a list payload', async () => {
   assert.ok(Array.isArray(body.data));
 });
 
+test('public share config endpoint returns default payload', async () => {
+  const res = await fetch(`${BASE_URL}/api/share/configs`);
+  assert.equal(res.status, 200);
+  const body = await readJson(res);
+  assert.equal(body.code, 0);
+  assert.equal(typeof body.data.default.title, 'string');
+  assert.equal(typeof body.data.default.imageUrl, 'string');
+  assert.equal(typeof body.data.routes, 'object');
+});
+
 test('public career tips news endpoint returns articles', async () => {
   const res = await fetch(`${BASE_URL}/api/news?tab=tip&limit=5`);
   assert.equal(res.status, 200);
@@ -423,6 +433,38 @@ test('admin jobs list reads jobs json through admin API', async () => {
   assert.ok(Array.isArray(body.data.list));
   assert.equal(body.data.list.length, 1);
   assert.ok(body.data.total >= 1);
+});
+
+test('admin can update page share config', async () => {
+  assert.ok(adminToken);
+  const listRes = await fetch(`${BASE_URL}/admin/api/share-configs`, {
+    headers: adminHeaders()
+  });
+  assert.equal(listRes.status, 200);
+  const listBody = await readJson(listRes);
+  const home = listBody.data.find(item => item.route === 'pages/index/index');
+  assert.ok(home);
+
+  const title = `分享测试 ${Date.now()}`;
+  const updateRes = await fetch(`${BASE_URL}/admin/api/share-configs/${home.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...adminHeaders() },
+    body: JSON.stringify({
+      pageName: home.pageName,
+      title,
+      imageUrl: '/uploads/banners/share-test.jpg',
+      isActive: true,
+      sortOrder: home.sortOrder
+    })
+  });
+  assert.equal(updateRes.status, 200);
+  const updateBody = await readJson(updateRes);
+  assert.equal(updateBody.code, 0);
+
+  const publicRes = await fetch(`${BASE_URL}/api/share/configs`);
+  const publicBody = await readJson(publicRes);
+  assert.equal(publicBody.data.routes['pages/index/index'].title, title);
+  assert.equal(publicBody.data.routes['pages/index/index'].imageUrl, '/uploads/banners/share-test.jpg');
 });
 
 test('admin account permissions are enforced by module', async () => {

@@ -18,6 +18,7 @@ const { parsePagination, paginateArray } = require('../utils/pagination');
 const adminAccounts = require('../utils/adminAccounts');
 const { ALL_ADMIN_PERMISSIONS, PERMISSION_LABELS } = require('../utils/adminPermissions');
 const { UPLOAD_DIR, ensureDir } = require('../utils/paths');
+const shareConfig = require('../utils/shareConfig');
 
 // ─── 管理后台图片上传（Banner 等） ─────────────────────────────────────────────
 const adminStorage = multer.diskStorage({
@@ -40,6 +41,13 @@ const adminUpload = multer({
 });
 
 router.post('/api/upload/banner', adminAuth, adminUpload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ code: -1, message: '未收到文件' });
+  if (rejectInvalidImage(req.file)) {
+    return res.status(400).json({ code: -1, message: '文件内容与格式不符，请上传真实图片' });
+  }
+  res.json({ code: 0, data: { url: `/uploads/banners/${req.file.filename}` } });
+});
+router.post('/api/upload/share', adminAuth, adminUpload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ code: -1, message: '未收到文件' });
   if (rejectInvalidImage(req.file)) {
     return res.status(400).json({ code: -1, message: '文件内容与格式不符，请上传真实图片' });
@@ -623,6 +631,47 @@ router.delete('/api/banners/:id', adminAuth, (req, res) => {
   const r = db.prepare('DELETE FROM banners WHERE id = ?').run(id);
   if (r.changes === 0) return res.status(404).json({ code: -1, message: 'Banner 不存在' });
   res.json({ code: 0, message: '删除成功' });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// 分享配置
+// ═══════════════════════════════════════════════════════════════
+router.get('/api/share-configs', adminAuth, (_req, res) => {
+  res.json({ code: 0, data: shareConfig.listShareConfigs() });
+});
+
+router.post('/api/share-configs', adminAuth, (req, res) => {
+  try {
+    const row = shareConfig.createShareConfig(req.body || {});
+    res.json({ code: 0, message: '添加成功', data: row });
+  } catch (err) {
+    res.status(400).json({ code: -1, message: err.message || '添加失败' });
+  }
+});
+
+router.put('/api/share-configs/:id', adminAuth, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  try {
+    const row = shareConfig.updateShareConfig(id, req.body || {});
+    if (!row) return res.status(404).json({ code: -1, message: '分享配置不存在' });
+    res.json({ code: 0, message: '更新成功', data: row });
+  } catch (err) {
+    res.status(400).json({ code: -1, message: err.message || '更新失败' });
+  }
+});
+
+router.delete('/api/share-configs/:id', adminAuth, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  try {
+    if (!shareConfig.deleteShareConfig(id)) {
+      return res.status(404).json({ code: -1, message: '分享配置不存在' });
+    }
+    res.json({ code: 0, message: '删除成功' });
+  } catch (err) {
+    res.status(400).json({ code: -1, message: err.message || '删除失败' });
+  }
 });
 
 module.exports = router;

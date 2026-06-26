@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>分享配置 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    .share-preview {
+      width: 210px;
+      aspect-ratio: 5 / 4;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      position: relative;
+    }
+    .share-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .share-preview-empty {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #9ca3af;
+      font-size: 12px;
+    }
+    .route-cell {
+      max-width: 280px;
+      color: #6b7280;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .status-on { background: #d1fae5; color: #065f46; }
+    .status-off { background: #f3f4f6; color: #6b7280; }
+    .upload-zone {
+      border: 2px dashed #d1d5db;
+      border-radius: 10px;
+      padding: 18px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+    }
+    .upload-zone:hover { border-color: #2563eb; background: #eff6ff; }
+    .upload-zone img {
+      max-width: 100%;
+      max-height: 190px;
+      border-radius: 8px;
+      display: block;
+      margin: 0 auto;
+    }
+    .upload-hint { font-size: 13px; color: #9ca3af; margin-top: 8px; }
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .toolbar input { max-width: 320px; }
+    .copy-path {
+      font-family: Consolas, Monaco, monospace;
+      color: #64748b;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body class="admin-shell">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">🎯 求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer"><div class="admin-name" id="adminUsername"></div><button class="nav-item" style="margin-top:6px" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i><span>退出登录</span></button></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span style="font-size:13px;color:#6b7280" id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
+    <div class="content">
+      <div class="page-header">
+        <div>
+          <h1>分享配置</h1>
+          <div class="sub">配置微信好友分享和朋友圈分享的标题、封面图 · 建议封面 5:4，如 1000×800px</div>
+        </div>
+        <button class="btn btn-primary" onclick="openAdd()"><i class="fa-solid fa-plus"></i> 新增页面</button>
+      </div>
+
+      <div class="table-card">
+        <div class="toolbar">
+          <input id="keyword" placeholder="搜索页面名称 / 路径 / 标题" oninput="renderTable()">
+          <button class="btn btn-outline" onclick="load()"><i class="fa-solid fa-rotate"></i> 刷新</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th style="width:240px">封面预览</th><th>页面</th><th>分享标题</th><th>状态</th><th>更新</th><th>操作</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal('modal')">
+  <div class="modal-box" style="max-width:620px">
+    <div class="modal-header"><h3 id="modalTitle">编辑分享配置</h3><button class="modal-close" onclick="closeModal('modal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>页面名称</label>
+          <input id="f_pageName" placeholder="例如：首页">
+        </div>
+        <div class="form-group">
+          <label>状态</label>
+          <select id="f_active"><option value="1">启用</option><option value="0">禁用</option></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>页面路径</label>
+        <input id="f_route" placeholder="pages/index/index">
+        <div class="copy-path">全局默认使用 __default__；普通页面不要加开头的 /</div>
+      </div>
+      <div class="form-group">
+        <label>分享标题</label>
+        <input id="f_title" maxlength="120" placeholder="例如：职引 | 留学生求职与AI面试助手" oninput="updatePreview()">
+      </div>
+      <div class="form-group">
+        <label>封面图</label>
+        <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+          <img id="previewImg" src="" alt="" style="display:none">
+          <div id="uploadPlaceholder">
+            <i class="fa-solid fa-cloud-arrow-up" style="font-size:28px;color:#d1d5db"></i>
+            <div class="upload-hint">点击上传分享封面</div>
+            <div class="upload-hint">JPG / PNG / WebP / GIF · 最大 5MB · 推荐 1000×800px</div>
+          </div>
+        </div>
+        <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none" onchange="onFileSelect(event)">
+        <input id="f_imageUrl" placeholder="/images/banner1.jpg 或 https://..." style="margin-top:10px" oninput="updatePreview()">
+        <div id="uploadProgress" style="display:none;margin-top:8px">
+          <div style="background:#e5e7eb;border-radius:4px;height:6px"><div id="progressBar" style="background:#2563eb;height:6px;border-radius:4px;width:0%;transition:width .3s"></div></div>
+          <div style="font-size:12px;color:#6b7280;margin-top:4px" id="progressText">上传中...</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>排序</label>
+          <input id="f_sort" type="number" value="0">
+        </div>
+        <div class="form-group">
+          <label>当前预览</label>
+          <div class="share-preview" style="width:160px">
+            <img id="smallPreviewImg" src="" alt="" style="display:none">
+            <div class="share-preview-empty" id="smallPreviewEmpty">无封面</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal')">取消</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="save()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script><script src="js/common.js"></script>
+<script>
+initPage('share', '分享配置');
+
+let rows = [];
+let editingId = null;
+
+function assetUrl(url) {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url)) return url;
+  if (url.startsWith('/images/')) return url;
+  return window.ADMIN_API.replace('/admin/api', '') + (url.startsWith('/') ? url : '/' + url);
+}
+
+function sharePreview(url) {
+  const src = assetUrl(url);
+  if (!src) return '<div class="share-preview"><div class="share-preview-empty">无封面</div></div>';
+  return `<div class="share-preview"><img src="${esc(src)}" alt=""></div>`;
+}
+
+async function load() {
+  const res = await GET('/admin/api/share-configs');
+  if (!res || res.code !== 0) return;
+  rows = res.data || [];
+  renderTable();
+}
+
+function renderTable() {
+  const kw = document.getElementById('keyword').value.trim().toLowerCase();
+  const filtered = rows.filter(item => {
+    if (!kw) return true;
+    return [item.pageName, item.route, item.title].some(v => String(v || '').toLowerCase().includes(kw));
+  });
+  document.getElementById('tbody').innerHTML = filtered.length ? filtered.map(item => `
+    <tr>
+      <td>${sharePreview(item.imageUrl)}</td>
+      <td>
+        <strong>${esc(item.pageName || item.route)}</strong>
+        <div class="route-cell">${esc(item.route)}</div>
+      </td>
+      <td>${esc(item.title) || '<span style="color:#9ca3af">使用页面动态标题</span>'}</td>
+      <td><span class="status-badge ${item.isActive ? 'status-on' : 'status-off'}">${item.isActive ? '启用' : '禁用'}</span></td>
+      <td style="color:#64748b;font-size:12px">${esc(item.updatedAt) || '-'}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="openEdit(${item.id})"><i class="fa-solid fa-pen"></i></button>
+        ${item.route === '__default__' ? '' : `<button class="btn btn-danger btn-sm" onclick="del(${item.id})" style="margin-left:4px"><i class="fa-solid fa-trash"></i></button>`}
+      </td>
+    </tr>
+  `).join('') : '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:40px">暂无配置</td></tr>';
+}
+
+function fillForm(item) {
+  editingId = item ? item.id : null;
+  document.getElementById('modalTitle').textContent = item ? '编辑分享配置' : '新增页面分享配置';
+  document.getElementById('f_pageName').value = item ? item.pageName || '' : '';
+  document.getElementById('f_route').value = item ? item.route || '' : '';
+  document.getElementById('f_route').disabled = !!item;
+  document.getElementById('f_title').value = item ? item.title || '' : '';
+  document.getElementById('f_imageUrl').value = item ? item.imageUrl || '' : '';
+  document.getElementById('f_active').value = !item || item.isActive ? '1' : '0';
+  document.getElementById('f_sort').value = item ? item.sortOrder || 0 : 999;
+  document.getElementById('uploadProgress').style.display = 'none';
+  updatePreview();
+}
+
+function openAdd() {
+  fillForm(null);
+  openModal('modal');
+}
+
+function openEdit(id) {
+  const item = rows.find(row => row.id === id);
+  if (!item) return;
+  fillForm(item);
+  openModal('modal');
+}
+
+function updatePreview() {
+  const src = assetUrl(document.getElementById('f_imageUrl').value.trim());
+  const img = document.getElementById('previewImg');
+  const placeholder = document.getElementById('uploadPlaceholder');
+  const smallImg = document.getElementById('smallPreviewImg');
+  const smallEmpty = document.getElementById('smallPreviewEmpty');
+  if (src) {
+    img.src = src;
+    img.style.display = '';
+    placeholder.style.display = 'none';
+    smallImg.src = src;
+    smallImg.style.display = '';
+    smallEmpty.style.display = 'none';
+  } else {
+    img.style.display = 'none';
+    placeholder.style.display = '';
+    smallImg.style.display = 'none';
+    smallEmpty.style.display = '';
+  }
+}
+
+function onFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) uploadFile(file);
+  e.target.value = '';
+}
+
+async function uploadFile(file) {
+  const MAX = 5 * 1024 * 1024;
+  if (file.size > MAX) { toast('图片不能超过 5MB', 'error'); return; }
+  if (!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)) {
+    toast('只支持 JPG / PNG / WebP / GIF', 'error');
+    return;
+  }
+  document.getElementById('uploadProgress').style.display = '';
+  document.getElementById('progressBar').style.width = '20%';
+  document.getElementById('progressText').textContent = '正在压缩图片...';
+  document.getElementById('saveBtn').disabled = true;
+  try {
+    const optimized = await compressImageForFrontend(file, {
+      maxWidth: 1000,
+      maxHeight: 800,
+      quality: 0.82,
+      outputType: file.type === 'image/png' ? 'image/png' : 'image/jpeg',
+      filePrefix: 'share'
+    });
+    document.getElementById('progressBar').style.width = '55%';
+    document.getElementById('progressText').textContent = optimized.compressed
+      ? `已压缩：${formatBytes(optimized.originalSize)} → ${formatBytes(optimized.compressedSize)}，上传中...`
+      : '上传中...';
+    const formData = new FormData();
+    formData.append('file', optimized.file);
+    const res = await api('/admin/api/upload/share', { method: 'POST', body: formData });
+    if (!res || res.code !== 0) throw new Error(res && res.message || '上传失败');
+    document.getElementById('progressBar').style.width = '100%';
+    document.getElementById('progressText').textContent = '上传成功';
+    document.getElementById('f_imageUrl').value = res.data.url;
+    updatePreview();
+    setTimeout(() => { document.getElementById('uploadProgress').style.display = 'none'; }, 1200);
+  } catch (err) {
+    console.error('[share upload]', err);
+    toast(err.message || '上传失败', 'error');
+    document.getElementById('progressBar').style.width = '0%';
+    document.getElementById('progressText').textContent = '上传失败';
+  } finally {
+    document.getElementById('saveBtn').disabled = false;
+  }
+}
+
+function payload() {
+  return {
+    pageName: document.getElementById('f_pageName').value.trim(),
+    route: document.getElementById('f_route').value.trim(),
+    title: document.getElementById('f_title').value.trim(),
+    imageUrl: document.getElementById('f_imageUrl').value.trim(),
+    isActive: document.getElementById('f_active').value === '1',
+    sortOrder: parseInt(document.getElementById('f_sort').value, 10) || 0
+  };
+}
+
+async function save() {
+  const body = payload();
+  if (!body.route) { toast('页面路径不能为空', 'error'); return; }
+  if (!body.title && !body.imageUrl) { toast('请至少填写标题或封面图', 'error'); return; }
+  const res = editingId
+    ? await PUT(`/admin/api/share-configs/${editingId}`, body)
+    : await POST('/admin/api/share-configs', body);
+  if (!res || res.code !== 0) return;
+  toast('保存成功');
+  closeModal('modal');
+  load();
+}
+
+function del(id) {
+  confirm('确定删除这条分享配置吗？预置页面会被系统保护。', async () => {
+    const res = await DELETE(`/admin/api/share-configs/${id}`);
+    if (!res || res.code !== 0) return;
+    toast('删除成功');
+    load();
+  });
+}
+
+load();
+</script>
+</body>
+</html>
