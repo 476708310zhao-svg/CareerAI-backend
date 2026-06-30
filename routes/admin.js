@@ -20,6 +20,7 @@ const { ALL_ADMIN_PERMISSIONS, PERMISSION_LABELS } = require('../utils/adminPerm
 const { UPLOAD_DIR, ensureDir } = require('../utils/paths');
 const shareConfig = require('../utils/shareConfig');
 const featureFlags = require('../utils/featureFlags');
+const { USER_PROFILE_SCHEMA, buildUserProfile, normalizeProfilePayload } = require('../utils/userProfileStandard');
 
 // ─── 管理后台图片上传（Banner 等） ─────────────────────────────────────────────
 const adminStorage = multer.diskStorage({
@@ -469,6 +470,10 @@ router.delete('/api/announcements/:id', adminAuth, (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 // 用户管理
 // ═══════════════════════════════════════════════════════════════
+router.get('/api/user-profile-schema', adminAuth, (_req, res) => {
+  res.json({ code: 0, data: USER_PROFILE_SCHEMA });
+});
+
 router.get('/api/users', adminAuth, (req, res) => {
   const { keyword = '' } = req.query;
   const { pageSize, offset } = parsePagination(req.query, { pageSize: 20 });
@@ -478,7 +483,24 @@ router.get('/api/users', adminAuth, (req, res) => {
   const total = db.prepare(`SELECT COUNT(*) as c FROM users ${where}`).get(...params).c;
   const list  = db.prepare(`SELECT id, nickname, avatar, email, phone, vip_level, vip_expires_at, education, job_preference, created_at FROM users ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`)
                   .all(...params, Number(pageSize), offset);
-  res.json({ code: 0, data: { list, total } });
+  res.json({
+    code: 0,
+    data: {
+      list: list.map(user => {
+        const profile = buildUserProfile(user);
+        return {
+          ...user,
+          school: profile.school,
+          major: profile.major,
+          degree: profile.degree,
+          targetRoles: profile.targetRoles,
+          targetLocation: profile.targetLocation,
+          profileCompleteness: profile.completeness
+        };
+      }),
+      total
+    }
+  });
 });
 
 router.get('/api/memberships', adminAuth, (req, res) => {
@@ -549,25 +571,51 @@ router.get('/api/users/:id', adminAuth, (req, res) => {
   if (!user) return res.status(404).json({ code: -1, message: '用户不存在' });
   delete user.openid;
   delete user.password;
+  const profile = buildUserProfile(user);
   const resumes = db.prepare('SELECT id, name, language, created_at, updated_at FROM resumes WHERE user_id = ?').all(id);
   const appCount = db.prepare('SELECT COUNT(*) as c FROM applications WHERE user_id = ?').get(id).c;
   const expCount = db.prepare('SELECT COUNT(*) as c FROM experiences WHERE user_id = ?').get(id).c;
-  res.json({ code: 0, data: { ...user, resumes, appCount, expCount } });
+  res.json({
+    code: 0,
+    data: {
+      ...user,
+      education: JSON.stringify(profile.education),
+      job_preference: JSON.stringify(profile.jobPreference),
+      profile,
+      profileCompleteness: profile.completeness,
+      resumes,
+      appCount,
+      expCount
+    }
+  });
 });
 
 router.put('/api/users/:id', adminAuth, (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
   const { vip_level, vip_expires_at, nickname, email, phone } = req.body;
-  const existing = db.prepare('SELECT vip_expires_at FROM users WHERE id=?').get(id);
+  const existing = db.prepare('SELECT * FROM users WHERE id=?').get(id);
   if (!existing) return res.status(404).json({ code: -1, message: '用户不存在' });
+  const normalized = normalizeProfilePayload(req.body || {}, existing);
   const vipLevel = Math.max(0, parseInt(vip_level ?? 0, 10) || 0);
   const hasVipExpiresAt = Object.prototype.hasOwnProperty.call(req.body, 'vip_expires_at');
   const nextVipExpiresAt = vipLevel > 0
     ? (hasVipExpiresAt ? (vip_expires_at || null) : existing.vip_expires_at)
     : null;
-  const r = db.prepare('UPDATE users SET vip_level=?, vip_expires_at=?, nickname=?, email=?, phone=? WHERE id=?')
-              .run(vipLevel, nextVipExpiresAt, nickname || '', email || '', phone || '', id);
+  const r = db.prepare(`
+    UPDATE users
+    SET vip_level=?, vip_expires_at=?, nickname=?, email=?, phone=?, education=?, job_preference=?
+    WHERE id=?
+  `).run(
+    vipLevel,
+    nextVipExpiresAt,
+    normalized.user.nickname !== undefined ? normalized.user.nickname : (nickname || ''),
+    normalized.user.email !== undefined ? normalized.user.email : (email || ''),
+    normalized.user.phone !== undefined ? normalized.user.phone : (phone || ''),
+    JSON.stringify(normalized.education),
+    JSON.stringify(normalized.jobPreference),
+    id
+  );
   if (r.changes === 0) return res.status(404).json({ code: -1, message: '用户不存在' });
   res.json({ code: 0, message: '更新成功' });
 });

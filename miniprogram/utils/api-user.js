@@ -2,6 +2,7 @@
 // 用户认证、个人信息、投递记录模块
 
 const { request, post, put } = require('./api-client.js');
+const { normalizeProfileStorage } = require('./user-profile-schema.js');
 
 function isVipActive(vipLevel, expireDate) {
   if (Number(vipLevel || 0) <= 0) return false;
@@ -35,14 +36,14 @@ function syncVipSession(user) {
 
 function persistUserSession(user) {
   const u = user || {};
-  const profile = {
-    nickName:  u.nickname  || '微信用户',
-    avatarUrl: u.avatar    || '/images/default-avatar.png',
-    school:    (u.education && u.education.school) || '',
-    major:     (u.education && u.education.major)  || '',
-    userId:    u.id,
-    openid:    u.openid
-  };
+  const profile = normalizeProfileStorage(Object.assign({}, u.profile || {}, {
+    nickName:  u.nickname || (u.profile && u.profile.nickName) || '微信用户',
+    avatarUrl: u.avatar || (u.profile && u.profile.avatarUrl) || '/images/default-avatar.png',
+    education: u.education || (u.profile && u.profile.education) || {},
+    jobPreference: u.jobPreference || (u.profile && u.profile.jobPreference) || {},
+    userId:    u.id || (u.profile && u.profile.userId),
+    openid:    u.openid || (u.profile && u.profile.openid)
+  }));
   wx.setStorageSync('userProfile', profile);
   wx.setStorageSync('userInfo', Object.assign({}, wx.getStorageSync('userInfo') || {}, u, {
     vipLevel:     u.vipLevel || u.vip_level || 0,
@@ -90,6 +91,10 @@ function getUserProfile() {
   return request({ path: '/api/users/profile', noCache: true });
 }
 
+function getUserProfileSchema() {
+  return request({ path: '/api/users/profile-schema', cacheTTL: 6 * 60 * 60 * 1000 });
+}
+
 function updateUserDetail(data) {
   return put({ path: '/api/users/profile', body: data });
 }
@@ -118,4 +123,4 @@ function getApplications() {
   return request({ path: '/api/applications' });
 }
 
-module.exports = { login, phoneLogin, getUserProfile, updateUserProfileRemote, updateUserDetail, getApplications, persistUserSession };
+module.exports = { login, phoneLogin, getUserProfile, getUserProfileSchema, updateUserProfileRemote, updateUserDetail, getApplications, persistUserSession };

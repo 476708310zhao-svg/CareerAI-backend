@@ -54,6 +54,173 @@ page {
   margin-bottom: 18rpx;
 }
 
+.brief-module {
+  margin: 24rpx 28rpx 0;
+  padding: 24rpx;
+  border-radius: 22rpx;
+  background: var(--bg-panel);
+  border: 1.5rpx solid rgba(0,0,0,0.05);
+  box-shadow: 0 8rpx 24rpx rgba(15,23,42,0.05);
+}
+
+.module-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.module-title {
+  color: var(--text-primary);
+  font-size: 29rpx;
+  font-weight: 800;
+}
+
+.module-link {
+  color: #2563eb;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.brief-job-card,
+.deadline-brief-card,
+.task-card,
+.question-row,
+.news-brief-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 18rpx 0;
+  border-top: 1rpx solid #eef2f7;
+}
+
+.brief-job-card:first-of-type,
+.deadline-brief-card:first-of-type,
+.task-card:first-of-type,
+.question-row:first-of-type,
+.news-brief-row:first-of-type {
+  border-top: 0;
+}
+
+.brief-job-title,
+.deadline-company,
+.task-title,
+.news-brief-title {
+  display: block;
+  color: #101828;
+  font-size: 26rpx;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.brief-job-company,
+.deadline-role,
+.task-sub,
+.news-brief-time {
+  display: block;
+  margin-top: 6rpx;
+  color: #667085;
+  font-size: 22rpx;
+  line-height: 1.35;
+}
+
+.brief-job-salary,
+.deadline-badge {
+  flex-shrink: 0;
+  max-width: 180rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 8rpx 12rpx;
+  border-radius: 999rpx;
+  color: #2563eb;
+  background: #eef4ff;
+  font-size: 21rpx;
+  font-weight: 850;
+}
+
+.deadline-badge {
+  color: #b45309;
+  background: #fff7ed;
+}
+
+.soft-empty {
+  padding: 20rpx;
+  border-radius: 16rpx;
+  color: #667085;
+  background: #f8fafc;
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
+.mini-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12rpx;
+}
+
+.mini-stat {
+  min-width: 0;
+  padding: 18rpx 8rpx;
+  border-radius: 18rpx;
+  background: #f8fafc;
+  text-align: center;
+}
+
+.mini-num,
+.mini-label {
+  display: block;
+}
+
+.mini-num {
+  color: #101828;
+  font-size: 34rpx;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.mini-num.offer {
+  color: #059669;
+}
+
+.mini-label {
+  margin-top: 8rpx;
+  color: #667085;
+  font-size: 20rpx;
+  font-weight: 750;
+}
+
+.question-row {
+  justify-content: flex-start;
+}
+
+.question-index {
+  width: 42rpx;
+  height: 42rpx;
+  border-radius: 14rpx;
+  color: #ffffff;
+  background: #2563eb;
+  font-size: 22rpx;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.question-text {
+  flex: 1;
+  color: #344054;
+  font-size: 25rpx;
+  line-height: 1.45;
+}
+
+.card-press {
+  transform: scale(0.985);
+  opacity: 0.82;
+}
+
 /* ── 加载中 ───────────────────────────────────────────────────── */
 .loading-card {
   display: flex;

@@ -23,7 +23,9 @@
         "pages/interview-dialog/interview-dialog",
         "pages/audio-review/audio-review",
         "pages/project-review/project-review",
-        "pages/daily-brief/daily-brief"
+        "pages/daily-brief/daily-brief",
+        "pages/application-materials/application-materials",
+        "pages/interview-notebook/interview-notebook"
       ]
     },
     {
@@ -68,6 +70,7 @@
         "pages/apply-form/apply-form",
         "pages/profile-edit/profile-edit",
         "pages/favorites/favorites",
+        "pages/job-progress/job-progress",
         "pages/messages/messages",
         "pages/my-experiences/my-experiences",
         "pages/settings/settings",

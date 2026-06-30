@@ -100,6 +100,26 @@ db.exec(`
     created_at TEXT    DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS job_reminders (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id       INTEGER NOT NULL,
+    source_type   TEXT    DEFAULT 'job',
+    target_id     TEXT    NOT NULL,
+    reminder_type TEXT    DEFAULT 'deadline',
+    title         TEXT    DEFAULT '',
+    company       TEXT    DEFAULT '',
+    job_title     TEXT    DEFAULT '',
+    reminder_date TEXT    DEFAULT '',
+    reminder_time TEXT    DEFAULT '',
+    lead_days     TEXT    DEFAULT '[3,1]',
+    enabled       INTEGER DEFAULT 1,
+    sent_keys     TEXT    DEFAULT '[]',
+    payload       TEXT    DEFAULT '{}',
+    created_at    TEXT    DEFAULT (datetime('now')),
+    updated_at    TEXT    DEFAULT (datetime('now')),
+    UNIQUE(user_id, source_type, target_id, reminder_type)
+  );
+
   CREATE TABLE IF NOT EXISTS feedbacks (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id    INTEGER,
@@ -337,6 +357,8 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_comments_experience_id ON comments(experience_id);
   CREATE INDEX IF NOT EXISTS idx_comments_user_id ON comments(user_id);
   CREATE INDEX IF NOT EXISTS idx_messages_user_id_read ON messages(user_id, is_read);
+  CREATE INDEX IF NOT EXISTS idx_job_reminders_user ON job_reminders(user_id, enabled, reminder_date);
+  CREATE INDEX IF NOT EXISTS idx_job_reminders_due ON job_reminders(enabled, reminder_date, reminder_type);
   CREATE INDEX IF NOT EXISTS idx_favorites_user_type_target ON favorites(user_id, type, target_id);
   CREATE INDEX IF NOT EXISTS idx_agency_reviews_agency_id ON agency_reviews(agency_id);
   CREATE INDEX IF NOT EXISTS idx_comment_replies_comment_id ON comment_replies(comment_id);
@@ -405,6 +427,66 @@ db.exec(`
     created_at   TEXT DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_resume_pdfs_user ON resume_pdfs(user_id);
+
+  CREATE TABLE IF NOT EXISTS application_materials (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id        INTEGER NOT NULL,
+    client_id      TEXT DEFAULT '',
+    question_type  TEXT DEFAULT '',
+    question_label TEXT DEFAULT '',
+    job_id         TEXT DEFAULT '',
+    company        TEXT DEFAULT '',
+    job_title      TEXT DEFAULT '',
+    content        TEXT NOT NULL,
+    created_at     TEXT DEFAULT (datetime('now')),
+    updated_at     TEXT DEFAULT (datetime('now')),
+    UNIQUE(user_id, client_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_application_materials_user ON application_materials(user_id, updated_at);
+
+  CREATE TABLE IF NOT EXISTS jd_match_reports (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id            INTEGER NOT NULL,
+    client_id          TEXT DEFAULT '',
+    job_id             TEXT DEFAULT '',
+    job_title          TEXT DEFAULT '',
+    company            TEXT DEFAULT '',
+    resume_name        TEXT DEFAULT '',
+    score              INTEGER DEFAULT 0,
+    matched_keywords   TEXT DEFAULT '[]',
+    missing_keywords   TEXT DEFAULT '[]',
+    project_suggestion TEXT DEFAULT '',
+    ats_risk           TEXT DEFAULT '',
+    suggestions        TEXT DEFAULT '[]',
+    created_at         TEXT DEFAULT (datetime('now')),
+    UNIQUE(user_id, client_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_jd_match_reports_user ON jd_match_reports(user_id, created_at);
+
+  CREATE TABLE IF NOT EXISTS interview_notebook (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL,
+    question_id TEXT NOT NULL,
+    title       TEXT NOT NULL,
+    answer      TEXT DEFAULT '',
+    category    TEXT DEFAULT '',
+    difficulty  TEXT DEFAULT '',
+    status      TEXT DEFAULT 'unknown',
+    created_at  TEXT DEFAULT (datetime('now')),
+    updated_at  TEXT DEFAULT (datetime('now')),
+    UNIQUE(user_id, question_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_interview_notebook_user ON interview_notebook(user_id, status, updated_at);
+
+  CREATE TABLE IF NOT EXISTS interview_daily_practice (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL,
+    question_id TEXT NOT NULL,
+    payload     TEXT DEFAULT '{}',
+    added_at    TEXT DEFAULT (datetime('now')),
+    UNIQUE(user_id, question_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_interview_daily_practice_user ON interview_daily_practice(user_id, added_at);
 `);
 
 // ─── 给 applications 表补投递追踪字段（幂等）─────────────────────────────────

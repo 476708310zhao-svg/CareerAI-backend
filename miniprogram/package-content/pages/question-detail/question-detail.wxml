@@ -75,6 +75,36 @@
     </view>
   </view>
 
+  <view class="notebook-card">
+    <view class="notebook-header">
+      <view class="notebook-icon-box">错</view>
+      <view class="notebook-copy">
+        <text class="notebook-title">面试错题本</text>
+        <text class="notebook-sub">把不会的题沉淀到每日复习，已掌握后同步标记完成。</text>
+      </view>
+    </view>
+    <view class="notebook-actions">
+      <view
+        class="notebook-action {{notebookStatus === 'unknown' ? 'active warn' : ''}}"
+        bindtap="markUnknown"
+      >
+        <text>不会</text>
+      </view>
+      <view
+        class="notebook-action {{notebookStatus === 'mastered' ? 'active ok' : ''}}"
+        bindtap="markMastered"
+      >
+        <text>已掌握</text>
+      </view>
+      <view
+        class="notebook-action {{inDailyPractice ? 'active blue' : ''}}"
+        bindtap="addDailyPractice"
+      >
+        <text>{{inDailyPractice ? '复习中' : '每日练习'}}</text>
+      </view>
+    </view>
+  </view>
+
   <view class="bottom-spacer"></view>
 </view>
 

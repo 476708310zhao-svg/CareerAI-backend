@@ -333,6 +333,44 @@ page,
   color: #667085;
 }
 
+.fav-reminder {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  margin-top: 8rpx;
+  padding: 7rpx 12rpx;
+  border-radius: 999rpx;
+  color: #2563eb;
+  background: #eef4ff;
+  font-size: 20rpx;
+  font-weight: 850;
+}
+
+.fav-reminder.urgent {
+  color: #b45309;
+  background: #fff7ed;
+}
+
+.reminder-btn,
+.reminder-clear {
+  min-width: 72rpx;
+  padding: 9rpx 14rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  font-weight: 900;
+  text-align: center;
+}
+
+.reminder-btn {
+  color: #2563eb;
+  background: #eef4ff;
+}
+
+.reminder-clear {
+  color: #667085;
+  background: #f2f4f7;
+}
+
 .remove-btn,
 .batch-btn,
 .sort-btn.active {

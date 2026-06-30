@@ -47,6 +47,7 @@
           wx:if="{{index < 4 || showMoreTools}}"
           class="drawer-tool"
           bindtap="onToolAction"
+          data-action="{{item.action}}"
           data-text="{{item.prompt}}"
           data-url="{{item.url}}"
           hover-class="card-hover"
@@ -103,7 +104,28 @@
             <view wx:if="{{item.role === 'ai' && !item.isError}}" class="ai-generated-label">AI生成</view>
 
             <!-- 气泡主体 -->
-            <view class="bubble {{item.role === 'user' ? 'user-bubble' : item.isError ? 'error-bubble' : 'ai-bubble'}}">
+            <view
+              wx:if="{{item.role === 'ai' && item.isStreaming && loading && !streaming && !item.displayText}}"
+              class="bubble ai-bubble loading-bubble"
+            >
+              <view class="thinking-head">
+                <text class="thinking-title">CareerGPT 正在思考</text>
+                <view class="dot-wrap">
+                  <view class="dot"></view>
+                  <view class="dot"></view>
+                  <view class="dot"></view>
+                </view>
+              </view>
+              <view class="thinking-steps">
+                <text>理解你的目标</text>
+                <text>匹配求职策略</text>
+                <text>生成可执行建议</text>
+              </view>
+            </view>
+            <view
+              wx:else
+              class="bubble {{item.role === 'user' ? 'user-bubble' : item.isError ? 'error-bubble' : 'ai-bubble'}}"
+            >
 
               <!-- 用户消息、streaming 中、error：plain text -->
               <text
@@ -189,6 +211,7 @@
                 wx:key="title"
                 class="suite-card {{(loading || streaming) ? 'quick-disabled' : ''}}"
                 bindtap="onToolAction"
+                data-action="{{suite.action}}"
                 data-url="{{suite.url}}"
                 data-text="{{suite.prompt}}"
                 hover-class="card-hover"
@@ -204,26 +227,6 @@
           </view>
         </view>
       </block>
-
-      <!-- 等待首个 token 时的加载动画（loading = true 且无 streaming） -->
-      <view wx:if="{{loading && !streaming}}" class="msg-row ai-row">
-        <view class="ai-avatar"><text class="ai-avatar-icon">✦</text></view>
-        <view class="bubble ai-bubble loading-bubble">
-          <view class="thinking-head">
-            <text class="thinking-title">CareerGPT 正在思考</text>
-            <view class="dot-wrap">
-              <view class="dot"></view>
-              <view class="dot"></view>
-              <view class="dot"></view>
-            </view>
-          </view>
-          <view class="thinking-steps">
-            <text>理解你的目标</text>
-            <text>匹配求职策略</text>
-            <text>生成可执行建议</text>
-          </view>
-        </view>
-      </view>
 
       <!-- Perf fix: 底部固定锚点，scroll-into-view 永远定位到此 -->
       <view id="scroll-anchor" style="height: 24rpx;"></view>
@@ -258,6 +261,88 @@
         <text class="send-icon">{{streaming ? '■' : '↑'}}</text>
       </view>
     </view>
+  </view>
+
+  <view
+    class="application-mask"
+    wx:if="{{showApplicationPanel}}"
+    bindtap="closeApplicationAssistant"
+  ></view>
+  <view class="application-panel {{showApplicationPanel ? 'show' : ''}}">
+    <view class="application-header">
+      <view class="application-heading">
+        <text class="application-kicker">APPLICATION</text>
+        <text class="application-title">网申助手</text>
+      </view>
+      <view class="application-close" bindtap="closeApplicationAssistant">×</view>
+    </view>
+    <scroll-view scroll-y enhanced show-scrollbar="{{false}}" class="application-body">
+      <view class="application-section">
+        <text class="application-label">选择岗位</text>
+        <scroll-view wx:if="{{applicationJobs.length}}" scroll-x enhanced show-scrollbar="{{false}}" class="application-job-scroll">
+          <view class="application-choice-row">
+            <view
+              wx:for="{{applicationJobs}}"
+              wx:key="id"
+              class="application-choice {{selectedApplicationJobId == item.id ? 'active' : ''}}"
+              bindtap="selectApplicationJob"
+              data-id="{{item.id}}"
+            >
+              <text class="application-choice-title">{{item.company || '目标公司'}}</text>
+              <text class="application-choice-sub">{{item.jobTitle || item.title || '目标岗位'}}</text>
+            </view>
+          </view>
+        </scroll-view>
+        <view wx:else class="application-empty">
+          <text>先在职位详情或求职进度中添加一个岗位，再生成定制化网申草稿。</text>
+        </view>
+      </view>
+
+      <view class="application-section">
+        <text class="application-label">问题类型</text>
+        <view class="question-type-grid">
+          <view
+            wx:for="{{applicationQuestionTypes}}"
+            wx:key="code"
+            class="question-type {{selectedQuestionType === item.code ? 'active' : ''}}"
+            bindtap="selectApplicationQuestion"
+            data-type="{{item.code}}"
+          >{{item.label}}</view>
+        </view>
+      </view>
+
+      <view class="application-generate {{applicationJobs.length ? '' : 'disabled'}}" bindtap="generateApplicationDraft">
+        生成回答草稿
+      </view>
+
+      <view class="application-draft" wx:if="{{applicationDraft}}">
+        <text class="application-draft-title">{{applicationDraft.questionLabel}}</text>
+        <text class="application-draft-meta">{{applicationDraft.company}} · {{applicationDraft.jobTitle}}</text>
+        <text class="application-draft-content" user-select>{{applicationDraft.content}}</text>
+        <view class="application-draft-actions">
+          <view class="application-draft-btn" bindtap="copyApplicationDraft">复制</view>
+          <view class="application-draft-btn primary" bindtap="saveApplicationDraft">保存到材料库</view>
+        </view>
+      </view>
+
+      <view class="application-section saved-section" wx:if="{{applicationSavedMaterials.length}}">
+        <view class="application-label-row">
+          <text class="application-label inline">最近保存</text>
+          <text class="application-label-link" bindtap="goApplicationMaterials">查看全部 ›</text>
+        </view>
+        <view
+          wx:for="{{applicationSavedMaterials}}"
+          wx:key="id"
+          class="saved-material"
+        >
+          <view class="saved-material-head">
+            <text class="saved-material-title">{{item.questionLabel}}</text>
+            <text class="saved-material-meta">{{item.company}}</text>
+          </view>
+          <text class="saved-material-content" user-select>{{item.content}}</text>
+        </view>
+      </view>
+    </scroll-view>
   </view>
 
   <c-login-popup

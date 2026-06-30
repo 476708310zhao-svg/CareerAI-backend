@@ -1,5 +1,8 @@
 // pages/profile/profile.js
 const favUtil = require('../../utils/favorites.js');
+const progress = require('../../utils/job-progress.js');
+const appMaterials = require('../../utils/application-materials.js');
+const notebook = require('../../utils/interview-notebook.js');
 const api     = require('../../utils/api.js');
 const browseHistory = require('../../utils/browse-history.js');
 const featureFlags = require('../../utils/feature-flags.js');
@@ -15,9 +18,12 @@ Page({
     },
     stats: {
       applications: 0,
+      dueSoon: 0,
       favorites: 0,
       interviews: 0,
-      viewed: 0
+      viewed: 0,
+      materials: 0,
+      notebook: 0
     },
     isLogin: false,
     isVip: false,
@@ -127,14 +133,19 @@ Page({
         key === 'job' ? sum : sum + (favorites[key] || []).length, 0);
     const interviewHistory = wx.getStorageSync('interviewHistory') || [];
     const viewHistory = browseHistory.getList();
-    const applications = wx.getStorageSync('localApplications') || [];
+    const progressStats = progress.getStats();
+    const materialStats = appMaterials.getStats();
+    const notebookStats = notebook.getStats();
 
     this.setData({
       stats: {
-        applications: applications.length,
+        applications: progressStats.total,
+        dueSoon: progressStats.dueSoon,
         favorites: favCount,
         interviews: interviewHistory.length,
-        viewed: viewHistory.length
+        viewed: viewHistory.length,
+        materials: materialStats.total,
+        notebook: notebookStats.total
       }
     });
   },
@@ -159,8 +170,8 @@ Page({
       userInfo: {
         nickName:  nickName || '微信用户',
         avatarUrl: profile.avatarUrl || '/images/default-avatar.png',
-        school:    (profile.education && profile.education.school) || '',
-        major:     (profile.education && profile.education.major)  || ''
+        school:    profile.school || (profile.education && profile.education.school) || '',
+        major:     profile.major || (profile.education && profile.education.major)  || ''
       }
     });
     this.updateStats();
@@ -180,6 +191,10 @@ Page({
     wx.navigateTo({ url: '/package-user/pages/applications/applications' });
   },
 
+  goToJobProgress() {
+    wx.navigateTo({ url: '/package-user/pages/job-progress/job-progress' });
+  },
+
   goToResumes() {
     wx.navigateTo({
       url: '/package-career/pages/resume/resume',
@@ -192,6 +207,14 @@ Page({
       url: '/package-ai/pages/ai-history/ai-history',
       fail: () => wx.showToast({ title: '请先创建 ai-history 页面', icon: 'none' })
     });
+  },
+
+  goToApplicationMaterials() {
+    wx.navigateTo({ url: '/package-ai/pages/application-materials/application-materials' });
+  },
+
+  goToInterviewNotebook() {
+    wx.navigateTo({ url: '/package-ai/pages/interview-notebook/interview-notebook' });
   },
 
   goToMyExperiences() {

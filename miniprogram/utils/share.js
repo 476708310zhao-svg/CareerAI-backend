@@ -1,8 +1,9 @@
 const config = require('./app-config.js');
+const localShareConfig = require('./shareConfig.js');
 
 const APP_NAME = '\u804c\u5f15';
-const DEFAULT_TITLE = '\u804c\u5f15 | \u7559\u5b66\u751f\u6c42\u804c\u4e0eAI\u9762\u8bd5\u52a9\u624b';
-const DEFAULT_IMAGE = '/images/banner1.jpg';
+const DEFAULT_TITLE = localShareConfig.DEFAULT_SHARE.title;
+const DEFAULT_IMAGE = localShareConfig.DEFAULT_SHARE.imageUrl;
 const SHARE_CACHE_KEY = 'share_config_cache';
 const SHARE_CACHE_TTL = 30 * 60 * 1000;
 const API_BASE = config.API_BASE_URL;
@@ -10,7 +11,7 @@ const ASSET_BASE = config.ASSET_BASE_URL || API_BASE;
 
 let shareConfigCache = {
   default: { title: DEFAULT_TITLE, imageUrl: DEFAULT_IMAGE },
-  routes: {}
+  routes: localShareConfig.ROUTE_SHARES || {}
 };
 let shareConfigLoadedFromStorage = false;
 let shareConfigLoading = false;
@@ -34,6 +35,8 @@ const ROUTE_TITLES = {
   'package-user/pages/companies/companies': '\u70ed\u95e8\u4f01\u4e1a\u5e93 | \u804c\u5f15',
   'package-user/pages/company-detail/company-detail': '\u516c\u53f8\u8be6\u60c5 | \u804c\u5f15',
   'package-user/pages/search/search': '\u5168\u7ad9\u641c\u7d22 | \u804c\u5f15',
+  'package-user/pages/job-progress/job-progress': '\u6211\u7684\u6c42\u804c\u8fdb\u5ea6 | \u804c\u5f15',
+  'package-ai/pages/daily-brief/daily-brief': '\u6bcf\u65e5\u6c42\u804c\u7b80\u62a5 | \u804c\u5f15',
   'package-career/pages/salary/salary': '\u67e5\u85aa\u8d44 | \u804c\u5f15',
   'package-career/pages/skill-pathways/skill-pathways': '\u6280\u80fd\u6210\u957f\u8def\u5f84 | \u804c\u5f15',
   'package-career/pages/job-insights/job-insights': '\u6c42\u804c\u8d8b\u52bf\u6d1e\u5bdf | \u804c\u5f15',
@@ -48,6 +51,7 @@ const TIMELINE_EXCLUDED_ROUTES = [
   'package-user/pages/apply-form/apply-form',
   'package-user/pages/profile-edit/profile-edit',
   'package-user/pages/favorites/favorites',
+  'package-user/pages/job-progress/job-progress',
   'package-user/pages/messages/messages',
   'package-user/pages/my-experiences/my-experiences',
   'package-user/pages/settings/settings',

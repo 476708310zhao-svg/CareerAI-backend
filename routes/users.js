@@ -16,9 +16,10 @@ const WX_PLACEHOLDER_PATTERNS = [/^$/, /^your[_-]/i, /^test[_-]/i, /请填写/, 
 const WX_CONFIGURED = !WX_PLACEHOLDER_PATTERNS.some(pattern => pattern.test(WX_APP_ID.trim()))
   && !WX_PLACEHOLDER_PATTERNS.some(pattern => pattern.test(WX_APP_SECRET.trim()));
 
-const { parseId } = require('../db/utils');
+const { parseId, ja } = require('../db/utils');
 const { formatUser } = require('../db/formatters');
 const { loginLimiter } = require('../middleware/rateLimit');
+const { USER_PROFILE_SCHEMA, normalizeProfilePayload } = require('../utils/userProfileStandard');
 
 // ── OTP 内存存储（phone → { code, expiry, attempts }）──────────────────────
 const _otpStore = new Map();
@@ -86,6 +87,18 @@ function markDeprecatedResumesApi(res) {
   res.set('Sunset', 'Mon, 09 Nov 2026 00:00:00 GMT');
   res.set('Link', '</api/resumes>; rel="successor-version"');
 }
+
+function hasProfilePayload(body = {}) {
+  return [
+    'education', 'jobPreference', 'job_preference', 'school', 'major', 'degree',
+    'gradYear', 'status', 'targetRoles', 'targetLocation', 'targetIndustries',
+    'jobTypes', 'workAuthorization', 'expectedSalaryRange', 'skills'
+  ].some(key => Object.prototype.hasOwnProperty.call(body, key));
+}
+
+router.get('/profile-schema', (_req, res) => {
+  res.json({ code: 0, message: 'success', data: USER_PROFILE_SCHEMA });
+});
 
 // ─── 发送邮箱验证码（官网邮箱登录）──────────────────────────────────────────
 router.post('/send-email-code', loginLimiter, async (req, res) => {
@@ -279,9 +292,25 @@ router.post('/phone-login', loginLimiter, async (req, res) => {
 // ─── 更新昵称/头像 ─────────────────────────────────────────────────────────────
 router.post('/update-profile', authMiddleware, (req, res) => {
   try {
-    const { nickname, avatar } = req.body;
-    if (nickname) db.prepare('UPDATE users SET nickname = ? WHERE id = ?').run(nickname, req.user.userId);
-    if (avatar)   db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(avatar, req.user.userId);
+    const current = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.userId);
+    if (!current) return res.status(404).json({ code: -1, message: '用户不存在' });
+
+    const normalized = normalizeProfilePayload(req.body || {}, current);
+    const updates = [];
+    const vals = [];
+
+    if (normalized.user.nickname !== undefined) { updates.push('nickname = ?'); vals.push(normalized.user.nickname); }
+    if (normalized.user.avatar !== undefined)   { updates.push('avatar = ?');   vals.push(normalized.user.avatar); }
+    if (hasProfilePayload(req.body)) {
+      updates.push('education = ?');
+      vals.push(JSON.stringify(normalized.education));
+      updates.push('job_preference = ?');
+      vals.push(JSON.stringify(normalized.jobPreference));
+    }
+    if (updates.length) {
+      vals.push(req.user.userId);
+      db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...vals);
+    }
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.userId);
     res.json({ code: 0, message: '更新成功', data: formatUser(user) });
   } catch (error) {
@@ -299,14 +328,20 @@ router.get('/profile', authMiddleware, (req, res) => {
 // ─── 更新用户详细信息 ─────────────────────────────────────────────────────────
 router.put('/profile', authMiddleware, (req, res) => {
   try {
-    const { nickname, email, phone, education, jobPreference } = req.body;
+    const current = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.userId);
+    if (!current) return res.status(404).json({ code: -1, message: '用户不存在' });
+
+    const normalized = normalizeProfilePayload(req.body || {}, current);
     const updates = [];
     const vals = [];
-    if (nickname !== undefined)     { updates.push('nickname = ?');       vals.push(nickname); }
-    if (email !== undefined)        { updates.push('email = ?');          vals.push(email); }
-    if (phone !== undefined)        { updates.push('phone = ?');          vals.push(phone); }
-    if (education !== undefined)    { updates.push('education = ?');      vals.push(JSON.stringify(education)); }
-    if (jobPreference !== undefined){ updates.push('job_preference = ?'); vals.push(JSON.stringify(jobPreference)); }
+    if (normalized.user.nickname !== undefined) { updates.push('nickname = ?'); vals.push(normalized.user.nickname); }
+    if (normalized.user.avatar !== undefined)   { updates.push('avatar = ?');   vals.push(normalized.user.avatar); }
+    if (normalized.user.email !== undefined)    { updates.push('email = ?');    vals.push(normalized.user.email); }
+    if (normalized.user.phone !== undefined)    { updates.push('phone = ?');    vals.push(normalized.user.phone); }
+    updates.push('education = ?');
+    vals.push(JSON.stringify(normalized.education));
+    updates.push('job_preference = ?');
+    vals.push(JSON.stringify(normalized.jobPreference));
     if (updates.length) {
       vals.push(req.user.userId);
       db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...vals);

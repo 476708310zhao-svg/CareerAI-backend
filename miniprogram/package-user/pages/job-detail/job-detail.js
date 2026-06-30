@@ -1,6 +1,8 @@
 // pages/job-detail/job-detail.js
 const { getJobDetail, post, normalizeCompanyLogo } = require('../../../utils/api.js');
 const favUtil = require('../../../utils/favorites.js');
+const progress = require('../../../utils/job-progress.js');
+const jdMatch = require('../../../utils/jd-match.js');
 const { fromNow, formatSalaryRange } = require('../../../utils/util.js');
 const config = require('../../../utils/app-config.js');
 const demoData = require('../../../utils/demo-data.js');
@@ -16,6 +18,10 @@ Page({
     job: null,
     loading: true,
     isSaved: false,
+    inProgress: false,
+    progressStatusText: '',
+    showMatchPanel: false,
+    matchReport: null,
     // 一键投递弹窗
     showApplyModal: false,
     resumeSnap: null
@@ -26,6 +32,7 @@ Page({
     const jobId = options.id;
     const isSaved = jobId ? favUtil.isFavorited('job', jobId) : false;
     this.setData({ jobId, isSaved });
+    this.refreshProgressState(jobId);
     if (jobId && wx.getStorageSync('token')) {
       favUtil.syncFromServer().then(() => {
         this.setData({ isSaved: favUtil.isFavorited('job', jobId) });
@@ -81,6 +88,7 @@ Page({
   useFallbackDetail: function(id, snapshotDetail) {
     if (snapshotDetail) {
       this.setData({ job: snapshotDetail, loading: false });
+      this.refreshProgressState(snapshotDetail.id);
       this._saveBrowseHistory(snapshotDetail);
       return;
     }
@@ -141,6 +149,7 @@ Page({
       };
 
       this.setData({ job: jobDetail, loading: false });
+      this.refreshProgressState(jobDetail.id);
       this._saveBrowseHistory(jobDetail);
     }).catch(err => {
       console.warn('[job-detail] detail request failed, using fallback:', err && (err.message || err.errMsg || err));
@@ -204,6 +213,7 @@ Requirements:
 • Excellent problem-solving skills.`
     };
     this.setData({ job: mockJob, loading: false });
+    this.refreshProgressState(mockJob.id);
     this._saveBrowseHistory(mockJob);
   },
 
@@ -232,10 +242,99 @@ Requirements:
     };
     const isSaved = favUtil.toggle('job', jobData);
     this.setData({ isSaved });
+    if (isSaved) {
+      const savedProgress = progress.upsertFromJob(this.data.job, { status: 'collected' });
+      this.setData({ inProgress: true, progressStatusText: savedProgress.statusText });
+      this.promptFavoriteReminder();
+    }
     wx.showToast({
       title: isSaved ? '已收藏' : '已取消收藏',
       icon: 'none'
     });
+  },
+
+  refreshProgressState: function(jobId) {
+    const record = progress.getByJobId(jobId || this.data.jobId);
+    this.setData({
+      inProgress: !!record,
+      progressStatusText: record ? record.statusText : ''
+    });
+  },
+
+  promptFavoriteReminder: function() {
+    wx.showModal({
+      title: '已加入收藏',
+      content: '可以在收藏夹为这个岗位设置截止提醒，截止前 3 天和 1 天优先提醒自己。',
+      cancelText: '稍后',
+      confirmText: '去设置',
+      success: (res) => {
+        if (res.confirm) {
+          wx.navigateTo({ url: '/package-user/pages/favorites/favorites?tab=job' });
+        }
+      }
+    });
+  },
+
+  addToProgress: function() {
+    const job = this.data.job;
+    if (!job) return;
+    const existing = progress.getByJobId(job.id);
+    if (existing) {
+      this.setData({ inProgress: true, progressStatusText: existing.statusText });
+      wx.navigateTo({ url: '/package-user/pages/job-progress/job-progress' });
+      return;
+    }
+    const record = progress.upsertFromJob(job, {
+      status: 'collected',
+      jobLink: job.applyLink || '',
+      salary: job.salary || '',
+      city: job.city || ''
+    });
+    this.setData({ inProgress: true, progressStatusText: record.statusText });
+    wx.showModal({
+      title: '已加入求职进度',
+      content: '后续可以补充截止时间、面试时间和备注。',
+      cancelText: '继续看',
+      confirmText: '去编辑',
+      success: (res) => {
+        if (res.confirm) {
+          wx.navigateTo({ url: '/package-user/pages/job-progress/job-progress' });
+        }
+      }
+    });
+  },
+
+  runJdMatch: function() {
+    const job = this.data.job;
+    if (!job) return;
+    const resume = wx.getStorageSync('onlineResume') || {};
+    const hasResume = !!(resume.basicInfo && (resume.basicInfo.name || resume.basicInfo.email)) ||
+      (resume.skills && resume.skills.length) ||
+      (resume.projects && resume.projects.length) ||
+      (resume.workExp && resume.workExp.length);
+    if (!hasResume) {
+      wx.showModal({
+        title: '先完善简历',
+        content: '匹配评分需要读取你的在线简历。先补充基本信息、技能或项目经历后，报告会更准确。',
+        cancelText: '稍后',
+        confirmText: '去完善',
+        success: (res) => {
+          if (res.confirm) wx.navigateTo({ url: '/package-career/pages/resume/resume' });
+        }
+      });
+      return;
+    }
+    const report = jdMatch.saveReport(jdMatch.buildReport(resume, job));
+    this.setData({ matchReport: report, showMatchPanel: true });
+  },
+
+  closeMatchPanel: function() {
+    this.setData({ showMatchPanel: false });
+  },
+
+  goResumeOptimize: function() {
+    this.closeMatchPanel();
+    wx.navigateTo({ url: '/package-career/pages/resume/resume' });
   },
 
   // 跳转 AI 面试
@@ -305,25 +404,15 @@ Requirements:
   addToBoard: function() {
     const job = this.data.job;
     if (!job) return;
-    const localApps = wx.getStorageSync('localApplications') || [];
     const jobIdStr = String(job.id);
-    if (localApps.some(a => String(a.id) === jobIdStr || a.sourceJobId === jobIdStr)) {
-      wx.showToast({ title: '已在投递看板中', icon: 'none' });
-      return;
-    }
-
-    // 1. 写本地看板
-    localApps.unshift({
-      id: 'local_' + Date.now(),
-      sourceJobId: jobIdStr,
-      company: job.company || '',
-      job_title: job.title || '',
-      city: job.city || '',
+    progress.upsertFromJob(job, {
+      status: 'applied',
+      appliedAt: progress.getToday(),
+      jobLink: job.applyLink || '',
       salary: job.salary || 'Negotiable',
-      status: 'pending',
-      applied_at: new Date().toISOString().slice(0, 10)
+      city: job.city || ''
     });
-    wx.setStorageSync('localApplications', localApps);
+    this.refreshProgressState(jobIdStr);
     wx.showToast({ title: '已加入投递看板', icon: 'success' });
 
     // 2. 请求订阅消息授权（模板 ID 未配置时跳过）

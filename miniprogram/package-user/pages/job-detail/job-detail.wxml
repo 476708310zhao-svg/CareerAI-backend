@@ -94,6 +94,20 @@
           <text class="action-sub">复制投递链接并加入看板</text>
         </view>
       </view>
+      <view class="action-card primary" bindtap="runJdMatch">
+        <text class="action-icon match">测</text>
+        <view class="action-copy">
+          <text class="action-title">测匹配度</text>
+          <text class="action-sub">简历 × JD 匹配报告</text>
+        </view>
+      </view>
+      <view class="action-card" bindtap="addToProgress">
+        <text class="action-icon progress">进</text>
+        <view class="action-copy">
+          <text class="action-title">{{inProgress ? progressStatusText : '加入进度'}}</text>
+          <text class="action-sub">{{inProgress ? '查看并继续跟进' : '记录截止、面试和备注'}}</text>
+        </view>
+      </view>
     </view>
   </view>
 
@@ -135,6 +149,50 @@
   </view>
 
   <view class="f-btn f-btn-apply ux-main-cta" bindtap="applyJob">保存投递</view>
+</view>
+
+<!-- JD 匹配报告 -->
+<view class="match-mask" wx:if="{{showMatchPanel}}" bindtap="closeMatchPanel"></view>
+<view class="match-panel {{showMatchPanel ? 'show' : ''}}" wx:if="{{matchReport}}">
+  <view class="match-header">
+    <view>
+      <text class="match-kicker">JD MATCH</text>
+      <text class="match-title">简历匹配报告</text>
+    </view>
+    <text class="match-close" bindtap="closeMatchPanel">✕</text>
+  </view>
+  <view class="match-score-row">
+    <view class="score-ring">
+      <text class="score-num">{{matchReport.score}}</text>
+      <text class="score-label">分</text>
+    </view>
+    <view class="match-score-copy">
+      <text class="score-job">{{matchReport.company}} · {{matchReport.jobTitle}}</text>
+      <text class="score-risk">ATS 风险：{{matchReport.atsRisk}}</text>
+    </view>
+  </view>
+  <view class="match-section">
+    <text class="match-section-title">缺失关键词</text>
+    <view class="match-chip-row" wx:if="{{matchReport.missingKeywords.length}}">
+      <text wx:for="{{matchReport.missingKeywords}}" wx:key="*this" class="match-chip missing">{{item}}</text>
+    </view>
+    <text wx:else class="match-empty">关键词覆盖不错，继续强化成果表达。</text>
+  </view>
+  <view class="match-section">
+    <text class="match-section-title">建议强化项目</text>
+    <text class="match-body">{{matchReport.projectSuggestion}}</text>
+  </view>
+  <view class="match-section">
+    <text class="match-section-title">优化建议</text>
+    <view wx:for="{{matchReport.suggestions}}" wx:key="*this" class="match-suggestion">
+      <text class="suggestion-dot"></text>
+      <text class="suggestion-text">{{item}}</text>
+    </view>
+  </view>
+  <view class="match-actions">
+    <view class="match-action secondary" bindtap="closeMatchPanel">稍后处理</view>
+    <view class="match-action primary" bindtap="goResumeOptimize">去优化简历</view>
+  </view>
 </view>
 
 <!-- 保存投递弹窗 -->

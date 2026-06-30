@@ -1118,3 +1118,350 @@ page,
   font-weight: 900;
   line-height: 1.2;
 }
+
+/* Application assistant sheet */
+.application-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 28;
+  background: rgba(15, 23, 42, 0.22);
+}
+
+.application-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 29;
+  max-height: 82vh;
+  padding: 24rpx 24rpx calc(28rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  border-radius: 34rpx 34rpx 0 0;
+  background: #ffffff;
+  box-shadow: 0 -24rpx 60rpx rgba(15, 23, 42, 0.16);
+  transform: translateY(104%);
+  transition: transform 220ms ease;
+}
+
+.application-panel.show {
+  transform: translateY(0);
+}
+
+.application-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.application-heading {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.application-kicker {
+  color: #0f766e;
+  font-size: 20rpx;
+  line-height: 1.25;
+  font-weight: 900;
+}
+
+.application-title {
+  margin-top: 4rpx;
+  color: #101828;
+  font-size: 34rpx;
+  line-height: 1.2;
+  font-weight: 950;
+}
+
+.application-close {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #475467;
+  background: #f8fafc;
+  border: 1rpx solid #e6ebf2;
+  font-size: 40rpx;
+  line-height: 1;
+}
+
+.application-body {
+  max-height: calc(82vh - 130rpx);
+  box-sizing: border-box;
+}
+
+.application-section {
+  margin-bottom: 24rpx;
+}
+
+.application-label {
+  display: block;
+  margin-bottom: 14rpx;
+  color: #344054;
+  font-size: 24rpx;
+  line-height: 1.3;
+  font-weight: 900;
+}
+
+.application-label.inline {
+  margin-bottom: 0;
+}
+
+.application-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 14rpx;
+}
+
+.application-label-link {
+  flex-shrink: 0;
+  color: #175cd3;
+  font-size: 23rpx;
+  line-height: 1.3;
+  font-weight: 900;
+}
+
+.application-job-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.application-choice-row {
+  display: flex;
+  gap: 14rpx;
+  padding-bottom: 4rpx;
+}
+
+.application-choice {
+  width: 260rpx;
+  min-height: 112rpx;
+  padding: 18rpx;
+  box-sizing: border-box;
+  border-radius: 22rpx;
+  background: #f8fafc;
+  border: 1rpx solid #e6ebf2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.application-choice.active {
+  background: #eef4ff;
+  border-color: rgba(37, 99, 235, 0.32);
+  box-shadow: 0 10rpx 22rpx rgba(37, 99, 235, 0.12);
+}
+
+.application-choice-title,
+.application-choice-sub {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.application-choice-title {
+  color: #101828;
+  font-size: 25rpx;
+  line-height: 1.3;
+  font-weight: 900;
+}
+
+.application-choice-sub {
+  margin-top: 8rpx;
+  color: #667085;
+  font-size: 22rpx;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.application-empty {
+  padding: 22rpx;
+  border-radius: 22rpx;
+  background: #f8fafc;
+  border: 1rpx dashed #cbd5e1;
+  color: #667085;
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
+.question-type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12rpx;
+}
+
+.question-type {
+  min-height: 70rpx;
+  padding: 0 16rpx;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  color: #344054;
+  background: #f8fafc;
+  border: 1rpx solid #e6ebf2;
+  font-size: 22rpx;
+  line-height: 1.25;
+  font-weight: 850;
+  text-align: center;
+}
+
+.question-type.active {
+  color: #175cd3;
+  background: #eef4ff;
+  border-color: rgba(37, 99, 235, 0.24);
+}
+
+.application-generate {
+  height: 84rpx;
+  border-radius: 26rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb, #14b8a6);
+  box-shadow: 0 14rpx 28rpx rgba(37, 99, 235, 0.20);
+  font-size: 27rpx;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.application-generate.disabled {
+  color: #98a2b3;
+  background: #eef2f7;
+  box-shadow: none;
+}
+
+.application-draft {
+  margin-top: 24rpx;
+  padding: 24rpx;
+  border-radius: 26rpx;
+  background: #fffbeb;
+  border: 1rpx solid #fde68a;
+}
+
+.application-draft-title,
+.application-draft-meta,
+.application-draft-content {
+  display: block;
+}
+
+.application-draft-title {
+  color: #92400e;
+  font-size: 26rpx;
+  line-height: 1.35;
+  font-weight: 900;
+}
+
+.application-draft-meta {
+  margin-top: 6rpx;
+  color: #a16207;
+  font-size: 22rpx;
+  line-height: 1.35;
+  font-weight: 750;
+}
+
+.application-draft-content {
+  margin-top: 18rpx;
+  padding: 20rpx;
+  border-radius: 18rpx;
+  color: #334155;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1rpx solid rgba(253, 230, 138, 0.72);
+  font-size: 27rpx;
+  line-height: 1.72;
+}
+
+.application-draft-actions {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 18rpx;
+}
+
+.application-draft-btn {
+  flex: 1;
+  height: 74rpx;
+  border-radius: 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #344054;
+  background: #ffffff;
+  border: 1rpx solid #e6ebf2;
+  font-size: 25rpx;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.application-draft-btn.primary {
+  color: #ffffff;
+  background: #101828;
+  border-color: #101828;
+}
+
+.saved-section {
+  margin-top: 26rpx;
+}
+
+.saved-material {
+  padding: 20rpx;
+  margin-bottom: 12rpx;
+  border-radius: 22rpx;
+  background: #f8fafc;
+  border: 1rpx solid #e6ebf2;
+}
+
+.saved-material-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14rpx;
+  margin-bottom: 10rpx;
+}
+
+.saved-material-title {
+  flex: 1;
+  min-width: 0;
+  color: #101828;
+  font-size: 24rpx;
+  line-height: 1.3;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saved-material-meta {
+  flex-shrink: 0;
+  max-width: 180rpx;
+  color: #667085;
+  font-size: 21rpx;
+  line-height: 1.3;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saved-material-content {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: #475467;
+  font-size: 24rpx;
+  line-height: 1.55;
+}

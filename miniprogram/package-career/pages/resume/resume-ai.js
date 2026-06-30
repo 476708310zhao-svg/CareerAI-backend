@@ -3,6 +3,21 @@
  * 用法：Object.assign 混入 Page 配置
  */
 const { sendChatToDeepSeek } = require('../../../utils/api.js');
+const jdMatch = require('../../../utils/jd-match.js');
+
+function extractAiContent(res) {
+  return res && res.choices && res.choices[0] && res.choices[0].message
+    ? res.choices[0].message.content
+    : '';
+}
+
+function formatLocalMatchReport(report) {
+  const missing = report.missingKeywords && report.missingKeywords.length
+    ? report.missingKeywords.join('、')
+    : '暂无明显缺失关键词';
+  const suggestions = (report.suggestions || []).map((item, index) => `${index + 1}. ${item}`).join('\n');
+  return `【匹配度】${report.score}%\n【ATS风险】${report.atsRisk}\n【目标岗位】${report.jobTitle}\n【缺失关键词】${missing}\n【建议强化项目】${report.projectSuggestion}\n【提升建议】\n${suggestions}`;
+}
 
 module.exports = {
   // ── AI 简历审核 ─────────────────────────────────────────────
@@ -52,6 +67,13 @@ module.exports = {
 
     const resumeStr = JSON.stringify(this.data.onlineResume);
     const targetJob = this.data.targetJobInput || 'Software Engineer';
+    const localReport = jdMatch.saveReport(jdMatch.buildReport(this.data.onlineResume, {
+      id: 'resume_match_' + targetJob,
+      title: targetJob,
+      company: '目标岗位',
+      description: targetJob
+    }));
+    const localSummary = formatLocalMatchReport(localReport);
 
     const messages = [
       { role: 'system', content: '你是一位资深HR。请根据候选人简历和目标岗位，给出匹配度分析。' },
@@ -59,9 +81,16 @@ module.exports = {
     ];
 
     sendChatToDeepSeek(messages).then(res => {
-      this._showResult('岗位匹配分析', res.choices[0].message.content, false);
+      const aiContent = extractAiContent(res);
+      const content = aiContent
+        ? aiContent + '\n\n【本地关键词匹配报告】\n' + localSummary
+        : localSummary;
+      this._showResult('岗位匹配分析', content, false);
     }).catch(() => {
-      if (!this._unmounted) wx.showToast({ title: 'AI 请求失败', icon: 'none' });
+      if (!this._unmounted) {
+        this._showResult('岗位匹配分析', localSummary, false);
+        wx.showToast({ title: '已生成本地匹配报告', icon: 'none' });
+      }
     }).finally(() => wx.hideLoading());
   },
 

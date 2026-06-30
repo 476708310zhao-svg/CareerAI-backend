@@ -35,6 +35,103 @@
   <!-- 结果 -->
   <view wx:if="{{phase === 'done' && result}}">
 
+    <view class="brief-module" wx:if="{{brief && brief.recommendedJobs.length}}">
+      <view class="module-head">
+        <text class="module-title">今日推荐岗位</text>
+        <text class="module-link" bindtap="goJobs">更多 ›</text>
+      </view>
+      <block wx:for="{{brief.recommendedJobs}}" wx:key="id">
+        <view class="brief-job-card" bindtap="goJobDetail" data-id="{{item.id}}" hover-class="card-press">
+          <view>
+            <text class="brief-job-title">{{item.title}}</text>
+            <text class="brief-job-company">{{item.company}}{{item.city ? ' · ' + item.city : ''}}</text>
+          </view>
+          <text class="brief-job-salary">{{item.salary || '查看'}}</text>
+        </view>
+      </block>
+    </view>
+
+    <view class="brief-module">
+      <view class="module-head">
+        <text class="module-title">即将截止</text>
+        <text class="module-link" bindtap="goProgress">管理 ›</text>
+      </view>
+      <block wx:if="{{brief && brief.deadlines.length}}">
+        <view wx:for="{{brief.deadlines}}" wx:key="id" class="deadline-brief-card" bindtap="goProgress" hover-class="card-press">
+          <view>
+            <text class="deadline-company">{{item.company}}</text>
+            <text class="deadline-role">{{item.jobTitle}}</text>
+          </view>
+          <text class="deadline-badge">{{item.deadlineLabel}}</text>
+        </view>
+      </block>
+      <view wx:else class="soft-empty">暂无 7 天内截止岗位，今天可以补充目标岗位的截止时间。</view>
+    </view>
+
+    <view class="brief-module">
+      <view class="module-head">
+        <text class="module-title">我的投递进度</text>
+        <text class="module-link" bindtap="goProgress">查看 ›</text>
+      </view>
+      <view class="mini-stat-grid">
+        <view class="mini-stat">
+          <text class="mini-num">{{stats.totalApps}}</text>
+          <text class="mini-label">全部记录</text>
+        </view>
+        <view class="mini-stat">
+          <text class="mini-num">{{stats.pendingApps}}</text>
+          <text class="mini-label">网申/OA</text>
+        </view>
+        <view class="mini-stat">
+          <text class="mini-num">{{stats.interviewApps}}</text>
+          <text class="mini-label">面试中</text>
+        </view>
+        <view class="mini-stat">
+          <text class="mini-num offer">{{stats.offerApps}}</text>
+          <text class="mini-label">Offer</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="brief-module">
+      <view class="module-head">
+        <text class="module-title">今日面试任务</text>
+        <text class="module-link" bindtap="goInterview">练习 ›</text>
+      </view>
+      <block wx:if="{{brief && brief.todayInterviews.length}}">
+        <view wx:for="{{brief.todayInterviews}}" wx:key="id" class="task-card" bindtap="goProgress">
+          <text class="task-title">{{item.company}} · {{item.jobTitle}}</text>
+          <text class="task-sub">{{item.interviewTime}}</text>
+        </view>
+      </block>
+      <view wx:else class="soft-empty">今天暂无面试安排，可以练一道高频行为题保持手感。</view>
+    </view>
+
+    <view class="brief-module">
+      <view class="module-head">
+        <text class="module-title">今日必练题</text>
+        <text class="module-link" bindtap="goNotebook">题本 ›</text>
+      </view>
+      <block wx:for="{{brief.dailyQuestions}}" wx:key="*this">
+        <view class="question-row" bindtap="goInterview" data-question="{{item}}" hover-class="card-press">
+          <text class="question-index">{{index + 1}}</text>
+          <text class="question-text">{{item}}</text>
+        </view>
+      </block>
+    </view>
+
+    <view class="brief-module" wx:if="{{brief && brief.news.length}}">
+      <view class="module-head">
+        <text class="module-title">热门求职快讯</text>
+      </view>
+      <block wx:for="{{brief.news}}" wx:key="id">
+        <view class="news-brief-row">
+          <text class="news-brief-title">{{item.title}}</text>
+          <text class="news-brief-time">{{item.time}}</text>
+        </view>
+      </block>
+    </view>
+
     <!-- 今日总结 -->
     <view class="summary-banner">
       <view class="summary-banner-head">

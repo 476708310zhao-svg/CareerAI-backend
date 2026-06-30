@@ -40,6 +40,24 @@
     </block>
   </view>
 
+  <view wx:if="{{recruitmentEnabled}}" class="daily-progress-card">
+    <view class="daily-progress-main" bindtap="navigateToPage" data-url="/package-ai/pages/daily-brief/daily-brief" hover-class="opacity-hover">
+      <view class="daily-progress-head">
+        <text class="daily-kicker">今日求职简报</text>
+        <text class="daily-title">{{progressSummary.total ? '继续推进 ' + progressSummary.active + ' 个机会' : '从第一条进度开始'}}</text>
+      </view>
+      <text class="daily-advice">{{progressSummary.advice}}</text>
+      <view class="daily-stat-row">
+        <text>{{progressSummary.dueSoon}} 个即将截止</text>
+        <text>{{progressSummary.todayInterviews}} 个今日面试</text>
+      </view>
+    </view>
+    <view class="daily-progress-actions">
+      <view class="daily-action primary" catchtap="navigateToPage" data-url="/package-user/pages/job-progress/job-progress" hover-class="opacity-hover">进度</view>
+      <view class="daily-action" catchtap="navigateToPage" data-url="/package-ai/pages/daily-brief/daily-brief" hover-class="opacity-hover">简报</view>
+    </view>
+  </view>
+
   <view class="ai-zone">
     <view class="ai-zone-hero" bindtap="navigateToPage" data-url="{{aiSpotlight.primary.url}}" hover-class="opacity-hover">
       <view class="ai-visual">

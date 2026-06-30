@@ -62,6 +62,7 @@ const STATUS_DIFFICULTY_MAP = {
   student: 'easy',
   fresh:   'easy',
   working: 'medium',
+  switching: 'medium',
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -169,15 +170,17 @@ function getProfileCompleteness(profile) {
   if (!profile) return 0;
   const checks = [
     { field: profile.nickName,                              weight: 10 },
-    { field: profile.school,                               weight: 15 },
-    { field: profile.major,                                weight: 15 },
+    { field: profile.school,                               weight: 12 },
+    { field: profile.major,                                weight: 12 },
+    { field: profile.degree,                               weight: 8 },
     { field: profile.status,                               weight: 10 },
     { field: profile.gradYear,                             weight: 10 },
     { field: (profile.targetRoles || []).length > 0,       weight: 20 },
-    { field: (profile.targetLocation || []).length > 0,    weight: 10 },
+    { field: (profile.targetLocation || []).length > 0,    weight: 8 },
+    { field: (profile.targetIndustries || []).length > 0 || (profile.jobTypes || []).length > 0, weight: 10 },
     { field: (profile.skills || []).length > 0,            weight: 10 },
   ];
-  return checks.reduce((sum, c) => sum + (c.field ? c.weight : 0), 0);
+  return Math.min(100, checks.reduce((sum, c) => sum + (c.field ? c.weight : 0), 0));
 }
 
 /**
@@ -186,7 +189,9 @@ function getProfileCompleteness(profile) {
 function getMissingHints(profile) {
   const hints = [];
   if (!profile || !profile.major)                                hints.push('填写专业');
+  if (!profile || !profile.degree)                               hints.push('选择学历');
   if (!profile || !(profile.targetRoles || []).length)           hints.push('选择目标岗位');
+  if (!profile || !((profile.targetIndustries || []).length || (profile.jobTypes || []).length)) hints.push('选择求职方向');
   if (!profile || !(profile.skills || []).length)                hints.push('添加技能标签');
   if (!profile || !profile.status)                               hints.push('设置求职状态');
   return hints;

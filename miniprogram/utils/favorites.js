@@ -1,6 +1,7 @@
 // utils/favorites.js - 收藏管理工具（跨页面统一）
 const STORAGE_KEY = 'userFavorites';
 const API_BASE = require('./app-config.js').API_BASE_URL;
+const reminders = require('./reminders.js');
 const SYNC_TTL = 2 * 60 * 1000;
 let _syncPending = null;
 let _lastSyncAt = 0;
@@ -161,6 +162,21 @@ function remove(type, targetId) {
   _saveAll(all);
   _lastSyncAt = 0;
   _syncToServer('DELETE', { type, targetId });
+  if (type === 'job') {
+    reminders.disableReminder('favorite_job', targetId, 'deadline');
+  }
+  return true;
+}
+
+function update(type, targetId, patch) {
+  const all = _getAll();
+  if (!all[type]) return false;
+  const idx = all[type].findIndex(f => String(f.targetId) === String(targetId));
+  if (idx === -1) return false;
+  all[type][idx] = Object.assign({}, all[type][idx], patch || {}, {
+    updatedAt: new Date().toISOString()
+  });
+  _saveAll(all);
   return true;
 }
 
@@ -203,4 +219,4 @@ function toggle(type, item, title, subtitle) {
   }
 }
 
-module.exports = { add, remove, isFavorited, getList, getAll, getCount, toggle, syncFromServer };
+module.exports = { add, remove, update, isFavorited, getList, getAll, getCount, toggle, syncFromServer };

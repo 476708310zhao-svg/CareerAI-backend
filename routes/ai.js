@@ -164,16 +164,30 @@ router.post('/assistant', authMiddleware, aiLimiter, async (req, res) => {
       { timeout: 60000 }
     );
 
-    // 直接将 DeepSeek SSE 流透传给客户端
+    let clientClosed = false;
+    let streamEnded = false;
+
+    // 直接将上游 SSE 流透传给客户端
     streamRes.data.on('data', (chunk) => { res.write(chunk); });
-    streamRes.data.on('end',  () => { res.end(); });
+    streamRes.data.on('end',  () => {
+      streamEnded = true;
+      res.end();
+    });
     streamRes.data.on('error', (err) => {
       console.error('[ai/assistant] stream error:', err.message);
-      try { res.write('data: [DONE]\n\n'); res.end(); } catch (e) {}
+      if (clientClosed || res.writableEnded) return;
+      try {
+        res.write(`data: ${JSON.stringify({ error: 'AI响应中断，请重试' })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        res.end();
+      } catch (e) {}
     });
 
     // 客户端断开时终止上游请求
-    req.on('close', () => { streamRes.data.destroy(); });
+    req.on('close', () => {
+      clientClosed = !streamEnded;
+      if (!streamEnded) streamRes.data.destroy();
+    });
 
   } catch (err) {
     const status = err.response?.status || 500;

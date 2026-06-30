@@ -1,6 +1,8 @@
 // pages/favorites/favorites.js
 const favUtil = require('../../../utils/favorites.js');
 const featureFlags = require('../../../utils/feature-flags.js');
+const reminders = require('../../../utils/reminders.js');
+const config = require('../../../utils/app-config.js');
 const TAB_KEYS = ['job', 'experience', 'company', 'agency', 'campus'];
 
 Page({
@@ -59,8 +61,31 @@ Page({
   _decorateSelection(list, selectedIds) {
     const selected = new Set(selectedIds || []);
     return (list || []).map(item => Object.assign({}, item, {
-      isSelected: selected.has(item.targetId)
+      isSelected: selected.has(item.targetId),
+      reminderText: this._formatReminderText(item),
+      reminderUrgent: this._isReminderUrgent(item)
     }));
+  },
+
+  _isReminderUrgent(item) {
+    if (!item || !item.deadline) return false;
+    const target = new Date(String(item.deadline).slice(0, 10) + 'T00:00:00').getTime();
+    if (Number.isNaN(target)) return false;
+    const today = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00').getTime();
+    const days = Math.round((target - today) / 86400000);
+    return days >= 0 && days <= 3;
+  },
+
+  _formatReminderText(item) {
+    if (!item || !item.deadline) return '';
+    const target = new Date(String(item.deadline).slice(0, 10) + 'T00:00:00').getTime();
+    if (Number.isNaN(target)) return '提醒已开启';
+    const today = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00').getTime();
+    const days = Math.round((target - today) / 86400000);
+    if (days < 0) return '已截止';
+    if (days === 0) return '今天截止';
+    if (days <= 3) return days + ' 天后截止';
+    return '截止 ' + item.deadline;
   },
 
   // 根据当前 tab + 排序刷新 currentList
@@ -166,7 +191,12 @@ Page({
       success: (res) => {
         if (!res.confirm) return;
         const typeKey = TAB_KEYS[this.data.currentTab];
-        this.data.selectedIds.forEach(id => favUtil.remove(typeKey, id));
+        this.data.selectedIds.forEach(id => {
+          favUtil.remove(typeKey, id);
+          if (typeKey === 'job') {
+            reminders.disableReminder('favorite_job', id, 'deadline');
+          }
+        });
         this.setData({ batchMode: false, selectedIds: [], allSelected: false });
         this.loadFavorites();
         wx.showToast({ title: '已删除', icon: 'success' });
@@ -182,10 +212,77 @@ Page({
       success: (res) => {
         if (res.confirm) {
           favUtil.remove(type, targetid);
+          if (type === 'job') {
+            reminders.disableReminder('favorite_job', targetid, 'deadline');
+          }
           this.loadFavorites();
           wx.showToast({ title: '已取消收藏', icon: 'none' });
         }
       }
+    });
+  },
+
+  noop() {},
+
+  setJobReminder(e) {
+    const targetId = e.currentTarget.dataset.targetid;
+    const deadline = e.detail.value;
+    if (!targetId || !deadline) return;
+    favUtil.update('job', targetId, {
+      deadline,
+      reminderEnabled: true,
+      reminderLeadDays: [3, 1, 0]
+    });
+    const item = favUtil.getList('job').find(row => String(row.targetId) === String(targetId)) || {};
+    reminders.upsertReminder({
+      sourceType: 'favorite_job',
+      targetId,
+      reminderType: 'deadline',
+      reminderDate: deadline,
+      title: item.title || '',
+      company: item.company || item.subtitle || '',
+      jobTitle: item.title || '',
+      leadDays: [3, 1, 0],
+      enabled: true,
+      payload: item
+    }, { withSubscribe: true });
+    this.loadFavorites();
+    wx.showToast({ title: '提醒已设置', icon: 'success' });
+  },
+
+  clearJobReminder(e) {
+    const targetId = e.currentTarget.dataset.targetid;
+    if (!targetId) return;
+    favUtil.update('job', targetId, {
+      deadline: '',
+      reminderEnabled: false
+    });
+    reminders.disableReminder('favorite_job', targetId, 'deadline');
+    this.loadFavorites();
+    wx.showToast({ title: '已关闭提醒', icon: 'none' });
+  },
+
+  requestDeadlineSubscribe() {
+    const tmplId = config.WX_TPL_APPLICATION || config.WX_TPL_SYSTEM || '';
+    if (!tmplId || typeof wx.requestSubscribeMessage !== 'function') return;
+    wx.requestSubscribeMessage({
+      tmplIds: [tmplId],
+      success: (subRes) => {
+        if (subRes[tmplId] !== 'accept') return;
+        const token = wx.getStorageSync('token');
+        if (!token) return;
+        wx.request({
+          url: config.API_BASE_URL + '/api/notify/subscribe',
+          method: 'POST',
+          header: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          data: { templateIds: [tmplId] },
+          fail: () => {}
+        });
+      },
+      fail: () => {}
     });
   },
 

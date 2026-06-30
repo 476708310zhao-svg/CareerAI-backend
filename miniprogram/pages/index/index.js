@@ -2,6 +2,7 @@
 const { getAggregatedJobs, getCompanies, getNews, normalizeCompanyLogo } = require('../../utils/api.js');
 const config = require('../../utils/app-config.js');
 const favUtil = require('../../utils/favorites.js');
+const progress = require('../../utils/job-progress.js');
 const demoData = require('../../utils/demo-data.js');
 const matcher = require('../../utils/matcher.js');
 const { formatSalaryRange } = require('../../utils/util.js');
@@ -13,7 +14,7 @@ const HOME_NEWS_CACHE_KEY = 'cachedHomeNews_v1';
 const HOT_COMPANIES_CACHE_KEY = 'cachedHotCompanies_v1';
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 const HOME_FEATURES = [
-  { id: 1, name: '网申助手', icon: '/images/icon-apply.png', url: '/package-user/pages/applications/applications', badge: '', bg: 'linear-gradient(145deg,#eef6ff,#f8fbff)' },
+  { id: 1, name: '求职进度', icon: '/images/icon-apply.png', url: '/package-user/pages/job-progress/job-progress', badge: '2.0', bg: 'linear-gradient(145deg,#eef6ff,#f8fbff)' },
   { id: 2, name: '薪酬查询', icon: '/images/icon-salary.png', url: '/package-career/pages/salary/salary', badge: 'Hot', bg: 'linear-gradient(145deg,#ecfdf5,#f8fbff)' },
   { id: 3, name: '求职规划', icon: '/images/icon-plan.png', url: '/package-career/pages/career-planner/career-planner', badge: 'AI', isAi: true, bg: 'linear-gradient(145deg,#fff7ed,#f8fbff)' },
   { id: 4, name: '机构测评', icon: '/images/assess-active.png', url: '/pages/agencies/agencies', badge: '', bg: 'linear-gradient(145deg,#eef2ff,#f8fbff)' }
@@ -102,6 +103,13 @@ Page({
     profileHints: [],
     showProfileGuide: false,
     showBackToTop: false, // 控制回到顶部按钮显隐
+    progressSummary: {
+      total: 0,
+      active: 0,
+      dueSoon: 0,
+      todayInterviews: 0,
+      advice: ''
+    }
   },
 
   onLoad() {
@@ -111,6 +119,7 @@ Page({
     this.normalizeHomeData();
     try {
       this.loadUserProfile();
+      this.loadProgressSummary();
     } catch(e) { wx.showToast({ title: 'E1:' + e.message, icon: 'none', duration: 5000 }); return; }
     try {
       this.fetchBanners();
@@ -176,6 +185,7 @@ Page({
     const app = getApp();
     if (app && typeof app.syncCustomTabBar === 'function') app.syncCustomTabBar();
     this.loadUserProfile();
+    this.loadProgressSummary();
     this.updateMessageBadge();
     this.syncPageChrome();
     featureFlags.refreshFeatureFlags();
@@ -254,16 +264,17 @@ Page({
   // 小程序分享给朋友
   onShareAppMessage() {
     return {
-      title: '2026春招全面启动，快来看看这些适合你的高薪岗位！',
+      title: '职引 | 留学生AI求职助手',
       path: '/pages/index/index',
-      imageUrl: '/images/share-cover.png' // 建议设计一张带有强吸引力（如名企Logo集合）的封面图
+      imageUrl: 'https://api.zhiyincareer.com/uploads/banners/banner_1782446347190_ovbr4.png'
     };
   },
 
   // 小程序分享到朋友圈
   onShareTimeline() {
     return {
-      title: '我正在使用这款求职神器，AI模拟面试+名企内推直达！'
+      title: '职引 | 留学生AI求职助手',
+      imageUrl: 'https://api.zhiyincareer.com/uploads/banners/banner_1782446347190_ovbr4.png'
     };
   },
 
@@ -691,6 +702,19 @@ Page({
     } else {
       wx.navigateTo({ url });
     }
+  },
+
+  loadProgressSummary() {
+    const stats = progress.getStats();
+    this.setData({
+      progressSummary: {
+        total: stats.total,
+        active: stats.active,
+        dueSoon: stats.dueSoon,
+        todayInterviews: stats.todayInterviews,
+        advice: progress.buildDailyAdvice()
+      }
+    });
   },
 
   goToJobSearch() {

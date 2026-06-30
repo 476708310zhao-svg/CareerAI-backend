@@ -63,9 +63,14 @@
             <text class="fav-title">{{item.title}}</text>
             <text class="fav-subtitle">{{item.subtitle}}</text>
             <text class="fav-date">收藏于 {{item.createdAt}}</text>
+            <text wx:if="{{item.reminderText}}" class="fav-reminder {{item.reminderUrgent ? 'urgent' : ''}}">{{item.reminderText}}</text>
           </view>
           <view class="fav-right" wx:if="{{!batchMode}}">
             <text class="fav-salary" wx:if="{{item.salary}}">{{item.salary}}</text>
+            <picker mode="date" value="{{item.deadline}}" start="2024-01-01" end="2032-12-31" bindchange="setJobReminder" data-targetid="{{item.targetId}}" catchtap="noop">
+              <view class="reminder-btn">{{item.reminderEnabled ? '改提醒' : '提醒'}}</view>
+            </picker>
+            <view wx:if="{{item.reminderEnabled}}" class="reminder-clear" catchtap="clearJobReminder" data-targetid="{{item.targetId}}">关闭</view>
             <view class="remove-btn" catchtap="removeFavorite" data-type="job" data-targetid="{{item.targetId}}">取消</view>
           </view>
         </view>

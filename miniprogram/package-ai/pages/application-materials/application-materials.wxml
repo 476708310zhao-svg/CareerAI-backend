@@ -1,0 +1,108 @@
+<view class="page">
+  <c-ai-disclosure text="网申回答草稿由人工智能或本地模板生成，请结合真实经历核验后使用。" />
+
+  <view class="hero">
+    <view class="hero-copy">
+      <text class="kicker">APPLICATION MATERIALS</text>
+      <text class="title">申请材料库</text>
+      <text class="subtitle">沉淀 Why company、项目经历、工作授权等常用网申回答。</text>
+    </view>
+    <view class="hero-stat">
+      <text class="hero-num">{{stats.total}}</text>
+      <text class="hero-label">草稿</text>
+    </view>
+  </view>
+
+  <view class="quick-row">
+    <view class="quick-card">
+      <text class="quick-num">{{stats.companyCount}}</text>
+      <text class="quick-label">覆盖公司</text>
+    </view>
+    <view class="quick-action" bindtap="createDraft" hover-class="tap-soft">
+      <text>生成新草稿</text>
+    </view>
+  </view>
+
+  <view class="search-bar">
+    <input class="search-input" placeholder="搜索公司、岗位或内容" value="{{keyword}}" bindinput="onSearchInput" />
+    <view wx:if="{{keyword}}" class="search-clear" bindtap="clearSearch">×</view>
+  </view>
+
+  <scroll-view scroll-x enhanced show-scrollbar="{{false}}" class="tab-scroll">
+    <view class="tab-row">
+      <view
+        wx:for="{{tabs}}"
+        wx:key="code"
+        class="tab {{activeType === item.code ? 'active' : ''}}"
+        bindtap="setType"
+        data-type="{{item.code}}"
+      >
+        <text>{{item.label}}</text>
+        <text class="tab-count">{{item.count}}</text>
+      </view>
+    </view>
+  </scroll-view>
+
+  <block wx:if="{{filteredMaterials.length}}">
+    <view
+      wx:for="{{filteredMaterials}}"
+      wx:key="id"
+      class="material-card"
+      hover-class="card-press"
+    >
+      <view class="material-head">
+        <view class="material-title-wrap">
+          <text class="material-title">{{item.questionLabel}}</text>
+          <text class="material-meta">{{item.company}} · {{item.jobTitle}}</text>
+        </view>
+        <text class="material-date">{{item.dateLabel}}</text>
+      </view>
+      <text class="material-preview" user-select>{{item.preview}}</text>
+      <view class="material-actions">
+        <view class="material-btn" bindtap="copyMaterial" data-id="{{item.id}}">复制</view>
+        <view class="material-btn primary" bindtap="openEditor" data-id="{{item.id}}">编辑</view>
+        <view class="material-btn danger" bindtap="deleteMaterial" data-id="{{item.id}}">删除</view>
+      </view>
+    </view>
+  </block>
+
+  <view wx:else class="empty-card">
+    <text class="empty-title">还没有申请材料</text>
+    <text class="empty-desc">从 AI 助手生成第一条网申回答草稿，之后可以在这里复制、修改和复用。</text>
+    <view class="empty-btn" bindtap="createDraft">去生成草稿</view>
+  </view>
+
+  <view class="bottom-space"></view>
+
+  <view wx:if="{{showEditor}}" class="editor-mask" bindtap="closeEditor"></view>
+  <view class="editor-panel {{showEditor ? 'show' : ''}}">
+    <view class="editor-head">
+      <text class="editor-title">编辑申请材料</text>
+      <view class="editor-close" bindtap="closeEditor">×</view>
+    </view>
+    <scroll-view scroll-y class="editor-body">
+      <view class="form-item">
+        <text class="form-label">问题类型</text>
+        <input class="form-input" value="{{editForm.questionLabel}}" bindinput="onEditInput" data-field="questionLabel" />
+      </view>
+      <view class="form-row">
+        <view class="form-item half">
+          <text class="form-label">公司</text>
+          <input class="form-input" value="{{editForm.company}}" bindinput="onEditInput" data-field="company" />
+        </view>
+        <view class="form-item half">
+          <text class="form-label">岗位</text>
+          <input class="form-input" value="{{editForm.jobTitle}}" bindinput="onEditInput" data-field="jobTitle" />
+        </view>
+      </view>
+      <view class="form-item">
+        <text class="form-label">草稿内容</text>
+        <textarea class="form-textarea" value="{{editForm.content}}" bindinput="onEditInput" data-field="content" maxlength="2000" />
+      </view>
+    </scroll-view>
+    <view class="editor-actions">
+      <view class="editor-btn danger" bindtap="deleteMaterial">删除</view>
+      <view class="editor-btn primary" bindtap="saveEdit">保存</view>
+    </view>
+  </view>
+</view>

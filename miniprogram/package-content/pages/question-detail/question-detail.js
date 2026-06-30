@@ -1,5 +1,6 @@
 // pages/question-detail/question-detail.js
 const { QUESTIONS } = require('../../../utils/question-bank.js');
+const notebook = require('../../../utils/interview-notebook.js');
 
 const CAT_NAMES = {
   java: 'Java', frontend: '前端', algorithm: '算法',
@@ -22,7 +23,9 @@ Page({
     q: {},
     tips: [],
     isCollected: false,
-    isDone: false
+    isDone: false,
+    notebookStatus: '',
+    inDailyPractice: false
   },
 
   onLoad(options) {
@@ -38,8 +41,18 @@ Page({
     // 已做状态
     const done = wx.getStorageSync('doneQuestions') || [];
     const isDone = done.some(id => id === q.id);
+    const note = notebook.getItem(q.id);
+    const daily = notebook.getDailyPractice();
+    const inDailyPractice = daily.some(item => String(item.id) === String(q.id));
 
-    this.setData({ q: { ...q, categoryName: catName }, tips, isCollected, isDone });
+    this.setData({
+      q: { ...q, categoryName: catName },
+      tips,
+      isCollected,
+      isDone,
+      notebookStatus: note ? note.status : '',
+      inDailyPractice
+    });
 
     // 设置标题
     if (q.title) {
@@ -132,5 +145,34 @@ Page({
 
     wx.setStorageSync('collectedQuestions', collected);
     this.setData({ isCollected });
+  },
+
+  markUnknown() {
+    const q = this.data.q;
+    if (!q || !q.id) return;
+    const item = notebook.mark(q, 'unknown');
+    this.setData({ notebookStatus: item.status });
+    wx.showToast({ title: '已加入错题本', icon: 'success' });
+  },
+
+  markMastered() {
+    const q = this.data.q;
+    if (!q || !q.id) return;
+    const item = notebook.mark(q, 'mastered');
+    let done = wx.getStorageSync('doneQuestions') || [];
+    if (!done.some(id => String(id) === String(q.id))) {
+      done.unshift(q.id);
+      wx.setStorageSync('doneQuestions', done);
+    }
+    this.setData({ notebookStatus: item.status, isDone: true });
+    wx.showToast({ title: '已标记掌握', icon: 'success' });
+  },
+
+  addDailyPractice() {
+    const q = this.data.q;
+    if (!q || !q.id) return;
+    notebook.addDailyPractice(q);
+    this.setData({ inDailyPractice: true });
+    wx.showToast({ title: '已加入每日练习', icon: 'success' });
   }
 });

@@ -14,6 +14,7 @@ const axios   = require('axios');
 const router  = express.Router();
 const db      = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
+const { internalTaskAuth } = require('../middleware/internalAuth');
 const { scheduleReminderData } = require('../utils/wechatTemplates');
 
 const WX_APP_ID     = process.env.WX_APP_ID     || '';
@@ -97,7 +98,159 @@ async function sendToUser(userId, { type = 'system', title, content, templateId,
 module.exports.sendToUser = sendToUser;
 module.exports.TEMPLATES = TEMPLATES;
 
+function safeJson(value, fallback) {
+  if (!value) return fallback;
+  try { return JSON.parse(value); } catch (e) { return fallback; }
+}
+
+function dateOnlyInShanghai(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(date).reduce((acc, item) => {
+    acc[item.type] = item.value;
+    return acc;
+  }, {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function addDays(dateText, days) {
+  const date = new Date(String(dateText).slice(0, 10) + 'T00:00:00+08:00');
+  if (Number.isNaN(date.getTime())) return '';
+  date.setUTCDate(date.getUTCDate() + days);
+  return dateOnlyInShanghai(date);
+}
+
+function normalizeLeadDays(value, type) {
+  const source = Array.isArray(value) ? value : safeJson(value, type === 'daily_brief' ? [0] : [3, 1, 0]);
+  const seen = new Set();
+  return source
+    .map(item => Number(item))
+    .filter(item => Number.isInteger(item) && item >= 0 && item <= 30)
+    .filter(item => {
+      if (seen.has(item)) return false;
+      seen.add(item);
+      return true;
+    })
+    .sort((a, b) => b - a);
+}
+
+function reminderRow(row) {
+  return {
+    id: row.id,
+    sourceType: row.source_type || 'job',
+    targetId: row.target_id || '',
+    reminderType: row.reminder_type || 'deadline',
+    title: row.title || '',
+    company: row.company || '',
+    jobTitle: row.job_title || '',
+    reminderDate: row.reminder_date || '',
+    reminderTime: row.reminder_time || '',
+    leadDays: safeJson(row.lead_days, []),
+    enabled: !!row.enabled,
+    sentKeys: safeJson(row.sent_keys, []),
+    payload: safeJson(row.payload, {}),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function buildReminderMessageLegacy(row, leadDay) {
+  const company = row.company || '目标公司';
+  const role = row.job_title || row.title || '目标岗位';
+  const subject = `${company} · ${role}`;
+  if (row.reminder_type === 'interview') {
+    return {
+      type: 'interview_reminder',
+      title: `面试提醒：${subject}`,
+      content: `${subject} 的面试安排在 ${row.reminder_time || row.reminder_date}，请提前准备 STAR 案例和岗位关键词。`,
+      templateId: TEMPLATES.interview_done || TEMPLATES.system_notice,
+      wxData: scheduleReminderData({
+        topic: `${company} 面试提醒`,
+        description: role,
+        time: row.reminder_time || row.reminder_date,
+        status: '待准备'
+      })
+    };
+  }
+  if (row.reminder_type === 'daily_brief') {
+    return {
+      type: 'daily_brief',
+      title: '每日求职简报提醒',
+      content: '今天的求职简报已准备好，可以查看即将截止岗位、面试任务和今日必练题。',
+      templateId: TEMPLATES.system_notice,
+      wxData: scheduleReminderData({
+        topic: '每日求职简报',
+        description: '查看今日待办和推荐岗位',
+        time: row.reminder_time || row.reminder_date,
+        status: '可查看'
+      })
+    };
+  }
+  return {
+    type: 'job_deadline',
+    title: `截止提醒：${subject}`,
+    content: `${subject} 将在 ${row.reminder_date} 截止，${leadDay === 0 ? '今天就是截止日' : `距离截止还有 ${leadDay} 天`}，建议尽快确认简历和网申材料。`,
+    templateId: TEMPLATES.system_notice || TEMPLATES.application_update,
+    wxData: scheduleReminderData({
+      topic: `${company} 截止提醒`,
+      description: role,
+      time: row.reminder_date,
+      status: leadDay === 0 ? '今日截止' : `${leadDay}天后`
+    })
+  };
+}
+
 // ─── 前端登记订阅（记录用户已授权的模板）────────────────────────────────────
+function buildReminderMessage(row, leadDay) {
+  const company = row.company || 'Target company';
+  const role = row.job_title || row.title || 'Target role';
+  const subject = `${company} - ${role}`;
+  if (row.reminder_type === 'interview') {
+    return {
+      type: 'interview_reminder',
+      title: `Interview reminder: ${subject}`,
+      content: `${subject} is scheduled at ${row.reminder_time || row.reminder_date}. Please review your STAR stories and role keywords in advance.`,
+      templateId: TEMPLATES.interview_done || TEMPLATES.system_notice,
+      wxData: scheduleReminderData({
+        topic: `${company} interview reminder`,
+        description: role,
+        time: row.reminder_time || row.reminder_date,
+        status: 'Pending'
+      })
+    };
+  }
+  if (row.reminder_type === 'daily_brief') {
+    return {
+      type: 'daily_brief',
+      title: 'Daily job search brief',
+      content: 'Your daily brief is ready. Review upcoming deadlines, interviews, tasks and practice questions.',
+      templateId: TEMPLATES.system_notice,
+      wxData: scheduleReminderData({
+        topic: 'Daily job search brief',
+        description: 'Today tasks and recommendations',
+        time: row.reminder_time || row.reminder_date,
+        status: 'Ready'
+      })
+    };
+  }
+  const relative = leadDay === 0 ? 'today is the deadline' : `${leadDay} day(s) left before the deadline`;
+  return {
+    type: 'job_deadline',
+    title: `Deadline reminder: ${subject}`,
+    content: `${subject} closes on ${row.reminder_date}; ${relative}. Please confirm your resume and application materials soon.`,
+    templateId: TEMPLATES.system_notice || TEMPLATES.application_update,
+    wxData: scheduleReminderData({
+      topic: `${company} deadline reminder`,
+      description: role,
+      time: row.reminder_date,
+      status: leadDay === 0 ? 'Today' : `${leadDay}d`
+    })
+  };
+}
+
 // POST /api/notify/subscribe
 // body: { templateIds: ['tplId1', 'tplId2'] }
 router.post('/subscribe', authMiddleware, (req, res) => {
@@ -105,6 +258,130 @@ router.post('/subscribe', authMiddleware, (req, res) => {
   const { templateIds = [] } = req.body;
   console.log(`[notify] userId=${req.user.userId} 订阅了模板:`, templateIds);
   res.json({ code: 0, message: '订阅记录成功' });
+});
+
+// ─── 通用求职提醒订阅 ───────────────────────────────────────────────────────
+// GET /api/notify/reminders
+router.get('/reminders', authMiddleware, (req, res) => {
+  const { sourceType, reminderType } = req.query;
+  const where = ['user_id=?'];
+  const params = [req.user.userId];
+  if (sourceType) { where.push('source_type=?'); params.push(String(sourceType)); }
+  if (reminderType) { where.push('reminder_type=?'); params.push(String(reminderType)); }
+  const rows = db.prepare(`
+    SELECT * FROM job_reminders
+    WHERE ${where.join(' AND ')}
+    ORDER BY enabled DESC, reminder_date ASC, updated_at DESC
+  `).all(...params);
+  res.json({ code: 0, data: rows.map(reminderRow) });
+});
+
+// PUT /api/notify/reminders
+router.put('/reminders', authMiddleware, (req, res) => {
+  const body = req.body || {};
+  const sourceType = String(body.sourceType || 'job');
+  const targetId = String(body.targetId || '').trim();
+  const reminderType = String(body.reminderType || 'deadline');
+  const reminderDate = String(body.reminderDate || body.deadline || '').slice(0, 10);
+  const reminderTime = String(body.reminderTime || body.interviewTime || '');
+  if (!targetId) return res.status(400).json({ code: -1, message: '缺少 targetId' });
+  if (!['deadline', 'interview', 'daily_brief'].includes(reminderType)) {
+    return res.status(400).json({ code: -1, message: '提醒类型无效' });
+  }
+  if (reminderType !== 'daily_brief' && !reminderDate) {
+    return res.status(400).json({ code: -1, message: '请设置提醒日期' });
+  }
+  const leadDays = normalizeLeadDays(body.leadDays || body.reminderLeadDays, reminderType);
+  db.prepare(`
+    INSERT INTO job_reminders
+      (user_id, source_type, target_id, reminder_type, title, company, job_title,
+       reminder_date, reminder_time, lead_days, enabled, payload, updated_at)
+    VALUES
+      (@userId, @sourceType, @targetId, @reminderType, @title, @company, @jobTitle,
+       @reminderDate, @reminderTime, @leadDays, @enabled, @payload, datetime('now'))
+    ON CONFLICT(user_id, source_type, target_id, reminder_type) DO UPDATE SET
+      title=excluded.title,
+      company=excluded.company,
+      job_title=excluded.job_title,
+      reminder_date=excluded.reminder_date,
+      reminder_time=excluded.reminder_time,
+      lead_days=excluded.lead_days,
+      enabled=excluded.enabled,
+      payload=excluded.payload,
+      updated_at=datetime('now')
+  `).run({
+    userId: req.user.userId,
+    sourceType,
+    targetId,
+    reminderType,
+    title: String(body.title || ''),
+    company: String(body.company || ''),
+    jobTitle: String(body.jobTitle || body.positionName || ''),
+    reminderDate: reminderType === 'daily_brief' ? (reminderDate || dateOnlyInShanghai()) : reminderDate,
+    reminderTime,
+    leadDays: JSON.stringify(leadDays),
+    enabled: body.enabled === false ? 0 : 1,
+    payload: JSON.stringify(body.payload || {})
+  });
+  const row = db.prepare(`
+    SELECT * FROM job_reminders
+    WHERE user_id=? AND source_type=? AND target_id=? AND reminder_type=?
+  `).get(req.user.userId, sourceType, targetId, reminderType);
+  res.json({ code: 0, data: reminderRow(row), message: row.enabled ? '提醒已开启' : '提醒已关闭' });
+});
+
+// DELETE /api/notify/reminders/:sourceType/:targetId/:reminderType
+router.delete('/reminders/:sourceType/:targetId/:reminderType', authMiddleware, (req, res) => {
+  const result = db.prepare(`
+    UPDATE job_reminders
+    SET enabled=0, updated_at=datetime('now')
+    WHERE user_id=? AND source_type=? AND target_id=? AND reminder_type=?
+  `).run(req.user.userId, req.params.sourceType, req.params.targetId, req.params.reminderType);
+  res.json({ code: 0, message: result.changes ? '提醒已关闭' : '提醒不存在' });
+});
+
+// POST /api/notify/reminders/dispatch
+// Header: X-Cron-Secret
+router.post('/reminders/dispatch', internalTaskAuth, async (req, res) => {
+  try {
+  const today = String((req.body && req.body.date) || req.query.date || dateOnlyInShanghai()).slice(0, 10);
+  const rows = db.prepare(`
+    SELECT * FROM job_reminders
+    WHERE enabled=1 AND reminder_date!=''
+    ORDER BY reminder_date ASC, id ASC
+    LIMIT 500
+  `).all();
+  const sent = [];
+  const skipped = [];
+
+  for (const row of rows) {
+    const leadDays = normalizeLeadDays(row.lead_days, row.reminder_type);
+    const sentKeys = safeJson(row.sent_keys, []);
+    const dueLeads = leadDays.filter(day => addDays(row.reminder_date, -day) === today);
+    if (!dueLeads.length) {
+      skipped.push({ id: row.id, reason: 'not_due' });
+      continue;
+    }
+    for (const leadDay of dueLeads) {
+      const key = `${row.reminder_type}:${row.source_type}:${row.target_id}:${row.reminder_date}:${leadDay}`;
+      if (sentKeys.includes(key)) {
+        skipped.push({ id: row.id, reason: 'already_sent', key });
+        continue;
+      }
+      const message = buildReminderMessage(row, leadDay);
+      await sendToUser(row.user_id, message);
+      sentKeys.push(key);
+      db.prepare("UPDATE job_reminders SET sent_keys=?, updated_at=datetime('now') WHERE id=?")
+        .run(JSON.stringify(sentKeys), row.id);
+      sent.push({ id: row.id, userId: row.user_id, key, type: message.type });
+    }
+  }
+
+  res.json({ code: 0, data: { date: today, checked: rows.length, sent, skipped } });
+  } catch (e) {
+    console.error('[notify] reminders dispatch failed:', e.message);
+    res.status(500).json({ code: -1, message: 'reminder dispatch failed' });
+  }
 });
 
 // ─── 校招截止提醒订阅 ─────────────────────────────────────────────────────────

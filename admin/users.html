@@ -17,6 +17,22 @@
     .detail-item label { font-size: 12px; color: #9ca3af; display: block; margin-bottom: 2px; }
     .detail-item span { font-size: 14px; color: #111827; }
     .resume-chip { display: inline-flex; align-items: center; gap: 6px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 4px 10px; font-size: 12px; color: #0369a1; margin: 4px 4px 4px 0; }
+    .profile-bar { width: 88px; height: 7px; border-radius: 999px; background: #e5e7eb; overflow: hidden; }
+    .profile-bar-fill { height: 100%; background: linear-gradient(90deg,#2563eb,#22c55e); border-radius: inherit; }
+    .profile-meta { color: #6b7280; font-size: 12px; line-height: 1.55; }
+    .list-text { max-width: 180px; color: #374151; font-size: 13px; line-height: 1.45; }
+    .detail-item.full { grid-column: 1 / -1; }
+    .detail-item input, .detail-item select, .detail-item textarea {
+      width: 100%;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 14px;
+      outline: none;
+      background: #fff;
+    }
+    .detail-item textarea { min-height: 64px; resize: vertical; }
+    .field-hint { margin-top: 4px; color: #9ca3af; font-size: 11px; }
   </style>
 </head>
 <body class="admin-shell">
@@ -38,7 +54,7 @@
       </div>
       <div class="table-card">
         <div class="table-wrap"><table>
-          <thead><tr><th>用户</th><th>邮箱</th><th>手机</th><th>会员</th><th>注册时间</th><th>操作</th></tr></thead>
+          <thead><tr><th>用户</th><th>教育背景</th><th>目标岗位</th><th>完整度</th><th>邮箱</th><th>手机</th><th>会员</th><th>操作</th></tr></thead>
           <tbody id="tbody"></tbody>
         </table></div>
         <div class="pagination" id="pagi"></div>
@@ -49,7 +65,7 @@
 
 <!-- 用户详情 Modal -->
 <div class="modal-overlay" id="detailModal" onclick="if(event.target===this)closeModal('detailModal')">
-  <div class="modal-box" style="max-width:600px">
+  <div class="modal-box" style="max-width:760px">
     <div class="modal-header"><h3 id="detailTitle">用户详情</h3><button class="modal-close" onclick="closeModal('detailModal')">×</button></div>
     <div class="modal-body" id="detailBody"></div>
     <div class="modal-footer">
@@ -66,6 +82,64 @@ initPage('users', '用户管理');
 let currentPage = 1;
 const pageSize = 20;
 let editUserId = null;
+let profileSchema = null;
+
+async function loadProfileSchema() {
+  const res = await GET('/admin/api/user-profile-schema');
+  if (res && res.code === 0) profileSchema = res.data;
+}
+
+function schemaOptions(key) {
+  return (profileSchema && profileSchema.options && profileSchema.options[key]) || [];
+}
+
+function optionLabel(key, value) {
+  const item = schemaOptions(key).find(option => {
+    if (typeof option === 'string') return option === value;
+    return option.value === value || option.label === value;
+  });
+  return typeof item === 'string' ? item : (item && item.label) || value || '';
+}
+
+function joinList(list) {
+  return Array.isArray(list) && list.length ? list.join('、') : '-';
+}
+
+function editListValue(list, optionKey) {
+  if (!Array.isArray(list)) return '';
+  return list.map(item => optionLabel(optionKey, item)).filter(Boolean).join('，');
+}
+
+function splitListValue(value) {
+  return String(value || '')
+    .split(/[,，、;；\n\r]+/)
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+function renderSelect(id, optionKey, selected, placeholder = '请选择') {
+  const options = schemaOptions(optionKey);
+  const items = [`<option value="">${placeholder}</option>`].concat(options.map(option => {
+    const value = typeof option === 'string' ? option : option.value;
+    const label = typeof option === 'string' ? option : option.label;
+    return `<option value="${esc(value)}" ${value === selected ? 'selected' : ''}>${esc(label)}</option>`;
+  }));
+  return `<select id="${id}">${items.join('')}</select>`;
+}
+
+function getValue(id) {
+  const el = document.getElementById(id);
+  return el ? el.value.trim() : '';
+}
+
+function buildProfileBar(score) {
+  const value = Math.max(0, Math.min(100, Number(score || 0)));
+  return `
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="profile-bar"><div class="profile-bar-fill" style="width:${value}%"></div></div>
+      <span class="profile-meta">${value}%</span>
+    </div>`;
+}
 
 async function load(page = 1) {
   currentPage = page;
@@ -75,8 +149,11 @@ async function load(page = 1) {
   const { list, total } = res.data;
 
   document.getElementById('tbody').innerHTML = list.length === 0
-    ? '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:40px">暂无用户数据</td></tr>'
-    : list.map(u => `
+    ? '<tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:40px">暂无用户数据</td></tr>'
+    : list.map(u => {
+      const educationText = [u.school, u.major].filter(Boolean).join(' · ') || '-';
+      const rolesText = joinList(u.targetRoles || []);
+      return `
     <tr>
       <td>
         <div style="display:flex;align-items:center">
@@ -87,26 +164,30 @@ async function load(page = 1) {
           </div>
         </div>
       </td>
+      <td><div class="list-text">${esc(educationText)}</div></td>
+      <td><div class="list-text">${esc(rolesText)}</div></td>
+      <td>${buildProfileBar(u.profileCompleteness)}</td>
       <td>${esc(u.email) || '-'}</td>
       <td>${esc(u.phone) || '-'}</td>
       <td><span class="vip-badge vip-${u.vip_level}">${u.vip_level === 0 ? '普通' : u.vip_level === 1 ? '会员' : 'VIP'}</span></td>
-      <td>${fmtDate(u.created_at)}</td>
       <td>
         <button class="btn btn-outline btn-sm" onclick="openDetail(${u.id})"><i class="fa-solid fa-eye"></i> 查看</button>
       </td>
-    </tr>`).join('');
+    </tr>`;
+    }).join('');
 
   renderPagination('pagi', page, total, pageSize, 'load');
 }
 
 async function openDetail(id) {
+  if (!profileSchema) await loadProfileSchema();
   editUserId = id;
   const res = await GET('/admin/api/users/' + id);
   if (!res || res.code !== 0) { toast('加载失败', 'error'); return; }
   const u = res.data;
-  let edu = '{}', pref = '{}';
-  try { edu = JSON.stringify(JSON.parse(u.education || '{}'), null, 2); } catch(e) {}
-  try { pref = JSON.stringify(JSON.parse(u.job_preference || '{}'), null, 2); } catch(e) {}
+  const profile = u.profile || {};
+  const edu = profile.education || {};
+  const pref = profile.jobPreference || {};
 
   const resumeChips = (u.resumes || []).map(r =>
     `<span class="resume-chip"><i class="fa-solid fa-file-lines"></i> ${esc(r.name)} <span style="color:#94a3b8">${fmtDate(r.updated_at)}</span></span>`
@@ -121,6 +202,7 @@ async function openDetail(id) {
         <div>
           <div style="font-size:16px;font-weight:700">${esc(u.nickname)}</div>
           <div style="font-size:12px;color:#9ca3af">UID: ${u.id} · 注册于 ${fmtDate(u.created_at)}</div>
+          <div style="margin-top:8px">${buildProfileBar(profile.completeness)}</div>
         </div>
       </div>
       <div class="detail-grid">
@@ -137,6 +219,28 @@ async function openDetail(id) {
       </div>
     </div>
     <div class="detail-section">
+      <h4>标准教育背景</h4>
+      <div class="detail-grid">
+        <div class="detail-item"><label>学校</label><input type="text" id="edit_school" value="${esc(edu.school)}" maxlength="60"></div>
+        <div class="detail-item"><label>专业</label><input type="text" id="edit_major" value="${esc(edu.major)}" maxlength="60"></div>
+        <div class="detail-item"><label>学历</label>${renderSelect('edit_degree', 'degreeOptions', edu.degree, '未选择')}</div>
+        <div class="detail-item"><label>毕业年份</label>${renderSelect('edit_gradYear', 'gradYearOptions', edu.gradYear, '未选择')}</div>
+      </div>
+    </div>
+    <div class="detail-section">
+      <h4>标准求职意向</h4>
+      <div class="detail-grid">
+        <div class="detail-item"><label>求职状态</label>${renderSelect('edit_status', 'statusOptions', pref.status, '未选择')}</div>
+        <div class="detail-item"><label>工作授权</label>${renderSelect('edit_workAuthorization', 'workAuthOptions', pref.workAuthorization, '未选择')}</div>
+        <div class="detail-item full"><label>目标岗位</label><textarea id="edit_targetRoles">${esc(editListValue(pref.targetRoles, 'roleOptions'))}</textarea><div class="field-hint">多个值用逗号分隔，最多 5 个</div></div>
+        <div class="detail-item full"><label>目标地区</label><textarea id="edit_targetLocation">${esc(editListValue(pref.targetLocation, 'locationOptions'))}</textarea><div class="field-hint">建议使用字段字典中的地区，多个值用逗号分隔</div></div>
+        <div class="detail-item full"><label>目标行业</label><textarea id="edit_targetIndustries">${esc(editListValue(pref.targetIndustries, 'industryOptions'))}</textarea><div class="field-hint">多个值用逗号分隔，最多 6 个</div></div>
+        <div class="detail-item"><label>求职类型</label><input type="text" id="edit_jobTypes" value="${esc(editListValue(pref.jobTypes, 'jobTypeOptions'))}"><div class="field-hint">如：实习，校招/Graduate，全职</div></div>
+        <div class="detail-item"><label>期望薪资</label><input type="text" id="edit_expectedSalaryRange" value="${esc(pref.expectedSalaryRange)}" placeholder="如：30k-50k"></div>
+        <div class="detail-item full"><label>技能标签</label><textarea id="edit_skills">${esc(editListValue(pref.skills, 'skillOptions'))}</textarea><div class="field-hint">多个值用逗号分隔，最多 20 个</div></div>
+      </div>
+    </div>
+    <div class="detail-section">
       <h4>数据统计</h4>
       <div class="detail-grid">
         <div class="detail-item"><label>投递记录</label><span>${u.appCount} 条</span></div>
@@ -147,14 +251,6 @@ async function openDetail(id) {
     <div class="detail-section">
       <h4>简历列表</h4>
       <div>${resumeChips}</div>
-    </div>
-    <div class="detail-section">
-      <h4>教育背景 <span style="font-weight:400;font-size:11px;color:#d1d5db">(只读)</span></h4>
-      <pre style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px;font-size:12px;overflow:auto;max-height:120px">${esc(edu)}</pre>
-    </div>
-    <div class="detail-section">
-      <h4>求职偏好 <span style="font-weight:400;font-size:11px;color:#d1d5db">(只读)</span></h4>
-      <pre style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px;font-size:12px;overflow:auto;max-height:120px">${esc(pref)}</pre>
     </div>`;
   openModal('detailModal');
 }
@@ -166,6 +262,22 @@ async function saveUser() {
     email: document.getElementById('edit_email').value.trim(),
     phone: document.getElementById('edit_phone').value.trim(),
     vip_level: parseInt(document.getElementById('edit_vip').value),
+    education: {
+      school: getValue('edit_school'),
+      major: getValue('edit_major'),
+      degree: getValue('edit_degree'),
+      gradYear: getValue('edit_gradYear'),
+    },
+    jobPreference: {
+      status: getValue('edit_status'),
+      targetRoles: splitListValue(getValue('edit_targetRoles')),
+      targetLocation: splitListValue(getValue('edit_targetLocation')),
+      targetIndustries: splitListValue(getValue('edit_targetIndustries')),
+      jobTypes: splitListValue(getValue('edit_jobTypes')),
+      workAuthorization: getValue('edit_workAuthorization'),
+      expectedSalaryRange: getValue('edit_expectedSalaryRange'),
+      skills: splitListValue(getValue('edit_skills')),
+    },
   };
   const res = await PUT('/admin/api/users/' + editUserId, body);
   if (!res || res.code !== 0) { toast(res?.message || '保存失败', 'error'); return; }
@@ -174,7 +286,7 @@ async function saveUser() {
   load(currentPage);
 }
 
-load(1);
+loadProfileSchema().finally(() => load(1));
 </script>
 </body>
 </html>

@@ -1,6 +1,9 @@
 // pages/daily-brief/daily-brief.js
 const { sendChatToDeepSeek } = require('../../../utils/api.js');
-const vip = require('../../../utils/vip.js');
+const progress = require('../../../utils/job-progress.js');
+const favUtil = require('../../../utils/favorites.js');
+const demoData = require('../../../utils/demo-data.js');
+const notebook = require('../../../utils/interview-notebook.js');
 
 const LOADING_TIPS = [
   '正在整理今日求职数据...',
@@ -16,13 +19,13 @@ Page({
     stats: null,
     loadingTip: LOADING_TIPS[0],
     todayStr: '',
-    greeting: ''
+    greeting: '',
+    brief: null
   },
 
   _tipTimer: null,
 
   onLoad() {
-    if (!vip.check('求职日报')) return;
     const now = new Date();
     const month = now.getMonth() + 1;
     const day = now.getDate();
@@ -43,12 +46,12 @@ Page({
       const isToday = cacheDate.getFullYear() === now.getFullYear() &&
                       cacheDate.getMonth() === now.getMonth() &&
                       cacheDate.getDate() === now.getDate();
-      if (isToday) {
-        this.setData({ result: cached.result, stats: cached.stats, phase: 'done' });
+      if (isToday && cached.brief) {
+        this.setData({ result: cached.result, stats: cached.stats, brief: cached.brief, phase: 'done' });
         return;
       }
     }
-    this._collectStats();
+    notebook.fetchRemoteDailyPractice().finally(() => this._collectStats());
   },
 
   onUnload() {
@@ -57,23 +60,22 @@ Page({
 
   // Collect activity data from localStorage
   _collectStats() {
-    // Applications
-    let apps = [];
-    try { apps = JSON.parse(wx.getStorageSync('localApplications') || '[]'); } catch (e) {}
-    const totalApps = apps.length;
-    const pendingApps = apps.filter(a => a.status === 'applied' || a.status === 'screening').length;
-    const interviewApps = apps.filter(a => a.status === 'interview').length;
-    const offerApps = apps.filter(a => a.status === 'offer').length;
+    const progressStats = progress.getStats();
+    const apps = progress.getList();
+    const totalApps = progressStats.total;
+    const pendingApps = (progressStats.byStatus.applied || 0) + (progressStats.byStatus.online_apply || 0) + (progressStats.byStatus.oa || 0);
+    const interviewApps = progressStats.interviews;
+    const offerApps = progressStats.offer;
 
     // Recent jobs viewed (from job view history)
-    let jobHistory = [];
-    try { jobHistory = JSON.parse(wx.getStorageSync('jobViewHistory') || '[]'); } catch (e) {}
+    let jobHistory = wx.getStorageSync('jobViewHistory') || [];
+    if (!Array.isArray(jobHistory)) jobHistory = [];
     const todayTs = new Date().setHours(0, 0, 0, 0);
     const todayJobs = jobHistory.filter(j => j.ts && j.ts >= todayTs);
 
     // Recent interview sessions
-    let interviewHistory = [];
-    try { interviewHistory = JSON.parse(wx.getStorageSync('interviewHistory') || '[]'); } catch (e) {}
+    let interviewHistory = wx.getStorageSync('interviewHistory') || [];
+    if (!Array.isArray(interviewHistory)) interviewHistory = [];
     const recentInterviews = interviewHistory.slice(0, 3).map(h => ({
       company: h.company || '练习',
       role: h.role || '未知岗位',
@@ -92,20 +94,96 @@ Page({
       offerApps,
       todayJobsViewed: todayJobs.length,
       recentInterviews,
-      profileFilled
+      profileFilled,
+      dueSoon: progressStats.dueSoon,
+      todayInterviews: progressStats.todayInterviews
     };
-    this.setData({ stats });
-    this._generate(stats);
+    const brief = this._buildBrief(stats, apps);
+    const fallbackResult = this._buildFallbackResult(stats, brief);
+    wx.setStorageSync('dailyBriefCache', { result: fallbackResult, stats, brief, ts: Date.now() });
+    this.setData({ stats, brief, result: fallbackResult, phase: 'done' });
+    this._generate(stats, brief, true);
   },
 
-  _generate(stats) {
-    this.setData({ phase: 'loading', loadingTip: LOADING_TIPS[0] });
+  _buildBrief(stats, apps) {
+    const cachedJobs = wx.getStorageSync('cachedRecommendJobs') || [];
+    const demoJobs = demoData.enabled() ? demoData.getList('RECOMMEND_JOBS') : [];
+    const recommendedJobs = (Array.isArray(cachedJobs) && cachedJobs.length ? cachedJobs : demoJobs)
+      .slice(0, 3)
+      .map(item => ({
+        id: item.id || item.job_id || '',
+        title: item.title || item.job_title || '推荐岗位',
+        company: item.company || item.employer_name || '',
+        city: item.city || item.job_city || '',
+        salary: item.salary || ''
+      }));
+    const deadlines = progress.getUpcomingDeadlines(7).slice(0, 4);
+    const todayInterviews = progress.getTodayInterviews().slice(0, 4);
+    const favorites = favUtil.getList('job').slice(0, 3);
+    const newsSource = wx.getStorageSync('cachedHomeNews_v1') || (demoData.enabled() ? demoData.getList('NEWS_FEED') : []);
+    const news = (newsSource || [])
+      .slice(0, 3)
+      .map(item => ({
+        id: item.id,
+        title: item.title || item.desc || '求职快讯',
+        time: item.time || '今天'
+      }));
+    const notebookQuestions = notebook.getDailyPractice()
+      .slice(0, 3)
+      .map(item => item.title || item.question)
+      .filter(Boolean);
+    const fallbackQuestions = [
+      '请用 STAR 结构讲一次你推动项目落地的经历。',
+      'Why this role? 请结合岗位 JD 回答。',
+      '介绍一个你用数据影响决策的项目。'
+    ];
+    const dailyQuestions = notebookQuestions.length
+      ? notebookQuestions.concat(fallbackQuestions).slice(0, 3)
+      : fallbackQuestions;
+    return {
+      recommendedJobs,
+      deadlines,
+      todayInterviews,
+      favorites,
+      news,
+      dailyQuestions,
+      progressList: (apps || []).slice(0, 4),
+      aiAdvice: progress.buildDailyAdvice()
+    };
+  },
+
+  _buildFallbackResult(stats, brief) {
+    const summary = stats.totalApps
+      ? `你当前有 ${stats.totalApps} 条求职记录，其中 ${stats.dueSoon} 个机会近期截止，${stats.todayInterviews} 个面试安排在今天。`
+      : '今天可以先从收藏和记录目标岗位开始，建立你的第一条求职进度。';
+    return {
+      todaySummary: summary,
+      highlights: [
+        { icon: '进', label: '推进中', value: String(progress.getStats().active) },
+        { icon: '截', label: '即将截止', value: String(stats.dueSoon) },
+        { icon: '面', label: '今日面试', value: String(stats.todayInterviews) }
+      ],
+      focusArea: brief.aiAdvice,
+      tomorrowPlan: [
+        { time: '上午', task: stats.dueSoon ? '处理最近截止岗位的投递材料' : '筛选并收藏 2 个目标岗位', priority: 'high' },
+        { time: '下午', task: '更新求职进度状态和备注', priority: 'medium' },
+        { time: '晚上', task: '练习 1 道行为面试题并复盘答案', priority: 'low' }
+      ],
+      aiAdvice: brief.aiAdvice,
+      motivation: '把求职拆成今天能完成的一小步，就已经在往前走。'
+    };
+  },
+
+  _generate(stats, brief, silent) {
+    if (!silent) this.setData({ phase: 'loading', loadingTip: LOADING_TIPS[0] });
 
     let idx = 0;
-    this._tipTimer = setInterval(() => {
-      idx = (idx + 1) % LOADING_TIPS.length;
-      this.setData({ loadingTip: LOADING_TIPS[idx] });
-    }, 2000);
+    if (!silent) {
+      this._tipTimer = setInterval(() => {
+        idx = (idx + 1) % LOADING_TIPS.length;
+        this.setData({ loadingTip: LOADING_TIPS[idx] });
+      }, 2000);
+    }
 
     const profile = wx.getStorageSync('userProfile') || {};
     const profileDesc = profile.targetRole ? `目标岗位：${profile.targetRole}，` : '';
@@ -154,23 +232,59 @@ ${profileDesc}
           this.setData({ phase: 'idle' });
           return;
         }
-        wx.setStorageSync('dailyBriefCache', { result, stats, ts: Date.now() });
+        wx.setStorageSync('dailyBriefCache', { result, stats, brief, ts: Date.now() });
         this.setData({ result, phase: 'done' });
       })
       .catch(() => {
         clearInterval(this._tipTimer);
-        wx.showToast({ title: '网络错误，请重试', icon: 'none' });
-        this.setData({ phase: 'idle' });
+        if (!silent) {
+          wx.showToast({ title: '网络错误，请重试', icon: 'none' });
+          this.setData({ phase: 'idle' });
+        }
       });
   },
 
   refresh() {
     this.setData({ phase: 'idle', result: null });
     wx.removeStorageSync('dailyBriefCache');
-    setTimeout(() => this._generate(this.data.stats), 100);
+    setTimeout(() => this._collectStats(), 100);
   },
 
   retryGenerate() {
     this._collectStats();
+  },
+
+  goProgress() {
+    wx.navigateTo({ url: '/package-user/pages/job-progress/job-progress' });
+  },
+
+  goJobs() {
+    wx.switchTab({ url: '/pages/jobs/jobs' });
+  },
+
+  goJobDetail(e) {
+    const id = e.currentTarget.dataset.id;
+    if (!id) {
+      this.goJobs();
+      return;
+    }
+    wx.navigateTo({ url: '/package-user/pages/job-detail/job-detail?id=' + encodeURIComponent(id) });
+  },
+
+  goInterview(e) {
+    const question = e && e.currentTarget && e.currentTarget.dataset
+      ? e.currentTarget.dataset.question
+      : '';
+    if (question) {
+      wx.navigateTo({
+        url: '/package-ai/pages/interview-dialog/interview-dialog?autoQuestion=' + encodeURIComponent(question)
+      });
+      return;
+    }
+    wx.navigateTo({ url: '/package-ai/pages/interview-setup/interview-setup' });
+  },
+
+  goNotebook() {
+    wx.navigateTo({ url: '/package-ai/pages/interview-notebook/interview-notebook?tab=daily' });
   }
 });

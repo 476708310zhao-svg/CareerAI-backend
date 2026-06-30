@@ -1,0 +1,182 @@
+<view class="page">
+  <view class="progress-hero">
+    <view class="hero-copy">
+      <text class="hero-kicker">CAREER PIPELINE</text>
+      <text class="hero-title">我的求职进度</text>
+      <text class="hero-sub">把收藏、投递、网申、面试和 Offer 放在一条清晰的进度线上。</text>
+    </view>
+    <view class="hero-total">
+      <text class="hero-total-num">{{stats.total}}</text>
+      <text class="hero-total-label">记录</text>
+    </view>
+  </view>
+
+  <view class="summary-grid">
+    <view class="summary-item">
+      <text class="summary-num">{{stats.active}}</text>
+      <text class="summary-label">推进中</text>
+    </view>
+    <view class="summary-item">
+      <text class="summary-num amber">{{stats.dueSoon}}</text>
+      <text class="summary-label">3天内截止</text>
+    </view>
+    <view class="summary-item">
+      <text class="summary-num blue">{{stats.interviews}}</text>
+      <text class="summary-label">面试阶段</text>
+    </view>
+    <view class="summary-item">
+      <text class="summary-num green">{{stats.offer}}</text>
+      <text class="summary-label">Offer</text>
+    </view>
+  </view>
+
+  <view class="brief-card" bindtap="goDailyBrief" hover-class="card-press">
+    <view class="brief-left">
+      <text class="brief-title">今日求职建议</text>
+      <text class="brief-desc">{{dailyAdvice}}</text>
+    </view>
+    <text class="brief-arrow">›</text>
+  </view>
+
+  <view class="search-row">
+    <view class="search-box">
+      <text class="search-icon">⌕</text>
+      <input class="search-input" value="{{keyword}}" bindinput="onSearchInput" placeholder="搜索公司或岗位" placeholder-style="color:#98A2B3" />
+      <text wx:if="{{keyword}}" class="search-clear" catchtap="clearSearch">×</text>
+    </view>
+    <view class="add-btn" bindtap="showAddForm" hover-class="tap-press">＋</view>
+  </view>
+
+  <scroll-view scroll-x enhanced show-scrollbar="{{false}}" class="status-scroll">
+    <view class="status-track">
+      <block wx:for="{{statusTabs}}" wx:key="code">
+        <view class="status-chip {{activeStatus === item.code ? 'active' : ''}}" bindtap="setFilter" data-status="{{item.code}}">
+          <text>{{item.label}}</text>
+          <text class="status-count">{{item.count}}</text>
+        </view>
+      </block>
+    </view>
+  </scroll-view>
+
+  <view class="record-list" wx:if="{{filteredRecords.length}}">
+    <block wx:for="{{filteredRecords}}" wx:key="id">
+      <view class="record-card" bindtap="openActions" data-id="{{item.id}}" hover-class="card-press">
+        <view class="record-top">
+          <view class="company-avatar">{{item.companyInitial}}</view>
+          <view class="record-main">
+            <text class="record-title">{{item.jobTitle}}</text>
+            <text class="record-company">{{item.company}}{{item.city ? ' · ' + item.city : ''}}</text>
+          </view>
+          <view class="status-badge status-{{item.statusTone}}">{{item.statusText}}</view>
+        </view>
+
+        <view class="meta-grid">
+          <view class="meta-item">
+            <text class="meta-label">投递</text>
+            <text class="meta-value">{{item.appliedAt || '待记录'}}</text>
+          </view>
+          <view class="meta-item {{item.deadlineUrgent ? 'urgent' : ''}}">
+            <text class="meta-label">截止</text>
+            <text class="meta-value">{{item.deadlineLabel || '待设置'}}</text>
+          </view>
+          <view class="meta-item">
+            <text class="meta-label">面试</text>
+            <text class="meta-value">{{item.interviewTime || '待安排'}}</text>
+          </view>
+        </view>
+
+        <view class="notes-row" wx:if="{{item.notes}}">
+          <text class="notes-label">备注</text>
+          <text class="notes-text">{{item.notes}}</text>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <view class="empty-card" wx:else>
+    <view class="empty-mark">进</view>
+    <text class="empty-title">{{activeStatus === 'all' ? '还没有求职进度' : '当前状态暂无记录'}}</text>
+    <text class="empty-desc">{{activeStatus === 'all' ? '从收藏岗位或手动添加开始，后续投递、面试和 Offer 都能集中管理。' : '切换状态查看其他记录，或者新建一条进度。'}}</text>
+    <view class="empty-actions">
+      <view class="empty-primary" bindtap="showAddForm">添加进度</view>
+      <view class="empty-secondary" bindtap="goToJobs">浏览岗位</view>
+    </view>
+  </view>
+
+  <view class="bottom-space"></view>
+
+  <view class="modal-mask" wx:if="{{showForm}}" bindtap="hideForm">
+    <view class="form-sheet" catchtap="noop">
+      <view class="sheet-handle"></view>
+      <text class="sheet-title">{{editId ? '编辑求职进度' : '添加求职进度'}}</text>
+
+      <view class="field-row">
+        <view class="field half">
+          <text class="field-label">公司 <text class="required">*</text></text>
+          <input class="field-input" value="{{form.company}}" data-field="company" bindinput="onFormInput" placeholder="如 Google" />
+        </view>
+        <view class="field half">
+          <text class="field-label">岗位 <text class="required">*</text></text>
+          <input class="field-input" value="{{form.jobTitle}}" data-field="jobTitle" bindinput="onFormInput" placeholder="如 Data Analyst" />
+        </view>
+      </view>
+
+      <view class="field-row">
+        <view class="field half">
+          <text class="field-label">城市</text>
+          <input class="field-input" value="{{form.city}}" data-field="city" bindinput="onFormInput" placeholder="可选" />
+        </view>
+        <view class="field half">
+          <text class="field-label">薪资</text>
+          <input class="field-input" value="{{form.salary}}" data-field="salary" bindinput="onFormInput" placeholder="可选" />
+        </view>
+      </view>
+
+      <view class="field">
+        <text class="field-label">岗位链接</text>
+        <input class="field-input" value="{{form.jobLink}}" data-field="jobLink" bindinput="onFormInput" placeholder="官方投递链接或 JD 链接" />
+      </view>
+
+      <view class="status-form-grid">
+        <block wx:for="{{statusOptions}}" wx:key="code">
+          <view class="status-form-chip {{form.status === item.code ? 'active tone-' + item.tone : ''}}" bindtap="selectFormStatus" data-status="{{item.code}}">{{item.label}}</view>
+        </block>
+      </view>
+
+      <view class="field-row">
+        <view class="field half">
+          <text class="field-label">投递时间</text>
+          <picker mode="date" value="{{form.appliedAt}}" bindchange="pickDate" data-field="appliedAt">
+            <view class="field-input picker-input">{{form.appliedAt || '选择日期'}}</view>
+          </picker>
+        </view>
+        <view class="field half">
+          <text class="field-label">截止时间</text>
+          <picker mode="date" value="{{form.deadline}}" bindchange="pickDate" data-field="deadline">
+            <view class="field-input picker-input">{{form.deadline || '选择日期'}}</view>
+          </picker>
+        </view>
+      </view>
+
+      <view class="field">
+        <text class="field-label">面试时间</text>
+        <input class="field-input" value="{{form.interviewTime}}" data-field="interviewTime" bindinput="onFormInput" placeholder="如 2026-07-03 10:00" />
+      </view>
+
+      <view class="field">
+        <text class="field-label">关联简历版本</text>
+        <input class="field-input" value="{{form.resumeVersionId}}" data-field="resumeVersionId" bindinput="onFormInput" placeholder="如 Data v3 / 中文简历" />
+      </view>
+
+      <view class="field">
+        <text class="field-label">备注</text>
+        <textarea class="field-textarea" value="{{form.notes}}" data-field="notes" bindinput="onFormInput" maxlength="300" placeholder="记录 HR 联系方式、面试链接、下一步动作等"></textarea>
+      </view>
+
+      <view class="sheet-actions">
+        <view class="sheet-btn cancel" bindtap="hideForm">取消</view>
+        <view class="sheet-btn save" bindtap="saveRecord">保存</view>
+      </view>
+    </view>
+  </view>
+</view>

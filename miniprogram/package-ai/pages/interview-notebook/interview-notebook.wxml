@@ -1,0 +1,104 @@
+<view class="page">
+  <c-ai-disclosure text="错题复习和参考答案由题库内容与人工智能辅助生成，仅供面试练习参考。" />
+
+  <view class="hero">
+    <view class="hero-copy">
+      <text class="kicker">INTERVIEW NOTEBOOK</text>
+      <text class="title">面试错题本</text>
+      <text class="subtitle">把不会的题沉淀下来，按每日练习反复巩固。</text>
+    </view>
+    <view class="hero-stat">
+      <text class="hero-num">{{stats.daily}}</text>
+      <text class="hero-label">今日练</text>
+    </view>
+  </view>
+
+  <view class="stat-row">
+    <view class="stat-card">
+      <text class="stat-num">{{stats.total}}</text>
+      <text class="stat-label">全部</text>
+    </view>
+    <view class="stat-card warn">
+      <text class="stat-num">{{stats.unknown}}</text>
+      <text class="stat-label">不会</text>
+    </view>
+    <view class="stat-card ok">
+      <text class="stat-num">{{stats.mastered}}</text>
+      <text class="stat-label">已掌握</text>
+    </view>
+  </view>
+
+  <view class="search-bar">
+    <input class="search-input" placeholder="搜索题目、分类或答案" value="{{keyword}}" bindinput="onSearchInput" />
+    <view wx:if="{{keyword}}" class="search-clear" bindtap="clearSearch">×</view>
+  </view>
+
+  <scroll-view scroll-x enhanced show-scrollbar="{{false}}" class="tab-scroll">
+    <view class="tab-row">
+      <view
+        wx:for="{{tabs}}"
+        wx:key="code"
+        class="tab {{activeTab === item.code ? 'active' : ''}}"
+        bindtap="setTab"
+        data-tab="{{item.code}}"
+      >
+        <text>{{item.label}}</text>
+        <text class="tab-count">{{item.count}}</text>
+      </view>
+    </view>
+  </scroll-view>
+
+  <block wx:if="{{filteredItems.length}}">
+    <view wx:for="{{filteredItems}}" wx:key="id" class="question-card">
+      <view class="question-head">
+        <view class="question-tags">
+          <text class="tag {{item.status}}">{{item.statusLabel}}</text>
+          <text class="tag soft">{{item.category}}</text>
+          <text class="tag soft">{{item.difficulty}}</text>
+          <text class="tag daily" wx:if="{{item.inDailyPractice}}">每日练习</text>
+        </view>
+        <text class="question-date">{{item.dateLabel}}</text>
+      </view>
+      <text class="question-title" user-select>{{item.title}}</text>
+      <text class="question-answer" wx:if="{{item.answer}}" user-select>{{item.answer}}</text>
+      <view class="question-actions">
+        <view class="q-btn primary" bindtap="practice" data-id="{{item.id}}">再练一次</view>
+        <view class="q-btn" bindtap="showReference" data-id="{{item.id}}">参考答案</view>
+        <view class="q-btn warn" bindtap="markUnknown" data-id="{{item.id}}">不会</view>
+        <view class="q-btn ok" bindtap="markMastered" data-id="{{item.id}}">已掌握</view>
+      </view>
+      <view class="question-footer">
+        <view wx:if="{{item.inDailyPractice}}" class="footer-link" bindtap="removeDaily" data-id="{{item.id}}">移出每日练习</view>
+        <view wx:else class="footer-link" bindtap="addDaily" data-id="{{item.id}}">加入每日练习</view>
+        <view class="footer-link danger" bindtap="removeItem" data-id="{{item.id}}">移出错题本</view>
+      </view>
+    </view>
+  </block>
+
+  <view wx:else class="empty-card">
+    <text class="empty-title">{{activeTab === 'daily' ? '今日练习为空' : '错题本为空'}}</text>
+    <text class="empty-desc">可以从题库详情页标记不会，或完成 AI 面试后把薄弱题沉淀到这里。</text>
+    <view class="empty-actions">
+      <view class="empty-btn primary" bindtap="goQuestionBank">去题库</view>
+      <view class="empty-btn" bindtap="goInterview">开始面试</view>
+    </view>
+  </view>
+
+  <view class="bottom-space"></view>
+
+  <view wx:if="{{showReference}}" class="reference-mask" bindtap="closeReference"></view>
+  <view class="reference-panel {{showReference ? 'show' : ''}}">
+    <view class="reference-head">
+      <view>
+        <text class="reference-kicker">REFERENCE</text>
+        <text class="reference-title">参考答案</text>
+      </view>
+      <view class="reference-close" bindtap="closeReference">×</view>
+    </view>
+    <scroll-view scroll-y class="reference-body">
+      <text class="reference-question">{{referenceTitle}}</text>
+      <text class="reference-content" user-select>{{referenceAnswer}}</text>
+    </scroll-view>
+    <view class="reference-done" bindtap="closeReference">知道了</view>
+  </view>
+</view>

@@ -9,6 +9,7 @@ db/*.db-shm
 db/*.db-wal
 *.log
 *.bak
+reports/acceptance/
 
 miniprogram/node_modules/
 miniprogram/project.private.config.json

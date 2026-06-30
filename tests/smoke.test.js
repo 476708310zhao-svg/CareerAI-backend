@@ -110,6 +110,12 @@ test.after(async () => {
   const user = db.prepare('SELECT id FROM users WHERE email = ?').get(testAccount.email);
   if (user) {
     db.prepare('DELETE FROM orders WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM messages WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM job_reminders WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM application_materials WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM jd_match_reports WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM interview_daily_practice WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM interview_notebook WHERE user_id = ?').run(user.id);
     db.prepare('DELETE FROM users WHERE id = ?').run(user.id);
   }
   uploadedFiles.forEach(file => {
@@ -336,6 +342,264 @@ test('legacy users resumes endpoint is marked deprecated', async () => {
   assert.equal(res.status, 200);
   assert.equal(res.headers.get('deprecation'), 'true');
   assert.match(res.headers.get('link') || '', /\/api\/resumes/);
+});
+
+test('user profile stores standardized education and job preference fields', async () => {
+  assert.ok(authToken);
+  const schemaRes = await fetch(`${BASE_URL}/api/users/profile-schema`);
+  assert.equal(schemaRes.status, 200);
+  const schemaBody = await readJson(schemaRes);
+  assert.equal(schemaBody.code, 0);
+  assert.equal(schemaBody.data.version, 'user_profile_standard_v1');
+
+  const updateRes = await fetch(`${BASE_URL}/api/users/profile`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({
+      nickname: '标准档案用户',
+      education: {
+        school: 'New York University',
+        major: 'Computer Science',
+        degree: '硕士',
+        gradYear: '2026'
+      },
+      jobPreference: {
+        status: 'fresh_grad',
+        targetRoles: ['软件工程师', '软件工程师', 'Data Analyst'],
+        targetLocation: ['美国', '远程'],
+        targetIndustries: ['互联网/科技'],
+        jobTypes: ['实习', 'fulltime'],
+        workAuthorization: 'opt',
+        skills: ['Python', 'SQL', 'Python']
+      }
+    })
+  });
+  assert.equal(updateRes.status, 200);
+  const updateBody = await readJson(updateRes);
+  assert.equal(updateBody.code, 0);
+  assert.equal(updateBody.data.education.degree, 'master');
+  assert.equal(updateBody.data.jobPreference.status, 'fresh');
+  assert.deepEqual(updateBody.data.jobPreference.targetRoles, ['软件工程师', 'Data Analyst']);
+  assert.deepEqual(updateBody.data.jobPreference.jobTypes, ['internship', 'fulltime']);
+  assert.deepEqual(updateBody.data.jobPreference.skills, ['Python', 'SQL']);
+  assert.equal(updateBody.data.profile.school, 'New York University');
+
+  const profileRes = await fetch(`${BASE_URL}/api/users/profile`, { headers: authHeaders() });
+  assert.equal(profileRes.status, 200);
+  const profileBody = await readJson(profileRes);
+  assert.equal(profileBody.data.profile.gradYear, '2026');
+  assert.ok(profileBody.data.profileCompleteness >= 80);
+});
+
+test('career asset APIs persist materials, match reports and interview notebook', async () => {
+  assert.ok(authToken);
+
+  const materialRes = await fetch(`${BASE_URL}/api/career-assets/application-materials`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({
+      id: 'material_smoke_1',
+      questionType: 'why_company',
+      questionLabel: 'Why this company?',
+      jobId: 'job_smoke_1',
+      company: 'OpenAI',
+      jobTitle: 'Software Engineer',
+      content: 'I am excited by the company mission and the role impact.'
+    })
+  });
+  assert.equal(materialRes.status, 200);
+  const materialBody = await readJson(materialRes);
+  assert.equal(materialBody.code, 0);
+  assert.equal(materialBody.data.questionType, 'why_company');
+
+  const materialListRes = await fetch(`${BASE_URL}/api/career-assets/application-materials`, {
+    headers: authHeaders()
+  });
+  assert.equal(materialListRes.status, 200);
+  const materialList = await readJson(materialListRes);
+  assert.ok(materialList.data.some(item => item.clientId === 'material_smoke_1'));
+
+  const materialUpdateRes = await fetch(`${BASE_URL}/api/career-assets/application-materials/${encodeURIComponent('material_smoke_1')}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ content: 'Updated application answer.' })
+  });
+  assert.equal(materialUpdateRes.status, 200);
+  const materialUpdate = await readJson(materialUpdateRes);
+  assert.equal(materialUpdate.data.content, 'Updated application answer.');
+
+  const reportRes = await fetch(`${BASE_URL}/api/career-assets/jd-match-reports`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({
+      id: 'match_smoke_1',
+      jobId: 'job_smoke_1',
+      jobTitle: 'Software Engineer',
+      company: 'OpenAI',
+      resumeName: 'SDE Resume',
+      score: 88,
+      matchedKeywords: ['Python'],
+      missingKeywords: ['Kubernetes'],
+      projectSuggestion: 'Job Matching Platform',
+      atsRisk: '低',
+      suggestions: ['补充云原生关键词']
+    })
+  });
+  assert.equal(reportRes.status, 200);
+  const reportBody = await readJson(reportRes);
+  assert.equal(reportBody.data.score, 88);
+  assert.deepEqual(reportBody.data.missingKeywords, ['Kubernetes']);
+
+  const reportDetailRes = await fetch(`${BASE_URL}/api/career-assets/jd-match-reports/${encodeURIComponent('match_smoke_1')}`, {
+    headers: authHeaders()
+  });
+  assert.equal(reportDetailRes.status, 200);
+  const reportDetail = await readJson(reportDetailRes);
+  assert.equal(reportDetail.data.company, 'OpenAI');
+
+  const notebookRes = await fetch(`${BASE_URL}/api/career-assets/interview-notebook`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({
+      id: 'q_smoke_1',
+      title: 'Tell me about a conflict experience',
+      answer: 'Use STAR structure.',
+      category: 'behavior',
+      difficulty: '中等',
+      status: 'unknown'
+    })
+  });
+  assert.equal(notebookRes.status, 200);
+  const notebookBody = await readJson(notebookRes);
+  assert.equal(notebookBody.data.status, 'unknown');
+
+  const statusRes = await fetch(`${BASE_URL}/api/career-assets/interview-notebook/${encodeURIComponent('q_smoke_1')}/status`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ status: 'mastered' })
+  });
+  assert.equal(statusRes.status, 200);
+  const statusBody = await readJson(statusRes);
+  assert.equal(statusBody.data.status, 'mastered');
+
+  const dailyRes = await fetch(`${BASE_URL}/api/career-assets/interview-daily-practice`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({
+      id: 'q_smoke_1',
+      title: 'Tell me about a conflict experience',
+      category: 'behavior'
+    })
+  });
+  assert.equal(dailyRes.status, 200);
+
+  const dailyListRes = await fetch(`${BASE_URL}/api/career-assets/interview-daily-practice`, {
+    headers: authHeaders()
+  });
+  assert.equal(dailyListRes.status, 200);
+  const dailyList = await readJson(dailyListRes);
+  assert.ok(dailyList.data.some(item => item.id === 'q_smoke_1'));
+
+  const deleteDailyRes = await fetch(`${BASE_URL}/api/career-assets/interview-daily-practice/${encodeURIComponent('q_smoke_1')}`, {
+    method: 'DELETE',
+    headers: authHeaders()
+  });
+  assert.equal(deleteDailyRes.status, 200);
+
+  const deleteNotebookRes = await fetch(`${BASE_URL}/api/career-assets/interview-notebook/${encodeURIComponent('q_smoke_1')}`, {
+    method: 'DELETE',
+    headers: authHeaders()
+  });
+  assert.equal(deleteNotebookRes.status, 200);
+
+  const deleteMaterialRes = await fetch(`${BASE_URL}/api/career-assets/application-materials/${encodeURIComponent('material_smoke_1')}`, {
+    method: 'DELETE',
+    headers: authHeaders()
+  });
+  assert.equal(deleteMaterialRes.status, 200);
+});
+
+test('job reminder APIs persist and dispatch reminders once', async () => {
+  assert.ok(authToken);
+  const targetId = `job_reminder_smoke_${Date.now()}`;
+
+  const upsertRes = await fetch(`${BASE_URL}/api/notify/reminders`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({
+      sourceType: 'favorite_job',
+      targetId,
+      reminderType: 'deadline',
+      reminderDate: '2026-07-04',
+      title: 'Software Engineer',
+      company: 'OpenAI',
+      jobTitle: 'Software Engineer',
+      leadDays: [3],
+      payload: { city: 'Remote' }
+    })
+  });
+  assert.equal(upsertRes.status, 200);
+  const upsertBody = await readJson(upsertRes);
+  assert.equal(upsertBody.code, 0);
+  assert.equal(upsertBody.data.targetId, targetId);
+  assert.deepEqual(upsertBody.data.leadDays, [3]);
+
+  const listRes = await fetch(`${BASE_URL}/api/notify/reminders?sourceType=favorite_job&reminderType=deadline`, {
+    headers: authHeaders()
+  });
+  assert.equal(listRes.status, 200);
+  const listBody = await readJson(listRes);
+  assert.ok(listBody.data.some(item => item.targetId === targetId && item.enabled));
+
+  const dispatchRes = await fetch(`${BASE_URL}/api/notify/reminders/dispatch`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Cron-Secret': 'smoke_cron_secret_1234567890abcdef'
+    },
+    body: JSON.stringify({ date: '2026-07-01' })
+  });
+  assert.equal(dispatchRes.status, 200);
+  const dispatchBody = await readJson(dispatchRes);
+  assert.equal(dispatchBody.code, 0);
+  const targetSent = dispatchBody.data.sent.filter(item => item.key.includes(`:${targetId}:`));
+  assert.equal(targetSent.length, 1);
+  assert.equal(targetSent[0].type, 'job_deadline');
+
+  const user = db.prepare('SELECT id FROM users WHERE email = ?').get(testAccount.email);
+  const message = db.prepare(`
+    SELECT title, content FROM messages
+    WHERE user_id=? AND type='job_deadline'
+    ORDER BY id DESC
+  `).get(user.id);
+  assert.ok(message);
+  assert.match(message.title, /Deadline reminder/);
+  assert.match(message.content, /OpenAI/);
+
+  const repeatRes = await fetch(`${BASE_URL}/api/notify/reminders/dispatch`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Cron-Secret': 'smoke_cron_secret_1234567890abcdef'
+    },
+    body: JSON.stringify({ date: '2026-07-01' })
+  });
+  assert.equal(repeatRes.status, 200);
+  const repeatBody = await readJson(repeatRes);
+  assert.equal(repeatBody.data.sent.filter(item => item.key.includes(`:${targetId}:`)).length, 0);
+  assert.ok(repeatBody.data.skipped.some(item => item.reason === 'already_sent' && item.key.includes(`:${targetId}:`)));
+
+  const deleteRes = await fetch(`${BASE_URL}/api/notify/reminders/favorite_job/${encodeURIComponent(targetId)}/deadline`, {
+    method: 'DELETE',
+    headers: authHeaders()
+  });
+  assert.equal(deleteRes.status, 200);
+
+  const disabled = db.prepare(`
+    SELECT enabled FROM job_reminders
+    WHERE user_id=? AND source_type='favorite_job' AND target_id=? AND reminder_type='deadline'
+  `).get(user.id, targetId);
+  assert.equal(disabled.enabled, 0);
 });
 
 test('ai workflow requires vip', async () => {

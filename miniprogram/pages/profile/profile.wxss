@@ -482,6 +482,8 @@ image {
 .tool-grid {
   display: flex;
   align-items: flex-start;
+  flex-wrap: wrap;
+  row-gap: 24rpx;
   padding: 0 8rpx 24rpx;
 }
 

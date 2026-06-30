@@ -3,16 +3,20 @@
 // 消除各路由中重复的 format/fmt/formatXxx 函数
 
 const { j, ja } = require('./utils');
+const { buildUserProfile } = require('../utils/userProfileStandard');
 
 // ── 用户 ─────────────────────────────────────────────────────────────────────
 function formatUser(row) {
   if (!row) return null;
+  const profile = buildUserProfile(row);
   return {
     id: row.id, openid: row.openid,
     nickname: row.nickname, avatar: row.avatar,
     email: row.email, phone: row.phone,
-    education: j(row.education),
-    jobPreference: j(row.job_preference),
+    education: profile.education,
+    jobPreference: profile.jobPreference,
+    profile,
+    profileCompleteness: profile.completeness,
     vipLevel: row.vip_level,
     vipExpiresAt: row.vip_expires_at,
     createdAt: row.created_at

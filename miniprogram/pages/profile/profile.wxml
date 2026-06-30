@@ -73,9 +73,9 @@
       <text class="stat-num">{{stats.viewed}}</text>
       <text class="stat-label">历史浏览</text>
     </view>
-    <view class="stat-item" bindtap="goToApplications" hover-class="tap-soft">
+    <view class="stat-item" bindtap="goToJobProgress" hover-class="tap-soft">
       <text class="stat-num">{{stats.applications}}</text>
-      <text class="stat-label">我的投递</text>
+      <text class="stat-label">求职进度</text>
     </view>
     <view class="stat-item" bindtap="goToInterviews" hover-class="tap-soft">
       <text class="stat-num">{{stats.interviews}}</text>
@@ -108,10 +108,10 @@
         <text class="workspace-name">优化简历</text>
         <text class="workspace-desc">适配 ATS 筛选</text>
       </view>
-      <view class="workspace-action" bindtap="goToApplications" hover-class="tile-press">
+      <view class="workspace-action" bindtap="goToJobProgress" hover-class="tile-press">
         <view class="workspace-icon">→</view>
-        <text class="workspace-name">跟进投递</text>
-        <text class="workspace-desc">查看最新进度</text>
+        <text class="workspace-name">求职进度</text>
+        <text class="workspace-desc">{{stats.dueSoon ? stats.dueSoon + ' 个即将截止' : '查看最新进度'}}</text>
       </view>
     </view>
   </view>
@@ -141,6 +141,14 @@
         <view class="tool-icon tone-violet"><image class="tool-icon-image" src="/images/profile-interview.png" mode="aspectFit" /></view>
         <view class="tool-badge">NEW</view>
         <text class="tool-name">模拟面试</text>
+      </view>
+      <view class="tool-item" bindtap="goToApplicationMaterials" hover-class="tile-press">
+        <view class="tool-icon tone-blue"><image class="tool-icon-image" src="/images/application.png" mode="aspectFit" /></view>
+        <text class="tool-name">材料库</text>
+      </view>
+      <view class="tool-item" bindtap="goToInterviewNotebook" hover-class="tile-press">
+        <view class="tool-icon tone-mint"><image class="tool-icon-image" src="/images/profile-interview.png" mode="aspectFit" /></view>
+        <text class="tool-name">错题本</text>
       </view>
       <view class="tool-item" bindtap="goToMyExperiences" hover-class="tile-press">
         <view class="tool-icon tone-coral"><image class="tool-icon-image" src="/images/profile-experience.png" mode="aspectFit" /></view>

@@ -76,7 +76,7 @@ Page({
     if (parts.length) background = parts.join('，');
 
     // 预填级别
-    const statusMap = { student: '实习', fresh: '应届', working: '工作1-3年' };
+    const statusMap = { student: '实习', fresh: '应届', working: '工作1-3年', switching: '工作1-3年' };
     const selectedSeniority = statusMap[profile.status] || '应届';
 
     const profileFilled = !!(selectedTrack || role || background);

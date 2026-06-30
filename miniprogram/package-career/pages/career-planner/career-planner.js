@@ -109,7 +109,7 @@ Page({
     if (profile.school)    parts.push(profile.school);
     if (profile.major)     parts.push(profile.major + '专业');
     if (profile.gradYear)  parts.push(profile.gradYear + '年毕业');
-    const statusMap = { student: '在读学生', fresh: '应届毕业生', working: '在职人士' };
+    const statusMap = { student: '在读学生', fresh: '应届毕业生', working: '在职人士', switching: '转行/换岗' };
     if (profile.status && statusMap[profile.status]) parts.push(statusMap[profile.status]);
     if ((profile.skills || []).length)               parts.push('技能：' + profile.skills.slice(0, 5).join('、'));
     if (company)  parts.push('目标公司：' + company);

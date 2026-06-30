@@ -676,3 +676,96 @@ page,
 .bottom-spacer {
   height: calc(156rpx + env(safe-area-inset-bottom));
 }
+
+.notebook-card {
+  padding: 28rpx;
+  margin-bottom: 20rpx;
+  border-radius: 26rpx;
+  background: #ffffff;
+  border: 1rpx solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 16rpx 42rpx rgba(15, 23, 42, 0.06);
+}
+
+.notebook-header {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  margin-bottom: 20rpx;
+}
+
+.notebook-icon-box {
+  width: 58rpx;
+  height: 58rpx;
+  border-radius: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb, #14b8a6);
+  box-shadow: 0 10rpx 20rpx rgba(37, 99, 235, 0.18);
+  font-size: 22rpx;
+  line-height: 1;
+  font-weight: 950;
+}
+
+.notebook-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.notebook-title {
+  color: #111827;
+  font-size: 31rpx;
+  line-height: 1.25;
+  font-weight: 800;
+}
+
+.notebook-sub {
+  margin-top: 6rpx;
+  color: #64748b;
+  font-size: 24rpx;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+.notebook-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12rpx;
+}
+
+.notebook-action {
+  min-height: 74rpx;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  color: #334155;
+  background: #f8fafc;
+  border: 1rpx solid #e2e8f0;
+  font-size: 25rpx;
+  line-height: 1.2;
+  font-weight: 850;
+}
+
+.notebook-action.active.warn {
+  color: #b42318;
+  background: #fff1f0;
+  border-color: #fecdca;
+}
+
+.notebook-action.active.ok {
+  color: #067647;
+  background: #ecfdf3;
+  border-color: #abefc6;
+}
+
+.notebook-action.active.blue {
+  color: #175cd3;
+  background: #eef4ff;
+  border-color: #b2ccff;
+}

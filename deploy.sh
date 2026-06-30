@@ -58,10 +58,13 @@ npm ci --omit=dev
 mkdir -p "$DEPLOY_DIR/logs"
 if command -v crontab &> /dev/null; then
   CAMPUS_SYNC_CRON="0 6 * * * /bin/bash $DEPLOY_DIR/scripts/run-campus-sync.sh"
-  (crontab -l 2>/dev/null | grep -v "sync:campus" | grep -v "sync_feishu_server.js" | grep -v "run-campus-sync.sh"; echo "$CAMPUS_SYNC_CRON") | crontab -
+  REMINDER_DISPATCH_CRON="10 8 * * * /bin/bash $DEPLOY_DIR/scripts/run-reminder-dispatch.sh"
+  (crontab -l 2>/dev/null | grep -v "sync:campus" | grep -v "sync_feishu_server.js" | grep -v "run-campus-sync.sh" | grep -v "dispatch:reminders" | grep -v "dispatch_reminders.js" | grep -v "run-reminder-dispatch.sh"; echo "$CAMPUS_SYNC_CRON"; echo "$REMINDER_DISPATCH_CRON") | crontab -
   echo "Registered daily Feishu campus sync at 06:00"
+  echo "Registered daily job reminder dispatch at 08:10"
 else
   echo "crontab not found; configure manually: cd $DEPLOY_DIR && npm run sync:campus"
+  echo "crontab not found; configure manually: cd $DEPLOY_DIR && npm run dispatch:reminders"
 fi
 echo "✅ 依赖安装完成"
 

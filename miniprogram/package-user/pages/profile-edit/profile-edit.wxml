@@ -56,17 +56,29 @@
   <!-- 求职状态 -->
   <view class="section-title">
     <view class="section-accent"></view>
-    <text>求职状态</text>
+    <text>学历与状态</text>
   </view>
   <view class="form-card pad">
-    <text class="sub-label">当前状态</text>
+    <text class="sub-label">最高学历</text>
     <view class="chip-row wrap">
-      <block wx:for="{{statusOptions}}" wx:key="id">
+      <block wx:for="{{degreeOptions}}" wx:key="value">
         <view
-          class="chip {{userInfo.status === item.id ? 'chip-active' : ''}}"
+          class="chip {{userInfo.degree === item.value ? 'chip-active' : ''}}"
+          bindtap="selectSingle"
+          data-field="degree"
+          data-value="{{item.value}}"
+        >{{item.label}}</view>
+      </block>
+    </view>
+
+    <text class="sub-label mt">当前状态</text>
+    <view class="chip-row wrap">
+      <block wx:for="{{statusOptions}}" wx:key="value">
+        <view
+          class="chip {{userInfo.status === item.value ? 'chip-active' : ''}}"
           bindtap="selectSingle"
           data-field="status"
-          data-value="{{item.id}}"
+          data-value="{{item.value}}"
         >{{item.label}}</view>
       </block>
     </view>
@@ -91,6 +103,19 @@
     <text class="section-note">可多选</text>
   </view>
   <view class="form-card pad">
+    <view class="selected-tags" wx:if="{{userInfo.targetLocation.length > 0}}">
+      <view class="selected-tag" wx:for="{{userInfo.targetLocation}}" wx:key="*this">
+        <text>{{item}}</text>
+        <text class="tag-remove" catchtap="removeMultiValue" data-field="targetLocation" data-value="{{item}}">×</text>
+      </view>
+    </view>
+
+    <view class="select-trigger {{userInfo.targetLocation.length > 0 ? 'has-value' : ''}}" bindtap="openMultiSelector" data-field="targetLocation">
+      <text>{{userInfo.targetLocation.length > 0 ? '继续搜索添加地区' : '搜索并选择目标地区'}}</text>
+      <text class="select-trigger-icon">⌕</text>
+    </view>
+
+    <text class="sub-label mt">常见地区</text>
     <view class="chip-row wrap">
       <block wx:for="{{locationOptions}}" wx:key="label">
         <view
@@ -99,6 +124,79 @@
           data-value="{{item.label}}"
         >{{item.label}}</view>
       </block>
+    </view>
+  </view>
+
+  <!-- 目标行业 -->
+  <view class="section-title">
+    <view class="section-accent"></view>
+    <text>目标行业</text>
+    <text class="section-note">可多选</text>
+  </view>
+  <view class="form-card pad">
+    <view class="selected-tags" wx:if="{{userInfo.targetIndustries.length > 0}}">
+      <view class="selected-tag" wx:for="{{userInfo.targetIndustries}}" wx:key="*this">
+        <text>{{item}}</text>
+        <text class="tag-remove" catchtap="removeMultiValue" data-field="targetIndustries" data-value="{{item}}">×</text>
+      </view>
+    </view>
+
+    <view class="select-trigger {{userInfo.targetIndustries.length > 0 ? 'has-value' : ''}}" bindtap="openMultiSelector" data-field="targetIndustries">
+      <text>{{userInfo.targetIndustries.length > 0 ? '继续搜索添加行业' : '搜索并选择目标行业'}}</text>
+      <text class="select-trigger-icon">⌕</text>
+    </view>
+
+    <text class="sub-label mt">常见行业</text>
+    <view class="chip-row wrap">
+      <block wx:for="{{industryOptions}}" wx:key="label">
+        <view
+          class="chip {{item.selected ? 'chip-active' : ''}}"
+          bindtap="toggleIndustry"
+          data-value="{{item.label}}"
+        >{{item.label}}</view>
+      </block>
+    </view>
+  </view>
+
+  <!-- 求职类型 -->
+  <view class="section-title">
+    <view class="section-accent"></view>
+    <text>求职类型</text>
+    <text class="section-note">可多选</text>
+  </view>
+  <view class="form-card pad">
+    <view class="chip-row wrap">
+      <block wx:for="{{jobTypeOptions}}" wx:key="value">
+        <view
+          class="chip {{item.selected ? 'chip-active' : ''}}"
+          bindtap="toggleJobType"
+          data-value="{{item.value}}"
+        >{{item.label}}</view>
+      </block>
+    </view>
+
+    <text class="sub-label mt">工作授权</text>
+    <view class="chip-row wrap">
+      <block wx:for="{{workAuthOptions}}" wx:key="value">
+        <view
+          class="chip {{userInfo.workAuthorization === item.value ? 'chip-active' : ''}}"
+          bindtap="selectSingle"
+          data-field="workAuthorization"
+          data-value="{{item.value}}"
+        >{{item.label}}</view>
+      </block>
+    </view>
+
+    <view class="custom-input-row">
+      <input
+        class="custom-input"
+        value="{{userInfo.expectedSalaryRange}}"
+        placeholder="期望薪资，如：30k-50k"
+        placeholder-style="color:#C4C9D4;"
+        data-field="expectedSalaryRange"
+        bindinput="onInput"
+        maxlength="30"
+      />
     </view>
   </view>
 
@@ -117,7 +215,12 @@
       </view>
     </view>
 
-    <text class="sub-label {{userInfo.targetRoles.length > 0 ? 'mt' : ''}}">常见岗位</text>
+    <view class="select-trigger {{userInfo.targetRoles.length > 0 ? 'has-value' : ''}}" bindtap="openMultiSelector" data-field="targetRoles">
+      <text>{{userInfo.targetRoles.length > 0 ? '搜索并继续添加岗位' : '搜索标准岗位，未命中可补充'}}</text>
+      <text class="select-trigger-icon">⌕</text>
+    </view>
+
+    <text class="sub-label mt">常见岗位</text>
     <view class="chip-row wrap">
       <block wx:for="{{roleOptions}}" wx:key="label">
         <view
@@ -126,19 +229,6 @@
           data-value="{{item.label}}"
         >{{item.label}}</view>
       </block>
-    </view>
-
-    <view class="custom-input-row">
-      <input
-        class="custom-input"
-        value="{{customRoleInput}}"
-        placeholder="输入自定义岗位"
-        placeholder-style="color:#C4C9D4;"
-        bindinput="onCustomRoleInput"
-        bindconfirm="addCustomRole"
-        maxlength="30"
-      />
-      <view class="custom-add-btn" bindtap="addCustomRole">添加</view>
     </view>
   </view>
 
@@ -157,7 +247,12 @@
       </view>
     </view>
 
-    <text class="sub-label {{userInfo.skills.length > 0 ? 'mt' : ''}}">常用技能</text>
+    <view class="select-trigger {{userInfo.skills.length > 0 ? 'has-value' : ''}}" bindtap="openMultiSelector" data-field="skills">
+      <text>{{userInfo.skills.length > 0 ? '搜索并继续添加技能' : '搜索标准技能，未命中可补充'}}</text>
+      <text class="select-trigger-icon">⌕</text>
+    </view>
+
+    <text class="sub-label mt">常用技能</text>
     <view class="chip-row wrap">
       <block wx:for="{{skillOptions}}" wx:key="label">
         <view
@@ -167,22 +262,65 @@
         >{{item.label}}</view>
       </block>
     </view>
-
-    <view class="custom-input-row">
-      <input
-        class="custom-input"
-        value="{{customSkillInput}}"
-        placeholder="输入自定义技能"
-        placeholder-style="color:#C4C9D4;"
-        bindinput="onCustomSkillInput"
-        bindconfirm="addCustomSkill"
-        maxlength="20"
-      />
-      <view class="custom-add-btn" bindtap="addCustomSkill">添加</view>
-    </view>
   </view>
 
   <!-- 保存按钮 -->
   <c-button class="save-btn" bindtap="handleSave">保存并应用匹配</c-button>
+
+  <view wx:if="{{selector.visible}}" class="selector-mask" catchtap="closeSelector"></view>
+  <view wx:if="{{selector.visible}}" class="selector-sheet">
+    <view class="selector-header">
+      <view>
+        <text class="selector-title">{{selector.title}}</text>
+        <text class="selector-count">已选 {{selector.selected.length}} / {{selector.max}}</text>
+      </view>
+      <view class="selector-close" catchtap="closeSelector">×</view>
+    </view>
+
+    <view class="selector-search">
+      <text class="selector-search-icon">⌕</text>
+      <input
+        class="selector-search-input"
+        value="{{selector.query}}"
+        placeholder="{{selector.placeholder}}"
+        placeholder-style="color:#98A2B3;"
+        bindinput="onSelectorSearch"
+        focus="{{selector.visible}}"
+      />
+    </view>
+
+    <view class="selected-tags selector-selected" wx:if="{{selector.selected.length > 0}}">
+      <view class="selected-tag" wx:for="{{selector.selected}}" wx:key="*this">
+        <text>{{item}}</text>
+        <text class="tag-remove" catchtap="removeSelectorValue" data-value="{{item}}">×</text>
+      </view>
+    </view>
+
+    <scroll-view class="selector-options" scroll-y>
+      <block wx:if="{{selector.filteredOptions.length > 0}}">
+        <view
+          class="selector-option {{item.selected ? 'selector-option-active' : ''}}"
+          wx:for="{{selector.filteredOptions}}"
+          wx:key="value"
+          bindtap="toggleSelectorOption"
+          data-value="{{item.value}}"
+        >
+          <text>{{item.label}}</text>
+          <text class="selector-check" wx:if="{{item.selected}}">✓</text>
+        </view>
+      </block>
+      <view wx:else class="selector-empty">没有匹配的标准选项</view>
+    </scroll-view>
+
+    <view
+      wx:if="{{selector.allowCustom && selector.query}}"
+      class="selector-custom-add"
+      bindtap="addSelectorCustom"
+    >添加“{{selector.query}}”</view>
+
+    <view class="selector-actions">
+      <view class="selector-done" bindtap="closeSelector">完成</view>
+    </view>
+  </view>
 
 </view>

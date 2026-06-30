@@ -1,6 +1,8 @@
 // pages/ai-assistant/ai-assistant.js
 const config   = require('../../../utils/app-config.js');
 const { post } = require('../../../utils/api-client.js');
+const progress = require('../../../utils/job-progress.js');
+const appMaterials = require('../../../utils/application-materials.js');
 
 const API_BASE    = config.API_BASE_URL;
 const CACHE_KEY   = 'ai_assistant_messages';
@@ -71,8 +73,48 @@ function isUnauthorizedError(err) {
     /unauthorized|未登录|Token|401/i.test(msg);
 }
 
+function decodeChunkData(data) {
+  if (!data) return '';
+  if (typeof data === 'string') return data;
+  try {
+    if (typeof TextDecoder !== 'undefined') {
+      return new TextDecoder('utf-8').decode(new Uint8Array(data));
+    }
+  } catch (e) {}
+  try {
+    const arr = new Uint8Array(data);
+    let chunk = '';
+    for (let i = 0; i < arr.length; i++) chunk += String.fromCharCode(arr[i]);
+    try { return decodeURIComponent(escape(chunk)); } catch (_) { return chunk; }
+  } catch (e) {
+    return '';
+  }
+}
+
+function getSseLineData(line) {
+  const trimmed = String(line || '').trim();
+  if (!trimmed || trimmed.charAt(0) === ':') return null;
+  const match = trimmed.match(/^data:\s*(.*)$/);
+  return match ? match[1].trim() : null;
+}
+
+function createSseError(payload) {
+  const raw = payload && payload.error;
+  const message = typeof raw === 'string'
+    ? raw
+    : (raw && raw.message) || (payload && payload.message) || 'AI 服务异常，请稍后重试';
+  const err = new Error(message);
+  if (payload && payload.code) err.code = payload.code;
+  if (payload && payload.statusCode) err.statusCode = payload.statusCode;
+  return err;
+}
+
 function extractChatContent(res) {
   if (!res) return '';
+
+  if (typeof ArrayBuffer !== 'undefined' && res instanceof ArrayBuffer) {
+    return extractChatContent(decodeChunkData(res));
+  }
 
   if (typeof res === 'string') {
     const text = res.trim();
@@ -88,9 +130,11 @@ function extractChatContent(res) {
         if (!data || data === '[DONE]') continue;
         try {
           content += extractChatContent(JSON.parse(data));
-        } catch (_) {}
+        } catch (_) {
+          content += data;
+        }
       }
-      if (content) return content;
+      return content;
     }
 
     try {
@@ -137,6 +181,31 @@ function streamRequest(messages, userContext, onDelta, onDone, onError) {
     if (token) authHeader['Authorization'] = 'Bearer ' + token;
   } catch (e) {}
 
+  const handleSseData = (data) => {
+    if (hasErrored || !data || data === '[DONE]') return;
+    try {
+      const json = JSON.parse(data);
+      if (json.error) {
+        hasErrored = true;
+        onError(createSseError(json));
+        return;
+      }
+      const delta = extractChatContent(json);
+      if (delta) {
+        receivedText += delta;
+        onDelta(delta);
+      }
+    } catch (_) {
+      receivedText += data;
+      onDelta(data);
+    }
+  };
+
+  const handleSseLine = (line) => {
+    const data = getSseLineData(line);
+    if (data !== null) handleSseData(data);
+  };
+
   return wx.request({
     url: API_BASE + '/api/ai/assistant',
     method: 'POST',
@@ -145,30 +214,14 @@ function streamRequest(messages, userContext, onDelta, onDone, onError) {
     enableChunked: true,
 
     onChunkReceived(res) {
-      let chunk = '';
-      try {
-        chunk = new TextDecoder('utf-8').decode(new Uint8Array(res.data));
-      } catch (e) {
-        const arr = new Uint8Array(res.data);
-        for (let i = 0; i < arr.length; i++) chunk += String.fromCharCode(arr[i]);
-        try { chunk = decodeURIComponent(escape(chunk)); } catch (_) {}
-      }
+      const chunk = decodeChunkData(res.data);
+      if (!chunk) return;
       sseBuffer += chunk;
       const lines = sseBuffer.split('\n');
       sseBuffer = lines.pop();
       for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const data = line.slice(6).trim();
-        if (!data || data === '[DONE]') continue;
-        try {
-          const json = JSON.parse(data);
-          if (json.error) { hasErrored = true; onError(new Error(json.error)); return; }
-          const delta = extractChatContent(json);
-          if (delta) {
-            receivedText += delta;
-            onDelta(delta);
-          }
-        } catch (_) {}
+        handleSseLine(line);
+        if (hasErrored) return;
       }
     },
     success(res) {
@@ -182,12 +235,9 @@ function streamRequest(messages, userContext, onDelta, onDone, onError) {
         return;
       }
       if (sseBuffer) {
-        const bufferedContent = extractChatContent(sseBuffer);
-        if (bufferedContent) {
-          receivedText += bufferedContent;
-          onDelta(bufferedContent);
-        }
+        handleSseLine(sseBuffer);
         sseBuffer = '';
+        if (hasErrored) return;
       }
       if (!receivedText) {
         const responseContent = extractChatContent(res && (res.data || res));
@@ -197,8 +247,7 @@ function streamRequest(messages, userContext, onDelta, onDone, onError) {
         }
       }
       if (!receivedText) {
-        hasErrored = true;
-        onError(new Error('AI 返回为空'));
+        onDone();
         return;
       }
       onDone();
@@ -226,6 +275,7 @@ Page({
     showLoginPopup: false,
     loginSubtitle: '登录后可使用 AI 求职助手、保存答案和同步求职记录',
     aiSuites: [
+      { icon: '网', title: '网申助手', desc: '生成申请问题草稿', action: 'application' },
       { icon: 'MI', title: '模拟面试', desc: '设定岗位开始训练', url: '/package-ai/pages/interview-setup/interview-setup' },
       { icon: 'AR', title: '语音复盘', desc: '上传录音生成建议', url: '/package-ai/pages/audio-review/audio-review' },
       { icon: 'PR', title: '项目复盘', desc: '用 STAR 打磨亮点', url: '/package-ai/pages/project-review/project-review' },
@@ -233,6 +283,7 @@ Page({
     ],
     assistantTools: [
       { icon: 'AI', title: '求职问答', desc: '简历、岗位、面试都可以直接问', prompt: '我现在想做一次求职路径梳理，请先问我 3 个关键信息。' },
+      { icon: '网', title: '网申助手', desc: '生成 Why company/role 等草稿', action: 'application' },
       { icon: 'MI', title: '模拟面试', desc: '生成问题、追问和复盘', url: '/package-ai/pages/interview-setup/interview-setup' },
       { icon: 'AR', title: '语音复盘', desc: '分析回答结构和表达清晰度', url: '/package-ai/pages/audio-review/audio-review' },
       { icon: 'PR', title: '项目复盘', desc: '把项目经历打磨成面试素材', url: '/package-ai/pages/project-review/project-review' },
@@ -244,7 +295,14 @@ Page({
       { id: 1, title: '新的求职咨询', preview: '你好！我是你的 AI 求职助手...', time: '刚刚' },
       { id: 2, title: '简历优化思路', preview: '项目经历需要突出影响力', time: '昨天' },
       { id: 3, title: '岗位匹配建议', preview: '优先申请 SWE / Data 方向', time: '本周' }
-    ]
+    ],
+    showApplicationPanel: false,
+    applicationJobs: [],
+    applicationQuestionTypes: appMaterials.QUESTION_TYPES,
+    selectedApplicationJobId: '',
+    selectedQuestionType: 'why_company',
+    applicationDraft: null,
+    applicationSavedMaterials: []
   },
 
   _history:      [],
@@ -257,7 +315,7 @@ Page({
 
   // ── 生命周期 ──────────────────────────────────────────────
 
-  onLoad() {
+  onLoad(options = {}) {
     this._ensureRuntimeState();
     const info = wx.getSystemInfoSync();
     this.setData({
@@ -266,6 +324,9 @@ Page({
     });
     this._buildUserContext();
     this._restoreOrInit();
+    if (options.action === 'application') {
+      setTimeout(() => this.openApplicationAssistant(), 120);
+    }
   },
 
   onUnload() {
@@ -391,6 +452,11 @@ Page({
 
   onToolAction(e) {
     if (this.data.loading || this.data.streaming) return;
+    const action = e.currentTarget.dataset.action;
+    if (action === 'application') {
+      this.openApplicationAssistant();
+      return;
+    }
     const url = e.currentTarget.dataset.url;
     if (url) {
       this.setData({ sidebarOpen: false });
@@ -399,6 +465,68 @@ Page({
     }
     this.setData({ sidebarOpen: false, inputText: e.currentTarget.dataset.text || '' });
     wx.nextTick(() => this.sendMessage());
+  },
+
+  openApplicationAssistant() {
+    const jobs = progress.getList().slice(0, 12);
+    const selected = jobs[0] ? jobs[0].id : '';
+    this.setData({
+      sidebarOpen: false,
+      showApplicationPanel: true,
+      applicationJobs: jobs,
+      selectedApplicationJobId: selected,
+      selectedQuestionType: this.data.selectedQuestionType || 'why_company',
+      applicationDraft: null,
+      applicationSavedMaterials: appMaterials.readMaterials().slice(0, 3)
+    });
+  },
+
+  closeApplicationAssistant() {
+    this.setData({ showApplicationPanel: false });
+  },
+
+  selectApplicationJob(e) {
+    this.setData({ selectedApplicationJobId: e.currentTarget.dataset.id || '', applicationDraft: null });
+  },
+
+  selectApplicationQuestion(e) {
+    this.setData({ selectedQuestionType: e.currentTarget.dataset.type || 'why_company', applicationDraft: null });
+  },
+
+  generateApplicationDraft() {
+    if (!this.data.applicationJobs.length) {
+      wx.showToast({ title: '请先添加目标岗位', icon: 'none' });
+      return;
+    }
+    const job = this.data.applicationJobs.find(item => String(item.id) === String(this.data.selectedApplicationJobId)) || this.data.applicationJobs[0] || {};
+    const resume = wx.getStorageSync('onlineResume') || {};
+    const material = appMaterials.generateDraft({
+      job,
+      questionType: this.data.selectedQuestionType,
+      resume
+    });
+    this.setData({ applicationDraft: material });
+  },
+
+  saveApplicationDraft() {
+    if (!this.data.applicationDraft) return;
+    appMaterials.saveMaterial(this.data.applicationDraft);
+    this.setData({ applicationSavedMaterials: appMaterials.readMaterials().slice(0, 3) });
+    wx.showToast({ title: '已保存到材料库', icon: 'success' });
+  },
+
+  copyApplicationDraft() {
+    const draft = this.data.applicationDraft;
+    if (!draft || !draft.content) return;
+    wx.setClipboardData({
+      data: draft.content,
+      success: () => wx.showToast({ title: '已复制', icon: 'success' })
+    });
+  },
+
+  goApplicationMaterials() {
+    this.setData({ showApplicationPanel: false });
+    wx.navigateTo({ url: '/package-ai/pages/application-materials/application-materials' });
   },
 
   _openToolUrl(url) {
@@ -538,7 +666,11 @@ Page({
           this._handleAuthExpired();
           return;
         }
-        console.error('[ai-assistant]', err);
+        if (err && err.message === 'AI 返回为空') {
+          console.warn('[ai-assistant] stream returned empty, switching to fallback chat');
+        } else {
+          console.error('[ai-assistant]', err);
+        }
         this._fallbackToChat(err);
       }
     );
