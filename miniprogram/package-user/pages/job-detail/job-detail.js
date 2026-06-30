@@ -9,6 +9,7 @@ const demoData = require('../../../utils/demo-data.js');
 const { extractSkillTags } = require('../../utils/skill-icons.js');
 const browseHistory = require('../../../utils/browse-history.js');
 const featureFlags = require('../../../utils/feature-flags.js');
+const navigation = require('../../../utils/navigation.js');
 const API_BASE = config.API_BASE_URL;
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
@@ -281,7 +282,7 @@ Requirements:
     const existing = progress.getByJobId(job.id);
     if (existing) {
       this.setData({ inProgress: true, progressStatusText: existing.statusText });
-      wx.navigateTo({ url: '/package-user/pages/job-progress/job-progress' });
+      navigation.safeNavigateTo('/package-user/pages/job-progress/job-progress');
       return;
     }
     const record = progress.upsertFromJob(job, {
@@ -298,7 +299,7 @@ Requirements:
       confirmText: '去编辑',
       success: (res) => {
         if (res.confirm) {
-          wx.navigateTo({ url: '/package-user/pages/job-progress/job-progress' });
+          navigation.safeNavigateTo('/package-user/pages/job-progress/job-progress');
         }
       }
     });

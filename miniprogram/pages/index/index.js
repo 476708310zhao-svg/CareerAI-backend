@@ -9,6 +9,7 @@ const { formatSalaryRange } = require('../../utils/util.js');
 const { normalizeBannerUrl } = require('../../utils/assets.js');
 const browseHistory = require('../../utils/browse-history.js');
 const featureFlags = require('../../utils/feature-flags.js');
+const navigation = require('../../utils/navigation.js');
 const BANNER_CACHE_KEY = 'cachedBanners_v2';
 const HOME_NEWS_CACHE_KEY = 'cachedHomeNews_v1';
 const HOT_COMPANIES_CACHE_KEY = 'cachedHotCompanies_v1';
@@ -21,8 +22,6 @@ const HOME_FEATURES = [
 ];
 
 // TabBar 页面路径列表，用于判断跳转方式
-const TAB_PAGES = ['/pages/index/index', '/pages/jobs/jobs', '/pages/experiences/experiences', '/pages/campus/campus', '/pages/profile/profile'];
-
 Page({
   data: {
     // 0. 用户问候
@@ -696,12 +695,7 @@ Page({
     const url = e.currentTarget.dataset.url;
     if (!url) return;
     if (!featureFlags.allowNavigation(url)) return;
-    const isTab = TAB_PAGES.some(p => url.includes(p.replace('/pages/', '')));
-    if (isTab) {
-      wx.switchTab({ url, fail: () => wx.navigateTo({ url }) });
-    } else {
-      wx.navigateTo({ url });
-    }
+    navigation.safeNavigateTo(url);
   },
 
   loadProgressSummary() {

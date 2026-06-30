@@ -7,6 +7,7 @@ const api     = require('../../utils/api.js');
 const browseHistory = require('../../utils/browse-history.js');
 const featureFlags = require('../../utils/feature-flags.js');
 const vipUtil = require('../../utils/vip.js');
+const navigation = require('../../utils/navigation.js');
 
 Page({
   data: {
@@ -192,7 +193,7 @@ Page({
   },
 
   goToJobProgress() {
-    wx.navigateTo({ url: '/package-user/pages/job-progress/job-progress' });
+    navigation.safeNavigateTo('/package-user/pages/job-progress/job-progress');
   },
 
   goToResumes() {

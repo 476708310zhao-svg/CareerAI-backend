@@ -4,6 +4,7 @@ const progress = require('../../../utils/job-progress.js');
 const favUtil = require('../../../utils/favorites.js');
 const demoData = require('../../../utils/demo-data.js');
 const notebook = require('../../../utils/interview-notebook.js');
+const navigation = require('../../../utils/navigation.js');
 
 const LOADING_TIPS = [
   '正在整理今日求职数据...',
@@ -255,7 +256,7 @@ ${profileDesc}
   },
 
   goProgress() {
-    wx.navigateTo({ url: '/package-user/pages/job-progress/job-progress' });
+    navigation.safeNavigateTo('/package-user/pages/job-progress/job-progress');
   },
 
   goJobs() {
