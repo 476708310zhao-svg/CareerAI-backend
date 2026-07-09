@@ -11,10 +11,14 @@ module.exports = {
   // Public LeetCode endpoint.
   LEETCODE_API_URL: 'https://leetcode.cn/graphql',
 
-  // Empty template IDs skip subscription requests without blocking core flows.
-  WX_TPL_APPLICATION: 'OOwg7dLeyp0t8DhGIEGtxF8cXyWQNal-y-pM8oi4cdI',
-  WX_TPL_INTERVIEW: '',
-  WX_TPL_SYSTEM: '7565JoeBy5bcfgXjF8Bx0F_9bS5FL3ZqoyMi8KtHnjl',
+  // Public WeChat subscription template IDs. Runtime code first tries the
+  // server-side /api/notify/templates config, then falls back to these values.
+  WX_TPL_APPLICATION: 'OOwg7dLeyp0t8DhGlEGtxF8cXyWQNaI-y-pM8oi4cdI',
+  WX_TPL_INTERVIEW: 'mVZpMFlo_SVeAHG9pTS9iVKJ4Ue5S_CbRnpIwcii-Do',
+  WX_TPL_SYSTEM: '7565JoeBy5bcfgXjF8Bx0E_9bS5FL3ZqoyMi8KtHnjI',
+  WX_TPL_PAYMENT_SUCCESS: 'B2yF8p95728ity74KHZ8hD8l9eIFy_WHWEw0WeRY6zw',
+  WX_TPL_PAYMENT_REMINDER: '1TuS2_yn-RY4CEQgaLNgpvorskvNtnsqRxE8A1lPmVY',
+  WX_TPL_INTERVIEW_REPORT: '4m7xh9u3V6cq_sa6ne-oKk2VU_HCF1cOEAoBISTSB-g',
 
   // WeChat web-view can only open configured business domains. Keep external
   // recruiting links out of web-view in V1.1 to avoid review/runtime failures.

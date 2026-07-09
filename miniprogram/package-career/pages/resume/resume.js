@@ -5,6 +5,7 @@ const safePage = require('../../behaviors/safe-page');
 const vip = require('../../../utils/vip.js');
 const aiMethods = require('./resume-ai');
 const exportMethods = require('./resume-export');
+const analytics = require('../../../utils/analytics.js');
 
 const DEFAULT_RESUME = {
   score: 65,
@@ -15,6 +16,44 @@ const DEFAULT_RESUME = {
   skills: [],
   projects: []
 };
+
+function cloneDefaultResume() {
+  return JSON.parse(JSON.stringify(DEFAULT_RESUME));
+}
+
+function formatDateText(value) {
+  const text = String(value || '');
+  const match = text.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return '刚刚更新';
+  return `${match[2]}-${match[3]}更新`;
+}
+
+function decorateResumeList(list) {
+  return (Array.isArray(list) ? list : []).map(item => Object.assign({}, item, {
+    _updatedText: item._updatedText || formatDateText(item.updatedAt || item.updated_at || item.createdAt || item.created_at),
+    _targetText: item._targetText || item.targetRole || item.target_role || '未设置目标岗位'
+  }));
+}
+
+function historyTypeText(type) {
+  if (type === 'work') return '工作经历';
+  if (type === 'summary') return '个人优势';
+  if (type === 'match') return '岗位匹配';
+  return '简历优化';
+}
+
+function previewText(value) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  return text.length > 72 ? text.slice(0, 72) + '...' : (text || '暂无内容');
+}
+
+function decorateOptimizationHistory(list) {
+  return (Array.isArray(list) ? list : []).slice(0, 5).map(item => Object.assign({}, item, {
+    typeText: historyTypeText(item.type),
+    timeText: formatDateText(item.createdAt || item.created_at),
+    afterPreview: previewText(item.after || item.content)
+  }));
+}
 
 Page(Object.assign({
   behaviors: [safePage],
@@ -27,8 +66,15 @@ Page(Object.assign({
     membershipEnabled: false,
     currentResumeId: null,
     currentResumeName: '我的简历',
+    currentResumeTargetRole: '',
+    currentResumeIsDefault: false,
+    currentResumeUpdatedAt: '',
+    optimizationHistory: [],
+    formattedOptimizationHistory: [],
     serverResumes: [],
     showResumeManager: false,
+    showResumeMetaEditor: false,
+    editResumeMetaForm: { name: '', targetRole: '' },
 
     // 弹窗控制
     showAiResult: false,
@@ -108,7 +154,7 @@ Page(Object.assign({
       this.setData({ onlineResume: saved });
     } else {
       const profile = wx.getStorageSync('userProfile') || {};
-      const resume = JSON.parse(JSON.stringify(DEFAULT_RESUME));
+      const resume = cloneDefaultResume();
       if (profile.nickName) resume.basicInfo.name = profile.nickName;
       if (profile.major) resume.basicInfo.title = profile.major;
       resume.score = this._calcScore(resume);
@@ -123,7 +169,7 @@ Page(Object.assign({
     try {
       const res = await api.getResumes();
       if (res && res.code === 0) {
-        const list = res.data || [];
+        const list = decorateResumeList(res.data || []);
         this.setData({ serverResumes: list });
 
         if (list.length === 0) {
@@ -132,12 +178,17 @@ Page(Object.assign({
           const name = (local && local.basicInfo && local.basicInfo.name)
             ? local.basicInfo.name + '的简历'
             : '我的简历';
-          const cr = await api.createResume({ name, data: local || {} });
+          const cr = await api.createResume({ name, data: local || {}, isDefault: true, targetRole: this.data.targetJobInput || '' });
           if (cr && cr.code === 0) {
-            this.setData({ currentResumeId: cr.data.id, currentResumeName: name });
+            this.setData({
+              currentResumeId: cr.data.id,
+              currentResumeName: name,
+              currentResumeIsDefault: true,
+              currentResumeUpdatedAt: '刚刚更新'
+            });
             // 重新拉取列表
             const res2 = await api.getResumes();
-            if (res2 && res2.code === 0) this.setData({ serverResumes: res2.data || [] });
+            if (res2 && res2.code === 0) this.setData({ serverResumes: decorateResumeList(res2.data || []) });
           }
           this.loadResume();
         } else {
@@ -150,11 +201,26 @@ Page(Object.assign({
             this.setData({
               onlineResume: r,
               currentResumeId: target.id,
-              currentResumeName: target.name
+              currentResumeName: target.name,
+              currentResumeIsDefault: !!target.isDefault,
+              currentResumeUpdatedAt: target._updatedText || formatDateText(target.updated_at),
+              currentResumeTargetRole: detail.data.targetRole || target.targetRole || '',
+              targetJobInput: detail.data.targetRole || target.targetRole || this.data.targetJobInput,
+              optimizationHistory: detail.data.optimizationHistory || [],
+              formattedOptimizationHistory: decorateOptimizationHistory(detail.data.optimizationHistory || [])
             });
           } else {
             this.loadResume();
-            this.setData({ currentResumeId: target.id, currentResumeName: target.name });
+            this.setData({
+              currentResumeId: target.id,
+              currentResumeName: target.name,
+              currentResumeIsDefault: !!target.isDefault,
+              currentResumeUpdatedAt: target._updatedText || formatDateText(target.updated_at),
+              currentResumeTargetRole: target.targetRole || '',
+              targetJobInput: target.targetRole || this.data.targetJobInput,
+              optimizationHistory: [],
+              formattedOptimizationHistory: []
+            });
           }
         }
       } else {
@@ -175,11 +241,33 @@ Page(Object.assign({
     wx.setStorageSync('onlineResume', resume); // 本地始终同步一份备份
 
     if (this.data.isLoggedIn && this.data.currentResumeId) {
+      const targetRole = this.data.targetJobInput || this.data.currentResumeTargetRole || '';
+      this._patchResumeListItem(this.data.currentResumeId, {
+        name: this.data.currentResumeName,
+        targetRole,
+        updated_at: new Date().toISOString(),
+        _updatedText: '刚刚更新',
+        _targetText: targetRole || '未设置目标岗位'
+      });
+      this.setData({
+        currentResumeTargetRole: targetRole,
+        currentResumeUpdatedAt: '刚刚更新'
+      });
       api.updateResume(this.data.currentResumeId, {
         name: this.data.currentResumeName,
-        data: resume
+        data: resume,
+        targetRole,
+        optimizationHistory: this.data.optimizationHistory || []
       }).catch(() => {});
     }
+  },
+
+  _patchResumeListItem(id, patch) {
+    const serverResumes = (this.data.serverResumes || []).map(item => {
+      if (String(item.id) !== String(id)) return item;
+      return Object.assign({}, item, patch);
+    });
+    this.setData({ serverResumes: decorateResumeList(serverResumes) });
   },
 
   // ── 简历管理面板 ──────────────────────────────────────────────────────────
@@ -200,7 +288,17 @@ Page(Object.assign({
       if (res && res.code === 0 && res.data && res.data.data) {
         const r = res.data.data;
         r.score = this._calcScore(r);
-        this.setData({ onlineResume: r, currentResumeId: id, currentResumeName: name });
+        this.setData({
+          onlineResume: r,
+          currentResumeId: id,
+          currentResumeName: name,
+          currentResumeIsDefault: !!res.data.isDefault,
+          currentResumeUpdatedAt: formatDateText(res.data.updatedAt || res.data.updated_at),
+          currentResumeTargetRole: res.data.targetRole || '',
+          targetJobInput: res.data.targetRole || this.data.targetJobInput,
+          optimizationHistory: res.data.optimizationHistory || [],
+          formattedOptimizationHistory: decorateOptimizationHistory(res.data.optimizationHistory || [])
+        });
       } else {
         wx.showToast({ title: '加载失败', icon: 'none' });
       }
@@ -235,15 +333,24 @@ Page(Object.assign({
     }
     wx.showLoading({ title: '创建中...' });
     try {
-      const res = await api.createResume({ name: '新简历', data: {} });
+      const res = await api.createResume({ name: '新简历', data: {}, targetRole: this.data.targetJobInput || '' });
       if (res && res.code === 0) {
         const newId = res.data.id;
-        const empty = JSON.parse(JSON.stringify(DEFAULT_RESUME));
+        const empty = cloneDefaultResume();
         empty.score = 0;
-        this.setData({ onlineResume: empty, currentResumeId: newId, currentResumeName: '新简历' });
+        this.setData({
+          onlineResume: empty,
+          currentResumeId: newId,
+          currentResumeName: '新简历',
+          currentResumeIsDefault: false,
+          currentResumeUpdatedAt: '刚刚更新',
+          currentResumeTargetRole: this.data.targetJobInput || '',
+          optimizationHistory: [],
+          formattedOptimizationHistory: []
+        });
         // 刷新列表
         const list = await api.getResumes();
-        if (list && list.code === 0) this.setData({ serverResumes: list.data || [] });
+        if (list && list.code === 0) this.setData({ serverResumes: decorateResumeList(list.data || []) });
         wx.showToast({ title: '新简历已创建', icon: 'success' });
       } else {
         wx.showToast({ title: res.message || '创建失败', icon: 'none' });
@@ -265,7 +372,7 @@ Page(Object.assign({
       const res = await api.deleteResume(id);
       if (res && res.code === 0) {
         const list = await api.getResumes();
-        const newList = (list && list.code === 0) ? list.data || [] : [];
+        const newList = (list && list.code === 0) ? decorateResumeList(list.data || []) : [];
         this.setData({ serverResumes: newList });
         if (id === this.data.currentResumeId && newList.length > 0) {
           this.selectResume({ currentTarget: { dataset: { id: newList[0].id, name: newList[0].name } } });
@@ -275,6 +382,103 @@ Page(Object.assign({
         wx.showToast({ title: '删除失败', icon: 'none' });
       }
     }});
+  },
+
+  async setDefaultServerResume(e) {
+    const id = e.currentTarget.dataset.id;
+    await this._setDefaultResume(id);
+  },
+
+  async setCurrentResumeDefault() {
+    if (this.data.currentResumeIsDefault) {
+      wx.showToast({ title: '已经是默认简历', icon: 'none' });
+      return;
+    }
+    await this._setDefaultResume(this.data.currentResumeId);
+  },
+
+  async _setDefaultResume(id) {
+    if (!id) return;
+    try {
+      const res = await api.setDefaultResume(id);
+      if (res && res.code === 0) {
+        const list = await api.getResumes();
+        if (list && list.code === 0) {
+          const serverResumes = decorateResumeList(list.data || []);
+          const current = serverResumes.find(item => String(item.id) === String(this.data.currentResumeId));
+          this.setData({
+            serverResumes,
+            currentResumeIsDefault: current ? !!current.isDefault : String(id) === String(this.data.currentResumeId)
+          });
+        }
+        wx.showToast({ title: '已设为默认', icon: 'success' });
+      } else {
+        wx.showToast({ title: (res && res.message) || '设置失败', icon: 'none' });
+      }
+    } catch (err) {
+      wx.showToast({ title: '设置失败', icon: 'none' });
+    }
+  },
+
+  openResumeMetaEditor() {
+    this.setData({
+      showResumeMetaEditor: true,
+      _modalStyle: 'height: 50vh; background: #fff; border-radius: 24rpx 24rpx 0 0;',
+      editResumeMetaForm: {
+        name: this.data.currentResumeName || '我的简历',
+        targetRole: this.data.targetJobInput || this.data.currentResumeTargetRole || ''
+      }
+    });
+  },
+
+  closeResumeMetaEditor() {
+    this.setData({ showResumeMetaEditor: false });
+  },
+
+  onResumeMetaInput(e) {
+    const field = e.currentTarget.dataset.field;
+    this.setData({ ['editResumeMetaForm.' + field]: e.detail.value });
+  },
+
+  async saveResumeMeta() {
+    if (!this.data.currentResumeId) {
+      this.closeResumeMetaEditor();
+      return;
+    }
+    const form = this.data.editResumeMetaForm || {};
+    const name = String(form.name || '').trim() || '我的简历';
+    const targetRole = String(form.targetRole || '').trim();
+    wx.showLoading({ title: '保存中...' });
+    try {
+      const res = await api.updateResume(this.data.currentResumeId, {
+        name,
+        targetRole,
+        data: this.data.onlineResume,
+        optimizationHistory: this.data.optimizationHistory || []
+      });
+      if (res && res.code === 0) {
+        this.setData({
+          currentResumeName: name,
+          currentResumeTargetRole: targetRole,
+          targetJobInput: targetRole,
+          currentResumeUpdatedAt: '刚刚更新',
+          showResumeMetaEditor: false
+        });
+        this._patchResumeListItem(this.data.currentResumeId, {
+          name,
+          targetRole,
+          _targetText: targetRole || '未设置目标岗位',
+          _updatedText: '刚刚更新'
+        });
+        wx.showToast({ title: '已保存版本信息', icon: 'success' });
+      } else {
+        wx.showToast({ title: (res && res.message) || '保存失败', icon: 'none' });
+      }
+    } catch (err) {
+      wx.showToast({ title: '保存失败', icon: 'none' });
+    } finally {
+      wx.hideLoading();
+    }
   },
 
   // 计算完整度
@@ -311,6 +515,7 @@ Page(Object.assign({
     else if (d.showEditSkills) this.closeSkillsEdit();
     else if (d.showEditProject) this.cancelEditProject();
     else if (d.showAiResult) this.closeAiResult();
+    else if (d.showResumeMetaEditor) this.closeResumeMetaEditor();
   },
 
   editBasicInfo() {
@@ -721,6 +926,10 @@ Page(Object.assign({
           let data = null;
           try { data = JSON.parse(res.data || '{}'); } catch (e) {}
           if (res.statusCode >= 200 && res.statusCode < 300 && data && data.code === 0) {
+            analytics.track('resume_upload', {
+              size: file.size || 0,
+              fileType: 'pdf'
+            });
             resolve(data.data);
           } else {
             const message = (data && data.message) || `上传失败（${res.statusCode || '无状态码'}）`;

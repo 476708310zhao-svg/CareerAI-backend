@@ -1,5 +1,6 @@
 const MATERIAL_KEY = 'applicationMaterials';
 const apiClient = require('./api-client.js');
+const { sendChatToDeepSeek } = require('./api-ai.js');
 
 const QUESTION_TYPES = [
   { code: 'why_company', label: 'Why this company?' },
@@ -40,6 +41,8 @@ function normalizeRemoteMaterial(item) {
     jobId: item.jobId || '',
     company: item.company || '',
     jobTitle: item.jobTitle || '',
+    resumeName: item.resumeName || '',
+    resumeVersionId: item.resumeVersionId || '',
     content: item.content || '',
     createdAt: item.createdAt || '',
     updatedAt: item.updatedAt || ''
@@ -66,7 +69,11 @@ function summarizeResume(resume) {
   };
 }
 
-function generateDraft({ job, questionType, resume }) {
+function generateDraft(options) {
+  const opts = options || {};
+  const job = opts.job;
+  const questionType = opts.questionType;
+  const resume = opts.resume;
   const type = QUESTION_TYPES.find(item => item.code === questionType) || QUESTION_TYPES[0];
   const j = job || {};
   const rs = summarizeResume(resume || {});
@@ -97,9 +104,86 @@ function generateDraft({ job, questionType, resume }) {
     jobId: j.sourceJobId || j.id || '',
     company,
     jobTitle: role,
+    resumeName: opts.resumeName || '',
+    resumeVersionId: opts.resumeVersionId || '',
     content: templates[type.code] || templates.why_role,
     createdAt: new Date().toISOString()
   };
+}
+
+function extractAiText(response) {
+  if (typeof response === 'string') return response;
+  if (!response || typeof response !== 'object') return '';
+  const choices = response.choices || (response.data && response.data.choices);
+  const first = Array.isArray(choices) && choices.length ? choices[0] : null;
+  const fromChoice = first && first.message && first.message.content;
+  if (typeof fromChoice === 'string') return fromChoice;
+  if (first && typeof first.text === 'string') return first.text;
+  const candidates = [
+    response.content,
+    response.reply,
+    response.message,
+    response.data && response.data.content,
+    response.data && response.data.reply,
+    response.data && response.data.message,
+    typeof response.data === 'string' ? response.data : ''
+  ];
+  return candidates.find(item => typeof item === 'string' && item.trim()) || '';
+}
+
+function buildApplicationPrompt(options) {
+  const job = options.job || {};
+  const type = QUESTION_TYPES.find(item => item.code === options.questionType) || QUESTION_TYPES[0];
+  const resume = summarizeResume(options.resume || {});
+  const company = job.company || '目标公司';
+  const role = job.jobTitle || job.title || '目标岗位';
+  const jd = String(options.jdText || job.description || job.notes || '').slice(0, 5000);
+  return [
+    '你是一名资深求职申请材料教练，请为候选人生成一版可直接编辑的网申回答草稿。',
+    '',
+    `问题类型：${type.label}`,
+    `目标公司：${company}`,
+    `目标岗位：${role}`,
+    `候选人定位：${resume.title}`,
+    `候选人技能：${resume.skills || '未填写'}`,
+    `代表项目：${resume.project || '未填写'}`,
+    resume.projectDesc ? `项目说明：${resume.projectDesc}` : '',
+    jd ? `岗位JD：${jd}` : '岗位JD：未粘贴，请基于岗位名称和简历信息生成，但不要编造公司事实。',
+    '',
+    '输出要求：',
+    '1. 使用中文，语气真实、具体、职业化，不要过度夸张。',
+    '2. 回答控制在 180-260 字，结构清晰，可直接复制到网申表单。',
+    '3. 必须结合岗位 JD 或岗位名称，并至少引用一个候选人项目/技能亮点。',
+    '4. 不要输出标题、Markdown、解释或模板占位符，只输出正文。'
+  ].filter(Boolean).join('\n');
+}
+
+function generateDraftAi(options) {
+  const opts = options || {};
+  const fallback = generateDraft(opts);
+  const prompt = buildApplicationPrompt(opts);
+  return sendChatToDeepSeek([
+    { role: 'system', content: '你只生成求职网申回答正文，避免虚构经历，避免空泛套话。' },
+    { role: 'user', content: prompt }
+  ], 0).then(response => {
+    const content = extractAiText(response)
+      .replace(/```[a-zA-Z]*\s*/g, '')
+      .replace(/```/g, '')
+      .trim();
+    if (!content) return Object.assign({}, fallback, { generationMode: 'template' });
+    return Object.assign({}, fallback, {
+      id: 'material_' + Date.now(),
+      content,
+      resumeName: opts.resumeName || fallback.resumeName || '',
+      resumeVersionId: opts.resumeVersionId || fallback.resumeVersionId || '',
+      jdText: String(opts.jdText || opts.job && (opts.job.description || opts.job.notes) || '').slice(0, 5000),
+      generationMode: 'ai',
+      updatedAt: new Date().toISOString()
+    });
+  }).catch(err => {
+    console.warn('[application-materials] AI draft fallback:', err && (err.message || err));
+    return Object.assign({}, fallback, { generationMode: 'template' });
+  });
 }
 
 function saveMaterial(material) {
@@ -180,6 +264,7 @@ function deleteRemoteMaterial(id) {
 module.exports = {
   QUESTION_TYPES,
   generateDraft,
+  generateDraftAi,
   saveMaterial,
   updateMaterial,
   removeMaterial,

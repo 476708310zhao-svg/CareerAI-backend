@@ -16,5 +16,19 @@ function updateResume(id, data) {
 function deleteResume(id) {
   return _write({ method: 'DELETE', path: `/api/resumes/${id}` });
 }
+function setDefaultResume(id) {
+  return _write({ method: 'PUT', path: `/api/resumes/${id}/default` });
+}
+function addResumeOptimizationHistory(id, data) {
+  return post({ path: `/api/resumes/${id}/optimization-history`, body: data || {} });
+}
 
-module.exports = { getResumes, getResume, createResume, updateResume, deleteResume };
+module.exports = {
+  getResumes,
+  getResume,
+  createResume,
+  updateResume,
+  deleteResume,
+  setDefaultResume,
+  addResumeOptimizationHistory
+};

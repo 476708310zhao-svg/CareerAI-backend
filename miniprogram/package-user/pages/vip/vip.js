@@ -33,6 +33,7 @@ function getPreferredPlan(plans, selectedPlanId) {
 
 const INITIAL_PLANS = getPlansByConfig(null);
 const INITIAL_PLAN = getPreferredPlan(INITIAL_PLANS, 1);
+const QUOTA_ORDER = ['assistant', 'chat', 'ats', 'career_plan', 'project_builder', 'networking'];
 
 function compareVersion(v1, v2) {
   const a = String(v1 || '').split('.');
@@ -58,6 +59,26 @@ function canUseVirtualPayment() {
   }
 }
 
+function formatQuotaFeatures(status) {
+  const list = Array.isArray(status && status.features) ? status.features : [];
+  const map = list.reduce((acc, item) => {
+    acc[item.feature] = item;
+    return acc;
+  }, {});
+  return QUOTA_ORDER.map(feature => map[feature]).filter(Boolean).map(item => {
+    const limit = Number(item.limit || 0);
+    const used = Number(item.used || 0);
+    const unlimited = !!item.unlimited;
+    const percent = unlimited ? 100 : (limit ? Math.min(100, Math.round((used / limit) * 100)) : 0);
+    return Object.assign({}, item, {
+      percent,
+      usedText: unlimited ? `${used} 次已用` : `${used}/${limit}`,
+      remainText: unlimited ? '会员不限' : `剩余 ${Math.max(0, limit - used)} 次`,
+      exhausted: !unlimited && limit > 0 && used >= limit
+    });
+  });
+}
+
 Page({
   data: {
     membershipEnabled: false,
@@ -68,7 +89,12 @@ Page({
     paying: false,
     paymentConfig: null,
     paymentAvailable: false,
-    paymentReason: '正在检查支付配置'
+    paymentReason: '正在检查支付配置',
+    quotaLoading: false,
+    quotaDate: '',
+    quotaIsVip: false,
+    quotaFeatures: [],
+    quotaMessage: '登录后查看今日 AI 免费额度'
   },
 
   onLoad() {
@@ -79,6 +105,11 @@ Page({
       backgroundColor: '#ffffff'
     });
     this.loadPaymentConfig();
+    this.loadQuotaStatus();
+  },
+
+  onShow() {
+    if (this.data.membershipEnabled) this.loadQuotaStatus();
   },
 
   _onFeatureFlagsChange(flags) {
@@ -108,6 +139,38 @@ Page({
           paymentConfig: null,
           paymentAvailable: false,
           paymentReason: err && err.message ? err.message : '支付配置获取失败'
+        });
+      });
+  },
+
+  loadQuotaStatus() {
+    if (!wx.getStorageSync('token')) {
+      this.setData({
+        quotaLoading: false,
+        quotaDate: '',
+        quotaIsVip: false,
+        quotaFeatures: [],
+        quotaMessage: '登录后查看今日 AI 免费额度'
+      });
+      return;
+    }
+    this.setData({ quotaLoading: true });
+    api.getAiUsageStatus()
+      .then(res => {
+        const data = res && res.code === 0 ? res.data : (res || {});
+        const quotaFeatures = formatQuotaFeatures(data);
+        this.setData({
+          quotaLoading: false,
+          quotaDate: data.date || '',
+          quotaIsVip: !!data.isVip,
+          quotaFeatures,
+          quotaMessage: quotaFeatures.length ? '' : '今日额度暂未同步'
+        });
+      })
+      .catch(err => {
+        this.setData({
+          quotaLoading: false,
+          quotaMessage: err && err.message ? err.message : '今日额度获取失败'
         });
       });
   },

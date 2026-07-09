@@ -1,6 +1,8 @@
 // utils/util.js — 全局工具函数（日期 / 格式化 / UI / 导航）
 
 // ─── TabBar 页面路径列表（用于判断 switchTab vs navigateTo）─────────
+const navigation = require('./navigation.js');
+
 const TAB_URLS = [
   '/pages/index/index',
   '/pages/jobs/jobs',
@@ -18,11 +20,7 @@ const TAB_URLS = [
  * @param {string} url - 目标页面路径
  */
 const navigateTo = (url) => {
-  if (TAB_URLS.some(p => url.startsWith(p))) {
-    wx.switchTab({ url });
-  } else {
-    wx.navigateTo({ url });
-  }
+  return navigation.safeNavigateTo(url);
 };
 
 // ══════════════════════════════════════════════════════════════

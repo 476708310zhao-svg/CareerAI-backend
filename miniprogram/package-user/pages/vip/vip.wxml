@@ -60,6 +60,33 @@
       </view>
     </view>
 
+    <view class="usage-panel">
+      <view class="section-head">
+        <view class="section-icon usage-icon">AI</view>
+        <view class="section-copy">
+          <text class="section-title">今日 AI 额度</text>
+          <text class="section-subtitle">{{quotaIsVip ? '当前会员不限次数，仍会记录使用情况。' : '普通用户每日免费次数，会员可解锁不限次数。'}}</text>
+        </view>
+        <text class="quota-date" wx:if="{{quotaDate}}">{{quotaDate}}</text>
+      </view>
+
+      <view wx:if="{{quotaFeatures.length}}" class="quota-list">
+        <view wx:for="{{quotaFeatures}}" wx:key="feature" class="quota-row {{item.exhausted ? 'exhausted' : ''}}">
+          <view class="quota-line">
+            <text class="quota-name">{{item.label}}</text>
+            <text class="quota-count">{{item.usedText}}</text>
+          </view>
+          <view class="quota-track">
+            <view class="quota-fill {{item.exhausted ? 'warning' : ''}}" style="width:{{item.percent}}%;"></view>
+          </view>
+          <text class="quota-remain">{{item.remainText}}</text>
+        </view>
+      </view>
+      <view wx:else class="quota-empty">
+        <text>{{quotaLoading ? '正在同步今日额度...' : quotaMessage}}</text>
+      </view>
+    </view>
+
     <view class="benefits-panel">
       <view class="section-head">
         <view class="section-icon benefit-icon">+</view>

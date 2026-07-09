@@ -1,4 +1,12 @@
 // pages/news-detail/news-detail.js
+const ACTION_DEFAULTS = {
+  resume: { label: '优化简历', url: '/package-career/pages/resume/resume' },
+  jd_match: { label: '做 JD 匹配', url: '/package-ai/pages/jd-match/jd-match' },
+  interview: { label: '开始面试训练', url: '/package-ai/pages/interview-setup/interview-setup' },
+  application: { label: '准备投递材料', url: '/package-ai/pages/ai-assistant/ai-assistant?action=application' },
+  link: { label: '查看来源', url: '' }
+};
+
 Page({
   data: {
     news: null,
@@ -23,9 +31,34 @@ Page({
     news.type = news.type || 'news';
     news.time = news.time || '刚刚';
     news.desc = news.desc || news.summary || news.description || '';
+    news.tags = this.normalizeList(news.tags);
+    news.targetRoles = this.normalizeList(news.targetRoles || news.target_roles);
+    news.targetRegions = this.normalizeList(news.targetRegions || news.target_regions);
+    news.action = this.normalizeAction(news);
     const content = news.content || news.body || news.article || news.detail || '';
     news.content = content && content !== news.desc ? content : this.buildFallbackContent(news);
     return news;
+  },
+
+  normalizeList(value) {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    const text = String(value || '').trim();
+    if (!text) return [];
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean);
+    } catch (e) {}
+    return text.split(/[,，、\n]/).map(item => item.trim()).filter(Boolean);
+  },
+
+  normalizeAction(news) {
+    const raw = news.action || {};
+    const type = raw.type || news.actionType || news.action_type || '';
+    const defaults = ACTION_DEFAULTS[type] || {};
+    const label = raw.label || news.actionLabel || news.action_label || defaults.label || '';
+    const url = raw.url || news.actionUrl || news.action_url || defaults.url || (type === 'link' ? (news.sourceUrl || news.url || '') : '');
+    if (!label && !url) return null;
+    return { type: type || 'link', label: label || '继续行动', url };
   },
 
   buildFallbackContent(news) {
@@ -79,6 +112,36 @@ Page({
   onCopyLink() {
     const url = this.data.news && this.data.news.url;
     if (!url) return;
+    wx.setClipboardData({
+      data: url,
+      success: () => wx.showToast({ title: '链接已复制', icon: 'success' })
+    });
+  },
+
+  onPrimaryAction() {
+    const action = this.data.news && this.data.news.action;
+    const url = action && action.url;
+    if (!url) {
+      wx.showToast({ title: '暂无可打开链接', icon: 'none' });
+      return;
+    }
+
+    if (/^https?:\/\//i.test(url)) {
+      wx.navigateTo({ url: '/package-content/pages/webview/webview?url=' + encodeURIComponent(url) });
+      return;
+    }
+
+    if (url.charAt(0) === '/') {
+      wx.navigateTo({
+        url,
+        fail: () => wx.switchTab({
+          url,
+          fail: () => wx.showToast({ title: '暂时无法打开', icon: 'none' })
+        })
+      });
+      return;
+    }
+
     wx.setClipboardData({
       data: url,
       success: () => wx.showToast({ title: '链接已复制', icon: 'success' })

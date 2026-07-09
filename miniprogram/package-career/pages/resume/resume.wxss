@@ -73,6 +73,130 @@ page {
   font-weight: 600;
 }
 
+.resume-version-card {
+  margin: 0 30rpx 20rpx;
+  padding: 24rpx;
+  border: 1rpx solid rgba(16,24,40,0.06);
+  border-radius: 24rpx;
+  background: #ffffff;
+  box-shadow: 0 10rpx 26rpx rgba(16,24,40,0.06);
+}
+
+.version-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.version-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.version-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  min-width: 0;
+}
+
+.version-title {
+  max-width: 360rpx;
+  overflow: hidden;
+  color: #101828;
+  font-size: 30rpx;
+  font-weight: 950;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.version-default {
+  flex-shrink: 0;
+  height: 34rpx;
+  padding: 0 12rpx;
+  border-radius: 999rpx;
+  color: #047857;
+  background: #ecfdf5;
+  font-size: 19rpx;
+  font-weight: 900;
+  line-height: 34rpx;
+}
+
+.version-desc {
+  display: block;
+  width: 100%;
+  margin-top: 8rpx;
+  overflow: hidden;
+  color: #667085;
+  font-size: 23rpx;
+  font-weight: 700;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.version-score {
+  min-width: 92rpx;
+  height: 58rpx;
+  padding: 0 14rpx;
+  border-radius: 18rpx;
+  color: #2563eb;
+  background: #eef4ff;
+  font-size: 26rpx;
+  font-weight: 950;
+  line-height: 58rpx;
+  text-align: center;
+}
+
+.version-meta {
+  display: flex;
+  gap: 10rpx;
+  margin-top: 18rpx;
+  overflow: hidden;
+}
+
+.version-meta text {
+  display: inline-flex;
+  align-items: center;
+  height: 38rpx;
+  max-width: 50%;
+  padding: 0 12rpx;
+  overflow: hidden;
+  border-radius: 999rpx;
+  color: #667085;
+  background: #f7f9fc;
+  font-size: 19rpx;
+  font-weight: 800;
+  line-height: 38rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.version-actions {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 18rpx;
+}
+
+.version-action {
+  flex: 1;
+  height: 58rpx;
+  border-radius: 18rpx;
+  color: #ffffff;
+  background: #101828;
+  font-size: 23rpx;
+  font-weight: 900;
+  line-height: 58rpx;
+  text-align: center;
+}
+
+.version-action.ghost {
+  color: #2563eb;
+  background: #eef4ff;
+}
+
 /* --- 绠€鍘嗙鐞嗛潰鏉块伄缃?--- */
 .resume-manager-mask {
   position: fixed;
@@ -130,6 +254,14 @@ page {
 }
 .rmp-item-info {
   flex: 1;
+  min-width: 0;
+  margin-right: 12rpx;
+}
+.rmp-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  min-width: 0;
 }
 .rmp-item-name {
   font-size: 28rpx;
@@ -137,15 +269,43 @@ page {
   color: var(--text-primary);
   display: block;
   margin-bottom: 6rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rmp-default-badge {
+  flex-shrink: 0;
+  padding: 4rpx 10rpx;
+  border-radius: 999rpx;
+  color: #047857;
+  background: #ecfdf5;
+  font-size: 20rpx;
+  font-weight: 800;
+}
+.rmp-target {
+  display: block;
+  margin-bottom: 4rpx;
+  color: #2563eb;
+  font-size: 21rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .rmp-item-time {
   font-size: 22rpx;
   color: var(--text-secondary);
 }
+.rmp-item-default {
+  flex-shrink: 0;
+  font-size: 23rpx;
+  color: #2563eb;
+  padding: 8rpx 14rpx;
+}
 .rmp-item-del {
+  flex-shrink: 0;
   font-size: 24rpx;
   color: #ef4444;
-  padding: 8rpx 20rpx;
+  padding: 8rpx 14rpx;
 }
 .rmp-empty {
   text-align: center;
@@ -160,6 +320,74 @@ page {
 .rmp-tip {
   font-size: 22rpx;
   color: var(--text-secondary);
+}
+
+.version-history-card {
+  overflow: hidden;
+}
+
+.history-count {
+  height: 42rpx;
+  padding: 0 14rpx;
+  border-radius: 999rpx;
+  color: #2563eb;
+  background: #eef4ff;
+  font-size: 20rpx;
+  font-weight: 850;
+  line-height: 42rpx;
+}
+
+.history-item {
+  padding: 18rpx 0;
+  border-top: 1rpx solid #edf1f7;
+}
+
+.history-item:first-of-type {
+  border-top: none;
+}
+
+.history-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14rpx;
+}
+
+.history-type {
+  color: #1d2939;
+  font-size: 25rpx;
+  font-weight: 950;
+}
+
+.history-time {
+  flex-shrink: 0;
+  color: #98a2b3;
+  font-size: 20rpx;
+  font-weight: 700;
+}
+
+.history-target,
+.history-after {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-target {
+  margin-top: 8rpx;
+  color: #2563eb;
+  font-size: 21rpx;
+  font-weight: 800;
+}
+
+.history-after {
+  margin-top: 8rpx;
+  color: #667085;
+  font-size: 23rpx;
+  font-weight: 650;
+  line-height: 1.35;
 }
 
 /* --- Tab 鍒囨崲 --- */
@@ -984,6 +1212,7 @@ scroll-view {
 }
 
 .resume-switcher,
+.resume-version-card,
 .progress-card,
 .section-card,
 .resume-card {
@@ -999,6 +1228,11 @@ scroll-view {
   margin-top: 0;
   margin-bottom: 18rpx;
   padding: 22rpx 24rpx;
+}
+
+.resume-version-card {
+  margin: 0 0 18rpx;
+  padding: 24rpx;
 }
 
 .switcher-name {

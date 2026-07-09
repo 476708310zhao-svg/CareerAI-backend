@@ -367,6 +367,63 @@ function firstInt(params, names) {
   return NaN;
 }
 
+function firstString(params, names) {
+  for (const name of names) {
+    if (params && params[name] !== undefined && params[name] !== null && params[name] !== '') {
+      return String(params[name]);
+    }
+  }
+  return '';
+}
+
+function parseMaybeJson(value) {
+  if (!value) return {};
+  if (typeof value === 'object') return value;
+  const text = String(value).trim();
+  if (!text || !text.startsWith('{') && !text.startsWith('[')) return {};
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    return {};
+  }
+}
+
+function getVirtualNotifySources(params) {
+  const payInfo = parseMaybeJson(firstString(params, [
+    'WeChatPayInfo',
+    'wechatPayInfo',
+    'wechat_pay_info'
+  ]));
+  const goodsInfo = parseMaybeJson(firstString(params, [
+    'GoodsInfo',
+    'goodsInfo',
+    'goods_info'
+  ]));
+  const sources = [params, payInfo];
+  if (Array.isArray(goodsInfo)) {
+    sources.push(...goodsInfo.filter(item => item && typeof item === 'object'));
+  } else {
+    sources.push(goodsInfo);
+  }
+  return sources.filter(item => item && typeof item === 'object');
+}
+
+function firstStringFromSources(sources, names) {
+  for (const source of sources) {
+    const value = firstString(source, names);
+    if (value) return value;
+  }
+  return '';
+}
+
+function firstIntFromSources(sources, names) {
+  for (const source of sources) {
+    const value = firstInt(source, names);
+    if (Number.isFinite(value)) return value;
+  }
+  return NaN;
+}
+
 function respondVirtualNotify(res, errCode, errMsg) {
   res.json({ ErrCode: errCode, ErrMsg: errMsg || (errCode === 0 ? 'OK' : 'FAIL') });
 }
@@ -378,7 +435,15 @@ function handleVirtualNotify(req, res, params) {
   }
 
   const event = params.Event || params.event || '';
-  const orderNo = params.MchOrderId || params.mch_order_id || params.outTradeNo || params.out_trade_no || '';
+  const notifySources = getVirtualNotifySources(params);
+  const orderNo = firstStringFromSources(notifySources, [
+    'MchOrderId',
+    'mchOrderId',
+    'mch_order_id',
+    'OutTradeNo',
+    'outTradeNo',
+    'out_trade_no'
+  ]);
   console.log('[VirtualPay Notify] received', JSON.stringify({
     event,
     orderNo,
@@ -403,9 +468,37 @@ function handleVirtualNotify(req, res, params) {
     return respondVirtualNotify(res, 4, 'openid mismatch');
   }
 
-  const paidAmount = firstInt(params, ['PayAmount', 'pay_amount', 'Amount', 'amount', 'TotalFee', 'total_fee', 'GoodsPrice', 'goodsPrice']);
-  const result = markOrderPaid(order, params.TransactionId || params.WxOrderId || '', paidAmount, {
-    wxOrderId: params.WxOrderId || '',
+  const paidAmount = firstIntFromSources(notifySources, [
+    'PayAmount',
+    'payAmount',
+    'pay_amount',
+    'Amount',
+    'amount',
+    'TotalFee',
+    'totalFee',
+    'total_fee',
+    'GoodsPrice',
+    'goodsPrice',
+    'goods_price'
+  ]);
+  const transactionId = firstStringFromSources(notifySources, [
+    'TransactionId',
+    'transactionId',
+    'transaction_id',
+    'WxOrderId',
+    'wxOrderId',
+    'wx_order_id'
+  ]);
+  const wxOrderId = firstStringFromSources(notifySources, [
+    'WxOrderId',
+    'wxOrderId',
+    'wx_order_id',
+    'TransactionId',
+    'transactionId',
+    'transaction_id'
+  ]);
+  const result = markOrderPaid(order, transactionId, paidAmount, {
+    wxOrderId,
     rawNotify: JSON.stringify(params)
   });
   if (!result.ok) return respondVirtualNotify(res, 5, result.message);

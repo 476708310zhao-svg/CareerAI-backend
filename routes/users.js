@@ -2,10 +2,13 @@ const express = require('express');
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const router = express.Router();
 const db = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
 const { sendEmailCode } = require('../services/email');
+const { UPLOAD_DIR } = require('../utils/paths');
 
 const JWT_SECRET    = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '30d';
@@ -94,6 +97,55 @@ function hasProfilePayload(body = {}) {
     'gradYear', 'status', 'targetRoles', 'targetLocation', 'targetIndustries',
     'jobTypes', 'workAuthorization', 'expectedSalaryRange', 'skills'
   ].some(key => Object.prototype.hasOwnProperty.call(body, key));
+}
+
+function unlinkResumeFiles(userId) {
+  const rows = db.prepare('SELECT filename FROM resume_pdfs WHERE user_id=?').all(userId);
+  rows.forEach(row => {
+    const filename = path.basename(row.filename || '');
+    if (!filename) return;
+    fs.unlink(path.join(UPLOAD_DIR, 'resumes', filename), () => {});
+  });
+  return rows.length;
+}
+
+function deletePersonalData(userId) {
+  const removedPdfFiles = unlinkResumeFiles(userId);
+  const run = db.transaction(() => {
+    const summary = {};
+    const del = (key, sql, params = [userId]) => {
+      summary[key] = db.prepare(sql).run(...params).changes;
+    };
+
+    del('jobReminders', 'DELETE FROM job_reminders WHERE user_id=?');
+    del('messages', 'DELETE FROM messages WHERE user_id=?');
+    del('favorites', 'DELETE FROM favorites WHERE user_id=?');
+    del('applications', 'DELETE FROM applications WHERE user_id=?');
+    del('resumes', 'DELETE FROM resumes WHERE user_id=?');
+    del('resumePdfs', 'DELETE FROM resume_pdfs WHERE user_id=?');
+    del('applicationMaterials', 'DELETE FROM application_materials WHERE user_id=?');
+    del('jdMatchReports', 'DELETE FROM jd_match_reports WHERE user_id=?');
+    del('interviewNotebook', 'DELETE FROM interview_notebook WHERE user_id=?');
+    del('interviewDailyPractice', 'DELETE FROM interview_daily_practice WHERE user_id=?');
+    del('dailyBriefs', 'DELETE FROM daily_briefs WHERE user_id=?');
+    del('agencyReviews', 'DELETE FROM agency_reviews WHERE user_id=?');
+    del('comments', 'DELETE FROM comments WHERE user_id=?');
+    del('commentReplies', 'DELETE FROM comment_replies WHERE user_id=?');
+    del('commentLikes', 'DELETE FROM comment_likes WHERE user_id=?');
+    del('experienceLikes', 'DELETE FROM experience_likes WHERE user_id=?');
+    del('feedbacks', 'DELETE FROM feedbacks WHERE user_id=?');
+    del('aiUsage', 'DELETE FROM ai_usage WHERE user_id=?');
+
+    summary.analyticsEvents = db.prepare('UPDATE analytics_events SET user_id=NULL WHERE user_id=?').run(userId).changes;
+    summary.experiences = db.prepare(`
+      UPDATE experiences
+      SET user_id=NULL, user_name='已注销用户', user_avatar='', is_anonymous=1
+      WHERE user_id=?
+    `).run(userId).changes;
+    summary.resumePdfFiles = removedPdfFiles;
+    return summary;
+  });
+  return run();
 }
 
 router.get('/profile-schema', (_req, res) => {
@@ -350,6 +402,29 @@ router.put('/profile', authMiddleware, (req, res) => {
     res.json({ code: 0, message: '更新成功', data: formatUser(user) });
   } catch (error) {
     console.error(error); res.status(500).json({ code: -1, message: '服务器内部错误' });
+  }
+});
+
+// ─── 隐私合规：清空个人业务数据，保留账号 ─────────────────────────────────────
+router.delete('/me/data', authMiddleware, (req, res) => {
+  try {
+    const summary = deletePersonalData(req.user.userId);
+    res.json({ code: 0, message: '个人业务数据已删除', data: summary });
+  } catch (error) {
+    console.error('[delete personal data error]', error);
+    res.status(500).json({ code: -1, message: '删除失败，请稍后重试' });
+  }
+});
+
+// ─── 隐私合规：注销账号 ─────────────────────────────────────────────────────
+router.delete('/me', authMiddleware, (req, res) => {
+  try {
+    const summary = deletePersonalData(req.user.userId);
+    db.prepare('DELETE FROM users WHERE id=?').run(req.user.userId);
+    res.json({ code: 0, message: '账号已注销', data: summary });
+  } catch (error) {
+    console.error('[delete account error]', error);
+    res.status(500).json({ code: -1, message: '注销失败，请稍后重试' });
   }
 });
 

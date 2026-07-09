@@ -2,9 +2,23 @@
 const {
   generateQuestions,
   fetchLeetCodeProblems,
-  fetchLeetCodeStats
+  fetchLeetCodeStats,
+  fetchRemoteInterviewQuestions
 } = require('../../utils/api.js');
 const { QUESTIONS } = require('../../utils/question-bank.js');
+
+function decorateQuestionList(list) {
+  return (list || []).map((q, i) => ({
+    ...q,
+    id: q.id || q.questionId || q.question_id || ('q_' + i),
+    category: q.category || 'behavior',
+    difficulty: q.difficulty || '中等',
+    answer: q.answer || '暂无参考答案',
+    tags: Array.isArray(q.tags) ? q.tags : [],
+    isFeatured: !!(q.isFeatured || q.is_featured || i % 4 === 0 || (q.views && q.views > 120)),
+    likes: q.likes || (q.views ? Math.floor(q.views * 0.6) : (20 + i * 8))
+  }));
+}
 
 Page({
   data: {
@@ -83,12 +97,9 @@ Page({
 
   onLoad() {
     // Enrich questions with isFeatured + likes for featured filter
-    const enriched = this.data.allQuestions.map((q, i) => ({
-      ...q,
-      isFeatured: !!(i % 4 === 0 || (q.views && q.views > 120)),
-      likes: q.views ? Math.floor(q.views * 0.6) : (20 + i * 8)
-    }));
+    const enriched = decorateQuestionList(this.data.allQuestions);
     this.setData({ currentCat: 'all', allQuestions: enriched, displayList: enriched });
+    this.loadRemoteInterviewQuestions(enriched);
     clearTimeout(this._initialStatsTimer);
     this._initialStatsTimer = setTimeout(() => this.loadLeetCodeStats(), 80);
     // 初次测量 fixed-header 高度，需等渲染完成
@@ -110,6 +121,27 @@ Page({
   },
 
   // ======== 搜索 ========
+  loadRemoteInterviewQuestions(localFallback) {
+    if (typeof fetchRemoteInterviewQuestions !== 'function') return;
+    fetchRemoteInterviewQuestions({ limit: 160 }).then(list => {
+      if (!Array.isArray(list) || list.length === 0) return;
+      const remote = decorateQuestionList(list);
+      const seen = {};
+      remote.forEach(item => {
+        seen[String(item.id || item.title)] = true;
+      });
+      const local = (localFallback || this.data.allQuestions || []).filter(item => {
+        const key = String(item.id || item.title);
+        if (seen[key]) return false;
+        seen[key] = true;
+        return true;
+      });
+      const merged = remote.concat(local);
+      this.setData({ allQuestions: merged });
+      if (this.data.sourceTab === 'local') this.applyFilters();
+    }).catch(() => {});
+  },
+
   onSearchInput(e) {
     const val = e.detail.value.trim();
     this.setData({ searchKeyword: val });

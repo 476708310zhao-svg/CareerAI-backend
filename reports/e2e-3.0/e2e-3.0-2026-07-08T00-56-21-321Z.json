@@ -1,0 +1,47 @@
+{
+  "summary": {
+    "passed": 3,
+    "failed": 0,
+    "total": 3
+  },
+  "options": {
+    "cliPath": "C:/Program Files (x86)/Tencent/微信web开发者工具/cli.bat",
+    "projectPath": "C:\\Users\\admin\\Desktop\\求职小程序\\jobapp-server\\miniprogram",
+    "reportDir": "C:\\Users\\admin\\Desktop\\求职小程序\\jobapp-server\\reports\\e2e-3.0",
+    "screenshots": true,
+    "keepOpen": false,
+    "dryRun": true,
+    "timeoutMs": 15000,
+    "trustProject": true,
+    "port": 0,
+    "verbose": false,
+    "freshDevtools": false,
+    "wsEndpoint": ""
+  },
+  "steps": [
+    {
+      "group": "dry-run",
+      "name": "Check automator dependency",
+      "status": "PASS",
+      "durationMs": 3,
+      "detail": "miniprogram-automator is installed",
+      "screenshot": ""
+    },
+    {
+      "group": "dry-run",
+      "name": "Check mini program project files",
+      "status": "PASS",
+      "durationMs": 2,
+      "detail": "6 files checked",
+      "screenshot": ""
+    },
+    {
+      "group": "dry-run",
+      "name": "Check WeChat DevTools CLI path",
+      "status": "PASS",
+      "durationMs": 0,
+      "detail": "C:/Program Files (x86)/Tencent/微信web开发者工具/cli.bat",
+      "screenshot": ""
+    }
+  ]
+}

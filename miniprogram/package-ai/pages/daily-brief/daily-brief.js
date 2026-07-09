@@ -5,6 +5,8 @@ const favUtil = require('../../../utils/favorites.js');
 const demoData = require('../../../utils/demo-data.js');
 const notebook = require('../../../utils/interview-notebook.js');
 const navigation = require('../../../utils/navigation.js');
+const apiClient = require('../../../utils/api-client.js');
+const dailyTasks = require('../../../utils/daily-tasks.js');
 
 const LOADING_TIPS = [
   '正在整理今日求职数据...',
@@ -12,6 +14,131 @@ const LOADING_TIPS = [
   '生成明日行动建议...',
   '完善个性化日报内容...'
 ];
+
+function isDailyBriefResult(value) {
+  return !!(value && typeof value === 'object' && (
+    value.todaySummary || value.focusArea || value.tomorrowPlan || value.aiAdvice
+  ));
+}
+
+function extractAiContent(response) {
+  if (typeof response === 'string') return response;
+  if (!response || typeof response !== 'object') return '';
+
+  const direct = response.data && isDailyBriefResult(response.data) ? response.data : null;
+  if (direct) return JSON.stringify(direct);
+  if (isDailyBriefResult(response)) return JSON.stringify(response);
+
+  const choices = response.choices || (response.data && response.data.choices);
+  const first = Array.isArray(choices) && choices.length ? choices[0] : null;
+  const fromChoice = first && first.message && first.message.content;
+  if (typeof fromChoice === 'string') return fromChoice;
+  if (first && typeof first.text === 'string') return first.text;
+
+  const candidates = [
+    response.content,
+    response.reply,
+    response.message,
+    response.data && response.data.content,
+    response.data && response.data.reply,
+    response.data && response.data.message
+  ];
+  return candidates.find(item => typeof item === 'string') || '';
+}
+
+function extractJsonObject(text) {
+  const start = text.indexOf('{');
+  if (start < 0) return '';
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === '{') depth += 1;
+    if (ch === '}') depth -= 1;
+    if (depth === 0) return text.slice(start, i + 1);
+  }
+
+  const end = text.lastIndexOf('}');
+  return end > start ? text.slice(start, end + 1) : '';
+}
+
+function parseDailyBriefResult(response) {
+  if (isDailyBriefResult(response)) return response;
+  if (response && response.data && isDailyBriefResult(response.data)) return response.data;
+
+  const content = extractAiContent(response);
+  if (!content) return null;
+
+  const cleaned = content
+    .replace(/```json\s*/gi, '')
+    .replace(/```\s*/g, '')
+    .trim();
+  const jsonText = extractJsonObject(cleaned);
+  if (!jsonText) return null;
+
+  try {
+    return JSON.parse(jsonText);
+  } catch (e) {
+    console.warn('每日简报 JSON 解析失败:', e, content.slice(0, 200));
+    return null;
+  }
+}
+
+function safeText(value, fallback) {
+  return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+}
+
+function normalizeHighlights(highlights, fallback) {
+  const source = Array.isArray(highlights) && highlights.length ? highlights : fallback;
+  return (Array.isArray(source) ? source : [])
+    .filter(Boolean)
+    .slice(0, 3)
+    .map(item => ({
+      icon: safeText(item.icon, '•'),
+      label: safeText(item.label, '数据'),
+      value: safeText(item.value, '')
+    }));
+}
+
+function normalizeTomorrowPlan(plan, fallback) {
+  const source = Array.isArray(plan) && plan.length ? plan : fallback;
+  return (Array.isArray(source) ? source : [])
+    .filter(Boolean)
+    .slice(0, 3)
+    .map(item => ({
+      time: safeText(item.time, '待定'),
+      task: safeText(item.task, '补充下一步求职行动'),
+      priority: ['high', 'medium', 'low'].includes(item.priority) ? item.priority : 'medium'
+    }));
+}
+
+function normalizeDailyBriefResult(result, fallback) {
+  if (!isDailyBriefResult(result)) return null;
+  return {
+    todaySummary: safeText(result.todaySummary, fallback.todaySummary),
+    highlights: normalizeHighlights(result.highlights, fallback.highlights),
+    focusArea: safeText(result.focusArea, fallback.focusArea),
+    tomorrowPlan: normalizeTomorrowPlan(result.tomorrowPlan, fallback.tomorrowPlan),
+    aiAdvice: safeText(result.aiAdvice, fallback.aiAdvice),
+    motivation: safeText(result.motivation, fallback.motivation)
+  };
+}
 
 Page({
   data: {
@@ -49,14 +176,25 @@ Page({
                       cacheDate.getDate() === now.getDate();
       if (isToday && cached.brief) {
         this.setData({ result: cached.result, stats: cached.stats, brief: cached.brief, phase: 'done' });
+        this._fetchRemoteBrief(true);
         return;
       }
     }
-    notebook.fetchRemoteDailyPractice().finally(() => this._collectStats());
+    this._fetchRemoteBrief(true).then(found => {
+      if (found) return;
+      notebook.fetchRemoteDailyPractice().finally(() => this._collectStats());
+    });
   },
 
   onUnload() {
-    if (this._tipTimer) clearInterval(this._tipTimer);
+    this._clearTipTimer();
+  },
+
+  _clearTipTimer() {
+    if (this._tipTimer) {
+      clearInterval(this._tipTimer);
+      this._tipTimer = null;
+    }
   },
 
   // Collect activity data from localStorage
@@ -97,7 +235,8 @@ Page({
       recentInterviews,
       profileFilled,
       dueSoon: progressStats.dueSoon,
-      todayInterviews: progressStats.todayInterviews
+      todayInterviews: progressStats.todayInterviews,
+      tasks: dailyTasks.buildTasks()
     };
     const brief = this._buildBrief(stats, apps);
     const fallbackResult = this._buildFallbackResult(stats, brief);
@@ -121,7 +260,7 @@ Page({
     const deadlines = progress.getUpcomingDeadlines(7).slice(0, 4);
     const todayInterviews = progress.getTodayInterviews().slice(0, 4);
     const favorites = favUtil.getList('job').slice(0, 3);
-    const newsSource = wx.getStorageSync('cachedHomeNews_v1') || (demoData.enabled() ? demoData.getList('NEWS_FEED') : []);
+    const newsSource = wx.getStorageSync('cachedHomeNews_v2') || (demoData.enabled() ? demoData.getList('NEWS_FEED') : []);
     const news = (newsSource || [])
       .slice(0, 3)
       .map(item => ({
@@ -149,6 +288,7 @@ Page({
       news,
       dailyQuestions,
       progressList: (apps || []).slice(0, 4),
+      tasks: stats.tasks || [],
       aiAdvice: progress.buildDailyAdvice()
     };
   },
@@ -173,6 +313,62 @@ Page({
       aiAdvice: brief.aiAdvice,
       motivation: '把求职拆成今天能完成的一小步，就已经在往前走。'
     };
+  },
+
+  _saveDailyBriefResult(result, stats, brief) {
+    wx.setStorageSync('dailyBriefCache', { result, stats, brief, ts: Date.now() });
+    this.setData({ result, stats, brief, phase: 'done' });
+    this._syncRemoteBrief(result, stats, brief).catch(() => {});
+  },
+
+  _fetchRemoteBrief(silent) {
+    return apiClient.request({
+      path: '/api/career-assets/daily-brief',
+      params: { date: dailyTasks.todayKey() },
+      noCache: true,
+      timeout: 12000
+    }).then(res => {
+      if (!res || res.code !== 0 || !res.data || !res.data.result) return false;
+      const payload = res.data;
+      wx.setStorageSync('dailyBriefCache', {
+        result: payload.result,
+        stats: payload.stats,
+        brief: payload.brief,
+        ts: Date.now()
+      });
+      this.setData({
+        result: payload.result,
+        stats: payload.stats,
+        brief: payload.brief,
+        phase: 'done'
+      });
+      return true;
+    }).catch(err => {
+      if (!silent) console.warn('daily brief remote fetch failed:', err);
+      return false;
+    });
+  },
+
+  _syncRemoteBrief(result, stats, brief) {
+    return apiClient.post({
+      path: '/api/career-assets/daily-brief',
+      body: {
+        date: dailyTasks.todayKey(),
+        result,
+        stats,
+        brief,
+        tasks: (stats && stats.tasks) || (brief && brief.tasks) || []
+      },
+      timeout: 15000
+    });
+  },
+
+  _useFallbackResult(stats, brief, silent, toastTitle) {
+    const result = this.data.result || this._buildFallbackResult(stats, brief);
+    this._saveDailyBriefResult(result, stats, brief);
+    if (!silent && toastTitle) {
+      wx.showToast({ title: toastTitle, icon: 'none' });
+    }
   },
 
   _generate(stats, brief, silent) {
@@ -221,27 +417,21 @@ ${profileDesc}
 要求：highlights 2-3条，tomorrowPlan 3条，内容要基于数据给出真实有用的建议，不要泛泛而谈。`;
 
     sendChatToDeepSeek([{ role: 'user', content: prompt }])
-      .then(text => {
-        clearInterval(this._tipTimer);
-        let result = null;
-        try {
-          const m = text.match(/\{[\s\S]*\}/);
-          if (m) result = JSON.parse(m[0]);
-        } catch (e) {}
+      .then(response => {
+        this._clearTipTimer();
+        const fallback = this._buildFallbackResult(stats, brief);
+        const result = normalizeDailyBriefResult(parseDailyBriefResult(response), fallback);
         if (!result) {
-          wx.showToast({ title: '解析失败，请重试', icon: 'none' });
-          this.setData({ phase: 'idle' });
+          console.warn('每日简报 AI 内容不可用，已保留基础日报');
+          this._useFallbackResult(stats, brief, silent, '已生成基础日报');
           return;
         }
-        wx.setStorageSync('dailyBriefCache', { result, stats, brief, ts: Date.now() });
-        this.setData({ result, phase: 'done' });
+        this._saveDailyBriefResult(result, stats, brief);
       })
-      .catch(() => {
-        clearInterval(this._tipTimer);
-        if (!silent) {
-          wx.showToast({ title: '网络错误，请重试', icon: 'none' });
-          this.setData({ phase: 'idle' });
-        }
+      .catch(err => {
+        this._clearTipTimer();
+        console.warn('每日简报 AI 请求失败，已保留基础日报:', err);
+        this._useFallbackResult(stats, brief, silent, '已生成基础日报');
       });
   },
 
@@ -257,6 +447,13 @@ ${profileDesc}
 
   goProgress() {
     navigation.safeNavigateTo('/package-user/pages/job-progress/job-progress');
+  },
+
+  goDailyTask(e) {
+    const url = e && e.currentTarget && e.currentTarget.dataset
+      ? e.currentTarget.dataset.url
+      : '';
+    if (url) navigation.safeNavigateTo(url);
   },
 
   goJobs() {

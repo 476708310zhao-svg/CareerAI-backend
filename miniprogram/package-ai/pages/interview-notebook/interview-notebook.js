@@ -153,6 +153,14 @@ Page({
     wx.showToast({ title: '已移出复习清单', icon: 'none' });
   },
 
+  scheduleReview(e) {
+    const item = this.findItem(e.currentTarget.dataset.id);
+    if (!item) return;
+    notebook.scheduleReviewReminder(item)
+      .then(() => wx.showToast({ title: '已设置复习提醒', icon: 'success' }))
+      .catch(() => wx.showToast({ title: '提醒设置失败', icon: 'none' }));
+  },
+
   removeItem(e) {
     const id = e.currentTarget.dataset.id;
     wx.showModal({

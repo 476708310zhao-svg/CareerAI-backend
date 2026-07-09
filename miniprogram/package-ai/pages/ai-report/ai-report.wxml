@@ -77,6 +77,32 @@
       </view>
     </view>
 
+    <!-- 复盘行动清单 -->
+    <view class="section" wx:if="{{report.actionPlan && report.actionPlan.length}}">
+      <view class="section-title">下一步训练清单</view>
+      <view class="action-plan">
+        <view class="action-item {{item.priority === 'high' ? 'high' : ''}}" wx:for="{{report.actionPlan}}" wx:key="title">
+          <view class="action-index">{{index + 1}}</view>
+          <view class="action-body">
+            <text class="action-title">{{item.title}}</text>
+            <text class="action-detail">{{item.detail}}</text>
+          </view>
+          <text class="action-priority">{{item.priority === 'high' ? '优先' : '练习'}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section" wx:if="{{report.nextPractice && report.nextPractice.length}}">
+      <view class="section-title">下次练习建议</view>
+      <view class="practice-list">
+        <text class="practice-chip" wx:for="{{report.nextPractice}}" wx:key="*this">{{item}}</text>
+      </view>
+      <view class="red-flags" wx:if="{{report.redFlags && report.redFlags.length}}">
+        <text class="red-flag-title">下次避免</text>
+        <text class="red-flag" wx:for="{{report.redFlags}}" wx:key="*this">{{item}}</text>
+      </view>
+    </view>
+
     <!-- 5. 优势与不足 -->
     <view class="section" wx:if="{{report.strengths || report.weaknesses}}">
       <view class="section-title">优劣势分析</view>
@@ -162,6 +188,22 @@
 
   <!-- Tab 1: 问答复盘 -->
   <view wx:if="{{activeTab === 1}}">
+    <view class="section weak-section" wx:if="{{report.weakQaList && report.weakQaList.length}}">
+      <view class="weak-head">
+        <view>
+          <text class="weak-title">薄弱题 {{report.weakQaList.length}} 道</text>
+          <text class="weak-sub">建议加入错题本，按复习计划回看</text>
+        </view>
+        <view class="weak-save" bindtap="bookmarkWeakQuestions">一键加入</view>
+      </view>
+      <view class="weak-list">
+        <view class="weak-card" wx:for="{{report.weakQaList}}" wx:key="qid">
+          <text class="weak-score">{{item.score}}分</text>
+          <text class="weak-question">{{item.q}}</text>
+        </view>
+      </view>
+    </view>
+
     <view class="section">
       <view class="section-title">问答详细复盘 ({{report.qaList.length}}题)</view>
       <block wx:for="{{report.qaList}}" wx:key="index">

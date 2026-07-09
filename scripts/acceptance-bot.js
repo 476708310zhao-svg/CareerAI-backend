@@ -14,6 +14,7 @@ function parseArgs(argv) {
     write: undefined,
     lightStatic: true,
     fullStatic: false,
+    careerLine: true,
     report: true,
     reportDir: path.join(ROOT, 'reports', 'acceptance'),
     keepData: false,
@@ -33,6 +34,7 @@ function parseArgs(argv) {
     else if (arg === '--read-only') options.write = false;
     else if (arg === '--skip-static') options.lightStatic = false;
     else if (arg === '--full-static') options.fullStatic = true;
+    else if (arg === '--skip-career-line') options.careerLine = false;
     else if (arg === '--no-report') options.report = false;
     else if (arg === '--report-dir') options.reportDir = path.resolve(next() || options.reportDir);
     else if (arg.startsWith('--report-dir=')) options.reportDir = path.resolve(arg.slice('--report-dir='.length));
@@ -68,6 +70,7 @@ Options:
   --write                Run write-path checks against --base-url.
   --read-only            Only run read-only and anonymous-protection checks.
   --full-static          Also run scripts/check-miniprogram.js.
+  --skip-career-line     Skip 2.0 career-line write checks.
   --skip-static          Skip the built-in light mini program static checks.
   --no-report            Do not write Markdown/JSON reports.
   --report-dir <dir>     Report output directory.
@@ -91,6 +94,10 @@ class AcceptanceBot {
       resumeId: null,
       applicationId: null,
       orderNo: '',
+      materialClientId: '',
+      matchClientId: '',
+      questionId: '',
+      reminderTargetId: '',
     };
     this.state = {
       authToken: '',
@@ -118,8 +125,14 @@ class AcceptanceBot {
       await this.runReadOnlyApiChecks();
       if (this.options.write) {
         await this.runWritePathChecks();
+        if (this.options.careerLine) {
+          await this.runCareerLineChecks();
+        }
       } else {
         this.skip('write-flows', 'User journey write checks', 'write mode is disabled');
+        if (this.options.careerLine) {
+          this.skip('career-line', '2.0 career-line write checks', 'write mode is disabled');
+        }
       }
     } finally {
       await this.cleanup();
@@ -222,6 +235,34 @@ class AcceptanceBot {
       const config = readJson(path.join(MINI_ROOT, 'project.config.json'));
       assert(config.compileType === 'miniprogram', `compileType is ${config.compileType || '<empty>'}`);
       return 'compileType=miniprogram';
+    });
+
+    await this.step('static', '2.0 career-line pages and service modules exist', async () => {
+      const expected = [
+        ['page', 'package-user/pages/job-progress/job-progress'],
+        ['page', 'package-ai/pages/daily-brief/daily-brief'],
+        ['page', 'package-ai/pages/application-materials/application-materials'],
+        ['page', 'package-ai/pages/interview-notebook/interview-notebook'],
+        ['util', 'utils/job-progress.js'],
+        ['util', 'utils/reminders.js'],
+        ['util', 'utils/application-materials.js'],
+        ['util', 'utils/jd-match.js'],
+        ['util', 'utils/interview-notebook.js'],
+      ];
+      const missing = [];
+      for (const [type, rel] of expected) {
+        if (type === 'page') {
+          for (const ext of ['.js', '.wxml', '.wxss', '.json']) {
+            const fullPath = path.join(MINI_ROOT, `${rel}${ext}`);
+            if (!fs.existsSync(fullPath)) missing.push(path.relative(ROOT, fullPath));
+          }
+        } else {
+          const fullPath = path.join(MINI_ROOT, rel);
+          if (!fs.existsSync(fullPath)) missing.push(path.relative(ROOT, fullPath));
+        }
+      }
+      assert(missing.length === 0, `missing 2.0 files: ${missing.join(', ')}`);
+      return `${expected.length} career-line entries checked`;
     });
   }
 
@@ -330,6 +371,28 @@ class AcceptanceBot {
       expectCode0(result);
       this.state.paymentConfig = result.body.data || {};
       return `enabled=${!!this.state.paymentConfig.enabled}, mock=${!!this.state.paymentConfig.mock}`;
+    });
+
+    await this.step('security', '2.0 career-line protected APIs reject anonymous access', async () => {
+      const endpoints = [
+        '/api/career-assets/application-materials',
+        '/api/career-assets/jd-match-reports',
+        '/api/career-assets/interview-notebook',
+        '/api/notify/reminders',
+      ];
+      for (const endpoint of endpoints) {
+        const result = await this.get(endpoint);
+        expectStatus(result, 401);
+      }
+      return `${endpoints.length} protected endpoints reject anonymous requests`;
+    });
+
+    await this.step('api', 'notification templates endpoint', async () => {
+      const result = await this.get('/api/notify/templates');
+      expectStatus(result, 200);
+      expectCode0(result);
+      assert(result.body && result.body.data && typeof result.body.data === 'object', 'template payload is not an object');
+      return `${Object.keys(result.body.data).length} templates configured`;
     });
   }
 
@@ -498,6 +561,175 @@ class AcceptanceBot {
     });
   }
 
+  async runCareerLineChecks() {
+    await this.step('career-line', 'application materials CRUD', async () => {
+      const clientId = `material_acceptance_${Date.now()}`;
+      this.created.materialClientId = clientId;
+      const created = await this.post('/api/career-assets/application-materials', {
+        id: clientId,
+        questionType: 'why_company',
+        questionLabel: 'Why this company?',
+        jobId: this.state.sampleJob ? String(this.state.sampleJob.id) : 'acceptance-job',
+        company: this.state.sampleJob ? this.state.sampleJob.company : 'Acceptance Co',
+        jobTitle: this.state.sampleJob ? this.state.sampleJob.title : 'Software Engineer',
+        content: 'Acceptance answer draft for this company and role.',
+      }, this.authHeaders());
+      expectStatus(created, 200);
+      expectCode0(created);
+      assert(created.body.data && created.body.data.clientId === clientId, 'material client id mismatch');
+
+      const listed = await this.get(`/api/career-assets/application-materials?jobId=${encodeURIComponent(created.body.data.jobId)}`, this.authHeaders());
+      expectStatus(listed, 200);
+      expectCode0(listed);
+      assert(Array.isArray(listed.body.data) && listed.body.data.some(item => item.clientId === clientId), 'material not found in list');
+
+      const updated = await this.put(`/api/career-assets/application-materials/${encodeURIComponent(clientId)}`, {
+        content: 'Updated acceptance answer draft.',
+      }, this.authHeaders());
+      expectStatus(updated, 200);
+      expectCode0(updated);
+      assert(updated.body.data.content.includes('Updated'), 'material content was not updated');
+
+      const deleted = await this.delete(`/api/career-assets/application-materials/${encodeURIComponent(clientId)}`, null, this.authHeaders());
+      expectStatus(deleted, 200);
+      expectCode0(deleted);
+      return `material=${clientId}`;
+    });
+
+    await this.step('career-line', 'JD match report create list detail', async () => {
+      const clientId = `match_acceptance_${Date.now()}`;
+      this.created.matchClientId = clientId;
+      const job = this.state.sampleJob || { id: 'acceptance-job', title: 'Software Engineer', company: 'Acceptance Co' };
+      const created = await this.post('/api/career-assets/jd-match-reports', {
+        id: clientId,
+        jobId: String(job.id),
+        jobTitle: job.title || 'Software Engineer',
+        company: job.company || 'Acceptance Co',
+        resumeName: 'Acceptance Resume v2',
+        score: 86,
+        matchedKeywords: ['JavaScript', 'SQL'],
+        missingKeywords: ['Docker'],
+        projectSuggestion: 'Add one quantified backend project.',
+        atsRisk: 'low',
+        suggestions: ['Add Docker keyword', 'Quantify project impact'],
+      }, this.authHeaders());
+      expectStatus(created, 200);
+      expectCode0(created);
+      assert(created.body.data && created.body.data.clientId === clientId, 'match report client id mismatch');
+
+      const listed = await this.get(`/api/career-assets/jd-match-reports?jobId=${encodeURIComponent(String(job.id))}`, this.authHeaders());
+      expectStatus(listed, 200);
+      expectCode0(listed);
+      assert(Array.isArray(listed.body.data) && listed.body.data.some(item => item.clientId === clientId), 'match report not found in list');
+
+      const detail = await this.get(`/api/career-assets/jd-match-reports/${encodeURIComponent(clientId)}`, this.authHeaders());
+      expectStatus(detail, 200);
+      expectCode0(detail);
+      assert(detail.body.data.score === 86, 'match score mismatch');
+      return `report=${clientId}`;
+    });
+
+    await this.step('career-line', 'interview notebook and daily practice lifecycle', async () => {
+      const questionId = `q_acceptance_${Date.now()}`;
+      this.created.questionId = questionId;
+      const created = await this.post('/api/career-assets/interview-notebook', {
+        id: questionId,
+        title: 'Tell me about a time you handled ambiguity.',
+        answer: 'Use STAR and clarify tradeoffs.',
+        category: 'behavior',
+        difficulty: 'medium',
+        status: 'unknown',
+      }, this.authHeaders());
+      expectStatus(created, 200);
+      expectCode0(created);
+
+      const listed = await this.get('/api/career-assets/interview-notebook?status=unknown&category=behavior', this.authHeaders());
+      expectStatus(listed, 200);
+      expectCode0(listed);
+      assert(Array.isArray(listed.body.data) && listed.body.data.some(item => item.id === questionId), 'notebook question not found');
+
+      const mastered = await this.put(`/api/career-assets/interview-notebook/${encodeURIComponent(questionId)}/status`, {
+        status: 'mastered',
+      }, this.authHeaders());
+      expectStatus(mastered, 200);
+      expectCode0(mastered);
+      assert(mastered.body.data.status === 'mastered', 'notebook status did not update');
+
+      const daily = await this.post('/api/career-assets/interview-daily-practice', {
+        id: questionId,
+        title: 'Tell me about a time you handled ambiguity.',
+        answer: 'Use STAR and clarify tradeoffs.',
+        category: 'behavior',
+        difficulty: 'medium',
+      }, this.authHeaders());
+      expectStatus(daily, 200);
+      expectCode0(daily);
+
+      const dailyList = await this.get('/api/career-assets/interview-daily-practice', this.authHeaders());
+      expectStatus(dailyList, 200);
+      expectCode0(dailyList);
+      assert(Array.isArray(dailyList.body.data) && dailyList.body.data.some(item => item.id === questionId), 'daily practice question not found');
+
+      const deleteDaily = await this.delete(`/api/career-assets/interview-daily-practice/${encodeURIComponent(questionId)}`, null, this.authHeaders());
+      expectStatus(deleteDaily, 200);
+      expectCode0(deleteDaily);
+
+      const deleteNotebook = await this.delete(`/api/career-assets/interview-notebook/${encodeURIComponent(questionId)}`, null, this.authHeaders());
+      expectStatus(deleteNotebook, 200);
+      expectCode0(deleteNotebook);
+      return `question=${questionId}`;
+    });
+
+    await this.step('career-line', 'job reminders save dispatch once and disable', async () => {
+      const targetId = `reminder_acceptance_${Date.now()}`;
+      this.created.reminderTargetId = targetId;
+      const today = dateOnlyInShanghai();
+      const created = await this.put('/api/notify/reminders', {
+        sourceType: 'job_progress',
+        targetId,
+        reminderType: 'deadline',
+        title: 'Acceptance reminder',
+        company: 'Acceptance Co',
+        jobTitle: 'Software Engineer',
+        reminderDate: today,
+        leadDays: [0],
+        enabled: true,
+      }, this.authHeaders());
+      expectStatus(created, 200);
+      expectCode0(created);
+      assert(created.body.data && created.body.data.enabled === true, 'reminder was not enabled');
+
+      const listed = await this.get('/api/notify/reminders?sourceType=job_progress&reminderType=deadline', this.authHeaders());
+      expectStatus(listed, 200);
+      expectCode0(listed);
+      assert(Array.isArray(listed.body.data) && listed.body.data.some(item => item.targetId === targetId), 'reminder not found in list');
+
+      const dispatchSecret = this.mode === 'local'
+        ? 'acceptance_cron_secret_1234567890abcdef'
+        : process.env.ACCEPTANCE_CRON_SECRET;
+      if (dispatchSecret) {
+        const dispatched = await this.post('/api/notify/reminders/dispatch', { date: today }, {
+          'X-Cron-Secret': dispatchSecret,
+        });
+        expectStatus(dispatched, 200);
+        expectCode0(dispatched);
+        assert(Array.isArray(dispatched.body.data.sent) && dispatched.body.data.sent.some(item => item.key.includes(targetId)), 'reminder dispatch did not send target reminder');
+
+        const repeated = await this.post('/api/notify/reminders/dispatch', { date: today }, {
+          'X-Cron-Secret': dispatchSecret,
+        });
+        expectStatus(repeated, 200);
+        expectCode0(repeated);
+        assert(!repeated.body.data.sent.some(item => item.key.includes(targetId)), 'reminder was dispatched twice');
+      }
+
+      const disabled = await this.delete(`/api/notify/reminders/job_progress/${encodeURIComponent(targetId)}/deadline`, null, this.authHeaders());
+      expectStatus(disabled, 200);
+      expectCode0(disabled);
+      return `reminder=${targetId}`;
+    });
+  }
+
   authHeaders() {
     return { Authorization: `Bearer ${this.state.authToken}` };
   }
@@ -607,6 +839,7 @@ class AcceptanceBot {
             'jd_match_reports',
             'interview_notebook',
             'interview_daily_practice',
+            'job_reminders',
             'ai_usage',
           ];
           for (const table of tables) {
@@ -800,6 +1033,19 @@ function warn(detail) {
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function dateOnlyInShanghai(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(date).reduce((acc, item) => {
+    acc[item.type] = item.value;
+    return acc;
+  }, {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 function firstLine(value) {

@@ -1,6 +1,7 @@
 // pages/star-library/star-library.js
 const api = require('../../../utils/api.js');
 const sendChatToDeepSeek = api.sendChatToDeepSeek;
+const fetchRemoteStarTemplates = api.fetchRemoteStarTemplates;
 
 const TEMPLATES = [
   /* ── 咨询 ── */
@@ -129,10 +130,24 @@ const ROLE_FILTERS = [
   { id: 'general',   label: '通用', color: '#6B7280' },
 ];
 
+function normalizeTemplateList(list) {
+  return (list || []).map((item, index) => Object.assign({}, item, {
+    id: item.id || item.templateId || item.template_id || ('star_' + index),
+    role: item.role || 'general',
+    roleLabel: item.roleLabel || item.role_label || '通用',
+    roleColor: item.roleColor || item.role_color || '#6B7280',
+    tags: Array.isArray(item.tags) ? item.tags : [],
+    situation: item.situation || '',
+    task: item.task || '',
+    action: item.action || '',
+    result: item.result || ''
+  }));
+}
+
 Page({
   data: {
-    templates:   TEMPLATES,
-    filtered:    TEMPLATES,
+    templates:   normalizeTemplateList(TEMPLATES),
+    filtered:    normalizeTemplateList(TEMPLATES),
     roleFilters: ROLE_FILTERS,
     activeRole:  '',
     searchKey:   '',
@@ -150,7 +165,30 @@ Page({
 
   onLoad() {
     const saved = wx.getStorageSync('savedStarTemplates') || [];
-    this.setData({ savedIds: saved }, () => this._filter());
+    const base = normalizeTemplateList(TEMPLATES);
+    this.setData({ savedIds: saved, templates: base, filtered: this._decorateTemplates(base, saved) }, () => {
+      this._filter();
+      this.loadRemoteTemplates(base);
+    });
+  },
+
+  loadRemoteTemplates(localFallback) {
+    if (typeof fetchRemoteStarTemplates !== 'function') return;
+    fetchRemoteStarTemplates({ limit: 160 }).then(list => {
+      if (!Array.isArray(list) || list.length === 0) return;
+      const remote = normalizeTemplateList(list);
+      const seen = {};
+      remote.forEach(item => {
+        seen[String(item.id || item.title)] = true;
+      });
+      const local = (localFallback || this.data.templates || []).filter(item => {
+        const key = String(item.id || item.title);
+        if (seen[key]) return false;
+        seen[key] = true;
+        return true;
+      });
+      this.setData({ templates: remote.concat(local) }, () => this._filter());
+    }).catch(() => {});
   },
 
   onSearch(e) {
@@ -176,7 +214,10 @@ Page({
     if (activeRole) list = list.filter(t => t.role === activeRole);
     if (searchKey) {
       const kw = searchKey.toLowerCase();
-      list = list.filter(t => t.title.toLowerCase().includes(kw) || t.tags.some(tag => tag.includes(kw)));
+      list = list.filter(t => {
+        const tags = Array.isArray(t.tags) ? t.tags : [];
+        return t.title.toLowerCase().includes(kw) || tags.some(tag => String(tag).toLowerCase().includes(kw));
+      });
     }
     this.setData({ filtered: this._decorateTemplates(list, this.data.savedIds) });
   },
@@ -204,7 +245,7 @@ Page({
   /* ── Copy full text ── */
   copyTemplate(e) {
     const id = e.currentTarget.dataset.id;
-    const t  = TEMPLATES.find(x => x.id === id);
+    const t  = this.data.templates.find(x => x.id === id);
     if (!t) return;
     const text = `【${t.title}】\n\nS（情境）：${t.situation}\n\nT（任务）：${t.task}\n\nA（行动）：${t.action}\n\nR（结果）：${t.result}`;
     wx.setClipboardData({ data: text, success: () => wx.showToast({ title: '已复制全文', icon: 'success' }) });
@@ -213,7 +254,7 @@ Page({
   /* ── AI personalise ── */
   openCustomise(e) {
     const id = e.currentTarget.dataset.id;
-    const t  = TEMPLATES.find(x => x.id === id);
+    const t  = this.data.templates.find(x => x.id === id);
     if (!t) return;
     this.setData({ showCustomModal: true, customTarget: t, customInput: '', customResult: '', customLoading: false });
   },

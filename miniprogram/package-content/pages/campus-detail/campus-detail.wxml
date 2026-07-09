@@ -1,120 +1,174 @@
 <!-- pages/campus-detail/campus-detail.wxml -->
-
-<!-- 加载中 -->
 <view class="loading-page" wx:if="{{!detail}}">
-  <view class="spinner"></view>
-  <text class="loading-txt">加载中...</text>
+  <block wx:if="{{loadFailed}}">
+    <text class="loading-title">校招信息已更新</text>
+    <text class="loading-txt">{{loadErrorText}}</text>
+    <view class="loading-actions">
+      <view class="loading-btn primary" bindtap="backToCampusList">返回校招日历</view>
+      <view class="loading-btn" bindtap="retryLoad">重试</view>
+    </view>
+  </block>
+  <block wx:else>
+    <view class="spinner"></view>
+    <text class="loading-txt">加载中...</text>
+  </block>
 </view>
 
 <view class="page" wx:if="{{detail}}">
-
-  <!-- ════ 头部横幅 ════ -->
-  <view class="hero">
-    <view class="hero-inner">
-      <view class="logo-wrap">
-        <image wx:if="{{detail.companyLogo}}" src="{{detail.companyLogo}}" class="logo-img" mode="aspectFit"/>
+  <view class="hero-card">
+    <view class="company-row">
+      <view class="logo-frame">
+        <image wx:if="{{detail.companyLogo}}" src="{{detail.companyLogo}}" class="logo-img" mode="aspectFit" binderror="onLogoError"/>
         <view wx:else class="logo-placeholder">
-          <text class="logo-char">{{detail._companyInitial}}</text>
+          <text>{{detail._companyInitial}}</text>
         </view>
       </view>
-      <view class="hero-info">
-        <view class="hero-name-row">
-          <text class="hero-company">{{detail.company}}</text>
-          <view class="hot-dot" wx:if="{{detail.isHot}}">HOT</view>
+      <view class="company-copy">
+        <view class="company-line">
+          <text class="company-name">{{detail.company}}</text>
+          <text class="hot-pill" wx:if="{{detail.isHot}}">热门</text>
         </view>
-        <text class="hero-position">{{detail.positionName || detail.positionType}}</text>
-        <view class="hero-badges">
-          <view class="badge" style="background:{{detail._typeStyle.bg}};color:{{detail._typeStyle.color}};border-color:{{detail._typeStyle.border}}">{{detail.recruitType}}</view>
-          <view class="badge" style="background:{{detail._testStyle.bg}};color:{{detail._testStyle.color}}">{{detail.writtenTest}}</view>
-          <view class="badge grad-badge">{{detail.gradYear}}届</view>
-        </view>
+        <text class="company-meta">{{detail._subtitle}}</text>
       </view>
+    </view>
+
+    <text class="position-title">{{detail._headline}}</text>
+
+    <view class="tag-row">
+      <block wx:for="{{detail._heroTags}}" wx:key="*this">
+        <text class="soft-tag">{{item}}</text>
+      </block>
+    </view>
+
+    <view class="hero-info-row">
+      <text>{{detail._viewText}}</text>
+      <text>{{detail._attentionText}}</text>
     </view>
   </view>
 
-  <!-- ════ 关键信息卡 ════ -->
-  <view class="info-card">
-    <view class="kv-grid">
-      <view class="kv-item">
-        <text class="kv-key">行业</text>
-        <text class="kv-val">{{detail.industry || '-'}}</text>
+  <view class="quick-grid">
+    <block wx:for="{{detail._quickFacts}}" wx:key="label">
+      <view class="quick-item">
+        <text class="quick-label">{{item.label}}</text>
+        <text class="quick-value {{item.tone}}">{{item.value}}</text>
       </view>
-      <view class="kv-item">
-        <text class="kv-key">岗位类型</text>
-        <text class="kv-val">{{detail.positionType}}</text>
-      </view>
-      <view class="kv-item">
-        <text class="kv-key">工作地点</text>
-        <text class="kv-val">{{detail._locStr}}</text>
-      </view>
-      <view class="kv-item">
-        <text class="kv-key">所在地区</text>
-        <text class="kv-val">{{detail.region}}</text>
-      </view>
-      <view class="kv-item">
-        <text class="kv-key">开始时间</text>
-        <text class="kv-val">{{detail.startDate || '-'}}</text>
-      </view>
-      <view class="kv-item">
-        <text class="kv-key">截止时间</text>
-        <text class="kv-val {{detail.deadlineDate === '尽快投递' ? 'urgent' : ''}}">{{detail.deadlineDate || '-'}}</text>
-      </view>
-    </view>
+    </block>
   </view>
 
-  <!-- ════ 备注信息 ════ -->
-  <view class="section-card" wx:if="{{detail.notes}}">
-    <view class="section-title">
-      <text class="section-icon">💬</text>
-      <text>求职建议</text>
-    </view>
-    <text class="notes-txt">{{detail.notes}}</text>
-  </view>
-
-  <!-- ════ 投递信息 ════ -->
   <view class="section-card">
-    <view class="section-title">
-      <text class="section-icon">🔗</text>
-      <text>投递信息</text>
-    </view>
-    <view class="link-row" wx:if="{{detail.announceUrl}}">
-      <text class="link-label">公告链接</text>
-      <text class="link-url">{{detail.announceUrl}}</text>
-    </view>
-    <view class="link-row" wx:if="{{detail.applyUrl}}">
-      <text class="link-label">投递链接</text>
-      <text class="link-url">{{detail.applyUrl}}</text>
-    </view>
-    <view class="copy-btn" wx:if="{{detail.applyUrl}}" bindtap="copyApplyUrl">复制投递链接</view>
-  </view>
-
-  <!-- ════ 截止提醒订阅卡 ════ -->
-  <view class="remind-card" bindtap="subscribeReminder">
-    <view class="remind-left">
-      <text class="remind-icon">{{isSubscribed ? '🔔' : '🔕'}}</text>
-      <view class="remind-info">
-        <text class="remind-title">{{reminderTitle}}</text>
-        <text class="remind-sub">{{reminderSub}}</text>
+    <view class="section-head">
+      <view class="section-title">
+        <view class="section-mark"></view>
+        <text>基本信息</text>
       </view>
     </view>
-    <view class="remind-action {{isSubscribed ? 'subscribed' : ''}}">
-      <text>{{reminderAction}}</text>
+    <view class="basic-list">
+      <block wx:for="{{detail._basicRows}}" wx:key="label">
+        <view class="basic-row">
+          <text class="basic-label">{{item.label}}</text>
+          <text class="basic-value {{item.tone}}">{{item.value}}</text>
+        </view>
+      </block>
     </view>
   </view>
 
-  <!-- ════ 数据来源 ════ -->
-  <view class="source-bar">
-    <text class="source-txt">{{detail.viewCount}} 人浏览 · 数据综合整理自公开信息</text>
+  <view class="section-card">
+    <view class="section-head">
+      <view class="section-title">
+        <view class="section-mark"></view>
+        <text>网申入口</text>
+      </view>
+      <view class="section-action" wx:if="{{detail.applyUrl}}" bindtap="copyApplyUrl">复制</view>
+    </view>
+    <view class="link-list">
+      <view class="link-row" wx:if="{{detail.applyUrl}}" bindtap="copyApplyUrl">
+        <text class="link-label">投递地址</text>
+        <text class="link-text">{{detail._applyShort}}</text>
+      </view>
+      <view class="link-row" wx:if="{{detail.announceUrl}}" bindtap="copyAnnounceUrl">
+        <text class="link-label">公告链接</text>
+        <text class="link-text">{{detail._announceShort}}</text>
+      </view>
+      <view class="empty-link" wx:if="{{!detail.applyUrl && !detail.announceUrl}}">暂无公开链接，请关注后续更新</view>
+    </view>
+  </view>
+
+  <view class="section-card remind-card" bindtap="subscribeReminder">
+    <view class="remind-copy">
+      <text class="remind-title">{{reminderTitle}}</text>
+      <text class="remind-sub">{{reminderSub}}</text>
+    </view>
+    <view class="remind-btn {{isSubscribed ? 'active' : ''}}">{{reminderAction}}</view>
+  </view>
+
+  <view class="section-card article-card">
+    <view class="section-head">
+      <view class="section-title">
+        <view class="section-mark"></view>
+        <text>信息详情</text>
+      </view>
+      <view class="verify-pill" wx:if="{{detail.isVerified}}">已核验</view>
+    </view>
+    <text class="article-title">{{detail._headline}}</text>
+    <text class="article-subhead">{{detail._subtitle}}</text>
+    <block wx:for="{{detail._detailSections}}" wx:key="title">
+      <view class="article-block">
+        <text class="article-subtitle">{{item.title}}</text>
+        <block wx:for="{{item.paragraphs}}" wx:for-item="paragraph" wx:key="*this">
+          <text class="article-p">{{paragraph}}</text>
+        </block>
+      </view>
+    </block>
+    <view class="notes-box" wx:if="{{detail.notes}}">
+      <text class="notes-label">补充说明</text>
+      <text class="notes-text">{{detail.notes}}</text>
+    </view>
+    <text class="source-note">信息来源：{{detail._sourceText}}。请以企业官方公告和网申页面为准。</text>
+  </view>
+
+  <view class="section-card related-section" wx:if="{{relatedList.length}}">
+    <view class="section-head">
+      <view class="section-title">
+        <view class="section-mark"></view>
+        <text>相关推荐</text>
+      </view>
+      <view class="section-action" bindtap="changeRelated">换一换</view>
+    </view>
+    <block wx:for="{{relatedList}}" wx:key="id">
+      <view class="related-item" bindtap="goRelated" data-id="{{item.id}}">
+        <view class="related-logo">
+          <image wx:if="{{item.companyLogo}}" src="{{item.companyLogo}}" mode="aspectFit" binderror="onRelatedLogoError" data-index="{{index}}"/>
+          <text wx:else>{{item._companyInitial}}</text>
+        </view>
+        <view class="related-main">
+          <text class="related-title">{{item._headline}}</text>
+          <text class="related-subtitle">{{item._subtitle}}</text>
+          <view class="related-meta">
+            <text>{{item._updatedText}}</text>
+            <text>{{item._heatText}}</text>
+            <text>{{item._viewText}} 浏览</text>
+          </view>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <view class="risk-note">
+    <text>请警惕保offer、培训贷、付费内推等风险，投递前务必核验企业官方信息。</text>
   </view>
 
   <view class="bottom-spacer"></view>
 
-  <!-- ════ 底部投递按钮 ════ -->
   <view class="bottom-bar">
-    <view class="bottom-actions">
-      <view class="collect-btn {{isFavorited ? 'collected' : ''}}" bindtap="toggleFavorite">{{isFavorited ? '已收藏' : '收藏'}}</view>
-      <view class="apply-btn" bindtap="goApply">复制投递链接</view>
+    <button class="bar-tool" open-type="share">
+      <text class="bar-icon">↗</text>
+      <text>分享</text>
+    </button>
+    <view class="bar-tool {{isFavorited ? 'active' : ''}}" bindtap="toggleFavorite">
+      <text class="bar-icon">{{isFavorited ? '★' : '☆'}}</text>
+      <text>收藏</text>
     </view>
+    <view class="focus-btn {{isSubscribed ? 'active' : ''}}" bindtap="subscribeReminder">{{isSubscribed ? '已提醒' : '加入关注'}}</view>
+    <view class="apply-btn" bindtap="goApply">复制网申地址</view>
   </view>
-
 </view>

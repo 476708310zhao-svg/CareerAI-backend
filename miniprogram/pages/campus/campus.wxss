@@ -786,6 +786,141 @@ scroll-view {
 .empty {
   color: #667085;
 }
+
+/* P0 campus filters */
+.filter-scroll {
+  width: 100%;
+}
+
+.filter-pills.nowrap {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  padding-bottom: 2rpx;
+  white-space: nowrap;
+}
+
+.filter-reset {
+  height: 34rpx;
+  padding: 0 12rpx;
+  border-radius: 999rpx;
+  color: #344054;
+  background: #eef2f7;
+  border: 1rpx solid rgba(16,24,40,0.06);
+  font-size: 19rpx;
+  font-weight: 850;
+  line-height: 34rpx;
+}
+
+.identity-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  margin-top: 10rpx;
+}
+
+.identity-chip {
+  min-height: 30rpx;
+  max-width: 220rpx;
+  padding: 0 11rpx;
+  border-radius: 999rpx;
+  color: #475467;
+  background: #f2f4f7;
+  border: 1rpx solid rgba(16,24,40,0.055);
+  font-size: 18rpx;
+  font-weight: 850;
+  line-height: 30rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.identity-chip.overseas {
+  color: #0f766e;
+  background: #ecfdf7;
+  border-color: rgba(15,118,110,0.14);
+}
+
+.identity-chip.support {
+  color: #2563eb;
+  background: #eff6ff;
+  border-color: rgba(37,99,235,0.14);
+}
+
+.identity-chip.verify {
+  color: #b45309;
+  background: #fffbeb;
+  border-color: rgba(180,83,9,0.14);
+}
+
+.identity-chip.urgent {
+  color: #dc2626;
+  background: #fef2f2;
+  border-color: rgba(220,38,38,0.12);
+}
+
+.identity-chip.soon {
+  color: #2563eb;
+  background: #eff6ff;
+  border-color: rgba(37,99,235,0.14);
+}
+
+.identity-chip.expired {
+  color: #667085;
+  background: #f2f4f7;
+}
+
+.footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10rpx;
+  min-width: 0;
+  flex: 1;
+}
+
+.remind-btn {
+  height: 56rpx;
+  min-width: 104rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f766e;
+  background: #ecfdf7;
+  border: 1rpx solid rgba(15,118,110,0.16);
+  font-size: 23rpx;
+  font-weight: 950;
+}
+
+.remind-btn.active {
+  color: #667085;
+  background: #f2f4f7;
+  border-color: rgba(16,24,40,0.06);
+}
+
+.footer-actions .apply-btn {
+  min-width: 148rpx;
+  padding: 0 20rpx;
+}
+
+@media (max-width: 360px) {
+  .card-footer {
+    align-items: flex-start;
+    gap: 12rpx;
+    flex-direction: column;
+  }
+
+  .footer-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .footer-actions .apply-btn,
+  .remind-btn {
+    flex: 1;
+  }
+}
 /* Unified homepage background */
 page,
 .page,

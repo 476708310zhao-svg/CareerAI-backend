@@ -33,11 +33,24 @@ Page({
   },
 
   onLoad(options) {
+    this._loadPendingJd();
     // 支持从简历页携带 resumeId 直接进入
     if (options.resumeId) {
       this._loadResumeById(parseInt(options.resumeId));
     }
     this._loadServerResumes();
+  },
+
+  _loadPendingJd() {
+    try {
+      const pending = wx.getStorageSync('pendingAtsJob') || {};
+      if (!pending.jobDescription) return;
+      this.setData({
+        jobTitle: pending.jobTitle || '',
+        jobDescription: pending.jobDescription || '',
+        jdLen: String(pending.jobDescription || '').length
+      });
+    } catch (e) {}
   },
 
   // 输入处理

@@ -1,4 +1,5 @@
 const featureFlags = require('../utils/feature-flags.js');
+const navigation = require('../utils/navigation.js');
 
 const FULL_TAB_LIST = [
   {
@@ -111,11 +112,15 @@ Component({
       if (!item || index === this.data.selected) return;
 
       this.setData({ selected: index });
-      wx.switchTab({
-        url: `/${item.pagePath}`,
+      const started = navigation.safeSwitchTab(`/${item.pagePath}`, {
         success: () => this.syncState(),
         fail: () => this.syncState()
       });
+      if (!started) this.syncState();
+    },
+
+    goAiAssistant() {
+      navigation.safeNavigateTo('/package-ai/pages/ai-assistant/ai-assistant');
     }
   }
 });

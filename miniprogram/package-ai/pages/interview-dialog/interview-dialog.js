@@ -5,6 +5,7 @@ const api = require('../../../utils/api.js');
 const safePage = require('../../behaviors/safe-page');
 const sendChatToDeepSeek = api.sendChatToDeepSeek;
 const config   = require('../../../utils/app-config.js');
+const analytics = require('../../../utils/analytics.js');
 const API_BASE = config.API_BASE_URL;
 
 // 录音管理器（全局单例）
@@ -13,6 +14,16 @@ let recorderMgr = null;
 // 2. 常量配置
 const MAX_QUESTIONS = 5;  // 面试问题数量 (你可以改为 5 或 10)
 const SEPARATOR = "|||";  // 分隔符 (用于区分 点评 和 新问题)
+
+function clampScore(value, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(100, Math.max(0, Math.round(n)));
+}
+
+function normalizeText(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
 
 Page({
   behaviors: [safePage],
@@ -91,6 +102,14 @@ Page({
       this.maxQuestions = MAX_QUESTIONS;
     }
     this.setData({ maxQDisplay: this.maxQuestions });
+    analytics.track('interview_simulation_start', {
+      jobId: options.jobId || '',
+      interviewType,
+      company,
+      position,
+      difficulty,
+      questionCount: this.maxQuestions
+    });
 
     if (!wx.getStorageSync('token')) {
       this.setData({
@@ -203,8 +222,8 @@ ${firstInstruction}
     if (this.data.questionCount >= maxQ) {
       // 最后一次回答：输出结构化 JSON 总结报告
       const endPrompt = `这是用户的最后一个回答，请严格按以下JSON格式输出本次面试总结（不要输出任何JSON之外的内容，不要加markdown代码块）：
-{"totalScore":85,"dimensions":[{"name":"语言表达","score":82},{"name":"内容逻辑","score":88},{"name":"专业知识","score":85},{"name":"应变能力","score":80},{"name":"沟通表达","score":83}],"strengths":"候选人的主要优势","weaknesses":"候选人的主要不足","suggestion":"录用建议","summary":"完整的面试综合总结正文，包含整体表现评价和改进方向"}
-所有分数为0-100整数，summary字段为面向候选人展示的完整总结文字。`;
+{"totalScore":85,"dimensions":[{"name":"语言表达","score":82},{"name":"内容逻辑","score":88},{"name":"专业知识","score":85},{"name":"应变能力","score":80},{"name":"沟通表达","score":83}],"qaScores":[{"index":1,"score":78,"reason":"回答结构清晰但缺少量化结果"}],"strengths":"候选人的主要优势","weaknesses":"候选人的主要不足","suggestion":"录用建议","actionPlan":[{"title":"下次练习重点","detail":"具体可执行动作","priority":"high"}],"nextPractice":["下一次练习题方向1","下一次练习题方向2"],"redFlags":["需要避免的问题"],"summary":"完整的面试综合总结正文，包含整体表现评价和改进方向"}
+所有分数为0-100整数。qaScores数量必须等于已回答题目数量，actionPlan给3条，nextPractice给3条，summary字段为面向候选人展示的完整总结文字。`;
 
       const endHistory = [...newHistory, { role: 'system', content: endPrompt }];
       this.callAI(endHistory, 'summary');
@@ -258,7 +277,7 @@ ${firstInstruction}
 
     if (mode !== 'init' && lastIndex >= 0) {
       // 策略1：尝试 JSON 解析
-      const parsed = this._tryParseJSON(content);
+      const parsed = this._tryParseJSON(content, ['feedback', 'question', 'next_question']);
       if (parsed) {
         feedback = parsed.feedback || '';
         nextQuestion = parsed.question || parsed.next_question || '';
@@ -288,7 +307,7 @@ ${firstInstruction}
       this.setData({ interviewRecords: records });
     } else if (mode === 'init') {
       // 开场回复也可能是 JSON 格式
-      const parsed = this._tryParseJSON(content);
+      const parsed = this._tryParseJSON(content, ['feedback', 'question', 'next_question']);
       if (parsed && parsed.question) {
         nextQuestion = parsed.question;
       }
@@ -316,15 +335,15 @@ ${firstInstruction}
   },
 
   // JSON 解析工具 — 容忍 ```json 包裹和不完整格式
-  _tryParseJSON: function(text) {
+  _tryParseJSON: function(text, acceptedKeys) {
     try {
       // 去除可能的 markdown 代码块包裹
-      let cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+      let cleaned = String(text || '').replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
       // 尝试提取第一个 { ... } 块
       const braceMatch = cleaned.match(/\{[\s\S]*\}/);
       if (braceMatch) {
         const obj = JSON.parse(braceMatch[0]);
-        if (obj.feedback || obj.question || obj.next_question) return obj;
+        if (!Array.isArray(acceptedKeys) || acceptedKeys.some(key => obj[key] !== undefined)) return obj;
       }
     } catch (e) { /* ignore */ }
     return null;
@@ -340,20 +359,33 @@ ${firstInstruction}
     // 策略1：优先解析结构化 JSON（新格式，评分精确）
     let finalReport = content.replace(/\*\*/g, '').trim();
     let reportData;
-    const jsonData = this._tryParseJSON(content);
-    if (jsonData && typeof jsonData.totalScore === 'number') {
+    const jsonData = this._tryParseJSON(content, ['totalScore', 'dimensions', 'summary']);
+    if (jsonData && jsonData.totalScore !== undefined) {
       finalReport = (jsonData.summary || content).replace(/\*\*/g, '').trim();
+      const totalScore = clampScore(jsonData.totalScore, 75);
+      const dimensions = this.normalizeDimensions(jsonData.dimensions, totalScore);
+      const qaScores = this.normalizeQaScores(jsonData.qaScores, records, totalScore);
       reportData = {
-        totalScore: Math.min(100, Math.max(0, jsonData.totalScore)),
-        dimensions: Array.isArray(jsonData.dimensions) ? jsonData.dimensions : [],
+        totalScore,
+        dimensions,
         strengths: jsonData.strengths || '',
         weaknesses: jsonData.weaknesses || '',
         suggestion: jsonData.suggestion || '',
-        qaScores: records.map(() => Math.min(100, Math.max(40, jsonData.totalScore + Math.floor(Math.random() * 20) - 10)))
+        actionPlan: this.normalizeActionPlan(jsonData.actionPlan, dimensions, records, qaScores),
+        nextPractice: this.normalizeTextList(jsonData.nextPractice || jsonData.next_practice, 3),
+        redFlags: this.normalizeTextList(jsonData.redFlags || jsonData.red_flags, 3),
+        qaScores
       };
     } else {
       // 策略2：Regex 兜底（兼容旧格式）
       reportData = this.parseReportScores(finalReport, records);
+    }
+    reportData.actionPlan = reportData.actionPlan || this.normalizeActionPlan([], reportData.dimensions, records, reportData.qaScores);
+    if (!reportData.nextPractice || !reportData.nextPractice.length) {
+      reportData.nextPractice = reportData.actionPlan.map(item => item.title).slice(0, 3);
+    }
+    if (!reportData.redFlags || !reportData.redFlags.length) {
+      reportData.redFlags = ['回答缺少具体场景', '行动与结果没有量化', '没有主动贴合岗位要求'];
     }
 
     const newChat = [...this.data.chatList];
@@ -391,6 +423,10 @@ ${firstInstruction}
       strengths: reportData.strengths,
       weaknesses: reportData.weaknesses,
       suggestion: reportData.suggestion,
+      actionPlan: reportData.actionPlan || [],
+      nextPractice: reportData.nextPractice || [],
+      redFlags: reportData.redFlags || [],
+      weakQuestions: this.buildWeakQuestions(records, reportData.qaScores),
       createTime: new Date().toLocaleDateString('zh-CN')
     };
 
@@ -410,6 +446,9 @@ ${firstInstruction}
       questionCount: records.length,
       timestamp: Date.now(),
       reportKey: 'aiReport_' + reportCache.id,
+      weakCount: reportCache.weakQuestions.length,
+      nextAction: reportCache.actionPlan[0] && reportCache.actionPlan[0].title || '',
+      lowestDimension: reportData.dimensions.slice().sort((a, b) => a.score - b.score)[0] || null,
       tags: [
         this.data.position || '面试',
         this.data.interviewType === 'technical' ? '技术面' : (this.data.interviewType === 'behavior' ? '行为面' : (this.data.interviewType || '综合'))
@@ -418,11 +457,106 @@ ${firstInstruction}
     // 最多保留50条
     if (historyList.length > 50) historyList.splice(50);
     wx.setStorageSync('interviewHistory', historyList);
+    analytics.track('interview_simulation_complete', {
+      reportId: reportCache.id,
+      score: reportData.totalScore,
+      questionCount: records.length,
+      interviewType: this.data.interviewType || '',
+      company: this.data.company || '',
+      position: this.data.position || ''
+    });
 
     // 延迟跳转到报告页
     setTimeout(() => {
       wx.navigateTo({ url: '/package-ai/pages/ai-report/ai-report' });
     }, 600);
+  },
+
+  normalizeDimensions: function(dimensions, totalScore) {
+    const names = ['语言表达', '内容逻辑', '专业知识', '应变能力', '沟通表达'];
+    const source = Array.isArray(dimensions) ? dimensions : [];
+    return names.map((name, index) => {
+      const found = source.find(item => item && item.name === name) || source[index] || {};
+      return {
+        name: found.name || name,
+        score: clampScore(found.score, Math.max(40, Math.min(96, totalScore - 4 + index * 2)))
+      };
+    });
+  },
+
+  normalizeTextList: function(list, limit) {
+    if (!Array.isArray(list)) return [];
+    return list
+      .map(item => normalizeText(typeof item === 'string' ? item : (item && (item.title || item.detail || item.text))))
+      .filter(Boolean)
+      .slice(0, limit || 3);
+  },
+
+  normalizeQaScores: function(qaScores, records, totalScore) {
+    const list = Array.isArray(qaScores) ? qaScores : [];
+    return (records || []).map((record, index) => {
+      const raw = list[index];
+      const value = typeof raw === 'number' ? raw : (raw && raw.score);
+      return clampScore(value, this.estimateQaScore(record, totalScore, index));
+    });
+  },
+
+  estimateQaScore: function(record, totalScore, index) {
+    const answer = normalizeText(record && record.answer);
+    const feedback = normalizeText(record && record.feedback);
+    let score = clampScore(totalScore, 75) - 6 + index * 2;
+    if (answer.length >= 180) score += 5;
+    else if (answer.length < 60) score -= 8;
+    if (/量化|具体|结构|STAR|清晰|完整|命中|准确/.test(feedback)) score += 4;
+    if (/缺少|不足|需要|建议|薄弱|泛泛|不够|遗漏/.test(feedback)) score -= 6;
+    return clampScore(score, 70);
+  },
+
+  normalizeActionPlan: function(actionPlan, dimensions, records, qaScores) {
+    const fromAi = Array.isArray(actionPlan) ? actionPlan.map((item, index) => {
+      if (typeof item === 'string') {
+        return { title: item, detail: '', priority: index === 0 ? 'high' : 'medium' };
+      }
+      return {
+        title: normalizeText(item && item.title),
+        detail: normalizeText(item && (item.detail || item.desc || item.content)),
+        priority: item && item.priority || (index === 0 ? 'high' : 'medium')
+      };
+    }).filter(item => item.title) : [];
+    if (fromAi.length) return fromAi.slice(0, 3);
+
+    const lowDim = (dimensions || []).slice().sort((a, b) => a.score - b.score)[0] || {};
+    const lowQaCount = (qaScores || []).filter(score => score < 80).length;
+    const answerCount = (records || []).length;
+    return [
+      {
+        title: `优先补强${lowDim.name || '薄弱维度'}`,
+        detail: `当前约 ${lowDim.score || '--'} 分，下次练习时先围绕该维度准备 2 个案例。`,
+        priority: 'high'
+      },
+      {
+        title: '重写低分回答',
+        detail: lowQaCount ? `本次有 ${lowQaCount} 道题低于 80 分，建议用 STAR/问题-行动-结果结构重写。` : '保留本次高分结构，并继续补充量化结果。',
+        priority: lowQaCount ? 'high' : 'medium'
+      },
+      {
+        title: '做一次短面复盘',
+        detail: `用 ${Math.max(3, answerCount)} 道题复练，重点控制回答在 90-150 秒内。`,
+        priority: 'medium'
+      }
+    ];
+  },
+
+  buildWeakQuestions: function(records, qaScores) {
+    return (records || []).map((record, index) => ({
+      index,
+      question: record.question,
+      answer: record.answer,
+      feedback: record.feedback,
+      score: qaScores[index] || 0
+    })).filter(item => item.score && item.score < 80)
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 5);
   },
 
   // --- 5.1 解析AI报告中的评分数据 ---
@@ -441,10 +575,10 @@ ${firstInstruction}
       { name: '沟通表达', pattern: /沟通[表达能力]*[：:]\s*(\d+)/ }
     ];
 
-    const dimensions = dimPatterns.map(d => {
+    const dimensions = dimPatterns.map((d, index) => {
       const m = reportText.match(d.pattern);
-      const score = m ? parseInt(m[1] || m[2]) : (totalScore + Math.floor(Math.random() * 16) - 8);
-      return { name: d.name, score: Math.min(100, Math.max(30, score)) };
+      const score = m ? parseInt(m[1] || m[2]) : (totalScore - 4 + index * 2);
+      return { name: d.name, score: clampScore(score, 70) };
     });
 
     // 提取优势和不足
@@ -457,11 +591,12 @@ ${firstInstruction}
     if (sugMatch) suggestion = sugMatch[1].trim().substring(0, 200);
 
     // 每题评分（基于总分浮动）
-    const qaScores = records.map(() => {
-      return Math.min(100, Math.max(40, totalScore + Math.floor(Math.random() * 20) - 10));
-    });
+    const qaScores = records.map((record, index) => this.estimateQaScore(record, totalScore, index));
+    const actionPlan = this.normalizeActionPlan([], dimensions, records, qaScores);
+    const nextPractice = actionPlan.map(item => item.title).slice(0, 3);
+    const redFlags = ['回答停留在结论，缺少行动细节', '项目结果没有量化', '没有主动回应岗位关键词'];
 
-    return { totalScore, dimensions, strengths, weaknesses, suggestion, qaScores };
+    return { totalScore, dimensions, strengths, weaknesses, suggestion, qaScores, actionPlan, nextPractice, redFlags };
   },
 
   // --- 6. 交互辅助 ---

@@ -1,23 +1,16 @@
 const router = require('express').Router();
 const { aiLimiter } = require('../middleware/rateLimit');
 const { authMiddleware } = require('../middleware/auth');
-const { consumeDailyLimit, requireVip } = require('../utils/aiQuota');
+const { consumeDailyLimit, requireVip, getQuotaStatus } = require('../utils/aiQuota');
 const { createChatCompletion, streamChatCompletion } = require('../utils/aiClient');
-const db     = require('../db/database');
-
-function todayKey() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function isVipActive(user) {
-  if (!user || user.vip_level <= 0) return false;
-  if (!user.vip_expires_at) return true;
-  return String(user.vip_expires_at).slice(0, 10) >= todayKey();
-}
 
 function aiFail(res, status, message, data) {
   return res.status(status).json({ code: -1, message, data });
 }
+
+router.get('/usage', authMiddleware, (req, res) => {
+  res.json({ code: 0, message: 'success', data: getQuotaStatus(req.user.userId) });
+});
 
 function aiErrorResponse(res, err, scope) {
   const status = err.response?.status || 500;
@@ -226,6 +219,7 @@ router.post('/chat', authMiddleware, aiLimiter, async (req, res) => {
       return aiFail(res, 400, '单条消息不能超过 4000 字符');
     }
   }
+  if (!consumeDailyLimit(req, res, 'chat')) return;
 
   try {
     const result = await createChatCompletion(
@@ -297,6 +291,7 @@ router.post('/project-builder', authMiddleware, aiLimiter, async (req, res) => {
   if (!track) {
     return aiFail(res, 400, '请选择项目方向');
   }
+  if (!consumeDailyLimit(req, res, 'project_builder')) return;
 
   const trackMap = {
     data: 'Data（数据分析/BI/机器学习）',
@@ -429,8 +424,6 @@ router.post('/workflow', authMiddleware, aiLimiter, requireVip('AI 工作流'), 
 // POST /api/ai/ats
 // Body: { resumeData: object, jobDescription: string, jobTitle?: string }
 // Returns: { atsScore, matchedKeywords, missingKeywords, sectionSuggestions, formatIssues, overallAdvice }
-const ATS_DAILY_LIMIT = 3;
-
 router.post('/ats', authMiddleware, aiLimiter, async (req, res) => {
   const { resumeData, jobDescription, jobTitle } = req.body;
 
@@ -444,29 +437,7 @@ router.post('/ats', authMiddleware, aiLimiter, async (req, res) => {
     return aiFail(res, 400, '岗位描述不能超过5000字');
   }
 
-  // 配额检查（免费3次/天，VIP无限）
-  const userId = req.user && req.user.userId;
-  const user   = db.prepare('SELECT vip_level, vip_expires_at FROM users WHERE id = ?').get(userId);
-  const vipOk  = isVipActive(user);
-  if (!vipOk) {
-    const day  = new Date().toISOString().slice(0, 10);
-    const used = db.prepare(
-      `SELECT COALESCE(SUM(count),0) AS n FROM ai_usage WHERE user_id=? AND feature='ats' AND usage_date=?`
-    ).get(userId, day).n;
-    if (used >= ATS_DAILY_LIMIT) {
-      return res.status(429).json({
-        code: -1,
-        message: `ATS优化今日免费次数(${ATS_DAILY_LIMIT}次)已用完，开通VIP可无限使用`,
-        data: { feature: 'ats', limit: ATS_DAILY_LIMIT, used, vipRequired: true }
-      });
-    }
-    db.prepare(`
-      INSERT INTO ai_usage (user_id, feature, usage_date, count, updated_at)
-      VALUES (?, 'ats', ?, 1, datetime('now'))
-      ON CONFLICT(user_id, feature, usage_date)
-      DO UPDATE SET count = count + 1, updated_at = datetime('now')
-    `).run(userId, day);
-  }
+  if (!consumeDailyLimit(req, res, 'ats')) return;
 
   // 精简简历数据，控制 token 量
   const r = resumeData;
@@ -552,8 +523,6 @@ ${JSON.stringify(slim)}
 // Body: { targetCompany, targetRole, senderBackground, recipientBackground,
 //         platform: 'linkedin'|'email', tone: 'formal'|'casual', lang: 'zh'|'en' }
 // Returns: { code:0, data: { linkedin, email, subject, tips } }
-const NET_DAILY_LIMIT = 5;
-
 router.post('/networking', authMiddleware, aiLimiter, async (req, res) => {
   const {
     targetCompany, targetRole, senderBackground,
@@ -573,29 +542,7 @@ router.post('/networking', authMiddleware, aiLimiter, async (req, res) => {
     return aiFail(res, 400, '背景描述过长');
   }
 
-  // 配额：免费5次/天，VIP无限
-  const userId = req.user && req.user.userId;
-  const user   = db.prepare('SELECT vip_level, vip_expires_at FROM users WHERE id = ?').get(userId);
-  const vipOk  = isVipActive(user);
-  if (!vipOk) {
-    const day  = new Date().toISOString().slice(0, 10);
-    const used = db.prepare(
-      `SELECT COALESCE(SUM(count),0) AS n FROM ai_usage WHERE user_id=? AND feature='networking' AND usage_date=?`
-    ).get(userId, day).n;
-    if (used >= NET_DAILY_LIMIT) {
-      return res.status(429).json({
-        code: -1,
-        message: `Networking消息今日免费次数(${NET_DAILY_LIMIT}次)已用完，开通VIP可无限使用`,
-        data: { feature: 'networking', limit: NET_DAILY_LIMIT, used, vipRequired: true }
-      });
-    }
-    db.prepare(`
-      INSERT INTO ai_usage (user_id, feature, usage_date, count, updated_at)
-      VALUES (?, 'networking', ?, 1, datetime('now'))
-      ON CONFLICT(user_id, feature, usage_date)
-      DO UPDATE SET count = count + 1, updated_at = datetime('now')
-    `).run(userId, day);
-  }
+  if (!consumeDailyLimit(req, res, 'networking')) return;
 
   const toneDesc = tone === 'casual' ? '轻松友好、亲切' : '专业得体、简洁有力';
   const langDesc = lang === 'en' ? '英文' : '中文';

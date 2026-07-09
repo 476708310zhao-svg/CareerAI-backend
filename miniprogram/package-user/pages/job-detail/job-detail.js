@@ -2,15 +2,15 @@
 const { getJobDetail, post, normalizeCompanyLogo } = require('../../../utils/api.js');
 const favUtil = require('../../../utils/favorites.js');
 const progress = require('../../../utils/job-progress.js');
-const jdMatch = require('../../../utils/jd-match.js');
+const jdMatch = require('../../utils/jd-match.js');
 const { fromNow, formatSalaryRange } = require('../../../utils/util.js');
-const config = require('../../../utils/app-config.js');
 const demoData = require('../../../utils/demo-data.js');
 const { extractSkillTags } = require('../../utils/skill-icons.js');
 const browseHistory = require('../../../utils/browse-history.js');
 const featureFlags = require('../../../utils/feature-flags.js');
 const navigation = require('../../../utils/navigation.js');
-const API_BASE = config.API_BASE_URL;
+const reminders = require('../../../utils/reminders.js');
+const analytics = require('../../../utils/analytics.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
 Page({
@@ -33,6 +33,7 @@ Page({
     const jobId = options.id;
     const isSaved = jobId ? favUtil.isFavorited('job', jobId) : false;
     this.setData({ jobId, isSaved });
+    analytics.track('job_detail_click', { jobId: jobId || '' });
     this.refreshProgressState(jobId);
     if (jobId && wx.getStorageSync('token')) {
       favUtil.syncFromServer().then(() => {
@@ -243,6 +244,11 @@ Requirements:
     };
     const isSaved = favUtil.toggle('job', jobData);
     this.setData({ isSaved });
+    analytics.track(isSaved ? 'favorite_job' : 'unfavorite_job', {
+      jobId: jobData.targetId,
+      company: jobData.company,
+      title: jobData.title
+    });
     if (isSaved) {
       const savedProgress = progress.upsertFromJob(this.data.job, { status: 'collected' });
       this.setData({ inProgress: true, progressStatusText: savedProgress.statusText });
@@ -291,6 +297,11 @@ Requirements:
       salary: job.salary || '',
       city: job.city || ''
     });
+    analytics.track('job_progress_add_from_detail', {
+      jobId: job.id,
+      company: job.company,
+      title: job.title
+    });
     this.setData({ inProgress: true, progressStatusText: record.statusText });
     wx.showModal({
       title: '已加入求职进度',
@@ -326,6 +337,12 @@ Requirements:
       return;
     }
     const report = jdMatch.saveReport(jdMatch.buildReport(resume, job));
+    analytics.track('jd_match_generate', {
+      jobId: job.id,
+      company: job.company,
+      title: job.title,
+      score: report.score
+    });
     this.setData({ matchReport: report, showMatchPanel: true });
   },
 
@@ -413,46 +430,17 @@ Requirements:
       salary: job.salary || 'Negotiable',
       city: job.city || ''
     });
+    analytics.track('application_save', {
+      jobId: jobIdStr,
+      company: job.company,
+      title: job.title,
+      source: 'job_detail'
+    });
     this.refreshProgressState(jobIdStr);
     wx.showToast({ title: '已加入投递看板', icon: 'success' });
 
-    // 2. 请求订阅消息授权（模板 ID 未配置时跳过）
-    const tmplId = config.WX_TPL_APPLICATION;
-    if (!tmplId) return;
-    wx.requestSubscribeMessage({
-      tmplIds: [tmplId],
-      success: (subRes) => {
-        if (subRes[tmplId] === 'accept') {
-          // 告知后端用户已授权，后端可在状态变更时推送
-          const token = wx.getStorageSync('token');
-          if (token) {
-            wx.request({
-              url: API_BASE + '/api/notify/subscribe',
-              method: 'POST',
-              header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-              data: { templateIds: [tmplId] },
-              fail: () => {}
-            });
-          }
-        }
-      },
-      fail: () => {} // 用户未授权不影响主流程
-    });
-
-    // 3. 同步投递记录到后端（有 token 时）
-    const token = wx.getStorageSync('token');
-    if (token) {
-      wx.request({
-        url: API_BASE + '/api/applications',
-        method: 'POST',
-        header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        data: {
-          jobId: jobIdStr,
-          jobSnapshot: { title: job.title, company: job.company, location: job.city, salary: job.salary }
-        },
-        fail: () => {}
-      });
-    }
+    // 2. 请求订阅消息授权（模板 ID 由后端配置优先返回）
+    reminders.requestSubscribe('application');
   },
 
 

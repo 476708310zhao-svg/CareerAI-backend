@@ -246,6 +246,199 @@ page { background: var(--bg-raised); padding-bottom: 40rpx; }
 .improve-tip { font-size: 22rpx; color: var(--text-muted); display: block; margin-top: 6rpx; }
 .improve-score { font-size: 38rpx; font-weight: 800; flex-shrink: 0; margin-left: 20rpx; }
 
+/* ── 复盘行动清单 ──────────────────────────── */
+.action-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+}
+
+.action-item {
+  min-height: 104rpx;
+  padding: 18rpx;
+  border-radius: 22rpx;
+  background: #f8fafc;
+  border: 1.5rpx solid #eef2f7;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  box-sizing: border-box;
+}
+
+.action-item.high {
+  background: #eef4ff;
+  border-color: rgba(37, 99, 235, 0.18);
+}
+
+.action-index {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 16rpx;
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb, #14b8a6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 23rpx;
+  font-weight: 900;
+}
+
+.action-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.action-title {
+  color: #111827;
+  font-size: 27rpx;
+  line-height: 1.3;
+  font-weight: 900;
+}
+
+.action-detail {
+  margin-top: 8rpx;
+  color: #667085;
+  font-size: 23rpx;
+  line-height: 1.45;
+  font-weight: 650;
+}
+
+.action-priority {
+  flex-shrink: 0;
+  padding: 7rpx 12rpx;
+  border-radius: 999rpx;
+  color: #175cd3;
+  background: #ffffff;
+  border: 1rpx solid rgba(37, 99, 235, 0.16);
+  font-size: 21rpx;
+  font-weight: 900;
+}
+
+.practice-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+}
+
+.practice-chip {
+  max-width: 100%;
+  padding: 10rpx 16rpx;
+  border-radius: 999rpx;
+  color: #175cd3;
+  background: #eef4ff;
+  border: 1rpx solid rgba(37, 99, 235, 0.12);
+  font-size: 23rpx;
+  line-height: 1.3;
+  font-weight: 850;
+}
+
+.red-flags {
+  margin-top: 18rpx;
+  padding: 18rpx;
+  border-radius: 20rpx;
+  background: #fff7ed;
+  border: 1rpx solid #fed7aa;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.red-flag-title {
+  color: #9a3412;
+  font-size: 23rpx;
+  font-weight: 900;
+}
+
+.red-flag {
+  color: #c2410c;
+  font-size: 24rpx;
+  line-height: 1.45;
+}
+
+/* ── 薄弱题摘要 ──────────────────────────── */
+.weak-section {
+  background: linear-gradient(180deg, #ffffff 0%, #fffaf0 100%);
+  border-color: #fed7aa;
+}
+
+.weak-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.weak-title,
+.weak-sub {
+  display: block;
+}
+
+.weak-title {
+  color: #111827;
+  font-size: 30rpx;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.weak-sub {
+  margin-top: 7rpx;
+  color: #9a3412;
+  font-size: 23rpx;
+  line-height: 1.4;
+}
+
+.weak-save {
+  flex-shrink: 0;
+  height: 62rpx;
+  padding: 0 22rpx;
+  border-radius: 999rpx;
+  color: #ffffff;
+  background: #111827;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.weak-list {
+  margin-top: 18rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.weak-card {
+  padding: 16rpx;
+  border-radius: 18rpx;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1rpx solid #fde68a;
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+}
+
+.weak-score {
+  flex-shrink: 0;
+  color: #b45309;
+  background: #fffbeb;
+  border-radius: 999rpx;
+  padding: 5rpx 10rpx;
+  font-size: 21rpx;
+  font-weight: 900;
+}
+
+.weak-question {
+  flex: 1;
+  min-width: 0;
+  color: #334155;
+  font-size: 24rpx;
+  line-height: 1.45;
+}
+
 /* ── 改进建议高亮 ──────────────────────────── */
 .fb-text-wrap { display: block; }
 .fb-seg { font-size: 26rpx; color: #d48806; line-height: 1.7; }

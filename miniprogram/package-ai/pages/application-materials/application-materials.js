@@ -20,6 +20,8 @@ function formatMaterial(item) {
     questionLabel: item.questionLabel || typeLabel(item.questionType),
     company: item.company || '目标公司',
     jobTitle: item.jobTitle || '目标岗位',
+    resumeName: item.resumeName || '',
+    resumeVersionId: item.resumeVersionId || '',
     dateLabel: formatDate(item.updatedAt || item.createdAt),
     preview: content.length > 92 ? content.slice(0, 92) + '...' : content
   });

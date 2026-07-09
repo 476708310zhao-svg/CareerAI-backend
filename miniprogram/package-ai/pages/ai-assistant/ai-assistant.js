@@ -3,6 +3,7 @@ const config   = require('../../../utils/app-config.js');
 const { post } = require('../../../utils/api-client.js');
 const progress = require('../../../utils/job-progress.js');
 const appMaterials = require('../../../utils/application-materials.js');
+const resumeVersions = require('../../../utils/resume-versions.js');
 
 const API_BASE    = config.API_BASE_URL;
 const CACHE_KEY   = 'ai_assistant_messages';
@@ -301,8 +302,22 @@ Page({
     applicationQuestionTypes: appMaterials.QUESTION_TYPES,
     selectedApplicationJobId: '',
     selectedQuestionType: 'why_company',
+    assistantResume: null,
+    assistantResumeName: '',
+    hasAssistantResume: false,
+    applicationResumeVersions: [],
+    applicationResumeVersionLabels: [],
+    selectedApplicationResumeId: '',
+    selectedApplicationResumeIndex: 0,
+    selectedApplicationResumeName: '',
+    selectedApplicationResumeTargetRole: '',
+    selectedApplicationResume: null,
+    hasApplicationResume: false,
+    applicationResumeLoading: false,
     applicationDraft: null,
-    applicationSavedMaterials: []
+    applicationSavedMaterials: [],
+    applicationJdText: '',
+    applicationGenerating: false
   },
 
   _history:      [],
@@ -324,13 +339,69 @@ Page({
     });
     this._buildUserContext();
     this._restoreOrInit();
+    this.loadAssistantResumeContext();
     if (options.action === 'application') {
       setTimeout(() => this.openApplicationAssistant(), 120);
     }
   },
 
+  onShow() {
+    this.loadAssistantResumeContext();
+  },
+
   onUnload() {
     this._abortStream();
+  },
+
+  loadAssistantResumeContext() {
+    resumeVersions.fetchResumeVersions().then(selection => {
+      this.applyAssistantResumeSelection(selection);
+    }).catch(() => {
+      this.applyAssistantResumeSelection(resumeVersions.localSelection());
+    });
+  },
+
+  applyAssistantResumeSelection(selection) {
+    const item = selection || resumeVersions.localSelection();
+    this._userContext = Object.assign({}, this._userContext || {}, {
+      hasResume: !!item.hasResume,
+      targetJob: item.currentTargetRole || (this._userContext && this._userContext.targetJob) || ''
+    });
+    this.setData({
+      assistantResume: item.currentResume || null,
+      assistantResumeName: item.currentName || '',
+      hasAssistantResume: !!item.hasResume,
+      applicationResumeVersions: item.list || this.data.applicationResumeVersions,
+      applicationResumeVersionLabels: item.labels || this.data.applicationResumeVersionLabels
+    });
+    if (this.data.showApplicationPanel && !this.data.selectedApplicationResumeId) {
+      this.applyApplicationResumeSelection(item);
+    }
+  },
+
+  applyApplicationResumeSelection(selection) {
+    const item = selection || resumeVersions.localSelection();
+    this.setData({
+      applicationResumeLoading: false,
+      applicationResumeVersions: item.list || [],
+      applicationResumeVersionLabels: item.labels || [],
+      selectedApplicationResumeId: item.currentId || '',
+      selectedApplicationResumeIndex: item.currentIndex || 0,
+      selectedApplicationResumeName: item.currentName || '',
+      selectedApplicationResumeTargetRole: item.currentTargetRole || '',
+      selectedApplicationResume: item.currentResume || null,
+      hasApplicationResume: !!item.hasResume,
+      applicationDraft: null
+    });
+  },
+
+  loadApplicationResumeVersions() {
+    this.setData({ applicationResumeLoading: true });
+    resumeVersions.fetchResumeVersions().then(selection => {
+      this.applyApplicationResumeSelection(selection);
+    }).catch(() => {
+      this.applyApplicationResumeSelection(resumeVersions.localSelection());
+    });
   },
 
   // ── 用户上下文（个性化） ────────────────────────────────────
@@ -339,7 +410,7 @@ Page({
     try {
       const profile = wx.getStorageSync('userProfile') || {};
       const pref    = profile.jobPreference || {};
-      const resume  = wx.getStorageSync('onlineResume') || {};
+      const resume  = this.data.assistantResume || wx.getStorageSync('onlineResume') || {};
       this._userContext = {
         nickname:  String(profile.nickname || '').slice(0, 20),
         targetJob: String(pref.targetPosition || pref.targetJob || '').slice(0, 50),
@@ -356,7 +427,7 @@ Page({
   _buildResumeContext(text) {
     if (!/简历|resume|优化|润色|ats|诊断|改进|经历|经验|描述/i.test(text)) return '';
     try {
-      const r = wx.getStorageSync('onlineResume') || {};
+      const r = this.data.assistantResume || wx.getStorageSync('onlineResume') || {};
       const b = r.basicInfo || {};
       if (!b.name && !b.email) return '';
       const lines = [];
@@ -477,8 +548,11 @@ Page({
       selectedApplicationJobId: selected,
       selectedQuestionType: this.data.selectedQuestionType || 'why_company',
       applicationDraft: null,
+      applicationJdText: jobs[0] && (jobs[0].description || jobs[0].notes) ? (jobs[0].description || jobs[0].notes) : '',
+      applicationGenerating: false,
       applicationSavedMaterials: appMaterials.readMaterials().slice(0, 3)
     });
+    this.loadApplicationResumeVersions();
   },
 
   closeApplicationAssistant() {
@@ -486,11 +560,39 @@ Page({
   },
 
   selectApplicationJob(e) {
-    this.setData({ selectedApplicationJobId: e.currentTarget.dataset.id || '', applicationDraft: null });
+    const id = e.currentTarget.dataset.id || '';
+    const job = this.data.applicationJobs.find(item => String(item.id) === String(id)) || {};
+    this.setData({
+      selectedApplicationJobId: id,
+      applicationDraft: null,
+      applicationJdText: job.description || job.notes || this.data.applicationJdText || ''
+    });
   },
 
   selectApplicationQuestion(e) {
     this.setData({ selectedQuestionType: e.currentTarget.dataset.type || 'why_company', applicationDraft: null });
+  },
+
+  onApplicationJdInput(e) {
+    this.setData({ applicationJdText: e.detail.value || '', applicationDraft: null });
+  },
+
+  onApplicationResumeChange(e) {
+    const index = Number(e.detail.value || 0);
+    const target = (this.data.applicationResumeVersions || [])[index];
+    if (!target || String(target.id) === String(this.data.selectedApplicationResumeId)) return;
+    this.setData({ applicationResumeLoading: true, applicationDraft: null });
+    resumeVersions.loadResumeVersion(target.id, this.data.applicationResumeVersions).then(selection => {
+      this.applyApplicationResumeSelection(selection);
+    }).catch(() => {
+      this.setData({ applicationResumeLoading: false });
+      wx.showToast({ title: '简历加载失败', icon: 'none' });
+    });
+  },
+
+  goApplicationResume() {
+    this.setData({ showApplicationPanel: false });
+    wx.navigateTo({ url: '/package-career/pages/resume/resume' });
   },
 
   generateApplicationDraft() {
@@ -498,14 +600,40 @@ Page({
       wx.showToast({ title: '请先添加目标岗位', icon: 'none' });
       return;
     }
+    if (!this.data.hasApplicationResume) {
+      wx.showToast({ title: '请先完善简历', icon: 'none' });
+      return;
+    }
+    if (this.data.applicationGenerating) return;
     const job = this.data.applicationJobs.find(item => String(item.id) === String(this.data.selectedApplicationJobId)) || this.data.applicationJobs[0] || {};
-    const resume = wx.getStorageSync('onlineResume') || {};
-    const material = appMaterials.generateDraft({
+    const resume = this.data.selectedApplicationResume || this.data.assistantResume || wx.getStorageSync('onlineResume') || {};
+    const resumeMeta = {
+      resumeName: this.data.selectedApplicationResumeName || resumeVersions.getResumeDisplayName(resume, '当前在线简历'),
+      resumeVersionId: this.data.selectedApplicationResumeId || ''
+    };
+    this.setData({ applicationGenerating: true });
+    appMaterials.generateDraftAi({
       job,
       questionType: this.data.selectedQuestionType,
-      resume
+      resume,
+      resumeName: resumeMeta.resumeName,
+      resumeVersionId: resumeMeta.resumeVersionId,
+      jdText: this.data.applicationJdText
+    }).then(material => {
+      this.setData({ applicationDraft: Object.assign({}, material, resumeMeta), applicationGenerating: false });
+      if (material && material.generationMode === 'template') {
+        wx.showToast({ title: 'AI 暂不可用，已生成基础草稿', icon: 'none' });
+      }
+    }).catch(() => {
+      const material = appMaterials.generateDraft({
+        job,
+        questionType: this.data.selectedQuestionType,
+        resume,
+        resumeName: resumeMeta.resumeName,
+        resumeVersionId: resumeMeta.resumeVersionId
+      });
+      this.setData({ applicationDraft: Object.assign({}, material, resumeMeta), applicationGenerating: false });
     });
-    this.setData({ applicationDraft: material });
   },
 
   saveApplicationDraft() {

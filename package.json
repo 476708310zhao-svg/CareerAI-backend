@@ -8,10 +8,14 @@
     "dev": "nodemon server.js",
     "test": "node tests/all.test.js",
     "bot:acceptance": "node scripts/acceptance-bot.js",
+    "bot:career-line": "node scripts/acceptance-bot.js --full-static",
+    "bot:e2e-3.0": "node scripts/e2e-3.0-bot.js",
+    "check:e2e-3.0": "node scripts/e2e-3.0-bot.js --dry-run",
     "check:acceptance": "node scripts/acceptance-bot.js --full-static",
     "check:miniprogram": "node scripts/check-miniprogram.js",
     "check:data": "node scripts/check-data-content.js",
     "check:release": "npm test && npm run check:miniprogram && npm run check:data",
+    "seed:ops-content": "node scripts/seed_ops_content.js",
     "sync:campus": "node scripts/sync_feishu_server.js",
     "sync:companies": "node scripts/sync_feishu_companies.js",
     "dispatch:reminders": "node scripts/dispatch_reminders.js",
@@ -33,6 +37,7 @@
     "rss-parser": "^3.13.0"
   },
   "devDependencies": {
+    "miniprogram-automator": "^0.12.1",
     "nodemon": "^3.1.4"
   }
 }

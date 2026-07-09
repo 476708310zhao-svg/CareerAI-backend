@@ -1,0 +1,55 @@
+{
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "total": 4
+  },
+  "options": {
+    "cliPath": "C:/Program Files (x86)/Tencent/微信web开发者工具/cli.bat",
+    "projectPath": "C:\\Users\\admin\\Desktop\\求职小程序\\jobapp-server\\miniprogram",
+    "reportDir": "C:\\Users\\admin\\Desktop\\求职小程序\\jobapp-server\\reports\\e2e-3.0",
+    "screenshots": true,
+    "keepOpen": false,
+    "dryRun": true,
+    "timeoutMs": 15000,
+    "trustProject": true,
+    "port": 0,
+    "verbose": false,
+    "freshDevtools": false,
+    "wsEndpoint": ""
+  },
+  "steps": [
+    {
+      "group": "dry-run",
+      "name": "Check automator dependency",
+      "status": "PASS",
+      "durationMs": 3,
+      "detail": "miniprogram-automator is installed",
+      "screenshot": ""
+    },
+    {
+      "group": "dry-run",
+      "name": "Check mini program project files",
+      "status": "PASS",
+      "durationMs": 2,
+      "detail": "6 files checked",
+      "screenshot": ""
+    },
+    {
+      "group": "dry-run",
+      "name": "Check WeChat DevTools CLI path",
+      "status": "PASS",
+      "durationMs": 1,
+      "detail": "C:/Program Files (x86)/Tencent/微信web开发者工具/cli.bat",
+      "screenshot": ""
+    },
+    {
+      "group": "dry-run",
+      "name": "Check WeChat DevTools service port setting",
+      "status": "PASS",
+      "durationMs": 275,
+      "detail": "WARN: service port disabled; enable WeChat DevTools > Settings > Security Settings > Service Port before real E2E. config=C:\\Users\\admin\\AppData\\Local\\微信开发者工具\\User Data\\80d774828fc67c7dafc59cd74ce70db0\\WeappLocalData\\localstorage_b72da75d79277d2f5f9c30c9177be57e.json",
+      "screenshot": ""
+    }
+  ]
+}

@@ -60,7 +60,7 @@
 
   <view class="record-list" wx:if="{{filteredRecords.length}}">
     <block wx:for="{{filteredRecords}}" wx:key="id">
-      <view class="record-card" bindtap="openActions" data-id="{{item.id}}" hover-class="card-press">
+      <view class="record-card" bindtap="openRecordDetail" data-id="{{item.id}}" hover-class="card-press">
         <view class="record-top">
           <view class="company-avatar">{{item.companyInitial}}</view>
           <view class="record-main">
@@ -68,6 +68,19 @@
             <text class="record-company">{{item.company}}{{item.city ? ' · ' + item.city : ''}}</text>
           </view>
           <view class="status-badge status-{{item.statusTone}}">{{item.statusText}}</view>
+          <view class="record-more" catchtap="openActions" data-id="{{item.id}}">···</view>
+        </view>
+
+        <view class="match-strip" wx:if="{{item.hasMatchReport || item.nextAction}}">
+          <view wx:if="{{item.hasMatchReport}}" class="match-score {{item.matchScoreTone}}">
+            <text class="match-score-num">{{item.matchScore || '--'}}</text>
+            <text class="match-score-label">匹配分</text>
+          </view>
+          <view class="match-main">
+            <text class="match-title">{{item.nextAction}}</text>
+            <text wx:if="{{item.missingPreview.length}}" class="match-sub">缺失：{{item.missingPreviewText}}</text>
+            <text wx:else class="match-sub">{{item.hasMatchReport ? '关键词覆盖较好，注意补充量化结果' : '点击查看详情补充 JD 分析'}}</text>
+          </view>
         </view>
 
         <view class="meta-grid">
@@ -164,6 +177,11 @@
       </view>
 
       <view class="field">
+        <text class="field-label">下一步事项</text>
+        <input class="field-input" value="{{form.nextAction}}" data-field="nextAction" bindinput="onFormInput" placeholder="如 补关键词后投递 / 准备一面" />
+      </view>
+
+      <view class="field">
         <text class="field-label">关联简历版本</text>
         <input class="field-input" value="{{form.resumeVersionId}}" data-field="resumeVersionId" bindinput="onFormInput" placeholder="如 Data v3 / 中文简历" />
       </view>
@@ -176,6 +194,88 @@
       <view class="sheet-actions">
         <view class="sheet-btn cancel" bindtap="hideForm">取消</view>
         <view class="sheet-btn save" bindtap="saveRecord">保存</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="modal-mask" wx:if="{{showDetail && selectedRecord}}" bindtap="hideDetail">
+    <view class="detail-sheet" catchtap="noop">
+      <view class="sheet-handle"></view>
+      <view class="detail-head">
+        <view class="company-avatar detail-avatar">{{selectedRecord.companyInitial}}</view>
+        <view class="detail-title-wrap">
+          <text class="detail-title">{{selectedRecord.jobTitle}}</text>
+          <text class="detail-sub">{{selectedRecord.company}}{{selectedRecord.city ? ' · ' + selectedRecord.city : ''}}</text>
+        </view>
+        <view class="status-badge status-{{selectedRecord.statusTone}}">{{selectedRecord.statusText}}</view>
+      </view>
+
+      <view class="detail-flow">
+        <block wx:for="{{statusFlow}}" wx:key="code">
+          <view class="flow-item {{selectedRecord.stageLevel >= item.level ? 'done' : ''}} {{selectedRecord.status === item.code ? 'current' : ''}}">
+            <view class="flow-dot"></view>
+            <text class="flow-label">{{item.short}}</text>
+          </view>
+        </block>
+      </view>
+
+      <view class="detail-panel" wx:if="{{selectedRecord.hasMatchReport}}">
+        <view class="detail-panel-head">
+          <text class="detail-panel-title">JD 匹配报告</text>
+          <text class="detail-score {{selectedRecord.matchScoreTone}}">{{selectedRecord.matchScore}} 分</text>
+        </view>
+        <text wx:if="{{selectedRecord.aiSuggestion}}" class="detail-advice">{{selectedRecord.aiSuggestion}}</text>
+        <view class="keyword-block" wx:if="{{selectedRecord.matchedPreview.length}}">
+          <text class="keyword-title">已命中</text>
+          <view class="keyword-list">
+            <text wx:for="{{selectedRecord.matchedPreview}}" wx:key="*this" class="keyword-chip matched">{{item}}</text>
+          </view>
+        </view>
+        <view class="keyword-block" wx:if="{{selectedRecord.missingPreview.length}}">
+          <text class="keyword-title">建议补充</text>
+          <view class="keyword-list">
+            <text wx:for="{{selectedRecord.missingPreview}}" wx:key="*this" class="keyword-chip missing">{{item}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="detail-panel" wx:else>
+        <view class="detail-panel-head">
+          <text class="detail-panel-title">还未关联 JD 分析</text>
+        </view>
+        <text class="detail-advice">补一次 JD 快速匹配后，这里会显示匹配分、缺失关键词和简历优化建议。</text>
+      </view>
+
+      <view class="detail-panel">
+        <view class="detail-row">
+          <text class="detail-label">下一步</text>
+          <text class="detail-value">{{selectedRecord.nextAction || '待补充'}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-label">投递时间</text>
+          <text class="detail-value">{{selectedRecord.appliedAt || '待记录'}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-label">截止时间</text>
+          <text class="detail-value">{{selectedRecord.deadlineLabel || '待设置'}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-label">面试时间</text>
+          <text class="detail-value">{{selectedRecord.interviewTime || '待安排'}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-label">简历版本</text>
+          <text class="detail-value">{{selectedRecord.resumeVersionId || '默认简历'}}</text>
+        </view>
+      </view>
+
+      <view class="detail-actions">
+        <view class="detail-btn primary" bindtap="updateSelectedStatus">更新状态</view>
+        <view class="detail-btn" bindtap="editSelectedRecord">编辑记录</view>
+      </view>
+      <view class="detail-actions">
+        <view class="detail-btn" bindtap="goJdMatchFromRecord">{{selectedRecord.hasMatchReport ? '重新匹配 JD' : '补 JD 匹配'}}</view>
+        <view class="detail-btn" bindtap="goAtsFromRecord">优化简历</view>
       </view>
     </view>
   </view>

@@ -26,6 +26,14 @@ function _createNetworkError(err) {
   return error;
 }
 
+function _createHttpError(res) {
+  const message = res.data && (res.data.message || res.data.error);
+  const error = new Error(message || ('HTTP ' + res.statusCode));
+  error.statusCode = res.statusCode;
+  error.body = res.data;
+  return error;
+}
+
 function _cacheKey(url, data) {
   const s = url + (data ? JSON.stringify(data) : '');
   let h = 0;
@@ -62,6 +70,8 @@ function request(options) {
   const key = _cacheKey(options.path, requestData);
   const ttl = typeof options.cacheTTL === 'number' ? options.cacheTTL : CACHE_TTL;
   const noCache = !!options.noCache || ttl <= 0;
+  const softTimeout = options.timeout || 10000;
+  const wxTimeout = options.wxTimeout || Math.max(softTimeout + 5000, 15000);
 
   // 层1：内存缓存
   if (!noCache && _memCache[key] && (now - _memCache[key].t) < ttl) {
@@ -90,25 +100,32 @@ function request(options) {
 
   const promise = new Promise((resolve) => {
     let done = false;
+    let timer = null;
+    let task = null;
     const finish = (result) => {
       if (done) return;
       done = true;
+      if (timer) clearTimeout(timer);
       delete _pending[key];
       resolve(result);
     };
 
-    const timer = setTimeout(() => {
-      finish({ data: [], _source: 'timeout' });
-    }, options.timeout || 10000);
+    timer = setTimeout(() => {
+      const stale = _getStaleCache(key);
+      finish(stale || { data: [], _source: 'timeout' });
+      if (task && typeof task.abort === 'function') {
+        try { task.abort(); } catch (e) {}
+      }
+    }, softTimeout);
 
-    wx.request({
+    task = wx.request({
       url: API_BASE + options.path,
       method: 'GET',
       data: requestData,
       header: Object.assign({ 'Content-Type': 'application/json' }, _getAuthHeader()),
-      timeout: options.timeout || 10000,
+      timeout: wxTimeout,
       success: (res) => {
-        clearTimeout(timer);
+        if (done) return;
         if (res.statusCode === 200 && res.data) {
           if (!noCache) {
             const entry = { d: res.data, t: Date.now() };
@@ -139,7 +156,7 @@ function request(options) {
         }
       },
       fail: (err) => {
-        clearTimeout(timer);
+        if (done) return;
         console.warn('[API] fail:', err.errMsg || err.message || err);
         const stale = _getStaleCache(key);
         finish(stale || { data: [], _source: 'networkError' });
@@ -175,8 +192,7 @@ function _write(options, _retried) {
           wx.removeStorageSync('userProfile');
           reject(new Error('unauthorized'));
         } else {
-          const message = res.data && (res.data.message || res.data.error);
-          reject(new Error(message || ('HTTP ' + res.statusCode)));
+          reject(_createHttpError(res));
         }
       },
       fail: (err) => {

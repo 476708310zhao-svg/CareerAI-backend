@@ -90,6 +90,7 @@ const applyRoutes       = require('./routes/apply');
 const featureRoutes     = require('./routes/features');
 const shareRoutes       = require('./routes/share');
 const careerAssetRoutes = require('./routes/career-assets');
+const analyticsRoutes   = require('./routes/analytics');
 
 // 注册路由
 const requireRecruitment = requireFeature('recruitment');
@@ -97,6 +98,7 @@ const requireRecruitment = requireFeature('recruitment');
 app.use('/api/features',     featureRoutes);
 app.use('/api/share',        shareRoutes);
 app.use('/api/career-assets', careerAssetRoutes);
+app.use('/api/analytics',    analyticsRoutes);
 app.use('/api/jobs',         requireRecruitment, jobRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/experiences',  experienceRoutes);
@@ -154,9 +156,16 @@ function configureServer(server) {
   return server;
 }
 
+function normalizeListenPort(port) {
+  const value = port === undefined || port === null ? PORT : port;
+  if (typeof value === 'string' && /^\d+$/.test(value.trim())) return Number(value);
+  return value;
+}
+
 function startServer(port = PORT) {
-  const server = app.listen(port, () => {
-    console.log('Server running at http://localhost:' + port);
+  const listenPort = normalizeListenPort(port);
+  const server = app.listen(listenPort, () => {
+    console.log('Server running at http://localhost:' + listenPort);
   });
   return configureServer(server);
 }

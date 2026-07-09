@@ -24,6 +24,7 @@
         "pages/audio-review/audio-review",
         "pages/project-review/project-review",
         "pages/daily-brief/daily-brief",
+        "pages/jd-match/jd-match",
         "pages/application-materials/application-materials",
         "pages/interview-notebook/interview-notebook"
       ]
@@ -76,6 +77,7 @@
         "pages/settings/settings",
         "pages/feedback/feedback",
         "pages/about/about",
+        "pages/usage-guide/usage-guide",
         "pages/vip/vip",
         "pages/companies/companies",
         "pages/company-detail/company-detail",

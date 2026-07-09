@@ -83,37 +83,38 @@
     </view>
   </view>
 
-  <view class="workspace-card">
-    <view class="section-head">
+  <view class="asset-card">
+    <view class="asset-head">
       <view class="section-copy">
-        <text class="section-title">下一步求职行动</text>
-        <text class="section-desc">把关键进度继续往前推</text>
+        <text class="section-kicker">CAREER ASSETS</text>
+        <text class="section-title">{{assetHealth.title}}</text>
+        <text class="section-desc">{{assetHealth.desc}}</text>
       </view>
-      <text class="section-status">{{isLogin ? '已同步' : '待登录'}}</text>
+      <view class="asset-progress">
+        <text class="asset-percent">{{assetHealth.percent}}%</text>
+        <text class="asset-label">完成</text>
+      </view>
     </view>
 
-    <view class="workspace-actions">
-      <view wx:if="{{!isLogin}}" class="workspace-action primary" bindtap="onLogin" hover-class="tile-press">
-        <view class="workspace-icon">1</view>
-        <text class="workspace-name">登录建档</text>
-        <text class="workspace-desc">解锁精准推荐</text>
-      </view>
-      <view wx:else class="workspace-action primary" bindtap="goToEditProfile" hover-class="tile-press">
-        <view class="workspace-icon">1</view>
-        <text class="workspace-name">完善档案</text>
-        <text class="workspace-desc">提升岗位匹配</text>
-      </view>
-      <view class="workspace-action" bindtap="goToResumes" hover-class="tile-press">
-        <view class="workspace-icon">AI</view>
-        <text class="workspace-name">优化简历</text>
-        <text class="workspace-desc">适配 ATS 筛选</text>
-      </view>
-      <view class="workspace-action" bindtap="goToJobProgress" hover-class="tile-press">
-        <view class="workspace-icon">→</view>
-        <text class="workspace-name">求职进度</text>
-        <text class="workspace-desc">{{stats.dueSoon ? stats.dueSoon + ' 个即将截止' : '查看最新进度'}}</text>
+    <view class="asset-bar">
+      <view class="asset-bar-fill" style="width: {{assetHealth.percent}}%;"></view>
+    </view>
+
+    <view class="asset-grid">
+      <view wx:for="{{assetCards}}" wx:key="key" class="asset-item asset-{{item.tone}}" bindtap="goToAssetCard" data-url="{{item.url}}" hover-class="tile-press">
+        <view class="asset-item-top">
+          <text class="asset-item-title">{{item.title}}</text>
+          <text class="asset-status">{{item.status}}</text>
+        </view>
+        <view class="asset-value-row">
+          <text class="asset-value">{{item.value}}</text>
+          <text class="asset-suffix">{{item.suffix}}</text>
+        </view>
+        <text class="asset-desc">{{item.desc}}</text>
       </view>
     </view>
+
+    <view class="asset-primary" bindtap="goToAssetAction" hover-class="tap-soft">{{assetHealth.primaryText}} ›</view>
   </view>
 
   <view class="tool-card">
@@ -142,6 +143,10 @@
         <view class="tool-badge">NEW</view>
         <text class="tool-name">模拟面试</text>
       </view>
+      <view class="tool-item" bindtap="goToDailyBrief" hover-class="tile-press">
+        <view class="tool-icon tone-amber"><image class="tool-icon-image" src="/images/icon-calendar.png" mode="aspectFit" /></view>
+        <text class="tool-name">每日简报</text>
+      </view>
       <view class="tool-item" bindtap="goToApplicationMaterials" hover-class="tile-press">
         <view class="tool-icon tone-blue"><image class="tool-icon-image" src="/images/application.png" mode="aspectFit" /></view>
         <text class="tool-name">材料库</text>
@@ -168,6 +173,10 @@
       <view class="service-item" bindtap="goToFeedback" hover-class="tile-press">
         <view class="service-icon service-blue"><image class="service-icon-image" src="/images/profile-feedback.png" mode="aspectFit" /></view>
         <text>意见反馈</text>
+      </view>
+      <view class="service-item" bindtap="goToUsageGuide" hover-class="tile-press">
+        <view class="service-icon service-green"><image class="service-icon-image" src="/images/profile-about.png" mode="aspectFit" /></view>
+        <text>使用指南</text>
       </view>
       <view class="service-item" bindtap="goToAbout" hover-class="tile-press">
         <view class="service-icon service-green"><image class="service-icon-image" src="/images/profile-about.png" mode="aspectFit" /></view>

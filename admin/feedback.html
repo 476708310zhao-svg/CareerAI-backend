@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>反馈管理 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="admin-shell">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer"><div class="admin-name" id="adminUsername"></div><button class="nav-item" style="margin-top:6px" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i><span>退出登录</span></button></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span style="font-size:13px;color:#6b7280" id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
+    <div class="content">
+      <div class="page-header">
+        <div><h1>反馈管理</h1><div class="sub">跟进用户反馈、问题上报和产品建议</div></div>
+      </div>
+
+      <div class="toolbar">
+        <input type="text" id="kw" placeholder="搜索反馈、联系方式、用户昵称" onkeydown="if(event.key==='Enter')load(1)">
+        <select id="status" onchange="load(1)">
+          <option value="">全部状态</option>
+          <option value="open">待处理</option>
+          <option value="processing">处理中</option>
+          <option value="resolved">已解决</option>
+          <option value="ignored">已忽略</option>
+        </select>
+        <select id="type" onchange="load(1)">
+          <option value="">全部类型</option>
+          <option value="功能建议">功能建议</option>
+          <option value="问题反馈">问题反馈</option>
+          <option value="内容纠错">内容纠错</option>
+          <option value="其他">其他</option>
+        </select>
+        <button class="btn btn-outline" onclick="load(1)"><i class="fa-solid fa-search"></i> 搜索</button>
+      </div>
+
+      <div class="table-card">
+        <div class="table-wrap"><table>
+          <thead><tr><th>ID</th><th>用户</th><th>类型</th><th>反馈内容</th><th>联系方式</th><th>状态</th><th>提交时间</th><th>操作</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table></div>
+        <div class="pagination" id="pagi"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal('modal')">
+  <div class="modal-box" style="max-width:680px">
+    <div class="modal-header"><h3>处理反馈</h3><button class="modal-close" onclick="closeModal('modal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>用户</label><input type="text" id="f_user" disabled></div>
+        <div class="form-group"><label>类型</label><input type="text" id="f_type" disabled></div>
+      </div>
+      <div class="form-group"><label>反馈内容</label><textarea id="f_content" rows="5" disabled></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>联系方式</label><input type="text" id="f_contact" disabled></div>
+        <div class="form-group"><label>处理状态</label>
+          <select id="f_status">
+            <option value="open">待处理</option>
+            <option value="processing">处理中</option>
+            <option value="resolved">已解决</option>
+            <option value="ignored">已忽略</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>后台备注</label><textarea id="f_admin_note" rows="4" placeholder="记录处理方式、后续动作或关闭原因"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal')">取消</button>
+      <button class="btn btn-primary" onclick="save()"><i class="fa-solid fa-floppy-disk"></i> 保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script><script src="js/common.js"></script>
+<script>
+let page = 1, total = 0, editId = null, cache = [];
+const statusMap = {
+  open: { label: '待处理', cls: 'badge-red' },
+  processing: { label: '处理中', cls: 'badge-amber' },
+  resolved: { label: '已解决', cls: 'badge-green' },
+  ignored: { label: '已忽略', cls: 'badge-gray' }
+};
+
+initPage('feedback', '反馈管理');
+load(1);
+
+function buildQuery(p) {
+  const params = new URLSearchParams({
+    page: String(p),
+    pageSize: '20',
+    keyword: document.getElementById('kw').value.trim(),
+    status: document.getElementById('status').value,
+    type: document.getElementById('type').value
+  });
+  return params.toString();
+}
+
+async function load(p) {
+  page = p;
+  const res = await GET(`/admin/api/feedbacks?${buildQuery(p)}`);
+  if (!res || res.code !== 0) return;
+  total = res.data.total;
+  cache = res.data.list || [];
+  document.getElementById('tbody').innerHTML = cache.length ? cache.map(f => `
+    <tr>
+      <td>${f.id}</td>
+      <td>${esc(f.nickname || ('用户 #' + (f.user_id || '-')))}</td>
+      <td><span class="badge badge-blue">${esc(f.type || '其他')}</span></td>
+      <td style="max-width:360px"><strong>${esc(truncate(f.content, 72))}</strong>${f.admin_note ? `<div style="color:#6b7280;font-size:12px">备注：${esc(truncate(f.admin_note, 44))}</div>` : ''}</td>
+      <td>${esc(f.contact || '-')}</td>
+      <td>${statusBadge(f.status)}</td>
+      <td>${fmtDate(f.created_at)}</td>
+      <td><div class="td-actions">
+        <button class="btn btn-outline btn-sm" onclick="openEdit(${f.id})"><i class="fa-solid fa-pen"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="del(${f.id})"><i class="fa-solid fa-trash"></i></button>
+      </div></td>
+    </tr>`).join('') : '<tr class="empty-row"><td colspan="8">暂无反馈</td></tr>';
+  renderPagination('pagi', page, total, 20, 'load');
+}
+
+function statusBadge(status) {
+  const item = statusMap[status || 'open'] || statusMap.open;
+  return `<span class="badge ${item.cls}">${item.label}</span>`;
+}
+
+function openEdit(id) {
+  const f = cache.find(item => item.id === id);
+  if (!f) return;
+  editId = id;
+  document.getElementById('f_user').value = f.nickname || ('用户 #' + (f.user_id || '-'));
+  document.getElementById('f_type').value = f.type || '其他';
+  document.getElementById('f_content').value = f.content || '';
+  document.getElementById('f_contact').value = f.contact || '';
+  document.getElementById('f_status').value = f.status || 'open';
+  document.getElementById('f_admin_note').value = f.admin_note || '';
+  openModal('modal');
+}
+
+async function save() {
+  if (!editId) return;
+  const body = {
+    status: document.getElementById('f_status').value,
+    adminNote: document.getElementById('f_admin_note').value.trim()
+  };
+  const res = await PUT(`/admin/api/feedbacks/${editId}`, body);
+  if (res && res.code === 0) {
+    toast('反馈已更新');
+    closeModal('modal');
+    load(page);
+  } else {
+    toast(res?.message || '保存失败', 'error');
+  }
+}
+
+function del(id) {
+  confirm('确定删除这条反馈吗？', async () => {
+    const res = await DELETE(`/admin/api/feedbacks/${id}`);
+    if (res && res.code === 0) { toast('删除成功'); load(page); }
+    else toast(res?.message || '删除失败', 'error');
+  });
+}
+</script>
+</body>
+</html>

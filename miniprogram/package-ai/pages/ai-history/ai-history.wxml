@@ -84,6 +84,21 @@
         </block>
       </view>
 
+      <view class="record-review-row" wx:if="{{item.nextAction || item.weakCount || item.lowestDimension}}">
+        <view class="record-review-item" wx:if="{{item.lowestDimension}}">
+          <text class="review-label">薄弱维度</text>
+          <text class="review-value">{{item.lowestDimension.name}} {{item.lowestDimension.score}}</text>
+        </view>
+        <view class="record-review-item" wx:if="{{item.weakCount}}">
+          <text class="review-label">薄弱题</text>
+          <text class="review-value">{{item.weakCount}} 道</text>
+        </view>
+        <view class="record-review-item next" wx:if="{{item.nextAction}}">
+          <text class="review-label">下一步</text>
+          <text class="review-value">{{item.nextAction}}</text>
+        </view>
+      </view>
+
       <view class="card-footer">
         <text class="duration">面试时长: {{item.duration}}</text>
         <view class="btn">查看报告 ></view>

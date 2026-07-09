@@ -30,6 +30,8 @@ function materialRow(row) {
     jobId: row.job_id || '',
     company: row.company || '',
     jobTitle: row.job_title || '',
+    resumeName: row.resume_name || '',
+    resumeVersionId: row.resume_version_id || '',
     content: row.content || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -43,13 +45,20 @@ function reportRow(row) {
     jobId: row.job_id || '',
     jobTitle: row.job_title || '',
     company: row.company || '',
+    jobLink: row.job_link || '',
     resumeName: row.resume_name || '',
+    resumeVersionId: row.resume_version_id || '',
     score: row.score || 0,
     matchedKeywords: safeJsonParse(row.matched_keywords, []),
     missingKeywords: safeJsonParse(row.missing_keywords, []),
     projectSuggestion: row.project_suggestion || '',
     atsRisk: row.ats_risk || '',
     suggestions: safeJsonParse(row.suggestions, []),
+    recommendText: row.recommend_text || '',
+    interviewPrep: safeJsonParse(row.interview_prep, []),
+    jdText: row.jd_text || '',
+    resumeText: row.resume_text || '',
+    useOnlineResume: row.use_online_resume !== 0,
     createdAt: row.created_at
   };
 }
@@ -77,10 +86,105 @@ function dailyRow(row) {
   });
 }
 
+function dailyBriefRow(row) {
+  return {
+    id: String(row.id),
+    date: row.brief_date,
+    result: safeJsonParse(row.result, {}),
+    stats: safeJsonParse(row.stats, {}),
+    brief: safeJsonParse(row.brief, {}),
+    tasks: safeJsonParse(row.tasks, []),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function questionContentRow(row) {
+  return {
+    id: row.question_id || String(row.id),
+    serverId: String(row.id),
+    title: row.title || '',
+    answer: row.answer || '',
+    category: row.category || 'behavior',
+    difficulty: row.difficulty || '中等',
+    tags: safeJsonParse(row.tags, []),
+    views: row.views || 0,
+    source: row.source || 'admin',
+    isFeatured: !!row.is_featured,
+    likes: row.views ? Math.floor(row.views * 0.6) : 0,
+    updatedAt: row.updated_at,
+    createdAt: row.created_at
+  };
+}
+
+function starTemplateContentRow(row) {
+  return {
+    id: row.template_id || String(row.id),
+    serverId: String(row.id),
+    role: row.role || 'general',
+    roleLabel: row.role_label || '通用',
+    roleColor: row.role_color || '#6B7280',
+    title: row.title || '',
+    tags: safeJsonParse(row.tags, []),
+    situation: row.situation || '',
+    task: row.task || '',
+    action: row.action || '',
+    result: row.result || '',
+    updatedAt: row.updated_at,
+    createdAt: row.created_at
+  };
+}
+
 function findOwnedRow(table, userId, id) {
   return db.prepare(`SELECT * FROM ${table} WHERE user_id=? AND (id=? OR client_id=?)`)
     .get(userId, Number(id) || -1, String(id));
 }
+
+router.get('/interview-questions', (req, res) => {
+  const { category = '', keyword = '' } = req.query;
+  const limit = Math.min(Math.max(Number(req.query.limit) || 80, 1), 200);
+  const where = ['is_published = 1'];
+  const params = [];
+  if (category && category !== 'all') {
+    where.push('category = ?');
+    params.push(String(category));
+  }
+  if (keyword) {
+    const k = `%${keyword}%`;
+    where.push('(title LIKE ? OR answer LIKE ? OR tags LIKE ?)');
+    params.push(k, k, k);
+  }
+  const rows = db.prepare(`
+    SELECT * FROM interview_questions
+    WHERE ${where.join(' AND ')}
+    ORDER BY is_featured DESC, sort_order ASC, updated_at DESC, id DESC
+    LIMIT ?
+  `).all(...params, limit);
+  res.json({ code: 0, data: rows.map(questionContentRow) });
+});
+
+router.get('/star-templates', (req, res) => {
+  const { role = '', keyword = '' } = req.query;
+  const limit = Math.min(Math.max(Number(req.query.limit) || 80, 1), 200);
+  const where = ['is_published = 1'];
+  const params = [];
+  if (role) {
+    where.push('role = ?');
+    params.push(String(role));
+  }
+  if (keyword) {
+    const k = `%${keyword}%`;
+    where.push('(title LIKE ? OR tags LIKE ? OR situation LIKE ? OR task LIKE ? OR action LIKE ? OR result LIKE ?)');
+    params.push(k, k, k, k, k, k);
+  }
+  const rows = db.prepare(`
+    SELECT * FROM star_templates
+    WHERE ${where.join(' AND ')}
+    ORDER BY sort_order ASC, updated_at DESC, id DESC
+    LIMIT ?
+  `).all(...params, limit);
+  res.json({ code: 0, data: rows.map(starTemplateContentRow) });
+});
 
 router.get('/application-materials', authMiddleware, (req, res) => {
   const { questionType, jobId } = req.query;
@@ -113,6 +217,8 @@ router.post('/application-materials', authMiddleware, (req, res) => {
           job_id=@jobId,
           company=@company,
           job_title=@jobTitle,
+          resume_name=@resumeName,
+          resume_version_id=@resumeVersionId,
           content=@content,
           updated_at=datetime('now')
         WHERE id=@id AND user_id=@userId
@@ -124,6 +230,8 @@ router.post('/application-materials', authMiddleware, (req, res) => {
         jobId: stringValue(body.jobId),
         company: stringValue(body.company),
         jobTitle: stringValue(body.jobTitle),
+        resumeName: stringValue(body.resumeName),
+        resumeVersionId: stringValue(body.resumeVersionId),
         content
       });
       const row = db.prepare('SELECT * FROM application_materials WHERE id=?').get(existing.id);
@@ -133,9 +241,9 @@ router.post('/application-materials', authMiddleware, (req, res) => {
 
   const result = db.prepare(`
     INSERT INTO application_materials
-      (user_id, client_id, question_type, question_label, job_id, company, job_title, content, updated_at)
+      (user_id, client_id, question_type, question_label, job_id, company, job_title, resume_name, resume_version_id, content, updated_at)
     VALUES
-      (@userId, @clientId, @questionType, @questionLabel, @jobId, @company, @jobTitle, @content, datetime('now'))
+      (@userId, @clientId, @questionType, @questionLabel, @jobId, @company, @jobTitle, @resumeName, @resumeVersionId, @content, datetime('now'))
   `).run({
     userId: req.user.userId,
     clientId,
@@ -144,6 +252,8 @@ router.post('/application-materials', authMiddleware, (req, res) => {
     jobId: stringValue(body.jobId),
     company: stringValue(body.company),
     jobTitle: stringValue(body.jobTitle),
+    resumeName: stringValue(body.resumeName),
+    resumeVersionId: stringValue(body.resumeVersionId),
     content
   });
   const row = db.prepare('SELECT * FROM application_materials WHERE id=?').get(result.lastInsertRowid);
@@ -164,6 +274,8 @@ router.put('/application-materials/:id', authMiddleware, (req, res) => {
       job_id=@jobId,
       company=@company,
       job_title=@jobTitle,
+      resume_name=@resumeName,
+      resume_version_id=@resumeVersionId,
       content=@content,
       updated_at=datetime('now')
     WHERE id=@id AND user_id=@userId
@@ -175,6 +287,8 @@ router.put('/application-materials/:id', authMiddleware, (req, res) => {
     jobId: body.jobId !== undefined ? stringValue(body.jobId) : row.job_id,
     company: body.company !== undefined ? stringValue(body.company) : row.company,
     jobTitle: body.jobTitle !== undefined ? stringValue(body.jobTitle) : row.job_title,
+    resumeName: body.resumeName !== undefined ? stringValue(body.resumeName) : row.resume_name,
+    resumeVersionId: body.resumeVersionId !== undefined ? stringValue(body.resumeVersionId) : row.resume_version_id,
     content
   });
   const next = db.prepare('SELECT * FROM application_materials WHERE id=?').get(row.id);
@@ -213,35 +327,51 @@ router.post('/jd-match-reports', authMiddleware, (req, res) => {
   const clientId = stringValue(body.id || body.clientId) || makeClientId('match');
   const result = db.prepare(`
     INSERT INTO jd_match_reports
-      (user_id, client_id, job_id, job_title, company, resume_name, score, matched_keywords,
-       missing_keywords, project_suggestion, ats_risk, suggestions)
+      (user_id, client_id, job_id, job_title, company, job_link, resume_name, resume_version_id, score, matched_keywords,
+       missing_keywords, project_suggestion, ats_risk, suggestions, recommend_text, interview_prep,
+       jd_text, resume_text, use_online_resume)
     VALUES
-      (@userId, @clientId, @jobId, @jobTitle, @company, @resumeName, @score, @matchedKeywords,
-       @missingKeywords, @projectSuggestion, @atsRisk, @suggestions)
+      (@userId, @clientId, @jobId, @jobTitle, @company, @jobLink, @resumeName, @resumeVersionId, @score, @matchedKeywords,
+       @missingKeywords, @projectSuggestion, @atsRisk, @suggestions, @recommendText, @interviewPrep,
+       @jdText, @resumeText, @useOnlineResume)
     ON CONFLICT(user_id, client_id) DO UPDATE SET
       job_id=excluded.job_id,
       job_title=excluded.job_title,
       company=excluded.company,
+      job_link=excluded.job_link,
       resume_name=excluded.resume_name,
+      resume_version_id=excluded.resume_version_id,
       score=excluded.score,
       matched_keywords=excluded.matched_keywords,
       missing_keywords=excluded.missing_keywords,
       project_suggestion=excluded.project_suggestion,
       ats_risk=excluded.ats_risk,
-      suggestions=excluded.suggestions
+      suggestions=excluded.suggestions,
+      recommend_text=excluded.recommend_text,
+      interview_prep=excluded.interview_prep,
+      jd_text=excluded.jd_text,
+      resume_text=excluded.resume_text,
+      use_online_resume=excluded.use_online_resume
   `).run({
     userId: req.user.userId,
     clientId,
     jobId: stringValue(body.jobId),
     jobTitle: stringValue(body.jobTitle),
     company: stringValue(body.company),
+    jobLink: stringValue(body.jobLink),
     resumeName: stringValue(body.resumeName),
+    resumeVersionId: stringValue(body.resumeVersionId),
     score: Number(body.score) || 0,
     matchedKeywords: jsonString(body.matchedKeywords, []),
     missingKeywords: jsonString(body.missingKeywords, []),
     projectSuggestion: stringValue(body.projectSuggestion),
     atsRisk: stringValue(body.atsRisk),
-    suggestions: jsonString(body.suggestions, [])
+    suggestions: jsonString(body.suggestions, []),
+    recommendText: stringValue(body.recommendText),
+    interviewPrep: jsonString(body.interviewPrep, []),
+    jdText: stringValue(body.jdText).slice(0, 12000),
+    resumeText: stringValue(body.resumeText).slice(0, 12000),
+    useOnlineResume: body.useOnlineResume === false ? 0 : 1
   });
   const row = clientId
     ? db.prepare('SELECT * FROM jd_match_reports WHERE user_id=? AND client_id=?').get(req.user.userId, clientId)
@@ -356,6 +486,40 @@ router.delete('/interview-daily-practice/:id', authMiddleware, (req, res) => {
   db.prepare('DELETE FROM interview_daily_practice WHERE user_id=? AND question_id=?')
     .run(req.user.userId, String(req.params.id));
   res.json({ code: 0, message: '已移出每日练习' });
+});
+
+router.get('/daily-brief', authMiddleware, (req, res) => {
+  const date = stringValue(req.query.date).trim();
+  if (!date) return res.status(400).json({ code: -1, message: 'date is required' });
+  const row = db.prepare('SELECT * FROM daily_briefs WHERE user_id=? AND brief_date=?')
+    .get(req.user.userId, date);
+  res.json({ code: 0, data: row ? dailyBriefRow(row) : null });
+});
+
+router.post('/daily-brief', authMiddleware, (req, res) => {
+  const body = req.body || {};
+  const date = stringValue(body.date || body.briefDate).trim();
+  if (!date) return res.status(400).json({ code: -1, message: 'date is required' });
+  db.prepare(`
+    INSERT INTO daily_briefs (user_id, brief_date, result, stats, brief, tasks, updated_at)
+    VALUES (@userId, @date, @result, @stats, @brief, @tasks, datetime('now'))
+    ON CONFLICT(user_id, brief_date) DO UPDATE SET
+      result=excluded.result,
+      stats=excluded.stats,
+      brief=excluded.brief,
+      tasks=excluded.tasks,
+      updated_at=datetime('now')
+  `).run({
+    userId: req.user.userId,
+    date,
+    result: jsonString(body.result, {}),
+    stats: jsonString(body.stats, {}),
+    brief: jsonString(body.brief, {}),
+    tasks: jsonString(body.tasks, [])
+  });
+  const row = db.prepare('SELECT * FROM daily_briefs WHERE user_id=? AND brief_date=?')
+    .get(req.user.userId, date);
+  res.json({ code: 0, data: dailyBriefRow(row), message: 'saved' });
 });
 
 module.exports = router;

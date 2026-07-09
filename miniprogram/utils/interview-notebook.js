@@ -1,6 +1,7 @@
 const STORAGE_KEY = 'interviewMistakeNotebook';
 const DAILY_KEY = 'dailyPracticeQuestions';
 const apiClient = require('./api-client.js');
+const reminders = require('./reminders.js');
 
 function readList() {
   try {
@@ -118,6 +119,35 @@ function getDailyPractice() {
   }
 }
 
+function tomorrowDateString() {
+  const d = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function scheduleReviewReminder(question, options) {
+  const q = normalizeQuestion(question);
+  const opts = options || {};
+  return reminders.upsertReminder({
+    sourceType: 'interview_review',
+    targetId: q.id,
+    reminderType: 'interview',
+    title: '面试题复习提醒',
+    company: '职引',
+    jobTitle: q.title,
+    reminderDate: opts.date || tomorrowDateString(),
+    reminderTime: opts.time || '20:00',
+    leadDays: [0],
+    payload: {
+      question: q.title,
+      answer: q.answer || '',
+      category: q.category || ''
+    }
+  }, { withSubscribe: true });
+}
+
 function getStats() {
   const list = readList();
   const daily = getDailyPractice();
@@ -220,6 +250,7 @@ module.exports = {
   addDailyPractice,
   removeDailyPractice,
   getDailyPractice,
+  scheduleReviewReminder,
   getStats,
   buildReferenceAnswer,
   fetchRemoteNotebook,

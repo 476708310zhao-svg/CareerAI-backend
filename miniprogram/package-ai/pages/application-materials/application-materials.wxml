@@ -54,6 +54,7 @@
         <view class="material-title-wrap">
           <text class="material-title">{{item.questionLabel}}</text>
           <text class="material-meta">{{item.company}} · {{item.jobTitle}}</text>
+          <text class="material-resume" wx:if="{{item.resumeName}}">基于：{{item.resumeName}}</text>
         </view>
         <text class="material-date">{{item.dateLabel}}</text>
       </view>

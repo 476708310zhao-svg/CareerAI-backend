@@ -2,10 +2,14 @@
 const favUtil = require('./utils/favorites.js');
 const vipUtil  = require('./utils/vip.js');
 const api      = require('./utils/api.js');
+const navigation = require('./utils/navigation.js');
 const featureFlags = require('./utils/feature-flags.js');
 const share = require('./utils/share.js');
+const analytics = require('./utils/analytics.js');
 
+navigation.installRouteGuard();
 share.installPageShare();
+analytics.installPageTracker();
 
 function safeErrorText(error) {
   if (!error) return '';
@@ -39,13 +43,27 @@ function recordRuntimeError(type, error) {
 }
 
 App({
-  onLaunch: function () {
+  onLaunch: function (options) {
     console.log('小程序启动');
+    analytics.setLaunchOptions(options || {});
+    analytics.track('app_launch', {
+      scene: options && options.scene || '',
+      query: options && options.query || {}
+    });
     this._initGlobalData();
     share.loadShareConfig();
     featureFlags.refreshFeatureFlags({ force: true });
     setTimeout(() => this._silentLogin(), 500);
     this._initTheme();
+  },
+
+  onShow: function(options) {
+    analytics.setLaunchOptions(options || {});
+    analytics.track('app_show', {
+      scene: options && options.scene || '',
+      query: options && options.query || {}
+    });
+    analytics.flush();
   },
 
   // 全局 JS 运行时错误捕获

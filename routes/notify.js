@@ -20,13 +20,23 @@ const { scheduleReminderData } = require('../utils/wechatTemplates');
 const WX_APP_ID     = process.env.WX_APP_ID     || '';
 const WX_APP_SECRET = process.env.WX_APP_SECRET  || '';
 
+const TEMPLATE_DEFAULTS = {
+  application_update: 'OOwg7dLeyp0t8DhGlEGtxF8cXyWQNaI-y-pM8oi4cdI',
+  interview_done: 'mVZpMFlo_SVeAHG9pTS9iVKJ4Ue5S_CbRnpIwcii-Do',
+  system_notice: '7565JoeBy5bcfgXjF8Bx0E_9bS5FL3ZqoyMi8KtHnjI',
+  payment_success: 'B2yF8p95728ity74KHZ8hD8l9eIFy_WHWEw0WeRY6zw',
+  payment_reminder: '1TuS2_yn-RY4CEQgaLNgpvorskvNtnsqRxE8A1lPmVY',
+  interview_report: '4m7xh9u3V6cq_sa6ne-oKk2VU_HCF1cOEAoBISTSB-g',
+};
+
 // 订阅消息模板 ID（在微信公众平台 → 订阅消息 → 我的模板 中获取）
 const TEMPLATES = {
-  application_update: process.env.WX_TPL_APPLICATION || '',  // 投递状态更新
-  interview_done:     process.env.WX_TPL_INTERVIEW   || '',  // 面试完成提醒
-  system_notice:      process.env.WX_TPL_SYSTEM      || '',  // 系统通知
-  payment_success:    process.env.WX_TPL_PAYMENT_SUCCESS || '',  // 订单支付成功通知
-  payment_reminder:   process.env.WX_TPL_PAYMENT_REMINDER || '', // 订单支付提醒
+  application_update: process.env.WX_TPL_APPLICATION || TEMPLATE_DEFAULTS.application_update,  // 投递状态更新
+  interview_done:     process.env.WX_TPL_INTERVIEW   || TEMPLATE_DEFAULTS.interview_done,      // 面试通知
+  system_notice:      process.env.WX_TPL_SYSTEM      || TEMPLATE_DEFAULTS.system_notice,       // 日程提醒
+  payment_success:    process.env.WX_TPL_PAYMENT_SUCCESS || TEMPLATE_DEFAULTS.payment_success, // 订单支付成功通知
+  payment_reminder:   process.env.WX_TPL_PAYMENT_REMINDER || TEMPLATE_DEFAULTS.payment_reminder, // 订单支付提醒
+  interview_report:   process.env.WX_TPL_INTERVIEW_REPORT || TEMPLATE_DEFAULTS.interview_report, // 模拟面试报告制作通知
 };
 
 // 启动时检查模板配置
@@ -123,8 +133,18 @@ function addDays(dateText, days) {
   return dateOnlyInShanghai(date);
 }
 
+function normalizeReminderDate(value) {
+  const text = String(value || '').trim();
+  const match = text.match(/(\d{4})[-/.年](\d{1,2})(?:[-/.月](\d{1,2}))?/);
+  if (!match || !match[3]) return '';
+  return `${match[1]}-${String(match[2]).padStart(2, '0')}-${String(match[3]).padStart(2, '0')}`;
+}
+
 function normalizeLeadDays(value, type) {
-  const source = Array.isArray(value) ? value : safeJson(value, type === 'daily_brief' ? [0] : [3, 1, 0]);
+  const fallback = type === 'daily_brief'
+    ? [0]
+    : (type === 'campus_deadline' || type === 'campus_open' ? [7, 3, 1, 0] : [3, 1, 0]);
+  const source = Array.isArray(value) ? value : safeJson(value, fallback);
   const seen = new Set();
   return source
     .map(item => Number(item))
@@ -236,6 +256,36 @@ function buildReminderMessage(row, leadDay) {
       })
     };
   }
+  if (row.reminder_type === 'campus_deadline') {
+    const status = leadDay === 0 ? '今日截止' : `${leadDay}天后`;
+    return {
+      type: 'campus_deadline',
+      title: `校招截止提醒：${subject}`,
+      content: `${subject} 网申将在 ${row.reminder_date} 截止，${leadDay === 0 ? '今天就是截止日' : `距离截止还有 ${leadDay} 天`}，建议尽快核验官网并完成投递材料。`,
+      templateId: TEMPLATES.system_notice || TEMPLATES.application_update,
+      wxData: scheduleReminderData({
+        topic: `${company} 校招截止提醒`,
+        description: role,
+        time: row.reminder_date,
+        status
+      })
+    };
+  }
+  if (row.reminder_type === 'campus_open') {
+    const status = leadDay === 0 ? '今日开放' : `${leadDay}天后`;
+    return {
+      type: 'campus_open',
+      title: `校招开放提醒：${subject}`,
+      content: `${subject} 网申将在 ${row.reminder_date} 开放，请提前准备简历、成绩单和测评材料。`,
+      templateId: TEMPLATES.system_notice || TEMPLATES.application_update,
+      wxData: scheduleReminderData({
+        topic: `${company} 校招开放提醒`,
+        description: role,
+        time: row.reminder_date,
+        status
+      })
+    };
+  }
   const relative = leadDay === 0 ? 'today is the deadline' : `${leadDay} day(s) left before the deadline`;
   return {
     type: 'job_deadline',
@@ -263,11 +313,12 @@ router.post('/subscribe', authMiddleware, (req, res) => {
 // ─── 通用求职提醒订阅 ───────────────────────────────────────────────────────
 // GET /api/notify/reminders
 router.get('/reminders', authMiddleware, (req, res) => {
-  const { sourceType, reminderType } = req.query;
+  const { sourceType, reminderType, targetId } = req.query;
   const where = ['user_id=?'];
   const params = [req.user.userId];
   if (sourceType) { where.push('source_type=?'); params.push(String(sourceType)); }
   if (reminderType) { where.push('reminder_type=?'); params.push(String(reminderType)); }
+  if (targetId) { where.push('target_id=?'); params.push(String(targetId)); }
   const rows = db.prepare(`
     SELECT * FROM job_reminders
     WHERE ${where.join(' AND ')}
@@ -282,10 +333,10 @@ router.put('/reminders', authMiddleware, (req, res) => {
   const sourceType = String(body.sourceType || 'job');
   const targetId = String(body.targetId || '').trim();
   const reminderType = String(body.reminderType || 'deadline');
-  const reminderDate = String(body.reminderDate || body.deadline || '').slice(0, 10);
+  const reminderDate = normalizeReminderDate(body.reminderDate || body.deadline);
   const reminderTime = String(body.reminderTime || body.interviewTime || '');
   if (!targetId) return res.status(400).json({ code: -1, message: '缺少 targetId' });
-  if (!['deadline', 'interview', 'daily_brief'].includes(reminderType)) {
+  if (!['deadline', 'interview', 'daily_brief', 'campus_deadline', 'campus_open'].includes(reminderType)) {
     return res.status(400).json({ code: -1, message: '提醒类型无效' });
   }
   if (reminderType !== 'daily_brief' && !reminderDate) {
@@ -409,6 +460,37 @@ router.post('/campus-subscribe', authMiddleware, async (req, res) => {
     db.prepare('INSERT INTO messages (user_id, type, title, content) VALUES (?, ?, ?, ?)')
       .run(userId, 'campus_reminder', title, content);
 
+    const reminderDate = normalizeReminderDate(deadlineDate);
+    if (reminderDate) {
+      const leadDays = normalizeLeadDays([7, 3, 1, 0], 'campus_deadline');
+      db.prepare(`
+        INSERT INTO job_reminders
+          (user_id, source_type, target_id, reminder_type, title, company, job_title,
+           reminder_date, reminder_time, lead_days, enabled, payload, updated_at)
+        VALUES
+          (@userId, 'campus_schedule', @targetId, 'campus_deadline', @title, @company, @jobTitle,
+           @reminderDate, '', @leadDays, 1, @payload, datetime('now'))
+        ON CONFLICT(user_id, source_type, target_id, reminder_type) DO UPDATE SET
+          title=excluded.title,
+          company=excluded.company,
+          job_title=excluded.job_title,
+          reminder_date=excluded.reminder_date,
+          lead_days=excluded.lead_days,
+          enabled=1,
+          payload=excluded.payload,
+          updated_at=datetime('now')
+      `).run({
+        userId,
+        targetId: String(campusId),
+        title: `${company} ${positionName || '校招岗位'}`.trim(),
+        company: String(company || ''),
+        jobTitle: String(positionName || '校招岗位'),
+        reminderDate,
+        leadDays: JSON.stringify(leadDays),
+        payload: JSON.stringify({ campusId, company, positionName, deadlineDate })
+      });
+    }
+
     // 如有微信模板，发送一条确认通知
     const tplId = TEMPLATES.system_notice;
     if (tplId && deadlineDate && deadlineDate !== '尽快投递') {
@@ -443,6 +525,7 @@ router.get('/templates', (req, res) => {
   if (TEMPLATES.interview_done)     configured.interview_done     = TEMPLATES.interview_done;
   if (TEMPLATES.payment_success)    configured.payment_success    = TEMPLATES.payment_success;
   if (TEMPLATES.payment_reminder)   configured.payment_reminder   = TEMPLATES.payment_reminder;
+  if (TEMPLATES.interview_report)   configured.interview_report   = TEMPLATES.interview_report;
   res.json({ code: 0, data: configured });
 });
 

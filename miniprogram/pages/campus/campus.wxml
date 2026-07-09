@@ -62,10 +62,45 @@
         </view>
       </view>
       <view class="filter-section">
+        <text class="filter-label">行业</text>
+        <scroll-view scroll-x class="filter-scroll">
+          <view class="filter-pills nowrap">
+            <block wx:for="{{industryList}}" wx:key="*this">
+              <view class="fp {{currentIndustry === item ? 'fp-active' : ''}}" bindtap="switchIndustry" data-val="{{item}}">{{item}}</view>
+            </block>
+          </view>
+        </scroll-view>
+      </view>
+      <view class="filter-section">
+        <text class="filter-label">学历</text>
+        <view class="filter-pills">
+          <block wx:for="{{educationList}}" wx:key="*this">
+            <view class="fp {{currentEducation === item ? 'fp-active' : ''}}" bindtap="switchEducation" data-val="{{item}}">{{item}}</view>
+          </block>
+        </view>
+      </view>
+      <view class="filter-section">
         <text class="filter-label">笔试要求</text>
         <view class="filter-pills">
           <block wx:for="{{writtenTestList}}" wx:key="*this">
             <view class="fp {{currentWrittenTest === item ? 'fp-active' : ''}}" bindtap="switchWrittenTest" data-val="{{item}}">{{item}}</view>
+          </block>
+        </view>
+      </view>
+      <view class="filter-section">
+        <text class="filter-label">留学生 / 签证</text>
+        <view class="filter-pills">
+          <view class="fp {{currentOverseasFriendly ? 'fp-active' : ''}}" bindtap="toggleOverseasFriendly">留学生友好</view>
+          <block wx:for="{{visaList}}" wx:key="*this">
+            <view class="fp {{currentVisa === item ? 'fp-active' : ''}}" bindtap="switchVisa" data-val="{{item}}">{{item}}</view>
+          </block>
+        </view>
+      </view>
+      <view class="filter-section">
+        <text class="filter-label">截止时间</text>
+        <view class="filter-pills">
+          <block wx:for="{{deadlineList}}" wx:key="*this">
+            <view class="fp {{currentDeadline === item ? 'fp-active' : ''}}" bindtap="switchDeadline" data-val="{{item}}">{{item}}</view>
           </block>
         </view>
       </view>
@@ -85,8 +120,14 @@
         <view class="filter-tag" wx:if="{{currentRecruitType !== '全部'}}">{{currentRecruitType}}</view>
         <view class="filter-tag" wx:if="{{currentRegion !== '全部'}}">{{currentRegion}}</view>
         <view class="filter-tag" wx:if="{{currentType !== '全部'}}">{{currentType}}</view>
+        <view class="filter-tag" wx:if="{{currentIndustry !== '全部'}}">{{currentIndustry}}</view>
+        <view class="filter-tag" wx:if="{{currentEducation !== '全部'}}">{{currentEducation}}</view>
         <view class="filter-tag" wx:if="{{currentWrittenTest !== '全部'}}">{{currentWrittenTest}}</view>
+        <view class="filter-tag" wx:if="{{currentOverseasFriendly}}">留学生友好</view>
+        <view class="filter-tag" wx:if="{{currentVisa !== '全部'}}">{{currentVisa}}</view>
+        <view class="filter-tag" wx:if="{{currentDeadline !== '全部'}}">{{currentDeadline}}</view>
         <view class="filter-tag" wx:if="{{currentGradYear}}">{{currentGradYear}}届</view>
+        <view class="filter-reset" wx:if="{{activeFilterCount}}" bindtap="resetFilters">清空</view>
       </view>
     </view>
 
@@ -119,6 +160,11 @@
               <view class="badge test-badge" style="background:{{item._testStyle.bg}};color:{{item._testStyle.color}}">{{item.writtenTest}}</view>
               <view class="badge grad-badge">{{item.gradYear}}届</view>
             </view>
+            <view class="identity-row" wx:if="{{item._identityTags.length}}">
+              <block wx:for="{{item._identityTags}}" wx:for-item="tag" wx:key="text">
+                <view class="identity-chip {{tag.type}}">{{tag.text}}</view>
+              </block>
+            </view>
           </view>
         </view>
 
@@ -148,7 +194,12 @@
         <!-- 底部 -->
         <view class="card-footer">
           <view class="region-chip">{{item.region}}</view>
-          <view class="apply-btn" catchtap="goApply" data-url="{{item.applyUrl}}">复制投递链接</view>
+          <view class="footer-actions">
+            <view class="remind-btn {{item._isSubscribed ? 'active' : ''}}" catchtap="subscribeFromCard" data-index="{{index}}">
+              {{subscribingId == item.id ? '处理中' : (item._isSubscribed ? '已提醒' : '提醒')}}
+            </view>
+            <view class="apply-btn" catchtap="goApply" data-url="{{item.applyUrl}}">复制链接</view>
+          </view>
         </view>
 
       </view>

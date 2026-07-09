@@ -1,6 +1,8 @@
 const progress = require('../../../utils/job-progress.js');
 const featureFlags = require('../../../utils/feature-flags.js');
 const reminders = require('../../../utils/reminders.js');
+const analytics = require('../../../utils/analytics.js');
+const jdMatch = require('../../../utils/jd-match.js');
 
 function emptyForm() {
   return {
@@ -14,9 +16,38 @@ function emptyForm() {
     interviewTime: '',
     status: 'collected',
     notes: '',
+    nextAction: '',
     resumeVersionId: ''
   };
 }
+
+function normalizeKeywords(value) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (!value) return [];
+  return String(value).split(/[、,\s]+/).map(item => item.trim()).filter(Boolean);
+}
+
+function scoreTone(score) {
+  const n = Number(score || 0);
+  if (n >= 82) return 'good';
+  if (n >= 68) return 'ok';
+  if (n > 0) return 'risk';
+  return '';
+}
+
+function buildReportMap() {
+  const map = {};
+  jdMatch.getReports().forEach(report => {
+    if (!report) return;
+    if (report.id) map[String(report.id)] = report;
+    if (report.serverId) map[String(report.serverId)] = report;
+  });
+  return map;
+}
+
+const STATUS_FLOW = progress.STATUS_OPTIONS
+  .filter(item => item.code !== 'closed')
+  .map((item, index) => Object.assign({ level: index + 1 }, item));
 
 Page({
   data: {
@@ -34,7 +65,10 @@ Page({
       todayInterviews: 0
     },
     statusOptions: progress.STATUS_OPTIONS,
+    statusFlow: STATUS_FLOW,
     showForm: false,
+    showDetail: false,
+    selectedRecord: null,
     editId: '',
     form: emptyForm(),
     today: progress.getToday(),
@@ -43,16 +77,15 @@ Page({
 
   onLoad() {
     this.buildStatusTabs();
-    this.loadRecords();
+    this.loadRecords({ remote: true });
   },
 
   onShow() {
-    this.loadRecords();
+    this.loadRecords({ remote: true });
   },
 
   onPullDownRefresh() {
-    this.loadRecords();
-    wx.stopPullDownRefresh();
+    this.loadRecords({ remote: true }).then(() => wx.stopPullDownRefresh());
   },
 
   buildStatusTabs(stats) {
@@ -64,15 +97,62 @@ Page({
     this.setData({ statusTabs: tabs });
   },
 
-  loadRecords() {
+  loadRecords(options) {
+    const render = () => {
     const stats = progress.getStats();
-    const records = progress.getList({ keyword: this.data.keyword });
+    const records = this.enrichRecords(progress.getList({ keyword: this.data.keyword }));
     this.buildStatusTabs(stats);
     this.setData({
       records,
       stats,
       dailyAdvice: progress.buildDailyAdvice()
     }, () => this.applyFilter());
+    };
+    render();
+    if (options && options.remote) {
+      return Promise.all([
+        progress.syncFromServer(),
+        jdMatch.fetchRemoteReports()
+      ]).then(() => {
+        render();
+      });
+    }
+    return Promise.resolve();
+  },
+
+  enrichRecords(records) {
+    const reportMap = buildReportMap();
+    return (records || []).map(record => {
+      const report = record.aiReportId ? reportMap[String(record.aiReportId)] : null;
+      const matchScore = Number(record.matchScore || (report && report.score) || 0);
+      const matchedKeywords = normalizeKeywords(record.matchedKeywords && record.matchedKeywords.length ? record.matchedKeywords : report && report.matchedKeywords);
+      const missingKeywords = normalizeKeywords(record.missingKeywords && record.missingKeywords.length ? record.missingKeywords : report && report.missingKeywords);
+      const aiSuggestion = record.aiSuggestion || (report && (report.recommendText || (report.suggestions || [])[0])) || '';
+      const nextAction = record.nextAction || this.buildNextAction(record, matchScore, missingKeywords);
+      return Object.assign({}, record, {
+        matchReport: report || null,
+        matchScore,
+        matchScoreTone: scoreTone(matchScore),
+        matchedKeywords,
+        missingKeywords,
+        matchedPreview: matchedKeywords.slice(0, 4),
+        missingPreview: missingKeywords.slice(0, 4),
+        matchedPreviewText: matchedKeywords.slice(0, 4).join(' / '),
+        missingPreviewText: missingKeywords.slice(0, 4).join(' / '),
+        aiSuggestion,
+        nextAction,
+        hasMatchReport: !!(matchScore || report || record.aiReportId)
+      });
+    });
+  },
+
+  buildNextAction(record, matchScore, missingKeywords) {
+    if (record.hasInterviewToday || record.interviewTime) return '复盘 JD 关键词和 STAR 案例';
+    if (record.deadlineUrgent) return '优先确认材料并完成投递';
+    if (matchScore >= 82) return '整理投递材料并设置截止提醒';
+    if (matchScore >= 68) return '补齐缺失关键词后投递';
+    if (matchScore > 0) return '先优化简历版本再投递';
+    return '补充 JD 分析或下一步事项';
   },
 
   applyFilter() {
@@ -122,6 +202,7 @@ Page({
         interviewTime: record.interviewTime || '',
         status: record.status || 'collected',
         notes: record.notes || '',
+        nextAction: record.nextAction || '',
         resumeVersionId: record.resumeVersionId || ''
       }
     });
@@ -212,6 +293,7 @@ Page({
       interviewTime: form.interviewTime || '',
       status: form.status || 'collected',
       notes: (form.notes || '').trim(),
+      nextAction: (form.nextAction || '').trim(),
       resumeVersionId: (form.resumeVersionId || '').trim()
     };
     const wasEdit = !!this.data.editId;
@@ -225,16 +307,24 @@ Page({
       }, payload));
     }
     this.syncRecordReminders(savedRecord);
+    analytics.track(wasEdit ? 'job_progress_update' : 'job_progress_create', {
+      status: savedRecord.status,
+      sourceJobId: savedRecord.sourceJobId || '',
+      hasDeadline: !!savedRecord.deadline,
+      hasInterviewTime: !!savedRecord.interviewTime
+    });
     this.hideForm();
     this.loadRecords();
     wx.showToast({ title: wasEdit ? '已更新' : '已添加', icon: 'success' });
   },
 
   openActions(e) {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
     const id = e.currentTarget.dataset.id;
     const record = this.data.records.find(item => String(item.id) === String(id));
     if (!record) return;
-    const actions = ['编辑记录', '更新状态'];
+    const actions = ['查看详情', '编辑记录', '更新状态'];
+    if (record.hasMatchReport) actions.push('查看 JD 匹配');
     if (record.sourceJobId) actions.push('查看职位详情');
     actions.push('删除记录');
     wx.showActionSheet({
@@ -242,14 +332,25 @@ Page({
       success: (res) => {
         let index = res.tapIndex;
         if (index === 0) {
-          this.openEditForm({ currentTarget: { dataset: { id } } });
+          this.openRecordDetail({ currentTarget: { dataset: { id } } });
           return;
         }
         if (index === 1) {
+          this.openEditForm({ currentTarget: { dataset: { id } } });
+          return;
+        }
+        if (index === 2) {
           this.updateStatus(id);
           return;
         }
-        index -= 2;
+        index -= 3;
+        if (record.hasMatchReport) {
+          if (index === 0) {
+            this.openRecordDetail({ currentTarget: { dataset: { id } } });
+            return;
+          }
+          index -= 1;
+        }
         if (record.sourceJobId) {
           if (index === 0) {
             this.cacheJobSnapshot(record);
@@ -263,6 +364,54 @@ Page({
     });
   },
 
+  openRecordDetail(e) {
+    const id = e.currentTarget.dataset.id;
+    const record = this.data.records.find(item => String(item.id) === String(id));
+    if (!record) return;
+    this.setData({
+      selectedRecord: record,
+      showDetail: true
+    });
+  },
+
+  hideDetail() {
+    this.setData({ showDetail: false, selectedRecord: null });
+  },
+
+  editSelectedRecord() {
+    const record = this.data.selectedRecord;
+    if (!record) return;
+    this.hideDetail();
+    this.openEditForm({ currentTarget: { dataset: { id: record.id } } });
+  },
+
+  updateSelectedStatus() {
+    const record = this.data.selectedRecord;
+    if (!record) return;
+    this.updateStatus(record.id);
+    this.hideDetail();
+  },
+
+  goJdMatchFromRecord() {
+    const record = this.data.selectedRecord;
+    if (!record) return;
+    this.cacheJobSnapshot(record);
+    wx.navigateTo({ url: '/package-ai/pages/jd-match/jd-match' });
+  },
+
+  goAtsFromRecord() {
+    const record = this.data.selectedRecord;
+    if (!record) return;
+    try {
+      wx.setStorageSync('pendingAtsJob', {
+        jobTitle: record.jobTitle || '',
+        jobDescription: record.notes || record.aiSuggestion || '',
+        source: 'job-progress'
+      });
+    } catch (e) {}
+    wx.navigateTo({ url: '/package-career/pages/ats-optimize/ats-optimize' });
+  },
+
   updateStatus(id) {
     wx.showActionSheet({
       itemList: progress.STATUS_OPTIONS.map(item => item.label),
@@ -273,7 +422,12 @@ Page({
         if (selected.code === 'applied' && !this.data.records.find(item => String(item.id) === String(id)).appliedAt) {
           patch.appliedAt = progress.getToday();
         }
-        progress.update(id, patch);
+        const saved = progress.update(id, patch);
+        analytics.track('job_progress_status_update', {
+          id,
+          status: selected.code,
+          sourceJobId: saved && saved.sourceJobId || ''
+        });
         this.loadRecords();
         wx.showToast({ title: '状态已更新', icon: 'success' });
       }
@@ -289,6 +443,7 @@ Page({
       success: (res) => {
         if (!res.confirm) return;
         progress.remove(id);
+        analytics.track('job_progress_delete', { id });
         reminders.disableReminder('job_progress', id, 'deadline');
         reminders.disableReminder('job_progress', id, 'interview');
         this.loadRecords();

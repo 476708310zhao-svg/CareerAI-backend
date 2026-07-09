@@ -23,6 +23,27 @@
       <view class="switcher-btn" bindtap="createResume">+ 新建</view>
     </view>
 
+    <view class="resume-version-card" wx:if="{{isLoggedIn}}">
+      <view class="version-head">
+        <view class="version-copy">
+          <view class="version-title-row">
+            <text class="version-title">{{currentResumeName}}</text>
+            <text class="version-default" wx:if="{{currentResumeIsDefault}}">默认简历</text>
+          </view>
+          <text class="version-desc">{{targetJobInput || currentResumeTargetRole || '未设置目标岗位'}}</text>
+        </view>
+        <view class="version-score">{{onlineResume.score}}%</view>
+      </view>
+      <view class="version-meta">
+        <text>{{currentResumeUpdatedAt || '刚刚更新'}}</text>
+        <text>{{optimizationHistory.length}} 条优化记录</text>
+      </view>
+      <view class="version-actions">
+        <view class="version-action" bindtap="openResumeMetaEditor">编辑版本信息</view>
+        <view class="version-action ghost" bindtap="setCurrentResumeDefault" wx:if="{{!currentResumeIsDefault}}">设为默认</view>
+      </view>
+    </view>
+
     <!-- 简历管理面板 -->
     <view class="resume-manager-mask" wx:if="{{showResumeManager}}" bindtap="hideResumeManager"></view>
     <view class="resume-manager-panel {{showResumeManager ? 'show' : ''}}">
@@ -35,9 +56,14 @@
               class="rmp-item {{item.id === currentResumeId ? 'active' : ''}}"
               bindtap="selectResume" data-id="{{item.id}}" data-name="{{item.name}}">
           <view class="rmp-item-info">
-            <text class="rmp-item-name">{{item.name}}</text>
-            <text class="rmp-item-time">{{item.updated_at}}</text>
+            <view class="rmp-name-row">
+              <text class="rmp-item-name">{{item.name}}</text>
+              <text wx:if="{{item.isDefault}}" class="rmp-default-badge">默认</text>
+            </view>
+            <text class="rmp-target">目标：{{item._targetText}}</text>
+            <text class="rmp-item-time">{{item._updatedText}}</text>
           </view>
+          <view wx:if="{{!item.isDefault}}" class="rmp-item-default" catchtap="setDefaultServerResume" data-id="{{item.id}}">设默认</view>
           <view class="rmp-item-del" catchtap="deleteServerResume" data-id="{{item.id}}">删除</view>
         </view>
         <view wx:if="{{!serverResumes.length}}" class="rmp-empty">暂无简历，点击"新建"创建一份</view>
@@ -118,7 +144,7 @@
         <view class="left-border">岗位匹配分析</view>
       </view>
       <view class="match-box">
-        <input class="match-input" placeholder="输入目标岗位（如 Software Engineer）" bindinput="onTargetJobInput" value="{{targetJobInput}}" />
+        <input class="match-input" placeholder="输入目标岗位（如 Software Engineer）" bindinput="onTargetJobInput" bindblur="saveTargetJobRole" value="{{targetJobInput}}" />
         <view class="ai-btn match" bindtap="handleAiMatch">AI匹配</view>
       </view>
       <view class="nlp-row">
@@ -129,6 +155,23 @@
           <text wx:else class="nlp-btn-sub">ATS关键词 · 动词升级 · 优先改进</text>
         </view>
       </view>
+    </view>
+
+    <view class="section-card version-history-card" wx:if="{{formattedOptimizationHistory.length}}">
+      <view class="card-header">
+        <view class="left-border">优化历史</view>
+        <view class="history-count">近 {{formattedOptimizationHistory.length}} 条</view>
+      </view>
+      <block wx:for="{{formattedOptimizationHistory}}" wx:key="id">
+        <view class="history-item">
+          <view class="history-top">
+            <text class="history-type">{{item.typeText}}</text>
+            <text class="history-time">{{item.timeText}}</text>
+          </view>
+          <text class="history-target" wx:if="{{item.targetRole}}">目标：{{item.targetRole}}</text>
+          <text class="history-after">{{item.afterPreview}}</text>
+        </view>
+      </block>
     </view>
 
     <!-- 工作经历 -->
@@ -294,10 +337,29 @@
 
   <!-- ======================== 统一弹窗容器（微信每页只允许一个 page-container）======================== -->
   <page-container
-    show="{{showEditBasic || showEditSummary || showEditWork || showEditEdu || showEditSkills || showEditProject || showAiResult}}"
+    show="{{showEditBasic || showEditSummary || showEditWork || showEditEdu || showEditSkills || showEditProject || showAiResult || showResumeMetaEditor}}"
     round position="bottom"
     custom-style="{{_modalStyle}}"
     bind:clickoverlay="_closeActiveModal">
+
+    <!-- 编辑版本信息 -->
+    <view wx:if="{{showResumeMetaEditor}}" class="edit-modal">
+      <view class="edit-modal-header">
+        <text class="edit-modal-title">编辑版本信息</text>
+        <view class="close-btn" bindtap="closeResumeMetaEditor">×</view>
+      </view>
+      <view class="edit-form">
+        <view class="form-item">
+          <text class="form-label">版本名称</text>
+          <input class="form-input" value="{{editResumeMetaForm.name}}" bindinput="onResumeMetaInput" data-field="name" placeholder="如：产品经理投递版" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">目标岗位</text>
+          <input class="form-input" value="{{editResumeMetaForm.targetRole}}" bindinput="onResumeMetaInput" data-field="targetRole" placeholder="如 Data Analyst / 产品经理" />
+        </view>
+      </view>
+      <c-button class="save-btn" bindtap="saveResumeMeta">保存版本信息</c-button>
+    </view>
 
     <!-- 编辑基本信息 -->
     <view wx:if="{{showEditBasic}}" class="edit-modal">

@@ -12,6 +12,154 @@ const { ja } = require('../db/utils');
 const { findJobById, findJobsByIds, toApplicationJob } = require('../utils/jobData');
 const { applicationFeedbackData } = require('../utils/wechatTemplates');
 
+const PROGRESS_STATUSES = new Set([
+  'collected', 'applied', 'online_apply', 'oa', 'first_interview',
+  'second_interview', 'hr_interview', 'offer', 'rejected', 'closed'
+]);
+
+const PROGRESS_STATUS_TEXT = {
+  collected: '已收藏',
+  applied: '已投递',
+  online_apply: '网申中',
+  oa: 'OA 阶段',
+  first_interview: '一面',
+  second_interview: '二面',
+  hr_interview: 'HR 面',
+  offer: 'Offer',
+  rejected: '拒信',
+  closed: '已结束'
+};
+
+function safeJson(value, fallback) {
+  if (!value) return fallback;
+  try { return JSON.parse(value); } catch (e) { return fallback; }
+}
+
+function cleanText(value, max = 500) {
+  return String(value || '').trim().slice(0, max);
+}
+
+function normalizeProgressStatus(value) {
+  const status = cleanText(value || 'collected', 40);
+  return PROGRESS_STATUSES.has(status) ? status : 'collected';
+}
+
+function progressToLegacyStatus(status) {
+  if (status === 'offer') return 'offer';
+  if (status === 'rejected' || status === 'closed') return 'rejected';
+  if (['first_interview', 'second_interview', 'hr_interview'].includes(status)) return 'interview';
+  if (status === 'applied') return 'applied';
+  return 'pending';
+}
+
+function firstDate(value) {
+  const text = cleanText(value, 40);
+  return text ? text.slice(0, 10) : '';
+}
+
+function pickField(source, keys, fallback) {
+  const body = source || {};
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(body, key)) return body[key];
+  }
+  return fallback;
+}
+
+function progressRow(row) {
+  const snapshot = safeJson(row.job_snapshot, {});
+  const progressStatus = normalizeProgressStatus(row.progress_status || row.status);
+  const sourceJobId = row.source_job_id || row.job_id || '';
+  return {
+    id: String(row.id),
+    clientId: row.client_id || '',
+    sourceJobId,
+    jobId: row.job_id || '',
+    company: row.company || snapshot.company || snapshot.employer_name || '',
+    jobTitle: row.job_title || snapshot.title || snapshot.job_title || '',
+    title: row.job_title || snapshot.title || snapshot.job_title || '',
+    city: row.city || snapshot.city || snapshot.location || '',
+    salary: row.salary || snapshot.salary || '',
+    jobLink: row.job_link || snapshot.applyLink || snapshot.apply_url || '',
+    appliedAt: row.applied_at || '',
+    deadline: row.deadline || '',
+    interviewTime: row.interview_time || '',
+    status: progressStatus,
+    progressStatus,
+    statusText: PROGRESS_STATUS_TEXT[progressStatus] || '已收藏',
+    notes: row.notes || '',
+    resumeVersionId: row.resume_version_id || '',
+    reminderEnabled: !!row.reminder_enabled,
+    reminderLeadDays: safeJson(row.reminder_lead_days, [3, 1]),
+    jobSnapshot: snapshot,
+    createdAt: row.applied_at || row.created_at || '',
+    updatedAt: row.updated_at || ''
+  };
+}
+
+function findProgressRecord(userId, body = {}) {
+  const id = Number(body.id);
+  if (id) {
+    const row = db.prepare('SELECT * FROM applications WHERE id=? AND user_id=?').get(id, userId);
+    if (row) return row;
+  }
+  const clientId = cleanText(body.clientId || body.client_id || '', 120);
+  if (clientId) {
+    const row = db.prepare('SELECT * FROM applications WHERE user_id=? AND client_id=?').get(userId, clientId);
+    if (row) return row;
+  }
+  const sourceJobId = cleanText(body.sourceJobId || body.source_job_id || body.jobId || body.job_id || '', 200);
+  if (sourceJobId) {
+    const row = db.prepare('SELECT * FROM applications WHERE user_id=? AND (source_job_id=? OR job_id=?) ORDER BY id DESC')
+      .get(userId, sourceJobId, sourceJobId);
+    if (row) return row;
+  }
+  return null;
+}
+
+function progressPayload(body = {}, existing = null) {
+  const snapshot = body.jobSnapshot && typeof body.jobSnapshot === 'object' ? body.jobSnapshot : safeJson(existing && existing.job_snapshot, {});
+  const sourceJobId = cleanText(body.sourceJobId || body.source_job_id || body.jobId || body.job_id || existing && (existing.source_job_id || existing.job_id) || '', 200);
+  const clientId = cleanText(body.clientId || body.client_id || body.id || existing && existing.client_id || '', 120);
+  const company = cleanText(pickField(body, ['company'], snapshot.company || existing && existing.company || ''), 120);
+  const jobTitle = cleanText(pickField(body, ['jobTitle', 'job_title', 'title'], snapshot.title || existing && existing.job_title || ''), 160);
+  const progressStatus = normalizeProgressStatus(body.progressStatus || body.currentStatus || body.status || existing && (existing.progress_status || existing.status));
+  const appliedAt = firstDate(pickField(body, ['appliedAt', 'applied_at'], existing && existing.applied_at)) || new Date().toISOString().slice(0, 10);
+  const jobId = sourceJobId || clientId || `manual_${Date.now()}`;
+  let reminderEnabled = existing ? existing.reminder_enabled : 0;
+  if (Object.prototype.hasOwnProperty.call(body, 'reminderEnabled')) reminderEnabled = body.reminderEnabled ? 1 : 0;
+  if (Object.prototype.hasOwnProperty.call(body, 'reminder_enabled')) reminderEnabled = body.reminder_enabled ? 1 : 0;
+  const leadDaysValue = pickField(body, ['reminderLeadDays', 'reminder_lead_days'], null);
+  return {
+    clientId,
+    jobId,
+    sourceJobId,
+    sourceType: cleanText(body.sourceType || body.source_type || existing && existing.source_type || 'manual', 40),
+    jobSnapshot: JSON.stringify(Object.assign({}, snapshot, {
+      title: snapshot.title || jobTitle,
+      company: snapshot.company || company,
+      location: snapshot.location || body.city || ''
+    })),
+    resumeId: Number(body.resumeId || body.resume_id || existing && existing.resume_id) || null,
+    status: progressToLegacyStatus(progressStatus),
+    statusText: PROGRESS_STATUS_TEXT[progressStatus] || '已收藏',
+    appliedAt,
+    company,
+    jobTitle,
+    city: cleanText(pickField(body, ['city', 'location'], existing && existing.city || ''), 120),
+    salary: cleanText(pickField(body, ['salary'], existing && existing.salary || ''), 120),
+    jobLink: cleanText(pickField(body, ['jobLink', 'applyLink', 'apply_url'], existing && existing.job_link || ''), 1000),
+    deadline: firstDate(pickField(body, ['deadline', 'deadlineDate'], existing && existing.deadline || '')),
+    interviewTime: cleanText(pickField(body, ['interviewTime', 'interview_time'], existing && existing.interview_time || ''), 80),
+    notes: cleanText(pickField(body, ['notes', 'remark'], existing && existing.notes || ''), 2000),
+    resumeVersionId: cleanText(pickField(body, ['resumeVersionId', 'resume_version_id'], existing && existing.resume_version_id || ''), 120),
+    progressStatus,
+    reminderEnabled,
+    reminderLeadDays: JSON.stringify(Array.isArray(leadDaysValue)
+      ? leadDaysValue
+      : safeJson(existing && existing.reminder_lead_days, [3, 1]))
+  };
+}
+
 // ─── 获取申请列表 ─────────────────────────────────────────────────────────────
 router.get('/', authMiddleware, (req, res) => {
   try {
@@ -55,6 +203,128 @@ router.get('/', authMiddleware, (req, res) => {
   } catch (error) {
     console.error(error); res.status(500).json({ code: -1, message: '服务器内部错误' });
   }
+});
+
+// ─── 2.0 求职进度：云端列表 ─────────────────────────────────────────────────
+router.get('/progress', authMiddleware, (req, res) => {
+  const rows = db.prepare(`
+    SELECT * FROM applications
+    WHERE user_id=?
+    ORDER BY
+      CASE WHEN interview_time != '' THEN interview_time ELSE deadline END DESC,
+      updated_at DESC,
+      applied_at DESC,
+      id DESC
+  `).all(req.user.userId);
+  res.json({ code: 0, data: rows.map(progressRow), message: 'success' });
+});
+
+// ─── 2.0 求职进度：创建/幂等保存 ─────────────────────────────────────────────
+router.post('/progress', authMiddleware, (req, res) => {
+  try {
+    const existing = findProgressRecord(req.user.userId, req.body || {});
+    const payload = progressPayload(req.body || {}, existing);
+    if (!payload.company || !payload.jobTitle) {
+      return res.status(400).json({ code: -1, message: '请填写公司和岗位' });
+    }
+
+    if (existing) {
+      db.prepare(`
+        UPDATE applications SET
+          client_id=@clientId,
+          job_id=@jobId,
+          job_snapshot=@jobSnapshot,
+          resume_id=@resumeId,
+          status=@status,
+          status_text=@statusText,
+          applied_at=@appliedAt,
+          source_type=@sourceType,
+          source_job_id=@sourceJobId,
+          company=@company,
+          job_title=@jobTitle,
+          city=@city,
+          salary=@salary,
+          job_link=@jobLink,
+          deadline=@deadline,
+          interview_time=@interviewTime,
+          notes=@notes,
+          resume_version_id=@resumeVersionId,
+          progress_status=@progressStatus,
+          reminder_enabled=@reminderEnabled,
+          reminder_lead_days=@reminderLeadDays,
+          updated_at=datetime('now')
+        WHERE id=@id AND user_id=@userId
+      `).run(Object.assign({ id: existing.id, userId: req.user.userId }, payload));
+      const row = db.prepare('SELECT * FROM applications WHERE id=?').get(existing.id);
+      return res.json({ code: 0, data: progressRow(row), message: '已更新' });
+    }
+
+    const result = db.prepare(`
+      INSERT INTO applications
+        (user_id, client_id, job_id, job_snapshot, resume_id, status, status_text,
+         applied_at, source_type, source_job_id, company, job_title, city, salary,
+         job_link, deadline, interview_time, notes, resume_version_id,
+         progress_status, reminder_enabled, reminder_lead_days, updated_at)
+      VALUES
+        (@userId, @clientId, @jobId, @jobSnapshot, @resumeId, @status, @statusText,
+         @appliedAt, @sourceType, @sourceJobId, @company, @jobTitle, @city, @salary,
+         @jobLink, @deadline, @interviewTime, @notes, @resumeVersionId,
+         @progressStatus, @reminderEnabled, @reminderLeadDays, datetime('now'))
+    `).run(Object.assign({ userId: req.user.userId }, payload));
+    const row = db.prepare('SELECT * FROM applications WHERE id=?').get(result.lastInsertRowid);
+    res.json({ code: 0, data: progressRow(row), message: '已保存' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ code: -1, message: '服务器内部错误' });
+  }
+});
+
+// ─── 2.0 求职进度：更新 ──────────────────────────────────────────────────────
+router.put('/progress/:id', authMiddleware, (req, res) => {
+  try {
+    const existing = findProgressRecord(req.user.userId, Object.assign({}, req.body || {}, { id: req.params.id }));
+    if (!existing) return res.status(404).json({ code: -1, message: '进度记录不存在' });
+    const payload = progressPayload(Object.assign({}, req.body || {}, { id: req.params.id }), existing);
+    db.prepare(`
+      UPDATE applications SET
+        client_id=@clientId,
+        job_id=@jobId,
+        job_snapshot=@jobSnapshot,
+        resume_id=@resumeId,
+        status=@status,
+        status_text=@statusText,
+        applied_at=@appliedAt,
+        source_type=@sourceType,
+        source_job_id=@sourceJobId,
+        company=@company,
+        job_title=@jobTitle,
+        city=@city,
+        salary=@salary,
+        job_link=@jobLink,
+        deadline=@deadline,
+        interview_time=@interviewTime,
+        notes=@notes,
+        resume_version_id=@resumeVersionId,
+        progress_status=@progressStatus,
+        reminder_enabled=@reminderEnabled,
+        reminder_lead_days=@reminderLeadDays,
+        updated_at=datetime('now')
+      WHERE id=@id AND user_id=@userId
+    `).run(Object.assign({ id: existing.id, userId: req.user.userId }, payload));
+    const row = db.prepare('SELECT * FROM applications WHERE id=?').get(existing.id);
+    res.json({ code: 0, data: progressRow(row), message: '已更新' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ code: -1, message: '服务器内部错误' });
+  }
+});
+
+// ─── 2.0 求职进度：删除 ──────────────────────────────────────────────────────
+router.delete('/progress/:id', authMiddleware, (req, res) => {
+  const existing = findProgressRecord(req.user.userId, { id: req.params.id, clientId: req.params.id });
+  if (!existing) return res.status(404).json({ code: -1, message: '进度记录不存在' });
+  db.prepare('DELETE FROM applications WHERE id=? AND user_id=?').run(existing.id, req.user.userId);
+  res.json({ code: 0, message: '已删除' });
 });
 
 // ─── 申请详情 ─────────────────────────────────────────────────────────────────

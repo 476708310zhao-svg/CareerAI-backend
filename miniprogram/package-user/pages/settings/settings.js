@@ -1,5 +1,42 @@
 // pages/settings/settings.js
 const browseHistory = require('../../../utils/browse-history.js');
+const apiClient = require('../../../utils/api-client.js');
+const analytics = require('../../../utils/analytics.js');
+
+function removeStorageByPrefix(prefix) {
+  try {
+    const info = wx.getStorageInfoSync();
+    (info.keys || []).forEach(key => {
+      if (String(key).indexOf(prefix) === 0) wx.removeStorageSync(key);
+    });
+  } catch (e) {}
+}
+
+function clearLocalCareerData() {
+  [
+    'localApplications',
+    'applicationMaterials',
+    'jdMatchReports',
+    'interviewHistory',
+    'bookmarkedQuestions',
+    'lastAiReport',
+    'audioReviewHistory',
+    'projectReviewHistory',
+    'dailyBriefCache',
+    'interviewMistakeNotebook',
+    'dailyPracticeQuestions'
+  ].forEach(key => {
+    try { wx.removeStorageSync(key); } catch (e) {}
+  });
+  removeStorageByPrefix('aiReport_');
+}
+
+function clearLocalResumeData() {
+  ['onlineResume', 'resumeFiles'].forEach(key => {
+    try { wx.removeStorageSync(key); } catch (e) {}
+  });
+}
+
 Page({
   data: {
     version: '1.0.0',
@@ -91,11 +128,93 @@ Page({
   requestDataDeletion() {
     wx.showModal({
       title: '账号与数据处理',
-      content: '如需申请账号注销、个人信息删除或导出，请通过意见反馈提交，或发送邮件至 476708310@qq.com。我们会在核验身份后处理。',
-      confirmText: '去反馈',
-      cancelText: '知道了',
+      content: '你可以在本页自助删除 AI记录、语音记录、面试报告、进度、简历和申请材料。交易记录等依法需要留存的信息不会在这里删除。',
+      confirmText: '知道了',
+      showCancel: false,
+    });
+  },
+
+  clearAiLocalRecords() {
+    wx.showModal({
+      title: '删除本机 AI 记录',
+      content: '将删除本机 AI 对话缓存、面试历史、面试报告、错题收藏、语音复盘和每日简报缓存，不影响账号登录。',
+      confirmText: '删除',
+      confirmColor: '#ef4444',
       success: (res) => {
-        if (res.confirm) this.goToFeedback();
+        if (!res.confirm) return;
+        clearLocalCareerData();
+        this.calcCacheSize();
+        analytics.track('privacy_clear_local_ai_records');
+        wx.showToast({ title: '已删除本机记录', icon: 'success' });
+      }
+    });
+  },
+
+  deleteServerData() {
+    if (!wx.getStorageSync('token')) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    wx.showModal({
+      title: '清空服务端数据',
+      content: '将删除服务端保存的简历、PDF简历、求职进度、收藏、提醒、申请材料、JD匹配报告、题库错题和站内消息。账号仍会保留。',
+      confirmText: '清空',
+      confirmColor: '#ef4444',
+      success: (res) => {
+        if (!res.confirm) return;
+        apiClient._write({
+          method: 'DELETE',
+          path: '/api/users/me/data',
+          timeout: 20000
+        }).then(() => {
+          clearLocalCareerData();
+          clearLocalResumeData();
+          analytics.track('privacy_delete_server_data');
+          wx.showToast({ title: '已清空个人数据', icon: 'success' });
+          this.calcCacheSize();
+        }).catch(err => {
+          wx.showToast({ title: err.message || '删除失败', icon: 'none' });
+        });
+      }
+    });
+  },
+
+  deleteAccount() {
+    if (!wx.getStorageSync('token')) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    wx.showModal({
+      title: '注销账号',
+      content: '注销后将删除账号和个人业务数据，且无法恢复。确认继续吗？',
+      confirmText: '继续注销',
+      confirmColor: '#ef4444',
+      success: (res) => {
+        if (!res.confirm) return;
+        wx.showModal({
+          title: '最终确认',
+          content: '请再次确认：注销账号后需要重新注册才能使用。',
+          confirmText: '确认注销',
+          confirmColor: '#ef4444',
+          success: (finalRes) => {
+            if (!finalRes.confirm) return;
+            apiClient._write({
+              method: 'DELETE',
+              path: '/api/users/me',
+              timeout: 20000
+            }).then(() => {
+              analytics.track('privacy_delete_account');
+              clearLocalCareerData();
+              clearLocalResumeData();
+              wx.removeStorageSync('token');
+              wx.removeStorageSync('userProfile');
+              wx.showToast({ title: '账号已注销', icon: 'success' });
+              setTimeout(() => wx.switchTab({ url: '/pages/index/index' }), 800);
+            }).catch(err => {
+              wx.showToast({ title: err.message || '注销失败', icon: 'none' });
+            });
+          }
+        });
       }
     });
   }

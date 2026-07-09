@@ -99,7 +99,31 @@
         <view class="setting-icon">🛡️</view>
         <view class="setting-main">
           <text class="setting-title">账号与数据处理</text>
-          <text class="setting-desc">申请账号注销、个人信息删除或数据咨询</text>
+          <text class="setting-desc">查看可自助删除的数据范围</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
+      <view class="setting-row link" bindtap="clearAiLocalRecords">
+        <view class="setting-icon">🧽</view>
+        <view class="setting-main">
+          <text class="setting-title">删除本机 AI/语音记录</text>
+          <text class="setting-desc">清除 AI 对话、面试报告、语音复盘和错题缓存</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
+      <view class="setting-row link" bindtap="deleteServerData">
+        <view class="setting-icon">🗑️</view>
+        <view class="setting-main">
+          <text class="setting-title">清空服务端个人数据</text>
+          <text class="setting-desc">删除简历、进度、收藏、提醒、报告和申请材料</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
+      <view class="setting-row link" bindtap="deleteAccount">
+        <view class="setting-icon">🚪</view>
+        <view class="setting-main">
+          <text class="setting-title">注销账号</text>
+          <text class="setting-desc">删除账号和个人业务数据，操作不可恢复</text>
         </view>
         <text class="arrow">›</text>
       </view>

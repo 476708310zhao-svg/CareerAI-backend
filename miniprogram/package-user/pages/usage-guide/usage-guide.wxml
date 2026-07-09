@@ -1,0 +1,103 @@
+<view class="guide-page">
+  <view class="guide-hero">
+    <text class="hero-eyebrow">职引 2.0 使用手册</text>
+    <text class="hero-title">把找工作变成每天能推进的小步骤</text>
+    <text class="hero-desc">从找岗位、做简历、投递跟进到面试复盘，这里是一份面向小程序用户的完整使用指南。</text>
+    <view class="hero-actions">
+      <block wx:for="{{quickActions}}" wx:key="id">
+        <view class="action-button" bindtap="onActionTap" data-url="{{item.url}}" hover-class="tap-soft">
+          <text>{{item.label}}</text>
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <view class="guide-card">
+    <view class="section-head">
+      <text class="section-kicker">首次使用建议</text>
+      <text class="section-title">第一次打开小程序，按这个顺序开始</text>
+    </view>
+    <view class="quick-steps">
+      <block wx:for="{{quickStart}}" wx:key="title">
+        <view class="quick-step">
+          <view class="step-index">{{index + 1}}</view>
+          <view class="step-copy">
+            <text class="step-title">{{item.title}}</text>
+            <text class="step-desc">{{item.desc}}</text>
+          </view>
+        </view>
+      </block>
+    </view>
+    <view class="guide-tip">如果只想快速开始，可以先从“职位”页收藏 3 个目标岗位，再逐步补简历和申请材料。</view>
+  </view>
+
+  <block wx:for="{{sections}}" wx:key="title">
+    <view class="guide-card guide-section">
+      <view class="section-head">
+        <text class="section-title">{{item.title}}</text>
+        <text wx:if="{{item.summary}}" class="section-summary">{{item.summary}}</text>
+      </view>
+
+      <view wx:if="{{item.tags && item.tags.length}}" class="tag-list">
+        <block wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this">
+          <text class="guide-tag">{{tag}}</text>
+        </block>
+      </view>
+
+      <view wx:if="{{item.points && item.points.length}}" class="guide-list">
+        <block wx:for="{{item.points}}" wx:for-item="point" wx:key="*this">
+          <view class="guide-list-row">
+            <view class="guide-dot"></view>
+            <text class="guide-list-text">{{point}}</text>
+          </view>
+        </block>
+      </view>
+
+      <view wx:if="{{item.steps && item.steps.length}}" class="section-steps">
+        <text class="sub-title">{{item.stepsTitle || '推荐步骤'}}</text>
+        <block wx:for="{{item.steps}}" wx:for-item="step" wx:key="*this">
+          <view class="number-row">
+            <view class="number-index">{{index + 1}}</view>
+            <text class="number-text">{{step}}</text>
+          </view>
+        </block>
+      </view>
+    </view>
+  </block>
+
+  <view class="guide-card">
+    <view class="section-head">
+      <text class="section-kicker">推荐工作流</text>
+      <text class="section-title">按场景推进求职</text>
+    </view>
+    <block wx:for="{{workflows}}" wx:key="title">
+      <view class="workflow-block">
+        <text class="workflow-title">{{item.title}}</text>
+        <block wx:for="{{item.steps}}" wx:for-item="step" wx:key="*this">
+          <view class="number-row compact-row">
+            <view class="number-index">{{index + 1}}</view>
+            <text class="number-text">{{step}}</text>
+          </view>
+        </block>
+      </view>
+    </block>
+  </view>
+
+  <view class="guide-card">
+    <view class="section-head">
+      <text class="section-kicker">常见问题</text>
+      <text class="section-title">使用过程中最常遇到的疑问</text>
+    </view>
+    <block wx:for="{{faqs}}" wx:key="q">
+      <view class="faq-item">
+        <text class="faq-question">{{item.q}}</text>
+        <text class="faq-answer">{{item.a}}</text>
+      </view>
+    </block>
+  </view>
+
+  <view class="closing-card">
+    <text class="closing-title">一句话建议</text>
+    <text class="closing-text">{{closing}}</text>
+  </view>
+</view>

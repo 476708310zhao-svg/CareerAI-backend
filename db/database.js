@@ -129,6 +129,41 @@ db.exec(`
     created_at TEXT    DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS interview_questions (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    question_id  TEXT    UNIQUE NOT NULL,
+    title        TEXT    NOT NULL,
+    answer       TEXT    DEFAULT '',
+    category     TEXT    DEFAULT 'behavior',
+    difficulty   TEXT    DEFAULT '中等',
+    tags         TEXT    DEFAULT '[]',
+    views        INTEGER DEFAULT 0,
+    source       TEXT    DEFAULT 'admin',
+    is_featured  INTEGER DEFAULT 0,
+    is_published INTEGER DEFAULT 1,
+    sort_order   INTEGER DEFAULT 0,
+    created_at   TEXT    DEFAULT (datetime('now')),
+    updated_at   TEXT    DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS star_templates (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    template_id  TEXT    UNIQUE NOT NULL,
+    role         TEXT    DEFAULT 'general',
+    role_label   TEXT    DEFAULT '通用',
+    role_color   TEXT    DEFAULT '#6B7280',
+    title        TEXT    NOT NULL,
+    tags         TEXT    DEFAULT '[]',
+    situation    TEXT    DEFAULT '',
+    task         TEXT    DEFAULT '',
+    action       TEXT    DEFAULT '',
+    result       TEXT    DEFAULT '',
+    is_published INTEGER DEFAULT 1,
+    sort_order   INTEGER DEFAULT 0,
+    created_at   TEXT    DEFAULT (datetime('now')),
+    updated_at   TEXT    DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS comments (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     experience_id INTEGER NOT NULL,
@@ -334,6 +369,17 @@ db.exec(`
     UNIQUE(user_id, feature, usage_date)
   );
 
+  CREATE TABLE IF NOT EXISTS analytics_events (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER,
+    event_name TEXT    NOT NULL,
+    route      TEXT    DEFAULT '',
+    source     TEXT    DEFAULT '',
+    scene      TEXT    DEFAULT '',
+    payload    TEXT    DEFAULT '{}',
+    created_at TEXT    DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS admin_accounts (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     username      TEXT    UNIQUE NOT NULL,
@@ -360,6 +406,8 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_job_reminders_user ON job_reminders(user_id, enabled, reminder_date);
   CREATE INDEX IF NOT EXISTS idx_job_reminders_due ON job_reminders(enabled, reminder_date, reminder_type);
   CREATE INDEX IF NOT EXISTS idx_favorites_user_type_target ON favorites(user_id, type, target_id);
+  CREATE INDEX IF NOT EXISTS idx_interview_questions_ops ON interview_questions(is_published, category, sort_order);
+  CREATE INDEX IF NOT EXISTS idx_star_templates_ops ON star_templates(is_published, role, sort_order);
   CREATE INDEX IF NOT EXISTS idx_agency_reviews_agency_id ON agency_reviews(agency_id);
   CREATE INDEX IF NOT EXISTS idx_comment_replies_comment_id ON comment_replies(comment_id);
   CREATE INDEX IF NOT EXISTS idx_experience_likes_exp_id ON experience_likes(experience_id);
@@ -369,6 +417,8 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_companies_industry_country ON companies(industry_l1, hq_country);
   CREATE INDEX IF NOT EXISTS idx_company_aliases_alias ON company_aliases(alias);
   CREATE INDEX IF NOT EXISTS idx_ai_usage_user_feature_date ON ai_usage(user_id, feature, usage_date);
+  CREATE INDEX IF NOT EXISTS idx_analytics_events_name_time ON analytics_events(event_name, created_at);
+  CREATE INDEX IF NOT EXISTS idx_analytics_events_user_time ON analytics_events(user_id, created_at);
   CREATE INDEX IF NOT EXISTS idx_admin_accounts_username ON admin_accounts(username);
   CREATE INDEX IF NOT EXISTS idx_share_configs_route ON share_configs(route);
   CREATE INDEX IF NOT EXISTS idx_feature_flags_feature ON feature_flags(feature);
@@ -387,7 +437,10 @@ const campusColumns = db.prepare("PRAGMA table_info(campus_schedules)").all().ma
   ['apply_url', 'TEXT DEFAULT ""'],
   ['announce_url', 'TEXT DEFAULT ""'],
   ['grad_year', 'INTEGER DEFAULT 2026'],
-  ['is_hot', 'INTEGER DEFAULT 0']
+  ['is_hot', 'INTEGER DEFAULT 0'],
+  ['education_level', 'TEXT DEFAULT ""'],
+  ['overseas_friendly', 'INTEGER DEFAULT NULL'],
+  ['visa_status', 'TEXT DEFAULT ""']
 ].forEach(([name, ddl]) => {
   if (!campusColumns.includes(name)) {
     db.exec(`ALTER TABLE campus_schedules ADD COLUMN ${name} ${ddl}`);
@@ -403,11 +456,53 @@ if (!userCols.includes('wechat_session_key')) {
   db.exec(`ALTER TABLE users ADD COLUMN wechat_session_key TEXT DEFAULT ''`);
 }
 
+const feedbackCols = db.pragma('table_info(feedbacks)').map(c => c.name);
+[
+  ['status', 'TEXT DEFAULT "open"'],
+  ['admin_note', 'TEXT DEFAULT ""'],
+  ['updated_at', 'TEXT DEFAULT ""']
+].forEach(([name, ddl]) => {
+  if (!feedbackCols.includes(name)) {
+    db.exec(`ALTER TABLE feedbacks ADD COLUMN ${name} ${ddl}`);
+  }
+});
+
+const announcementCols = db.pragma('table_info(announcements)').map(c => c.name);
+[
+  ['summary', 'TEXT DEFAULT ""'],
+  ['tags', 'TEXT DEFAULT "[]"'],
+  ['target_roles', 'TEXT DEFAULT "[]"'],
+  ['target_regions', 'TEXT DEFAULT "[]"'],
+  ['action_type', 'TEXT DEFAULT ""'],
+  ['action_label', 'TEXT DEFAULT ""'],
+  ['action_url', 'TEXT DEFAULT ""'],
+  ['source_url', 'TEXT DEFAULT ""'],
+  ['sort_order', 'INTEGER DEFAULT 0']
+].forEach(([name, ddl]) => {
+  if (!announcementCols.includes(name)) {
+    db.exec(`ALTER TABLE announcements ADD COLUMN ${name} ${ddl}`);
+  }
+});
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_announcements_ops
+  ON announcements(is_published, is_pinned, sort_order, created_at)
+`);
+
 // ─── T-5修复：给 resumes 表补 data 字段，用于存储完整前端简历 JSON（幂等）──
 const resumeCols = db.pragma('table_info(resumes)').map(c => c.name);
 if (!resumeCols.includes('data')) {
   db.exec(`ALTER TABLE resumes ADD COLUMN data TEXT DEFAULT ''`);
 }
+[
+  ['is_default', 'INTEGER DEFAULT 0'],
+  ['target_role', 'TEXT DEFAULT ""'],
+  ['target_job_id', 'TEXT DEFAULT ""'],
+  ['optimization_history', 'TEXT DEFAULT "[]"']
+].forEach(([name, ddl]) => {
+  if (!resumeCols.includes(name)) {
+    db.exec(`ALTER TABLE resumes ADD COLUMN ${name} ${ddl}`);
+  }
+});
 
 // ─── 给 banners 表补 image_url 字段（幂等）────────────────────────────────────
 const bannerCols = db.pragma('table_info(banners)').map(c => c.name);
@@ -451,6 +546,7 @@ db.exec(`
     job_id             TEXT DEFAULT '',
     job_title          TEXT DEFAULT '',
     company            TEXT DEFAULT '',
+    job_link           TEXT DEFAULT '',
     resume_name        TEXT DEFAULT '',
     score              INTEGER DEFAULT 0,
     matched_keywords   TEXT DEFAULT '[]',
@@ -458,6 +554,11 @@ db.exec(`
     project_suggestion TEXT DEFAULT '',
     ats_risk           TEXT DEFAULT '',
     suggestions        TEXT DEFAULT '[]',
+    recommend_text     TEXT DEFAULT '',
+    interview_prep     TEXT DEFAULT '[]',
+    jd_text            TEXT DEFAULT '',
+    resume_text        TEXT DEFAULT '',
+    use_online_resume  INTEGER DEFAULT 1,
     created_at         TEXT DEFAULT (datetime('now')),
     UNIQUE(user_id, client_id)
   );
@@ -487,20 +588,78 @@ db.exec(`
     UNIQUE(user_id, question_id)
   );
   CREATE INDEX IF NOT EXISTS idx_interview_daily_practice_user ON interview_daily_practice(user_id, added_at);
+
+  CREATE TABLE IF NOT EXISTS daily_briefs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL,
+    brief_date  TEXT NOT NULL,
+    result      TEXT DEFAULT '{}',
+    stats       TEXT DEFAULT '{}',
+    brief       TEXT DEFAULT '{}',
+    tasks       TEXT DEFAULT '[]',
+    created_at  TEXT DEFAULT (datetime('now')),
+    updated_at  TEXT DEFAULT (datetime('now')),
+    UNIQUE(user_id, brief_date)
+  );
+  CREATE INDEX IF NOT EXISTS idx_daily_briefs_user_date ON daily_briefs(user_id, brief_date);
 `);
 
 // ─── 给 applications 表补投递追踪字段（幂等）─────────────────────────────────
 const appCols = db.pragma('table_info(applications)').map(c => c.name);
 [
+  ['client_id',       'TEXT DEFAULT ""'],       // 前端本地进度记录 id，用于云同步去重
   ['source_type',     'TEXT DEFAULT ""'],       // greenhouse | lever | manual
   ['source_job_id',   'TEXT DEFAULT ""'],        // ATS 系统的 job id
   ['source_slug',     'TEXT DEFAULT ""'],        // 公司 slug（用于轮询）
   ['tracking',        'INTEGER DEFAULT 0'],      // 1=开启追踪
   ['last_checked_at', 'TEXT DEFAULT ""'],        // 最近一次轮询时间
   ['job_active',      'INTEGER DEFAULT 1'],      // 1=职位仍开放, 0=已关闭
+  ['company',         'TEXT DEFAULT ""'],
+  ['job_title',       'TEXT DEFAULT ""'],
+  ['city',            'TEXT DEFAULT ""'],
+  ['salary',          'TEXT DEFAULT ""'],
+  ['job_link',        'TEXT DEFAULT ""'],
+  ['deadline',        'TEXT DEFAULT ""'],
+  ['interview_time',  'TEXT DEFAULT ""'],
+  ['notes',           'TEXT DEFAULT ""'],
+  ['resume_version_id', 'TEXT DEFAULT ""'],
+  ['progress_status', 'TEXT DEFAULT ""'],
+  ['reminder_enabled', 'INTEGER DEFAULT 0'],
+  ['reminder_lead_days', 'TEXT DEFAULT "[3,1]"'],
+  ['updated_at',      'TEXT DEFAULT ""'],
 ].forEach(([name, ddl]) => {
   if (!appCols.includes(name)) {
     db.exec(`ALTER TABLE applications ADD COLUMN ${name} ${ddl}`);
+  }
+});
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_applications_user_client ON applications(user_id, client_id);
+  CREATE INDEX IF NOT EXISTS idx_applications_user_progress ON applications(user_id, progress_status, deadline);
+`);
+
+const applicationMaterialCols = db.pragma('table_info(application_materials)').map(c => c.name);
+[
+  ['resume_name', 'TEXT DEFAULT ""'],
+  ['resume_version_id', 'TEXT DEFAULT ""']
+].forEach(([name, ddl]) => {
+  if (!applicationMaterialCols.includes(name)) {
+    db.exec(`ALTER TABLE application_materials ADD COLUMN ${name} ${ddl}`);
+  }
+});
+
+const jdMatchCols = db.pragma('table_info(jd_match_reports)').map(c => c.name);
+[
+  ['job_link', 'TEXT DEFAULT ""'],
+  ['resume_version_id', 'TEXT DEFAULT ""'],
+  ['recommend_text', 'TEXT DEFAULT ""'],
+  ['interview_prep', 'TEXT DEFAULT "[]"'],
+  ['jd_text', 'TEXT DEFAULT ""'],
+  ['resume_text', 'TEXT DEFAULT ""'],
+  ['use_online_resume', 'INTEGER DEFAULT 1']
+].forEach(([name, ddl]) => {
+  if (!jdMatchCols.includes(name)) {
+    db.exec(`ALTER TABLE jd_match_reports ADD COLUMN ${name} ${ddl}`);
   }
 });
 

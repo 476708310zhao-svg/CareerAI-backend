@@ -14,6 +14,35 @@
     <text class="article-text" space="nbsp">{{news.content}}</text>
   </view>
 
+  <view class="article-meta" wx:if="{{news.tags.length || news.targetRoles.length || news.targetRegions.length}}">
+    <view class="meta-row" wx:if="{{news.tags.length}}">
+      <text class="meta-label">标签</text>
+      <view class="meta-tags">
+        <text class="meta-tag" wx:for="{{news.tags}}" wx:key="*this">{{item}}</text>
+      </view>
+    </view>
+    <view class="meta-row" wx:if="{{news.targetRoles.length}}">
+      <text class="meta-label">岗位</text>
+      <view class="meta-tags">
+        <text class="meta-tag soft" wx:for="{{news.targetRoles}}" wx:key="*this">{{item}}</text>
+      </view>
+    </view>
+    <view class="meta-row" wx:if="{{news.targetRegions.length}}">
+      <text class="meta-label">地区</text>
+      <view class="meta-tags">
+        <text class="meta-tag soft" wx:for="{{news.targetRegions}}" wx:key="*this">{{item}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="action-card" wx:if="{{news.action}}" bindtap="onPrimaryAction">
+    <view>
+      <text class="action-title">{{news.action.label}}</text>
+      <text class="action-sub">继续完成下一步求职动作</text>
+    </view>
+    <text class="action-arrow">›</text>
+  </view>
+
   <view class="bottom-space"></view>
 
   <view class="bottom-bar">

@@ -35,6 +35,18 @@
   <!-- 结果 -->
   <view wx:if="{{phase === 'done' && result}}">
 
+    <view class="brief-module" wx:if="{{brief && brief.tasks && brief.tasks.length}}">
+      <view class="module-head">
+        <text class="module-title">今日任务队列</text>
+      </view>
+      <block wx:for="{{brief.tasks}}" wx:key="id">
+        <view wx:if="{{index < 4}}" class="task-card {{item.done ? 'done' : ''}}" bindtap="goDailyTask" data-url="{{item.url}}" hover-class="card-press">
+          <text class="task-title">{{item.done ? '已完成 · ' : ''}}{{item.title}}</text>
+          <text class="task-sub">{{item.desc}}</text>
+        </view>
+      </block>
+    </view>
+
     <view class="brief-module" wx:if="{{brief && brief.recommendedJobs.length}}">
       <view class="module-head">
         <text class="module-title">今日推荐岗位</text>

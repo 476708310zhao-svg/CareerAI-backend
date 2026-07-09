@@ -1,0 +1,31 @@
+{
+  "summary": {
+    "passed": 0,
+    "failed": 1,
+    "total": 1
+  },
+  "options": {
+    "cliPath": "C:/Program Files (x86)/Tencent/微信web开发者工具/cli.bat",
+    "projectPath": "C:\\Users\\admin\\Desktop\\求职小程序\\jobapp-server\\miniprogram",
+    "reportDir": "C:\\Users\\admin\\Desktop\\求职小程序\\jobapp-server\\reports\\e2e-3.0",
+    "screenshots": true,
+    "keepOpen": false,
+    "dryRun": false,
+    "timeoutMs": 15000,
+    "trustProject": true,
+    "port": 0,
+    "verbose": true,
+    "freshDevtools": true,
+    "wsEndpoint": ""
+  },
+  "steps": [
+    {
+      "group": "launch-devtools",
+      "name": "Launch WeChat DevTools automation session",
+      "status": "FAIL",
+      "durationMs": 84,
+      "detail": "WeChat DevTools service port is disabled. Open WeChat DevTools > Settings > Security Settings, enable Service Port, then rerun npm run bot:e2e-3.0 -- --fresh-devtools. Detected config: C:\\Users\\admin\\AppData\\Local\\微信开发者工具\\User Data\\80d774828fc67c7dafc59cd74ce70db0\\WeappLocalData\\localstorage_b72da75d79277d2f5f9c30c9177be57e.json",
+      "screenshot": ""
+    }
+  ]
+}

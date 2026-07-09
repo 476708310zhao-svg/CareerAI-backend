@@ -6,17 +6,22 @@ const { request, _write } = require('./api-client.js');
 function getCampusList(params) {
   const {
     region = '', positionType = '', year = '', keyword = '',
-    recruitType = '', writtenTest = '', gradYear = '', page = 0, pageSize = 20
+    recruitType = '', writtenTest = '', gradYear = '', page = 0, pageSize = 20,
+    industry = '', educationLevel = '', overseasFriendly = '', visa = '', deadlineWindow = '',
+    sort = '', latestDay = '', latestDate = '', timeout = 10000
   } = params || {};
   return request({
     path: '/api/campus',
     params: {
       region, position_type: positionType, year, keyword,
-      recruit_type: recruitType, written_test: writtenTest,
-      grad_year: gradYear, page, pageSize
+      recruit_type: recruitType, written_test: writtenTest, industry,
+      education_level: educationLevel, overseas_friendly: overseasFriendly,
+      visa, deadline_window: deadlineWindow, grad_year: gradYear,
+      sort, latest_day: latestDay, latest_date: latestDate, page, pageSize
     },
     noCache: true,
-    cacheTTL: 0
+    cacheTTL: 0,
+    timeout
   });
 }
 
@@ -29,7 +34,7 @@ function getCampusDetail(id) {
 }
 
 function getNotifyTemplates() {
-  return request({ path: '/api/notify/templates', params: {} });
+  return request({ path: '/api/notify/templates', params: {}, timeout: 5000 });
 }
 
 function subscribeCampusReminder(campusId, company, deadlineDate, positionName) {

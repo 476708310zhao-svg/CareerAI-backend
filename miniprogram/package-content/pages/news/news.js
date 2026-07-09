@@ -1,6 +1,10 @@
 // pages/news/news.js
 const { getNews } = require('../../../utils/api-news.js');
 const { normalizeNewsImageUrl } = require('../../../utils/assets.js');
+const demoData = require('../../../utils/demo-data.js');
+
+const HOME_NEWS_CACHE_KEY = 'cachedHomeNews_v2';
+const NEWS_PAGE_CACHE_KEY = 'cachedNewsPageFeed_v2';
 
 Page({
   data: {
@@ -20,7 +24,7 @@ Page({
       { id: 'zh',  name: '中文' },
       { id: 'en',  name: 'English' }
     ],
-    currentLang: 'all',
+    currentLang: 'zh',
 
     // 快讯数据
     allNews: [],
@@ -38,25 +42,64 @@ Page({
   },
 
   onLoad() {
-    this.buildAllNews();
+    if (!this.loadCachedNews()) {
+      this.setData({ loading: true });
+    }
     this.loadNews({ silent: true });
   },
 
   normalizeArticle(item) {
     const imageUrl = normalizeNewsImageUrl(item.imageUrl || item.image_url || item.cover);
     return Object.assign({}, item, {
+      id: item.id || item.url || item.title,
+      type: item.type || 'news',
+      title: item.title || '求职快讯',
+      desc: item.desc || item.summary || item.description || '',
+      source: item.source || (item.isOfficial ? '职引官网' : '求职助手'),
+      time: item.time || '近期',
       imageUrl,
       image_url: imageUrl || item.image_url,
       cover: imageUrl || item.cover,
+      image: imageUrl || item.image || '',
       content: item.content || item.desc || item.summary || item.description || ''
     });
   },
 
+  loadCachedNews() {
+    const read = (key) => {
+      try {
+        const value = wx.getStorageSync(key);
+        return Array.isArray(value) ? value : [];
+      } catch (e) {
+        return [];
+      }
+    };
+    const cached = read(HOME_NEWS_CACHE_KEY).concat(read(NEWS_PAGE_CACHE_KEY));
+    if (!cached.length) return false;
+    const seen = {};
+    const allNews = cached
+      .map(item => this.normalizeArticle(item))
+      .filter(item => {
+        const key = String(item.id || item.url || item.title || '');
+        if (!key || seen[key]) return false;
+        seen[key] = true;
+        return true;
+      });
+    if (!allNews.length) return false;
+    this.setData({
+      allNews,
+      loading: false,
+      lastUpdatedText: '刚刚'
+    });
+    this._applyFilter(this.data.currentTab, this.data.searchKeyword);
+    return true;
+  },
+
   // ======== 从后端拉取新闻，失败降级 mock ========
   loadNews(options = {}) {
-    const lang = this.data.currentLang !== 'all' ? this.data.currentLang : '';
+    const lang = this.data.currentLang !== 'all' ? this.data.currentLang : 'zh';
     if (!options.silent) this.setData({ loading: true });
-    getNews({ tab: 'all', lang })
+    getNews({ tab: 'all', lang, limit: 60 })
       .then((res) => {
         const articles = res && res.articles;
         if (articles && articles.length > 0) {
@@ -68,14 +111,18 @@ Page({
             refreshing: false,
             lastUpdatedText: this.getTimeLabel(0)
           });
+          try {
+            wx.setStorageSync(NEWS_PAGE_CACHE_KEY, allNews);
+            wx.setStorageSync(HOME_NEWS_CACHE_KEY, allNews.slice(0, 5));
+          } catch (e) {}
           this._applyFilter(this.data.currentTab, this.data.searchKeyword);
         } else {
-          if (!this.data.allNews.length) this.buildAllNews();
+          if (!this.data.allNews.length && demoData.enabled()) this.buildAllNews();
           this.setData({ loading: false, refreshing: false });
         }
       })
       .catch(() => {
-        if (!this.data.allNews.length) this.buildAllNews();
+        if (!this.data.allNews.length && demoData.enabled()) this.buildAllNews();
         this.setData({ loading: false, refreshing: false });
       });
   },
@@ -254,7 +301,7 @@ Page({
     const list = this.data.allNews.filter(n =>
       (tab  === 'all' || n.type === tab) &&
       (lang === 'all' || !n.lang || n.lang === lang) &&
-      (!kw  || n.title.toLowerCase().includes(kw) || n.desc.toLowerCase().includes(kw))
+      (!kw  || String(n.title || '').toLowerCase().includes(kw) || String(n.desc || '').toLowerCase().includes(kw))
     );
     this.setData({ displayList: list, isSearching: !!kw });
   },

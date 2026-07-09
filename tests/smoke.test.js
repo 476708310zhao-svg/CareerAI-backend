@@ -5,8 +5,8 @@ const path = require('node:path');
 const db = require('../db/database');
 const featureFlags = require('../utils/featureFlags');
 
-const PORT = String(4100 + Math.floor(Math.random() * 1000));
-const BASE_URL = `http://127.0.0.1:${PORT}`;
+const HOST = '127.0.0.1';
+let BASE_URL = '';
 const testAccount = {
   nickname: 'Smoke Test User',
   email: `smoke_${Date.now()}_${Math.random().toString(36).slice(2, 8)}@example.com`,
@@ -22,16 +22,17 @@ const uploadedFiles = [];
 
 function startServer() {
   Object.assign(process.env, {
-    PORT,
+    PORT: '0',
     JWT_SECRET: 'test_secret_please_do_not_use_in_production_1234567890',
     ADMIN_USERNAME: 'admin',
     ADMIN_PASSWORD: 'admin_password',
     CRON_SECRET: 'smoke_cron_secret_1234567890abcdef',
-    ALLOWED_ORIGIN: `http://127.0.0.1:${PORT}`,
+    ALLOWED_ORIGIN: `http://${HOST}`,
     WEBHOOK_SECRET: 'test_webhook_secret',
     PAYMENT_ENABLED: 'true',
     PAYMENT_PROVIDER: 'wxpay',
     ENABLE_MOCK_PAYMENT: 'true',
+    VIRTUAL_PAY_NOTIFY_TOKEN: '',
     WXPAY_MCH_ID: '',
     WXPAY_API_KEY: '',
     WXPAY_APP_ID: '',
@@ -41,6 +42,8 @@ function startServer() {
     ADZUNA_APP_KEY: '',
     LIVE_JOBS_ENABLED: 'false',
     DISABLE_FREE_JOB_SOURCES: 'true',
+    NEWS_RSS_ENABLED: 'false',
+    NEWS_JOB_API_ENABLED: 'false',
     RECRUITMENT_FEATURE_ENABLED: 'true',
     MEMBERSHIP_FEATURE_ENABLED: 'false'
   });
@@ -49,7 +52,9 @@ function startServer() {
   featureFlags.updateFeatureFlag('membership', false);
 
   const { startServer: listen } = require('../server');
-  server = listen(PORT);
+  server = listen(0);
+  const address = server.address();
+  BASE_URL = `http://${HOST}:${address.port}`;
 }
 
 async function waitForServer() {
@@ -75,6 +80,19 @@ function authHeaders() {
 
 function adminHeaders() {
   return { Authorization: `Bearer ${adminToken}` };
+}
+
+async function ensureAdminToken() {
+  if (adminToken) return adminToken;
+  const loginRes = await fetch(`${BASE_URL}/admin/api/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'admin', password: 'admin_password' })
+  });
+  assert.equal(loginRes.status, 200);
+  const loginBody = await readJson(loginRes);
+  adminToken = loginBody.data.token;
+  return adminToken;
 }
 
 function pngBlob() {
@@ -168,6 +186,27 @@ test('public jobs endpoint returns a list payload', async () => {
   const body = await res.json();
   assert.equal(body.code, 0);
   assert.ok(Array.isArray(body.data.list));
+});
+
+test('public campus endpoint handles filtered summer internship query', async () => {
+  const query = new URLSearchParams({
+    region: '',
+    position_type: '\u7efc\u5408',
+    year: '',
+    keyword: '',
+    recruit_type: '\u6691\u671f\u5b9e\u4e60',
+    written_test: '',
+    grad_year: '',
+    sort: '',
+    page: '0',
+    pageSize: '12'
+  });
+  const res = await fetch(`${BASE_URL}/api/campus?${query.toString()}`);
+  assert.equal(res.status, 200);
+  const body = await readJson(res);
+  assert.equal(body.code, 0);
+  assert.ok(Array.isArray(body.data.list));
+  assert.equal(typeof body.data.total, 'number');
 });
 
 test('aggregate jobs endpoint returns a paginated recommendation pool sorted by recency', async () => {
@@ -404,6 +443,8 @@ test('career asset APIs persist materials, match reports and interview notebook'
       jobId: 'job_smoke_1',
       company: 'OpenAI',
       jobTitle: 'Software Engineer',
+      resumeName: 'SDE Resume',
+      resumeVersionId: 'resume_version_smoke_1',
       content: 'I am excited by the company mission and the role impact.'
     })
   });
@@ -411,6 +452,7 @@ test('career asset APIs persist materials, match reports and interview notebook'
   const materialBody = await readJson(materialRes);
   assert.equal(materialBody.code, 0);
   assert.equal(materialBody.data.questionType, 'why_company');
+  assert.equal(materialBody.data.resumeVersionId, 'resume_version_smoke_1');
 
   const materialListRes = await fetch(`${BASE_URL}/api/career-assets/application-materials`, {
     headers: authHeaders()
@@ -436,19 +478,31 @@ test('career asset APIs persist materials, match reports and interview notebook'
       jobId: 'job_smoke_1',
       jobTitle: 'Software Engineer',
       company: 'OpenAI',
+      jobLink: 'https://openai.com/careers/software-engineer',
       resumeName: 'SDE Resume',
+      resumeVersionId: 'resume_version_smoke_1',
       score: 88,
       matchedKeywords: ['Python'],
       missingKeywords: ['Kubernetes'],
       projectSuggestion: 'Job Matching Platform',
       atsRisk: '低',
-      suggestions: ['补充云原生关键词']
+      suggestions: ['补充云原生关键词'],
+      recommendText: '建议投递前补充云原生项目表达',
+      interviewPrep: ['准备系统设计案例'],
+      jdText: 'Python Kubernetes distributed systems',
+      resumeText: 'Python backend platform',
+      useOnlineResume: false
     })
   });
   assert.equal(reportRes.status, 200);
   const reportBody = await readJson(reportRes);
   assert.equal(reportBody.data.score, 88);
   assert.deepEqual(reportBody.data.missingKeywords, ['Kubernetes']);
+  assert.equal(reportBody.data.jobLink, 'https://openai.com/careers/software-engineer');
+  assert.equal(reportBody.data.resumeVersionId, 'resume_version_smoke_1');
+  assert.equal(reportBody.data.recommendText, '建议投递前补充云原生项目表达');
+  assert.deepEqual(reportBody.data.interviewPrep, ['准备系统设计案例']);
+  assert.equal(reportBody.data.useOnlineResume, false);
 
   const reportDetailRes = await fetch(`${BASE_URL}/api/career-assets/jd-match-reports/${encodeURIComponent('match_smoke_1')}`, {
     headers: authHeaders()
@@ -456,6 +510,7 @@ test('career asset APIs persist materials, match reports and interview notebook'
   assert.equal(reportDetailRes.status, 200);
   const reportDetail = await readJson(reportDetailRes);
   assert.equal(reportDetail.data.company, 'OpenAI');
+  assert.match(reportDetail.data.jdText, /Kubernetes/);
 
   const notebookRes = await fetch(`${BASE_URL}/api/career-assets/interview-notebook`, {
     method: 'POST',
@@ -602,6 +657,82 @@ test('job reminder APIs persist and dispatch reminders once', async () => {
   assert.equal(disabled.enabled, 0);
 });
 
+test('campus deadline reminders persist and dispatch as campus messages', async () => {
+  assert.ok(authToken);
+  const targetId = `campus_reminder_smoke_${Date.now()}`;
+  const company = `CampusCo ${Date.now()}`;
+
+  const upsertRes = await fetch(`${BASE_URL}/api/notify/reminders`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({
+      sourceType: 'campus_schedule',
+      targetId,
+      reminderType: 'campus_deadline',
+      reminderDate: '2026-07-08',
+      title: `${company} 校招`,
+      company,
+      jobTitle: '管培生',
+      leadDays: [7, 3, 1, 0],
+      payload: { recruitType: '秋招' }
+    })
+  });
+  assert.equal(upsertRes.status, 200);
+  const upsertBody = await readJson(upsertRes);
+  assert.equal(upsertBody.code, 0);
+  assert.equal(upsertBody.data.targetId, targetId);
+  assert.deepEqual(upsertBody.data.leadDays, [7, 3, 1, 0]);
+
+  const detailRes = await fetch(`${BASE_URL}/api/notify/reminders?sourceType=campus_schedule&reminderType=campus_deadline&targetId=${encodeURIComponent(targetId)}`, {
+    headers: authHeaders()
+  });
+  assert.equal(detailRes.status, 200);
+  const detailBody = await readJson(detailRes);
+  assert.ok(detailBody.data.some(item => item.targetId === targetId && item.enabled));
+
+  const dispatchRes = await fetch(`${BASE_URL}/api/notify/reminders/dispatch`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Cron-Secret': 'smoke_cron_secret_1234567890abcdef'
+    },
+    body: JSON.stringify({ date: '2026-07-01' })
+  });
+  assert.equal(dispatchRes.status, 200);
+  const dispatchBody = await readJson(dispatchRes);
+  const targetSent = dispatchBody.data.sent.filter(item => item.key.includes(`:${targetId}:`));
+  assert.equal(targetSent.length, 1);
+  assert.equal(targetSent[0].type, 'campus_deadline');
+
+  const user = db.prepare('SELECT id FROM users WHERE email = ?').get(testAccount.email);
+  const message = db.prepare(`
+    SELECT title, content FROM messages
+    WHERE user_id=? AND type='campus_deadline' AND content LIKE ?
+    ORDER BY id DESC
+  `).get(user.id, `%${company}%`);
+  assert.ok(message);
+  assert.match(message.title, /校招截止提醒/);
+  assert.match(message.content, new RegExp(company));
+
+  const repeatRes = await fetch(`${BASE_URL}/api/notify/reminders/dispatch`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Cron-Secret': 'smoke_cron_secret_1234567890abcdef'
+    },
+    body: JSON.stringify({ date: '2026-07-01' })
+  });
+  assert.equal(repeatRes.status, 200);
+  const repeatBody = await readJson(repeatRes);
+  assert.equal(repeatBody.data.sent.filter(item => item.key.includes(`:${targetId}:`)).length, 0);
+
+  const deleteRes = await fetch(`${BASE_URL}/api/notify/reminders/campus_schedule/${encodeURIComponent(targetId)}/campus_deadline`, {
+    method: 'DELETE',
+    headers: authHeaders()
+  });
+  assert.equal(deleteRes.status, 200);
+});
+
 test('ai workflow requires vip', async () => {
   assert.ok(authToken);
   const res = await fetch(`${BASE_URL}/api/ai/workflow`, {
@@ -635,6 +766,43 @@ test('ai chat rejects anonymous requests before spending AI quota', async () => 
     body: JSON.stringify({ messages: [{ role: 'user', content: 'hi' }] })
   });
   assert.equal(res.status, 401);
+});
+
+test('ai usage endpoint reports quota and blocks exhausted free features before upstream AI', async () => {
+  assert.ok(authToken);
+  const usageRes = await fetch(`${BASE_URL}/api/ai/usage`, {
+    headers: authHeaders()
+  });
+  assert.equal(usageRes.status, 200);
+  const usageBody = await readJson(usageRes);
+  assert.equal(usageBody.code, 0);
+  assert.equal(usageBody.data.isVip, false);
+  assert.ok(usageBody.data.features.some(item => item.feature === 'ats' && item.limit === 3));
+
+  const user = db.prepare('SELECT id FROM users WHERE email = ?').get(testAccount.email);
+  const day = usageBody.data.date;
+  db.prepare(`
+    INSERT INTO ai_usage (user_id, feature, usage_date, count, updated_at)
+    VALUES (?, 'ats', ?, 3, datetime('now'))
+    ON CONFLICT(user_id, feature, usage_date)
+    DO UPDATE SET count=3, updated_at=datetime('now')
+  `).run(user.id, day);
+
+  const atsRes = await fetch(`${BASE_URL}/api/ai/ats`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({
+      resumeData: { basicInfo: { name: 'Smoke' }, skills: ['JavaScript'] },
+      jobDescription: 'Software engineer role requiring JavaScript, API design, testing and collaboration.',
+      jobTitle: 'Software Engineer'
+    })
+  });
+  assert.equal(atsRes.status, 429);
+  const atsBody = await readJson(atsRes);
+  assert.equal(atsBody.code, -1);
+  assert.equal(atsBody.data.feature, 'ats');
+  assert.equal(atsBody.data.vipRequired, true);
+  assert.equal(atsBody.data.remaining, 0);
 });
 
 test('ai project builder validation uses standard error shape', async () => {
@@ -701,6 +869,64 @@ test('admin jobs list reads jobs json through admin API', async () => {
   assert.ok(Array.isArray(body.data.list));
   assert.equal(body.data.list.length, 1);
   assert.ok(body.data.total >= 1);
+});
+
+test('admin announcements are exposed through public news feed', async () => {
+  await ensureAdminToken();
+  const title = `Smoke 求职资讯 ${Date.now()} ${Math.random().toString(36).slice(2, 7)}`;
+  let announcementId;
+
+  const createRes = await fetch(`${BASE_URL}/admin/api/announcements`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...adminHeaders() },
+    body: JSON.stringify({
+      title,
+      content: '这是一条由 smoke test 发布的求职攻略，用于验证后台资讯可以进入小程序公共快讯接口。',
+      category: '攻略',
+      summary: 'Smoke test 自有求职干货摘要',
+      tags: ['ATS', '简历优化'],
+      target_roles: ['SDE', 'Data Analyst'],
+      target_regions: ['北美'],
+      action_type: 'jd_match',
+      action_label: '去做 JD 匹配',
+      action_url: '/package-ai/pages/jd-match/jd-match',
+      source_url: 'https://example.com/jobapp-smoke-news',
+      sort_order: 99,
+      is_pinned: true,
+      is_published: true
+    })
+  });
+  assert.equal(createRes.status, 200);
+  const createBody = await readJson(createRes);
+  assert.equal(createBody.code, 0);
+  announcementId = createBody.data.id;
+
+  try {
+    const newsRes = await fetch(`${BASE_URL}/api/news?tab=tip&keyword=${encodeURIComponent(title)}&limit=5`);
+    assert.equal(newsRes.status, 200);
+    const newsBody = await readJson(newsRes);
+    assert.ok(Array.isArray(newsBody.articles));
+    const article = newsBody.articles.find(item => item.title === title);
+    assert.ok(article);
+    assert.equal(article.source, '职引');
+    assert.equal(article.type, 'tip');
+    assert.equal(article.desc, 'Smoke test 自有求职干货摘要');
+    assert.ok(article.tags.includes('ATS'));
+    assert.deepEqual(article.targetRoles, ['SDE', 'Data Analyst']);
+    assert.deepEqual(article.targetRegions, ['北美']);
+    assert.equal(article.action.label, '去做 JD 匹配');
+    assert.equal(article.action.url, '/package-ai/pages/jd-match/jd-match');
+    assert.equal(article.url, 'https://example.com/jobapp-smoke-news');
+    assert.equal(article.sortOrder, 99);
+    assert.match(article.content, /smoke test/);
+  } finally {
+    if (announcementId) {
+      await fetch(`${BASE_URL}/admin/api/announcements/${announcementId}`, {
+        method: 'DELETE',
+        headers: adminHeaders()
+      });
+    }
+  }
 });
 
 test('admin can toggle recruitment feature flag', async () => {
@@ -854,6 +1080,41 @@ test('payment mock create-order, confirm and verify flow works', async () => {
   assert.equal(ordersBody.code, 0);
   assert.ok(Array.isArray(ordersBody.data.orders));
   assert.ok(ordersBody.data.orders.some(order => order.order_no === createdOrderNo));
+});
+
+test('virtual payment notify accepts WeChat OutTradeNo field', async () => {
+  assert.ok(authToken);
+  const user = db.prepare('SELECT id FROM users WHERE email = ?').get(testAccount.email);
+  assert.ok(user);
+
+  const orderNo = `SMOKEVP${Date.now()}${Math.random().toString(36).slice(2, 8)}`.slice(0, 32);
+  db.prepare(`
+    INSERT INTO orders (order_no, user_id, plan_id, plan_name, amount, status, provider, product_id)
+    VALUES (?, ?, ?, ?, ?, 'pending', 'virtual', ?)
+  `).run(orderNo, user.id, 3, '体验会员', 1000, 'viptrial7d');
+
+  const notifyRes = await fetch(`${BASE_URL}/api/payment/virtual-notify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      Event: 'xpay_goods_deliver_notify',
+      OutTradeNo: orderNo,
+      WeChatPayInfo: JSON.stringify({
+        PayAmount: 1000,
+        TransactionId: `WX_SMOKE_${orderNo}`
+      }),
+      GoodsInfo: JSON.stringify({
+        GoodsPrice: 1000
+      })
+    })
+  });
+  assert.equal(notifyRes.status, 200);
+  const notifyBody = await readJson(notifyRes);
+  assert.equal(notifyBody.ErrCode, 0);
+
+  const paid = db.prepare('SELECT status, transaction_id FROM orders WHERE order_no = ?').get(orderNo);
+  assert.equal(paid.status, 'paid');
+  assert.equal(paid.transaction_id, `WX_SMOKE_${orderNo}`);
 });
 
 test('avatar upload rejects content that does not match image MIME', async () => {

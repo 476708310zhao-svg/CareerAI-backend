@@ -6,10 +6,13 @@ const ALL_ADMIN_PERMISSIONS = [
   'jobs',
   'companies',
   'experiences',
+  'questions',
+  'starTemplates',
   'comments',
   'campus',
   'agencies',
   'announcements',
+  'feedback',
   'users',
   'memberships',
   'resumes',
@@ -24,10 +27,13 @@ const PERMISSION_LABELS = {
   jobs: '岗位管理',
   companies: '公司管理',
   experiences: '面经管理',
+  questions: '题库管理',
+  starTemplates: 'STAR 模板',
   comments: '评论管理',
   campus: '校招日历',
   agencies: '机构管理',
   announcements: '资讯公告',
+  feedback: '反馈管理',
   users: '用户管理',
   memberships: '会员权益',
   resumes: '简历管理',
@@ -61,10 +67,13 @@ function permissionForAdminPath(path = '') {
   if (path.includes('/api/jobs')) return 'jobs';
   if (path.includes('/api/companies')) return 'companies';
   if (path.includes('/api/experiences')) return 'experiences';
+  if (path.includes('/api/interview-questions')) return 'questions';
+  if (path.includes('/api/star-templates')) return 'starTemplates';
   if (path.includes('/api/comments')) return 'comments';
   if (path.includes('/api/campus')) return 'campus';
   if (path.includes('/api/agency-reviews') || path.includes('/api/agencies')) return 'agencies';
   if (path.includes('/api/announcements')) return 'announcements';
+  if (path.includes('/api/feedbacks')) return 'feedback';
   if (path.includes('/api/memberships') || path.includes('/api/users/') && path.includes('/vip')) return 'memberships';
   if (path.includes('/api/users')) return 'users';
   if (path.includes('/api/resumes')) return 'resumes';
