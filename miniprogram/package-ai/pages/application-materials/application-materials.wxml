@@ -37,7 +37,7 @@
         bindtap="setType"
         data-type="{{item.code}}"
       >
-        <text>{{item.label}}</text>
+        <text class="tab-label">{{item.label}}</text>
         <text class="tab-count">{{item.count}}</text>
       </view>
     </view>

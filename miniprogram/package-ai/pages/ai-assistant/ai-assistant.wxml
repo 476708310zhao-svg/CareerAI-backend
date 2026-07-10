@@ -83,7 +83,8 @@
     scroll-y
     scroll-into-view="{{scrollId}}"
     scroll-with-animation
-    style="margin-bottom: {{keyboardHeight > 0 ? keyboardHeight + 'px' : '0'}};"
+    enhanced
+    show-scrollbar="{{false}}"
   >
     <view class="msg-list">
       <c-ai-disclosure text="本页 AI 问答回复由人工智能生成，仅供求职参考，请核验后使用。" />
@@ -229,12 +230,12 @@
       </block>
 
       <!-- Perf fix: 底部固定锚点，scroll-into-view 永远定位到此 -->
-      <view id="scroll-anchor" style="height: 24rpx;"></view>
+      <view id="scroll-anchor" style="height: {{keyboardHeight > 0 ? 180 : 220}}rpx;"></view>
     </view>
   </scroll-view>
 
   <!-- 输入栏 -->
-  <view class="input-bar" style="padding-bottom: calc(24rpx + {{safeBottom}}px);">
+  <view class="input-bar {{keyboardHeight > 0 ? 'keyboard-open' : ''}}" style="bottom: {{keyboardHeight}}px; padding-bottom: {{keyboardHeight > 0 ? 18 : safeBottom + 18}}px;">
     <view class="input-wrap">
       <text class="input-leading">AI</text>
       <input
@@ -243,11 +244,16 @@
         placeholder-class="input-ph"
         value="{{inputText}}"
         bindinput="onInputChange"
+        bindfocus="onInputFocus"
+        bindblur="onInputBlur"
         bindconfirm="onSend"
         bindkeyboardheightchange="onKeyboardHeight"
         confirm-type="send"
+        confirm-hold="{{true}}"
         maxlength="300"
         adjust-position="{{false}}"
+        cursor-spacing="24"
+        hold-keyboard="{{true}}"
       />
     </view>
     <view class="input-right">

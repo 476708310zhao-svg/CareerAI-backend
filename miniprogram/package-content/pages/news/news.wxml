@@ -33,16 +33,6 @@
   </view>
 
   <view class="filter-panel">
-    <view class="segmented">
-      <view
-        wx:for="{{langTabs}}"
-        wx:key="id"
-        class="seg-item {{currentLang === item.id ? 'active' : ''}}"
-        bindtap="switchLang"
-        data-id="{{item.id}}"
-      >{{item.name}}</view>
-    </view>
-
     <scroll-view scroll-x class="tab-scroll" scroll-with-animation>
       <view class="tab-row">
         <view

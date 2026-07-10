@@ -333,9 +333,12 @@ Page({
   onLoad(options = {}) {
     this._ensureRuntimeState();
     const info = wx.getSystemInfoSync();
+    const safeBottom = info.safeArea && info.screenHeight
+      ? Math.max(0, info.screenHeight - info.safeArea.bottom)
+      : (info.safeAreaInsets ? info.safeAreaInsets.bottom : 0);
     this.setData({
       statusBarHeight: info.statusBarHeight || 44,
-      safeBottom: info.safeAreaInsets ? info.safeAreaInsets.bottom : 0
+      safeBottom
     });
     this._buildUserContext();
     this._restoreOrInit();
@@ -477,9 +480,18 @@ Page({
   },
 
   onKeyboardHeight(e) {
-    if (e.detail.height === this.data.keyboardHeight) return;
-    this.setData({ keyboardHeight: e.detail.height });
-    wx.nextTick(() => this._scrollTo());
+    const height = Math.max(0, Number(e.detail && e.detail.height) || 0);
+    if (height === this.data.keyboardHeight) return;
+    this.setData({ keyboardHeight: height });
+    setTimeout(() => this._scrollTo(), height ? 80 : 0);
+  },
+
+  onInputFocus() {
+    setTimeout(() => this._scrollTo(), 120);
+  },
+
+  onInputBlur() {
+    setTimeout(() => this._scrollTo(), 120);
   },
 
   // ── 发送 & 停止 ──────────────────────────────────────────

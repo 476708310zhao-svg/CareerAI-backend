@@ -157,28 +157,45 @@ page {
   width: 100%;
   margin-top: 18rpx;
   white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .tab-row {
-  display: flex;
+  min-width: 100%;
+  display: inline-flex;
   gap: 12rpx;
   padding-bottom: 6rpx;
+  vertical-align: top;
 }
 
 .tab {
-  min-width: 132rpx;
+  flex: 0 0 auto;
+  min-width: 118rpx;
+  max-width: 330rpx;
   height: 62rpx;
-  padding: 0 18rpx;
+  padding: 0 20rpx;
   border-radius: 999rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8rpx;
+  box-sizing: border-box;
   color: #475467;
   background: #ffffff;
   border: 1rpx solid #e6ebf2;
   font-size: 23rpx;
   font-weight: 850;
+  overflow: hidden;
+}
+
+.tab-label {
+  display: block;
+  min-width: 0;
+  max-width: 244rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 62rpx;
 }
 
 .tab.active {
@@ -188,9 +205,11 @@ page {
 }
 
 .tab-count {
+  flex: 0 0 auto;
   color: inherit;
   opacity: 0.72;
   font-size: 20rpx;
+  line-height: 62rpx;
 }
 
 .material-card,
