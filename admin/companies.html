@@ -27,6 +27,7 @@
         <div><h1>公司管理</h1><div class="sub">维护小程序公司搜索、公司详情和 logo 数据</div></div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-outline" onclick="syncSeed()"><i class="fa-solid fa-rotate"></i> 同步种子企业</button>
+          <button class="btn btn-outline" id="feishuSyncBtn" onclick="syncFeishuCompanies()"><i class="fa-solid fa-cloud-arrow-down"></i> 同步飞书公司库</button>
           <button class="btn btn-primary" onclick="openAdd()"><i class="fa-solid fa-plus"></i> 新增公司</button>
         </div>
       </div>
@@ -185,6 +186,29 @@ async function syncSeed() {
     loadCompanies(1);
   } else {
     toast(res?.message || '同步失败', 'error');
+  }
+}
+
+async function syncFeishuCompanies() {
+  const btn = document.getElementById('feishuSyncBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 正在同步';
+  }
+  try {
+    const res = await POST('/admin/api/companies/import-feishu', {});
+    if (res && res.code === 0) {
+      const data = res.data || {};
+      toast(`已同步飞书公司库：新增 ${data.inserted || 0}，更新 ${data.updated || 0}`);
+      loadCompanies(1);
+    } else {
+      toast(res?.message || '飞书公司库同步失败', 'error');
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down"></i> 同步飞书公司库';
+    }
   }
 }
 

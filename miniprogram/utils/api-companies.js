@@ -19,10 +19,13 @@ function normalizeCompany(company) {
   });
 }
 
-function getCompanies(data) {
+function requestCompanies(data) {
+  const params = Object.assign({}, data || {});
+  delete params.includeFeishu;
+  delete params.skipFeishu;
   return request({
     path: '/api/companies',
-    params: data || {},
+    params,
     cacheTTL: 30 * 60 * 1000
   }).then(res => {
     if (res && res.data && Array.isArray(res.data.list)) {
@@ -30,6 +33,10 @@ function getCompanies(data) {
     }
     return res;
   });
+}
+
+function getCompanies(data) {
+  return requestCompanies(data || {});
 }
 
 function getCompanyDetail(id, name) {
@@ -40,6 +47,7 @@ function getCompanyDetail(id, name) {
     params,
     cacheTTL: DETAIL_CACHE_TTL
   }).then(res => {
+    if (!res || !res.data || Array.isArray(res.data)) throw new Error('empty company detail');
     if (res && res.data) res.data = normalizeCompany(res.data);
     return res;
   });

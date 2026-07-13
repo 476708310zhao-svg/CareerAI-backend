@@ -2,11 +2,13 @@
 // The mini program keeps no API secrets. All business requests use the HTTPS production API.
 
 const PROD_API_BASE_URL = 'https://api.zhiyincareer.com';
+const FEISHU_CONTENT_API_BASE_URL = 'https://feishu-bitable-action-api.onrender.com';
 
 module.exports = {
   API_BASE_URL: PROD_API_BASE_URL,
   ASSET_BASE_URL: PROD_API_BASE_URL,
   CONTENT_API_BASE_URL: PROD_API_BASE_URL,
+  FEISHU_CONTENT_API_BASE_URL,
 
   // Public LeetCode endpoint.
   LEETCODE_API_URL: 'https://leetcode.cn/graphql',

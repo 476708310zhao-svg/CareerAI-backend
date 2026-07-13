@@ -11,8 +11,8 @@ const browseHistory = require('../../utils/browse-history.js');
 const featureFlags = require('../../utils/feature-flags.js');
 const navigation = require('../../utils/navigation.js');
 const BANNER_CACHE_KEY = 'cachedBanners_v2';
-const HOME_NEWS_CACHE_KEY = 'cachedHomeNews_v1';
-const HOT_COMPANIES_CACHE_KEY = 'cachedHotCompanies_v1';
+const HOME_NEWS_CACHE_KEY = 'cachedHomeNews_v3';
+const HOT_COMPANIES_CACHE_KEY = 'cachedHotCompanies_v3';
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 const HOME_FEATURES = [
   { id: 1, name: '求职进度', icon: '/images/icon-apply.png', url: '/package-user/pages/job-progress/job-progress', badge: '2.0', bg: 'linear-gradient(145deg,#eef6ff,#f8fbff)' },

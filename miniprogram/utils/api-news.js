@@ -1,12 +1,43 @@
 const { request } = require('./api-client.js');
+const feishuContent = require('./api-feishu-content.js');
 
-function getNews(params) {
+function requestNews(params) {
+  const requestParams = Object.assign({}, params || { tab: 'all' });
+  delete requestParams.skipFeishu;
   return request({
     path: '/api/news',
-    params: params || { tab: 'all' },
+    params: requestParams,
     timeout: 8000,
     noCache: true
   });
+}
+
+function mergeNewsResponse(baseRes, feishuRes) {
+  const baseArticles = baseRes && Array.isArray(baseRes.articles) ? baseRes.articles : [];
+  const feishuArticles = feishuRes && Array.isArray(feishuRes.articles) ? feishuRes.articles : [];
+  const seen = {};
+  const articles = [];
+  baseArticles.slice(0, 3).concat(feishuArticles, baseArticles.slice(3)).forEach(item => {
+    const key = String((item && (item.title || item.id)) || '').trim().toLowerCase();
+    if (!key || seen[key]) return;
+    seen[key] = true;
+    articles.push(item);
+  });
+  return Object.assign({}, baseRes || { code: 0 }, {
+    code: 0,
+    articles,
+    total: Math.max(Number((baseRes && baseRes.total) || 0), articles.length)
+  });
+}
+
+function getNews(params) {
+  if (params && params.skipFeishu) return requestNews(params);
+
+  return requestNews(params)
+    .then(baseRes => feishuContent.getFeishuNews(params || {})
+      .then(feishuRes => mergeNewsResponse(baseRes, feishuRes))
+      .catch(() => baseRes))
+    .catch(() => feishuContent.getFeishuNews(params || {}));
 }
 
 function getExchangeRates(base) {
