@@ -21,6 +21,8 @@ const API_BASE = process.env.FEISHU_COMPANY_IMPORT_API_BASE_URL
   || process.env.FEISHU_CONTENT_API_BASE_URL
   || process.env.FEISHU_MINIPROGRAM_API_BASE_URL
   || DEFAULT_API_BASE;
+const IMPORT_TIMEOUT_MS = Math.max(Number(process.env.FEISHU_COMPANY_IMPORT_TIMEOUT_MS || 60000), 10000);
+const IMPORT_RETRIES = Math.max(Number(process.env.FEISHU_COMPANY_IMPORT_RETRIES || 3), 1);
 
 const FIELD_ALIASES = {
   display_name: [
@@ -324,11 +326,15 @@ function findExistingCompany(company) {
   `).get(...names, ...names, ...names, ...names, ...names);
 }
 
-function fetchJson(url) {
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function fetchJsonOnce(url, timeoutMs) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
     const client = parsed.protocol === 'http:' ? http : https;
-    const req = client.request(parsed, { method: 'GET', timeout: 30000 }, (res) => {
+    const req = client.request(parsed, { method: 'GET', timeout: timeoutMs }, (res) => {
       let body = '';
       res.setEncoding('utf8');
       res.on('data', chunk => { body += chunk; });
@@ -348,6 +354,22 @@ function fetchJson(url) {
     req.on('timeout', () => req.destroy(new Error('Feishu content API timeout')));
     req.end();
   });
+}
+
+async function fetchJson(url) {
+  let lastErr = null;
+  for (let attempt = 1; attempt <= IMPORT_RETRIES; attempt += 1) {
+    try {
+      return await fetchJsonOnce(url, IMPORT_TIMEOUT_MS);
+    } catch (err) {
+      lastErr = err;
+      if (attempt >= IMPORT_RETRIES) break;
+      const waitMs = Math.min(1000 * attempt, 3000);
+      console.warn(`Feishu content API request failed (${attempt}/${IMPORT_RETRIES}), retrying in ${waitMs}ms: ${err.message}`);
+      await delay(waitMs);
+    }
+  }
+  throw lastErr;
 }
 
 async function fetchCompanyItems(options = {}) {
