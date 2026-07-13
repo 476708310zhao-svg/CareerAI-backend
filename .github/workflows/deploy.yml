@@ -33,5 +33,6 @@ jobs:
             nvm use 18
             cd /www/wwwroot/jobapp-server
             npm install --production --silent
+            npm run sync:companies
             /root/.nvm/versions/node/v18.20.8/bin/pm2 restart jobapp-server
             echo "✅ Backend deployed at $(date)"
