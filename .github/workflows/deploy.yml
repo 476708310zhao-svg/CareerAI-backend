@@ -27,12 +27,14 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 22
+          script_stop: true
           script: |
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             nvm use 18
             cd /www/wwwroot/jobapp-server
             npm install --production --silent
+            npm rebuild better-sqlite3 --build-from-source --silent
             npm run sync:companies
             /root/.nvm/versions/node/v18.20.8/bin/pm2 restart jobapp-server
             echo "✅ Backend deployed at $(date)"
