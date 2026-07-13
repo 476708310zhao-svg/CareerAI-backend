@@ -36,5 +36,11 @@ jobs:
             npm install --production --silent
             npm rebuild better-sqlite3 --build-from-source --silent
             npm run sync:companies
-            /root/.nvm/versions/node/v18.20.8/bin/pm2 restart jobapp-server
+            /root/.nvm/versions/node/v18.20.8/bin/pm2 restart jobapp-server --update-env
+            sleep 5
+            curl -fsS "http://127.0.0.1:${PORT:-3001}/api/health" || (
+              /root/.nvm/versions/node/v18.20.8/bin/pm2 status &&
+              /root/.nvm/versions/node/v18.20.8/bin/pm2 logs jobapp-server --nostream --lines 120 &&
+              exit 1
+            )
             echo "✅ Backend deployed at $(date)"
