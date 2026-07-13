@@ -3,8 +3,8 @@ const { getNews } = require('../../../utils/api-news.js');
 const { normalizeNewsImageUrl } = require('../../../utils/assets.js');
 const demoData = require('../../../utils/demo-data.js');
 
-const HOME_NEWS_CACHE_KEY = 'cachedHomeNews_v2';
-const NEWS_PAGE_CACHE_KEY = 'cachedNewsPageFeed_v2';
+const HOME_NEWS_CACHE_KEY = 'cachedHomeNews_v3';
+const NEWS_PAGE_CACHE_KEY = 'cachedNewsPageFeed_v3';
 
 Page({
   data: {

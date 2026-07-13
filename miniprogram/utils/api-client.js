@@ -67,7 +67,8 @@ function _getAuthHeader() {
 function request(options) {
   const now = Date.now();
   const requestData = options.params || options.data || {};
-  const key = _cacheKey(options.path, requestData);
+  const baseUrl = options.baseUrl || API_BASE;
+  const key = _cacheKey(baseUrl + options.path, requestData);
   const ttl = typeof options.cacheTTL === 'number' ? options.cacheTTL : CACHE_TTL;
   const noCache = !!options.noCache || ttl <= 0;
   const softTimeout = options.timeout || 10000;
@@ -119,7 +120,7 @@ function request(options) {
     }, softTimeout);
 
     task = wx.request({
-      url: API_BASE + options.path,
+      url: baseUrl + options.path,
       method: 'GET',
       data: requestData,
       header: Object.assign({ 'Content-Type': 'application/json' }, _getAuthHeader()),
@@ -175,11 +176,12 @@ function request(options) {
  */
 function _write(options, _retried) {
   return new Promise((resolve, reject) => {
+    const baseUrl = options.baseUrl || API_BASE;
     const header = Object.assign({ 'Content-Type': 'application/json' },
       options.skipAuth ? {} : _getAuthHeader());
 
     wx.request({
-      url: API_BASE + options.path,
+      url: baseUrl + options.path,
       method: options.method || 'POST',
       data: options.body || options.data || {},
       header,

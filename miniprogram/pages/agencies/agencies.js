@@ -3,6 +3,7 @@ const api = require('../../utils/api');
 const { logoUrl } = require('../../utils/logo');
 const demoData = require('../../utils/demo-data');
 const AGENCY_LIST_CACHE_TTL = 30 * 60 * 1000;
+const AGENCY_LIST_CACHE_KEY = 'cachedAgencyList_v2';
 
 const REGION_LIST = ['全部地区', '北美', '美国', '加拿大', '英国', '中国内地', '新加坡', '澳洲', '香港', '线上'];
 const REGION_KEYWORDS = {
@@ -132,7 +133,7 @@ Page({
 
   loadCachedList() {
     try {
-      const cached = wx.getStorageSync('cachedAgencyList');
+      const cached = wx.getStorageSync(AGENCY_LIST_CACHE_KEY);
       if (!cached || cached.key !== this._cacheKey() || (Date.now() - (cached.t || 0)) > AGENCY_LIST_CACHE_TTL) return false;
       if (!Array.isArray(cached.list) || cached.list.length === 0) return false;
       this.setData({
@@ -172,7 +173,7 @@ Page({
       });
       if (reset) {
         try {
-          wx.setStorageSync('cachedAgencyList', {
+          wx.setStorageSync(AGENCY_LIST_CACHE_KEY, {
             key: this._cacheKey(),
             list: newList,
             total: res.total,

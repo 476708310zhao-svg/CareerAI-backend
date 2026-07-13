@@ -48,7 +48,7 @@ Page({
   },
 
   onLoad(options) {
-    this.agencyId = parseInt(options.id);
+    this.agencyId = options.id;
 
     // 读取当前登录用户 id
     const profile = wx.getStorageSync(SK.USER_PROFILE);

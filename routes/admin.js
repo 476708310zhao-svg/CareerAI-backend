@@ -12,6 +12,7 @@ const adminAuth = require('../middleware/adminAuth');
 const { parseId } = require('../db/utils');
 const { adminLoginLimiter } = require('../middleware/rateLimit');
 const companyService = require('../services/companyService');
+const feishuCompanyImport = require('../services/feishuCompanyImport');
 const { imageExtForMime, isAllowedImageMime, rejectInvalidImage } = require('../utils/uploadSecurity');
 const adminJobsStore = require('../utils/adminJobsStore');
 const { parsePagination, paginateArray } = require('../utils/pagination');
@@ -268,6 +269,21 @@ router.post('/api/companies/import-seed', adminAuth, (req, res) => {
   } catch (err) {
     console.error('[admin companies:seed]', err);
     res.status(500).json({ code: -1, message: '同步种子企业失败' });
+  }
+});
+
+router.post('/api/companies/import-feishu', adminAuth, async (req, res) => {
+  try {
+    const result = await feishuCompanyImport.importFeishuCompanies({
+      dryRun: booleanFlag(req.body && req.body.dryRun),
+      maxRecords: Number(req.body && req.body.maxRecords) || undefined,
+      pageSize: Number(req.body && req.body.pageSize) || undefined,
+      q: req.body && req.body.q
+    });
+    res.json({ code: 0, message: 'Feishu companies imported', data: result });
+  } catch (err) {
+    console.error('[admin companies:feishu-import]', err);
+    res.status(500).json({ code: -1, message: err.message || 'Feishu company import failed' });
   }
 });
 
