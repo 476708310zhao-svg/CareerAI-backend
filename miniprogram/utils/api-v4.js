@@ -63,8 +63,9 @@ function completeInterviewSession(id) { return write('POST', '/api/v4/interviews
 function cancelInterviewSession(id) { return write('POST', '/api/v4/interviews/sessions/' + encodeURIComponent(id) + '/cancel'); }
 function getInterviewReports() { return get('/api/v4/interviews/reports'); }
 function getInterviewTrends() { return get('/api/v4/interviews/trends'); }
-function getTodayTasks() { return get('/api/v4/interviews/today-tasks'); }
-function updateTodayTask(id, payload) { return write('PATCH', '/api/v4/interviews/today-tasks/' + encodeURIComponent(id), payload); }
+function getTodayTasks() { return get('/api/v4/today/tasks'); }
+function syncTodayTasks(payload) { return write('POST', '/api/v4/today/tasks/sync', payload); }
+function updateTodayTask(id, payload) { return write('PATCH', '/api/v4/today/tasks/' + encodeURIComponent(id), payload); }
 function getAgents() { return get('/api/v4/agents'); }
 function getAgentTasks() { return get('/api/v4/agents/tasks'); }
 function createAgentTask(payload) { return write('POST', '/api/v4/agents/tasks', payload); }
@@ -124,6 +125,7 @@ module.exports = {
   getInterviewReports,
   getInterviewTrends,
   getTodayTasks,
+  syncTodayTasks,
   updateTodayTask,
   getAgents,
   getAgentTasks,

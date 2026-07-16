@@ -3,6 +3,7 @@ const db = require('../../db/database');
 const { authMiddleware } = require('../../middleware/auth');
 const interview = require('../../services/v4Interview');
 const analytics = require('../../services/v4Analytics');
+const todayTasks = require('../../services/v4TodayTasks');
 const router = express.Router();
 router.use(authMiddleware);
 
@@ -65,16 +66,14 @@ router.get('/trends', (req, res) => {
   res.json({ code: 0, data: rows.map(row => ({ date: row.created_at, overallScore: row.overall_score, dimensions: JSON.parse(row.dimensions || '{}') })) });
 });
 router.get('/today-tasks', (req, res) => {
-  const rows = db.prepare("SELECT id, title, detail, priority, status, task_date AS taskDate FROM today_tasks_v4 WHERE user_id=? AND task_date=date('now') ORDER BY status, CASE priority WHEN 'high' THEN 0 ELSE 1 END, id DESC").all(req.user.userId);
-  res.json({ code: 0, data: rows });
+  res.json({ code: 0, data: todayTasks.list(req.user.userId) });
 });
 router.patch('/today-tasks/:id', (req, res) => {
   const done = req.body && req.body.completed === true;
-  const result = db.prepare("UPDATE today_tasks_v4 SET status=?, completed_at=CASE WHEN ? THEN datetime('now') ELSE '' END WHERE id=? AND user_id=?")
-    .run(done ? 'completed' : 'pending', done ? 1 : 0, Number(req.params.id), req.user.userId);
-  if (!result.changes) return res.status(404).json({ code: -1, message: '任务不存在' });
+  const data = todayTasks.updateStatus(req.user.userId, req.params.id, done);
+  if (!data) return res.status(404).json({ code: -1, message: '任务不存在' });
   if (done) analytics.track(req.user.userId, 'today_task_completed', { taskId: Number(req.params.id) }, '/api/v4/interviews/today-tasks/:id');
-  res.json({ code: 0, message: '任务已更新' });
+  res.json({ code: 0, data, message: '任务已更新' });
 });
 
 module.exports = router;

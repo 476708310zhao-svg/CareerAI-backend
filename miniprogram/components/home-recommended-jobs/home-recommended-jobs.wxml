@@ -1,0 +1,79 @@
+<view class="section">
+  <view class="section-head">
+    <view class="section-copy">
+      <text class="section-title">为你推荐</text>
+      <text class="section-subtitle">{{personalization || '根据你的目标方向筛选'}}</text>
+    </view>
+    <text class="section-more" bindtap="onMore">查看全部 ›</text>
+  </view>
+
+  <view class="job-list skeleton-list" wx:if="{{loading && !jobs.length}}">
+    <view class="job-row skeleton" wx:for="{{skeletonRows}}" wx:key="*this">
+      <view class="skeleton-logo"></view>
+      <view class="skeleton-company"></view>
+      <view class="row-divider"></view>
+      <view class="skeleton-copy">
+        <view class="skeleton-line long"></view>
+        <view class="skeleton-line medium"></view>
+      </view>
+      <view class="skeleton-score"></view>
+    </view>
+  </view>
+
+  <view class="state-card error" wx:elif="{{error && !jobs.length}}">
+    <view class="state-mark">!</view>
+    <text class="state-title">推荐岗位暂时加载失败</text>
+    <text class="state-desc">其他首页功能仍可正常使用。</text>
+    <view class="state-action" bindtap="onRetry">重新加载</view>
+  </view>
+
+  <view class="job-list" wx:elif="{{jobs.length}}">
+    <view
+      class="job-row"
+      wx:for="{{jobs}}"
+      wx:key="id"
+      data-index="{{index}}"
+      bindtap="onSelect"
+      hover-class="row-hover"
+    >
+      <view class="company-cell">
+        <c-company-logo
+          logo="{{item.logoSrc}}"
+          name="{{item.company}}"
+          fallback="{{item.companyInitial}}"
+          size="sm"
+          lazy-load="{{true}}"
+          custom-class="job-logo"
+        ></c-company-logo>
+        <text class="job-company">{{item.company}}</text>
+      </view>
+
+      <view class="row-divider"></view>
+
+      <view class="job-main">
+        <text class="job-title">{{item.title}}</text>
+        <view class="job-meta">
+          <text class="meta-pin">●</text>
+          <text>{{item.city}}{{item.stateSuffix}}</text>
+          <text class="meta-type" wx:if="{{item.type}}"> · {{item.type}}</text>
+        </view>
+      </view>
+
+      <view class="match-cell">
+        <text class="match-label">匹配度</text>
+        <text class="match-value" wx:if="{{item.matchPercentage}}">{{item.matchPercentage}}<text class="match-unit">%</text></text>
+        <text class="match-value neutral" wx:else>推荐</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="state-card" wx:else>
+    <view class="state-mark calm">↗</view>
+    <text class="state-title">完善目标后获得精准推荐</text>
+    <text class="state-desc">补充专业、目标岗位与地区，我们会重新生成推荐。</text>
+    <view class="empty-actions">
+      <view class="state-action" bindtap="onCompleteProfile">完善求职档案</view>
+      <view class="state-action secondary" bindtap="onMore">搜索岗位</view>
+    </view>
+  </view>
+</view>

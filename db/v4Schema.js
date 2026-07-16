@@ -357,6 +357,17 @@ function ensureV4Schema() {
   ].forEach(([name, ddl]) => {
     if (!materialColumns.includes(name)) db.exec(`ALTER TABLE application_materials ADD COLUMN ${name} ${ddl}`);
   });
+
+  const todayTaskColumns = db.pragma('table_info(today_tasks_v4)').map(column => column.name);
+  [
+    ['local_key', 'TEXT DEFAULT ""'],
+    ['task_type', 'TEXT DEFAULT "general"'],
+    ['url', 'TEXT DEFAULT ""'],
+    ['updated_at', 'TEXT DEFAULT ""']
+  ].forEach(([name, ddl]) => {
+    if (!todayTaskColumns.includes(name)) db.exec(`ALTER TABLE today_tasks_v4 ADD COLUMN ${name} ${ddl}`);
+  });
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_today_tasks_local_key ON today_tasks_v4(user_id, task_date, local_key) WHERE local_key != ''");
 }
 
 module.exports = { ensureV4Schema };

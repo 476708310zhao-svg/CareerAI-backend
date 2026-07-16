@@ -161,4 +161,4 @@ npm test
 
 | 负责人 | 文件范围 | 任务 | 状态 |
 |---|---|---|---|
-| Codex | `miniprogram/pages/index`、`miniprogram/components/home-*`、`docs/HOME_WORKBENCH_OPTIMIZATION_20260716.md` | 将首页重构为 AI 求职工作台，去除重复模块、限制首屏数据量并补齐状态组件 | 进行中 |
+| Codex | `miniprogram/pages/index`、`miniprogram/components/home-*`、`routes/v4/today.js`、`services/v4TodayTasks.js` | 重构首页求职工作台，并统一本地与服务端 Today 任务 | 已完成；76/76 tests、小程序检查通过；一级导航方案待单独确认 |

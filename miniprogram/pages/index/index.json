@@ -2,6 +2,10 @@
   "navigationBarTitleText": "职引",
   "enablePullDownRefresh": true,
   "usingComponents": {
-    "c-company-logo": "/components/c-company-logo/c-company-logo"
+    "home-career-plan": "/components/home-career-plan/home-career-plan",
+    "home-core-tools": "/components/home-core-tools/home-core-tools",
+    "home-campus-updates": "/components/home-campus-updates/home-campus-updates",
+    "home-recommended-jobs": "/components/home-recommended-jobs/home-recommended-jobs",
+    "home-career-insights": "/components/home-career-insights/home-career-insights"
   }
 }

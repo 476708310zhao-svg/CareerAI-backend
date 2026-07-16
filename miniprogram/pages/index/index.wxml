@@ -1,333 +1,81 @@
 <view class="page">
-
-  <!-- 搜索框 -->
-  <view wx:if="{{recruitmentEnabled}}" class="search-wrap" bindtap="goToJobSearch">
-    <image src="/images/search.png" class="search-icon"></image>
-    <text class="search-text">搜索职位、公司或面经</text>
+  <view class="search-wrap" bindtap="goToJobSearch" hover-class="search-hover">
+    <image src="/images/search.png" class="search-icon" mode="aspectFit"></image>
+    <text class="search-text">搜索职位、公司或岗位</text>
   </view>
 
-  <!-- 今日求职工作台 -->
-  <view class="workbench-card">
-    <view class="workbench-head">
-      <view class="workbench-copy">
-        <text class="workbench-kicker">今日求职工作台</text>
-        <text class="workbench-title">{{workbench.title}}</text>
-      </view>
-      <view class="workbench-primary" bindtap="navigateToPage" data-url="{{workbench.primaryUrl}}" hover-class="opacity-hover">
-        <text>{{workbench.primaryText}}</text>
-        <text class="workbench-primary-arrow">›</text>
-      </view>
-    </view>
-    <view class="workbench-metrics">
-      <block wx:for="{{workbench.metrics}}" wx:key="label">
-        <view class="workbench-metric {{item.tone}}">
-          <text class="workbench-metric-value">{{item.value}}<text wx:if="{{item.suffix}}" class="workbench-metric-suffix">{{item.suffix}}</text></text>
-          <text class="workbench-metric-label">{{item.label}}</text>
-        </view>
-      </block>
-    </view>
-    <view class="workbench-action-grid">
-      <block wx:for="{{workbenchActions}}" wx:key="id">
-        <view class="workbench-action {{item.tone}}" bindtap="navigateToPage" data-url="{{item.url}}" hover-class="opacity-hover">
-          <image src="{{item.icon}}" class="workbench-action-icon" mode="aspectFit"></image>
-          <view class="workbench-action-copy">
-            <text class="workbench-action-title">{{item.title}}</text>
-            <text class="workbench-action-desc">{{item.desc}}</text>
-          </view>
-        </view>
-      </block>
-    </view>
-  </view>
+  <view class="home-content">
+    <home-career-plan
+      plan="{{workbench}}"
+      bind:action="navigateToPage"
+    ></home-career-plan>
 
-  <!-- Banner 轮播 -->
-  <view class="banner-wrap" wx:if="{{bannerList.length > 0}}">
-    <swiper class="banner-swiper" autoplay circular interval="4000" indicator-dots indicator-color="rgba(255,255,255,0.5)" indicator-active-color="#ffffff" bindchange="onBannerChange">
-      <block wx:for="{{bannerList}}" wx:key="id">
-        <swiper-item>
-          <view wx:if="{{item.imageUrl}}" class="banner-item" bindtap="navigateToPage" data-url="{{item.url}}" hover-class="opacity-hover">
-            <image src="{{item.imageUrl}}" class="banner-bg-image" mode="aspectFill" data-index="{{index}}" binderror="onBannerImageError"></image>
-          </view>
-          <view wx:else class="banner-item banner-gradient" bindtap="navigateToPage" data-url="{{item.url}}" hover-class="opacity-hover"
-            style="background:{{item.gradient}};">
-            <view class="banner-text-layer">
-              <text class="banner-icon">{{item.icon}}</text>
-              <text class="banner-title">{{item.title}}</text>
-              <text class="banner-sub">{{item.subtitle}}</text>
+    <home-core-tools
+      tools="{{workbenchActions}}"
+      bind:select="navigateToPage"
+    ></home-core-tools>
+
+    <view class="banner-wrap" wx:if="{{bannerList.length > 0}}">
+      <swiper
+        class="banner-swiper"
+        autoplay
+        circular
+        interval="4000"
+        indicator-dots="{{bannerList.length > 1}}"
+        indicator-color="rgba(255,255,255,0.55)"
+        indicator-active-color="#ffffff"
+        bindchange="onBannerChange"
+      >
+        <block wx:for="{{bannerList}}" wx:key="id">
+          <swiper-item>
+            <view class="banner-item" bindtap="navigateToPage" data-url="{{item.url}}" hover-class="banner-hover">
+              <image wx:if="{{item.imageUrl}}" src="{{item.imageUrl}}" class="banner-bg-image" mode="aspectFill" data-index="{{index}}" binderror="onBannerImageError"></image>
+              <view wx:else class="banner-gradient" style="background:{{item.gradient}};">
+                <view class="banner-copy">
+                  <text class="banner-title">{{item.title}}</text>
+                  <text class="banner-sub">{{item.subtitle}}</text>
+                  <text class="banner-action">立即查看</text>
+                </view>
+                <text class="banner-icon">{{item.icon}}</text>
+              </view>
             </view>
-          </view>
-        </swiper-item>
-      </block>
-    </swiper>
-  </view>
-
-  <!-- 金刚区 -->
-  <view class="feature-grid">
-    <block wx:for="{{features}}" wx:key="id">
-      <view class="feature-item {{item.isAiClass}}" bindtap="navigateToPage" data-url="{{item.url}}" hover-class="opacity-hover">
-        <view class="feature-icon-wrap" style="background: {{item.bg}};">
-          <image src="{{item.icon}}" class="feature-icon" mode="aspectFit"></image>
-          <view wx:if="{{item.badge}}" class="feature-badge">{{item.badge}}</view>
-        </view>
-        <text class="feature-name">{{item.name}}</text>
-      </view>
-    </block>
-  </view>
-
-  <view wx:if="{{recruitmentEnabled}}" class="daily-progress-card">
-    <view class="daily-progress-main" bindtap="navigateToPage" data-url="/package-ai/pages/daily-brief/daily-brief" hover-class="opacity-hover">
-      <view class="daily-progress-head">
-        <text class="daily-kicker">今日求职简报</text>
-        <text class="daily-title">{{progressSummary.total ? '继续推进 ' + progressSummary.active + ' 个机会' : '从第一条进度开始'}}</text>
-      </view>
-      <text class="daily-advice">{{progressSummary.advice}}</text>
-      <view class="daily-stat-row">
-        <text>{{progressSummary.dueSoon}} 个即将截止</text>
-        <text>{{progressSummary.todayInterviews}} 个今日面试</text>
-      </view>
-      <view class="today-task-head" wx:if="{{todayTasks.length}}">
-        <text class="today-task-label">今日任务</text>
-        <text class="today-task-count">{{todayTaskStats.done}}/{{todayTaskStats.total}}</text>
-      </view>
-      <view class="today-task-list" wx:if="{{todayTasks.length}}">
-        <view
-          wx:for="{{todayTasks}}"
-          wx:for-index="taskIndex"
-          wx:key="id"
-          wx:if="{{taskIndex < 3}}"
-          class="today-task-item {{item.done ? 'done' : ''}} {{item.priority}}"
-          catchtap="openTodayTask"
-          data-url="{{item.url}}"
-        >
-          <view class="today-task-check" catchtap="toggleTodayTask" data-id="{{item.id}}">
-            <text wx:if="{{item.done}}">✓</text>
-          </view>
-          <view class="today-task-copy">
-            <text class="today-task-title">{{item.title}}</text>
-            <text class="today-task-desc">{{item.desc}}</text>
-          </view>
-        </view>
-      </view>
-    </view>
-  <view class="daily-progress-actions">
-      <view class="daily-action primary" catchtap="navigateToPage" data-url="/package-user/pages/job-progress/job-progress" hover-class="opacity-hover">进度</view>
-      <view class="daily-action" catchtap="navigateToPage" data-url="/package-ai/pages/daily-brief/daily-brief" hover-class="opacity-hover">简报</view>
-    </view>
-  </view>
-
-  <view wx:if="{{campusFeatured || campusUpdates.length || campusUpdateLoading || campusUpdateReady}}" class="campus-daily-section">
-    <view class="section-header campus-daily-header">
-      <view class="section-heading">
-        <text class="section-title">今日校招信息更新</text>
-        <text class="section-subtitle">{{campusUpdateDateLabel}} · 新开网申 / 即将截止 / 热门企业</text>
-      </view>
-      <view bindtap="goToCampusList" hover-class="opacity-hover">
-        <text class="section-more">校招日历 ›</text>
-      </view>
-    </view>
-
-    <view wx:if="{{campusUpdateLoading && !campusFeatured}}" class="campus-daily-card campus-skeleton">
-      <view class="campus-skeleton-logo"></view>
-      <view class="campus-skeleton-main">
-        <view class="campus-skeleton-line long"></view>
-        <view class="campus-skeleton-line"></view>
-        <view class="campus-skeleton-line short"></view>
-      </view>
-    </view>
-
-    <view wx:if="{{campusFeatured}}" class="campus-daily-card">
-      <view class="campus-featured" bindtap="goToCampusUpdateDetail" data-id="{{campusFeatured.id}}" hover-class="opacity-hover">
-        <view class="campus-featured-head">
-          <c-company-logo
-            logo="{{campusFeatured.companyLogo}}"
-            name="{{campusFeatured.company}}"
-            fallback="{{campusFeatured.companyInitial}}"
-            size="md"
-            lazy-load="{{true}}"
-            custom-class="campus-featured-logo"
-            bind:error="onCampusLogoError"
-            data-type="featured"
-          ></c-company-logo>
-          <view class="campus-featured-copy">
-            <view class="campus-featured-topline">
-              <text class="campus-badge {{campusFeatured.isUrgent ? 'urgent' : ''}}">{{campusFeatured.badgeText}}</text>
-              <text class="campus-updated">{{campusFeatured.updatedText}}</text>
-            </view>
-            <text class="campus-featured-title">{{campusFeatured.title}}</text>
-            <text class="campus-featured-sub">{{campusFeatured.subtitle}}</text>
-          </view>
-        </view>
-        <view class="campus-featured-meta">
-          <text>{{campusFeatured.deadlineText}}</text>
-          <text>{{campusFeatured.tagText}}</text>
-        </view>
-      </view>
-
-      <view class="campus-update-list" wx:if="{{campusUpdates.length}}">
-        <block wx:for="{{campusUpdates}}" wx:key="id">
-          <view class="campus-update-item" bindtap="goToCampusUpdateDetail" data-id="{{item.id}}" hover-class="opacity-hover">
-            <view class="campus-update-main">
-              <text class="campus-update-title">{{item.title}}</text>
-              <text class="campus-update-sub">{{item.subtitle}}</text>
-            </view>
-            <view class="campus-update-side">
-              <text class="campus-update-deadline {{item.isUrgent ? 'urgent' : ''}}">{{item.deadlineText}}</text>
-              <text class="campus-update-tag">{{item.badgeText}}</text>
-            </view>
-          </view>
+          </swiper-item>
         </block>
-      </view>
+      </swiper>
     </view>
 
-    <view wx:if="{{campusUpdateReady && !campusUpdateLoading && !campusFeatured && !campusUpdates.length}}" class="campus-daily-card campus-empty" bindtap="goToCampusList" hover-class="opacity-hover">
-      <text class="campus-empty-title">暂无新的校招更新</text>
-      <text class="campus-empty-sub">去校招信息页查看全部企业与岗位</text>
-      <text class="campus-empty-action">查看校招日历</text>
-    </view>
+    <home-recommended-jobs
+      wx:if="{{recruitmentEnabled}}"
+      jobs="{{recommendJobs}}"
+      loading="{{loadingJobs}}"
+      error="{{jobsError}}"
+      personalization="{{recommendTitle}}"
+      bind:select="goToJobDetail"
+      bind:more="viewMoreJobs"
+      bind:complete="goCompleteProfile"
+      bind:retry="retryRecommendJobs"
+    ></home-recommended-jobs>
+
+    <home-campus-updates
+      featured="{{campusFeatured}}"
+      updates="{{campusUpdates}}"
+      loading="{{campusUpdateLoading}}"
+      ready="{{campusUpdateReady}}"
+      date-label="{{campusUpdateDateLabel}}"
+      bind:more="goToCampusList"
+      bind:select="goToCampusUpdateDetail"
+      bind:logoerror="onCampusLogoError"
+    ></home-campus-updates>
+
+    <home-career-insights
+      insights="{{newsFeed}}"
+      loading="{{newsLoading}}"
+      error="{{newsError}}"
+      bind:select="viewNewsDetail"
+      bind:more="goToNews"
+      bind:retry="retryNews"
+    ></home-career-insights>
   </view>
 
-  <view wx:if="{{membershipEnabled}}" class="pro-teaser" bindtap="navigateToPage" data-url="/package-user/pages/vip/vip" hover-class="opacity-hover">
-    <view class="pro-mark">PRO</view>
-    <view class="pro-copy">
-      <text class="pro-title">求职会员权益</text>
-      <text class="pro-sub">简历优化、模拟面试和薪资数据等进阶能力</text>
-    </view>
-    <view class="pro-cta">查看</view>
-  </view>
-
-  <!-- 热门企业 -->
-  <view class="section">
-    <view class="section-header">
-      <view class="section-heading">
-        <text class="section-title">热门企业</text>
-        <text class="section-subtitle">名企情报 · Logo 实时同步</text>
-      </view>
-      <view bindtap="viewMoreCompanies" hover-class="opacity-hover">
-        <text class="section-more">查看全部 ›</text>
-      </view>
-    </view>
-    <scroll-view scroll-x enhanced show-scrollbar="{{false}}" style="white-space:nowrap;">
-      <view class="company-scroll-list">
-        <block wx:for="{{hotCompanies}}" wx:key="id">
-          <view class="company-card" bindtap="goToCompanyDetail" data-id="{{item.id}}" data-name="{{item.name}}" hover-class="opacity-hover">
-            <c-company-logo
-              logo="{{item.logoSrc}}"
-              name="{{item.name}}"
-              fallback="{{item.initial}}"
-              size="md"
-              lazy-load="{{true}}"
-              custom-class="company-avatar"
-              bind:error="onCompanyLogoError"
-              data-idx="{{index}}"
-            ></c-company-logo>
-            <text class="company-name">{{item.name}}</text>
-            <text class="company-desc">{{item.description}}</text>
-          </view>
-        </block>
-      </view>
-    </scroll-view>
-  </view>
-
-  <!-- 今日热门 -->
-  <view wx:if="{{recruitmentEnabled}}" class="section">
-    <view class="section-header">
-      <view class="section-heading">
-        <text class="section-title">今日热门</text>
-        <text class="section-subtitle">按你的方向优先推荐</text>
-      </view>
-      <view bindtap="viewMoreJobs" hover-class="opacity-hover">
-        <text class="section-more">查看更多 ›</text>
-      </view>
-    </view>
-
-    <!-- 骨架屏 -->
-    <block wx:if="{{loadingJobs && recommendJobs.length === 0}}">
-      <view wx:for="{{skeletonRows}}" wx:key="*this" class="job-card skeleton">
-        <view class="job-card-body">
-          <view class="skeleton-line" style="width:110rpx;height:22rpx;margin-bottom:14rpx;border-radius:6rpx;"></view>
-          <view class="skeleton-line long"></view>
-          <view class="skeleton-line short" style="margin-top:10rpx;"></view>
-        </view>
-        <view class="skeleton-thumb" style="width:88rpx;height:88rpx;border-radius:16rpx;flex-shrink:0;"></view>
-      </view>
-    </block>
-
-    <view wx:if="{{!loadingJobs && recommendJobs.length === 0}}" class="jobs-empty-card">
-      <view class="jobs-empty-icon">AI</view>
-      <text class="jobs-empty-title">还没有匹配到岗位</text>
-      <text class="jobs-empty-desc">先完善求职档案，或直接搜索目标岗位，系统会重新生成推荐。</text>
-      <view class="jobs-empty-actions">
-        <view class="jobs-empty-btn primary" bindtap="goCompleteProfile" hover-class="opacity-hover">完善档案</view>
-        <view class="jobs-empty-btn" bindtap="goToJobSearch" hover-class="opacity-hover">搜索岗位</view>
-      </view>
-    </view>
-
-    <!-- 职位列表 -->
-    <block wx:for="{{recommendJobs}}" wx:key="id">
-      <view class="job-card" bindtap="goToJobDetail" data-id="{{item.id}}" data-title="{{item.title}}" hover-class="opacity-hover">
-        <view class="job-card-body">
-          <view class="job-card-topline">
-            <text class="job-card-loc">{{item.city}}{{item.stateSuffix}}</text>
-            <text class="job-card-pill">推荐</text>
-          </view>
-          <text class="job-card-title">{{item.title}}</text>
-          <view class="job-card-meta">
-            <text class="job-card-co">{{item.company}}</text>
-            <text class="job-card-dot">·</text>
-            <text class="job-card-sal">{{item.salary}}</text>
-          </view>
-        </view>
-        <c-company-logo
-          logo="{{item.logoSrc}}"
-          name="{{item.company}}"
-          fallback="{{item.companyInitial}}"
-          size="md"
-          lazy-load="{{true}}"
-          custom-class="job-card-logo-wrap"
-          bind:error="onLogoError"
-          data-index="{{index}}"
-        ></c-company-logo>
-      </view>
-    </block>
-  </view>
-
-  <!-- 求职快讯 -->
-  <view class="section">
-    <view class="section-header">
-      <view class="section-heading">
-        <text class="section-title">求职快讯</text>
-        <text class="section-subtitle">政策、面经、数据趋势</text>
-      </view>
-      <view bindtap="goToNews" hover-class="opacity-hover">
-        <text class="section-more">更多 ›</text>
-      </view>
-    </view>
-
-    <block wx:for="{{newsFeed}}" wx:key="id">
-      <view class="news-item" bindtap="viewNewsDetail" data-item="{{item}}" hover-class="opacity-hover">
-        <view class="news-content">
-          <text class="news-category {{item.type}}">{{item.categoryLabel}}</text>
-          <text class="news-title">{{item.title}}</text>
-          <view class="news-meta">
-            <text class="news-source">{{item.sourceText}}</text>
-            <text class="news-dot">·</text>
-            <text class="news-time">{{item.time}}</text>
-          </view>
-        </view>
-        <image wx:if="{{item.image}}" src="{{item.image}}" class="news-thumb" mode="aspectFill"></image>
-        <view wx:else class="news-thumb-placeholder {{item.type}}">
-          <view class="news-thumb-aura"></view>
-          <view class="news-icon-card">
-            <view class="news-icon-dot"></view>
-            <view class="news-icon-line main"></view>
-            <view class="news-icon-line"></view>
-            <view class="news-icon-line short"></view>
-          </view>
-        </view>
-      </view>
-    </block>
-  </view>
-
-  <!-- 底部留白 -->
-  <view style="height: 32rpx;"></view>
-
+  <view class="page-bottom-spacer"></view>
 </view>

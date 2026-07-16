@@ -12,6 +12,7 @@ const { normalizeBannerUrl } = require('../../utils/assets.js');
 const browseHistory = require('../../utils/browse-history.js');
 const featureFlags = require('../../utils/feature-flags.js');
 const navigation = require('../../utils/navigation.js');
+const apiV4 = require('../../utils/api-v4.js');
 const BANNER_CACHE_KEY = 'cachedBanners_v2';
 const HOME_NEWS_CACHE_KEY = 'cachedHomeNews_v3';
 const HOT_COMPANIES_CACHE_KEY = 'cachedHotCompanies_v3';
@@ -32,11 +33,11 @@ const HOME_FEATURES = [
   { id: 9, name: '机构测评', icon: '/images/assess-active.png', url: '/pages/agencies/agencies', badge: '', bg: 'linear-gradient(145deg,#fff7ed,#f8fbff)' },
   { id: 10, name: '求职规划', icon: '/images/icon-plan.png', url: '/package-career/pages/career-planner/career-planner', badge: '', bg: 'linear-gradient(145deg,#f8fafc,#eef6ff)' }
 ];
-const WORKBENCH_ACTIONS = [
-  { id: 'resume', title: '上传/管理简历', desc: '先维护默认简历和目标方向', icon: '/images/icon-resume.png', url: '/package-career/pages/resume/resume', tone: 'blue' },
-  { id: 'jd', title: '上传 JD，测匹配度', desc: '快速看分数、关键词和缺口', icon: '/images/icon-ai-assistant.png', url: '/package-ai/pages/jd-match/jd-match', tone: 'green' },
-  { id: 'progress', title: '我的投递进度', desc: '更新状态、提醒和下一步', icon: '/images/icon-apply.png', url: '/package-user/pages/job-progress/job-progress', tone: 'amber' },
-  { id: 'interview', title: 'AI 模拟面试', desc: '按目标岗位定制练习', icon: '/images/icon-interview.png', url: '/package-ai/pages/interview-setup/interview-setup', tone: 'indigo' }
+const CORE_TOOLS = [
+  { id: 'jd', title: 'JD 岗位匹配', desc: '分析岗位与个人背景匹配度', icon: '/images/icon-ai-assistant.png', url: '/package-ai/pages/jd-match/jd-match', tone: 'blue' },
+  { id: 'resume', title: '简历优化', desc: 'ATS 评分与针对性优化', icon: '/images/icon-resume.png', url: '/package-career/pages/ats-optimize/ats-optimize', tone: 'green' },
+  { id: 'progress', title: '投递追踪', desc: '管理岗位和申请进度', icon: '/images/icon-apply.png', url: '/package-user/pages/job-progress/job-progress', tone: 'amber' },
+  { id: 'interview', title: 'AI 模拟面试', desc: '针对目标岗位进行练习', icon: '/images/icon-interview.png', url: '/package-ai/pages/interview-setup/interview-setup', tone: 'indigo' }
 ];
 
 // TabBar 页面路径列表，用于判断跳转方式
@@ -108,12 +109,15 @@ Page({
     // 4. 推荐职位
     recommendJobs: [],
     loadingJobs: true,
+    jobsError: false,
     recommendTitle: '为您推荐',
     prefTags: [],
     activePrefTag: '',
 
-    // 5. 求职快讯
+    // 5. 求职情报
     newsFeed: [],
+    newsLoading: true,
+    newsError: false,
 
     // 6. 资料完整度引导
     profileCompleteness: 0,
@@ -127,12 +131,16 @@ Page({
       primaryText: '管理简历',
       primaryUrl: '/package-career/pages/resume/resume',
       metrics: [
-        { label: '最近 ATS', value: '--', suffix: '', tone: 'muted' },
-        { label: '今日校招', value: '0', suffix: '条', tone: 'blue' },
-        { label: '待处理', value: '0', suffix: '项', tone: 'amber' }
-      ]
+        { label: '推荐岗位', value: '0', suffix: '个', tone: 'blue', icon: '/images/icon-ai-assistant.png' },
+        { label: '待投递', value: '0', suffix: '个', tone: 'muted', icon: '/images/icon-apply.png' },
+        { label: '待面试', value: '0', suffix: '个', tone: 'amber', icon: '/images/icon-interview.png' },
+        { label: '进行中', value: '0', suffix: '个', tone: 'muted', icon: '/images/icon-plan.png' }
+      ],
+      suggestionTitle: '先完成求职档案',
+      suggestionDesc: '补充简历、目标岗位与求职地区',
+      suggestionUrl: '/package-user/pages/profile-edit/profile-edit'
     },
-    workbenchActions: WORKBENCH_ACTIONS,
+    workbenchActions: CORE_TOOLS,
     progressSummary: {
       total: 0,
       active: 0,
@@ -168,10 +176,14 @@ Page({
       this.syncWorkbenchReports();
       const hasCachedCampusUpdates = this.loadCachedCampusUpdates();
       if (!hasCachedCampusUpdates) this.setData({ campusUpdateLoading: true });
-    } catch(e) { wx.showToast({ title: 'E1:' + e.message, icon: 'none', duration: 5000 }); return; }
+    } catch (e) {
+      console.warn('[index] 初始化求职计划失败:', e);
+    }
     try {
       this.fetchBanners();
-    } catch(e) { wx.showToast({ title: 'E2:' + e.message, icon: 'none', duration: 5000 }); return; }
+    } catch (e) {
+      console.warn('[fetchBanners]', e);
+    }
     if (recruitmentEnabled) {
       let hasCachedJobs = false;
       try {
@@ -266,10 +278,13 @@ Page({
   // 下拉刷新
   onPullDownRefresh() {
     clearTimeout(this._initialRecommendTimer);
+    this.loadUserProfile();
+    this.loadProgressSummary();
+    this.loadTodayTasks();
+    this.loadWorkbenchSummary();
+    this.fetchBanners();
     if (this.data.recruitmentEnabled) this.fetchRecommendJobs({ force: true });
     this.fetchCampusUpdates({ force: true });
-    this.loadTodayTasks();
-    this.fetchHotCompanies({ force: true });
     this.buildNewsFeed({ force: true });
     setTimeout(() => wx.stopPullDownRefresh(), 800);
   },
@@ -285,19 +300,14 @@ Page({
   },
 
   scheduleDeferredHomeData() {
-    this.clearDeferredHomeTimers();
+    (this._homeTimers || []).forEach(timer => clearTimeout(timer));
     this._homeTimers = [
       setTimeout(() => {
-        try { this.fetchHotCompanies(); } catch (e) { console.warn('[fetchHotCompanies]', e); }
+        try { this.fetchCampusUpdates(); } catch (e) { console.warn('[fetchCampusUpdates]', e); }
       }, 360),
       setTimeout(() => {
-        try {
-          this.fetchCampusUpdates();
-        } catch (e) { console.warn('[fetchCampusUpdates]', e); }
-      }, 560),
-      setTimeout(() => {
         try { this.buildNewsFeed(); } catch (e) { console.warn('[buildNewsFeed]', e); }
-      }, 760)
+      }, 620)
     ];
   },
 
@@ -362,9 +372,9 @@ Page({
   // ======== Banner 数据 ========
   fetchBanners() {
     const FALLBACK = [
-      { id: 1, gradient: 'linear-gradient(135deg,#1C3578 0%,#2B5CE6 100%)', icon: '🚀', title: '海外留学生求职季开启', subtitle: '2026 春招全面启动', url: '/pages/jobs/jobs' },
-      { id: 2, gradient: 'linear-gradient(135deg,#7C3AED 0%,#DB2777 100%)', icon: '🏢', title: '名企校招职位推荐', subtitle: '腾讯 · 字节 · 阿里 热招中', url: '/package-user/pages/search/search' },
-      { id: 3, gradient: 'linear-gradient(135deg,#059669 0%,#0EA5E9 100%)', icon: '🤖', title: 'AI 模拟面试上线', subtitle: 'DeepSeek 驱动，智能评分', url: '/package-ai/pages/interview-setup/interview-setup' }
+      { id: 1, gradient: 'linear-gradient(135deg,#1769E8 0%,#4C9BFF 100%)', icon: '🚀', title: '2027 Summer Internship 求职季', subtitle: '精选实习岗位 · 简历优化 · 面试冲刺', url: '/pages/jobs/jobs' },
+      { id: 2, gradient: 'linear-gradient(135deg,#3156C8 0%,#7B8EFF 100%)', icon: '🏢', title: '今日校招机会更新', subtitle: '新开网申 · 即将截止 · 热门企业', url: '/pages/campus/campus' },
+      { id: 3, gradient: 'linear-gradient(135deg,#0AA777 0%,#45C8B0 100%)', icon: '🤖', title: 'AI 模拟面试', subtitle: '针对目标岗位练习并获得反馈', url: '/package-ai/pages/interview-setup/interview-setup' }
     ];
 
     // 立即显示缓存或兜底，不阻塞页面
@@ -392,7 +402,12 @@ Page({
   loadCachedOrMockJobs() {
     const cached = wx.getStorageSync('cachedRecommendJobs');
     if (cached && cached.length >= 3) {
-      this.setData({ recommendJobs: this.withCompanyLogos(cached).slice(0, 5), loadingJobs: false });
+      this.setData({
+        recommendJobs: this.withCompanyLogos(cached).slice(0, 3),
+        loadingJobs: false,
+        jobsError: false
+      });
+      this.loadWorkbenchSummary();
       return true;
     } else if (ALLOW_DEMO_FALLBACK) {
       this.loadMockJobs();
@@ -465,6 +480,7 @@ Page({
   // ======== 职位数据 ========
   async fetchRecommendJobs(options) {
     const force = !!(options && options.force);
+    this.setData({ jobsError: false });
     // 如果已有数据就不显示 loading 骨架屏，静默刷新
     if (this.data.recommendJobs.length === 0) {
       this.setData({ loadingJobs: true });
@@ -478,18 +494,23 @@ Page({
       let jobs = this.formatJobData(res.data);
       jobs = this.rankByProfile(jobs);
       jobs = this.withCompanyLogos(jobs);
-      jobs = jobs.slice(0, 5);
+      jobs = jobs.slice(0, 3);
 
-      this.setData({ recommendJobs: jobs, loadingJobs: false });
+      this.setData({ recommendJobs: jobs, loadingJobs: false, jobsError: false });
       // 缓存成功结果，下次秒开
       wx.setStorageSync('cachedRecommendJobs', jobs);
+      this.loadTodayTasks();
+      this.loadWorkbenchSummary();
     } catch (error) {
       console.warn('[fetchRecommendJobs] 获取推荐职位失败:', error);
         // 只有在没有任何数据时才加载 Mock
         if (ALLOW_DEMO_FALLBACK && this.data.recommendJobs.length === 0) {
           this.loadMockJobs();
         } else {
-          this.setData({ loadingJobs: false });
+          this.setData({
+            loadingJobs: false,
+            jobsError: this.data.recommendJobs.length === 0
+          });
         }
     }
   },
@@ -643,12 +664,18 @@ Page({
       return;
     }
     const RECOMMEND_JOBS = demoData.getList('RECOMMEND_JOBS');
-    this.setData({ loadingJobs: false, recommendJobs: this.withCompanyLogos(RECOMMEND_JOBS).slice(0, 5) });
+    this.setData({
+      loadingJobs: false,
+      jobsError: false,
+      recommendJobs: this.withCompanyLogos(RECOMMEND_JOBS).slice(0, 3)
+    });
+    this.loadWorkbenchSummary();
   },
 
   // ======== 动态快讯 ========
   buildNewsFeed(options) {
     const force = !!(options && options.force);
+    this.setData({ newsLoading: true, newsError: false });
     if (!force) {
       const cached = wx.getStorageSync(HOME_NEWS_CACHE_KEY);
       if (cached && cached.length && this.data.newsFeed.length === 0) {
@@ -659,19 +686,28 @@ Page({
     getNews({ tab: 'all', lang: 'zh' }).then(res => {
       const articles = res && Array.isArray(res.articles) ? res.articles : [];
       if (!articles.length) {
-        if (ALLOW_DEMO_FALLBACK && this.data.newsFeed.length === 0) this.setNewsFeed(this.buildLocalNewsFeed());
+        if (ALLOW_DEMO_FALLBACK && this.data.newsFeed.length === 0) {
+          this.setNewsFeed(this.buildLocalNewsFeed());
+        } else {
+          this.setData({ newsLoading: false });
+        }
         return;
       }
-      const remoteFeed = articles.slice(0, 5).map(item => this.normalizeNewsItem(item));
+      const remoteFeed = articles.slice(0, 3).map(item => this.normalizeNewsItem(item));
       const feed = remoteFeed.length >= 3 || !ALLOW_DEMO_FALLBACK
         ? remoteFeed
-        : [...remoteFeed, ...this.buildLocalNewsFeed()].slice(0, 5);
+        : [...remoteFeed, ...this.buildLocalNewsFeed()].slice(0, 3);
       this.setNewsFeed(feed);
       wx.setStorageSync(HOME_NEWS_CACHE_KEY, feed);
     }).catch(err => {
       console.warn('[buildNewsFeed] 获取官网资讯失败:', err);
       if (ALLOW_DEMO_FALLBACK && this.data.newsFeed.length === 0) {
         this.setNewsFeed(this.buildLocalNewsFeed());
+      } else {
+        this.setData({
+          newsLoading: false,
+          newsError: this.data.newsFeed.length === 0
+        });
       }
     });
   },
@@ -697,13 +733,13 @@ Page({
     const today = new Date();
     const dayIndex = today.getDate() % allNews.length;
     const timeLabels = ['刚刚', '1小时前', '2小时前', '3小时前', '5小时前', '今天', '昨天'];
-    const needed = 5 - feed.length;
+    const needed = 3 - feed.length;
     for (let i = 0; i < needed; i++) {
       const item = allNews[(dayIndex + i) % allNews.length];
       feed.push({ ...item, id: item.id + '_' + i, time: timeLabels[i + (feed.length > needed ? 1 : 0)] || '昨天' });
     }
 
-    return feed.slice(0, 5);
+    return feed.slice(0, 3);
   },
 
   normalizeNewsItem(item) {
@@ -730,16 +766,18 @@ Page({
     };
 
     this.setData({
-      newsFeed: (feed || []).slice(0, 5).map(item => Object.assign({}, item, {
+      newsFeed: (feed || []).slice(0, 2).map(item => Object.assign({}, item, {
         categoryLabel: typeLabels[item.type] || '数据',
         sourceText: item.source || '求职助手'
-      }))
+      })),
+      newsLoading: false,
+      newsError: false
     });
   },
 
   // 查看快讯详情
   viewNewsDetail(e) {
-    const item = e.currentTarget.dataset.item;
+    const item = (e.detail && e.detail.item) || e.currentTarget.dataset.item;
     wx.setStorageSync('currentNewsDetail', item);
     wx.navigateTo({ url: '/package-content/pages/news-detail/news-detail' });
   },
@@ -749,9 +787,17 @@ Page({
     wx.navigateTo({ url: '/package-content/pages/news/news' });
   },
 
+  retryNews() {
+    this.buildNewsFeed({ force: true });
+  },
+
+  retryRecommendJobs() {
+    this.fetchRecommendJobs({ force: true });
+  },
+
   // ======== 导航跳转 ========
   navigateToPage(e) {
-    const url = e.currentTarget.dataset.url;
+    const url = (e.detail && e.detail.url) || e.currentTarget.dataset.url;
     if (!url) return;
     if (!featureFlags.allowNavigation(url)) return;
     navigation.safeNavigateTo(url);
@@ -1062,40 +1108,73 @@ Page({
     } catch (e) {}
     const stats = progress.getStats();
     const atsScore = this.readLatestAtsScore();
-    const campusCount = Number(this.data.campusUpdateTotal || 0);
     const taskStats = this.data.todayTaskStats || dailyTasks.getStats(this.data.todayTasks || []);
+    const recommendationCount = Math.min(3, (this.data.recommendJobs || []).length);
+    const pendingApplications = Number((stats.byStatus && stats.byStatus.collected) || 0);
+    const nextTask = (this.data.todayTasks || []).find(item => !item.done) || null;
     const hasToken = (() => {
       try { return !!wx.getStorageSync('token'); } catch (e) { return false; }
     })();
-    const isLoggedIn = !!(hasToken || profile.nickName || atsScore || stats.total);
+    let hasResume = atsScore > 0;
+    try {
+      const resume = wx.getStorageSync('onlineResume') || {};
+      hasResume = hasResume || Object.keys(resume).some(key => !!resume[key]);
+    } catch (e) {}
+    const isLoggedIn = !!(hasToken || profile.nickName || hasResume || stats.total);
     const role = this.getWorkbenchTargetRole(profile);
-    const suggestedCount = Math.max(1, Math.min(3, stats.dueSoon || campusCount || 3));
-    const pendingCount = taskStats.pending || stats.active || 0;
-    const needsResume = !atsScore;
-    const primaryUrl = stats.todayInterviews
-      ? '/package-ai/pages/interview-setup/interview-setup'
-      : (stats.dueSoon ? '/package-user/pages/job-progress/job-progress' : (needsResume ? '/package-career/pages/resume/resume' : '/package-ai/pages/jd-match/jd-match'));
-    const primaryText = stats.todayInterviews
-      ? '准备今日面试'
-      : (stats.dueSoon ? '处理截止岗位' : (needsResume ? '管理简历' : '开始 JD 匹配'));
-    const subtitle = isLoggedIn
-      ? (atsScore
-        ? `你的最近匹配分 ${atsScore}，建议优先优化 ${role} 方向简历。`
-        : `建议先上传/完善 ${role} 方向简历，再用 JD 匹配建立今日投递计划。`)
-      : '登录后同步官网简历、ATS 报告和投递记录。';
+    const hasTargetRole = role !== '目标岗位';
+
+    let title = '完成你的求职档案';
+    let subtitle = '上传简历、选择目标岗位并设置求职地区后，我们会生成个性化计划。';
+    let primaryText = '开始建立档案';
+    let primaryUrl = '/package-user/pages/profile-edit/profile-edit';
+
+    if (isLoggedIn && !hasResume) {
+      title = '先完善简历，再开始精准匹配';
+      subtitle = '完成基础信息、项目经历和技能关键词，系统才能判断岗位匹配度。';
+      primaryText = '开始简历优化';
+      primaryUrl = '/package-career/pages/ats-optimize/ats-optimize';
+    } else if (isLoggedIn && !hasTargetRole) {
+      title = '设置目标岗位，刷新今日计划';
+      subtitle = '明确岗位方向与求职地区后，推荐和任务排序会更准确。';
+      primaryText = '完善求职目标';
+      primaryUrl = '/package-user/pages/profile-edit/profile-edit';
+    } else if (isLoggedIn && stats.total > 0) {
+      title = `今天有 ${Math.max(1, taskStats.pending || stats.active)} 项求职任务`;
+      subtitle = stats.todayInterviews
+        ? '今天有面试安排，优先完成岗位复盘和 STAR 案例准备。'
+        : progress.buildDailyAdvice();
+      primaryText = stats.todayInterviews ? '准备今日面试' : '查看今日任务';
+      primaryUrl = stats.todayInterviews
+        ? '/package-ai/pages/interview-setup/interview-setup'
+        : '/package-ai/pages/daily-brief/daily-brief';
+    } else if (isLoggedIn) {
+      title = recommendationCount
+        ? `今天有 ${recommendationCount} 个岗位值得优先推进`
+        : '今天从一个目标岗位开始';
+      subtitle = atsScore
+        ? `最近 ATS 为 ${atsScore} 分，优先查看 ${role} 方向的高匹配机会。`
+        : `围绕 ${role} 方向查看推荐，并用 JD 匹配确认是否值得投递。`;
+      primaryText = recommendationCount ? '查看推荐岗位' : '搜索目标岗位';
+      primaryUrl = '/pages/jobs/jobs';
+    }
 
     this.setData({
       workbench: {
         isLoggedIn,
-        title: isLoggedIn ? `今天适合推进 ${suggestedCount} 个岗位` : '登录生成你的求职计划',
+        title,
         subtitle,
         primaryText,
         primaryUrl,
         metrics: [
-          { label: '最近 ATS', value: atsScore ? String(atsScore) : '--', suffix: atsScore ? '分' : '', tone: atsScore >= 80 ? 'good' : (atsScore ? 'warn' : 'muted') },
-          { label: '今日校招', value: String(campusCount || 0), suffix: '条', tone: 'blue' },
-          { label: '待处理', value: String(pendingCount || 0), suffix: '项', tone: pendingCount ? 'amber' : 'muted' }
-        ]
+          { label: '推荐岗位', value: String(recommendationCount), suffix: '个', tone: recommendationCount ? 'blue' : 'muted', icon: '/images/icon-ai-assistant.png' },
+          { label: '待投递', value: String(pendingApplications), suffix: '个', tone: pendingApplications ? 'amber' : 'muted', icon: '/images/icon-apply.png' },
+          { label: '待面试', value: String(stats.interviews || 0), suffix: '个', tone: stats.interviews ? 'amber' : 'muted', icon: '/images/icon-interview.png' },
+          { label: '进行中', value: String(stats.active || 0), suffix: '个', tone: stats.active ? 'blue' : 'muted', icon: '/images/icon-plan.png' }
+        ],
+        suggestionTitle: nextTask ? nextTask.title : (isLoggedIn ? '完成一次 JD 岗位匹配' : '先完成求职档案'),
+        suggestionDesc: nextTask ? nextTask.desc : (isLoggedIn ? '用真实岗位校准简历关键词和投递优先级' : '补充简历、目标岗位与求职地区'),
+        suggestionUrl: nextTask ? nextTask.url : (isLoggedIn ? '/package-ai/pages/jd-match/jd-match' : '/package-user/pages/profile-edit/profile-edit')
       }
     });
   },
@@ -1106,10 +1185,117 @@ Page({
       todayTasks: tasks,
       todayTaskStats: dailyTasks.getStats(tasks)
     });
+    let token = '';
+    try { token = wx.getStorageSync('token') || ''; } catch (e) {}
+    if (!token) return Promise.resolve(tasks);
+    if (this._todayTaskSyncPromise) return this._todayTaskSyncPromise;
+
+    const requestId = (this._todayTaskRequestId || 0) + 1;
+    this._todayTaskRequestId = requestId;
+    const payload = tasks.map(task => {
+      const state = dailyTasks.readTaskState(task.id);
+      return {
+        id: task.id,
+        type: task.type,
+        title: task.title,
+        desc: task.desc,
+        url: task.url,
+        priority: task.priority,
+        done: state.done,
+        doneKnown: state.pending
+      };
+    });
+
+    const syncPromise = apiV4.syncTodayTasks({ tasks: payload }).then(response => {
+      if (requestId !== this._todayTaskRequestId) return this.data.todayTasks;
+      const rows = response && Array.isArray(response.data) ? response.data : [];
+      if (!rows.length) return tasks;
+      const priorityRank = { high: 0, medium: 1, low: 2 };
+      const merged = rows.map(row => {
+        const localKey = row.localKey || '';
+        const storageKey = localKey || ('remote_' + row.id);
+        const state = dailyTasks.readTaskState(storageKey);
+        const serverDone = row.completed === true || row.status === 'completed';
+        const keepPendingRemote = !localKey && state.pending && Number(state.serverId) === Number(row.id);
+        const done = keepPendingRemote ? state.done : serverDone;
+        if (!keepPendingRemote) dailyTasks.markTaskSynced(storageKey, serverDone, row.id);
+        return {
+          id: storageKey,
+          serverId: Number(row.id),
+          localKey,
+          type: row.type || row.sourceType || 'general',
+          title: row.title || '',
+          desc: row.desc || row.detail || '',
+          url: row.url || '',
+          priority: row.priority || 'medium',
+          done,
+          pendingSync: keepPendingRemote,
+          sourceType: row.sourceType || ''
+        };
+      }).sort((left, right) => (left.done - right.done)
+        || ((priorityRank[left.priority] === undefined ? 9 : priorityRank[left.priority])
+          - (priorityRank[right.priority] === undefined ? 9 : priorityRank[right.priority])))
+        .slice(0, 6);
+      this.setData({
+        todayTasks: merged,
+        todayTaskStats: dailyTasks.getStats(merged)
+      });
+      this.loadWorkbenchSummary();
+      this.flushPendingTodayTaskUpdates();
+      return merged;
+    }).catch(error => {
+      console.warn('[index] Today 任务同步失败，继续使用本地任务:', error && error.message || error);
+      return tasks;
+    });
+    this._todayTaskSyncPromise = syncPromise.finally(() => {
+      this._todayTaskSyncPromise = null;
+    });
+    return this._todayTaskSyncPromise;
+  },
+
+  flushPendingTodayTaskUpdates() {
+    const pending = dailyTasks.getPendingRemoteUpdates();
+    pending.forEach(item => {
+      apiV4.updateTodayTask(item.serverId, { completed: item.done }).then(response => {
+        const data = response && response.data || {};
+        dailyTasks.markTaskSynced(item.key, data.completed === undefined ? item.done : data.completed, item.serverId);
+        const tasks = (this.data.todayTasks || []).map(task => task.id === item.key
+          ? Object.assign({}, task, { done: data.completed === undefined ? item.done : data.completed, pendingSync: false })
+          : task);
+        this.setData({ todayTasks: tasks, todayTaskStats: dailyTasks.getStats(tasks) });
+        this.loadWorkbenchSummary();
+      }).catch(error => {
+        console.warn('[index] Today 待同步状态补传失败:', error && error.message || error);
+      });
+    });
   },
 
   toggleTodayTask(e) {
     const id = e.currentTarget.dataset.id;
+    const current = (this.data.todayTasks || []).find(item => String(item.id) === String(id));
+    if (current && current.serverId) {
+      const done = !current.done;
+      dailyTasks.setTaskDone(current.id, done, { pending: true, serverId: current.serverId });
+      const tasks = (this.data.todayTasks || []).map(item => String(item.id) === String(id)
+        ? Object.assign({}, item, { done, pendingSync: true })
+        : item);
+      this.setData({ todayTasks: tasks, todayTaskStats: dailyTasks.getStats(tasks) });
+      this.loadWorkbenchSummary();
+      apiV4.updateTodayTask(current.serverId, { completed: done }).then(response => {
+        const data = response && response.data || {};
+        const confirmed = data.completed === undefined ? done : data.completed;
+        dailyTasks.markTaskSynced(current.id, confirmed, current.serverId);
+        const latest = (this.data.todayTasks || []).map(item => String(item.id) === String(id)
+          ? Object.assign({}, item, { done: confirmed, pendingSync: false })
+          : item);
+        this.setData({ todayTasks: latest, todayTaskStats: dailyTasks.getStats(latest) });
+        this.loadWorkbenchSummary();
+      }).catch(error => {
+        console.warn('[index] Today 任务状态将在联网后重试:', error && error.message || error);
+        wx.showToast({ title: '已离线保存，联网后同步', icon: 'none' });
+      });
+      return;
+    }
     const result = dailyTasks.toggleTask(id);
     this.setData({
       todayTasks: result.tasks || dailyTasks.buildTasks(),
@@ -1136,7 +1322,7 @@ Page({
   },
 
   goToCampusUpdateDetail(e) {
-    const id = e.currentTarget.dataset.id;
+    const id = (e.detail && e.detail.id) || e.currentTarget.dataset.id;
     if (!id) {
       this.goToCampusList();
       return;
@@ -1151,7 +1337,7 @@ Page({
   },
 
   onCampusLogoError(e) {
-    const type = e.currentTarget.dataset.type;
+    const type = (e.detail && e.detail.type) || e.currentTarget.dataset.type;
     if (type === 'featured') {
       this.setData({ 'campusFeatured.companyLogo': '' });
     }
@@ -1159,7 +1345,8 @@ Page({
 
   goToJobDetail(e) {
     if (!featureFlags.allowNavigation('/package-user/pages/job-detail/job-detail')) return;
-    const id = e.currentTarget.dataset.id;
+    const detail = e.detail || {};
+    const id = detail.id || e.currentTarget.dataset.id;
     const job = (this.data.recommendJobs || []).find(item => String(item.id) === String(id));
     if (job) {
       const snapshot = {
@@ -1182,7 +1369,7 @@ Page({
       wx.setStorageSync('jobDetailSnapshot_' + String(id), snapshot);
     }
     // 记录浏览历史（供推荐算法使用）
-    const title = e.currentTarget.dataset.title || '';
+    const title = detail.title || e.currentTarget.dataset.title || '';
     if (title) browseHistory.add({ id, title });
     wx.navigateTo({ url: `/package-user/pages/job-detail/job-detail?id=${id}` });
   },
@@ -1196,7 +1383,7 @@ Page({
 
   viewMoreJobs() {
     if (!featureFlags.allowNavigation('/pages/jobs/jobs')) return;
-    wx.switchTab({ url: '/pages/jobs/jobs' });
+    navigation.safeNavigateTo('/pages/jobs/jobs');
   },
 
   viewMoreCompanies() {

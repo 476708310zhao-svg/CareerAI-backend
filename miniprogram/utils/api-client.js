@@ -127,7 +127,7 @@ function request(options) {
       timeout: wxTimeout,
       success: (res) => {
         if (done) return;
-        if (res.statusCode === 200 && res.data) {
+        if (res.statusCode >= 200 && res.statusCode < 300 && res.data) {
           if (!noCache) {
             const entry = { d: res.data, t: Date.now() };
             _memCache[key] = entry;

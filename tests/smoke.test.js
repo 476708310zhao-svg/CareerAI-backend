@@ -766,6 +766,52 @@ test('v4 interview loop auto-creates a job space, scores practice and creates To
   assert.equal(trends.data.length, 1);
 });
 
+test('v4 Today tasks sync local workbench tasks idempotently and preserves server tasks', async () => {
+  const firstSyncRes = await fetch(`${BASE_URL}/api/v4/today/tasks/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ tasks: [
+      { id: 'resume_polish', type: 'resume', title: '优化默认简历', desc: '补齐项目亮点', url: '/package-career/pages/resume/resume', priority: 'medium', done: true, doneKnown: true },
+      { id: 'search_jobs', type: 'jobs', title: '搜索 2 个目标岗位', desc: '刷新推荐池', url: '/pages/jobs/jobs', priority: 'low' }
+    ] })
+  });
+  assert.equal(firstSyncRes.status, 200);
+  const firstSync = await readJson(firstSyncRes);
+  const resumeTask = firstSync.data.find(item => item.localKey === 'resume_polish');
+  assert.ok(resumeTask);
+  assert.equal(resumeTask.completed, true);
+  assert.ok(firstSync.data.some(item => item.sourceType === 'interview_report'), 'server-generated tasks must be preserved');
+
+  const secondSyncRes = await fetch(`${BASE_URL}/api/v4/today/tasks/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ tasks: [
+      { id: 'resume_polish', type: 'resume', title: '优化默认简历', desc: '更新后的项目亮点', url: '/package-career/pages/resume/resume', priority: 'high', done: false, doneKnown: false }
+    ] })
+  });
+  assert.equal(secondSyncRes.status, 200);
+  const secondSync = await readJson(secondSyncRes);
+  const idempotentTask = secondSync.data.find(item => item.localKey === 'resume_polish');
+  assert.equal(idempotentTask.completed, true, 'server status must win when client has no pending change');
+  assert.equal(idempotentTask.priority, 'high');
+  assert.equal(secondSync.data.filter(item => item.localKey === 'resume_polish').length, 1);
+  assert.equal(secondSync.data.some(item => item.localKey === 'search_jobs'), false, 'stale home-local tasks should be pruned');
+
+  const updateRes = await fetch(`${BASE_URL}/api/v4/today/tasks/${idempotentTask.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ completed: false })
+  });
+  assert.equal(updateRes.status, 200);
+  const updated = await readJson(updateRes);
+  assert.equal(updated.data.completed, false);
+
+  const listRes = await fetch(`${BASE_URL}/api/v4/today/tasks`, { headers: authHeaders() });
+  assert.equal(listRes.status, 200);
+  const listed = await readJson(listRes);
+  assert.equal(listed.data.find(item => item.id === idempotentTask.id).completed, false);
+});
+
 test('v4 AI Career agents redact secrets and require confirmation before writes', async () => {
   const createRes = await fetch(`${BASE_URL}/api/v4/agents/tasks`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },

@@ -1,0 +1,85 @@
+<view class="section" wx:if="{{featured || updates.length || loading || ready}}">
+  <view class="section-head">
+    <view class="section-copy">
+      <text class="section-title">今日校招信息更新</text>
+      <text class="section-subtitle">{{dateLabel}} · 新开网申 / 即将截止 / 热门企业</text>
+    </view>
+    <view class="section-more" bindtap="onMore">
+      <text class="calendar-icon">▣</text>
+      <text>校招日历 ›</text>
+    </view>
+  </view>
+
+  <view class="campus-card skeleton-card" wx:if="{{loading && !featured}}">
+    <view class="campus-row skeleton" wx:for="{{skeletonRows}}" wx:key="*this">
+      <view class="skeleton-logo"></view>
+      <view class="skeleton-main">
+        <view class="skeleton-line long"></view>
+        <view class="skeleton-line"></view>
+      </view>
+    </view>
+  </view>
+
+  <view class="campus-card" wx:elif="{{featured}}">
+    <view class="campus-row featured-row" bindtap="onFeatured" hover-class="row-hover">
+      <c-company-logo
+        logo="{{featured.companyLogo}}"
+        name="{{featured.company}}"
+        fallback="{{featured.companyInitial}}"
+        size="sm"
+        lazy-load="{{true}}"
+        custom-class="campus-logo"
+        bind:error="onLogoError"
+      ></c-company-logo>
+      <view class="campus-main">
+        <view class="campus-topline">
+          <text class="campus-badge {{featured.isUrgent ? 'urgent' : ''}}">{{featured.badgeText}}</text>
+          <text class="campus-title">{{featured.title}}</text>
+        </view>
+        <text class="campus-sub">{{featured.subtitle}}</text>
+        <view class="campus-tags">
+          <text>{{featured.tagText}}</text>
+          <text>{{featured.updatedText}}</text>
+        </view>
+      </view>
+      <text class="campus-deadline {{featured.isUrgent ? 'urgent' : ''}}">{{featured.deadlineText}}</text>
+    </view>
+
+    <view
+      class="campus-row"
+      wx:for="{{updates}}"
+      wx:key="id"
+      data-index="{{index}}"
+      bindtap="onUpdate"
+      hover-class="row-hover"
+    >
+      <c-company-logo
+        logo="{{item.companyLogo}}"
+        name="{{item.company}}"
+        fallback="{{item.companyInitial}}"
+        size="sm"
+        lazy-load="{{true}}"
+        custom-class="campus-logo"
+      ></c-company-logo>
+      <view class="campus-main">
+        <view class="campus-topline">
+          <text class="campus-title">{{item.title}}</text>
+        </view>
+        <text class="campus-sub">{{item.subtitle}}</text>
+      </view>
+      <view class="campus-side">
+        <text class="campus-deadline {{item.isUrgent ? 'urgent' : ''}}">{{item.deadlineText}}</text>
+        <text class="campus-side-tag">{{item.badgeText}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="campus-card empty" wx:else bindtap="onMore">
+    <view class="empty-icon">校</view>
+    <view class="empty-copy">
+      <text class="empty-title">暂无新的校招更新</text>
+      <text class="empty-sub">前往校招日历查看全部企业、岗位与截止日期。</text>
+    </view>
+    <text class="empty-arrow">›</text>
+  </view>
+</view>

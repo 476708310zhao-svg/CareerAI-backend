@@ -28,6 +28,54 @@ function writeDoneMap(map) {
   } catch (e) {}
 }
 
+function readTaskState(id, map) {
+  const source = map || readDoneMap();
+  const key = String(id || '');
+  const raw = source[key];
+  if (raw && typeof raw === 'object') {
+    return {
+      done: !!raw.done,
+      pending: !!raw.pending,
+      serverId: Number(raw.serverId) || null,
+      updatedAt: raw.updatedAt || ''
+    };
+  }
+  return {
+    done: !!raw,
+    pending: Object.prototype.hasOwnProperty.call(source, key),
+    serverId: null,
+    updatedAt: ''
+  };
+}
+
+function setTaskDone(id, done, options) {
+  const key = String(id || '');
+  if (!key) return null;
+  const opts = options || {};
+  const map = readDoneMap();
+  const previous = readTaskState(key, map);
+  map[key] = {
+    done: !!done,
+    pending: opts.pending !== false,
+    serverId: Number(opts.serverId || previous.serverId) || null,
+    updatedAt: new Date().toISOString()
+  };
+  writeDoneMap(map);
+  return map[key];
+}
+
+function markTaskSynced(id, done, serverId) {
+  return setTaskDone(id, done, { pending: false, serverId });
+}
+
+function getPendingRemoteUpdates() {
+  const map = readDoneMap();
+  return Object.keys(map).map(key => {
+    const state = readTaskState(key, map);
+    return { key, ...state };
+  }).filter(item => item.pending && item.serverId);
+}
+
 function isSameDay(ts) {
   if (!ts) return false;
   const target = new Date(ts);
@@ -57,6 +105,7 @@ function getRecommendedJobCount() {
 }
 
 function normalizeTask(task, doneMap) {
+  const state = readTaskState(task.id, doneMap);
   return Object.assign({
     id: '',
     type: 'general',
@@ -65,7 +114,9 @@ function normalizeTask(task, doneMap) {
     url: '',
     priority: 'medium'
   }, task, {
-    done: !!doneMap[task.id]
+    done: state.done,
+    pendingSync: state.pending,
+    serverId: state.serverId
   });
 }
 
@@ -186,9 +237,8 @@ function getStats(tasks) {
 function toggleTask(id) {
   const taskId = String(id || '');
   if (!taskId) return getStats();
-  const map = readDoneMap();
-  map[taskId] = !map[taskId];
-  writeDoneMap(map);
+  const state = readTaskState(taskId);
+  setTaskDone(taskId, !state.done, { pending: true, serverId: state.serverId });
   const tasks = buildTasks();
   return { tasks, stats: getStats(tasks) };
 }
@@ -196,6 +246,10 @@ function toggleTask(id) {
 module.exports = {
   todayKey,
   readDoneMap,
+  readTaskState,
+  setTaskDone,
+  markTaskSynced,
+  getPendingRemoteUpdates,
   buildTasks,
   getStats,
   toggleTask

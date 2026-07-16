@@ -10,6 +10,7 @@ router.use('/applications', require('./applications'));
 router.use('/resumes', require('./resumes'));
 router.use('/materials', require('./materials'));
 router.use('/interviews', require('./interviews'));
+router.use('/today', require('./today'));
 router.use('/agents', require('./agents'));
 router.use('/membership', require('./membership'));
 
