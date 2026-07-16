@@ -57,6 +57,15 @@
           </div>
         </div>
       </div>
+
+      <div class="chart-card" style="margin-top:18px">
+        <h3>V4 全链路运营看板</h3>
+        <div class="stats-grid" id="v4OpsCards"><div class="stat-card"><div class="stat-label">加载中...</div></div></div>
+        <div class="dashboard-grid" style="margin-top:16px">
+          <div><h3>岗位到申请漏斗</h3><div class="activity-list" id="v4Funnel"></div></div>
+          <div><h3>监控与会员</h3><div class="activity-list" id="v4Health"></div></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -106,7 +115,27 @@ async function loadStats() {
   `).join('');
 }
 
+async function loadV4Operations() {
+  const res = await GET('/admin/api/v4/operations/dashboard');
+  if (!res || res.code !== 0) return;
+  const data = res.data || {};
+  document.getElementById('v4OpsCards').innerHTML = [
+    card('fa-user-clock', '7日活跃用户', data.activeUsers7d || 0, ''),
+    card('fa-rotate', '7日留存', `${data.retention7d && data.retention7d.rate || 0}%`, ''),
+    card('fa-robot', 'AI 功能使用率', `${data.aiUsageRate || 0}%`, ''),
+    card('fa-crown', '有效会员', data.membership && data.membership.active || 0, '')
+  ].join('');
+  document.getElementById('v4Funnel').innerHTML = (data.funnel || []).map(item => `<div class="activity-item"><span>${item.event}</span><strong>${item.users}</strong></div>`).join('');
+  document.getElementById('v4Health').innerHTML = [
+    ['24h 慢接口', (data.slowQueries || []).length],
+    ['近期错误', (data.errors || []).length],
+    ['已支付订单', data.membership && data.membership.paidOrders || 0],
+    ['退款记录', data.membership && data.membership.refunds || 0]
+  ].map(([label,value]) => `<div class="activity-item"><span>${label}</span><strong>${value}</strong></div>`).join('');
+}
+
 loadStats();
+loadV4Operations();
 </script>
 </body>
 </html>

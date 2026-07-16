@@ -785,6 +785,10 @@ Page(Object.assign({
     });
   },
 
+  openV4ResumeCenter() {
+    wx.navigateTo({ url: '/package-career/pages/resume-center/resume-center' });
+  },
+
   handleAction(e) {
     const index = e.currentTarget.dataset.index;
     wx.showActionSheet({

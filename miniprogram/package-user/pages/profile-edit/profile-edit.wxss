@@ -423,6 +423,13 @@ page {
 
 /* ── 保存按钮 ── */
 .save-btn { margin-top: 48rpx; }
+.progress-missing { display: block; margin-top: 10rpx; color: #475467; font-size: 22rpx; }
+.sponsor-row { display: flex; align-items: center; justify-content: space-between; gap: 24rpx; margin-top: 28rpx; padding: 22rpx; border-radius: 18rpx; background: #F5F8FF; }
+.sponsor-title { display: block; color: #1D2939; font-size: 28rpx; font-weight: 700; }
+.sponsor-note { display: block; margin-top: 5rpx; color: #667085; font-size: 22rpx; }
+.location-inputs { display: flex; gap: 16rpx; margin-top: 20rpx; }
+.location-inputs .custom-input { flex: 1; min-width: 0; }
+.projects-textarea { width: 100%; min-height: 190rpx; box-sizing: border-box; color: #1D2939; font-size: 27rpx; line-height: 1.7; }
 /* Unified homepage background */
 page,
 .page,

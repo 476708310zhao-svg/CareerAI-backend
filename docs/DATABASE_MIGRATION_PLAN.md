@@ -1,5 +1,7 @@
 # 数据库迁移治理方案
 
+> V4 Sprint 4 已增加安全回滚：`npm run rollback:v4` 默认只执行 dry-run；正式回滚必须使用 `npm run rollback:v4 -- --apply --confirm=ROLLBACK_V4`。脚本只删除带迁移标记且未被用户编辑的数据。
+
 更新时间：2026-05-09
 
 ## 当前状态

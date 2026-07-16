@@ -6,7 +6,9 @@ const DAILY_LIMITS = {
   ats: 3,
   career_plan: 1,
   project_builder: 1,
-  networking: 5
+  networking: 5,
+  resume_optimize: 3,
+  application_assistant: 3
 };
 
 const FEATURE_LABELS = {
@@ -15,7 +17,9 @@ const FEATURE_LABELS = {
   ats: 'ATS 简历优化',
   career_plan: 'AI 求职规划',
   project_builder: 'AI 项目生成器',
-  networking: 'Networking 消息'
+  networking: 'Networking 消息',
+  resume_optimize: 'AI 简历优化',
+  application_assistant: 'AI 申请助手'
 };
 
 const VIP_ONLY_FEATURES = {

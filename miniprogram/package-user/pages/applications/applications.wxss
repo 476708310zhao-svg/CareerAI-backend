@@ -2082,3 +2082,4 @@ page,
   inset: -8rpx;
   border-color: rgba(36, 89, 184, 0.14);
 }
+.next-action-preview { display: -webkit-box; margin-top: 10rpx; color: #1D4ED8; font-size: 22rpx; line-height: 1.45; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }

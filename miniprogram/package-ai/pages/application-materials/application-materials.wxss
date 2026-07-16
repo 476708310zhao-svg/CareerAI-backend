@@ -309,6 +309,18 @@ page {
   border-color: #fecdca;
 }
 
+.generator-panel { position: fixed; z-index: 30; left: 0; right: 0; bottom: -100%; height: 86vh; box-sizing: border-box; padding: 30rpx; border-radius: 30rpx 30rpx 0 0; background: #fff; transition: bottom .25s ease; }
+.generator-panel.show { bottom: 0; }
+.generator-body { height: calc(86vh - 210rpx); }
+.generator-hint { display: block; margin-top: 6rpx; color: #98a2b3; font-size: 22rpx; }
+.quota-card { margin: 18rpx 0; padding: 20rpx; border-radius: 14rpx; background: #eef4ff; color: #1d4ed8; font-size: 24rpx; }
+.generator-body .form-label { display: block; margin: 22rpx 0 10rpx; }
+.generate-btn { margin-top: 28rpx; padding: 24rpx; border-radius: 16rpx; text-align: center; color: #fff; background: #2563eb; font-weight: 700; }
+.generated-box { margin-top: 24rpx; }
+.generator-meta,.generator-warning { display:block;color:#667085;font-size:22rpx;line-height:1.6;margin-bottom:12rpx; }
+.generator-warning { color: #b54708; margin-top: 12rpx; }
+.generated-textarea { width: 100%; height: 520rpx; box-sizing: border-box; padding: 22rpx; border-radius: 16rpx; background: #f5f7fb; font-size: 25rpx; line-height: 1.65; }
+
 .empty-card {
   min-height: 320rpx;
   display: flex;

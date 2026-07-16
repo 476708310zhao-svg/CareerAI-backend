@@ -8,6 +8,7 @@ const { paymentLimiter } = require('../middleware/rateLimit');
 const db = require('../db/database');
 const { ok, fail } = require('../utils/response');
 const notify = require('./notify');
+const analytics = require('../services/v4Analytics');
 const {
   formatWxTime,
   paymentReminderData,
@@ -21,6 +22,7 @@ const APP_ID     = process.env.WXPAY_APP_ID     || process.env.WX_APP_ID || '';
 const NOTIFY_URL = process.env.WXPAY_NOTIFY_URL || '';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const PAYMENT_ENABLED = String(process.env.PAYMENT_ENABLED || 'true').toLowerCase() !== 'false';
+const REAL_PAYMENT_LAUNCH_APPROVED = String(process.env.REAL_PAYMENT_LAUNCH_APPROVED || 'false').toLowerCase() === 'true';
 const PAYMENT_PROVIDER = String(process.env.PAYMENT_PROVIDER || process.env.PAYMENT_MODE || 'wxpay').toLowerCase();
 const USE_VIRTUAL_PAY = ['virtual', 'virtual-pay', 'wechat-virtual', 'wechat_virtual'].includes(PAYMENT_PROVIDER);
 
@@ -73,7 +75,7 @@ const VIRTUAL_PAY_CONFIGURED = !!(
   VIRTUAL_PAY_APP_KEY &&
   REQUIRED_VIRTUAL_PLAN_IDS.every(id => PLANS[id].productId)
 );
-const ACTIVE_PAYMENT_CONFIGURED = USE_VIRTUAL_PAY ? VIRTUAL_PAY_CONFIGURED : WXPAY_CONFIGURED;
+const ACTIVE_PAYMENT_CONFIGURED = REAL_PAYMENT_LAUNCH_APPROVED && (USE_VIRTUAL_PAY ? VIRTUAL_PAY_CONFIGURED : WXPAY_CONFIGURED);
 const IS_MOCK = PAYMENT_ENABLED && !ACTIVE_PAYMENT_CONFIGURED;
 
 if (!PAYMENT_ENABLED) {
@@ -202,6 +204,7 @@ function getClientIp(req) {
 
 function getPaymentReason() {
   if (!PAYMENT_ENABLED) return '会员支付入口已关闭';
+  if (!REAL_PAYMENT_LAUNCH_APPROVED) return '真实支付等待资质确认';
   if (USE_VIRTUAL_PAY) {
     if (!VIRTUAL_PAY_OFFER_ID) return '虚拟支付 Offer ID 未配置';
     if (!VIRTUAL_PAY_APP_KEY) return '虚拟支付 AppKey 未配置';
@@ -581,6 +584,7 @@ router.post('/create-order', authMiddleware, paymentLimiter, (req, res) => {
 
   try {
     insertOrder(orderNo, userId, planIdInt, plan);
+    analytics.track(userId, 'membership_purchase_started', { orderNo, planId: planIdInt, amount: plan.price, provider: IS_MOCK ? 'mock' : PAYMENT_PROVIDER }, '/api/payment/create-order');
   } catch (e) {
     console.error('[Payment] DB insert order:', e);
     return fail(res, '创建订单失败', 500);

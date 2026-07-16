@@ -1,5 +1,6 @@
 // pages/applications/applications.js
 const { getApplications } = require('../../../utils/api.js');
+const v4Api = require('../../../utils/api-v4.js');
 const demoData = require('../../../utils/demo-data.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
@@ -13,6 +14,20 @@ const PROJECT_CATEGORIES = [
   { id: 'au_general',  label: '澳洲求职',  color: '#10B981', bg: '#ECFDF5' },
   { id: 'custom',      label: '自定义',    color: '#6B7280', bg: '#F9FAFB' },
 ];
+const V4_STATUS_TEXT = {
+  interested: '感兴趣', preparing: '准备申请', applied: '已申请', oa: '在线测评',
+  phone_screen: '电话面试', interview_1: '一轮面试', interview_2: '二轮面试',
+  final: '终面', offer: 'Offer', rejected: '已拒绝', withdrawn: '已撤回'
+};
+const V4_TRANSITIONS = {
+  interested: ['preparing', 'withdrawn'], preparing: ['interested', 'applied', 'withdrawn'],
+  applied: ['oa', 'phone_screen', 'interview_1', 'rejected', 'withdrawn'],
+  oa: ['phone_screen', 'interview_1', 'rejected', 'withdrawn'],
+  phone_screen: ['interview_1', 'rejected', 'withdrawn'],
+  interview_1: ['interview_2', 'final', 'offer', 'rejected', 'withdrawn'],
+  interview_2: ['final', 'offer', 'rejected', 'withdrawn'],
+  final: ['offer', 'rejected', 'withdrawn'], offer: ['withdrawn'], rejected: [], withdrawn: []
+};
 
 Page({
   data: {
@@ -112,6 +127,24 @@ Page({
     // Try local storage first (user-added entries)
     const localApps = wx.getStorageSync('localApplications') || [];
 
+    if (wx.getStorageSync('token')) {
+      v4Api.getApplicationBoard().then(res => {
+        const data = res && res.code === 0 ? res.data : null;
+        if (!data || !data.groups) throw new Error('invalid V4 board');
+        const cloudRows = Object.keys(data.groups).reduce((all, key) => all.concat(data.groups[key] || []), []);
+        const cloudApps = cloudRows.map(item => ({ ...item, cloudManaged: true }));
+        this.updateList(this.mergeApps(cloudApps, localApps));
+        if (this.data.isRefreshing) {
+          wx.stopPullDownRefresh();
+          this.setData({ isRefreshing: false });
+        }
+      }).catch(() => this._loadLegacyApplications(localApps));
+      return;
+    }
+    this._loadLegacyApplications(localApps);
+  },
+
+  _loadLegacyApplications: function(localApps) {
     const userProfile = wx.getStorageSync('userProfile');
     const userId = (userProfile && userProfile.userId) ? userProfile.userId : wx.getStorageSync('deviceUserId') || (() => {
       const id = 'u_' + Date.now();
@@ -170,6 +203,7 @@ Page({
     const threeDaysLater = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     return (rawData || []).map(item => {
       const snap = item.jobSnapshot || item.job_snapshot || {};
+      const v4Status = item.cloudManaged ? item.status : '';
       const status = this.normalizeStatus(item.status);
       const cfg = this.getStatusConfig(status);
       const deadline = item.deadline || '';
@@ -189,17 +223,22 @@ Page({
         deadline,
         deadlineUrgent,
         statusCode: status,
-        statusText: cfg.text,
+        statusText: item.cloudManaged ? (item.statusText || V4_STATUS_TEXT[v4Status] || cfg.text) : cfg.text,
         stageLevel: this.getStageLevel(status),
         avatarInitial: this.getInitial(item.company || snap.company || 'U'),
         avatarColor: this.getAvatarColor(item.company || snap.company || 'U'),
         offer: item.offer || null,
+        v4Status,
+        cloudManaged: !!item.cloudManaged,
+        nextAction: item.nextAction || '',
       };
     });
   },
 
   normalizeStatus: function(status) {
-    if (status === 'applied' || status === 'viewed') return 'pending';
+    if (['interested', 'preparing', 'applied', 'oa', 'viewed'].includes(status)) return 'pending';
+    if (['phone_screen', 'interview_1', 'interview_2', 'final'].includes(status)) return 'interview';
+    if (status === 'withdrawn') return 'rejected';
     return status || 'pending';
   },
 
@@ -321,6 +360,10 @@ Page({
   viewApplication: function(e) {
     const id = e.currentTarget.dataset.id;
     const app = this.data.applications.find(a => String(a.id) === String(id));
+    if (app && app.cloudManaged) {
+      wx.navigateTo({ url: `/package-user/pages/application-detail/application-detail?id=${encodeURIComponent(id)}` });
+      return;
+    }
     const hasJobDetail = app && app.job_id && !String(app.id).startsWith('local_');
     const isOffer = app && app.statusCode === 'offer';
 
@@ -414,6 +457,8 @@ Page({
     this.setData({ showNoteModal: false });
     this.updateList(apps);
     wx.showToast({ title: '备注已保存', icon: 'success' });
+    const cloudApp = apps.find(a => String(a.id) === noteTargetId && a.cloudManaged);
+    if (cloudApp) v4Api.updateApplication(noteTargetId, { notes: noteContent }).catch(() => {});
   },
 
   quickUpdateStatus: function(e) {
@@ -421,6 +466,30 @@ Page({
   },
 
   updateApplicationStatus: function(id) {
+    const app = this.data.applications.find(a => String(a.id) === String(id));
+    if (app && app.cloudManaged) {
+      const choices = V4_TRANSITIONS[app.v4Status] || [];
+      if (!choices.length) {
+        wx.showToast({ title: '当前状态没有可用的下一步', icon: 'none' });
+        return;
+      }
+      wx.showActionSheet({
+        itemList: choices.map(code => V4_STATUS_TEXT[code]),
+        success: res => {
+          const next = choices[res.tapIndex];
+          wx.showLoading({ title: '同步状态...', mask: true });
+          v4Api.updateApplicationStatus(id, { status: next, note: '小程序看板更新' }).then(() => {
+            wx.hideLoading();
+            wx.showToast({ title: '状态已同步', icon: 'success' });
+            this.loadApplications();
+          }).catch(err => {
+            wx.hideLoading();
+            wx.showToast({ title: (err && err.message) || '状态同步失败', icon: 'none' });
+          });
+        }
+      });
+      return;
+    }
     wx.showActionSheet({
       itemList: ['待投递', '面试中', '已录用', '已结束'],
       success: (res) => {

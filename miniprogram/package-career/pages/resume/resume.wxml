@@ -24,6 +24,9 @@
     </view>
 
     <view class="resume-version-card" wx:if="{{isLoggedIn}}">
+      <view class="version-actions" style="margin-bottom: 18rpx;">
+        <view class="version-action" bindtap="openV4ResumeCenter">进入 AI 简历中心</view>
+      </view>
       <view class="version-head">
         <view class="version-copy">
           <view class="version-title-row">

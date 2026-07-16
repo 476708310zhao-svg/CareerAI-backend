@@ -64,7 +64,7 @@ function permissionForAdminPath(path = '') {
   if (path.includes('/api/feature-flags')) return 'features';
   if (path.includes('/api/upload/banner') || path.includes('/api/banners')) return 'banners';
   if (path.includes('/api/upload/share') || path.includes('/api/share-configs')) return 'share';
-  if (path.includes('/api/jobs')) return 'jobs';
+  if (path.includes('/api/jobs') || path.includes('/api/v4/sponsor-profiles')) return 'jobs';
   if (path.includes('/api/companies')) return 'companies';
   if (path.includes('/api/experiences')) return 'experiences';
   if (path.includes('/api/interview-questions')) return 'questions';

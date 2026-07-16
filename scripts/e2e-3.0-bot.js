@@ -4,6 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const net = require('net');
 const childProcess = require('child_process');
+const AutomatorConnection = require('miniprogram-automator/out/Connection').default;
+const AutomatorMiniProgram = require('miniprogram-automator/out/MiniProgram').default;
 
 const ROOT = path.resolve(__dirname, '..');
 const MINI_ROOT = path.join(ROOT, 'miniprogram');
@@ -121,6 +123,39 @@ function assert(condition, message) {
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function withTimeout(promise, timeoutMs, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label || 'operation'} timed out after ${timeoutMs}ms`)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+async function connectAutomatorEndpoint(endpoint, timeoutMs) {
+  let connection;
+  let expired = false;
+  const label = `connect ${endpoint}`;
+  const connectionPromise = AutomatorConnection.create(endpoint).then(created => {
+    if (expired) {
+      created.dispose();
+      throw new Error(`${label} completed after timeout`);
+    }
+    connection = created;
+    return created;
+  });
+
+  try {
+    await withTimeout(connectionPromise, timeoutMs, label);
+    const miniProgram = new AutomatorMiniProgram(connection);
+    await withTimeout(miniProgram.checkVersion(), timeoutMs, `${label} version handshake`);
+    return miniProgram;
+  } catch (err) {
+    expired = true;
+    if (connection) connection.dispose();
+    throw err;
+  }
 }
 
 function quotePowerShell(value) {
@@ -345,6 +380,26 @@ function buildRequestMock() {
       return respond(200, { code: 0, message: message || 'ok', data: data });
     }
 
+    var e2eApplication = { id: 901, jobId: 'job_e2e_1', company: 'E2E Co', jobTitle: 'Data Analyst', status: 'interview_1', statusText: '一轮面试' };
+    var e2eSpace = { id: 801, applicationId: 901, company: 'E2E Co', jobTitle: 'Data Analyst', interviewTime: '2026-07-20 10:00',
+      round: 'interview_1', preparationCompletion: 40, companyExperiences: [{ id: 1, title: 'E2E 面经' }],
+      frequentQuestions: [{ id: 'q1', title: '请介绍自己' }], algorithmQuestions: [{ id: 'q2', title: 'SQL Top N' }],
+      behaviorQuestions: [{ id: 'q3', title: '冲突处理' }], roleQuestions: [{ id: 'q4', title: '漏斗分析' }] };
+    if (/\\/api\\/v4\\/agents\\/tasks\\/\\d+\\/confirm/.test(url)) return ok({ id: 701, agentType: 'interview_coach', agentName: 'AI 面试教练', status: 'completed', output: { message: '已确认写入 Today 任务。' } });
+    if (/\\/api\\/v4\\/agents\\/tasks/.test(url)) {
+      if (method === 'GET') return ok([]);
+      return ok({ id: 701, agentType: data.agentType || 'job_advisor', agentName: 'AI 岗位顾问', applicationId: 901, status: 'completed', input: data.input || {}, output: { message: '建议先完成岗位资格核验，再准备面试案例。' }, aiModel: 'deepseek-chat', promptVersion: 'job-advisor-v4.0-1', createdAt: new Date().toISOString() });
+    }
+    if (/\\/api\\/v4\\/agents/.test(url)) return ok([{ code: 'job_advisor', name: 'AI 岗位顾问' }, { code: 'application_assistant', name: 'AI 申请助手' }, { code: 'interview_coach', name: 'AI 面试教练' }, { code: 'career_planner', name: 'AI 职业规划师' }]);
+    if (/\\/api\\/v4\\/applications\\/board/.test(url)) return ok({ groups: { preparing: [], applied: [], interview: [e2eApplication], offer: [], closed: [] }, statistics: { interview: 1 }, total: 1 });
+    if (/\\/api\\/v4\\/interviews\\/sessions\\/\\d+\\/answers/.test(url)) return ok({ id: 601, content: 86, structure: 90, expression: 84, jobMatch: 88, average: 87, feedback: 'STAR 结构清晰，结果可继续量化。' });
+    if (/\\/api\\/v4\\/interviews\\/sessions\\/\\d+\\/complete/.test(url)) return ok({ id: 501, sessionId: 401, spaceId: 801, overallScore: 87, dimensions: { content: 86, structure: 90, expression: 84, jobMatch: 88 }, strengths: [{ name: '结构', score: 90 }], weaknesses: [{ name: '表达', score: 84 }], questionFeedback: [{ question: '项目经历', feedback: '结构清晰' }], summary: '综合评分 87，优先提升表达。' });
+    if (/\\/api\\/v4\\/interviews\\/spaces\\/\\d+\\/sessions/.test(url)) return ok({ id: 401, spaceId: 801, sessionType: data.sessionType || 'mock', status: 'active', aiModel: 'deepseek-chat', promptVersion: 'interview-v4.0-s4-1' });
+    if (/\\/api\\/v4\\/interviews\\/spaces\\/\\d+/.test(url)) return ok({ space: e2eSpace, sessions: [] });
+    if (/\\/api\\/v4\\/interviews\\/spaces/.test(url)) return ok([e2eSpace]);
+    if (/\\/api\\/v4\\/interviews\\/today-tasks/.test(url)) return ok([{ id: 301, title: '补强面试表达', detail: '完成一次复练', priority: 'high', status: 'pending' }]);
+    if (/\\/api\\/v4\\/interviews\\/trends/.test(url)) return ok([{ date: '2026-07-14', overallScore: 82, dimensions: { content: 80 } }]);
+
     if (/\\/api\\/features/.test(url)) {
       return ok({ recruitment: true, membership: true });
     }
@@ -487,7 +542,7 @@ function buildRequestMock() {
       } else if (/STAR|模拟追问|标准回答|面试训练/.test(allText)) {
         content = 'S：在一次漏斗转化下降的项目中，我负责定位问题。\\nT：目标是在一周内找出关键流失点。\\nA：我用 SQL 拆解路径并和产品团队复盘实验。\\nR：最终推动页面调整，转化率提升 12%。';
       }
-      return ok({ choices: [{ message: { content: content } }] });
+      return respond(200, { choices: [{ message: { content: content } }] });
     }
     if (/\\/api\\/users\\/profile/.test(url)) {
       return ok({
@@ -612,7 +667,9 @@ class E2E30Bot {
         path.join(this.options.projectPath, 'package-ai/pages/jd-match/jd-match.js'),
         path.join(this.options.projectPath, 'package-user/pages/job-progress/job-progress.js'),
         path.join(this.options.projectPath, 'package-career/pages/resume/resume.js'),
-        path.join(this.options.projectPath, 'package-user/pages/vip/vip.js')
+        path.join(this.options.projectPath, 'package-user/pages/vip/vip.js'),
+        path.join(this.options.projectPath, 'package-ai/pages/ai-career/ai-career.js'),
+        path.join(this.options.projectPath, 'package-ai/pages/interview-space/interview-space.js')
       ];
       const missing = required.filter(item => !fs.existsSync(item));
       assert(missing.length === 0, `missing files: ${missing.join(', ')}`);
@@ -641,11 +698,22 @@ class E2E30Bot {
   async launchMiniProgram() {
     const automator = require('miniprogram-automator');
     if (this.options.wsEndpoint) {
-      return automator.connect({ wsEndpoint: this.options.wsEndpoint });
+      return connectAutomatorEndpoint(
+        this.options.wsEndpoint,
+        Math.max(10000, this.options.timeoutMs)
+      );
     }
     if (this.options.freshDevtools) {
       await this.runCli(['quit'], { timeoutMs: 10000, ignoreError: true });
       await sleep(1500);
+    }
+    // miniprogram-automator's SDK launcher can ignore its timeout when an old
+    // Windows IDE server is still shutting down. A caller-supplied port is an
+    // explicit request for the deterministic CLI auto + WebSocket path.
+    if (this.options.port) {
+      const args = ['auto', '--project', this.options.projectPath, '--auto-port', String(this.options.port)];
+      if (this.options.trustProject) args.push('--trust-project');
+      return this.connectViaCliAuto(automator, args, this.options.port);
     }
     try {
       return await automator.launch({
@@ -683,24 +751,12 @@ class E2E30Bot {
   }
 
   async connectViaCliAuto(automator, args, port) {
-    this.devtoolsProcess = this.spawnCli(args, this.options.verbose ? 'inherit' : 'ignore');
-    this.devtoolsProcess.on('error', err => {
-      if (this.options.verbose) console.warn('[e2e-3.0] DevTools process error:', err.message);
-    });
-
     const endpoint = `ws://127.0.0.1:${port}`;
-    const deadline = Date.now() + Math.max(this.options.timeoutMs * 3, 45000);
-    let lastErr = null;
-    while (Date.now() < deadline) {
-      try {
-        return await automator.connect({ wsEndpoint: endpoint });
-      } catch (err) {
-        lastErr = err;
-        await sleep(1000);
-      }
-    }
-    const detail = lastErr && lastErr.message ? lastErr.message : String(lastErr || 'timeout');
-    throw new Error(`${endpoint}: ${detail}`);
+    // The DevTools automation endpoint accepts a single WebSocket client. A
+    // raw TCP readiness probe consumes that slot and makes the real connection
+    // close immediately, so wait for the official CLI command to finish first.
+    await this.runCli(args, { timeoutMs: Math.max(60000, this.options.timeoutMs * 4) });
+    return connectAutomatorEndpoint(endpoint, Math.max(10000, this.options.timeoutMs));
   }
 
   spawnCli(args, stdio) {
@@ -748,38 +804,92 @@ class E2E30Bot {
 
   async installMocks() {
     await this.step('setup', 'Install WeChat API mocks', async () => {
-      await this.miniProgram.mockWxMethod('request', buildRequestMock());
-      await this.miniProgram.mockWxMethod('uploadFile', buildUploadMock());
-      await this.miniProgram.mockWxMethod('showActionSheet', `function(options) {
+      if (this.options.wsEndpoint) {
+        await withTimeout(
+          this.miniProgram.currentPage(),
+          this.options.timeoutMs,
+          'warm App automation channel'
+        );
+      }
+      let useRuntimeOverride = Boolean(this.options.wsEndpoint);
+      const mock = async (name, declaration) => {
+        if (!useRuntimeOverride) {
+          try {
+            return await withTimeout(
+              this.miniProgram.mockWxMethod(name, declaration),
+              Math.min(3000, Math.max(1500, this.options.timeoutMs)),
+              `mock wx.${name}`
+            );
+          } catch (err) {
+            useRuntimeOverride = true;
+            if (this.options.verbose) {
+              console.warn(`[e2e-3.0] App.mockWxMethod is unavailable; using runtime override: ${err.message}`);
+            }
+          }
+        }
+
+        const overrideDeclaration = `function() {
+            var methodName = ${JSON.stringify(name)};
+            var implementation = (${declaration});
+            implementation.__e2eMock = true;
+            try {
+              wx[methodName] = implementation;
+            } catch (_) {}
+            if (!wx[methodName] || wx[methodName].__e2eMock !== true) {
+              try {
+                Object.defineProperty(wx, methodName, {
+                  configurable: true,
+                  enumerable: true,
+                  writable: true,
+                  value: implementation
+                });
+              } catch (_) {}
+            }
+            return Boolean(wx[methodName] && wx[methodName].__e2eMock === true);
+          }`;
+        const response = await withTimeout(
+          this.miniProgram.send('App.callFunction', {
+            functionDeclaration: overrideDeclaration,
+            args: []
+          }),
+          Math.max(5000, this.options.timeoutMs),
+          `override wx.${name}`
+        );
+        const installed = Boolean(response && response.result);
+        assert(installed, `runtime override wx.${name} was rejected`);
+      };
+      await mock('request', buildRequestMock());
+      await mock('uploadFile', buildUploadMock());
+      await mock('showActionSheet', `function(options) {
         options = options || {};
         setTimeout(function() {
           if (typeof options.success === 'function') options.success({ tapIndex: 0 });
           if (typeof options.complete === 'function') options.complete({ tapIndex: 0 });
         }, 10);
       }`);
-      await this.miniProgram.mockWxMethod('showModal', `function(options) {
+      await mock('showModal', `function(options) {
         options = options || {};
         setTimeout(function() {
           if (typeof options.success === 'function') options.success({ confirm: true, cancel: false });
           if (typeof options.complete === 'function') options.complete({ confirm: true, cancel: false });
         }, 10);
       }`);
-      await this.miniProgram.mockWxMethod('showToast', `function(options) {
+      await mock('showToast', `function(options) {
         options = options || {};
         if (typeof options.success === 'function') options.success({});
         if (typeof options.complete === 'function') options.complete({});
       }`);
-      await this.miniProgram.mockWxMethod('showLoading', `function(options) {
+      await mock('showLoading', `function(options) {
         options = options || {};
         if (typeof options.success === 'function') options.success({});
         if (typeof options.complete === 'function') options.complete({});
       }`);
-      await this.miniProgram.mockWxMethod('hideLoading', `function(options) {
+      await mock('hideLoading', `function(options) {
         options = options || {};
         if (typeof options.success === 'function') options.success({});
         if (typeof options.complete === 'function') options.complete({});
       }`);
-      await this.miniProgram.mockWxMethod('requestSubscribeMessage', `function(options) {
+      await mock('requestSubscribeMessage', `function(options) {
         options = options || {};
         var result = {};
         (options.tmplIds || []).forEach(function(id) { result[id] = 'accept'; });
@@ -788,7 +898,7 @@ class E2E30Bot {
           if (typeof options.complete === 'function') options.complete(result);
         }, 10);
       }`);
-      await this.miniProgram.mockWxMethod('chooseMessageFile', `function(options) {
+      await mock('chooseMessageFile', `function(options) {
         options = options || {};
         var res = { tempFiles: [{ name: 'e2e_resume.pdf', path: 'tmp/e2e_resume.pdf', tempFilePath: 'tmp/e2e_resume.pdf', size: 123456 }] };
         setTimeout(function() {
@@ -796,26 +906,21 @@ class E2E30Bot {
           if (typeof options.complete === 'function') options.complete(res);
         }, 10);
       }`);
-      await this.miniProgram.mockWxMethod('chooseFile', `function(options) {
-        options = options || {};
-        var res = { tempFiles: [{ name: 'e2e_resume.pdf', path: 'tmp/e2e_resume.pdf', tempFilePath: 'tmp/e2e_resume.pdf', size: 123456 }] };
-        setTimeout(function() {
-          if (typeof options.success === 'function') options.success(res);
-          if (typeof options.complete === 'function') options.complete(res);
-        }, 10);
-      }`);
-      await this.miniProgram.mockWxMethod('setClipboardData', `function(options) {
+      // wx.chooseFile is only exposed by some desktop/enterprise runtimes.
+      // Production pages already fall back to chooseMessageFile when absent, so
+      // do not ask automator to mock a method that the current runtime lacks.
+      await mock('setClipboardData', `function(options) {
         options = options || {};
         if (typeof options.success === 'function') options.success({});
         if (typeof options.complete === 'function') options.complete({});
       }`);
-      await this.miniProgram.mockWxMethod('downloadFile', `function(options) {
+      await mock('downloadFile', `function(options) {
         options = options || {};
         var res = { statusCode: 200, tempFilePath: 'tmp/e2e_resume.pdf' };
         if (typeof options.success === 'function') options.success(res);
         if (typeof options.complete === 'function') options.complete(res);
       }`);
-      await this.miniProgram.mockWxMethod('openDocument', `function(options) {
+      await mock('openDocument', `function(options) {
         options = options || {};
         if (typeof options.success === 'function') options.success({});
         if (typeof options.complete === 'function') options.complete({});
@@ -852,7 +957,6 @@ class E2E30Bot {
       const page = await this.openPage('/pages/profile/profile');
       assertPath(page, 'pages/profile/profile');
       await page.waitFor(800);
-      const data = await page.data();
       const stored = await this.miniProgram.evaluate(function() {
         return {
           hasToken: !!wx.getStorageSync('token'),
@@ -860,36 +964,36 @@ class E2E30Bot {
         };
       });
       assert(stored.hasToken, 'token was not seeded');
-      return `nickname=${stored.nickname || data.nickname || 'seeded'}`;
+      return `nickname=${stored.nickname || 'seeded'}`;
     });
 
     await this.step('resume', 'Upload attachment resume and apply AI polish', async () => {
       const page = await this.openPage('/package-career/pages/resume/resume');
       assertPath(page, 'package-career/pages/resume/resume');
       await waitFor(async () => {
-        const data = await page.data();
-        return data.onlineResume && data.onlineResume.basicInfo && data.onlineResume.basicInfo.name;
+        return this.pageData('onlineResume.basicInfo.name');
       }, this.options.timeoutMs);
 
-      await page.setData({ currentTab: 1 });
-      await page.callMethod('handleUpload');
+      await this.pageSetData({ currentTab: 1 });
+      await this.pageCallMethod('handleUpload');
       await waitFor(async () => {
-        const list = await page.data('resumeList');
+        const list = await this.pageData('resumeList');
         return Array.isArray(list) && list.length > 0;
       }, this.options.timeoutMs);
 
-      await page.setData({ currentTab: 0 });
-      await page.callMethod('handleAiPolish');
+      await this.pageSetData({ currentTab: 0 });
+      await this.pageCallMethod('handleAiPolish');
       await waitFor(async () => {
-        const data = await page.data();
-        return data.showAiResult && data.aiResultContent;
+        const visible = await this.pageData('showAiResult');
+        const content = await this.pageData('aiResultContent');
+        return visible && content;
       }, this.options.timeoutMs);
-      await page.callMethod('applyPolish');
+      await this.pageCallMethod('applyPolish');
       await waitFor(async () => {
-        const summary = await page.data('onlineResume.summary');
+        const summary = await this.pageData('onlineResume.summary');
         return /数据指标|SQL|优化|分析/.test(String(summary || ''));
       }, this.options.timeoutMs);
-      const summary = await page.data('onlineResume.summary');
+      const summary = await this.pageData('onlineResume.summary');
       return `resume polished, summaryLength=${String(summary || '').length}`;
     });
 
@@ -897,8 +1001,9 @@ class E2E30Bot {
       let page = await this.openPage('/package-ai/pages/jd-match/jd-match');
       assertPath(page, 'package-ai/pages/jd-match/jd-match');
       await waitFor(async () => {
-        const data = await page.data();
-        return data.hasOnlineResume || !data.onlineResumeLoading;
+        const hasOnlineResume = await this.pageData('hasOnlineResume');
+        const loading = await this.pageData('onlineResumeLoading');
+        return hasOnlineResume || !loading;
       }, this.options.timeoutMs);
 
       const jdText = [
@@ -906,7 +1011,7 @@ class E2E30Bot {
         'run A/B testing, partner with product managers, and communicate insights to leadership.',
         'The role requires Python, SQL, experimentation, data visualization, and strong communication.'
       ].join(' ');
-      await page.setData({
+      await this.pageSetData({
         form: {
           jobTitle: 'Data Analyst',
           company: 'E2E Co',
@@ -916,27 +1021,26 @@ class E2E30Bot {
         },
         jdLen: jdText.length
       });
-      await page.callMethod('startMatch');
-      await waitFor(async () => (await page.data('step')) === 'result', this.options.timeoutMs);
-      const report = await page.data('report');
+      await this.pageCallMethod('startMatch');
+      await waitFor(async () => (await this.pageData('step')) === 'result', this.options.timeoutMs);
+      const report = await this.pageData('report');
       assert(report && Number(report.score) > 0, 'JD match report was not generated');
       assert(report.resumeVersionId, 'resume version id missing from JD report');
 
-      await page.callMethod('saveToProgress');
-      await waitFor(async () => !!(await page.data('savedProgress')), this.options.timeoutMs);
-      await page.callMethod('goProgress');
-      await sleep(1600);
-      page = await this.miniProgram.currentPage();
+      await this.pageCallMethod('saveToProgress');
+      await waitFor(async () => !!(await this.pageData('savedProgress')), this.options.timeoutMs);
+      page = await this.openPage('/package-user/pages/job-progress/job-progress');
       assertPath(page, 'package-user/pages/job-progress/job-progress');
       await waitFor(async () => {
-        const list = await page.data('filteredRecords');
+        const list = await this.pageData('filteredRecords');
         return Array.isArray(list) && list.length > 0;
       }, this.options.timeoutMs);
-      const list = await page.data('filteredRecords');
-      const target = list[0];
-      await page.callMethod('openRecordDetail', { currentTarget: { dataset: { id: target.id } } });
-      await waitFor(async () => !!(await page.data('showDetail')), this.options.timeoutMs);
-      const selected = await page.data('selectedRecord');
+      const list = await this.pageData('filteredRecords');
+      const target = list.find(item => item.company === 'E2E Co' && item.jobTitle === 'Data Analyst');
+      assert(target, 'newly saved E2E progress record was not found');
+      await this.pageCallMethod('openRecordDetail', { currentTarget: { dataset: { id: target.id } } });
+      await waitFor(async () => !!(await this.pageData('showDetail')), this.options.timeoutMs);
+      const selected = await this.pageData('selectedRecord');
       assert(selected && selected.hasMatchReport, 'progress detail did not include JD match report');
       return `progress=${selected.company}/${selected.jobTitle}, score=${selected.matchScore}`;
     });
@@ -945,17 +1049,17 @@ class E2E30Bot {
       const page = await this.openPage('/package-content/pages/question-detail/question-detail?id=q_e2e_behavior_1');
       assertPath(page, 'package-content/pages/question-detail/question-detail');
       await waitFor(async () => {
-        const q = await page.data('q');
+        const q = await this.pageData('q');
         return q && q.title && q.title !== '题目加载失败';
       }, this.options.timeoutMs);
-      await page.callMethod('generateAiTraining', { currentTarget: { dataset: { mode: 'star' } } });
+      await this.pageCallMethod('generateAiTraining', { currentTarget: { dataset: { mode: 'star' } } });
       await waitFor(async () => {
-        const training = await page.data('aiTraining');
+        const training = await this.pageData('aiTraining');
         return training && training.result && !training.loading;
       }, this.options.timeoutMs);
-      await page.callMethod('saveAiTrainingToNotebook');
-      await waitFor(async () => !!(await page.data('notebookStatus')), this.options.timeoutMs);
-      const training = await page.data('aiTraining');
+      await this.pageCallMethod('saveAiTrainingToNotebook');
+      await waitFor(async () => !!(await this.pageData('notebookStatus')), this.options.timeoutMs);
+      const training = await this.pageData('aiTraining');
       return `trainingMode=${training.mode}, length=${String(training.result || '').length}`;
     });
 
@@ -963,39 +1067,81 @@ class E2E30Bot {
       let page = await this.openPage('/package-ai/pages/interview-dialog/interview-dialog?type=behavior&company=E2E%20Co&position=Data%20Analyst&questionCount=1');
       assertPath(page, 'package-ai/pages/interview-dialog/interview-dialog');
       await waitFor(async () => {
-        const data = await page.data();
-        return !data.loading && Array.isArray(data.chatList) && data.chatList.length > 0;
+        const loading = await this.pageData('loading');
+        const chatList = await this.pageData('chatList');
+        return !loading && Array.isArray(chatList) && chatList.length > 0;
       }, this.options.timeoutMs);
-      await page.setData({
+      await this.pageSetData({
         userAnswer: 'I used SQL to identify a funnel drop, created an experiment dashboard, and helped the product team improve conversion by 12%.'
       });
-      await page.callMethod('submitAnswer');
+      await this.pageCallMethod('submitAnswer');
       await waitFor(async () => {
         const current = await this.miniProgram.currentPage();
         return normalizePagePath(current && current.path) === 'package-ai/pages/ai-report/ai-report';
       }, this.options.timeoutMs + 5000);
       page = await this.miniProgram.currentPage();
       await waitFor(async () => {
-        const report = await page.data('report');
+        const report = await this.pageData('report');
         return report && Number(report.totalScore) > 0;
       }, this.options.timeoutMs);
-      const report = await page.data('report');
+      const report = await this.pageData('report');
       return `reportScore=${report.totalScore}, weakQuestions=${(report.weakQaList || []).length}`;
+    });
+
+    await this.step('v4-ai-career', 'Open four-Agent AI Career and finish a contextual task', async () => {
+      const page = await this.openPage('/package-ai/pages/ai-career/ai-career');
+      assertPath(page, 'package-ai/pages/ai-career/ai-career');
+      await waitFor(async () => {
+        const agents = await this.pageData('agents');
+        const applications = await this.pageData('applications');
+        return Array.isArray(agents) && agents.length === 4 && Array.isArray(applications) && applications.length === 1;
+      }, this.options.timeoutMs);
+      await this.pageSetData({ selectedAgent: 'job_advisor', query: '如何准备当前岗位？' });
+      await this.pageCallMethod('runAgent');
+      await waitFor(async () => {
+        const task = await this.pageData('currentTask');
+        return task && task.status === 'completed' && task.output && task.output.message;
+      }, this.options.timeoutMs);
+      const task = await this.pageData('currentTask');
+      return `agent=${task.agentType}, status=${task.status}`;
+    });
+
+    await this.step('v4-interview-space', 'Run a job-specific mock interview and generate capability report', async () => {
+      const page = await this.openPage('/package-ai/pages/interview-space/interview-space');
+      assertPath(page, 'package-ai/pages/interview-space/interview-space');
+      await waitFor(async () => {
+        const spaces = await this.pageData('spaces');
+        return Array.isArray(spaces) && spaces.some(item => Number(item.id) === 801);
+      }, this.options.timeoutMs);
+      await this.pageCallMethod('selectSpace', { currentTarget: { dataset: { id: 801 } } });
+      await waitFor(async () => {
+        const current = await this.pageData('current');
+        return current && Number(current.id) === 801 && current.frequentQuestions && current.frequentQuestions.length;
+      }, this.options.timeoutMs);
+      await this.pageCallMethod('startMock');
+      await waitFor(async () => !!(await this.pageData('session.id')), this.options.timeoutMs);
+      await this.pageSetData({ answer: '情况：漏斗下降。任务：定位原因。行动：分析 SQL 数据。结果：转化率提升 12%。' });
+      await this.pageCallMethod('submitAnswer');
+      await waitFor(async () => Number(await this.pageData('feedback.average')) > 0, this.options.timeoutMs);
+      await this.pageCallMethod('complete');
+      await waitFor(async () => Number(await this.pageData('report.overallScore')) > 0, this.options.timeoutMs);
+      const report = await this.pageData('report');
+      return `space=801, reportScore=${report.overallScore}`;
     });
 
     await this.step('campus', 'Subscribe campus deadline reminder', async () => {
       const page = await this.openPage('/pages/campus/campus');
       assertPath(page, 'pages/campus/campus');
       await waitFor(async () => {
-        const list = await page.data('list');
+        const list = await this.pageData('list');
         return Array.isArray(list) && list.length > 0;
       }, this.options.timeoutMs);
-      await page.callMethod('subscribeFromCard', { currentTarget: { dataset: { index: 0 } } });
+      await this.pageCallMethod('subscribeFromCard', { currentTarget: { dataset: { index: 0 } } });
       await waitFor(async () => {
-        const list = await page.data('list');
+        const list = await this.pageData('list');
         return list && list[0] && list[0]._isSubscribed;
       }, this.options.timeoutMs);
-      const list = await page.data('list');
+      const list = await this.pageData('list');
       return `campus=${list[0].company}, deadline=${list[0].deadlineDate}`;
     });
 
@@ -1003,27 +1149,138 @@ class E2E30Bot {
       const page = await this.openPage('/package-user/pages/vip/vip');
       assertPath(page, 'package-user/pages/vip/vip');
       await waitFor(async () => {
-        const data = await page.data();
-        return data.paymentConfig || (Array.isArray(data.quotaFeatures) && data.quotaFeatures.length > 0);
+        const paymentConfig = await this.pageData('paymentConfig');
+        const quotaFeatures = await this.pageData('quotaFeatures');
+        return paymentConfig || (Array.isArray(quotaFeatures) && quotaFeatures.length > 0);
       }, this.options.timeoutMs);
-      const data = await page.data();
-      assert(Array.isArray(data.quotaFeatures) && data.quotaFeatures.length > 0, 'AI quota features not displayed');
-      return `payment=${data.paymentAvailable}, quotaFeatures=${data.quotaFeatures.length}`;
+      const paymentAvailable = await this.pageData('paymentAvailable');
+      const quotaFeatures = await this.pageData('quotaFeatures');
+      assert(Array.isArray(quotaFeatures) && quotaFeatures.length > 0, 'AI quota features not displayed');
+      return `payment=${paymentAvailable}, quotaFeatures=${quotaFeatures.length}`;
     });
+  }
+
+  async pageData(pathValue) {
+    return withTimeout(
+      this.miniProgram.evaluate(function(dataPath) {
+        var pages = getCurrentPages();
+        var page = pages[pages.length - 1];
+        if (!page) return undefined;
+        var value = page.data;
+        if (!dataPath) return value;
+        dataPath.split('.').forEach(function(part) {
+          value = value == null ? undefined : value[part];
+        });
+        return value;
+      }, pathValue || ''),
+      this.options.timeoutMs,
+      `read runtime page data ${pathValue || '<all>'}`
+    );
+  }
+
+  async pageSetData(data) {
+    return withTimeout(
+      this.miniProgram.evaluate(function(nextData) {
+        var pages = getCurrentPages();
+        var page = pages[pages.length - 1];
+        if (!page) throw new Error('current page not found');
+        page.setData(nextData);
+        return true;
+      }, data),
+      this.options.timeoutMs,
+      'set runtime page data'
+    );
+  }
+
+  async pageCallMethod(method, ...args) {
+    return withTimeout(
+      this.miniProgram.evaluate(function(methodName, methodArgs) {
+        var pages = getCurrentPages();
+        var page = pages[pages.length - 1];
+        if (!page || typeof page[methodName] !== 'function') {
+          throw new Error('page method not found: ' + methodName);
+        }
+        setTimeout(function() { page[methodName].apply(page, methodArgs || []); }, 0);
+        return true;
+      }, method, args),
+      this.options.timeoutMs,
+      `call runtime page method ${method}`
+    );
   }
 
   async openPage(url) {
     const clean = normalizePagePath(url);
-    if (TAB_PAGES.has(clean)) {
-      return this.miniProgram.switchTab(url);
+    const current = await withTimeout(
+      this.miniProgram.currentPage(),
+      this.options.timeoutMs,
+      `read current page before opening ${clean}`
+    );
+    if (normalizePagePath(current && current.path) === clean) {
+      return current;
     }
-    await this.miniProgram.reLaunch('/pages/index/index');
-    await sleep(600);
-    return this.miniProgram.navigateTo(url);
+    if (TAB_PAGES.has(clean)) {
+      await withTimeout(
+        this.miniProgram.evaluate(function(target) {
+          setTimeout(function() { wx.switchTab({ url: target }); }, 0);
+          return true;
+        }, url),
+        this.options.timeoutMs,
+        `schedule switchTab to ${clean}`
+      );
+      return this.waitForCurrentPage(clean);
+    }
+    await withTimeout(
+      this.miniProgram.evaluate(function() {
+        setTimeout(function() { wx.reLaunch({ url: '/pages/index/index' }); }, 0);
+        return true;
+      }),
+      this.options.timeoutMs,
+      'schedule reLaunch to pages/index/index'
+    );
+    await this.waitForCurrentPage('pages/index/index');
+    await withTimeout(
+      this.miniProgram.evaluate(function(target) {
+        setTimeout(function() {
+          wx.navigateTo({
+            url: target,
+            fail: function(err) {
+              wx.setStorageSync('__e2eRouteError', (err && err.errMsg) || String(err || 'navigateTo failed'));
+            }
+          });
+        }, 0);
+        return true;
+      }, url),
+      this.options.timeoutMs,
+      `schedule navigateTo to ${clean}`
+    );
+    return this.waitForCurrentPage(clean);
+  }
+
+  async waitForCurrentPage(expected) {
+    const deadline = Date.now() + this.options.timeoutMs;
+    let lastPath = '';
+    while (Date.now() < deadline) {
+      try {
+        const page = await withTimeout(
+          this.miniProgram.currentPage(),
+          Math.min(3000, this.options.timeoutMs),
+          `read current page while waiting for ${expected}`
+        );
+        lastPath = normalizePagePath(page && page.path);
+        if (lastPath === expected) return page;
+      } catch (_) {}
+      await sleep(200);
+    }
+    throw new Error(`expected page ${expected}, got ${lastPath || '<empty>'}`);
   }
 
   async step(group, name, fn, opts) {
     const started = Date.now();
+    const stepTimeoutMs = opts && opts.timeoutMs
+      ? opts.timeoutMs
+      : group === 'launch-devtools'
+        ? Math.max(120000, this.options.timeoutMs * 8)
+        : Math.max(30000, this.options.timeoutMs * 3);
     const entry = {
       group,
       name,
@@ -1033,7 +1290,11 @@ class E2E30Bot {
       screenshot: ''
     };
     try {
-      const detail = await fn();
+      const detail = await withTimeout(
+        Promise.resolve().then(fn),
+        stepTimeoutMs,
+        `${group} :: ${name}`
+      );
       entry.detail = detail || '';
       entry.durationMs = Date.now() - started;
       if (this.options.screenshots && (!opts || opts.screenshot !== false) && this.miniProgram) {
@@ -1064,7 +1325,14 @@ class E2E30Bot {
 
   async cleanup() {
     if (this.miniProgram && !this.options.keepOpen) {
-      await this.miniProgram.close().catch(() => {});
+      if (this.options.wsEndpoint) {
+        this.miniProgram.disconnect();
+      } else {
+        await withTimeout(this.miniProgram.close(), 10000, 'close DevTools automation')
+          .catch(() => {
+            try { this.miniProgram.disconnect(); } catch (_) {}
+          });
+      }
       this.miniProgram = null;
     }
     if (this.devtoolsProcess && !this.options.keepOpen) {

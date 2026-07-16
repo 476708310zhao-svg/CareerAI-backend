@@ -1,6 +1,7 @@
 // pages/profile-edit/profile-edit.js
 const config = require('../../../utils/app-config.js');
 const api = require('../../../utils/api.js');
+const v4Api = require('../../../utils/api-v4.js');
 const {
   PROFILE_SCHEMA,
   normalizeMultiValue,
@@ -60,6 +61,11 @@ Page({
       targetIndustries: [],
       jobTypes: [],
       workAuthorization: '',
+      visaStatus: '',
+      sponsorNeeded: false,
+      country: '',
+      city: '',
+      projects: [],
       expectedSalaryRange: '',
       skills: [],          // ['Python', ...]
     },
@@ -97,6 +103,9 @@ Page({
     },
 
     completeness: 0,
+    completionMissing: [],
+    projectsText: '',
+    visaOptions: ['F-1', 'OPT', 'STEM OPT', 'CPT', 'H-1B', '无需签证支持', '其他'],
   },
 
   onLoad(options) {
@@ -113,7 +122,7 @@ Page({
       this._autoFillFromResume();
     }
     this._loadProfileSchema();
-    this._loadRemoteProfile();
+    this._loadRemoteProfile().then(() => this._loadV4Profile());
     this._refreshLocationOptions();
     this._refreshIndustryOptions();
     this._refreshJobTypeOptions();
@@ -147,8 +156,8 @@ Page({
   },
 
   _loadRemoteProfile() {
-    if (!wx.getStorageSync('token') || typeof api.getUserProfile !== 'function') return;
-    api.getUserProfile().then(res => {
+    if (!wx.getStorageSync('token') || typeof api.getUserProfile !== 'function') return Promise.resolve();
+    return api.getUserProfile().then(res => {
       const user = res && res.code === 0 ? res.data : null;
       if (!user || typeof api.persistUserSession !== 'function') return;
       const profile = api.persistUserSession(user);
@@ -159,6 +168,39 @@ Page({
         this._refreshPresetOptions();
         this._calcCompleteness();
       });
+    }).catch(() => {});
+  },
+
+  _loadV4Profile() {
+    if (!wx.getStorageSync('token')) return;
+    v4Api.getProfile().then(res => {
+      const profile = res && res.code === 0 ? res.data : null;
+      if (!profile) return;
+      const merged = this._normalizeUserInfo({
+        ...this.data.userInfo,
+        ...profile,
+        gradYear: profile.graduationYear || this.data.userInfo.gradYear,
+        targetLocation: profile.targetCities || this.data.userInfo.targetLocation,
+        jobTypes: profile.employmentTypes || this.data.userInfo.jobTypes,
+      });
+      this.setData({
+        userInfo: merged,
+        projectsText: (profile.projects || []).join('\n'),
+        completeness: Number(profile.completion) || 0,
+      }, () => {
+        this._refreshLocationOptions();
+        this._refreshIndustryOptions();
+        this._refreshJobTypeOptions();
+        this._refreshPresetOptions();
+      });
+      return v4Api.getProfileCompletion();
+    }).then(res => {
+      if (res && res.code === 0 && res.data) {
+        this.setData({
+          completeness: Number(res.data.completion) || 0,
+          completionMissing: res.data.missing || [],
+        });
+      }
     }).catch(() => {});
   },
 
@@ -407,6 +449,15 @@ Page({
     this._toggleMultiValue('targetLocation', value);
   },
 
+  onProjectsInput(e) {
+    this.setData({ projectsText: e.detail.value });
+  },
+
+  onSponsorNeededChange(e) {
+    this.setData({ 'userInfo.sponsorNeeded': !!e.detail.value });
+    this._calcCompleteness();
+  },
+
   toggleIndustry(e) {
     const { value } = e.currentTarget.dataset;
     this._toggleMultiValue('targetIndustries', value);
@@ -558,6 +609,7 @@ Page({
   // ── 保存 ─────────────────────────────────────────────────────────────────
   async handleSave() {
     const u = this._normalizeUserInfo(this.data.userInfo);
+    u.projects = String(this.data.projectsText || '').split(/\n+/).map(item => item.trim()).filter(Boolean).slice(0, 12);
     if (!u.nickName && !u.school && !u.major) {
       wx.showToast({ title: '请至少填写一项基本信息', icon: 'none' });
       return;
@@ -569,15 +621,37 @@ Page({
     getApp().refreshGlobalData();
 
     const token = wx.getStorageSync('token');
-    if (token && typeof api.updateUserDetail === 'function') {
+    if (token) {
       try {
-        const res = await api.updateUserDetail(buildProfilePayload(u));
-        if (res && res.code === 0 && res.data && typeof api.persistUserSession === 'function') {
-          api.persistUserSession(res.data);
-          getApp().refreshGlobalData();
-        } else if (res && res.message) {
-          throw new Error(res.message);
+        if (typeof api.updateUserDetail === 'function') {
+          const res = await api.updateUserDetail(buildProfilePayload(u));
+          if (res && res.code === 0 && res.data && typeof api.persistUserSession === 'function') {
+            api.persistUserSession(res.data);
+            getApp().refreshGlobalData();
+          } else if (res && res.message) {
+            throw new Error(res.message);
+          }
         }
+        const v4Res = await v4Api.updateProfile({
+          school: u.school,
+          major: u.major,
+          degree: u.degree,
+          graduationYear: u.gradYear,
+          country: u.country,
+          city: u.city,
+          visaStatus: u.visaStatus,
+          workAuthorization: u.workAuthorization,
+          sponsorNeeded: !!u.sponsorNeeded,
+          targetRoles: u.targetRoles,
+          targetIndustries: u.targetIndustries,
+          targetCities: u.targetLocation,
+          employmentTypes: u.jobTypes,
+          skills: u.skills,
+          projects: u.projects,
+          fieldSources: { profileEdit: 'manual' },
+        });
+        if (!v4Res || v4Res.code !== 0) throw new Error((v4Res && v4Res.message) || 'V4 profile sync failed');
+        this.setData({ completeness: Number(v4Res.data && v4Res.data.completion) || this.data.completeness });
       } catch (err) {
         wx.hideLoading();
         wx.showToast({ title: '本地已保存，服务器同步失败', icon: 'none', duration: 2200 });

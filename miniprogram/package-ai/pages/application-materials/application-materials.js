@@ -1,4 +1,12 @@
 const appMaterials = require('../../../utils/application-materials.js');
+const v4Api = require('../../../utils/api-v4.js');
+
+const AI_MATERIAL_TYPES = [
+  { code: 'tailored_resume', label: '按 JD 定制简历' },
+  { code: 'cover_letter', label: 'Cover Letter' },
+  { code: 'recruiter_message', label: 'Recruiter 消息' },
+  { code: 'follow_up_email', label: 'Follow-up 邮件' }
+];
 
 function formatDate(value) {
   if (!value) return '刚刚';
@@ -45,11 +53,23 @@ Page({
       company: '',
       jobTitle: '',
       content: ''
-    }
+    },
+    showGenerator: false,
+    aiMaterialTypes: AI_MATERIAL_TYPES,
+    applications: [],
+    resumes: [],
+    applicationIndex: 0,
+    resumeIndex: 0,
+    materialTypeIndex: 0,
+    generatedDraft: null,
+    generatedContent: '',
+    quota: null,
+    generating: false
   },
 
   onLoad() {
     this.loadMaterials();
+    this.loadGeneratorOptions();
   },
 
   onShow() {
@@ -106,7 +126,60 @@ Page({
   },
 
   createDraft() {
-    wx.navigateTo({ url: '/package-ai/pages/ai-assistant/ai-assistant?action=application' });
+    this.setData({ showGenerator: true, generatedDraft: null, generatedContent: '' });
+    this.loadGeneratorOptions();
+  },
+
+  loadGeneratorOptions() {
+    Promise.all([v4Api.getApplicationBoard(), v4Api.getV4Resumes(), v4Api.getMaterialQuota()]).then(([board, resumes, quota]) => {
+      const groups = board.data && board.data.groups || {};
+      const applications = Object.keys(groups).reduce((all, key) => all.concat(groups[key] || []), []);
+      this.setData({ applications, resumes: resumes.data || [], quota: quota.data || null });
+    }).catch(() => {});
+  },
+
+  closeGenerator() { this.setData({ showGenerator: false, generatedDraft: null, generatedContent: '' }); },
+  onApplicationChange(e) { this.setData({ applicationIndex: Number(e.detail.value) || 0 }); },
+  onResumeChange(e) { this.setData({ resumeIndex: Number(e.detail.value) || 0 }); },
+  onMaterialTypeChange(e) { this.setData({ materialTypeIndex: Number(e.detail.value) || 0 }); },
+  onGeneratedInput(e) { this.setData({ generatedContent: e.detail.value }); },
+
+  generateAiMaterial() {
+    const application = this.data.applications[this.data.applicationIndex];
+    const resume = this.data.resumes[this.data.resumeIndex];
+    const type = this.data.aiMaterialTypes[this.data.materialTypeIndex] || AI_MATERIAL_TYPES[0];
+    if (!application) return wx.showToast({ title: '请先创建或选择申请记录', icon: 'none' });
+    if (type.code === 'tailored_resume' && !resume) return wx.showToast({ title: '定制简历必须选择原简历', icon: 'none' });
+    this.setData({ generating: true });
+    v4Api.createMaterialDraft({ applicationId: application.id, resumeId: resume && resume.id, materialType: type.code }).then(res => {
+      const draft = res.data;
+      const content = typeof draft.content === 'string' ? draft.content : JSON.stringify(draft.content, null, 2);
+      this.setData({ generatedDraft: draft, generatedContent: content, generating: false });
+    }).catch(err => {
+      this.setData({ generating: false });
+      wx.showToast({ title: err.message || '生成失败', icon: 'none' });
+    });
+  },
+
+  confirmGeneratedDraft() {
+    const draft = this.data.generatedDraft;
+    if (!draft) return;
+    let content = this.data.generatedContent;
+    if (draft.materialType === 'tailored_resume') {
+      try { content = JSON.parse(content); } catch (e) { return wx.showToast({ title: '简历 JSON 格式有误', icon: 'none' }); }
+    }
+    v4Api.confirmMaterialDraft(draft.id, { content }).then(() => {
+      wx.showToast({ title: '已确认并保存', icon: 'success' });
+      this.closeGenerator();
+      this.loadMaterials();
+      this.loadGeneratorOptions();
+    }).catch(err => wx.showToast({ title: err.message || '保存失败', icon: 'none' }));
+  },
+
+  rejectGeneratedDraft() {
+    const draft = this.data.generatedDraft;
+    if (!draft) return this.closeGenerator();
+    v4Api.rejectMaterialDraft(draft.id).then(() => this.closeGenerator());
   },
 
   copyMaterial(e) {

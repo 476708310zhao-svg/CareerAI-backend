@@ -12,6 +12,18 @@ const FEATURE_DEFINITIONS = Object.freeze({
     description: '控制会员页入口和会员权益相关展示。',
     env: 'MEMBERSHIP_FEATURE_ENABLED',
     defaultValue: false
+  },
+  v4_interview: {
+    label: 'V4 面试闭环', description: '控制岗位面试空间、模拟面试和能力报告。',
+    env: 'V4_INTERVIEW_FEATURE_ENABLED', defaultValue: false
+  },
+  v4_ai_career: {
+    label: 'AI Career 统一入口', description: '控制四个 AI Agent 与任务历史。',
+    env: 'V4_AI_CAREER_FEATURE_ENABLED', defaultValue: false
+  },
+  v4_membership: {
+    label: 'V4 会员权益', description: '控制 V4 权益、配额和订阅展示；不直接开启真实支付。',
+    env: 'V4_MEMBERSHIP_FEATURE_ENABLED', defaultValue: false
   }
 });
 

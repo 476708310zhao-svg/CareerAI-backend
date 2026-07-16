@@ -19,6 +19,7 @@
         <view class="profile-progress-fill" style="width: {{completeness}}%;"></view>
       </view>
       <text class="progress-tip">资料越完整，匹配的岗位和题目越精准</text>
+      <text class="progress-missing" wx:if="{{completionMissing.length}}">还需完善 {{completionMissing.length}} 项关键信息</text>
     </view>
   </view>
 
@@ -187,6 +188,26 @@
       </block>
     </view>
 
+    <text class="sub-label mt">当前签证状态</text>
+    <view class="chip-row wrap">
+      <block wx:for="{{visaOptions}}" wx:key="*this">
+        <view class="chip {{userInfo.visaStatus === item ? 'chip-active' : ''}}" bindtap="selectSingle" data-field="visaStatus" data-value="{{item}}">{{item}}</view>
+      </block>
+    </view>
+
+    <view class="sponsor-row">
+      <view>
+        <text class="sponsor-title">需要雇主签证支持</text>
+        <text class="sponsor-note">用于过滤 Sponsor 友好岗位</text>
+      </view>
+      <switch checked="{{userInfo.sponsorNeeded}}" color="#2563EB" bindchange="onSponsorNeededChange" />
+    </view>
+
+    <view class="location-inputs">
+      <input class="custom-input" value="{{userInfo.country}}" placeholder="当前国家/地区" data-field="country" bindinput="onInput" maxlength="40" />
+      <input class="custom-input" value="{{userInfo.city}}" placeholder="当前城市" data-field="city" bindinput="onInput" maxlength="40" />
+    </view>
+
     <view class="custom-input-row">
       <input
         class="custom-input"
@@ -262,6 +283,15 @@
         >{{item.label}}</view>
       </block>
     </view>
+  </view>
+
+  <view class="section-title">
+    <view class="section-accent"></view>
+    <text>项目经历摘要</text>
+    <text class="section-note">每行一项</text>
+  </view>
+  <view class="form-card pad">
+    <textarea class="projects-textarea" value="{{projectsText}}" placeholder="例如：校园招聘数据分析平台（Python / SQL）" maxlength="1200" bindinput="onProjectsInput"></textarea>
   </view>
 
   <!-- 保存按钮 -->

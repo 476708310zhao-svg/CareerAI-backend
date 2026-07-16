@@ -18,6 +18,7 @@ let server;
 let authToken;
 let adminToken;
 let createdOrderNo;
+let v4ApplicationId;
 const uploadedFiles = [];
 
 function startServer() {
@@ -127,6 +128,27 @@ test.after(async () => {
   }
   const user = db.prepare('SELECT id FROM users WHERE email = ?').get(testAccount.email);
   if (user) {
+    db.prepare('DELETE FROM interview_answers_v4 WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM interview_reports_v4 WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM interview_sessions_v4 WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM interview_spaces_v4 WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM today_tasks_v4 WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM ai_agent_tasks_v4 WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM quota_usage_v4 WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM user_subscriptions_v4 WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM payment_refunds_v4 WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM analytics_events WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM ai_application_material_drafts WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM resume_ai_change_sets WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM resume_job_links WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM resume_versions_v4 WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM career_experience_library WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM resumes WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM ai_usage WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM application_history WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM job_matches WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM user_profiles WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM applications WHERE user_id = ?').run(user.id);
     db.prepare('DELETE FROM orders WHERE user_id = ?').run(user.id);
     db.prepare('DELETE FROM messages WHERE user_id = ?').run(user.id);
     db.prepare('DELETE FROM job_reminders WHERE user_id = ?').run(user.id);
@@ -428,6 +450,513 @@ test('user profile stores standardized education and job preference fields', asy
   const profileBody = await readJson(profileRes);
   assert.equal(profileBody.data.profile.gradYear, '2026');
   assert.ok(profileBody.data.profileCompleteness >= 80);
+});
+
+test('v4 career profile extends legacy profile without breaking it', async () => {
+  assert.ok(authToken);
+  const updateRes = await fetch(`${BASE_URL}/api/v4/profile`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({
+      country: 'United States',
+      city: 'New York',
+      visaStatus: 'F1 / STEM OPT',
+      workAuthorization: 'OPT',
+      sponsorNeeded: true,
+      targetRoles: ['Software Engineer', 'Data Analyst'],
+      targetIndustries: ['互联网/科技'],
+      targetCities: ['Mountain View', 'New York'],
+      employmentTypes: ['fulltime'],
+      skills: ['Python', 'SQL', 'Machine Learning'],
+      projects: ['RAG Career Assistant with Python and SQL'],
+      fieldSources: { skills: 'user', education: 'legacy_migration' }
+    })
+  });
+  assert.equal(updateRes.status, 200);
+  const updated = await readJson(updateRes);
+  assert.equal(updated.code, 0);
+  assert.equal(updated.data.school, 'New York University');
+  assert.equal(updated.data.sponsorNeeded, true);
+  assert.ok(updated.data.completion >= 80);
+  assert.ok(updated.data.profileVersion >= 2);
+
+  const completionRes = await fetch(`${BASE_URL}/api/v4/profile/completion`, { headers: authHeaders() });
+  assert.equal(completionRes.status, 200);
+  const completion = await readJson(completionRes);
+  assert.equal(completion.code, 0);
+  assert.ok(completion.data.completion >= 80);
+  assert.deepEqual(completion.data.missing, []);
+});
+
+test('v4 job match returns explainable qualification and capability scores', async () => {
+  assert.ok(authToken);
+  const res = await fetch(`${BASE_URL}/api/v4/jobs/1/match`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() }
+  });
+  assert.equal(res.status, 200);
+  const body = await readJson(res);
+  assert.equal(body.code, 0);
+  assert.ok(body.data.score >= 0 && body.data.score <= 100);
+  assert.ok(['eligible', 'partial', 'ineligible'].includes(body.data.qualificationStatus));
+  assert.ok(Array.isArray(body.data.qualificationReasons));
+  assert.ok(Array.isArray(body.data.strengths));
+  assert.ok(Array.isArray(body.data.gaps));
+  assert.ok(Array.isArray(body.data.actions));
+  assert.equal(typeof body.data.dimensions.skills, 'number');
+
+  const cachedRes = await fetch(`${BASE_URL}/api/v4/jobs/1/match`, { headers: authHeaders() });
+  assert.equal(cachedRes.status, 200);
+  const cached = await readJson(cachedRes);
+  assert.equal(cached.data.score, body.data.score);
+});
+
+test('v4 sponsor profile and job filters expose international student eligibility', async () => {
+  assert.ok(authToken);
+  const sponsorRes = await fetch(`${BASE_URL}/api/v4/jobs/1/sponsor`);
+  assert.equal(sponsorRes.status, 200);
+  const sponsor = await readJson(sponsorRes);
+  assert.equal(sponsor.code, 0);
+  assert.equal(sponsor.data.h1bSponsor, true);
+  assert.equal(sponsor.data.internationalStudentFriendly, true);
+  assert.ok(Array.isArray(sponsor.data.evidence));
+  assert.ok(sponsor.data.confidence > 0);
+
+  const listRes = await fetch(`${BASE_URL}/api/v4/jobs?h1bSponsor=true&excludeCitizenRequired=true&pageSize=20`, {
+    headers: authHeaders()
+  });
+  assert.equal(listRes.status, 200);
+  const list = await readJson(listRes);
+  assert.equal(list.code, 0);
+  assert.ok(list.data.list.length > 0);
+  assert.ok(list.data.list.every(item => item.sponsor.h1bSponsor === true && item.sponsor.citizenRequired === false));
+
+  const filteredRes = await fetch(`${BASE_URL}/api/v4/jobs?employmentType=FULLTIME&country=us&pageSize=20`, {
+    headers: authHeaders()
+  });
+  assert.equal(filteredRes.status, 200);
+  const filtered = await readJson(filteredRes);
+  assert.ok(filtered.data.list.length > 0);
+  assert.ok(filtered.data.list.every(item => item.jobType === '全职' && item.region === '美国'));
+
+  const detailRes = await fetch(`${BASE_URL}/api/v4/jobs/1/detail`, { headers: authHeaders() });
+  assert.equal(detailRes.status, 200);
+  const detail = await readJson(detailRes);
+  assert.equal(detail.data.job.id, 1);
+  assert.equal(detail.data.sponsor.h1bSponsor, true);
+  assert.ok(detail.data.match.score >= 0);
+  assert.ok(Object.prototype.hasOwnProperty.call(detail.data, 'company'));
+});
+
+test('v4 admin can review sponsor data and read its audit history', async () => {
+  await ensureAdminToken();
+  const { getSponsorProfile, saveSponsorProfile } = require('../services/v4Sponsor');
+  const { findJobById } = require('../utils/jobData');
+  const job = findJobById(2);
+  const original = getSponsorProfile(job);
+  try {
+    const updateRes = await fetch(`${BASE_URL}/admin/api/v4/sponsor-profiles/2`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...adminHeaders() },
+      body: JSON.stringify({
+        h1bSponsor: false,
+        optFriendly: true,
+        evidence: ['Smoke test manual review'],
+        sourceUrl: 'https://example.com/careers',
+        confidence: 1,
+        note: 'smoke sponsor review'
+      })
+    });
+    assert.equal(updateRes.status, 200);
+    const updated = await readJson(updateRes);
+    assert.equal(updated.code, 0);
+    assert.equal(updated.data.source, 'manual_review');
+    assert.equal(updated.data.h1bSponsor, false);
+    assert.ok(updated.data.verifiedAt);
+
+    const historyRes = await fetch(`${BASE_URL}/admin/api/v4/sponsor-profiles/2/history`, { headers: adminHeaders() });
+    assert.equal(historyRes.status, 200);
+    const history = await readJson(historyRes);
+    assert.ok(history.data.list.some(item => item.note === 'smoke sponsor review'));
+  } finally {
+    saveSponsorProfile(original);
+    db.prepare("DELETE FROM job_sponsor_history WHERE job_id='2' AND note='smoke sponsor review'").run();
+  }
+});
+
+test('v4 batch match recalculation returns a user summary', async () => {
+  assert.ok(authToken);
+  const recalculateRes = await fetch(`${BASE_URL}/api/v4/jobs/matches/recalculate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ jobIds: [1, 2] })
+  });
+  assert.equal(recalculateRes.status, 200);
+  const recalculated = await readJson(recalculateRes);
+  assert.equal(recalculated.data.calculated, 2);
+  assert.equal(recalculated.data.results.length, 2);
+
+  const summaryRes = await fetch(`${BASE_URL}/api/v4/jobs/matches/summary`, { headers: authHeaders() });
+  assert.equal(summaryRes.status, 200);
+  const summary = await readJson(summaryRes);
+  assert.ok(summary.data.total >= 2);
+  assert.ok(summary.data.averageScore >= 0 && summary.data.averageScore <= 100);
+});
+
+test('v4 migration defaults to an idempotent dry-run plan', () => {
+  const { buildMigrationPlan } = require('../scripts/migrate_v4');
+  const beforeProfiles = db.prepare('SELECT COUNT(*) AS count FROM user_profiles').get().count;
+  const plan = buildMigrationPlan();
+  const afterProfiles = db.prepare('SELECT COUNT(*) AS count FROM user_profiles').get().count;
+  assert.equal(afterProfiles, beforeProfiles);
+  assert.ok(plan.users.total >= plan.users.pending);
+  assert.ok(plan.jobs.total >= plan.jobs.pending);
+  assert.ok(plan.applications.total >= plan.applications.pending);
+});
+
+test('v4 qualification rules cap citizen-only roles and explain education gaps', () => {
+  const { buildJobMatch } = require('../services/v4JobMatch');
+  const result = buildJobMatch({
+    id: 'citizen-role',
+    title: 'Research Scientist New Grad 2027',
+    company: 'Example',
+    location: 'Boston, MA',
+    description: 'US citizenship required. PhD required. Computer Science graduates in 2027.',
+    requirements: ['Python and machine learning']
+  }, {
+    degree: 'bachelor', graduationYear: '2026', major: 'Business',
+    workAuthorization: 'OPT', sponsorNeeded: true,
+    targetCities: ['Boston'], targetRoles: ['Research Scientist'],
+    skills: ['Python'], projects: []
+  }, { citizenRequired: true, h1bSponsor: false });
+  assert.equal(result.qualificationStatus, 'ineligible');
+  assert.ok(result.score <= 35);
+  assert.ok(result.qualificationReasons.some(reason => reason.includes('公民身份')));
+  assert.ok(result.qualificationReasons.some(reason => reason.includes('学位')));
+  assert.ok(result.qualificationReasons.some(reason => reason.includes('毕业年份')));
+  assert.ok(result.qualificationReasons.some(reason => reason.includes('专业背景')));
+});
+
+test('v4 application status machine writes an auditable history', async () => {
+  assert.ok(authToken);
+  const createRes = await fetch(`${BASE_URL}/api/v4/applications`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({
+      jobId: '1',
+      status: 'interested',
+      deadline: '2026-08-01',
+      nextAction: '定制 Google 简历'
+    })
+  });
+  assert.equal(createRes.status, 200);
+  const created = await readJson(createRes);
+  v4ApplicationId = created.data.id;
+  assert.ok(v4ApplicationId);
+
+  const patchRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ notes: '重点突出分布式系统项目', coverLetter: 'Dear hiring team', interviewTime: '2026-08-10 10:00' })
+  });
+  assert.equal(patchRes.status, 200);
+
+  const contactRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/contacts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ name: 'Alex Recruiter', role: 'Recruiter', email: 'alex@example.com' })
+  });
+  assert.equal(contactRes.status, 200);
+
+  const taskRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/tasks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ title: '完成定制简历', dueAt: '2026-07-20', priority: 'high' })
+  });
+  assert.equal(taskRes.status, 200);
+  const task = await readJson(taskRes);
+  const taskDoneRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/tasks/${task.data.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ completed: true })
+  });
+  assert.equal(taskDoneRes.status, 200);
+
+  const boardRes = await fetch(`${BASE_URL}/api/v4/applications/board`, { headers: authHeaders() });
+  assert.equal(boardRes.status, 200);
+  const board = await readJson(boardRes);
+  assert.ok(board.data.groups.preparing.some(item => item.id === v4ApplicationId));
+  assert.equal(board.data.statistics.preparing, 1);
+
+  const detailRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/detail`, { headers: authHeaders() });
+  assert.equal(detailRes.status, 200);
+  const detail = await readJson(detailRes);
+  assert.equal(detail.data.application.coverLetter, 'Dear hiring team');
+  assert.equal(detail.data.contacts.length, 1);
+  assert.equal(detail.data.tasks.length, 1);
+  assert.equal(detail.data.tasks[0].completed, true);
+  assert.ok(detail.data.match);
+  assert.ok(detail.data.allowedTransitions.some(item => item.value === 'preparing'));
+
+  for (const status of ['preparing', 'applied']) {
+    const updateRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ status, note: `move to ${status}` })
+    });
+    assert.equal(updateRes.status, 200);
+  }
+
+  const invalidRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ status: 'offer' })
+  });
+  assert.equal(invalidRes.status, 409);
+  const invalid = await readJson(invalidRes);
+  assert.ok(invalid.data.allowedStatuses.includes('interview_1'));
+
+  const historyRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/history`, { headers: authHeaders() });
+  assert.equal(historyRes.status, 200);
+  const history = await readJson(historyRes);
+  assert.equal(history.data.total, 3);
+  assert.equal(history.data.list[0].toStatus, 'applied');
+});
+
+test('v4 interview loop auto-creates a job space, scores practice and creates Today tasks', async () => {
+  for (const status of ['phone_screen', 'interview_1']) {
+    const statusRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/status`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ status, note: 'Sprint 4 interview smoke' })
+    });
+    assert.equal(statusRes.status, 200);
+    const statusBody = await readJson(statusRes);
+    assert.ok(statusBody.data.interviewSpaceId);
+  }
+  const spacesRes = await fetch(`${BASE_URL}/api/v4/interviews/spaces`, { headers: authHeaders() });
+  assert.equal(spacesRes.status, 200);
+  const spaces = await readJson(spacesRes);
+  const space = spaces.data.find(item => item.applicationId === v4ApplicationId);
+  assert.ok(space);
+  assert.ok(Array.isArray(space.frequentQuestions));
+
+  const sessionRes = await fetch(`${BASE_URL}/api/v4/interviews/spaces/${space.id}/sessions`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ sessionType: 'star' })
+  });
+  assert.equal(sessionRes.status, 201);
+  const session = await readJson(sessionRes);
+  const answerRes = await fetch(`${BASE_URL}/api/v4/interviews/sessions/${session.data.id}/answers`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ questionType: 'behavior', question: '请讲述一次解决困难问题的经历', answer: '情况：系统延迟较高。任务：定位瓶颈。行动：我分析日志并优化查询。结果：延迟降低20%。' })
+  });
+  assert.equal(answerRes.status, 201);
+  const answer = await readJson(answerRes);
+  assert.ok(answer.data.structure >= 70);
+
+  const reportRes = await fetch(`${BASE_URL}/api/v4/interviews/sessions/${session.data.id}/complete`, { method: 'POST', headers: authHeaders() });
+  assert.equal(reportRes.status, 201);
+  const report = await readJson(reportRes);
+  assert.ok(report.data.overallScore > 0);
+  assert.equal(report.data.questionFeedback.length, 1);
+  const tasksRes = await fetch(`${BASE_URL}/api/v4/interviews/today-tasks`, { headers: authHeaders() });
+  const tasks = await readJson(tasksRes);
+  assert.ok(tasks.data.some(item => item.title.includes('补强面试')));
+  const trendsRes = await fetch(`${BASE_URL}/api/v4/interviews/trends`, { headers: authHeaders() });
+  const trends = await readJson(trendsRes);
+  assert.equal(trends.data.length, 1);
+});
+
+test('v4 AI Career agents redact secrets and require confirmation before writes', async () => {
+  const createRes = await fetch(`${BASE_URL}/api/v4/agents/tasks`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ agentType: 'interview_coach', applicationId: v4ApplicationId,
+      input: { query: '联系我 13800138000 或 smoke@example.com', requestWrite: true, writeAction: 'create_today_task', taskTitle: '复练行为题' } })
+  });
+  assert.equal(createRes.status, 201);
+  const task = await readJson(createRes);
+  assert.equal(task.data.status, 'awaiting_confirmation');
+  assert.ok(task.data.input.query.includes('[手机号已脱敏]'));
+  assert.ok(task.data.input.query.includes('[邮箱已脱敏]'));
+  const before = db.prepare("SELECT COUNT(*) AS count FROM today_tasks_v4 WHERE source_type='ai_agent' AND source_id=?").get(task.data.id).count;
+  assert.equal(before, 0);
+  const confirmRes = await fetch(`${BASE_URL}/api/v4/agents/tasks/${task.data.id}/confirm`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ confirmationToken: task.data.confirmationToken })
+  });
+  assert.equal(confirmRes.status, 200);
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM today_tasks_v4 WHERE source_type='ai_agent' AND source_id=?").get(task.data.id).count, 1);
+
+  const timeoutRes = await fetch(`${BASE_URL}/api/v4/agents/tasks`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ agentType: 'job_advisor', timeoutMs: 1, input: { query: 'test timeout' } })
+  });
+  const timeoutTask = await readJson(timeoutRes);
+  assert.equal(timeoutTask.data.status, 'failed');
+  assert.equal(timeoutTask.data.error.code, 'AI_TIMEOUT');
+  const retryRes = await fetch(`${BASE_URL}/api/v4/agents/tasks/${timeoutTask.data.id}/retry`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ timeoutMs: 20000 })
+  });
+  assert.equal(retryRes.status, 200);
+  const retried = await readJson(retryRes);
+  assert.equal(retried.data.status, 'completed');
+});
+
+test('v4 membership exposes configurable entitlements while real payment remains gated', async () => {
+  const plansRes = await fetch(`${BASE_URL}/api/v4/membership/plans`);
+  assert.equal(plansRes.status, 200);
+  const plans = await readJson(plansRes);
+  assert.ok(plans.data.some(item => item.code === 'free'));
+  assert.equal(plans.paymentLive, false);
+  const statusRes = await fetch(`${BASE_URL}/api/v4/membership/status`, { headers: authHeaders() });
+  const status = await readJson(statusRes);
+  assert.equal(statusRes.status, 200);
+  assert.ok(status.data.quotas.interview.limit >= 2);
+  assert.equal(status.data.paymentLive, false);
+});
+
+test('v4 operations dashboard and staged rollout are admin-protected', async () => {
+  await ensureAdminToken();
+  const dashboardRes = await fetch(`${BASE_URL}/admin/api/v4/operations/dashboard`, { headers: adminHeaders() });
+  assert.equal(dashboardRes.status, 200);
+  const dashboard = await readJson(dashboardRes);
+  assert.ok(Array.isArray(dashboard.data.funnel));
+  assert.equal(typeof dashboard.data.aiUsageRate, 'number');
+  const rolloutRes = await fetch(`${BASE_URL}/admin/api/v4/rollout/v4`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json', ...adminHeaders() }, body: JSON.stringify({ percentage: 5 })
+  });
+  assert.equal(rolloutRes.status, 200);
+  const invalidRes = await fetch(`${BASE_URL}/admin/api/v4/rollout/v4`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json', ...adminHeaders() }, body: JSON.stringify({ percentage: 33 })
+  });
+  assert.equal(invalidRes.status, 400);
+  await fetch(`${BASE_URL}/admin/api/v4/rollout/v4`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json', ...adminHeaders() }, body: JSON.stringify({ percentage: 0 })
+  });
+});
+
+test('v4 resume center keeps immutable versions and confirms AI suggestions explicitly', async () => {
+  const experienceRes = await fetch(`${BASE_URL}/api/v4/resumes/experiences`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({
+      type: 'project', title: 'Job Matching Platform', organization: 'Personal Project',
+      content: { description: 'Built pipeline improving latency by 20%', skills: ['Node.js', 'SQLite'] },
+      verified: true
+    })
+  });
+  assert.equal(experienceRes.status, 201);
+
+  const createRes = await fetch(`${BASE_URL}/api/v4/resumes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({
+      name: 'SDE Resume', resumeType: 'sde', isDefault: true,
+      content: { summary: 'Built pipeline improving latency by 20%', skills: ['Node.js', 'SQLite'] }
+    })
+  });
+  assert.equal(createRes.status, 201);
+  const created = await readJson(createRes);
+  const resumeId = created.data.id;
+
+  const linkRes = await fetch(`${BASE_URL}/api/v4/resumes/${resumeId}/links`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ applicationId: v4ApplicationId })
+  });
+  assert.equal(linkRes.status, 200);
+  assert.equal(linkRes.status, 200);
+
+  const versionsBeforeRes = await fetch(`${BASE_URL}/api/v4/resumes/${resumeId}/versions`, { headers: authHeaders() });
+  const versionsBefore = await readJson(versionsBeforeRes);
+  assert.equal(versionsBefore.data.length, 1);
+  const originalVersion = versionsBefore.data[0];
+
+  const proposalRes = await fetch(`${BASE_URL}/api/v4/resumes/${resumeId}/ai-change-sets`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({
+      applicationId: v4ApplicationId,
+      jdText: 'Seeking Node.js and distributed systems experience',
+      suggestions: [{
+        id: 'clarify_metric', path: 'summary', before: 'Built pipeline improving latency by 20%',
+        after: 'Improved pipeline latency by 20%', reason: '突出已有量化结果', addsFacts: false
+      }]
+    })
+  });
+  assert.equal(proposalRes.status, 201);
+  const proposal = await readJson(proposalRes);
+  assert.equal(proposal.data.status, 'pending');
+
+  const untouchedRes = await fetch(`${BASE_URL}/api/v4/resumes/${resumeId}/versions`, { headers: authHeaders() });
+  const untouched = await readJson(untouchedRes);
+  assert.equal(untouched.data.length, 1, 'AI proposal must not create or overwrite a version');
+
+  const confirmRes = await fetch(`${BASE_URL}/api/v4/resumes/ai-change-sets/${proposal.data.id}/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ decisions: { clarify_metric: 'accept' } })
+  });
+  assert.equal(confirmRes.status, 201);
+  const confirmed = await readJson(confirmRes);
+  assert.equal(confirmed.data.version.versionNo, 2);
+  assert.equal(confirmed.data.version.content.summary, 'Improved pipeline latency by 20%');
+
+  const compareRes = await fetch(`${BASE_URL}/api/v4/resumes/${resumeId}/versions/compare?from=${originalVersion.id}&to=${confirmed.data.version.id}`, { headers: authHeaders() });
+  const compared = await readJson(compareRes);
+  assert.equal(compareRes.status, 200);
+  assert.ok(compared.data.changes.some(change => change.path === 'summary'));
+
+  const restoreRes = await fetch(`${BASE_URL}/api/v4/resumes/${resumeId}/versions/${originalVersion.id}/restore`, {
+    method: 'POST', headers: authHeaders()
+  });
+  assert.equal(restoreRes.status, 201);
+  const restored = await readJson(restoreRes);
+  assert.equal(restored.data.versionNo, 3);
+  assert.equal(restored.data.content.summary, 'Built pipeline improving latency by 20%');
+
+  const fabricatedRes = await fetch(`${BASE_URL}/api/v4/resumes/${resumeId}/ai-change-sets`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ suggestions: [{ id: 'fake', before: 'Built pipeline improving latency by 20%', after: 'Improved latency by 99%', reason: 'fake' }] })
+  });
+  assert.equal(fabricatedRes.status, 422);
+  const fabricated = await readJson(fabricatedRes);
+  assert.equal(fabricated.code, 'UNVERIFIED_FACT');
+});
+
+test('v4 application assistant saves only confirmed drafts and enforces free quota', async () => {
+  const user = db.prepare('SELECT id FROM users WHERE email=?').get(testAccount.email);
+  const resume = db.prepare("SELECT id FROM resumes WHERE user_id=? AND name='SDE Resume'").get(user.id);
+  const draftRes = await fetch(`${BASE_URL}/api/v4/materials/drafts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ applicationId: v4ApplicationId, resumeId: resume.id, materialType: 'cover_letter' })
+  });
+  assert.equal(draftRes.status, 201);
+  const draft = await readJson(draftRes);
+  assert.equal(draft.data.status, 'pending');
+  const before = db.prepare('SELECT COUNT(*) AS count FROM application_materials WHERE ai_draft_id=?').get(draft.data.id).count;
+  assert.equal(before, 0, 'unconfirmed material must not be saved');
+
+  const confirmRes = await fetch(`${BASE_URL}/api/v4/materials/drafts/${draft.data.id}/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ content: draft.data.content + '\n\n期待进一步交流。' })
+  });
+  assert.equal(confirmRes.status, 201);
+  const confirmed = await readJson(confirmRes);
+  assert.ok(confirmed.data.materialId);
+  assert.equal(db.prepare('SELECT application_id FROM application_materials WHERE id=?').get(confirmed.data.materialId).application_id, v4ApplicationId);
+
+  db.prepare(`INSERT INTO ai_usage (user_id, feature, usage_date, count, updated_at)
+    VALUES (?, 'application_assistant', date('now'), 3, datetime('now'))
+    ON CONFLICT(user_id, feature, usage_date) DO UPDATE SET count=3`).run(user.id);
+  const blockedRes = await fetch(`${BASE_URL}/api/v4/materials/drafts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ applicationId: v4ApplicationId, resumeId: resume.id, materialType: 'recruiter_message' })
+  });
+  assert.equal(blockedRes.status, 429);
 });
 
 test('career asset APIs persist materials, match reports and interview notebook', async () => {

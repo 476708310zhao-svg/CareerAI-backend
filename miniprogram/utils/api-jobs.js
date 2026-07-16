@@ -2,10 +2,12 @@
 // 职位搜索 + 薪资查询模块
 
 const { request, post, DETAIL_CACHE_TTL } = require('./api-client.js');
+const feishuContent = require('./api-feishu-content.js');
 
 // ── 职位搜索 ──
 
 function getJobs(data) {
+  data = data || {};
   const params = {
     query: data.keyword || 'Software Engineer',
     page:  data.page || 1,
@@ -14,7 +16,8 @@ function getJobs(data) {
     date_posted: data.date_posted || 'all'
   };
   if (data.employment_types) params.employment_types = data.employment_types;
-  return request({ path: '/api/jobs/search', params, timeout: data.timeout || 15000 });
+  return feishuContent.getFeishuJobs(data || {})
+    .catch(() => request({ path: '/api/jobs/search', params, timeout: data.timeout || 15000 }));
 }
 
 function getJobDetail(jobId) {
@@ -120,6 +123,7 @@ function getRemoteJobs(data) {
 
 // ── 多源聚合（JSearch/Adzuna + The Muse，一次请求拿多源合并结果）──
 function getAggregatedJobs(data) {
+  data = data || {};
   const params = {
     query:    data.keyword || 'software engineer',
     country:  data.country  || 'us',
@@ -128,12 +132,12 @@ function getAggregatedJobs(data) {
   };
   if (data.date_posted) params.date_posted = data.date_posted;
   if (data.employment_types) params.employment_types = data.employment_types;
-  return request({
+  return feishuContent.getFeishuJobs(data || {}).catch(() => request({
     path: '/api/jobs/aggregate',
     params,
     timeout: 15000,
     noCache: !!data.noCache
-  });
+  }));
 }
 
 // ── The Muse 精选职位（完全免费，科技/创业公司）──

@@ -127,6 +127,15 @@
         </view>
       </scroll-view>
 
+      <view class="filter-section-label">留学生与 Sponsor</view>
+      <view class="filter-chips">
+        <view class="fchip {{filterSponsor === 'opt' ? 'active' : ''}}" bindtap="onFilterSponsorSelect" data-val="opt">OPT 友好</view>
+        <view class="fchip {{filterSponsor === 'stem' ? 'active' : ''}}" bindtap="onFilterSponsorSelect" data-val="stem">STEM OPT</view>
+        <view class="fchip {{filterSponsor === 'h1b' ? 'active' : ''}}" bindtap="onFilterSponsorSelect" data-val="h1b">H-1B Sponsor</view>
+        <view class="fchip {{filterSponsor === 'international' ? 'active' : ''}}" bindtap="onFilterSponsorSelect" data-val="international">国际生友好</view>
+        <view class="fchip {{filterSponsor === 'excludeCitizen' ? 'active' : ''}}" bindtap="onFilterSponsorSelect" data-val="excludeCitizen">排除公民限定</view>
+      </view>
+
       <view class="filter-actions">
         <view class="filter-reset" bindtap="resetFilter">重置</view>
         <view class="filter-confirm" bindtap="applyFilter">查看结果</view>
@@ -240,11 +249,15 @@
         <text class="ctag loc">{{item.city}}{{item.state ? ', ' + item.state : ''}}</text>
         <text class="ctag type">{{item.type}}</text>
         <text class="ctag opt" wx:if="{{item.optFriendly}}">OPT 友好</text>
+        <text class="ctag opt" wx:if="{{item.stemFriendly}}">STEM OPT</text>
+        <text class="ctag opt" wx:if="{{item.h1bSponsor}}">H-1B</text>
+        <text class="ctag sponsor-risk" wx:if="{{item.citizenRequired}}">公民限定</text>
         <text class="ctag match-high" wx:if="{{matchMode && item.matchScore >= 6}}">高匹配</text>
         <text class="ctag match-mid" wx:elif="{{matchMode && item.matchScore >= 2}}">匹配</text>
       </view>
 
       <view class="card-match-row" wx:if="{{matchMode && item.matchReason}}">
+        <text class="match-score-v4" wx:if="{{item.matchScore100}}">{{item.matchScore100}} 分</text>
         <text class="match-reason-txt">{{item.matchReason}}</text>
       </view>
     </view>

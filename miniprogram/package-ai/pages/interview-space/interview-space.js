@@ -1,0 +1,8 @@
+const api = require('../../../utils/api-v4.js');
+Page({data:{spaces:[],current:null,session:null,question:'请介绍一个最能体现你岗位能力的项目。',answer:'',feedback:null,report:null,tasks:[],trends:[]},
+onLoad(options){Promise.all([api.getInterviewSpaces(),api.getTodayTasks(),api.getInterviewTrends()]).then(([spaces,tasks,trends])=>{this.setData({spaces:spaces.data||[],tasks:tasks.data||[],trends:trends.data||[]});if(options.id)this.openById(options.id);});},
+openById(id){api.getInterviewSpace(id).then(res=>this.setData({current:res.data.space}));},selectSpace(e){this.openById(e.currentTarget.dataset.id);},backList(){this.setData({current:null,session:null,report:null});},
+startMock(){api.startInterviewSession(this.data.current.id,{sessionType:'mock'}).then(res=>this.setData({session:res.data,feedback:null,report:null})).catch(err=>wx.showToast({title:err.message||'额度不足',icon:'none'}));},
+startStar(){api.startInterviewSession(this.data.current.id,{sessionType:'star'}).then(res=>this.setData({session:res.data,question:'请用 STAR 结构讲述一次解决困难问题的经历。'}));},
+onQuestion(e){this.setData({question:e.detail.value});},onAnswer(e){this.setData({answer:e.detail.value});},submitAnswer(){api.answerInterviewQuestion(this.data.session.id,{question:this.data.question,answer:this.data.answer,questionType:'role'}).then(res=>this.setData({feedback:res.data}));},
+complete(){api.completeInterviewSession(this.data.session.id).then(res=>{this.setData({report:res.data,session:null});api.getTodayTasks().then(t=>this.setData({tasks:t.data||[]}));});},toggleTask(e){api.updateTodayTask(e.currentTarget.dataset.id,{completed:true}).then(()=>api.getTodayTasks()).then(res=>this.setData({tasks:res.data||[]}));}});

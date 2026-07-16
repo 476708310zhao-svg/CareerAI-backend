@@ -1,0 +1,82 @@
+<view class="page">
+  <c-ai-disclosure text="AI 只能提出修改建议；逐条确认后才会创建新版本，原版本始终保留。" />
+  <view class="hero">
+    <text class="eyebrow">SPRINT 2 · RESUME CENTER</text>
+    <text class="title">AI 简历中心</text>
+    <text class="subtitle">一套真实经历库，支撑多岗位简历与可恢复版本。</text>
+    <view class="hero-actions">
+      <view class="primary" bindtap="openCreate">新建简历</view>
+      <view class="secondary" bindtap="openExperience">添加经历</view>
+    </view>
+  </view>
+
+  <view class="tabs">
+    <view class="tab {{activeTab === 'resumes' ? 'active' : ''}}" bindtap="switchTab" data-tab="resumes">简历</view>
+    <view class="tab {{activeTab === 'experiences' ? 'active' : ''}}" bindtap="switchTab" data-tab="experiences">基础经历</view>
+    <view class="tab {{activeTab === 'versions' ? 'active' : ''}}" bindtap="switchTab" data-tab="versions">版本</view>
+  </view>
+
+  <view wx:if="{{activeTab === 'resumes'}}">
+    <view wx:for="{{resumes}}" wx:key="id" class="card {{currentResume.id === item.id ? 'selected' : ''}}" bindtap="selectResume" data-id="{{item.id}}">
+      <view class="card-main">
+        <view><text class="card-title">{{item.name}}</text><text wx:if="{{item.isDefault}}" class="badge">默认</text></view>
+        <text class="meta">{{item.typeLabel}} · {{item.updatedLabel}}</text>
+      </view>
+      <view class="more" catchtap="resumeActions" data-id="{{item.id}}">•••</view>
+    </view>
+    <view class="optimize" wx:if="{{currentResume}}" bindtap="optimizeResume">为「{{currentResume.name}}」生成优化建议</view>
+  </view>
+
+  <view wx:if="{{activeTab === 'experiences'}}">
+    <view wx:for="{{experiences}}" wx:key="id" class="card">
+      <view class="card-main">
+        <text class="type">{{item.typeLabel}}</text><text class="card-title">{{item.title}}</text>
+        <text class="meta">{{item.organization || '个人经历'}} · 已核验</text>
+      </view>
+      <view class="archive" bindtap="archiveExperience" data-id="{{item.id}}">归档</view>
+    </view>
+  </view>
+
+  <view wx:if="{{activeTab === 'versions'}}">
+    <view class="empty" wx:if="{{!versions.length}}">从简历菜单选择“查看版本”</view>
+    <view wx:for="{{versions}}" wx:key="id" class="version-card">
+      <view><text class="card-title">V{{item.versionNo}} · {{item.changeSummary || '简历版本'}}</text><text class="meta">{{item.createdAt}}</text></view>
+      <view class="restore" bindtap="restoreVersion" data-id="{{item.id}}">恢复</view>
+    </view>
+  </view>
+
+  <view wx:if="{{proposal}}" class="mask"></view>
+  <view wx:if="{{proposal}}" class="sheet">
+    <text class="sheet-title">逐条确认 AI 建议</text>
+    <text class="sheet-note">模型 {{proposal.aiModel}} · 提示词 {{proposal.promptVersion}}</text>
+    <scroll-view scroll-y class="suggestions">
+      <view wx:for="{{proposal.suggestions}}" wx:key="id" class="suggestion">
+        <text class="reason">{{item.reason}}</text>
+        <text class="before">原内容：{{item.before}}</text>
+        <text class="after">AI 建议：{{item.after}}</text>
+        <view class="decision {{decisions[item.id] === 'accept' ? 'accepted' : ''}}" bindtap="toggleSuggestion" data-id="{{item.id}}">{{decisions[item.id] === 'accept' ? '已接受' : '拒绝'}}</view>
+      </view>
+      <view class="manual-switch" bindtap="toggleManualMode">{{manualMode ? '返回逐条确认' : '手动编辑完整简历'}}</view>
+      <textarea wx:if="{{manualMode}}" class="manual-editor" value="{{manualJson}}" bindinput="onManualJsonInput" maxlength="30000" />
+    </scroll-view>
+    <view class="sheet-actions"><view bindtap="rejectSuggestions">全部放弃</view><view class="primary" bindtap="confirmSuggestions">确认并保存新版本</view></view>
+  </view>
+
+  <view wx:if="{{showCreate}}" class="mask" bindtap="closeCreate"></view>
+  <view wx:if="{{showCreate}}" class="dialog">
+    <text class="sheet-title">新建岗位简历</text>
+    <picker range="{{templates}}" range-key="name" value="{{templateIndex}}" bindchange="onTemplateChange"><view class="input">{{templates[templateIndex].name || 'General Resume'}}</view></picker>
+    <input class="input" placeholder="简历名称" value="{{createName}}" bindinput="onCreateName" />
+    <view class="primary wide" bindtap="createResume">创建</view>
+  </view>
+
+  <view wx:if="{{showExperience}}" class="mask" bindtap="closeExperience"></view>
+  <view wx:if="{{showExperience}}" class="dialog">
+    <text class="sheet-title">添加真实经历</text>
+    <picker range="{{experienceTypes}}" value="{{experienceTypeIndex}}" bindchange="onExperienceType"><view class="input">{{experienceTypes[experienceTypeIndex]}}</view></picker>
+    <input class="input" placeholder="标题" data-field="title" bindinput="onExperienceInput" />
+    <input class="input" placeholder="学校 / 公司 / 组织" data-field="organization" bindinput="onExperienceInput" />
+    <textarea class="textarea" placeholder="只填写真实、可核验的内容" data-field="description" bindinput="onExperienceInput" />
+    <view class="primary wide" bindtap="saveExperience">保存经历</view>
+  </view>
+</view>

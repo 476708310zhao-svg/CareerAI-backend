@@ -1,5 +1,6 @@
 // pages/job-detail/job-detail.js
 const { getJobDetail, post, normalizeCompanyLogo } = require('../../../utils/api.js');
+const v4Api = require('../../../utils/api-v4.js');
 const favUtil = require('../../../utils/favorites.js');
 const progress = require('../../../utils/job-progress.js');
 const jdMatch = require('../../utils/jd-match.js');
@@ -23,6 +24,8 @@ Page({
     progressStatusText: '',
     showMatchPanel: false,
     matchReport: null,
+    sponsorProfile: null,
+    v4Application: null,
     // 一键投递弹窗
     showApplyModal: false,
     resumeSnap: null
@@ -42,6 +45,7 @@ Page({
     }
     if (jobId) {
       this.fetchJobDetail(jobId);
+      this.loadV4Detail(jobId);
     } else {
       this.setData({ loading: false });
       wx.showToast({ title: '职位信息不存在', icon: 'none' });
@@ -219,6 +223,41 @@ Requirements:
     this._saveBrowseHistory(mockJob);
   },
 
+  loadV4Detail: function(id) {
+    if (!wx.getStorageSync('token')) return;
+    v4Api.getJobDetail(id).then(res => {
+      const data = res && res.code === 0 ? res.data : null;
+      if (!data || !data.job) return;
+      const raw = data.job;
+      const current = this.data.job || {};
+      const description = raw.description || raw.jobDescription || current.description || '';
+      const job = {
+        ...current,
+        id: raw.id || id,
+        title: raw.title || current.title,
+        company: raw.company || current.company,
+        city: raw.location || raw.city || current.city || 'Remote',
+        type: raw.employmentType || raw.type || current.type || 'Full-time',
+        salary: raw.salary || current.salary || 'Negotiable',
+        applyLink: raw.officialApplyUrl || raw.applyUrl || raw.sourceUrl || current.applyLink || '',
+        description: this.formatDescription(description) || current.description,
+        logo: current.logo || this.buildCompanyLogo(raw.company),
+        companyInitial: current.companyInitial || this.getCompanyInitial(raw.company),
+        visaSponsored: !!(data.sponsor && (data.sponsor.h1bSponsor || data.sponsor.optFriendly)),
+        skillTags: current.skillTags || extractSkillTags(description),
+      };
+      this.setData({
+        job,
+        sponsorProfile: data.sponsor || null,
+        v4Application: data.application || null,
+        inProgress: !!data.application || this.data.inProgress,
+        progressStatusText: (data.application && data.application.statusText) || this.data.progressStatusText,
+        loading: false,
+      });
+      this._saveBrowseHistory(job);
+    }).catch(() => {});
+  },
+
   // --- 交互功能 ---
 
   goBack: function() {
@@ -316,9 +355,44 @@ Requirements:
     });
   },
 
-  runJdMatch: function() {
+  runJdMatch: async function() {
     const job = this.data.job;
     if (!job) return;
+    if (wx.getStorageSync('token')) {
+      wx.showLoading({ title: '计算匹配度...', mask: true });
+      try {
+        const res = await v4Api.calculateJobMatch(job.id);
+        const match = res && res.code === 0 ? res.data : null;
+        if (match) {
+          const report = {
+            score: match.score,
+            company: job.company,
+            jobTitle: job.title,
+            atsRisk: match.qualificationStatus === 'eligible' ? '低' : (match.qualificationStatus === 'partial' ? '中' : '高'),
+            missingKeywords: match.missingSkills || match.gaps || [],
+            projectSuggestion: (match.strengths || []).join('；') || '补充能证明岗位能力的量化项目成果。',
+            suggestions: match.actions || [],
+            dimensions: match.dimensions || {},
+            qualificationReasons: match.qualificationReasons || [],
+          };
+          this.setData({ matchReport: report, showMatchPanel: true });
+          wx.hideLoading();
+          return;
+        }
+      } catch (err) {
+        wx.hideLoading();
+        if (err && err.statusCode === 422) {
+          wx.showModal({
+            title: '先完善求职画像',
+            content: 'V4 匹配需要档案完整度达到 40%，完善签证、目标岗位和技能后即可计算。',
+            cancelText: '稍后',
+            confirmText: '去完善',
+            success: res => { if (res.confirm) wx.navigateTo({ url: '/package-user/pages/profile-edit/profile-edit' }); }
+          });
+          return;
+        }
+      }
+    }
     const resume = wx.getStorageSync('onlineResume') || {};
     const hasResume = !!(resume.basicInfo && (resume.basicInfo.name || resume.basicInfo.email)) ||
       (resume.skills && resume.skills.length) ||
@@ -438,6 +512,29 @@ Requirements:
     });
     this.refreshProgressState(jobIdStr);
     wx.showToast({ title: '已加入投递看板', icon: 'success' });
+
+    if (wx.getStorageSync('token')) {
+      v4Api.createApplication({
+        jobId: jobIdStr,
+        status: 'preparing',
+        sourceType: 'job_detail',
+        jobSnapshot: {
+          id: jobIdStr,
+          title: job.title,
+          company: job.company,
+          location: job.city,
+          salary: job.salary,
+          applyUrl: job.applyLink || '',
+        },
+        nextAction: '前往官方招聘页完成申请并更新状态',
+      }).then(res => {
+        if (res && res.code === 0) this.setData({ v4Application: res.data });
+      }).catch(err => {
+        if (err && err.statusCode === 409 && err.body && err.body.data) {
+          this.setData({ v4Application: { id: err.body.data.applicationId } });
+        }
+      });
+    }
 
     // 2. 请求订阅消息授权（模板 ID 由后端配置优先返回）
     reminders.requestSubscribe('application');

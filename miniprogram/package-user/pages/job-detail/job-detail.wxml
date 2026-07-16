@@ -64,6 +64,21 @@
         <text class="conversion-label">投递看板</text>
       </view>
     </view>
+
+    <view class="sponsor-card" wx:if="{{sponsorProfile}}">
+      <view class="sponsor-head">
+        <text class="sponsor-label">Sponsor 情报</text>
+        <text class="sponsor-confidence">置信度 {{sponsorProfile.confidence * 100}}%</text>
+      </view>
+      <view class="sponsor-tags">
+        <text class="sponsor-tag yes" wx:if="{{sponsorProfile.optFriendly}}">OPT 友好</text>
+        <text class="sponsor-tag yes" wx:if="{{sponsorProfile.stemFriendly}}">STEM OPT</text>
+        <text class="sponsor-tag yes" wx:if="{{sponsorProfile.h1bSponsor}}">H-1B Sponsor</text>
+        <text class="sponsor-tag no" wx:if="{{sponsorProfile.citizenRequired}}">要求公民身份</text>
+        <text class="sponsor-tag unknown" wx:if="{{!sponsorProfile.optFriendly && !sponsorProfile.h1bSponsor && !sponsorProfile.citizenRequired}}">信息待核实</text>
+      </view>
+      <text class="sponsor-evidence" wx:if="{{sponsorProfile.evidence.length}}">依据：{{sponsorProfile.evidence[0]}}</text>
+    </view>
   </view>
 
   <c-ai-disclosure text="本页模拟面试追问与求职路线规划由人工智能生成，仅供求职准备参考，请核验后使用。" />
@@ -169,6 +184,7 @@
     <view class="match-score-copy">
       <text class="score-job">{{matchReport.company}} · {{matchReport.jobTitle}}</text>
       <text class="score-risk">ATS 风险：{{matchReport.atsRisk}}</text>
+      <text class="score-risk" wx:if="{{matchReport.dimensions}}">资格 {{matchReport.dimensions.qualification}} · 技能 {{matchReport.dimensions.skills}} · 岗位/项目 {{matchReport.dimensions.roleAndProjects}}</text>
     </view>
   </view>
   <view class="match-section">

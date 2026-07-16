@@ -27,12 +27,15 @@
         "pages/jd-match/jd-match",
         "pages/application-materials/application-materials",
         "pages/interview-notebook/interview-notebook"
+        ,"pages/ai-career/ai-career"
+        ,"pages/interview-space/interview-space"
       ]
     },
     {
       "root": "package-career",
       "pages": [
         "pages/resume/resume",
+        "pages/resume-center/resume-center",
         "pages/career-planner/career-planner",
         "pages/project-builder/project-builder",
         "pages/offer-compare/offer-compare",
@@ -68,6 +71,7 @@
       "root": "package-user",
       "pages": [
         "pages/applications/applications",
+        "pages/application-detail/application-detail",
         "pages/apply-form/apply-form",
         "pages/profile-edit/profile-edit",
         "pages/favorites/favorites",

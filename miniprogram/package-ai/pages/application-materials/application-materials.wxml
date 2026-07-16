@@ -75,6 +75,33 @@
 
   <view class="bottom-space"></view>
 
+  <view wx:if="{{showGenerator}}" class="editor-mask" bindtap="closeGenerator"></view>
+  <view class="generator-panel {{showGenerator ? 'show' : ''}}">
+    <view class="editor-head">
+      <view><text class="editor-title">AI 申请助手</text><text class="generator-hint">生成后需由你确认，才会保存</text></view>
+      <view class="editor-close" bindtap="closeGenerator">×</view>
+    </view>
+    <scroll-view scroll-y class="generator-body">
+      <view class="quota-card" wx:if="{{quota}}">今日免费剩余：{{quota.applicationAssistant.unlimited ? '会员不限次' : quota.applicationAssistant.remaining + ' 次'}}</view>
+      <text class="form-label">关联申请</text>
+      <picker range="{{applications}}" range-key="jobTitle" value="{{applicationIndex}}" bindchange="onApplicationChange"><view class="form-input">{{applications[applicationIndex].company || '请选择'}} · {{applications[applicationIndex].jobTitle || '申请记录'}}</view></picker>
+      <text class="form-label">材料类型</text>
+      <picker range="{{aiMaterialTypes}}" range-key="label" value="{{materialTypeIndex}}" bindchange="onMaterialTypeChange"><view class="form-input">{{aiMaterialTypes[materialTypeIndex].label}}</view></picker>
+      <text class="form-label">基于简历</text>
+      <picker range="{{resumes}}" range-key="name" value="{{resumeIndex}}" bindchange="onResumeChange"><view class="form-input">{{resumes[resumeIndex].name || '未选择简历'}}</view></picker>
+      <view class="generate-btn" wx:if="{{!generatedDraft}}" bindtap="generateAiMaterial">{{generating ? '生成中...' : '生成待确认草稿'}}</view>
+      <view wx:if="{{generatedDraft}}" class="generated-box">
+        <text class="generator-meta">{{generatedDraft.materialLabel}} · {{generatedDraft.aiModel}} · {{generatedDraft.promptVersion}}</text>
+        <textarea class="generated-textarea" value="{{generatedContent}}" bindinput="onGeneratedInput" maxlength="12000" />
+        <text class="generator-warning">请核对经历和数据；可在确认前手动编辑。</text>
+      </view>
+    </scroll-view>
+    <view wx:if="{{generatedDraft}}" class="editor-actions">
+      <view class="editor-btn danger" bindtap="rejectGeneratedDraft">拒绝草稿</view>
+      <view class="editor-btn primary" bindtap="confirmGeneratedDraft">确认并保存</view>
+    </view>
+  </view>
+
   <view wx:if="{{showEditor}}" class="editor-mask" bindtap="closeEditor"></view>
   <view class="editor-panel {{showEditor ? 'show' : ''}}">
     <view class="editor-head">

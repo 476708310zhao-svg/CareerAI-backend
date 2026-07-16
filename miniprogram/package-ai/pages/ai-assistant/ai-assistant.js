@@ -1054,6 +1054,10 @@ Page({
     if (this._flushTimer) { clearTimeout(this._flushTimer); this._flushTimer = null; }
   },
 
+  openAiCareer() {
+    wx.navigateTo({ url: '/package-ai/pages/ai-career/ai-career' });
+  },
+
   // Perf + Bug5 fix: 永远滚到底部锚点，不依赖 msg-${idx}
   _scrollTo() {
     this.setData({ scrollId: 'scroll-anchor' });

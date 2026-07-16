@@ -1226,3 +1226,13 @@ page,
   font-weight: 900;
   box-shadow: 0 14rpx 26rpx rgba(37, 99, 235, 0.2);
 }
+.sponsor-card { margin-top: 24rpx; padding: 22rpx; border: 1rpx solid #D9E5FF; border-radius: 20rpx; background: #F7FAFF; }
+.sponsor-head { display: flex; align-items: center; justify-content: space-between; }
+.sponsor-label { color: #172554; font-size: 27rpx; font-weight: 800; }
+.sponsor-confidence { color: #667085; font-size: 21rpx; }
+.sponsor-tags { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 16rpx; }
+.sponsor-tag { padding: 7rpx 14rpx; border-radius: 999rpx; font-size: 21rpx; font-weight: 700; }
+.sponsor-tag.yes { color: #067647; background: #ECFDF3; }
+.sponsor-tag.no { color: #B42318; background: #FEF3F2; }
+.sponsor-tag.unknown { color: #475467; background: #EAECF0; }
+.sponsor-evidence { display: block; margin-top: 14rpx; color: #667085; font-size: 22rpx; line-height: 1.5; }

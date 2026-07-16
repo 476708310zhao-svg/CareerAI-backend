@@ -181,6 +181,7 @@
               <text wx:if="{{item.salary && item.salary !== '面议'}}" class="meta-chip salary-chip">{{item.salary}}</text>
             </view>
             <text wx:if="{{item.notes}}" class="notes-preview">备注 · {{item.notes}}</text>
+            <text wx:if="{{item.cloudManaged && item.nextAction}}" class="next-action-preview">下一步 · {{item.nextAction}}</text>
             <view wx:if="{{item.deadline}}" class="deadline-row {{item.deadlineUrgent ? 'urgent' : ''}}">
               <text class="deadline-text">截止 {{item.deadline}}</text>
             </view>

@@ -7,6 +7,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const { optionalAuth } = require('./middleware/auth');
 const { requireFeature } = require('./utils/featureFlags');
+const db = require('./db/database');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -45,6 +46,18 @@ app.use(express.json({
 app.use(bodyParser.urlencoded({ extended: true }));
 // 全局挂载可选鉴权（有 token 则解析 req.user，无 token 也不拦截）
 app.use(optionalAuth);
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/api/') && !req.path.startsWith('/admin/api/')) return next();
+  const started = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - started;
+    try {
+      db.prepare('INSERT INTO api_performance_v4 (route,method,duration_ms,status_code,slow) VALUES (?,?,?,?,?)')
+        .run(String(req.route && req.route.path || req.path).slice(0, 200), req.method, duration, res.statusCode, duration >= 800 ? 1 : 0);
+    } catch (e) {}
+  });
+  next();
+});
 
 // 静态文件服务（头像、Banner、Logo 等上传文件）。文件名带时间戳/随机串，适合长期缓存。
 const path = require('path');
@@ -91,6 +104,8 @@ const featureRoutes     = require('./routes/features');
 const shareRoutes       = require('./routes/share');
 const careerAssetRoutes = require('./routes/career-assets');
 const analyticsRoutes   = require('./routes/analytics');
+const v4Routes          = require('./routes/v4');
+const v4AdminRoutes     = require('./routes/v4-admin');
 
 // 注册路由
 const requireRecruitment = requireFeature('recruitment');
@@ -99,6 +114,7 @@ app.use('/api/features',     featureRoutes);
 app.use('/api/share',        shareRoutes);
 app.use('/api/career-assets', careerAssetRoutes);
 app.use('/api/analytics',    analyticsRoutes);
+app.use('/api/v4',           v4Routes);
 app.use('/api/jobs',         requireRecruitment, jobRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/experiences',  experienceRoutes);
@@ -127,6 +143,7 @@ app.use('/api/glassdoor',     glassdoorRoutes);
 app.use('/api/aggregate',    requireRecruitment, aggregateRoutes);
 app.use('/api/oa',           oaRoutes);
 app.use('/api/apply',        requireRecruitment, applyRoutes);
+app.use('/admin/api/v4',    v4AdminRoutes);
 app.use('/admin',           adminRoutes);
 
 // 管理后台静态文件（需放在 adminRoutes 之后，避免 /admin/api/* 被静态文件拦截）
@@ -144,8 +161,13 @@ app.get('/api/health', (_req, res) => {
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 
 // 全局错误兜底
-app.use((err, _req, res, _next) => {
+app.use((err, req, res, _next) => {
   console.error('[Server Error]', err);
+  try {
+    db.prepare('INSERT INTO error_events_v4 (source,severity,code,message,route,user_id,context) VALUES (?,?,?,?,?,?,?)')
+      .run('server', 'error', String(err.code || 'UNHANDLED').slice(0, 80), String(err.message || err).slice(0, 1000),
+        String(req.path || '').slice(0, 200), req.user && req.user.userId || null, JSON.stringify({ method: req.method }));
+  } catch (e) {}
   res.status(500).json({ error: 'Internal server error' });
 });
 
