@@ -4,11 +4,13 @@ const { authMiddleware } = require('../../middleware/auth');
 const { consumeDailyLimit, getQuotaStatus } = require('../../utils/aiQuota');
 const center = require('../../services/v4ResumeCenter');
 const analytics = require('../../services/v4Analytics');
+const aiRuntime = require('../../services/v4AiRuntime');
 
 const router = express.Router();
 router.use(authMiddleware);
 
 const MATERIAL_TYPES = ['tailored_resume', 'cover_letter', 'recruiter_message', 'follow_up_email'];
+const MATERIAL_PROMPT_VERSION = process.env.MATERIAL_PROMPT_VERSION || 'application-material-v4.0-2';
 const LABELS = {
   tailored_resume: '按 JD 定制简历',
   cover_letter: 'Cover Letter',
@@ -69,6 +71,58 @@ function generateContent(type, application, version) {
   return `主题：关于 ${application.jobTitle} 申请的跟进\n\n您好，我想礼貌跟进此前提交的 ${application.company} ${application.jobTitle} 职位申请。我对该机会仍然非常感兴趣；我的相关经历包括：${primary}。如需补充材料，我会及时提供。感谢您的时间。`;
 }
 
+function numberTokens(value) {
+  return (JSON.stringify(value || '').match(/\b\d+(?:\.\d+)?%?\b/g) || []);
+}
+
+function containsUnsupportedNumbers(value, evidence) {
+  const source = JSON.stringify(evidence || '');
+  return numberTokens(value).some(token => !source.includes(token));
+}
+
+async function generateAiContent(type, application, version, jdText) {
+  const content = version ? center.parseJson(version.content, {}) : {};
+  const facts = resumeFacts(content);
+  const evidence = { content, company: application.company, jobTitle: application.jobTitle };
+  const fallback = () => generateContent(type, application, version);
+  const commonPrompt = JSON.stringify({
+    materialType: type,
+    company: application.company,
+    jobTitle: application.jobTitle,
+    jd: center.cleanText(jdText || application.jdText, 6000),
+    verifiedResumeFacts: facts,
+    resumeContent: content
+  });
+
+  if (type === 'tailored_resume') {
+    const result = await aiRuntime.generate({
+      systemPrompt: '你是 AI 申请助手。只能根据已核验简历内容做岗位定制，不得新增经历、技能、学历、任职时间或量化数字。输出 JSON：{"professionalSummary":"摘要","emphasis":["应重点展示的原文事实"],"keywordAlignment":["可安全强调的岗位关键词"]}。',
+      userPrompt: commonPrompt,
+      temperature: 0.2,
+      maxTokens: 1800,
+      format: 'json',
+      fallback: () => ({ professionalSummary: '', emphasis: facts.slice(0, 3), keywordAlignment: [] }),
+      validate: value => !!(value && typeof value === 'object' && !Array.isArray(value) && !containsUnsupportedNumbers(value, evidence))
+    });
+    const base = fallback();
+    result.value = Object.assign({}, base, {
+      aiTailoring: result.value,
+      tailoringNote: '此版本仅重排和强调原有真实经历；保存前必须由用户确认。'
+    });
+    return result;
+  }
+
+  return aiRuntime.generate({
+    systemPrompt: '你是 AI 申请助手。根据已核验简历事实生成' + LABELS[type] + '。不得编造经历、技能、任职时间或量化结果，不得声称用户拥有未提供的资质。只输出材料正文，不要解释。',
+    userPrompt: commonPrompt,
+    temperature: 0.35,
+    maxTokens: type === 'recruiter_message' ? 600 : 1400,
+    format: 'text',
+    fallback,
+    validate: value => typeof value === 'string' && value.trim().length >= 20 && !containsUnsupportedNumbers(value, evidence)
+  });
+}
+
 router.get('/quota', (req, res) => {
   const status = getQuotaStatus(req.user.userId);
   res.json({ code: 0, data: {
@@ -89,7 +143,7 @@ router.get('/drafts', (req, res) => {
   res.json({ code: 0, data: rows.map(draftView) });
 });
 
-router.post('/drafts', (req, res) => {
+router.post('/drafts', async (req, res) => { try {
   const body = req.body || {};
   const type = center.cleanText(body.materialType, 40);
   if (!MATERIAL_TYPES.includes(type)) return res.status(400).json({ code: -1, message: '材料类型无效' });
@@ -105,17 +159,20 @@ router.post('/drafts', (req, res) => {
   if (type === 'tailored_resume' && !owned) return res.status(400).json({ code: -1, message: '定制简历必须选择原简历' });
   if (!consumeDailyLimit(req, res, 'application_assistant')) return;
   const application = applicationView(applicationRow);
-  const generated = generateContent(type, application, owned && owned.version);
+  const generated = await generateAiContent(type, application, owned && owned.version, body.jdText || application.jdText);
   const promptSnapshot = [LABELS[type], application.company, application.jobTitle, center.cleanText(body.jdText || application.jdText, 6000)].join('\n');
   const result = db.prepare(`
     INSERT INTO ai_application_material_drafts
       (user_id, application_id, resume_id, resume_version_id, material_type, content, ai_model, prompt_version, prompt_snapshot)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(req.user.userId, application.id, owned && owned.resume.id, owned && owned.version.id, type,
-    typeof generated === 'string' ? generated : JSON.stringify(generated), center.AI_MODEL, center.PROMPT_VERSION, promptSnapshot);
+    typeof generated.value === 'string' ? generated.value : JSON.stringify(generated.value), generated.model, MATERIAL_PROMPT_VERSION, promptSnapshot);
   const data = draftView(db.prepare('SELECT * FROM ai_application_material_drafts WHERE id=?').get(result.lastInsertRowid));
   analytics.track(req.user.userId, 'application_material_generated', { applicationId: application.id, materialType: type }, '/api/v4/materials/drafts');
-  res.status(201).json({ code: 0, data: Object.assign(data, { quota: getQuotaStatus(req.user.userId) }), message: '草稿已生成，确认前不会保存到申请材料' });
+  res.status(201).json({ code: 0, data: Object.assign(data, { quota: getQuotaStatus(req.user.userId), generation: aiRuntime.safeMetadata(generated) }), message: '草稿已生成，确认前不会保存到申请材料' });
+} catch (error) {
+  res.status(error.status || 500).json({ code: error.code || -1, message: error.message || '申请材料生成失败' });
+}
 });
 
 router.post('/drafts/:id/reject', (req, res) => {

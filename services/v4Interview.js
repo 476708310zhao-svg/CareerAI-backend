@@ -1,5 +1,6 @@
 const db = require('../db/database');
 const membership = require('./v4Membership');
+const aiRuntime = require('./v4AiRuntime');
 
 function parseJson(value, fallback) { try { return JSON.parse(value); } catch (e) { return fallback; } }
 function text(value, max = 1000) { return String(value || '').replace(/\s+/g, ' ').trim().slice(0, max); }
@@ -42,7 +43,7 @@ function spaceView(row) {
     roleQuestions: parseJson(row.role_questions, []), createdAt: row.created_at, updatedAt: row.updated_at };
 }
 
-function scoreAnswer(answer, question, jobTitle) {
+function scoreAnswerFallback(answer, question, jobTitle) {
   const value = text(answer, 12000);
   const lengthScore = Math.min(100, 35 + Math.round(value.length / 4));
   const starHits = ['情况', '任务', '行动', '结果', 'situation', 'task', 'action', 'result'].filter(key => value.toLowerCase().includes(key)).length;
@@ -57,12 +58,47 @@ function scoreAnswer(answer, question, jobTitle) {
     feedback: average >= 80 ? '内容较完整，继续保留具体行动和结果。' : '建议补充具体情境、个人行动与可核验结果，并回应岗位关键词。' };
 }
 
+function validScore(value) {
+  return Number.isFinite(Number(value)) && Number(value) >= 0 && Number(value) <= 100;
+}
+
+async function scoreAnswer(answer, question, jobTitle) {
+  const fallback = () => scoreAnswerFallback(answer, question, jobTitle);
+  const generated = await aiRuntime.generate({
+    systemPrompt: '你是 AI 面试教练。只评价用户本次回答，不得补写或虚构用户经历。按内容、STAR/逻辑结构、表达清晰度、岗位匹配四项各给 0-100 分，并给出一条可执行反馈。只输出 JSON：{"content":80,"structure":75,"expression":78,"jobMatch":72,"feedback":"建议"}。',
+    userPrompt: JSON.stringify({
+      jobTitle: text(jobTitle, 200),
+      question: text(question, 1000),
+      answer: text(answer, 12000)
+    }),
+    temperature: 0.2,
+    maxTokens: 900,
+    fallback,
+    validate: value => !!(value && validScore(value.content) && validScore(value.structure)
+      && validScore(value.expression) && validScore(value.jobMatch)
+      && typeof value.feedback === 'string' && value.feedback.trim())
+  });
+  const value = generated.value;
+  const scores = {
+    content: Math.round(Number(value.content)),
+    structure: Math.round(Number(value.structure)),
+    expression: Math.round(Number(value.expression)),
+    jobMatch: Math.round(Number(value.jobMatch))
+  };
+  return {
+    ...scores,
+    average: Math.round((scores.content + scores.structure + scores.expression + scores.jobMatch) / 4),
+    feedback: text(value.feedback, 1000),
+    generation: aiRuntime.safeMetadata(generated)
+  };
+}
+
 function startSession(userId, spaceId, type) {
   const space = db.prepare('SELECT * FROM interview_spaces_v4 WHERE id=? AND user_id=?').get(spaceId, userId);
   if (!space) { const error = new Error('面试空间不存在'); error.status = 404; throw error; }
   membership.consumeQuota(userId, 'interview_monthly', 1, 'month');
   const result = db.prepare(`INSERT INTO interview_sessions_v4 (user_id, space_id, session_type, ai_model, prompt_version) VALUES (?, ?, ?, ?, ?)`)
-    .run(userId, spaceId, ['mock', 'star'].includes(type) ? type : 'mock', process.env.INTERVIEW_AI_MODEL || 'deepseek-chat', 'interview-v4.0-s4-1');
+    .run(userId, spaceId, ['mock', 'star'].includes(type) ? type : 'mock', process.env.INTERVIEW_AI_MODEL || aiRuntime.getStatus().model, 'interview-v4.0-s4-2');
   return db.prepare('SELECT * FROM interview_sessions_v4 WHERE id=?').get(result.lastInsertRowid);
 }
 

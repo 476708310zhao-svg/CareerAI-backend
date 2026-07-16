@@ -200,12 +200,12 @@ router.post('/:id/links', (req, res) => {
   res.json({ code: 0, data: links });
 });
 
-router.post('/:id/ai-change-sets', (req, res) => {
+router.post('/:id/ai-change-sets', async (req, res) => {
   if (!consumeDailyLimit(req, res, 'resume_optimize')) return;
   const applicationId = Number(req.body && req.body.applicationId) || null;
   if (applicationId && !ownedApplication(req.user.userId, applicationId)) return res.status(404).json({ code: -1, message: '申请记录不存在' });
   try {
-    const data = center.createChangeSet({ userId: req.user.userId, resumeId: Number(req.params.id), jobId: req.body.jobId,
+    const data = await center.createChangeSet({ userId: req.user.userId, resumeId: Number(req.params.id), jobId: req.body.jobId,
       applicationId, suggestions: req.body.suggestions, jdText: req.body.jdText });
     analytics.track(req.user.userId, 'resume_optimize_started', { resumeId: Number(req.params.id), changeSetId: data.id }, '/api/v4/resumes/:id/ai-change-sets');
     res.status(201).json({ code: 0, data: Object.assign(data, { quota: getQuotaStatus(req.user.userId) }), message: 'AI 建议已生成，确认前不会修改简历' });

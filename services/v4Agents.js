@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const db = require('../db/database');
+const aiRuntime = require('./v4AiRuntime');
 
 const AGENTS = {
   job_advisor: { name: 'AI 岗位顾问', promptVersion: 'job-advisor-v4.0-1' },
@@ -36,7 +37,18 @@ function buildOutput(agentType, input, snapshot) {
   return { message: responses[agentType], suggestedActions: input.requestWrite ? [{ type: input.writeAction || 'create_today_task', requiresConfirmation: true }] : [] };
 }
 
-function runTask(userId, taskId) {
+function normalizeOutput(value, input) {
+  const message = String(value && value.message || '').trim().slice(0, 6000);
+  return {
+    message,
+    suggestedActions: input.requestWrite ? [{
+      type: String(input.writeAction || 'create_today_task').slice(0, 80),
+      requiresConfirmation: true
+    }] : []
+  };
+}
+
+async function runTask(userId, taskId) {
   const row = db.prepare('SELECT * FROM ai_agent_tasks_v4 WHERE id=? AND user_id=?').get(taskId, userId);
   if (!row) return null;
   if (row.status === 'cancelled') return row;
@@ -48,14 +60,32 @@ function runTask(userId, taskId) {
     return db.prepare('SELECT * FROM ai_agent_tasks_v4 WHERE id=?').get(row.id);
   }
   const snapshot = parseJson(row.context_snapshot, {});
-  const output = buildOutput(row.agent_type, input, snapshot);
+  const config = AGENTS[row.agent_type];
+  const generated = await aiRuntime.generate({
+    systemPrompt: '你是' + config.name + '。仅基于提供的用户画像和申请快照回答，不得编造经历、公司信息或申请状态。输出 JSON：{"message":"建议正文","suggestedActions":[]}。你不能直接执行写操作。',
+    userPrompt: JSON.stringify({ input, context: snapshot }),
+    temperature: 0.3,
+    maxTokens: 1800,
+    timeoutMs: Number(row.timeout_ms),
+    fallback: () => buildOutput(row.agent_type, input, snapshot),
+    validate: value => !!(value && typeof value.message === 'string' && value.message.trim())
+  });
+  const output = {
+    ...normalizeOutput(generated.value, input),
+    generation: aiRuntime.safeMetadata(generated)
+  };
+  if (generated.error && generated.attempts > 0) {
+    db.prepare("UPDATE ai_agent_tasks_v4 SET status='failed', error_code=?, error_message=?, output=?, ai_model=?, finished_at=datetime('now') WHERE id=?")
+      .run(generated.error.code, generated.error.message, JSON.stringify(output), generated.model, row.id);
+    return db.prepare('SELECT * FROM ai_agent_tasks_v4 WHERE id=?').get(row.id);
+  }
   const needsConfirmation = !!row.write_action;
-  db.prepare("UPDATE ai_agent_tasks_v4 SET status=?, output=?, finished_at=datetime('now') WHERE id=?")
-    .run(needsConfirmation ? 'awaiting_confirmation' : 'completed', JSON.stringify(output), row.id);
+  db.prepare("UPDATE ai_agent_tasks_v4 SET status=?, output=?, ai_model=?, finished_at=datetime('now') WHERE id=?")
+    .run(needsConfirmation ? 'awaiting_confirmation' : 'completed', JSON.stringify(output), generated.model, row.id);
   return db.prepare('SELECT * FROM ai_agent_tasks_v4 WHERE id=?').get(row.id);
 }
 
-function createTask(userId, agentType, applicationId, input, timeoutMs) {
+async function createTask(userId, agentType, applicationId, input, timeoutMs) {
   if (!AGENTS[agentType]) { const error = new Error('Agent 类型无效'); error.status = 400; throw error; }
   if (applicationId && !db.prepare('SELECT id FROM applications WHERE id=? AND user_id=?').get(applicationId, userId)) {
     const error = new Error('当前申请不存在'); error.status = 404; throw error;
@@ -66,8 +96,8 @@ function createTask(userId, agentType, applicationId, input, timeoutMs) {
   const result = db.prepare(`INSERT INTO ai_agent_tasks_v4
     (user_id,agent_type,application_id,input,context_snapshot,write_action,confirmation_token,ai_model,prompt_version,timeout_ms)
     VALUES (?,?,?,?,?,?,?,?,?,?)`).run(userId, agentType, applicationId || null, JSON.stringify(safeInput), JSON.stringify(context(userId, applicationId)),
-      writeAction, token, process.env.AI_MODEL || 'deepseek-chat', AGENTS[agentType].promptVersion, Math.max(1, Math.min(60000, Number(timeoutMs) || 20000)));
-  return runTask(userId, result.lastInsertRowid);
+      writeAction, token, aiRuntime.getStatus().model, AGENTS[agentType].promptVersion, Math.max(1, Math.min(60000, Number(timeoutMs) || 20000)));
+  return await runTask(userId, result.lastInsertRowid);
 }
 
 function view(row) { return row ? { id: row.id, agentType: row.agent_type, agentName: AGENTS[row.agent_type] && AGENTS[row.agent_type].name,

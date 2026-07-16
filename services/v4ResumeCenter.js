@@ -1,9 +1,10 @@
 const db = require('../db/database');
 const membership = require('./v4Membership');
+const aiRuntime = require('./v4AiRuntime');
 
 const RESUME_TYPES = ['sde', 'ai_engineer', 'data', 'quant', 'general'];
 const EXPERIENCE_TYPES = ['education', 'experience', 'project', 'skill', 'award'];
-const AI_MODEL = process.env.RESUME_AI_MODEL || 'deepseek-chat';
+const AI_MODEL = process.env.RESUME_AI_MODEL || aiRuntime.getStatus().model;
 const PROMPT_VERSION = process.env.RESUME_PROMPT_VERSION || 'resume-v4.0-s2-1';
 
 function parseJson(value, fallback) {
@@ -157,6 +158,9 @@ function validateSuggestions(userId, content, suggestions) {
       addsFacts: raw.addsFacts === true
     };
     if (!suggestion.after) throw Object.assign(new Error(`第 ${index + 1} 条建议缺少修改后内容`), { status: 400 });
+    if (!suggestion.before || !sourceText.includes(suggestion.before)) {
+      throw Object.assign(new Error(`第 ${index + 1} 条建议未准确引用原简历内容`), { status: 422, code: 'UNVERIFIED_FACT' });
+    }
     let evidenceText = sourceText;
     if (suggestion.sourceExperienceIds.length) {
       const placeholders = suggestion.sourceExperienceIds.map(() => '?').join(',');
@@ -185,18 +189,39 @@ function replaceExact(value, before, after) {
   return value;
 }
 
-function createChangeSet({ userId, resumeId, jobId = '', applicationId = null, suggestions, jdText = '' }) {
+async function createChangeSet({ userId, resumeId, jobId = '', applicationId = null, suggestions, jdText = '' }) {
   const owned = ensureCurrentVersion(userId, resumeId);
   if (!owned) throw Object.assign(new Error('简历不存在'), { status: 404 });
   const content = parseJson(owned.version.content, {});
-  const checked = validateSuggestions(userId, content, Array.isArray(suggestions) && suggestions.length ? suggestions : defaultSuggestions(content, jdText));
+  let checked;
+  let model = AI_MODEL;
+  let generation = { source: 'client_provided', degraded: false, provider: '', model, attempts: 0, fallbackReason: '', errorCode: '' };
+  if (Array.isArray(suggestions) && suggestions.length) {
+    checked = validateSuggestions(userId, content, suggestions);
+  } else {
+    const generated = await aiRuntime.generate({
+      systemPrompt: '你是职引的简历优化助手。只能改写用户原简历中已经存在的句子，不得新增经历、技能、学历、公司、日期或数字。输出 JSON 数组，每项格式为 {"id":"suggestion_1","path":"$","before":"原文完整句子","after":"优化后句子","reason":"修改原因","sourceExperienceIds":[],"addsFacts":false}。最多 5 条。',
+      userPrompt: JSON.stringify({ resume: content, jd: cleanText(jdText, 8000) }),
+      temperature: 0.2,
+      maxTokens: 2400,
+      fallback: () => defaultSuggestions(content, jdText),
+      validate: value => {
+        if (!Array.isArray(value) || value.length > 5) return false;
+        validateSuggestions(userId, content, value);
+        return true;
+      }
+    });
+    checked = validateSuggestions(userId, content, generated.value);
+    model = generated.model;
+    generation = aiRuntime.safeMetadata(generated);
+  }
   const result = db.prepare(`
     INSERT INTO resume_ai_change_sets
       (user_id, resume_id, source_version_id, job_id, application_id, suggestions, ai_model, prompt_version, prompt_snapshot)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(userId, resumeId, owned.version.id, cleanText(jobId, 120), applicationId || null,
-    JSON.stringify(checked), AI_MODEL, PROMPT_VERSION, cleanText(jdText, 8000));
-  return getChangeSet(userId, result.lastInsertRowid);
+    JSON.stringify(checked), model, PROMPT_VERSION, cleanText(jdText, 8000));
+  return Object.assign(getChangeSet(userId, result.lastInsertRowid), { generation });
 }
 
 function getChangeSet(userId, id) {

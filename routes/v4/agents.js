@@ -12,18 +12,18 @@ router.get('/tasks', (req, res) => {
   const rows = db.prepare('SELECT * FROM ai_agent_tasks_v4 WHERE user_id=? ORDER BY id DESC LIMIT 100').all(req.user.userId);
   res.json({ code: 0, data: rows.map(agents.view) });
 });
-router.post('/tasks', (req, res) => { try {
+router.post('/tasks', async (req, res) => { try {
   membership.consumeQuota(req.user.userId, 'ai_daily', 1, 'day');
-  const row = agents.createTask(req.user.userId, req.body.agentType, Number(req.body.applicationId) || null, req.body.input || {}, req.body.timeoutMs);
+  const row = await agents.createTask(req.user.userId, req.body.agentType, Number(req.body.applicationId) || null, req.body.input || {}, req.body.timeoutMs);
   analytics.track(req.user.userId, 'ai_agent_started', { taskId: row.id, agentType: row.agent_type }, '/api/v4/agents/tasks');
   res.status(201).json({ code: 0, data: agents.view(row) });
 } catch (err) { sendError(res, err); } });
-router.post('/tasks/:id/retry', (req, res) => {
+router.post('/tasks/:id/retry', async (req, res) => {
   const row = db.prepare("SELECT * FROM ai_agent_tasks_v4 WHERE id=? AND user_id=? AND status='failed'").get(Number(req.params.id), req.user.userId);
   if (!row) return res.status(409).json({ code: -1, message: '仅失败任务可以重试' });
   db.prepare("UPDATE ai_agent_tasks_v4 SET status='queued',error_code='',error_message='',retry_count=retry_count+1,timeout_ms=? WHERE id=?")
     .run(Math.max(1000, Number(req.body.timeoutMs) || 20000), row.id);
-  res.json({ code: 0, data: agents.view(agents.runTask(req.user.userId, row.id)) });
+  res.json({ code: 0, data: agents.view(await agents.runTask(req.user.userId, row.id)) });
 });
 router.post('/tasks/:id/cancel', (req, res) => {
   const result = db.prepare("UPDATE ai_agent_tasks_v4 SET status='cancelled',cancelled_at=datetime('now') WHERE id=? AND user_id=? AND status IN ('queued','running','awaiting_confirmation')").run(Number(req.params.id), req.user.userId);

@@ -33,16 +33,18 @@ router.post('/spaces/:id/sessions', (req, res) => { try {
   analytics.track(req.user.userId, 'interview_training_started', { spaceId: data.space_id, sessionId: data.id, type: data.session_type }, '/api/v4/interviews/spaces/:id/sessions');
   res.status(201).json({ code: 0, data: { id: data.id, spaceId: data.space_id, sessionType: data.session_type, status: data.status, aiModel: data.ai_model, promptVersion: data.prompt_version } });
 } catch (err) { error(res, err); } });
-router.post('/sessions/:id/answers', (req, res) => {
+router.post('/sessions/:id/answers', async (req, res) => { try {
   const session = db.prepare(`SELECT s.*, p.job_title FROM interview_sessions_v4 s JOIN interview_spaces_v4 p ON p.id=s.space_id WHERE s.id=? AND s.user_id=? AND s.status='active'`).get(Number(req.params.id), req.user.userId);
   if (!session) return res.status(404).json({ code: -1, message: '训练会话不存在或已结束' });
   const question = String(req.body.question || '').trim().slice(0, 1000); const answer = String(req.body.answer || '').trim().slice(0, 12000);
   if (!question || !answer) return res.status(400).json({ code: -1, message: '问题和回答不能为空' });
-  const score = interview.scoreAnswer(answer, question, session.job_title);
+  const score = await interview.scoreAnswer(answer, question, session.job_title);
   const result = db.prepare(`INSERT INTO interview_answers_v4
     (session_id,user_id,question_type,question,answer,feedback,content_score,structure_score,expression_score,job_match_score)
     VALUES (?,?,?,?,?,?,?,?,?,?)`).run(session.id, req.user.userId, String(req.body.questionType || 'role').slice(0, 30), question, answer, score.feedback, score.content, score.structure, score.expression, score.jobMatch);
+  db.prepare('UPDATE interview_sessions_v4 SET ai_model=? WHERE id=?').run(score.generation.model, session.id);
   res.status(201).json({ code: 0, data: { id: result.lastInsertRowid, ...score } });
+} catch (err) { error(res, err); }
 });
 router.post('/sessions/:id/complete', (req, res) => { try {
   const report = interview.reportView(interview.completeSession(req.user.userId, Number(req.params.id)));
