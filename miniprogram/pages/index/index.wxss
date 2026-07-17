@@ -50,6 +50,102 @@
   margin-top: 28rpx;
 }
 
+.membership-benefit-banner {
+  position: relative;
+  min-height: 108rpx;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 24rpx;
+  padding: 18rpx 20rpx;
+  overflow: hidden;
+  border: 1.5rpx solid rgba(190, 205, 232, 0.82);
+  border-radius: 24rpx;
+  box-sizing: border-box;
+  background:
+    radial-gradient(circle at 100% 0, rgba(96, 165, 250, 0.18), transparent 38%),
+    linear-gradient(135deg, #ffffff 0%, #f1f5ff 100%);
+  box-shadow: 0 12rpx 30rpx rgba(31, 66, 135, 0.07);
+}
+
+.membership-benefit-banner::before {
+  position: absolute;
+  top: 18rpx;
+  bottom: 18rpx;
+  left: 0;
+  width: 6rpx;
+  border-radius: 0 999rpx 999rpx 0;
+  background: linear-gradient(180deg, #2563eb, #7c3aed);
+  content: '';
+}
+
+.membership-benefit-banner.is-preview {
+  border-color: rgba(203, 213, 225, 0.88);
+  background:
+    radial-gradient(circle at 100% 0, rgba(148, 163, 184, 0.12), transparent 38%),
+    linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.membership-benefit-hover {
+  opacity: 0.86;
+  transform: scale(0.988);
+}
+
+.membership-benefit-mark {
+  flex-shrink: 0;
+  width: 62rpx;
+  height: 62rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18rpx;
+  color: #ffffff;
+  background: linear-gradient(145deg, #2563eb 0%, #6d5dfc 100%);
+  box-shadow: 0 10rpx 22rpx rgba(64, 91, 214, 0.2);
+  font-size: 18rpx;
+  font-weight: 950;
+  letter-spacing: 0.5rpx;
+}
+
+.membership-benefit-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.membership-benefit-title {
+  color: #111c31;
+  font-size: 28rpx;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.membership-benefit-sub {
+  margin-top: 7rpx;
+  overflow: hidden;
+  color: #667085;
+  font-size: 20rpx;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.membership-benefit-action {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  color: #315fd1;
+  font-size: 21rpx;
+  font-weight: 850;
+}
+
+.membership-benefit-arrow {
+  margin-left: 5rpx;
+  font-size: 32rpx;
+  line-height: 1;
+}
+
 .banner-swiper {
   width: 100%;
   height: 214rpx;

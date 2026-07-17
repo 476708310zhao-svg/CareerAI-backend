@@ -803,6 +803,19 @@ Page({
     navigation.safeNavigateTo(url);
   },
 
+  openMembershipBenefits() {
+    if (this.data.membershipEnabled) {
+      navigation.safeNavigateTo('/package-user/pages/vip/vip');
+      return;
+    }
+    wx.showModal({
+      title: '求职会员权益',
+      content: '会员权益入口已保留，真实微信支付暂未开放。当前免费功能可继续使用。',
+      showCancel: false,
+      confirmText: '知道了'
+    });
+  },
+
   loadCachedCampusUpdates() {
     const cached = wx.getStorageSync(HOME_CAMPUS_CACHE_KEY);
     if (!cached || !Array.isArray(cached.items) || cached.items.length === 0) return false;

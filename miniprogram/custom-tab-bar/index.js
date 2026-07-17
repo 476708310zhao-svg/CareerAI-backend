@@ -114,6 +114,10 @@ Component({
         fail: () => this.syncState()
       });
       if (!started) this.syncState();
+    },
+
+    goAiAssistant() {
+      navigation.safeNavigateTo('/package-ai/pages/ai-assistant/ai-assistant');
     }
   }
 });

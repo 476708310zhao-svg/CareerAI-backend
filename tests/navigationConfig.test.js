@@ -74,3 +74,18 @@ test('literal switchTab calls only target configured TabBar pages', () => {
   });
   assert.deepEqual(invalid, []);
 });
+
+test('global AI floating entry and home membership banner remain available', () => {
+  const customWxml = read('custom-tab-bar/index.wxml');
+  const customJs = read('custom-tab-bar/index.js');
+  const homeWxml = read('pages/index/index.wxml');
+  const homeJs = read('pages/index/index.js');
+
+  assert.match(customWxml, /class="ai-float"/);
+  assert.match(customWxml, /catchtap="goAiAssistant"/);
+  assert.match(customJs, /goAiAssistant\(\)/);
+  assert.match(customJs, /package-ai\/pages\/ai-assistant\/ai-assistant/);
+  assert.match(homeWxml, /class="membership-benefit-banner/);
+  assert.match(homeWxml, /真实微信支付暂未开放/);
+  assert.match(homeJs, /openMembershipBenefits\(\)/);
+});

@@ -1,4 +1,22 @@
 <view class="custom-tabbar">
+  <view
+    class="ai-float"
+    catchtap="goAiAssistant"
+    hover-class="ai-float-hover"
+    aria-role="button"
+    aria-label="AI求职助手"
+  >
+    <view class="ai-float-core">
+      <view class="ai-float-glow"></view>
+      <view class="ai-float-orbit orbit-a"></view>
+      <view class="ai-float-orbit orbit-b"></view>
+      <view class="ai-float-spark spark-one"></view>
+      <view class="ai-float-spark spark-two"></view>
+      <view class="ai-float-mark">
+        <text class="ai-float-text">AI</text>
+      </view>
+    </view>
+  </view>
   <view class="tabbar-panel">
     <block wx:for="{{list}}" wx:key="pagePath">
       <view
