@@ -11,6 +11,7 @@ const EXPECTED_TABS = [
   'pages/ai-career/ai-career',
   'pages/profile/profile'
 ];
+const EXPECTED_TAB_LABELS = ['Today', '岗位', '进度', 'AI Career', '我的'];
 
 function read(relativePath) {
   return fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
@@ -39,10 +40,11 @@ function literalSwitchTargets(source) {
   return targets;
 }
 
-test('V4 TabBar uses Today, Jobs, Applications, AI Career and Profile main-package pages', () => {
+test('V4 TabBar uses Today, Jobs, Progress, AI Career and Profile main-package pages', () => {
   const app = JSON.parse(read('app.json'));
   const tabPaths = app.tabBar.list.map(item => item.pagePath);
   assert.deepEqual(tabPaths, EXPECTED_TABS);
+  assert.deepEqual(app.tabBar.list.map(item => item.text), EXPECTED_TAB_LABELS);
   EXPECTED_TABS.forEach(pagePath => {
     assert.ok(app.pages.includes(pagePath), pagePath + ' must be declared in the main package');
     assert.ok(fs.existsSync(path.join(ROOT, pagePath + '.js')), pagePath + '.js must exist');
@@ -54,6 +56,8 @@ test('custom TabBar and navigation helper stay aligned with app.json', () => {
   const customSource = read('custom-tab-bar/index.js');
   const customPaths = Array.from(customSource.matchAll(/pagePath:\s*['"]([^'"]+)['"]/g)).map(match => match[1]);
   assert.deepEqual(customPaths, EXPECTED_TABS);
+  const customLabels = Array.from(customSource.matchAll(/\btext:\s*['"]([^'"]+)['"]/g)).map(match => match[1]);
+  assert.deepEqual(customLabels, EXPECTED_TAB_LABELS);
   const navigationSource = read('utils/navigation.js');
   EXPECTED_TABS.forEach(pagePath => {
     assert.ok(navigationSource.includes("'/" + pagePath + "'"), pagePath + ' missing from navigation helper');

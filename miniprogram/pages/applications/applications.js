@@ -1,5 +1,6 @@
 const api = require('../../utils/api-v4.js');
 const navigation = require('../../utils/navigation.js');
+const { buildApplicationWorkbench } = require('../../utils/application-workbench.js');
 
 const GROUPS = [
   { key: 'all', label: '全部' },
@@ -10,8 +11,19 @@ const GROUPS = [
   { key: 'closed', label: '已结束' }
 ];
 
+function emptyCreateForm() {
+  return { company: '', jobTitle: '', city: '', deadline: '', nextAction: '' };
+}
+
+function todayLabel() {
+  const now = new Date();
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  return `${now.getMonth() + 1}月${now.getDate()}日 · ${weekdays[now.getDay()]}`;
+}
+
 Page({
   data: {
+    todayLabel: todayLabel(),
     loading: true,
     refreshing: false,
     loginRequired: false,
@@ -21,7 +33,13 @@ Page({
     applications: [],
     visibleApplications: [],
     statistics: {},
-    total: 0
+    total: 0,
+    activeCount: 0,
+    highlights: [],
+    funnel: [],
+    showCreate: false,
+    creating: false,
+    createForm: emptyCreateForm()
   },
 
   onShow() {
@@ -39,44 +57,50 @@ Page({
     try { return !!wx.getStorageSync('token'); } catch (error) { return false; }
   },
 
+  resetBoardState(extra) {
+    this.setData(Object.assign({
+      loading: false,
+      refreshing: false,
+      applications: [],
+      visibleApplications: [],
+      total: 0,
+      activeCount: 0,
+      statistics: {},
+      highlights: [],
+      funnel: [],
+      filters: GROUPS.map(item => Object.assign({}, item, { count: 0 }))
+    }, extra || {}));
+  },
+
   loadBoard(force) {
     if (this._loadingPromise && !force) return this._loadingPromise;
     if (!this.hasToken()) {
-      this.setData({
-        loading: false,
-        refreshing: false,
-        loginRequired: true,
-        error: '',
-        applications: [],
-        visibleApplications: [],
-        total: 0
-      });
+      this.resetBoardState({ loginRequired: true, error: '' });
       return Promise.resolve();
     }
 
     this.setData({ loading: true, loginRequired: false, error: '' });
     const request = api.getApplicationBoard().then(response => {
       const data = response && response.code === 0 ? response.data : null;
-      if (!data || !data.groups) throw new Error('申请看板数据异常');
+      if (!data || !data.groups) throw new Error('申请进度数据异常');
       const applications = [];
       Object.keys(data.groups).forEach(group => {
-        (data.groups[group] || []).forEach(item => {
-          applications.push(Object.assign({}, item, {
-            group,
-            companyInitial: String(item.company || '职').slice(0, 1)
-          }));
-        });
+        (data.groups[group] || []).forEach(item => applications.push(Object.assign({}, item, { group })));
       });
-      const statistics = data.statistics || {};
+
+      const dashboard = buildApplicationWorkbench(applications, new Date());
       const filters = GROUPS.map(item => Object.assign({}, item, {
-        count: item.key === 'all' ? Number(data.total || applications.length) : Number(statistics[item.key] || 0)
+        count: item.key === 'all' ? dashboard.total : Number(dashboard.counts[item.key] || 0)
       }));
       this.setData({
         loading: false,
         refreshing: false,
-        applications,
-        statistics,
-        total: Number(data.total || applications.length),
+        applications: dashboard.applications,
+        statistics: dashboard.counts,
+        total: dashboard.total,
+        activeCount: dashboard.activeCount,
+        highlights: dashboard.highlights,
+        funnel: dashboard.funnel,
         filters
       });
       this.applyFilter(this.data.activeGroup);
@@ -84,7 +108,7 @@ Page({
       this.setData({
         loading: false,
         refreshing: false,
-        error: error && error.message || '申请看板加载失败'
+        error: error && error.message || '申请进度加载失败'
       });
     }).finally(() => {
       if (this._loadingPromise === request) this._loadingPromise = null;
@@ -117,6 +141,74 @@ Page({
 
   goProfile() {
     navigation.safeSwitchTab('/pages/profile/profile');
+  },
+
+  goResumeCenter() {
+    navigation.safeNavigateTo('/package-career/pages/resume-center/resume-center');
+  },
+
+  goAiCareer() {
+    navigation.safeSwitchTab('/pages/ai-career/ai-career');
+  },
+
+  openCreate() {
+    if (!this.hasToken()) {
+      wx.showToast({ title: '登录后可新增申请', icon: 'none' });
+      this.goProfile();
+      return;
+    }
+    this.setData({ showCreate: true, creating: false, createForm: emptyCreateForm() });
+  },
+
+  closeCreate() {
+    if (this.data.creating) return;
+    this.setData({ showCreate: false });
+  },
+
+  stopModal() {},
+
+  onCreateInput(e) {
+    const field = e.currentTarget.dataset.field;
+    if (!Object.prototype.hasOwnProperty.call(this.data.createForm, field)) return;
+    this.setData({ ['createForm.' + field]: e.detail.value });
+  },
+
+  onDeadlineChange(e) {
+    this.setData({ 'createForm.deadline': e.detail.value });
+  },
+
+  submitCreate() {
+    if (this.data.creating) return;
+    const form = this.data.createForm;
+    const company = String(form.company || '').trim();
+    const jobTitle = String(form.jobTitle || '').trim();
+    if (!company || !jobTitle) {
+      wx.showToast({ title: '请填写公司和岗位', icon: 'none' });
+      return;
+    }
+
+    this.setData({ creating: true });
+    const jobId = `manual-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    api.createApplication({
+      jobId,
+      status: 'preparing',
+      sourceType: 'manual_application',
+      deadline: form.deadline,
+      nextAction: String(form.nextAction || '').trim() || '确认岗位要求并准备申请材料',
+      jobSnapshot: {
+        id: jobId,
+        company,
+        title: jobTitle,
+        location: String(form.city || '').trim()
+      }
+    }).then(() => {
+      wx.showToast({ title: '已加入求职进度', icon: 'success' });
+      this.setData({ showCreate: false, creating: false, activeGroup: 'all', createForm: emptyCreateForm() });
+      return this.loadBoard(true);
+    }).catch(error => {
+      this.setData({ creating: false });
+      wx.showToast({ title: error && error.message || '新增失败，请重试', icon: 'none' });
+    });
   },
 
   retry() {

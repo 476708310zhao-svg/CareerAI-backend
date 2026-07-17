@@ -9,7 +9,7 @@
 - 技术栈：原生微信小程序，WXML / WXSS / JavaScript，后端为 Node.js + Express。
 - 当前首页：`miniprogram/pages/index/index`。
 - 当前首页约 50 KB JavaScript、15 KB WXML、41 KB WXSS，页面职责过多。
-- V4 一级 TabBar 已调整为“Today / Jobs / Applications / AI Career / Profile”。
+- V4 一级 TabBar 已调整为“Today / Jobs / Progress / AI Career / Profile”。
 - AI Career 已成为统一一级入口，原全局 AI 悬浮按钮已移除，避免重复入口。
 - 现有职位、校招、企业、资讯、Banner、求职进度和用户画像接口均可复用。
 
@@ -104,7 +104,7 @@ Today / Jobs / Applications / AI Career / Profile
 4. 将首页岗位限制为最多 3 条、求职情报限制为最多 2 条。
 5. 保留顶部搜索框和 Banner 轮播，停止热门企业的首页请求；保留校招缓存与延迟加载。
 6. 为岗位与资讯补齐独立 loading / empty / error / retry。
-7. 将一级导航调整为 Today、Jobs、Applications、AI Career、Profile，并迁移旧 switchTab 跳转。
+7. 将一级导航调整为 Today、Jobs、Progress、AI Career、Profile，并迁移旧 switchTab 跳转。
 8. 执行小程序静态检查、后端测试和微信开发者工具验收。
 
 ## 8. 验收标准
@@ -116,7 +116,7 @@ Today / Jobs / Applications / AI Career / Profile
 - 今日校招展示真实接口数据，支持进入详情、校招日历和完整列表。
 - 推荐岗位不超过 3 条，求职情报不超过 2 条。
 - 单个接口失败不会导致首页白屏。
-- Applications 与 AI Career 为可直接使用的主包页面，五项 TabBar 跳转正常。
+- Progress 与 AI Career 为可直接使用的主包页面，五项 TabBar 跳转正常。
 - 首页底部留白覆盖自定义 TabBar 和安全区。
 - `npm run check:miniprogram`、`npm test` 通过。
 
@@ -133,6 +133,6 @@ Today / Jobs / Applications / AI Career / Profile
 - 登录用户的首页任务已与服务端 Today 任务幂等合并；未登录或弱网时继续使用本地任务。
 - 本地完成状态支持离线保存和联网补传，服务端 AI/面试任务不会被首页同步删除。
 - V4 一级导航已落地；岗位 Tab 当前直接承载校招日历，原岗位推荐保留为二级页面，测评和题库继续作为普通业务页面。
-- 新增 Applications 主包申请看板与 AI Career 四 Agent 主包入口。
+- 新增 Progress 主包求职进度工作台与 AI Career 四 Agent 主包入口。
 - 验证：`npm test` 79/79 通过，`npm run check:miniprogram` 通过，主包估算约 0.90 MB。
 - 此前首页版本已通过微信开发者工具 `preview`；新导航仍需在最终真实 E2E 中复验。

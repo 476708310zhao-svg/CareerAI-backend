@@ -1,68 +1,138 @@
 <view class="page">
-  <view class="hero">
-    <text class="eyebrow">APPLICATION CRM</text>
-    <text class="title">申请看板</text>
-    <text class="subtitle">从准备材料到 Offer，统一记录每一次推进</text>
-    <view class="hero-stats">
-      <view class="hero-stat"><text class="stat-value">{{total}}</text><text class="stat-label">全部申请</text></view>
-      <view class="hero-stat"><text class="stat-value">{{statistics.interview || 0}}</text><text class="stat-label">面试中</text></view>
-      <view class="hero-stat"><text class="stat-value">{{statistics.offer || 0}}</text><text class="stat-label">Offer</text></view>
+  <view class="page-heading">
+    <view>
+      <text class="eyebrow">APPLICATION HUB</text>
+      <text class="page-title">求职进度</text>
+      <text class="date-label">{{todayLabel}}</text>
+    </view>
+    <view class="add-button" bindtap="openCreate"><text class="add-icon">＋</text><text>新增</text></view>
+  </view>
+
+  <view class="overview-card">
+    <view class="overview-copy">
+      <text class="overview-kicker">今天继续向前一步</text>
+      <text class="overview-title">{{activeCount ? '你有 ' + activeCount + ' 个进行中的申请' : '建立你的申请推进节奏'}}</text>
+      <text class="overview-desc">集中管理材料、截止时间、面试与跟进动作</text>
+    </view>
+    <view class="overview-stats">
+      <view class="overview-stat"><text class="stat-value">{{total}}</text><text class="stat-label">全部</text></view>
+      <view class="overview-stat"><text class="stat-value orange">{{statistics.interview || 0}}</text><text class="stat-label">面试</text></view>
+      <view class="overview-stat"><text class="stat-value green">{{statistics.offer || 0}}</text><text class="stat-label">Offer</text></view>
     </view>
   </view>
 
-  <scroll-view wx:if="{{!loginRequired}}" class="filter-scroll" scroll-x enhanced show-scrollbar="{{false}}">
-    <view class="filter-row">
-      <view wx:for="{{filters}}" wx:key="key" class="filter {{activeGroup===item.key?'active':''}}" data-group="{{item.key}}" bindtap="changeGroup">
-        <text>{{item.label}}</text><text class="filter-count">{{item.count}}</text>
-      </view>
-    </view>
-  </scroll-view>
+  <view class="quick-grid">
+    <view class="quick-card" bindtap="openCreate"><view class="quick-icon blue">＋</view><text>快速新增</text></view>
+    <view class="quick-card" bindtap="goJobs"><view class="quick-icon mint">校</view><text>浏览校招</text></view>
+    <view class="quick-card" bindtap="goResumeCenter"><view class="quick-icon violet">简</view><text>简历中心</text></view>
+    <view class="quick-card" bindtap="goAiCareer"><view class="quick-icon amber">AI</view><text>申请助手</text></view>
+  </view>
 
-  <view wx:if="{{loading}}" class="state-card">
+  <view wx:if="{{loading}}" class="state-card compact">
     <view class="spinner"></view>
-    <text>正在同步申请记录…</text>
+    <text class="state-desc">正在同步申请进度…</text>
   </view>
 
   <view wx:elif="{{loginRequired}}" class="state-card">
-    <text class="state-icon">🔐</text>
-    <text class="state-title">登录后同步申请看板</text>
-    <text class="state-desc">申请状态、材料、联系人和任务会安全同步到你的账号。</text>
+    <view class="state-symbol lock">锁</view>
+    <text class="state-title">登录后开启求职进度中心</text>
+    <text class="state-desc">申请状态、材料、联系人、任务和面试记录会安全同步到你的账号。</text>
     <view class="primary-button" bindtap="goProfile">前往登录</view>
   </view>
 
   <view wx:elif="{{error}}" class="state-card">
-    <text class="state-icon">↻</text>
+    <view class="state-symbol retry">↻</view>
     <text class="state-title">暂时无法加载</text>
     <text class="state-desc">{{error}}</text>
     <view class="primary-button" bindtap="retry">重新加载</view>
   </view>
 
-  <view wx:elif="{{visibleApplications.length===0}}" class="state-card">
-    <text class="state-icon">＋</text>
-    <text class="state-title">{{activeGroup==='all'?'还没有申请记录':'该阶段暂无申请'}}</text>
-    <text class="state-desc">找到合适岗位后加入申请，即可在这里持续跟进。</text>
-    <view class="primary-button" bindtap="goJobs">浏览岗位</view>
-  </view>
-
-  <view wx:else class="application-list">
-    <view wx:for="{{visibleApplications}}" wx:key="id" class="application-card" data-id="{{item.id}}" bindtap="openApplication" hover-class="card-hover">
-      <view class="card-top">
-        <view class="company-mark">{{item.companyInitial}}</view>
-        <view class="card-copy">
-          <text class="job-title">{{item.jobTitle || '目标岗位'}}</text>
-          <text class="company">{{item.company || '目标公司'}}<text wx:if="{{item.city}}"> · {{item.city}}</text></text>
+  <block wx:else>
+    <view wx:if="{{highlights.length}}" class="section">
+      <view class="section-head"><view><text class="section-title">本周重点</text><text class="section-sub">优先处理最接近结果的事项</text></view><text class="focus-count">{{highlights.length}} 项</text></view>
+      <view class="focus-card">
+        <view wx:for="{{highlights}}" wx:key="id" class="focus-row" data-id="{{item.id}}" bindtap="openApplication">
+          <view class="focus-badge {{item.type}}">{{item.badge}}</view>
+          <view class="focus-copy"><text class="focus-title">{{item.title}}</text><text class="focus-desc">{{item.desc}}</text></view>
+          <text class="row-arrow">›</text>
         </view>
-        <text class="status status-{{item.group}}">{{item.statusText || item.status}}</text>
       </view>
-      <view class="next-action">
-        <text class="next-label">下一步</text>
-        <text class="next-text">{{item.nextAction || '补充跟进计划'}}</text>
+    </view>
+
+    <view wx:if="{{total}}" class="section pipeline-section">
+      <view class="section-head"><view><text class="section-title">申请漏斗</text><text class="section-sub">快速发现停滞阶段</text></view></view>
+      <view class="pipeline-card">
+        <view wx:for="{{funnel}}" wx:key="key" class="pipeline-row">
+          <text class="pipeline-label">{{item.label}}</text>
+          <view class="pipeline-track"><view class="pipeline-fill fill-{{item.key}}" style="width:{{item.width}}%"></view></view>
+          <text class="pipeline-count">{{item.count}}</text>
+        </view>
       </view>
-      <view class="card-meta">
-        <text wx:if="{{item.deadline}}">截止 {{item.deadline}}</text>
-        <text wx:else>未设置截止时间</text>
-        <text>查看详情 ›</text>
+    </view>
+
+    <view class="section list-section">
+      <view class="section-head"><view><text class="section-title">全部申请</text><text class="section-sub">按优先级自动排序</text></view></view>
+      <scroll-view class="filter-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+        <view class="filter-row">
+          <view wx:for="{{filters}}" wx:key="key" class="filter {{activeGroup===item.key?'active':''}}" data-group="{{item.key}}" bindtap="changeGroup">
+            <text>{{item.label}}</text><text class="filter-count">{{item.count}}</text>
+          </view>
+        </view>
+      </scroll-view>
+
+      <view wx:if="{{visibleApplications.length===0}}" class="state-card empty-state">
+        <view class="state-symbol add">＋</view>
+        <text class="state-title">{{activeGroup==='all'?'还没有申请记录':'该阶段暂无申请'}}</text>
+        <text class="state-desc">手动新增一条申请，或从校招日历找到目标岗位。</text>
+        <view class="empty-actions"><view class="primary-button small" bindtap="openCreate">新增申请</view><view class="secondary-button" bindtap="goJobs">浏览校招</view></view>
       </view>
+
+      <view wx:else class="application-list">
+        <view wx:for="{{visibleApplications}}" wx:key="id" class="application-card" data-id="{{item.id}}" bindtap="openApplication" hover-class="card-hover">
+          <view class="card-top">
+            <view class="company-mark tone-{{item.statusTone}}">{{item.companyInitial}}</view>
+            <view class="card-copy">
+              <text class="job-title">{{item.jobTitle || '目标岗位'}}</text>
+              <text class="company">{{item.company || '目标公司'}}<text wx:if="{{item.city}}"> · {{item.city}}</text></text>
+            </view>
+            <text class="status status-{{item.statusTone}}">{{item.statusText || item.groupLabel}}</text>
+          </view>
+
+          <view class="progress-row">
+            <view class="progress-copy"><text class="progress-label">申请准备度</text><text class="progress-value">{{item.materialText}}</text></view>
+            <view class="material-track"><view class="material-fill" style="width:{{item.materialPercent}}%"></view></view>
+          </view>
+
+          <view class="next-action">
+            <view class="next-dot"></view>
+            <view class="next-copy"><text class="next-label">下一步行动</text><text class="next-text">{{item.nextAction || '补充跟进计划'}}</text></view>
+          </view>
+
+          <view class="card-meta">
+            <text wx:if="{{item.interviewLabel}}" class="meta-pill interview">{{item.interviewLabel}}</text>
+            <text class="meta-pill {{item.deadlineTone}}">{{item.deadlineLabel}}</text>
+            <text class="detail-link">查看详情 ›</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <view wx:if="{{showCreate}}" class="modal-mask" catchtap="closeCreate">
+    <view class="create-sheet" catchtap="stopModal">
+      <view class="sheet-handle"></view>
+      <view class="sheet-head"><view><text class="sheet-title">新增申请</text><text class="sheet-subtitle">先记录，再逐步完善材料和进度</text></view><view class="sheet-close" bindtap="closeCreate">×</view></view>
+      <view class="form-row two-column">
+        <view class="field"><text class="field-label">公司名称 *</text><input class="field-input" value="{{createForm.company}}" data-field="company" bindinput="onCreateInput" placeholder="例如 Microsoft" maxlength="120" /></view>
+        <view class="field"><text class="field-label">岗位名称 *</text><input class="field-input" value="{{createForm.jobTitle}}" data-field="jobTitle" bindinput="onCreateInput" placeholder="例如 SDE Intern" maxlength="160" /></view>
+      </view>
+      <view class="form-row two-column">
+        <view class="field"><text class="field-label">城市 / 地区</text><input class="field-input" value="{{createForm.city}}" data-field="city" bindinput="onCreateInput" placeholder="例如 Seattle" maxlength="120" /></view>
+        <view class="field"><text class="field-label">申请截止</text><picker mode="date" value="{{createForm.deadline}}" bindchange="onDeadlineChange"><view class="field-input picker-value {{createForm.deadline?'':'placeholder'}}">{{createForm.deadline || '选择日期'}}</view></picker></view>
+      </view>
+      <view class="field"><text class="field-label">下一步行动</text><input class="field-input" value="{{createForm.nextAction}}" data-field="nextAction" bindinput="onCreateInput" placeholder="例如：周五前完成定制简历" maxlength="300" /></view>
+      <view class="sheet-tip">新增后默认进入“准备中”，可在申请详情继续关联简历、材料和联系人。</view>
+      <view class="sheet-actions"><view class="cancel-button" bindtap="closeCreate">取消</view><view class="submit-button {{creating?'disabled':''}}" bindtap="submitCreate">{{creating?'正在保存…':'加入求职进度'}}</view></view>
     </view>
   </view>
 </view>

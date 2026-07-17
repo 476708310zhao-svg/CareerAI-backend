@@ -226,9 +226,10 @@ interested → preparing → applied
 
 - ✅ 已有岗位和校招截止提醒基础能力
 - 🟡 V4 个性化提醒策略仍需与 Today 任务统一
-- ✅ 一级导航已替换为 `Today / Jobs / Applications / AI Career / Profile`
+- ✅ 一级导航已替换为 `Today / Jobs / Progress / AI Career / Profile`
 - ✅ `Jobs`（岗位）一级 Tab 当前直接承载校招日历；原岗位推荐页保留为二级搜索与推荐入口
-- ✅ Applications 主包入口读取 V4 CRM，看板可进入申请详情
+- ✅ Progress（求职进度）主包入口读取 V4 CRM，已提供本周重点、申请漏斗、准备度、优先级排序和手动新增申请
+- ✅ 求职进度卡片可继续进入申请详情，管理材料、联系人、任务、历史和面试空间
 - ✅ AI Career 主包入口整合四个 Agent、当前申请和任务历史
 - ⬜ 收藏岗位更新提醒需要完整回归
 
@@ -479,7 +480,7 @@ status = paused
 
 - ⬜ 优化提醒派发慢请求
 - ⬜ 配置外部错误监控和告警通知
-- ✅ 一级导航已切换为 `Today / Jobs / Applications / AI Career / Profile`
+- ✅ 一级导航已切换为 `Today / Jobs / Progress / AI Career / Profile`
 - ⬜ 验证收藏岗位更新提醒和跨设备任务同步
 - ⬜ 对 7 日留存、岗位转化漏斗和 AI 使用率做真实数据校验
 - ⬜ 补充管理员操作审计和数据导出策略

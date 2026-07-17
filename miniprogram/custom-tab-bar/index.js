@@ -15,7 +15,7 @@ const FULL_TAB_LIST = [
   },
   {
     pagePath: 'pages/applications/applications',
-    text: '申请',
+    text: '进度',
     iconPath: '/images/icon-apply.png',
     selectedIconPath: '/images/icon-apply.png'
   },
