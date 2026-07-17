@@ -1318,7 +1318,7 @@ Page({
 
   goToCampusList() {
     if (!featureFlags.allowNavigation('/pages/campus/campus')) return;
-    wx.switchTab({ url: '/pages/campus/campus' });
+    navigation.safeNavigateTo('/pages/campus/campus');
   },
 
   goToCampusUpdateDetail(e) {

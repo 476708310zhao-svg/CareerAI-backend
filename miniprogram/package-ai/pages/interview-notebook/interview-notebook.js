@@ -193,7 +193,7 @@ Page({
   },
 
   goQuestionBank() {
-    wx.switchTab({ url: '/pages/experiences/experiences' });
+    wx.navigateTo({ url: '/pages/experiences/experiences' });
   },
 
   goInterview() {

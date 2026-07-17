@@ -197,8 +197,8 @@ interested → preparing → applied
 
 - ✅ 首页已重构为求职工作台
 - ✅ 已拆分 Today 计划、核心工具、推荐岗位、校招更新和求职情报组件
-- ✅ 已通过 76/76 测试和小程序检查；此前微信 preview 已通过
-- ✅ 首页文件已完成独立审查，候选 TabBar 变更被隔离为待确认事项
+- ✅ 已通过 79/79 测试和小程序检查；此前首页微信 preview 已通过
+- ✅ 首页文件和 V4 五项 TabBar 已完成独立审查
 
 当前首页规划结构：
 
@@ -226,7 +226,9 @@ interested → preparing → applied
 
 - ✅ 已有岗位和校招截止提醒基础能力
 - 🟡 V4 个性化提醒策略仍需与 Today 任务统一
-- ⬜ 原规格中的一级导航 `Today / Jobs / Applications / AI Career / Profile` 尚未整体替换现有 TabBar
+- ✅ 一级导航已替换为 `Today / Jobs / Applications / AI Career / Profile`
+- ✅ Applications 主包入口读取 V4 CRM，看板可进入申请详情
+- ✅ AI Career 主包入口整合四个 Agent、当前申请和任务历史
 - ⬜ 收藏岗位更新提醒需要完整回归
 
 ## 7. Sprint 4：面试闭环
@@ -476,7 +478,7 @@ status = paused
 
 - ⬜ 优化提醒派发慢请求
 - ⬜ 配置外部错误监控和告警通知
-- ⬜ 确认一级导航是否切换为 `Today / Jobs / Applications / AI Career / Profile`
+- ✅ 一级导航已切换为 `Today / Jobs / Applications / AI Career / Profile`
 - ⬜ 验证收藏岗位更新提醒和跨设备任务同步
 - ⬜ 对 7 日留存、岗位转化漏斗和 AI 使用率做真实数据校验
 - ⬜ 补充管理员操作审计和数据导出策略
@@ -500,7 +502,6 @@ status = paused
 ## 17. 下一步建议顺序
 
 1. 配置测试环境真实 AI Key，完成供应商调用和异常演练。
-2. 确认 V4 一级导航方案并实施。
-3. 重新登录微信开发者工具，完成 11/11 真实 E2E。
-4. 完成真机验收和生产配置检查。
-5. 保持真实支付关闭，先从 5% V4 功能灰度开始。
+2. 重新登录微信开发者工具，完成 11/11 真实 E2E。
+3. 完成真机验收和生产配置检查。
+4. 保持真实支付关闭，先从 5% V4 功能灰度开始。

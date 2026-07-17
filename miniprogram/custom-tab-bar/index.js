@@ -1,31 +1,29 @@
-const featureFlags = require('../utils/feature-flags.js');
 const navigation = require('../utils/navigation.js');
 
 const FULL_TAB_LIST = [
   {
     pagePath: 'pages/index/index',
-    text: '首页',
+    text: 'Today',
     iconPath: '/images/home.png',
     selectedIconPath: '/images/home-active.png'
   },
   {
     pagePath: 'pages/jobs/jobs',
-    text: '职位',
+    text: '岗位',
     iconPath: '/images/jobs.png',
-    selectedIconPath: '/images/jobs-active.png',
-    feature: 'recruitment'
+    selectedIconPath: '/images/jobs-active.png'
   },
   {
-    pagePath: 'pages/experiences/experiences',
-    text: '题库',
-    iconPath: '/images/experience.png',
-    selectedIconPath: '/images/experience-active.png'
+    pagePath: 'pages/applications/applications',
+    text: '申请',
+    iconPath: '/images/icon-apply.png',
+    selectedIconPath: '/images/icon-apply.png'
   },
   {
-    pagePath: 'pages/campus/campus',
-    text: '校招',
-    iconPath: '/images/icon-calendar.png',
-    selectedIconPath: '/images/icon-calendar.png'
+    pagePath: 'pages/ai-career/ai-career',
+    text: 'AI Career',
+    iconPath: '/images/icon-ai-assistant.png',
+    selectedIconPath: '/images/icon-ai-assistant.png'
   },
   {
     pagePath: 'pages/profile/profile',
@@ -64,8 +62,7 @@ Component({
     syncState() {
       const pages = getCurrentPages();
       const current = pages[pages.length - 1] || {};
-      const recruitmentEnabled = featureFlags.isRecruitmentEnabled();
-      const list = FULL_TAB_LIST.filter(item => item.feature !== 'recruitment' || recruitmentEnabled);
+      const list = FULL_TAB_LIST;
       const selected = this.routeToIndex(current.route, list);
       const app = getApp();
       const storedCount = Number(wx.getStorageSync('unreadMessages')) || 0;
@@ -117,10 +114,6 @@ Component({
         fail: () => this.syncState()
       });
       if (!started) this.syncState();
-    },
-
-    goAiAssistant() {
-      navigation.safeNavigateTo('/package-ai/pages/ai-assistant/ai-assistant');
     }
   }
 });

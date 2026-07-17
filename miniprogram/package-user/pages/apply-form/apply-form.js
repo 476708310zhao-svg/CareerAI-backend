@@ -249,6 +249,6 @@ Page({
   },
 
   goApplications() {
-    wx.navigateTo({ url: '/package-user/pages/applications/applications' });
+    wx.switchTab({ url: '/pages/applications/applications' });
   },
 });

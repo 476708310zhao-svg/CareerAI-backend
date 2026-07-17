@@ -339,8 +339,8 @@ Page({
   },
 
   goToApplications() {
-    if (!featureFlags.allowNavigation('/package-user/pages/applications/applications')) return;
-    wx.navigateTo({ url: '/package-user/pages/applications/applications' });
+    if (!featureFlags.allowNavigation('/pages/applications/applications')) return;
+    wx.switchTab({ url: '/pages/applications/applications' });
   },
 
   goToJobProgress() {

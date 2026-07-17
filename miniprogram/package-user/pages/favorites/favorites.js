@@ -323,7 +323,7 @@ Page({
   },
 
   goToExperiences() {
-    wx.switchTab({ url: '/pages/experiences/experiences' });
+    wx.navigateTo({ url: '/pages/experiences/experiences' });
   },
 
   browseCurrent() {
@@ -343,7 +343,7 @@ Page({
     }
     if (action === 'campus') {
       if (!featureFlags.allowNavigation('/pages/campus/campus')) return;
-      wx.switchTab({ url: '/pages/campus/campus' });
+      wx.navigateTo({ url: '/pages/campus/campus' });
       return;
     }
     this.goToJobs();

@@ -138,7 +138,9 @@ Page({
   },
 
   backToCampusList() {
-    wx.switchTab({ url: '/pages/campus/campus' });
+    const pages = getCurrentPages();
+    if (pages.length > 1) wx.navigateBack();
+    else wx.reLaunch({ url: '/pages/campus/campus' });
   },
 
   normalizeDetail(d) {

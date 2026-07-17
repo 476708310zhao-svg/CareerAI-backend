@@ -457,7 +457,7 @@ ${profileDesc}
   },
 
   goJobs() {
-    wx.switchTab({ url: '/pages/jobs/jobs' });
+    navigation.safeNavigateTo('/pages/jobs/jobs');
   },
 
   goJobDetail(e) {
