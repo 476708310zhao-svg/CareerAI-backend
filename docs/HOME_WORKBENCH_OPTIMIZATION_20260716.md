@@ -9,7 +9,7 @@
 - 技术栈：原生微信小程序，WXML / WXSS / JavaScript，后端为 Node.js + Express。
 - 当前首页：`miniprogram/pages/index/index`。
 - 当前首页约 50 KB JavaScript、15 KB WXML、41 KB WXSS，页面职责过多。
-- V4 一级 TabBar 已调整为“Today / Jobs / Progress / AI Career / Profile”。
+- V4 一级 TabBar 已调整为“首页 / 校招 / 进度 / AI Career / 我的”。
 - AI Career 是统一工作台；按产品要求继续保留全局 AI 悬浮入口，快速直达通用 AI 助手。
 - 现有职位、校招、企业、资讯、Banner、求职进度和用户画像接口均可复用。
 
@@ -48,7 +48,7 @@ Banner 轮播
 ↓
 AI Career 统一入口
 ↓
-Today / Jobs / Applications / AI Career / Profile
+首页 / 校招 / 进度 / AI Career / 我的
 ```
 
 目标是在保留搜索与运营 Banner 的同时控制信息密度，让用户快速知道当前状态和下一步行动。
@@ -106,7 +106,7 @@ Today / Jobs / Applications / AI Career / Profile
 4. 将首页岗位限制为最多 3 条、求职情报限制为最多 2 条。
 5. 保留顶部搜索框和 Banner 轮播，停止热门企业的首页请求；保留校招缓存与延迟加载。
 6. 为岗位与资讯补齐独立 loading / empty / error / retry。
-7. 将一级导航调整为 Today、Jobs、Progress、AI Career、Profile，并迁移旧 switchTab 跳转。
+7. 将一级导航调整为首页、校招、进度、AI Career、我的，并迁移旧 switchTab 跳转。
 8. 保留全局 AI 悬浮入口，并在首页恢复受功能开关保护的会员权益横幅。
 9. 执行小程序静态检查、后端测试和微信开发者工具验收。
 

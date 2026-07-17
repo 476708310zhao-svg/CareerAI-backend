@@ -110,13 +110,13 @@
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "Today",
+        "text": "首页",
         "iconPath": "images/home.png",
         "selectedIconPath": "images/home-active.png"
       },
       {
         "pagePath": "pages/campus/campus",
-        "text": "岗位",
+        "text": "校招",
         "iconPath": "images/jobs.png",
         "selectedIconPath": "images/jobs-active.png"
       },
