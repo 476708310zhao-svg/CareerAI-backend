@@ -1,6 +1,11 @@
 const api = require('../../utils/api-v4.js');
 const navigation = require('../../utils/navigation.js');
-const { buildApplicationWorkbench } = require('../../utils/application-workbench.js');
+const progress = require('../../utils/job-progress.js');
+const {
+  buildApplicationWorkbench,
+  extractBoardData,
+  mergeApplicationSources
+} = require('../../utils/application-workbench.js');
 
 const GROUPS = [
   { key: 'all', label: '全部' },
@@ -28,6 +33,7 @@ Page({
     refreshing: false,
     loginRequired: false,
     error: '',
+    syncNotice: '',
     activeGroup: 'all',
     filters: GROUPS.map(item => Object.assign({}, item, { count: 0 })),
     applications: [],
@@ -66,6 +72,7 @@ Page({
       total: 0,
       activeCount: 0,
       statistics: {},
+      syncNotice: '',
       highlights: [],
       funnel: [],
       filters: GROUPS.map(item => Object.assign({}, item, { count: 0 }))
@@ -74,20 +81,51 @@ Page({
 
   loadBoard(force) {
     if (this._loadingPromise && !force) return this._loadingPromise;
+    const localApplications = progress.getList();
     if (!this.hasToken()) {
-      this.resetBoardState({ loginRequired: true, error: '' });
+      if (localApplications.length) {
+        this.renderApplications(mergeApplicationSources([], localApplications), '未登录，当前显示本机申请记录');
+      } else {
+        this.resetBoardState({ loginRequired: true, error: '', syncNotice: '' });
+      }
       return Promise.resolve();
     }
 
-    this.setData({ loading: true, loginRequired: false, error: '' });
+    this.setData({ loading: true, loginRequired: false, error: '', syncNotice: '' });
     const request = api.getApplicationBoard().then(response => {
-      const data = response && response.code === 0 ? response.data : null;
-      if (!data || !data.groups) throw new Error('申请进度数据异常');
+      const data = extractBoardData(response);
+      if (!data) {
+        const unauthorized = response && response._source === 'unauthorized' || !this.hasToken();
+        if (unauthorized && !localApplications.length) {
+          this.resetBoardState({ loginRequired: true, error: '', syncNotice: '' });
+          return;
+        }
+        const notice = unauthorized
+          ? '登录已失效，当前显示本机申请记录'
+          : '云端进度暂不可用，当前显示本机申请记录';
+        this.renderApplications(mergeApplicationSources([], localApplications), notice);
+        return;
+      }
       const applications = [];
       Object.keys(data.groups).forEach(group => {
         (data.groups[group] || []).forEach(item => applications.push(Object.assign({}, item, { group })));
       });
+      const merged = mergeApplicationSources(applications, localApplications);
+      const localCount = merged.filter(item => item.localOnly).length;
+      this.renderApplications(merged, localCount ? `包含 ${localCount} 条本机申请记录` : '');
+    }).catch(() => {
+      this.renderApplications(
+        mergeApplicationSources([], localApplications),
+        '网络连接失败，当前显示本机申请记录'
+      );
+    }).finally(() => {
+      if (this._loadingPromise === request) this._loadingPromise = null;
+    });
+    this._loadingPromise = request;
+    return request;
+  },
 
+  renderApplications(applications, syncNotice) {
       const dashboard = buildApplicationWorkbench(applications, new Date());
       const filters = GROUPS.map(item => Object.assign({}, item, {
         count: item.key === 'all' ? dashboard.total : Number(dashboard.counts[item.key] || 0)
@@ -95,6 +133,9 @@ Page({
       this.setData({
         loading: false,
         refreshing: false,
+        loginRequired: false,
+        error: '',
+        syncNotice: syncNotice || '',
         applications: dashboard.applications,
         statistics: dashboard.counts,
         total: dashboard.total,
@@ -102,19 +143,7 @@ Page({
         highlights: dashboard.highlights,
         funnel: dashboard.funnel,
         filters
-      });
-      this.applyFilter(this.data.activeGroup);
-    }).catch(error => {
-      this.setData({
-        loading: false,
-        refreshing: false,
-        error: error && error.message || '申请进度加载失败'
-      });
-    }).finally(() => {
-      if (this._loadingPromise === request) this._loadingPromise = null;
-    });
-    this._loadingPromise = request;
-    return request;
+      }, () => this.applyFilter(this.data.activeGroup));
   },
 
   applyFilter(group) {
@@ -132,6 +161,11 @@ Page({
   openApplication(e) {
     const id = e.currentTarget.dataset.id;
     if (!id) return;
+    const application = this.data.applications.find(item => String(item.id) === String(id));
+    if (application && application.localOnly) {
+      navigation.safeNavigateTo('/package-user/pages/job-progress/job-progress');
+      return;
+    }
     navigation.safeNavigateTo('/package-user/pages/application-detail/application-detail?id=' + encodeURIComponent(id));
   },
 
@@ -189,7 +223,7 @@ Page({
 
     this.setData({ creating: true });
     const jobId = `manual-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    api.createApplication({
+    const payload = {
       jobId,
       status: 'preparing',
       sourceType: 'manual_application',
@@ -201,13 +235,28 @@ Page({
         title: jobTitle,
         location: String(form.city || '').trim()
       }
-    }).then(() => {
+    };
+    api.createApplication(payload).then(() => {
       wx.showToast({ title: '已加入求职进度', icon: 'success' });
       this.setData({ showCreate: false, creating: false, activeGroup: 'all', createForm: emptyCreateForm() });
       return this.loadBoard(true);
-    }).catch(error => {
-      this.setData({ creating: false });
-      wx.showToast({ title: error && error.message || '新增失败，请重试', icon: 'none' });
+    }).catch(() => {
+      const localId = 'local_' + Date.now();
+      progress.upsert({
+        id: localId,
+        clientId: localId,
+        company,
+        jobTitle,
+        city: String(form.city || '').trim(),
+        deadline: form.deadline,
+        nextAction: payload.nextAction,
+        status: 'online_apply',
+        progressStatus: 'online_apply',
+        appliedAt: new Date().toISOString().slice(0, 10)
+      });
+      wx.showToast({ title: '已保存到本机', icon: 'success' });
+      this.setData({ showCreate: false, creating: false, activeGroup: 'all', createForm: emptyCreateForm() });
+      return this.loadBoard(true);
     });
   },
 

@@ -1,6 +1,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildApplicationWorkbench, deadlineMeta } = require('../miniprogram/utils/application-workbench');
+const {
+  buildApplicationWorkbench,
+  deadlineMeta,
+  extractBoardData,
+  mergeApplicationSources
+} = require('../miniprogram/utils/application-workbench');
 
 const NOW = new Date('2026-07-17T09:00:00+08:00');
 
@@ -38,4 +43,24 @@ test('application workbench formats interview dates beyond tomorrow', () => {
 
   assert.equal(result.applications[0].interviewLabel, '7月20日 14:30面试');
   assert.equal(result.highlights[0].type, 'interview');
+});
+
+test('application board accepts wrapped and direct response payloads', () => {
+  const groups = { preparing: [], applied: [] };
+  assert.deepEqual(extractBoardData({ code: 0, data: { groups } }).groups, groups);
+  assert.deepEqual(extractBoardData({ groups }).groups, groups);
+  assert.equal(extractBoardData({ data: [], _source: 'error' }), null);
+});
+
+test('application board falls back to local records without duplicating cloud jobs', () => {
+  const merged = mergeApplicationSources(
+    [{ id: 8, sourceJobId: 'job-1', company: 'Cloud', jobTitle: 'SDE', group: 'applied' }],
+    [
+      { id: 'local-1', sourceJobId: 'job-1', company: 'Cloud', jobTitle: 'SDE', status: 'pending' },
+      { id: 'local-2', company: 'Local', jobTitle: 'Analyst', progressStatus: 'first_interview' }
+    ]
+  );
+  assert.equal(merged.length, 2);
+  assert.equal(merged[1].localOnly, true);
+  assert.equal(merged[1].group, 'interview');
 });

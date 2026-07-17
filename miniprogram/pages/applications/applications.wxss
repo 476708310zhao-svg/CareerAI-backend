@@ -221,6 +221,29 @@ input {
 .quick-icon.violet { background: #f2edff; color: #7047c7; }
 .quick-icon.amber { background: #fff4dd; color: #b35f00; }
 
+.sync-notice {
+  display: flex;
+  margin-top: 16rpx;
+  padding: 13rpx 17rpx;
+  border: 1rpx solid #dce6fb;
+  border-radius: 15rpx;
+  background: #f2f6ff;
+  align-items: center;
+  color: #5d6f8f;
+  font-size: 19rpx;
+  font-weight: 750;
+}
+
+.sync-dot {
+  flex: none;
+  width: 9rpx;
+  height: 9rpx;
+  margin-right: 11rpx;
+  border-radius: 50%;
+  background: #5b7de8;
+  box-shadow: 0 0 0 5rpx rgba(91, 125, 232, 0.11);
+}
+
 .section {
   margin-top: 30rpx;
 }
