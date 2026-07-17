@@ -762,6 +762,6 @@ Page({
   },
 
   goToJobs: function() {
-    wx.switchTab({ url: '/pages/jobs/jobs' });
+    wx.switchTab({ url: '/pages/campus/campus' });
   }
 });

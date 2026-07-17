@@ -318,8 +318,8 @@ Page({
 
   // ── 空状态 CTA ──
   goToJobs() {
-    if (!featureFlags.allowNavigation('/pages/jobs/jobs')) return;
-    wx.switchTab({ url: '/pages/jobs/jobs' });
+    if (!featureFlags.allowNavigation('/pages/campus/campus')) return;
+    wx.switchTab({ url: '/pages/campus/campus' });
   },
 
   goToExperiences() {

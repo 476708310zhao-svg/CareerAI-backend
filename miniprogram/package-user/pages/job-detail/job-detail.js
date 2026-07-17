@@ -265,7 +265,7 @@ Requirements:
     if (pages.length > 1) {
       wx.navigateBack();
     } else {
-      wx.switchTab({ url: '/pages/jobs/jobs' });
+      wx.switchTab({ url: '/pages/campus/campus' });
     }
   },
 

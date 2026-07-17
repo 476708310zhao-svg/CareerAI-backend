@@ -112,7 +112,7 @@ Page({
   },
 
   goJobs() {
-    navigation.safeSwitchTab('/pages/jobs/jobs');
+    navigation.safeSwitchTab('/pages/campus/campus');
   },
 
   goProfile() {

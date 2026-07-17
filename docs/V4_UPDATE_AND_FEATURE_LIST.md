@@ -227,6 +227,7 @@ interested → preparing → applied
 - ✅ 已有岗位和校招截止提醒基础能力
 - 🟡 V4 个性化提醒策略仍需与 Today 任务统一
 - ✅ 一级导航已替换为 `Today / Jobs / Applications / AI Career / Profile`
+- ✅ `Jobs`（岗位）一级 Tab 当前直接承载校招日历；原岗位推荐页保留为二级搜索与推荐入口
 - ✅ Applications 主包入口读取 V4 CRM，看板可进入申请详情
 - ✅ AI Career 主包入口整合四个 Agent、当前申请和任务历史
 - ⬜ 收藏岗位更新提醒需要完整回归

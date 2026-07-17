@@ -6,7 +6,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..', 'miniprogram');
 const EXPECTED_TABS = [
   'pages/index/index',
-  'pages/jobs/jobs',
+  'pages/campus/campus',
   'pages/applications/applications',
   'pages/ai-career/ai-career',
   'pages/profile/profile'

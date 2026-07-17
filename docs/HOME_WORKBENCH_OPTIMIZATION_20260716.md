@@ -132,7 +132,7 @@ Today / Jobs / Applications / AI Career / Profile
 - 新增岗位与情报的独立 loading / empty / error / retry 状态。
 - 登录用户的首页任务已与服务端 Today 任务幂等合并；未登录或弱网时继续使用本地任务。
 - 本地完成状态支持离线保存和联网补传，服务端 AI/面试任务不会被首页同步删除。
-- V4 一级导航已落地；校招、测评和题库保留为普通业务页面。
+- V4 一级导航已落地；岗位 Tab 当前直接承载校招日历，原岗位推荐保留为二级页面，测评和题库继续作为普通业务页面。
 - 新增 Applications 主包申请看板与 AI Career 四 Agent 主包入口。
 - 验证：`npm test` 79/79 通过，`npm run check:miniprogram` 通过，主包估算约 0.90 MB。
 - 此前首页版本已通过微信开发者工具 `preview`；新导航仍需在最终真实 E2E 中复验。

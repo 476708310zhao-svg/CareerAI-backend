@@ -8,7 +8,7 @@ const FULL_TAB_LIST = [
     selectedIconPath: '/images/home-active.png'
   },
   {
-    pagePath: 'pages/jobs/jobs',
+    pagePath: 'pages/campus/campus',
     text: '岗位',
     iconPath: '/images/jobs.png',
     selectedIconPath: '/images/jobs-active.png'
