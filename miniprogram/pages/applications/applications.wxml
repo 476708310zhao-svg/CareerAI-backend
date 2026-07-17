@@ -9,10 +9,15 @@
   </view>
 
   <view class="overview-card">
-    <view class="overview-copy">
-      <text class="overview-kicker">今天继续向前一步</text>
-      <text class="overview-title">{{activeCount ? '你有 ' + activeCount + ' 个进行中的申请' : '建立你的申请推进节奏'}}</text>
-      <text class="overview-desc">集中管理材料、截止时间、面试与跟进动作</text>
+    <view class="overview-top">
+      <view class="overview-copy">
+        <text class="overview-kicker">APPLICATION PIPELINE</text>
+        <view class="overview-title-row">
+          <text class="overview-number">{{activeCount}}</text>
+          <text class="overview-unit">{{activeCount ? '个申请进行中' : '暂无进行中申请'}}</text>
+        </view>
+      </view>
+      <view class="overview-status"><text class="status-dot"></text><text>持续推进</text></view>
     </view>
     <view class="overview-stats">
       <view class="overview-stat"><text class="stat-value">{{total}}</text><text class="stat-label">全部</text></view>
