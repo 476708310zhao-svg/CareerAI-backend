@@ -1,11 +1,28 @@
 const api = require('../../utils/api-v4.js');
 const navigation = require('../../utils/navigation.js');
+const { extractBoardData } = require('../../utils/application-workbench.js');
 
 const FALLBACK_AGENTS = [
-  { code: 'job_advisor', name: 'AI 岗位顾问', desc: '判断资格、匹配度与投递优先级' },
-  { code: 'application_assistant', name: 'AI 申请助手', desc: '准备简历、材料与跟进沟通' },
-  { code: 'interview_coach', name: 'AI 面试教练', desc: '训练 STAR、岗位题与表达' },
-  { code: 'career_planner', name: 'AI 职业规划师', desc: '拆解目标、差距与行动节奏' }
+  {
+    code: 'job_advisor', name: 'AI 岗位顾问', shortName: '岗位顾问', icon: '岗', tone: 'blue',
+    desc: '判断资格、匹配度与投递优先级',
+    prompts: ['判断岗位是否值得投', '找出资格硬伤', '给出投递优先级']
+  },
+  {
+    code: 'application_assistant', name: 'AI 申请助手', shortName: '申请助手', icon: '申', tone: 'violet',
+    desc: '准备简历、材料与跟进沟通',
+    prompts: ['检查申请材料缺口', '生成本周跟进计划', '优化 Recruiter 消息']
+  },
+  {
+    code: 'interview_coach', name: 'AI 面试教练', shortName: '面试教练', icon: '面', tone: 'orange',
+    desc: '训练 STAR、岗位题与表达',
+    prompts: ['生成岗位面试题', '训练一个 STAR 案例', '找出表达短板']
+  },
+  {
+    code: 'career_planner', name: 'AI 职业规划师', shortName: '职业规划', icon: '规', tone: 'green',
+    desc: '拆解目标、差距与行动节奏',
+    prompts: ['拆解三个月目标', '分析能力差距', '制定本周行动']
+  }
 ];
 
 const STATUS_TEXT = {
@@ -21,6 +38,7 @@ Page({
   data: {
     agents: FALLBACK_AGENTS,
     selectedAgent: 'job_advisor',
+    selectedAgentInfo: FALLBACK_AGENTS[0],
     applications: [],
     applicationIndex: 0,
     query: '',
@@ -50,7 +68,8 @@ Page({
   normalizeTasks(tasks) {
     return (tasks || []).map(item => Object.assign({}, item, {
       statusText: STATUS_TEXT[item.status] || item.status,
-      answer: item.output && item.output.message || item.error && item.error.message || ''
+      answer: item.output && item.output.message || item.error && item.error.message || '',
+      agentMeta: FALLBACK_AGENTS.find(agent => agent.code === item.agentType) || FALLBACK_AGENTS[0]
     }));
   },
 
@@ -66,18 +85,21 @@ Page({
       api.getApplicationBoard().catch(() => ({ data: { groups: {} } })),
       api.getAgentTasks().catch(() => ({ data: [] }))
     ]).then(results => {
-      const agents = Array.isArray(results[0].data) && results[0].data.length
-        ? results[0].data.map(item => Object.assign({}, item, {
-          desc: (FALLBACK_AGENTS.find(agent => agent.code === item.code) || {}).desc || ''
-        }))
+      const agentPayload = Array.isArray(results[0].data) ? results[0].data : (Array.isArray(results[0]) ? results[0] : []);
+      const agents = agentPayload.length
+        ? agentPayload.map(item => Object.assign({}, FALLBACK_AGENTS.find(agent => agent.code === item.code) || {}, item))
         : FALLBACK_AGENTS;
-      const groups = results[1].data && results[1].data.groups || {};
+      const board = extractBoardData(results[1]);
+      const groups = board && board.groups || {};
       const applications = Object.keys(groups).reduce((all, key) => all.concat(groups[key] || []), []);
+      const selectedAgentInfo = agents.find(agent => agent.code === this.data.selectedAgent) || agents[0] || FALLBACK_AGENTS[0];
+      const taskPayload = Array.isArray(results[2].data) ? results[2].data : (Array.isArray(results[2]) ? results[2] : []);
       this.setData({
         agents,
+        selectedAgentInfo,
         applications,
         applicationIndex: Math.min(this.data.applicationIndex, Math.max(0, applications.length - 1)),
-        tasks: this.normalizeTasks(results[2].data),
+        tasks: this.normalizeTasks(taskPayload),
         pageLoading: false
       });
     }).catch(error => {
@@ -97,7 +119,13 @@ Page({
   },
 
   selectAgent(e) {
-    this.setData({ selectedAgent: e.currentTarget.dataset.code });
+    const selectedAgent = e.currentTarget.dataset.code;
+    const selectedAgentInfo = this.data.agents.find(agent => agent.code === selectedAgent) || FALLBACK_AGENTS[0];
+    this.setData({ selectedAgent, selectedAgentInfo });
+  },
+
+  usePrompt(e) {
+    this.setData({ query: e.currentTarget.dataset.prompt || '' });
   },
 
   onApplicationChange(e) {

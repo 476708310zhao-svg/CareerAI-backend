@@ -1,71 +1,115 @@
 <view class="page">
-  <c-ai-disclosure text="AI 会读取有限求职画像和当前申请；敏感信息会脱敏，任何写操作都必须再次确认。" />
+  <view class="disclosure-wrap">
+    <c-ai-disclosure compact="{{true}}" text="AI 会读取有限求职画像和当前申请；敏感信息会脱敏，任何写操作都必须再次确认。" />
+  </view>
+
   <view class="hero">
-    <text class="eyebrow">FOUR SPECIALIST AGENTS</text>
-    <text class="title">AI Career</text>
-    <text class="subtitle">岗位、申请、面试与职业规划统一入口</text>
+    <view class="hero-top">
+      <view class="hero-copy">
+        <text class="eyebrow">AI CAREER OS</text>
+        <text class="hero-title">四位专家，一个入口</text>
+        <text class="hero-subtitle">从选岗到面试，按当前进度给出下一步</text>
+      </view>
+      <view class="agent-count"><text class="count-number">4</text><text class="count-label">Agents</text></view>
+    </view>
     <view class="hero-links">
-      <view bindtap="openMaterials">申请材料</view>
-      <view bindtap="openInterviews">面试空间</view>
-      <view bindtap="openAssistant">通用咨询</view>
+      <view class="hero-link" bindtap="openMaterials"><text class="link-icon">材</text><text>申请材料</text></view>
+      <view class="hero-link" bindtap="openInterviews"><text class="link-icon">面</text><text>面试空间</text></view>
+      <view class="hero-link" bindtap="openAssistant"><text class="link-icon">问</text><text>通用咨询</text></view>
     </view>
   </view>
 
   <view wx:if="{{loginRequired}}" class="state-card">
-    <text class="state-icon">🔐</text>
+    <view class="state-symbol">AI</view>
     <text class="state-title">登录后使用 AI Career</text>
-    <text class="state-desc">登录后 Agent 才能读取你的画像、申请上下文和历史任务。</text>
+    <text class="state-desc">Agent 需要读取你的画像、申请上下文和历史任务，才能给出个性化建议。</text>
     <view class="primary-button" bindtap="goProfile">前往登录</view>
   </view>
 
-  <view wx:elif="{{pageLoading}}" class="state-card"><view class="spinner"></view><text>正在准备 Agent…</text></view>
-  <view wx:elif="{{error}}" class="state-card"><text class="state-title">暂时无法加载</text><text class="state-desc">{{error}}</text><view class="primary-button" bindtap="retryPage">重新加载</view></view>
+  <view wx:elif="{{pageLoading}}" class="state-card compact"><view class="spinner"></view><text class="state-desc">正在准备四位 AI 专家…</text></view>
+  <view wx:elif="{{error}}" class="state-card"><view class="state-symbol retry">↻</view><text class="state-title">暂时无法加载</text><text class="state-desc">{{error}}</text><view class="primary-button" bindtap="retryPage">重新加载</view></view>
 
   <block wx:else>
-    <scroll-view scroll-x class="agent-scroll" enhanced show-scrollbar="{{false}}">
-      <view class="agent-row">
-        <view wx:for="{{agents}}" wx:key="code" class="agent {{selectedAgent===item.code?'active':''}}" data-code="{{item.code}}" bindtap="selectAgent">
+    <view class="section agent-section">
+      <view class="section-head">
+        <view><text class="section-title">选择 AI 专家</text><text class="section-sub">每位专家专注一个求职阶段</text></view>
+        <text class="section-count">{{agents.length}} 位</text>
+      </view>
+      <view class="agent-grid">
+        <view wx:for="{{agents}}" wx:key="code" class="agent-card {{selectedAgent===item.code?'active':''}} tone-{{item.tone}}" data-code="{{item.code}}" bindtap="selectAgent" hover-class="card-press">
+          <view class="agent-card-top">
+            <view class="agent-icon icon-{{item.tone}}">{{item.icon}}</view>
+            <view wx:if="{{selectedAgent===item.code}}" class="selected-mark">✓</view>
+          </view>
           <text class="agent-name">{{item.name}}</text>
           <text class="agent-desc">{{item.desc}}</text>
         </view>
       </view>
-    </scroll-view>
-
-    <view class="composer">
-      <picker wx:if="{{applications.length}}" range="{{applications}}" range-key="jobTitle" value="{{applicationIndex}}" bindchange="onApplicationChange">
-        <view class="field">
-          <text class="field-label">当前申请</text>
-          <text>{{applications[applicationIndex].company}} · {{applications[applicationIndex].jobTitle}}</text>
-          <text class="chevron">⌄</text>
-        </view>
-      </picker>
-      <view wx:else class="field muted"><text>未关联申请，将仅使用求职画像回答</text></view>
-      <textarea class="query" maxlength="2000" placeholder="例如：结合当前申请，告诉我本周最应该先补哪三项？" value="{{query}}" bindinput="onQuery" />
-      <view class="write-toggle {{requestWrite?'on':''}}" bindtap="toggleWrite">
-        <view class="checkbox">{{requestWrite?'✓':''}}</view>
-        <view><text class="toggle-title">允许提出写操作</text><text class="toggle-desc">仍需你在结果页再次确认后才会写入</text></view>
-      </view>
-      <view class="run {{loading?'disabled':''}}" bindtap="runAgent">{{loading?'Agent 处理中…':'运行 Agent'}}</view>
     </view>
 
-    <view class="section-head"><text class="section-title">任务历史</text><text class="section-count">{{tasks.length}} 条</text></view>
-    <view wx:if="{{tasks.length===0}}" class="empty-history">完成第一次咨询后，结果会保存在这里。</view>
-    <view wx:for="{{tasks}}" wx:key="id" class="task" data-id="{{item.id}}" bindtap="openTask" hover-class="task-hover">
-      <view class="task-copy"><text class="task-name">{{item.agentName}}</text><text class="task-answer">{{item.answer || '任务正在处理中'}}</text><text class="task-time">{{item.createdAt}}</text></view>
-      <text class="status status-{{item.status}}">{{item.statusText}}</text>
+    <view class="section composer-section">
+      <view class="section-head composer-heading">
+        <view><text class="section-title">向专家提问</text><text class="section-sub">结合画像与当前申请生成可执行建议</text></view>
+      </view>
+      <view class="composer">
+        <view class="composer-agent">
+          <view class="agent-icon large icon-{{selectedAgentInfo.tone}}">{{selectedAgentInfo.icon}}</view>
+          <view class="composer-agent-copy"><text class="composer-agent-name">{{selectedAgentInfo.name}}</text><text class="composer-agent-desc">{{selectedAgentInfo.desc}}</text></view>
+          <view class="ready-badge"><text class="ready-dot"></text><text>已就绪</text></view>
+        </view>
+
+        <picker wx:if="{{applications.length}}" range="{{applications}}" range-key="jobTitle" value="{{applicationIndex}}" bindchange="onApplicationChange">
+          <view class="context-field">
+            <view class="context-icon">申</view>
+            <view class="context-copy"><text class="context-label">当前申请上下文</text><text class="context-value">{{applications[applicationIndex].company}} · {{applications[applicationIndex].jobTitle}}</text></view>
+            <text class="chevron">⌄</text>
+          </view>
+        </picker>
+        <view wx:else class="context-field muted">
+          <view class="context-icon">像</view>
+          <view class="context-copy"><text class="context-label">当前回答范围</text><text class="context-value">未关联申请，仅使用求职画像回答</text></view>
+        </view>
+
+        <scroll-view scroll-x class="prompt-scroll" enhanced show-scrollbar="{{false}}">
+          <view class="prompt-row">
+            <view wx:for="{{selectedAgentInfo.prompts}}" wx:key="*this" class="prompt-chip" data-prompt="{{item}}" bindtap="usePrompt">{{item}}</view>
+          </view>
+        </scroll-view>
+
+        <view class="query-wrap">
+          <textarea class="query" maxlength="2000" placeholder="描述你希望这位专家解决的问题…" value="{{query}}" bindinput="onQuery" />
+          <text class="query-count">{{query.length || 0}} / 2000</text>
+        </view>
+
+        <view class="write-toggle {{requestWrite?'on':''}}" bindtap="toggleWrite">
+          <view class="switch"><view class="switch-knob"></view></view>
+          <view class="toggle-copy"><text class="toggle-title">允许提出写操作</text><text class="toggle-desc">结果生成后仍需你再次确认，AI 不会直接写入</text></view>
+        </view>
+        <view class="run {{loading?'disabled':''}}" bindtap="runAgent"><text>{{loading?'Agent 处理中…':'运行 ' + selectedAgentInfo.shortName}}</text><text class="run-arrow">→</text></view>
+      </view>
+    </view>
+
+    <view class="section history-section">
+      <view class="section-head"><view><text class="section-title">任务历史</text><text class="section-sub">可查看结果、重试失败任务或确认写入</text></view><text class="section-count">{{tasks.length}} 条</text></view>
+      <view wx:if="{{tasks.length===0}}" class="empty-history"><view class="empty-icon">⌁</view><text class="empty-title">还没有 AI 任务</text><text>选择一位专家完成首次咨询后，结果会保存在这里。</text></view>
+      <view wx:for="{{tasks}}" wx:key="id" class="task" data-id="{{item.id}}" bindtap="openTask" hover-class="task-hover">
+        <view class="agent-icon task-icon icon-{{item.agentMeta.tone}}">{{item.agentMeta.icon}}</view>
+        <view class="task-copy"><view class="task-title-row"><text class="task-name">{{item.agentName}}</text><text class="status status-{{item.status}}">{{item.statusText}}</text></view><text class="task-answer">{{item.answer || '任务正在处理中'}}</text><text class="task-time">{{item.createdAt}}</text></view>
+        <text class="task-arrow">›</text>
+      </view>
     </view>
   </block>
 
   <view wx:if="{{currentTask}}" class="mask" bindtap="closeTask"></view>
   <view wx:if="{{currentTask}}" class="sheet">
     <view class="sheet-handle"></view>
-    <text class="sheet-title">{{currentTask.agentName}}</text>
-    <text class="meta">{{currentTask.aiModel}} · {{currentTask.promptVersion}}</text>
-    <text class="answer">{{currentTask.answer || '任务正在处理中，请稍后刷新。'}}</text>
+    <view class="sheet-heading"><view class="agent-icon large icon-{{currentTask.agentMeta.tone}}">{{currentTask.agentMeta.icon}}</view><view><text class="sheet-title">{{currentTask.agentName}}</text><text class="meta">{{currentTask.aiModel}} · {{currentTask.promptVersion}}</text></view></view>
+    <view class="answer-card"><text class="answer-label">AI 建议</text><text class="answer">{{currentTask.answer || '任务正在处理中，请稍后刷新。'}}</text></view>
     <view class="actions">
-      <view wx:if="{{currentTask.status==='failed'}}" class="secondary-action" bindtap="retryTask">重试</view>
+      <view wx:if="{{currentTask.status==='failed'}}" class="secondary-action" bindtap="retryTask">重试任务</view>
       <view wx:if="{{currentTask.status==='awaiting_confirmation'}}" class="secondary-action" bindtap="cancelTask">取消</view>
       <view wx:if="{{currentTask.status==='awaiting_confirmation'}}" class="confirm" bindtap="confirmWrite">确认执行写操作</view>
+      <view wx:else class="confirm close-action" bindtap="closeTask">完成</view>
     </view>
   </view>
 </view>

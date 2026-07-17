@@ -32,3 +32,22 @@
   font-weight: 650;
   line-height: 1.5;
 }
+
+.ai-disclosure.compact {
+  margin: 0 0 13rpx;
+  padding: 11rpx 13rpx;
+  gap: 9rpx;
+  border-width: 1rpx;
+  border-radius: 14rpx;
+}
+
+.ai-disclosure.compact .ai-disclosure-badge {
+  padding: 5rpx 9rpx;
+  border-radius: 8rpx;
+  font-size: 17rpx;
+}
+
+.ai-disclosure.compact .ai-disclosure-text {
+  font-size: 18rpx;
+  line-height: 1.4;
+}
