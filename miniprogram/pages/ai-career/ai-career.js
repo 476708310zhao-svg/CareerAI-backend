@@ -1,6 +1,7 @@
 const api = require('../../utils/api-v4.js');
 const aiApi = require('../../utils/api-ai.js');
 const agentCompat = require('../../utils/agent-compat.js');
+const config = require('../../utils/app-config.js');
 const navigation = require('../../utils/navigation.js');
 const { extractBoardData } = require('../../utils/application-workbench.js');
 
@@ -100,6 +101,21 @@ Page({
       this.setData({ loginRequired: true, pageLoading: false, tasks: [], applications: [], error: '' });
       return Promise.resolve();
     }
+    if (!config.V4_AGENT_API_ENABLED) {
+      const tasks = this.normalizeTasks(this.readLocalCompatTasks());
+      this.setData({
+        agents: FALLBACK_AGENTS,
+        selectedAgentInfo: FALLBACK_AGENTS.find(agent => agent.code === this.data.selectedAgent) || FALLBACK_AGENTS[0],
+        applications: [],
+        tasks,
+        compatibilityMode: true,
+        requestWrite: false,
+        loginRequired: false,
+        pageLoading: false,
+        error: ''
+      });
+      return Promise.resolve();
+    }
     this.setData({ loginRequired: false, pageLoading: true, error: '' });
     const request = Promise.all([
       api.getAgents().catch(() => ({ data: FALLBACK_AGENTS })),
@@ -138,6 +154,10 @@ Page({
 
   loadTasks() {
     if (!this.hasToken()) return Promise.resolve();
+    if (!config.V4_AGENT_API_ENABLED || this.data.compatibilityMode) {
+      this.setData({ tasks: this.normalizeTasks(this.readLocalCompatTasks()) });
+      return Promise.resolve();
+    }
     return api.getAgentTasks().then(response => {
       const compatibilityMode = Number(response && response._status) === 404;
       const remoteTasks = Array.isArray(response && response.data) ? response.data : [];

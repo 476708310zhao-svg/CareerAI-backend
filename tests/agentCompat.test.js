@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const compat = require('../miniprogram/utils/agent-compat');
 const { _isSuccessStatus } = require('../miniprogram/utils/api-client');
+const config = require('../miniprogram/utils/app-config');
 
 test('mini program write client accepts the full HTTP 2xx success range', () => {
   assert.equal(_isSuccessStatus(200), true);
@@ -19,6 +20,10 @@ test('agent compatibility mode only activates for missing V4 endpoints', () => {
   unauthorized.statusCode = 401;
   assert.equal(compat.isV4EndpointMissing(missing), true);
   assert.equal(compat.isV4EndpointMissing(unauthorized), false);
+});
+
+test('production keeps V4 Agent probing disabled until backend deployment', () => {
+  assert.equal(config.V4_AGENT_API_ENABLED, false);
 });
 
 test('agent compatibility prompt redacts sensitive data and forbids writes', () => {
