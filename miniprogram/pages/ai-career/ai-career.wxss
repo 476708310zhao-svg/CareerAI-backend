@@ -27,6 +27,51 @@ textarea {
   margin-bottom: 0;
 }
 
+.compat-notice {
+  display: flex;
+  align-items: center;
+  gap: 13rpx;
+  margin-top: 16rpx;
+  padding: 15rpx 17rpx;
+  border: 1rpx solid #cfe5dc;
+  border-radius: 17rpx;
+  background: #f2fbf7;
+}
+
+.compat-icon {
+  flex-shrink: 0;
+  width: 43rpx;
+  height: 43rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 13rpx;
+  color: #087a55;
+  background: #dff6ec;
+  font-size: 18rpx;
+  font-weight: 900;
+}
+
+.compat-copy {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.compat-title {
+  color: #126449;
+  font-size: 21rpx;
+  font-weight: 850;
+}
+
+.compat-desc {
+  margin-top: 3rpx;
+  color: #568070;
+  font-size: 18rpx;
+  line-height: 1.4;
+}
+
 .hero {
   position: relative;
   overflow: hidden;
@@ -502,6 +547,10 @@ textarea {
 
 .write-toggle.on .switch-knob {
   transform: translateX(24rpx);
+}
+
+.write-toggle.disabled {
+  opacity: 0.68;
 }
 
 .toggle-copy {

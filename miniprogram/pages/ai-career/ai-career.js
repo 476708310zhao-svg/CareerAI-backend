@@ -1,6 +1,11 @@
 const api = require('../../utils/api-v4.js');
+const aiApi = require('../../utils/api-ai.js');
+const agentCompat = require('../../utils/agent-compat.js');
 const navigation = require('../../utils/navigation.js');
 const { extractBoardData } = require('../../utils/application-workbench.js');
+
+const LOCAL_COMPAT_TASKS_KEY = 'aiCareerCompatTasks_v1';
+const LOCAL_COMPAT_TASK_LIMIT = 20;
 
 const FALLBACK_AGENTS = [
   {
@@ -48,6 +53,7 @@ Page({
     loading: false,
     pageLoading: true,
     loginRequired: false,
+    compatibilityMode: false,
     error: ''
   },
 
@@ -73,6 +79,21 @@ Page({
     }));
   },
 
+  readLocalCompatTasks() {
+    try {
+      const tasks = wx.getStorageSync(LOCAL_COMPAT_TASKS_KEY);
+      return Array.isArray(tasks) ? tasks : [];
+    } catch (error) {
+      return [];
+    }
+  },
+
+  saveLocalCompatTask(task) {
+    const tasks = agentCompat.mergeTasks([task], this.readLocalCompatTasks()).slice(0, LOCAL_COMPAT_TASK_LIMIT);
+    try { wx.setStorageSync(LOCAL_COMPAT_TASKS_KEY, tasks); } catch (error) {}
+    return tasks;
+  },
+
   refresh(force) {
     if (this._refreshPromise && !force) return this._refreshPromise;
     if (!this.hasToken()) {
@@ -94,12 +115,16 @@ Page({
       const applications = Object.keys(groups).reduce((all, key) => all.concat(groups[key] || []), []);
       const selectedAgentInfo = agents.find(agent => agent.code === this.data.selectedAgent) || agents[0] || FALLBACK_AGENTS[0];
       const taskPayload = Array.isArray(results[2].data) ? results[2].data : (Array.isArray(results[2]) ? results[2] : []);
+      const compatibilityMode = Number(results[0] && results[0]._status) === 404 || Number(results[2] && results[2]._status) === 404;
+      const tasks = agentCompat.mergeTasks(taskPayload, this.readLocalCompatTasks());
       this.setData({
         agents,
         selectedAgentInfo,
         applications,
         applicationIndex: Math.min(this.data.applicationIndex, Math.max(0, applications.length - 1)),
-        tasks: this.normalizeTasks(taskPayload),
+        tasks: this.normalizeTasks(tasks),
+        compatibilityMode,
+        requestWrite: compatibilityMode ? false : this.data.requestWrite,
         pageLoading: false
       });
     }).catch(error => {
@@ -114,7 +139,14 @@ Page({
   loadTasks() {
     if (!this.hasToken()) return Promise.resolve();
     return api.getAgentTasks().then(response => {
-      this.setData({ tasks: this.normalizeTasks(response.data) });
+      const compatibilityMode = Number(response && response._status) === 404;
+      const remoteTasks = Array.isArray(response && response.data) ? response.data : [];
+      const tasks = agentCompat.mergeTasks(remoteTasks, this.readLocalCompatTasks());
+      this.setData({
+        tasks: this.normalizeTasks(tasks),
+        compatibilityMode: compatibilityMode || this.data.compatibilityMode,
+        requestWrite: compatibilityMode ? false : this.data.requestWrite
+      });
     }).catch(() => {});
   },
 
@@ -137,7 +169,23 @@ Page({
   },
 
   toggleWrite() {
+    if (this.data.compatibilityMode) {
+      wx.showToast({ title: '兼容模式暂不执行写操作', icon: 'none' });
+      return;
+    }
     this.setData({ requestWrite: !this.data.requestWrite });
+  },
+
+  runCompatAgent(payload, application) {
+    const context = { agent: this.data.selectedAgentInfo, application };
+    const messages = agentCompat.buildLegacyMessages(payload, context);
+    return aiApi.sendChatToDeepSeek(messages, 0).then(response => {
+      const content = agentCompat.extractChatContent(response);
+      if (!content) throw new Error('AI 返回为空，请稍后重试');
+      const task = agentCompat.createLocalTask(payload, content, context);
+      this.saveLocalCompatTask(task);
+      return { code: 0, data: task, _source: 'legacy-ai' };
+    });
   },
 
   runAgent() {
@@ -149,7 +197,7 @@ Page({
     }
     const application = this.data.applications[this.data.applicationIndex];
     this.setData({ loading: true });
-    api.createAgentTask({
+    const payload = {
       agentType: this.data.selectedAgent,
       applicationId: application && application.id,
       input: {
@@ -158,9 +206,22 @@ Page({
         writeAction: 'create_today_task',
         taskTitle: '执行 AI Career 建议'
       }
-    }).then(response => {
+    };
+    const run = this.data.compatibilityMode
+      ? this.runCompatAgent(payload, application)
+      : api.createAgentTask(payload).catch(error => {
+        if (!agentCompat.isV4EndpointMissing(error)) throw error;
+        this.setData({ compatibilityMode: true, requestWrite: false });
+        return this.runCompatAgent(payload, application);
+      });
+    run.then(response => {
       const task = this.normalizeTasks([response.data])[0];
-      this.setData({ currentTask: task, loading: false, query: '' });
+      const isCompat = !!(response && response._source === 'legacy-ai' || task && task.compatibilityMode);
+      const tasks = isCompat
+        ? this.normalizeTasks(agentCompat.mergeTasks([response.data], this.data.tasks))
+        : this.data.tasks;
+      this.setData({ currentTask: task, tasks, loading: false, query: '', compatibilityMode: isCompat || this.data.compatibilityMode });
+      if (isCompat) return null;
       return this.loadTasks();
     }).catch(error => {
       this.setData({ loading: false });

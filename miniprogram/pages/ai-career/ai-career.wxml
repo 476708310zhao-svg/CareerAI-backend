@@ -30,6 +30,14 @@
   <view wx:elif="{{error}}" class="state-card"><view class="state-symbol retry">↻</view><text class="state-title">暂时无法加载</text><text class="state-desc">{{error}}</text><view class="primary-button" bindtap="retryPage">重新加载</view></view>
 
   <block wx:else>
+    <view wx:if="{{compatibilityMode}}" class="compat-notice">
+      <view class="compat-icon">稳</view>
+      <view class="compat-copy">
+        <text class="compat-title">当前使用兼容 AI 通道</text>
+        <text class="compat-desc">V4 服务升级中；回答会保存到本机，暂不执行写操作。</text>
+      </view>
+    </view>
+
     <view class="section agent-section">
       <view class="section-head">
         <view><text class="section-title">选择 AI 专家</text><text class="section-sub">每位专家专注一个求职阶段</text></view>
@@ -81,9 +89,9 @@
           <text class="query-count">{{query.length || 0}} / 2000</text>
         </view>
 
-        <view class="write-toggle {{requestWrite?'on':''}}" bindtap="toggleWrite">
+        <view class="write-toggle {{requestWrite?'on':''}} {{compatibilityMode?'disabled':''}}" bindtap="toggleWrite">
           <view class="switch"><view class="switch-knob"></view></view>
-          <view class="toggle-copy"><text class="toggle-title">允许提出写操作</text><text class="toggle-desc">结果生成后仍需你再次确认，AI 不会直接写入</text></view>
+          <view class="toggle-copy"><text class="toggle-title">{{compatibilityMode?'写操作暂不可用':'允许提出写操作'}}</text><text class="toggle-desc">{{compatibilityMode?'兼容模式仅生成建议，不会写入任何数据':'结果生成后仍需你再次确认，AI 不会直接写入'}}</text></view>
         </view>
         <view class="run {{loading?'disabled':''}}" bindtap="runAgent"><text>{{loading?'Agent 处理中…':'运行 ' + selectedAgentInfo.shortName}}</text><text class="run-arrow">→</text></view>
       </view>

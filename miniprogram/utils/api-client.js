@@ -34,6 +34,11 @@ function _createHttpError(res) {
   return error;
 }
 
+function _isSuccessStatus(statusCode) {
+  const status = Number(statusCode);
+  return status >= 200 && status < 300;
+}
+
 function _cacheKey(url, data) {
   const s = url + (data ? JSON.stringify(data) : '');
   let h = 0;
@@ -187,8 +192,8 @@ function _write(options, _retried) {
       header,
       timeout: options.timeout || 60000,
       success: (res) => {
-        if (res.statusCode === 200 && res.data) {
-          resolve(res.data);
+        if (_isSuccessStatus(res.statusCode)) {
+          resolve(res.data === undefined ? { code: 0 } : res.data);
         } else if (res.statusCode === 401) {
           wx.removeStorageSync('token');
           wx.removeStorageSync('userProfile');
@@ -214,4 +219,4 @@ function _write(options, _retried) {
 function post(options) { return _write(Object.assign({}, options, { method: 'POST' })); }
 function put(options)  { return _write(Object.assign({}, options, { method: 'PUT', timeout: options.timeout || 15000 })); }
 
-module.exports = { request, _write, post, put, DETAIL_CACHE_TTL };
+module.exports = { request, _write, post, put, DETAIL_CACHE_TTL, _isSuccessStatus };
