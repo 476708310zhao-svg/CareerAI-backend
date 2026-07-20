@@ -93,6 +93,7 @@ test('global AI floating entry and home membership banner remain available', () 
 test('resource hub groups tools by task while home uses a latest campus list', () => {
   const resourceWxml = read('pages/resources/resources.wxml');
   const resourceJs = read('pages/resources/resources.js');
+  const resourceJson = JSON.parse(read('pages/resources/resources.json'));
   const homeWxml = read('pages/index/index.wxml');
   const homeJs = read('pages/index/index.js');
   const campusWxml = read('components/home-campus-updates/home-campus-updates.wxml');
@@ -101,6 +102,10 @@ test('resource hub groups tools by task while home uses a latest campus list', (
   assert.match(resourceJs, /面试与笔试/);
   assert.match(resourceJs, /职业决策/);
   assert.match(resourceWxml, /内容与服务/);
+  assert.equal(resourceJson.navigationStyle, 'custom');
+  assert.match(resourceWxml, /class="calendar-art"/);
+  assert.match(resourceWxml, /class="tool-copy"/);
+  assert.doesNotMatch(resourceWxml, /intro-mark/);
   assert.match(resourceJs, /\/pages\/campus\/campus/);
   assert.match(resourceJs, /\/pages\/experiences\/experiences/);
   assert.match(resourceJs, /\/package-career\/pages\/oa-bank\/oa-bank/);

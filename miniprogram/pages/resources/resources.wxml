@@ -1,14 +1,7 @@
-<view class="page">
-  <view class="intro">
-    <view class="intro-copy">
-      <text class="intro-kicker">CAREER TOOLKIT</text>
-      <text class="intro-title">资源中心</text>
-      <text class="intro-desc">按求职阶段，快速找到下一步需要的内容和工具</text>
-    </view>
-    <view class="intro-mark">
-      <text class="intro-number">12</text>
-      <text class="intro-unit">项资源</text>
-    </view>
+<view class="page" style="padding-top: {{pageTop}}px;">
+  <view class="page-head">
+    <text class="page-title">资源中心</text>
+    <text class="page-subtitle">按求职阶段，快速找到下一步要看的内容和工具</text>
   </view>
 
   <view
@@ -17,7 +10,6 @@
     bindtap="openResource"
     hover-class="feature-hover"
   >
-    <view class="campus-feature-icon">{{featuredResource.icon}}</view>
     <view class="campus-feature-copy">
       <text class="campus-feature-eyebrow">{{featuredResource.eyebrow}}</text>
       <text class="campus-feature-title">{{featuredResource.title}}</text>
@@ -27,18 +19,32 @@
         <text class="action-arrow">›</text>
       </view>
     </view>
-    <view class="feature-orb feature-orb-one"></view>
-    <view class="feature-orb feature-orb-two"></view>
+
+    <view class="calendar-art" aria-hidden="true">
+      <view class="art-building art-building-left"></view>
+      <view class="art-building art-building-right"></view>
+      <view class="calendar-sheet">
+        <view class="calendar-ring ring-left"></view>
+        <view class="calendar-ring ring-right"></view>
+        <view class="calendar-head"></view>
+        <view class="calendar-grid">
+          <view wx:for="{{[1,2,3,4,5,6,7,8]}}" wx:key="*this"></view>
+        </view>
+        <view class="calendar-check">✓</view>
+      </view>
+      <view class="calendar-orbit"></view>
+      <view class="calendar-bell">●</view>
+      <view class="art-star star-one">✦</view>
+      <view class="art-star star-two">✦</view>
+    </view>
   </view>
 
   <view class="section" wx:for="{{resourceSections}}" wx:key="id">
     <view class="section-head">
-      <view class="section-heading">
-        <view class="section-accent accent-{{item.accent}}"></view>
-        <view>
-          <text class="section-title">{{item.title}}</text>
-          <text class="section-subtitle">{{item.subtitle}}</text>
-        </view>
+      <view class="section-accent accent-{{item.accent}}"></view>
+      <view class="section-copy">
+        <text class="section-title">{{item.title}}</text>
+        <text class="section-subtitle">{{item.subtitle}}</text>
       </view>
     </view>
     <view class="tool-grid">
@@ -51,24 +57,22 @@
         bindtap="openResource"
         hover-class="card-hover"
       >
-        <view class="tool-top">
-          <view class="resource-icon tone-{{tool.tone}}">{{tool.icon}}</view>
-          <text class="tool-arrow">›</text>
+        <view class="resource-icon tone-{{tool.tone}}">{{tool.icon}}</view>
+        <view class="tool-copy">
+          <text class="tool-title">{{tool.title}}</text>
+          <text class="tool-desc">{{tool.desc}}</text>
         </view>
-        <text class="tool-title">{{tool.title}}</text>
-        <text class="tool-desc">{{tool.desc}}</text>
+        <text class="tool-arrow">›</text>
       </view>
     </view>
   </view>
 
   <view class="section service-section">
     <view class="section-head">
-      <view class="section-heading">
-        <view class="section-accent accent-violet"></view>
-        <view>
-          <text class="section-title">内容与服务</text>
-          <text class="section-subtitle">资讯、测评与产品帮助</text>
-        </view>
+      <view class="section-accent accent-violet"></view>
+      <view class="section-copy">
+        <text class="section-title">内容与服务</text>
+        <text class="section-subtitle">资讯、测评与产品帮助</text>
       </view>
     </view>
     <view class="service-list">

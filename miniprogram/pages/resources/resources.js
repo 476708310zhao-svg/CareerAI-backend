@@ -45,9 +45,24 @@ const SERVICE_RESOURCES = [
 
 Page({
   data: {
+    pageTop: 52,
     featuredResource: FEATURED_RESOURCE,
     resourceSections: RESOURCE_SECTIONS,
     serviceResources: SERVICE_RESOURCES
+  },
+
+  onLoad() {
+    this.syncPageTop();
+  },
+
+  syncPageTop() {
+    try {
+      const menu = wx.getMenuButtonBoundingClientRect && wx.getMenuButtonBoundingClientRect();
+      const system = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+      const statusBarHeight = Number(system && system.statusBarHeight) || 20;
+      const pageTop = menu && menu.top ? Math.max(statusBarHeight + 8, menu.top + 8) : statusBarHeight + 32;
+      this.setData({ pageTop });
+    } catch (err) {}
   },
 
   onShow() {
