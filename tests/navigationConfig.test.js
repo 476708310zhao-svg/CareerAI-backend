@@ -90,19 +90,26 @@ test('global AI floating entry and home membership banner remain available', () 
   assert.match(homeJs, /openMembershipBenefits\(\)/);
 });
 
-test('resource hub exposes campus and preparation tools while home uses campus waterfall', () => {
+test('resource hub groups tools by task while home uses a latest campus list', () => {
   const resourceWxml = read('pages/resources/resources.wxml');
   const resourceJs = read('pages/resources/resources.js');
   const homeWxml = read('pages/index/index.wxml');
   const homeJs = read('pages/index/index.js');
   const campusWxml = read('components/home-campus-updates/home-campus-updates.wxml');
 
-  assert.match(resourceWxml, /求职资源库/);
+  assert.match(resourceWxml, /资源中心/);
+  assert.match(resourceJs, /面试与笔试/);
+  assert.match(resourceJs, /职业决策/);
+  assert.match(resourceWxml, /内容与服务/);
   assert.match(resourceJs, /\/pages\/campus\/campus/);
   assert.match(resourceJs, /\/pages\/experiences\/experiences/);
   assert.match(resourceJs, /\/package-career\/pages\/oa-bank\/oa-bank/);
   assert.doesNotMatch(homeWxml, /home-career-insights/);
   assert.doesNotMatch(homeJs, /buildNewsFeed|getNews|HOME_NEWS_CACHE_KEY/);
-  assert.match(homeWxml, /items="\{\{campusWaterfall\}\}"/);
-  assert.match(campusWxml, /class="waterfall"/);
+  assert.match(homeWxml, /items="\{\{campusLatestUpdates\}\}"/);
+  assert.match(homeJs, /latestDay:\s*'1'/);
+  assert.match(homeJs, /b\.updateTimestamp\s*-\s*a\.updateTimestamp/);
+  assert.match(campusWxml, /class="campus-list"/);
+  assert.match(campusWxml, /每日最新校招/);
+  assert.doesNotMatch(campusWxml, /waterfall-column/);
 });

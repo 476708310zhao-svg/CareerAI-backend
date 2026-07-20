@@ -8,18 +8,7 @@ Component({
   },
 
   data: {
-    columns: [[], []],
-    skeletonColumns: [[1, 2], [3, 4]]
-  },
-
-  observers: {
-    items(items) {
-      const columns = [[], []];
-      (items || []).forEach((item, index) => {
-        columns[index % 2].push(Object.assign({}, item, { layout: index % 4 }));
-      });
-      this.setData({ columns });
-    }
+    skeletonRows: [1, 2, 3]
   },
 
   methods: {

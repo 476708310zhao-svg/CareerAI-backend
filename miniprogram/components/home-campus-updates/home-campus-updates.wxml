@@ -2,10 +2,10 @@
   <view class="section-head">
     <view class="section-copy">
       <view class="section-title-line">
-        <text class="section-title">校招日历</text>
-        <text class="section-pill">每日更新</text>
+        <text class="section-title">每日最新校招</text>
+        <text class="section-pill">今日上新</text>
       </view>
-      <text class="section-subtitle">{{dateLabel}} · 网申动态与截止提醒</text>
+      <text class="section-subtitle">{{dateLabel}} · 按更新时间由新到旧</text>
     </view>
     <view class="section-more" bindtap="onMore" hover-class="more-hover">
       <text>全部{{total ? ' ' + total : ''}}</text>
@@ -13,53 +13,49 @@
     </view>
   </view>
 
-  <view class="waterfall skeleton-waterfall" wx:if="{{loading && !items.length}}">
-    <view class="waterfall-column" wx:for="{{skeletonColumns}}" wx:key="index">
-      <view class="campus-tile skeleton-tile" wx:for="{{item}}" wx:key="*this">
-        <view class="skeleton-top">
-          <view class="skeleton-logo"></view>
-          <view class="skeleton-badge"></view>
-        </view>
+  <view class="campus-list" wx:if="{{loading && !items.length}}">
+    <view class="campus-row skeleton-row" wx:for="{{skeletonRows}}" wx:key="*this">
+      <view class="skeleton-logo"></view>
+      <view class="skeleton-main">
+        <view class="skeleton-line short"></view>
         <view class="skeleton-line long"></view>
         <view class="skeleton-line"></view>
-        <view class="skeleton-line short"></view>
       </view>
     </view>
   </view>
 
-  <view class="waterfall" wx:elif="{{items.length}}">
-    <view class="waterfall-column" wx:for="{{columns}}" wx:for-item="column" wx:key="index">
-      <view
-        class="campus-tile layout-{{card.layout}} {{card.isUrgent ? 'is-urgent' : ''}}"
-        wx:for="{{column}}"
-        wx:for-item="card"
-        wx:key="id"
-        data-id="{{card.id}}"
-        bindtap="onSelect"
-        hover-class="tile-hover"
-      >
-        <view class="tile-top">
-          <c-company-logo
-            logo="{{card.companyLogo}}"
-            name="{{card.company}}"
-            fallback="{{card.companyInitial}}"
-            size="sm"
-            lazy-load="{{true}}"
-            custom-class="campus-logo"
-            data-id="{{card.id}}"
-            bind:error="onLogoError"
-          ></c-company-logo>
-          <text class="campus-badge {{card.isUrgent ? 'urgent' : ''}}">{{card.badgeText}}</text>
+  <view class="campus-list" wx:elif="{{items.length}}">
+    <view
+      class="campus-row {{item.isUrgent ? 'is-urgent' : ''}}"
+      wx:for="{{items}}"
+      wx:key="id"
+      data-id="{{item.id}}"
+      bindtap="onSelect"
+      hover-class="row-hover"
+    >
+      <c-company-logo
+        logo="{{item.companyLogo}}"
+        name="{{item.company}}"
+        fallback="{{item.companyInitial}}"
+        size="sm"
+        lazy-load="{{true}}"
+        custom-class="campus-logo"
+        data-id="{{item.id}}"
+        bind:error="onLogoError"
+      ></c-company-logo>
+      <view class="campus-main">
+        <view class="campus-topline">
+          <text class="campus-badge {{item.isUrgent ? 'urgent' : ''}}">{{item.badgeText}}</text>
+          <text class="campus-updated">{{item.updatedText}}</text>
         </view>
-        <text class="campus-title">{{card.title}}</text>
-        <text class="campus-sub">{{card.subtitle}}</text>
-        <view class="campus-tags">
-          <text wx:if="{{card.tagText}}">{{card.tagText}}</text>
-          <text wx:if="{{card.updatedText}}">{{card.updatedText}}</text>
-        </view>
-        <view class="tile-footer">
-          <text class="campus-deadline {{card.isUrgent ? 'urgent' : ''}}">{{card.deadlineText}}</text>
-          <text class="tile-arrow">›</text>
+        <text class="campus-title">{{item.title}}</text>
+        <text class="campus-sub">{{item.subtitle}}</text>
+        <view class="campus-footer">
+          <view class="campus-tags">
+            <text wx:if="{{item.tagText}}">{{item.tagText}}</text>
+          </view>
+          <text class="campus-deadline {{item.isUrgent ? 'urgent' : ''}}">{{item.deadlineText}}</text>
+          <text class="row-arrow">›</text>
         </view>
       </view>
     </view>
@@ -68,7 +64,7 @@
   <view class="empty" wx:else bindtap="onMore" hover-class="empty-hover">
     <view class="empty-icon">校</view>
     <view class="empty-copy">
-      <text class="empty-title">暂无新的校招更新</text>
+      <text class="empty-title">今日暂无新的校招更新</text>
       <text class="empty-sub">进入校招日历查看全部企业、岗位与截止日期</text>
     </view>
     <text class="empty-arrow">›</text>

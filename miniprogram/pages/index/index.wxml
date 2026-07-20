@@ -75,7 +75,7 @@
     ></home-recommended-jobs>
 
     <home-campus-updates
-      items="{{campusWaterfall}}"
+      items="{{campusLatestUpdates}}"
       total="{{campusUpdateTotal}}"
       loading="{{campusUpdateLoading}}"
       ready="{{campusUpdateReady}}"

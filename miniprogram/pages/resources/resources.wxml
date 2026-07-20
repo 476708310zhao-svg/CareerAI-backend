@@ -1,61 +1,91 @@
 <view class="page">
-  <view class="hero">
-    <view class="hero-orb hero-orb-one"></view>
-    <view class="hero-orb hero-orb-two"></view>
-    <text class="hero-kicker">RESOURCE LIBRARY</text>
-    <text class="hero-title">求职资源库</text>
-    <text class="hero-desc">从面试准备、笔试练习到职业探索，一站找到需要的工具与内容。</text>
+  <view class="intro">
+    <view class="intro-copy">
+      <text class="intro-kicker">CAREER TOOLKIT</text>
+      <text class="intro-title">资源中心</text>
+      <text class="intro-desc">按求职阶段，快速找到下一步需要的内容和工具</text>
+    </view>
+    <view class="intro-mark">
+      <text class="intro-number">12</text>
+      <text class="intro-unit">项资源</text>
+    </view>
   </view>
 
-  <view class="section primary-section">
-    <view class="section-head">
-      <view>
-        <text class="section-title">常用资源</text>
-        <text class="section-subtitle">高频求职场景快速入口</text>
+  <view
+    class="campus-feature"
+    data-url="{{featuredResource.url}}"
+    bindtap="openResource"
+    hover-class="feature-hover"
+  >
+    <view class="campus-feature-icon">{{featuredResource.icon}}</view>
+    <view class="campus-feature-copy">
+      <text class="campus-feature-eyebrow">{{featuredResource.eyebrow}}</text>
+      <text class="campus-feature-title">{{featuredResource.title}}</text>
+      <text class="campus-feature-desc">{{featuredResource.desc}}</text>
+      <view class="campus-feature-action">
+        <text>{{featuredResource.action}}</text>
+        <text class="action-arrow">›</text>
       </view>
     </view>
-    <view class="primary-grid">
+    <view class="feature-orb feature-orb-one"></view>
+    <view class="feature-orb feature-orb-two"></view>
+  </view>
+
+  <view class="section" wx:for="{{resourceSections}}" wx:key="id">
+    <view class="section-head">
+      <view class="section-heading">
+        <view class="section-accent accent-{{item.accent}}"></view>
+        <view>
+          <text class="section-title">{{item.title}}</text>
+          <text class="section-subtitle">{{item.subtitle}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="tool-grid">
       <view
-        class="primary-card"
-        wx:for="{{primaryResources}}"
+        class="tool-card"
+        wx:for="{{item.items}}"
+        wx:for-item="tool"
         wx:key="id"
-        data-url="{{item.url}}"
+        data-url="{{tool.url}}"
         bindtap="openResource"
         hover-class="card-hover"
       >
-        <view class="resource-icon tone-{{item.tone}}">{{item.icon}}</view>
-        <view class="primary-copy">
-          <text class="primary-title">{{item.title}}</text>
-          <text class="primary-desc">{{item.desc}}</text>
+        <view class="tool-top">
+          <view class="resource-icon tone-{{tool.tone}}">{{tool.icon}}</view>
+          <text class="tool-arrow">›</text>
         </view>
-        <text class="primary-arrow">›</text>
+        <text class="tool-title">{{tool.title}}</text>
+        <text class="tool-desc">{{tool.desc}}</text>
       </view>
     </view>
   </view>
 
-  <view class="section resource-section" wx:for="{{resourceSections}}" wx:key="id">
+  <view class="section service-section">
     <view class="section-head">
-      <view>
-        <text class="section-title">{{item.title}}</text>
-        <text class="section-subtitle">{{item.subtitle}}</text>
+      <view class="section-heading">
+        <view class="section-accent accent-violet"></view>
+        <view>
+          <text class="section-title">内容与服务</text>
+          <text class="section-subtitle">资讯、测评与产品帮助</text>
+        </view>
       </view>
     </view>
-    <view class="resource-list">
+    <view class="service-list">
       <view
-        class="resource-row"
-        wx:for="{{item.items}}"
-        wx:for-item="resource"
+        class="service-row"
+        wx:for="{{serviceResources}}"
         wx:key="id"
-        data-url="{{resource.url}}"
+        data-url="{{item.url}}"
         bindtap="openResource"
         hover-class="row-hover"
       >
-        <view class="resource-icon tone-{{resource.tone}}">{{resource.icon}}</view>
-        <view class="resource-copy">
-          <text class="resource-title">{{resource.title}}</text>
-          <text class="resource-desc">{{resource.desc}}</text>
+        <view class="resource-icon small tone-{{item.tone}}">{{item.icon}}</view>
+        <view class="service-copy">
+          <text class="service-title">{{item.title}}</text>
+          <text class="service-desc">{{item.desc}}</text>
         </view>
-        <text class="resource-arrow">›</text>
+        <text class="service-arrow">›</text>
       </view>
     </view>
   </view>

@@ -16,7 +16,7 @@ const apiV4 = require('../../utils/api-v4.js');
 const BANNER_CACHE_KEY = 'cachedBanners_v2';
 const HOT_COMPANIES_CACHE_KEY = 'cachedHotCompanies_v3';
 const HOME_CAMPUS_CACHE_KEY = 'cachedHomeCampusUpdates_v1';
-const HOME_CAMPUS_CACHE_VERSION = 3;
+const HOME_CAMPUS_CACHE_VERSION = 4;
 const HOME_CAMPUS_CACHE_TTL = 20 * 60 * 1000;
 const HOME_CAMPUS_PREVIEW_LIMIT = 8;
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
@@ -151,7 +151,7 @@ Page({
     },
     campusFeatured: null,
     campusUpdates: [],
-    campusWaterfall: [],
+    campusLatestUpdates: [],
     campusUpdateTotal: 0,
     campusUpdateLoading: false,
     campusUpdateReady: false,
@@ -750,7 +750,7 @@ Page({
     this.setData({
       campusFeatured: list[0] || null,
       campusUpdates: list.slice(1, HOME_CAMPUS_PREVIEW_LIMIT),
-      campusWaterfall: list.slice(0, HOME_CAMPUS_PREVIEW_LIMIT),
+      campusLatestUpdates: list.slice(0, HOME_CAMPUS_PREVIEW_LIMIT),
       campusUpdateTotal: total || list.length,
       campusUpdateDateLabel: this.getCampusUpdateDateLabel(list[0]),
       campusUpdateLoading: false,
@@ -763,7 +763,7 @@ Page({
     return (list || [])
       .map(item => this.formatCampusUpdateItem(item))
       .filter(Boolean)
-      .sort((a, b) => b.homeScore - a.homeScore);
+      .sort((a, b) => (b.updateTimestamp - a.updateTimestamp) || (b.homeScore - a.homeScore));
   },
 
   formatCampusUpdateItem(item) {
@@ -775,6 +775,7 @@ Page({
     const deadline = this.getCampusDeadlineMeta(item.deadlineDate || item.deadlineMonth || '');
     const businessDate = this.getCampusBusinessDateKey(item);
     const updatedText = this.formatCampusBusinessDateText(businessDate);
+    const updateTimestamp = Date.parse(item.updatedAt || item.updated_at || item.createdAt || item.created_at || businessDate || '') || 0;
     const recentScore = businessDate ? 40 : 12;
     const hotScore = item.isHot ? 26 : 0;
     const deadlineScore = deadline.isSoon ? 30 : 0;
@@ -806,6 +807,8 @@ Page({
       isVerified: !!item.isVerified,
       viewCount: item.viewCount || item.view_count || 0,
       createdAt: item.createdAt || item.created_at || '',
+      updatedAt: item.updatedAt || item.updated_at || item.createdAt || item.created_at || '',
+      updateTimestamp,
       businessDate,
       subtitle: [item.gradYear ? item.gradYear + '届' : '', item.recruitType, cityText].filter(Boolean).join(' · '),
       cityText,
@@ -1213,7 +1216,7 @@ Page({
       this.goToCampusList();
       return;
     }
-    const snapshot = (this.data.campusWaterfall || [])
+    const snapshot = (this.data.campusLatestUpdates || [])
       .filter(Boolean)
       .find(item => String(item.id) === String(id));
     if (snapshot) {
@@ -1231,7 +1234,7 @@ Page({
     this.setData({
       campusFeatured: clearLogo(this.data.campusFeatured),
       campusUpdates: (this.data.campusUpdates || []).map(clearLogo),
-      campusWaterfall: (this.data.campusWaterfall || []).map(clearLogo)
+      campusLatestUpdates: (this.data.campusLatestUpdates || []).map(clearLogo)
     });
   },
 
