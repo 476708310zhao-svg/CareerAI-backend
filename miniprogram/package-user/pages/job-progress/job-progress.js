@@ -3,6 +3,7 @@ const featureFlags = require('../../../utils/feature-flags.js');
 const reminders = require('../../../utils/reminders.js');
 const analytics = require('../../../utils/analytics.js');
 const jdMatch = require('../../../utils/jd-match.js');
+const navigation = require('../../../utils/navigation.js');
 
 function emptyForm() {
   return {
@@ -468,7 +469,7 @@ Page({
 
   goToJobs() {
     if (!featureFlags.allowNavigation('/pages/campus/campus')) return;
-    wx.switchTab({ url: '/pages/campus/campus' });
+    navigation.safeNavigateTo('/pages/campus/campus');
   },
 
   goDailyBrief() {

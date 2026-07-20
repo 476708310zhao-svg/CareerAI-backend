@@ -1,5 +1,5 @@
 // pages/index/index.js
-const { getAggregatedJobs, getCompanies, getNews, getCampusList, normalizeCompanyLogo } = require('../../utils/api.js');
+const { getAggregatedJobs, getCompanies, getCampusList, normalizeCompanyLogo } = require('../../utils/api.js');
 const config = require('../../utils/app-config.js');
 const favUtil = require('../../utils/favorites.js');
 const progress = require('../../utils/job-progress.js');
@@ -14,12 +14,11 @@ const featureFlags = require('../../utils/feature-flags.js');
 const navigation = require('../../utils/navigation.js');
 const apiV4 = require('../../utils/api-v4.js');
 const BANNER_CACHE_KEY = 'cachedBanners_v2';
-const HOME_NEWS_CACHE_KEY = 'cachedHomeNews_v3';
 const HOT_COMPANIES_CACHE_KEY = 'cachedHotCompanies_v3';
 const HOME_CAMPUS_CACHE_KEY = 'cachedHomeCampusUpdates_v1';
-const HOME_CAMPUS_CACHE_VERSION = 2;
+const HOME_CAMPUS_CACHE_VERSION = 3;
 const HOME_CAMPUS_CACHE_TTL = 20 * 60 * 1000;
-const HOME_CAMPUS_PREVIEW_LIMIT = 3;
+const HOME_CAMPUS_PREVIEW_LIMIT = 8;
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 const HOME_FEATURES = [
   { id: 1, name: 'JD匹配', icon: '/images/icon-ai-assistant.png', url: '/package-ai/pages/jd-match/jd-match', badge: 'P0', isAi: true, bg: 'linear-gradient(145deg,#eef6ff,#f8fbff)' },
@@ -114,12 +113,7 @@ Page({
     prefTags: [],
     activePrefTag: '',
 
-    // 5. 求职情报
-    newsFeed: [],
-    newsLoading: true,
-    newsError: false,
-
-    // 6. 资料完整度引导
+    // 5. 资料完整度引导
     profileCompleteness: 0,
     profileHints: [],
     showProfileGuide: false,
@@ -157,6 +151,7 @@ Page({
     },
     campusFeatured: null,
     campusUpdates: [],
+    campusWaterfall: [],
     campusUpdateTotal: 0,
     campusUpdateLoading: false,
     campusUpdateReady: false,
@@ -285,7 +280,6 @@ Page({
     this.fetchBanners();
     if (this.data.recruitmentEnabled) this.fetchRecommendJobs({ force: true });
     this.fetchCampusUpdates({ force: true });
-    this.buildNewsFeed({ force: true });
     setTimeout(() => wx.stopPullDownRefresh(), 800);
   },
 
@@ -304,10 +298,7 @@ Page({
     this._homeTimers = [
       setTimeout(() => {
         try { this.fetchCampusUpdates(); } catch (e) { console.warn('[fetchCampusUpdates]', e); }
-      }, 360),
-      setTimeout(() => {
-        try { this.buildNewsFeed(); } catch (e) { console.warn('[buildNewsFeed]', e); }
-      }, 620)
+      }, 360)
     ];
   },
 
@@ -672,125 +663,6 @@ Page({
     this.loadWorkbenchSummary();
   },
 
-  // ======== 动态快讯 ========
-  buildNewsFeed(options) {
-    const force = !!(options && options.force);
-    this.setData({ newsLoading: true, newsError: false });
-    if (!force) {
-      const cached = wx.getStorageSync(HOME_NEWS_CACHE_KEY);
-      if (cached && cached.length && this.data.newsFeed.length === 0) {
-        this.setNewsFeed(cached);
-      }
-    }
-
-    getNews({ tab: 'all', lang: 'zh' }).then(res => {
-      const articles = res && Array.isArray(res.articles) ? res.articles : [];
-      if (!articles.length) {
-        if (ALLOW_DEMO_FALLBACK && this.data.newsFeed.length === 0) {
-          this.setNewsFeed(this.buildLocalNewsFeed());
-        } else {
-          this.setData({ newsLoading: false });
-        }
-        return;
-      }
-      const remoteFeed = articles.slice(0, 3).map(item => this.normalizeNewsItem(item));
-      const feed = remoteFeed.length >= 3 || !ALLOW_DEMO_FALLBACK
-        ? remoteFeed
-        : [...remoteFeed, ...this.buildLocalNewsFeed()].slice(0, 3);
-      this.setNewsFeed(feed);
-      wx.setStorageSync(HOME_NEWS_CACHE_KEY, feed);
-    }).catch(err => {
-      console.warn('[buildNewsFeed] 获取官网资讯失败:', err);
-      if (ALLOW_DEMO_FALLBACK && this.data.newsFeed.length === 0) {
-        this.setNewsFeed(this.buildLocalNewsFeed());
-      } else {
-        this.setData({
-          newsLoading: false,
-          newsError: this.data.newsFeed.length === 0
-        });
-      }
-    });
-  },
-
-  buildLocalNewsFeed() {
-    const allNews = demoData.getList('NEWS_FEED');
-    if (!allNews.length) return [];
-
-    const feed = [];
-    const profile = wx.getStorageSync('userProfile') || {};
-
-    // 个性化快讯
-    if (profile.major) {
-      feed.push({
-        id: 'dynamic2', type: 'data', isPersonal: true,
-        title: profile.major + ' 专业热门岗位趋势',
-        desc: '根据你的专业，为你推荐最匹配的求职方向和技能要求',
-        time: '今天'
-      });
-    }
-
-    // 按日期轮换选取，保证每天看到不同快讯
-    const today = new Date();
-    const dayIndex = today.getDate() % allNews.length;
-    const timeLabels = ['刚刚', '1小时前', '2小时前', '3小时前', '5小时前', '今天', '昨天'];
-    const needed = 3 - feed.length;
-    for (let i = 0; i < needed; i++) {
-      const item = allNews[(dayIndex + i) % allNews.length];
-      feed.push({ ...item, id: item.id + '_' + i, time: timeLabels[i + (feed.length > needed ? 1 : 0)] || '昨天' });
-    }
-
-    return feed.slice(0, 3);
-  },
-
-  normalizeNewsItem(item) {
-    return {
-      id: item.id,
-      type: item.type || 'news',
-      title: item.title || '求职快讯',
-      desc: item.desc || item.summary || item.description || '',
-      content: item.content || item.body || item.desc || '',
-      source: item.source || (item.isOfficial ? '职引官网' : '求职助手'),
-      time: item.time || '近期',
-      url: item.url || '',
-      image: item.imageUrl || item.image_url || item.cover || '',
-      isOfficial: !!item.isOfficial
-    };
-  },
-
-  setNewsFeed(feed) {
-    const typeLabels = {
-      tip: '技巧',
-      news: '资讯',
-      policy: '政策',
-      data: '数据'
-    };
-
-    this.setData({
-      newsFeed: (feed || []).slice(0, 2).map(item => Object.assign({}, item, {
-        categoryLabel: typeLabels[item.type] || '数据',
-        sourceText: item.source || '求职助手'
-      })),
-      newsLoading: false,
-      newsError: false
-    });
-  },
-
-  // 查看快讯详情
-  viewNewsDetail(e) {
-    const item = (e.detail && e.detail.item) || e.currentTarget.dataset.item;
-    wx.setStorageSync('currentNewsDetail', item);
-    wx.navigateTo({ url: '/package-content/pages/news-detail/news-detail' });
-  },
-
-  // 更多快讯
-  goToNews() {
-    wx.navigateTo({ url: '/package-content/pages/news/news' });
-  },
-
-  retryNews() {
-    this.buildNewsFeed({ force: true });
-  },
-
   retryRecommendJobs() {
     this.fetchRecommendJobs({ force: true });
   },
@@ -857,7 +729,7 @@ Page({
     }).catch(err => {
       console.warn('[fetchCampusUpdates] 获取每日校招失败:', err);
       if (!this.data.campusFeatured && ALLOW_DEMO_FALLBACK) {
-        const fallback = this.rankCampusUpdates(demoData.getList('CAMPUS')).slice(0, 5);
+        const fallback = this.rankCampusUpdates(demoData.getList('CAMPUS')).slice(0, HOME_CAMPUS_PREVIEW_LIMIT);
         this.applyCampusUpdates(fallback, fallback.length);
       } else {
         this.setData({
@@ -878,6 +750,7 @@ Page({
     this.setData({
       campusFeatured: list[0] || null,
       campusUpdates: list.slice(1, HOME_CAMPUS_PREVIEW_LIMIT),
+      campusWaterfall: list.slice(0, HOME_CAMPUS_PREVIEW_LIMIT),
       campusUpdateTotal: total || list.length,
       campusUpdateDateLabel: this.getCampusUpdateDateLabel(list[0]),
       campusUpdateLoading: false,
@@ -1340,7 +1213,7 @@ Page({
       this.goToCampusList();
       return;
     }
-    const snapshot = [this.data.campusFeatured].concat(this.data.campusUpdates || [])
+    const snapshot = (this.data.campusWaterfall || [])
       .filter(Boolean)
       .find(item => String(item.id) === String(id));
     if (snapshot) {
@@ -1350,10 +1223,16 @@ Page({
   },
 
   onCampusLogoError(e) {
-    const type = (e.detail && e.detail.type) || e.currentTarget.dataset.type;
-    if (type === 'featured') {
-      this.setData({ 'campusFeatured.companyLogo': '' });
-    }
+    const id = e.detail && e.detail.id;
+    if (!id) return;
+    const clearLogo = item => item && String(item.id) === String(id)
+      ? Object.assign({}, item, { companyLogo: '' })
+      : item;
+    this.setData({
+      campusFeatured: clearLogo(this.data.campusFeatured),
+      campusUpdates: (this.data.campusUpdates || []).map(clearLogo),
+      campusWaterfall: (this.data.campusWaterfall || []).map(clearLogo)
+    });
   },
 
   goToJobDetail(e) {

@@ -3,6 +3,7 @@ const favUtil = require('../../../utils/favorites.js');
 const featureFlags = require('../../../utils/feature-flags.js');
 const reminders = require('../../../utils/reminders.js');
 const config = require('../../../utils/app-config.js');
+const navigation = require('../../../utils/navigation.js');
 const TAB_KEYS = ['job', 'experience', 'company', 'agency', 'campus'];
 
 Page({
@@ -319,7 +320,7 @@ Page({
   // ── 空状态 CTA ──
   goToJobs() {
     if (!featureFlags.allowNavigation('/pages/campus/campus')) return;
-    wx.switchTab({ url: '/pages/campus/campus' });
+    navigation.safeNavigateTo('/pages/campus/campus');
   },
 
   goToExperiences() {

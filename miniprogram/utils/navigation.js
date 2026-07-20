@@ -1,6 +1,6 @@
 const TAB_PAGES = new Set([
   '/pages/index/index',
-  '/pages/campus/campus',
+  '/pages/resources/resources',
   '/pages/applications/applications',
   '/pages/ai-career/ai-career',
   '/pages/profile/profile'

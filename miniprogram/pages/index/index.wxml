@@ -75,8 +75,8 @@
     ></home-recommended-jobs>
 
     <home-campus-updates
-      featured="{{campusFeatured}}"
-      updates="{{campusUpdates}}"
+      items="{{campusWaterfall}}"
+      total="{{campusUpdateTotal}}"
       loading="{{campusUpdateLoading}}"
       ready="{{campusUpdateReady}}"
       date-label="{{campusUpdateDateLabel}}"
@@ -84,15 +84,6 @@
       bind:select="goToCampusUpdateDetail"
       bind:logoerror="onCampusLogoError"
     ></home-campus-updates>
-
-    <home-career-insights
-      insights="{{newsFeed}}"
-      loading="{{newsLoading}}"
-      error="{{newsError}}"
-      bind:select="viewNewsDetail"
-      bind:more="goToNews"
-      bind:retry="retryNews"
-    ></home-career-insights>
   </view>
 
   <view class="page-bottom-spacer"></view>

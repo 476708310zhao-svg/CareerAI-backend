@@ -8,10 +8,10 @@ const FULL_TAB_LIST = [
     selectedIconPath: '/images/home-active.png'
   },
   {
-    pagePath: 'pages/campus/campus',
-    text: '校招',
-    iconPath: '/images/jobs.png',
-    selectedIconPath: '/images/jobs-active.png'
+    pagePath: 'pages/resources/resources',
+    text: '资源',
+    iconPath: '/images/experience.png',
+    selectedIconPath: '/images/experience-active.png'
   },
   {
     pagePath: 'pages/applications/applications',

@@ -5,7 +5,7 @@ const navigation = require('./navigation.js');
 
 const TAB_URLS = [
   '/pages/index/index',
-  '/pages/campus/campus',
+  '/pages/resources/resources',
   '/pages/applications/applications',
   '/pages/ai-career/ai-career',
   '/pages/profile/profile'

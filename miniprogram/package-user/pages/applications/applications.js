@@ -2,6 +2,7 @@
 const { getApplications } = require('../../../utils/api.js');
 const v4Api = require('../../../utils/api-v4.js');
 const demoData = require('../../../utils/demo-data.js');
+const navigation = require('../../../utils/navigation.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
 const AVATAR_COLORS = ['#6B4EFF','#FF6B35','#00B894','#0984E3','#E17055','#6C5CE7','#FDCB6E','#00CEC9','#E84393','#74B9FF'];
@@ -762,6 +763,6 @@ Page({
   },
 
   goToJobs: function() {
-    wx.switchTab({ url: '/pages/campus/campus' });
+    navigation.safeNavigateTo('/pages/campus/campus');
   }
 });

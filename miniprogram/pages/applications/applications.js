@@ -170,7 +170,7 @@ Page({
   },
 
   goJobs() {
-    navigation.safeSwitchTab('/pages/campus/campus');
+    navigation.safeNavigateTo('/pages/campus/campus');
   },
 
   goProfile() {

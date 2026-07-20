@@ -1,14 +1,25 @@
 Component({
   properties: {
-    featured: { type: Object, value: null },
-    updates: { type: Array, value: [] },
+    items: { type: Array, value: [] },
+    total: { type: Number, value: 0 },
     loading: { type: Boolean, value: false },
     ready: { type: Boolean, value: false },
     dateLabel: { type: String, value: '今日更新' }
   },
 
   data: {
-    skeletonRows: [1, 2, 3]
+    columns: [[], []],
+    skeletonColumns: [[1, 2], [3, 4]]
+  },
+
+  observers: {
+    items(items) {
+      const columns = [[], []];
+      (items || []).forEach((item, index) => {
+        columns[index % 2].push(Object.assign({}, item, { layout: index % 4 }));
+      });
+      this.setData({ columns });
+    }
   },
 
   methods: {
@@ -16,19 +27,14 @@ Component({
       this.triggerEvent('more');
     },
 
-    onFeatured() {
-      const featured = this.data.featured;
-      if (featured && featured.id) this.triggerEvent('select', { id: featured.id });
+    onSelect(e) {
+      const id = e.currentTarget.dataset.id;
+      if (id) this.triggerEvent('select', { id });
     },
 
-    onUpdate(e) {
-      const index = Number(e.currentTarget.dataset.index);
-      const item = this.data.updates[index];
-      if (item && item.id) this.triggerEvent('select', { id: item.id });
-    },
-
-    onLogoError() {
-      this.triggerEvent('logoerror', { type: 'featured' });
+    onLogoError(e) {
+      const id = e.currentTarget.dataset.id;
+      if (id) this.triggerEvent('logoerror', { id });
     }
   }
 });

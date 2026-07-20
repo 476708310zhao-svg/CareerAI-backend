@@ -6,12 +6,12 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..', 'miniprogram');
 const EXPECTED_TABS = [
   'pages/index/index',
-  'pages/campus/campus',
+  'pages/resources/resources',
   'pages/applications/applications',
   'pages/ai-career/ai-career',
   'pages/profile/profile'
 ];
-const EXPECTED_TAB_LABELS = ['首页', '校招', '进度', 'AI Career', '我的'];
+const EXPECTED_TAB_LABELS = ['首页', '资源', '进度', 'AI Career', '我的'];
 
 function read(relativePath) {
   return fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
@@ -40,7 +40,7 @@ function literalSwitchTargets(source) {
   return targets;
 }
 
-test('V4 TabBar uses Home, Campus, Progress, AI Career and Profile main-package pages', () => {
+test('V4 TabBar uses Home, Resources, Progress, AI Career and Profile main-package pages', () => {
   const app = JSON.parse(read('app.json'));
   const tabPaths = app.tabBar.list.map(item => item.pagePath);
   assert.deepEqual(tabPaths, EXPECTED_TABS);
@@ -88,4 +88,21 @@ test('global AI floating entry and home membership banner remain available', () 
   assert.match(homeWxml, /class="membership-benefit-banner/);
   assert.match(homeWxml, /真实微信支付暂未开放/);
   assert.match(homeJs, /openMembershipBenefits\(\)/);
+});
+
+test('resource hub exposes campus and preparation tools while home uses campus waterfall', () => {
+  const resourceWxml = read('pages/resources/resources.wxml');
+  const resourceJs = read('pages/resources/resources.js');
+  const homeWxml = read('pages/index/index.wxml');
+  const homeJs = read('pages/index/index.js');
+  const campusWxml = read('components/home-campus-updates/home-campus-updates.wxml');
+
+  assert.match(resourceWxml, /求职资源库/);
+  assert.match(resourceJs, /\/pages\/campus\/campus/);
+  assert.match(resourceJs, /\/pages\/experiences\/experiences/);
+  assert.match(resourceJs, /\/package-career\/pages\/oa-bank\/oa-bank/);
+  assert.doesNotMatch(homeWxml, /home-career-insights/);
+  assert.doesNotMatch(homeJs, /buildNewsFeed|getNews|HOME_NEWS_CACHE_KEY/);
+  assert.match(homeWxml, /items="\{\{campusWaterfall\}\}"/);
+  assert.match(campusWxml, /class="waterfall"/);
 });
