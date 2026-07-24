@@ -312,6 +312,9 @@
     <view wx:if="{{result.marketNote}}" class="market-note">
       <text class="market-note-txt">💡 {{result.marketNote}}</text>
     </view>
+    <view wx:if="{{result.disclaimer}}" class="market-note">
+      <text class="market-note-txt">⚠️ {{result.disclaimer}}</text>
+    </view>
 
     <!-- 用户真实共享数据 -->
     <view class="user-stats-card" wx:if="{{userStats}}">
@@ -350,7 +353,7 @@
           <text class="upct-val">{{userStats.p75Str}}</text>
         </view>
       </view>
-      <text class="user-stats-note">以上数据来自用户匿名投稿，分位点基于真实数据计算</text>
+      <text class="user-stats-note">{{userStats.disclaimer || '以上数据来自用户匿名投稿，仅供参考'}}</text>
     </view>
 
     <!-- 分位点（VIP 解锁）-->

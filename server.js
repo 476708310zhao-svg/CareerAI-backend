@@ -7,6 +7,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const { optionalAuth } = require('./middleware/auth');
 const { requireFeature } = require('./utils/featureFlags');
+const { buildRuntimeReadiness } = require('./utils/runtimeReadiness');
 const db = require('./db/database');
 
 const app = express();
@@ -155,6 +156,13 @@ app.use('/webhook', require('./routes/webhook'));
 // 健康检查
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', message: '留学生求职小程序后端服务运行正常', time: new Date().toISOString() });
+});
+app.get('/api/health/live', (_req, res) => {
+  res.json({ status: 'alive', time: new Date().toISOString() });
+});
+app.get('/api/health/ready', (_req, res) => {
+  const readiness = buildRuntimeReadiness();
+  res.status(readiness.ready ? 200 : 503).json(readiness);
 });
 
 // 404

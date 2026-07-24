@@ -11,7 +11,7 @@ const EXPECTED_TABS = [
   'pages/ai-career/ai-career',
   'pages/profile/profile'
 ];
-const EXPECTED_TAB_LABELS = ['首页', '资源', '进度', 'AI Career', '我的'];
+const EXPECTED_TAB_LABELS = ['首页', '资源', '进度', 'AI专家', '我的'];
 
 function read(relativePath) {
   return fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
@@ -40,7 +40,7 @@ function literalSwitchTargets(source) {
   return targets;
 }
 
-test('V4 TabBar uses Home, Resources, Progress, AI Career and Profile main-package pages', () => {
+test('V4 TabBar uses Home, Resources, Progress, AI Expert and Profile main-package pages', () => {
   const app = JSON.parse(read('app.json'));
   const tabPaths = app.tabBar.list.map(item => item.pagePath);
   assert.deepEqual(tabPaths, EXPECTED_TABS);

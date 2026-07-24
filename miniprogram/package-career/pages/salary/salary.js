@@ -408,7 +408,8 @@ Page({
             p25Str:  d.p25 ? this.formatCurrency(d.p25) : null,
             p50Str:  d.p50 ? this.formatCurrency(d.p50) : null,
             p75Str:  d.p75 ? this.formatCurrency(d.p75) : null,
-            hasPercentile: !!(d.p25 && d.p50 && d.p75)
+            hasPercentile: d.percentilesReliable !== false && !!(d.p25 && d.p50 && d.p75),
+            disclaimer: d.disclaimer || ''
           }
         });
       } else {
@@ -434,7 +435,9 @@ Page({
     if (percent < 10) percent = 10;
     if (percent > 90) percent = 90;
 
-    // 优先使用 AI/真实数据的分位点，降级才用公式估算
+    const percentilesReliable = data.percentiles_reliable !== false;
+
+    // 只有来源明确允许时才展示分位点，避免把 AI/小样本估算包装成真实统计值。
     const p10 = min + range * 0.1;
     const p25 = data.p25_salary || (min + range * 0.25);
     const p75 = data.p75_salary || (min + range * 0.75);
@@ -523,22 +526,24 @@ Page({
       maxStr:     this.formatCurrency(max),
       medianStr:  this.formatCurrency(median),
       percent:    percent.toFixed(0) + '%',
-      percentiles: {
+      percentiles: percentilesReliable ? {
         p10: this.formatCurrency(p10),
         p25: this.formatCurrency(p25),
         p50: this.formatCurrency(median),
         p75: this.formatCurrency(p75),
         p90: this.formatCurrency(p90)
-      },
+      } : null,
       distributionBars,
       tcBreakdown,
-      marketRange:  this.formatCurrency(p25) + ' – ' + this.formatCurrency(p75),
+      marketRange:  percentilesReliable ? this.formatCurrency(p25) + ' – ' + this.formatCurrency(p75) : '',
       trendPoints,
       trendSummary,
       trendStartYear: String(rawPoints[0]?.year || trendStartYear),
       trendEndYear:   String(rawPoints[rawPoints.length - 1]?.year || curYear),
       dataSource: data.data_source || 'api',  // 'community' | 'rapidapi' | 'ai'
       marketNote: data.market_note || '',
+      disclaimer: data.disclaimer || '',
+      percentilesReliable,
       sampleSize: data.sample_size || null,
       isMock: false
     };

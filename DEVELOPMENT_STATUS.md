@@ -74,6 +74,7 @@
 
 | 负责人 | 文件 | 任务 | 状态 |
 |---|---|---|---|
+| Codex | `AGENTS.md`、`DEVELOPMENT_STATUS.md`、`docs/`、运行检查脚本、薪资可信度相关文件、首页与 TabBar、测试 | 收口误用副本，确认桌面仓库为唯一 4.0 主项目，迁移有效上线能力并完成发布验证 | 已完成；93/93 tests、发布检查与微信预览通过 |
 | Codex | 小程序 `pages/resources`、资源页测试与文档 | 按参考图重做自定义导航、校招主视觉和横向资源卡片 | 已完成；91/91 tests、发布检查通过 |
 | Codex | 小程序 `pages/index`、`pages/resources`、`components/home-campus-updates`、校招排序测试与文档 | 首页校招改为每个岗位独占一行并按每日最新更新时间排序；重构资源中心 UI | 已完成；91/91 tests、发布检查通过 |
 | Codex | 小程序 `pages/resources`、`pages/index`、`components/home-campus-updates`、`custom-tab-bar`、导航调用及相关测试/文档 | 将校招 Tab 改为资源中心，首页求职情报改为校招瀑布流 | 已完成；91/91 tests、发布检查通过 |

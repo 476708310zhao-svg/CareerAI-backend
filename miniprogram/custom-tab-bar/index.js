@@ -21,7 +21,7 @@ const FULL_TAB_LIST = [
   },
   {
     pagePath: 'pages/ai-career/ai-career',
-    text: 'AI Career',
+    text: 'AI专家',
     iconPath: '/images/icon-ai-assistant.png',
     selectedIconPath: '/images/icon-ai-assistant.png'
   },

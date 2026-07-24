@@ -10,29 +10,6 @@
       bind:action="navigateToPage"
     ></home-career-plan>
 
-    <home-core-tools
-      tools="{{workbenchActions}}"
-      bind:select="navigateToPage"
-    ></home-core-tools>
-
-    <view
-      class="membership-benefit-banner {{membershipEnabled ? 'is-open' : 'is-preview'}}"
-      bindtap="openMembershipBenefits"
-      hover-class="membership-benefit-hover"
-      aria-role="button"
-      aria-label="查看求职会员权益"
-    >
-      <view class="membership-benefit-mark">PRO</view>
-      <view class="membership-benefit-copy">
-        <text class="membership-benefit-title">求职会员权益</text>
-        <text class="membership-benefit-sub">{{membershipEnabled ? 'AI 额度 · 多版本简历 · 模拟面试' : '权益入口已保留 · 真实微信支付暂未开放'}}</text>
-      </view>
-      <view class="membership-benefit-action">
-        <text>{{membershipEnabled ? '查看权益' : '了解权益'}}</text>
-        <text class="membership-benefit-arrow">›</text>
-      </view>
-    </view>
-
     <view class="banner-wrap" wx:if="{{bannerList.length > 0}}">
       <swiper
         class="banner-swiper"
@@ -60,6 +37,29 @@
           </swiper-item>
         </block>
       </swiper>
+    </view>
+
+    <home-core-tools
+      tools="{{workbenchActions}}"
+      bind:select="navigateToPage"
+    ></home-core-tools>
+
+    <view
+      class="membership-benefit-banner {{membershipEnabled ? 'is-open' : 'is-preview'}}"
+      bindtap="openMembershipBenefits"
+      hover-class="membership-benefit-hover"
+      aria-role="button"
+      aria-label="查看求职会员权益"
+    >
+      <view class="membership-benefit-mark">PRO</view>
+      <view class="membership-benefit-copy">
+        <text class="membership-benefit-title">求职会员权益</text>
+        <text class="membership-benefit-sub">{{membershipEnabled ? 'AI 额度 · 多版本简历 · 模拟面试' : '权益入口已保留 · 真实微信支付暂未开放'}}</text>
+      </view>
+      <view class="membership-benefit-action">
+        <text>{{membershipEnabled ? '查看权益' : '了解权益'}}</text>
+        <text class="membership-benefit-arrow">›</text>
+      </view>
     </view>
 
     <home-recommended-jobs

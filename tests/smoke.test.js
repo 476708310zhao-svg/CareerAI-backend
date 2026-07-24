@@ -170,6 +170,50 @@ test('health endpoint is available', async () => {
   assert.equal(body.status, 'ok');
 });
 
+test('liveness and readiness endpoints expose dependency state', async () => {
+  const liveRes = await fetch(`${BASE_URL}/api/health/live`);
+  assert.equal(liveRes.status, 200);
+  assert.equal((await readJson(liveRes)).status, 'alive');
+
+  const readyRes = await fetch(`${BASE_URL}/api/health/ready`);
+  assert.equal(readyRes.status, 200);
+  const body = await readJson(readyRes);
+  assert.equal(body.ready, true);
+  assert.ok(['ready', 'degraded'].includes(body.status));
+  assert.equal(body.checks.find(check => check.name === 'database').ready, true);
+  assert.equal(
+    body.checks.some(check => Object.prototype.hasOwnProperty.call(check, 'value')),
+    false
+  );
+});
+
+test('salary statistics hide percentiles when the sample is too small', async () => {
+  const position = `Smoke Salary ${Date.now()}`;
+  const insert = db.prepare(`
+    INSERT INTO salaries
+      (company, position, location, years_of_experience, base_salary, bonus, stock, total_compensation, currency)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const result = insert.run('Smoke Co', position, 'Test City', 1, 100000, 10000, 5000, 115000, 'USD');
+
+  try {
+    const res = await fetch(
+      `${BASE_URL}/api/salaries/statistics?position=${encodeURIComponent(position)}&currency=USD`
+    );
+    assert.equal(res.status, 200);
+    const body = await readJson(res);
+    assert.equal(body.code, 0);
+    assert.equal(body.data.count, 1);
+    assert.equal(body.data.percentilesReliable, false);
+    assert.equal(body.data.p25, null);
+    assert.equal(body.data.p50, null);
+    assert.equal(body.data.p75, null);
+    assert.equal(body.data.sampleQuality, 'insufficient');
+  } finally {
+    db.prepare('DELETE FROM salaries WHERE id = ?').run(result.lastInsertRowid);
+  }
+});
+
 test('public feature flags expose recruitment availability', async () => {
   const res = await fetch(`${BASE_URL}/api/features`);
   assert.equal(res.status, 200);
