@@ -90,6 +90,17 @@ test('global AI floating entry and home membership banner remain available', () 
   assert.match(homeJs, /openMembershipBenefits\(\)/);
 });
 
+test('home recommendations are controlled by an independent public feature flag', () => {
+  const homeWxml = read('pages/index/index.wxml');
+  const homeJs = read('pages/index/index.js');
+  const featureClient = read('utils/feature-flags.js');
+
+  assert.match(homeWxml, /recruitmentEnabled && homeRecommendationsEnabled/);
+  assert.match(homeJs, /home_recommendations/);
+  assert.match(homeJs, /homeRecommendationsEnabled/);
+  assert.match(featureClient, /home_recommendations/);
+});
+
 test('resource hub groups tools by task while home uses a latest campus list', () => {
   const resourceWxml = read('pages/resources/resources.wxml');
   const resourceJs = read('pages/resources/resources.js');

@@ -52,6 +52,7 @@ Page({
     apiBase: config.API_BASE_URL,
     skeletonRows: [1, 2, 3],
     recruitmentEnabled: true,
+    homeRecommendationsEnabled: false,
     membershipEnabled: false,
 
     // 2. 金刚区：保留 4 个非 AI 专题入口，重复的 AI 功能下沉到专题区
@@ -161,6 +162,7 @@ Page({
   onLoad() {
     const flags = featureFlags.getCurrentFlags();
     const recruitmentEnabled = !!flags.recruitment;
+    const homeRecommendationsEnabled = recruitmentEnabled && !!flags.home_recommendations;
     this.applyFeatureState(flags);
     this.normalizeHomeData();
     try {
@@ -179,7 +181,7 @@ Page({
     } catch (e) {
       console.warn('[fetchBanners]', e);
     }
-    if (recruitmentEnabled) {
+    if (homeRecommendationsEnabled) {
       let hasCachedJobs = false;
       try {
         hasCachedJobs = this.loadCachedOrMockJobs();
@@ -212,14 +214,23 @@ Page({
 
   applyFeatureState(flags) {
     const nextFlags = flags || {};
-    this.applyRecruitmentState(!!nextFlags.recruitment);
-    this.setData({ membershipEnabled: !!nextFlags.membership });
+    const recruitmentEnabled = !!nextFlags.recruitment;
+    const homeRecommendationsEnabled = recruitmentEnabled && !!nextFlags.home_recommendations;
+    this.applyRecruitmentState(recruitmentEnabled);
+    if (!homeRecommendationsEnabled) clearTimeout(this._initialRecommendTimer);
+    this.setData({
+      homeRecommendationsEnabled,
+      membershipEnabled: !!nextFlags.membership,
+      recommendJobs: homeRecommendationsEnabled ? this.data.recommendJobs : [],
+      loadingJobs: homeRecommendationsEnabled ? this.data.loadingJobs : false,
+      jobsError: homeRecommendationsEnabled ? this.data.jobsError : false
+    });
   },
 
   _onFeatureFlagsChange(flags) {
-    const wasEnabled = this.data.recruitmentEnabled;
+    const wasRecommendationsEnabled = this.data.homeRecommendationsEnabled;
     this.applyFeatureState(flags);
-    if (flags.recruitment && !wasEnabled) {
+    if (this.data.homeRecommendationsEnabled && !wasRecommendationsEnabled) {
       this.loadCachedOrMockJobs();
       this.fetchRecommendJobs();
     }
@@ -278,7 +289,7 @@ Page({
     this.loadTodayTasks();
     this.loadWorkbenchSummary();
     this.fetchBanners();
-    if (this.data.recruitmentEnabled) this.fetchRecommendJobs({ force: true });
+    if (this.data.homeRecommendationsEnabled) this.fetchRecommendJobs({ force: true });
     this.fetchCampusUpdates({ force: true });
     setTimeout(() => wx.stopPullDownRefresh(), 800);
   },
@@ -470,6 +481,10 @@ Page({
 
   // ======== 职位数据 ========
   async fetchRecommendJobs(options) {
+    if (!this.data.homeRecommendationsEnabled) {
+      this.setData({ recommendJobs: [], loadingJobs: false, jobsError: false });
+      return;
+    }
     const force = !!(options && options.force);
     this.setData({ jobsError: false });
     // 如果已有数据就不显示 loading 骨架屏，静默刷新

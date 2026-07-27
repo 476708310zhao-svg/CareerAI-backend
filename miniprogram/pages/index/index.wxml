@@ -63,7 +63,7 @@
     </view>
 
     <home-recommended-jobs
-      wx:if="{{recruitmentEnabled}}"
+      wx:if="{{recruitmentEnabled && homeRecommendationsEnabled}}"
       jobs="{{recommendJobs}}"
       loading="{{loadingJobs}}"
       error="{{jobsError}}"

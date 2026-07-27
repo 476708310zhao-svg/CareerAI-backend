@@ -7,6 +7,12 @@ const FEATURE_DEFINITIONS = Object.freeze({
     env: 'RECRUITMENT_FEATURE_ENABLED',
     defaultValue: false
   },
+  home_recommendations: {
+    label: '首页推荐岗位',
+    description: '仅控制首页“为你推荐”岗位模块；关闭后不影响职位搜索、职位详情和投递。',
+    env: 'HOME_RECOMMENDATIONS_FEATURE_ENABLED',
+    defaultValue: false
+  },
   membership: {
     label: '会员权益',
     description: '控制会员页入口和会员权益相关展示。',

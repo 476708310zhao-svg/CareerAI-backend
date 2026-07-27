@@ -220,6 +220,7 @@ test('public feature flags expose recruitment availability', async () => {
   const body = await readJson(res);
   assert.equal(body.code, 0);
   assert.equal(body.data.recruitment, true);
+  assert.equal(body.data.home_recommendations, false);
   assert.equal(body.data.membership, false);
 });
 
@@ -1574,6 +1575,35 @@ test('admin can toggle recruitment feature flag', async () => {
   assert.equal(onRes.status, 200);
   const featuresOn = await readJson(await fetch(`${BASE_URL}/api/features`));
   assert.equal(featuresOn.data.recruitment, true);
+});
+
+test('admin can independently toggle the home recommendations module', async () => {
+  await ensureAdminToken();
+  const previous = featureFlags.isFeatureEnabled('home_recommendations');
+  try {
+    const onRes = await fetch(`${BASE_URL}/admin/api/feature-flags/home_recommendations`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...adminHeaders() },
+      body: JSON.stringify({ enabled: true })
+    });
+    assert.equal(onRes.status, 200);
+    const onBody = await readJson(onRes);
+    assert.equal(onBody.data.enabled, true);
+
+    const publicOn = await readJson(await fetch(`${BASE_URL}/api/features`));
+    assert.equal(publicOn.data.home_recommendations, true);
+
+    const offRes = await fetch(`${BASE_URL}/admin/api/feature-flags/home_recommendations`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...adminHeaders() },
+      body: JSON.stringify({ enabled: false })
+    });
+    assert.equal(offRes.status, 200);
+    const publicOff = await readJson(await fetch(`${BASE_URL}/api/features`));
+    assert.equal(publicOff.data.home_recommendations, false);
+  } finally {
+    featureFlags.updateFeatureFlag('home_recommendations', previous);
+  }
 });
 
 test('admin can update page share config', async () => {

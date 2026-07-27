@@ -42,6 +42,7 @@ module.exports = {
   // Used only until the public feature endpoint responds for the first time.
   DEFAULT_FEATURE_FLAGS: {
     recruitment: true,
+    home_recommendations: false,
     membership: true
   }
 };

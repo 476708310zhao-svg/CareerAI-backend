@@ -273,6 +273,6 @@ App({
     unreadCount: 0,      // 未读消息数（驱动 TabBar 角标）
     favorites:   null,   // { job:[], experience:[], company:[] }
     theme:       'auto', // 'dark' | 'light' | 'auto'
-    featureFlags: { recruitment: false, membership: true }
+    featureFlags: { recruitment: false, home_recommendations: false, membership: true }
   }
 });
