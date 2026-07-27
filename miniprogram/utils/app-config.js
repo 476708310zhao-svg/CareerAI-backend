@@ -35,13 +35,13 @@ module.exports = {
   // temporarily enable this in a local build when they need offline fixtures.
   ENABLE_DEMO_FALLBACK: false,
 
-  // Production does not expose /api/v4/agents yet. Keep AI Career on the
-  // authenticated legacy AI channel until the V4 backend is formally deployed.
-  V4_AGENT_API_ENABLED: false,
+  // V4 backend is deployed behind the production API and has passed readiness
+  // and authenticated-route smoke checks.
+  V4_AGENT_API_ENABLED: true,
 
   // Used only until the public feature endpoint responds for the first time.
   DEFAULT_FEATURE_FLAGS: {
-    recruitment: false,
+    recruitment: true,
     membership: true
   }
 };

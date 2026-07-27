@@ -32,4 +32,15 @@ npm run healthcheck
 5. 仅当上述检查全部通过时切换 Nginx。
 6. 保留上一版本和数据库备份；出现 5xx、登录失败或支付异常立即回滚。
 
-当前生产同时存在 3001 主服务与 4300 历史 V4 副本，切流前不得直接删除 `/api/v4` 的 Nginx 规则。必须先把本主项目部署到隔离端口并完成兼容性验证。
+## 2026-07-27 部署结果
+
+- 正确主项目版本：`55a1adf`
+- 运行目录：`/www/wwwroot/zhiyincareer-main/releases/20260727-090013-55a1adf`
+- 统一端口：`4400`
+- Nginx：普通 API 和 `/api/v4/*` 均直接转发到 `4400`，不再进行 V4 路径重写
+- 旧 `3001` PM2 服务：已停止，保留用于快速回滚
+- 旧 `4300` systemd 服务：已停止并取消开机启动
+- V4 数据迁移：用户、岗位、申请待迁移项均为 `0`
+- 虚拟支付：`available=true`、`virtualConfigured=true`、`mock=false`
+- 公网冒烟：readiness、V4、功能开关、职位、校招、支付和匿名鉴权均通过
+- 回滚与备份：`/www/backups/zhiyincareer/20260727-085923`

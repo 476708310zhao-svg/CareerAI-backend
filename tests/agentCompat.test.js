@@ -22,8 +22,8 @@ test('agent compatibility mode only activates for missing V4 endpoints', () => {
   assert.equal(compat.isV4EndpointMissing(unauthorized), false);
 });
 
-test('production keeps V4 Agent probing disabled until backend deployment', () => {
-  assert.equal(config.V4_AGENT_API_ENABLED, false);
+test('production enables V4 Agent after backend deployment', () => {
+  assert.equal(config.V4_AGENT_API_ENABLED, true);
 });
 
 test('agent compatibility prompt redacts sensitive data and forbids writes', () => {
