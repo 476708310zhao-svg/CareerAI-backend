@@ -34,8 +34,8 @@ npm run healthcheck
 
 ## 2026-07-27 部署结果
 
-- 正确主项目版本：`55a1adf`
-- 运行目录：`/www/wwwroot/zhiyincareer-main/releases/20260727-090013-55a1adf`
+- 正确主项目版本：`5d7f7c5`
+- 运行目录：`/www/wwwroot/zhiyincareer-main/releases/20260727-091741-5d7f7c5`
 - 统一端口：`4400`
 - Nginx：普通 API 和 `/api/v4/*` 均直接转发到 `4400`，不再进行 V4 路径重写
 - 旧 `3001` PM2 服务：已停止，保留用于快速回滚
@@ -43,4 +43,5 @@ npm run healthcheck
 - V4 数据迁移：用户、岗位、申请待迁移项均为 `0`
 - 虚拟支付：`available=true`、`virtualConfigured=true`、`mock=false`
 - 公网冒烟：readiness、V4、功能开关、职位、校招、支付和匿名鉴权均通过
+- 审核开关：`home_recommendations=false`，只隐藏首页推荐岗位，完整职位功能保持开启
 - 回滚与备份：`/www/backups/zhiyincareer/20260727-085923`
