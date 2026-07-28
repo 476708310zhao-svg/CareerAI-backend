@@ -74,6 +74,7 @@
 
 | 负责人 | 文件 | 任务 | 状态 |
 |---|---|---|---|
+| Codex | `miniprogram/package-ai/pages/daily-brief/*`、导航回归测试 | 移除求职日报旧绿色问候头部，按首页蓝白求职计划卡片重构概览、统计与内容模块 | 已完成；98/98 tests、发布检查与微信预览编译通过 |
 | Codex | `miniprogram/utils/resume-versions.js`、`miniprogram/package-ai/utils/resume-versions.js`、AI 助手/JD 匹配引用与导航测试 | 将仅供 AI 分包使用的简历版本工具迁出主包，修复微信代码质量“主包未使用 JS”提示 | 已完成；97/97 tests、发布检查与微信预览编译通过，主包减少约 3 KB |
 | Codex | `utils/featureFlags.js`、管理后台功能开关/Banner 页面、小程序首页与功能开关客户端、测试 | 增加“首页推荐岗位”独立审核开关并默认隐藏；校正 Banner 展示比例和上传尺寸提示 | 已完成；95/95 tests、生产开关关闭、公网验证通过、微信开发版 4.0.2 已上传 |
 | Codex | 生产服务器、`miniprogram/utils/app-config.js`、Agent 配置测试与运维文档 | 将正确 4.0 主项目部署到 4400，完成 V4 数据迁移、虚拟支付与 Nginx 收口，并启用小程序 V4 Agent | 已完成；公网 readiness/V4/职位/校招/支付/鉴权冒烟通过 |

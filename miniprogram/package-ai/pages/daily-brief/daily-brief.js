@@ -147,7 +147,6 @@ Page({
     stats: null,
     loadingTip: LOADING_TIPS[0],
     todayStr: '',
-    greeting: '',
     brief: null
   },
 
@@ -160,12 +159,7 @@ Page({
     const weekDays = ['日','一','二','三','四','五','六'];
     const dow = weekDays[now.getDay()];
     const todayStr = `${month}月${day}日 周${dow}`;
-    const hour = now.getHours();
-    let greeting = '早上好';
-    if (hour >= 11 && hour < 14) greeting = '中午好';
-    else if (hour >= 14 && hour < 18) greeting = '下午好';
-    else if (hour >= 18) greeting = '晚上好';
-    this.setData({ todayStr, greeting });
+    this.setData({ todayStr });
 
     // Check if today's brief already exists
     const cached = wx.getStorageSync('dailyBriefCache');

@@ -123,6 +123,19 @@ test('resume version helper stays inside the AI subpackage instead of bloating t
   assert.match(jdMatchJs, /require\('\.\.\/\.\.\/utils\/resume-versions\.js'\)/);
 });
 
+test('daily brief follows the home workbench visual language without the legacy green header', () => {
+  const dailyWxml = read('package-ai/pages/daily-brief/daily-brief.wxml');
+  const dailyWxss = read('package-ai/pages/daily-brief/daily-brief.wxss');
+
+  assert.match(dailyWxml, /class="brief-hero"/);
+  assert.match(dailyWxml, /今日求职计划/);
+  assert.match(dailyWxml, /class="hero-metrics"/);
+  assert.doesNotMatch(dailyWxml, /class="date-header"/);
+  assert.doesNotMatch(dailyWxml, /class="stats-summary"/);
+  assert.match(dailyWxss, /linear-gradient\(145deg, #ffffff 0%, #f5f9ff 100%\)/);
+  assert.doesNotMatch(dailyWxss, /#064E3B|#065F46/);
+});
+
 test('resource hub groups tools by task while home uses a latest campus list', () => {
   const resourceWxml = read('pages/resources/resources.wxml');
   const resourceJs = read('pages/resources/resources.js');
