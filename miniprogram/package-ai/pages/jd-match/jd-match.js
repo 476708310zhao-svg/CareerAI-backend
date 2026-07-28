@@ -1,7 +1,7 @@
 const jdMatch = require('../../../utils/jd-match.js');
 const progress = require('../../../utils/job-progress.js');
 const navigation = require('../../../utils/navigation.js');
-const resumeVersions = require('../../../utils/resume-versions.js');
+const resumeVersions = require('../../utils/resume-versions.js');
 
 function readStorage(key, fallback) {
   try {

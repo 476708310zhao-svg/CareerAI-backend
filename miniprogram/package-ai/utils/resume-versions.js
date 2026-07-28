@@ -1,4 +1,4 @@
-const api = require('./api-resumes.js');
+const api = require('../../utils/api-resumes.js');
 
 const LOCAL_ID = 'local_online_resume';
 

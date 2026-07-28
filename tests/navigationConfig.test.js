@@ -101,6 +101,28 @@ test('home recommendations are controlled by an independent public feature flag'
   assert.match(featureClient, /home_recommendations/);
 });
 
+test('home workbench always uses the Today tasks headline across local login states', () => {
+  const homeJs = read('pages/index/index.js');
+
+  assert.match(homeJs, /const title = `今天有 \$\{pendingTaskCount\} 项求职任务`/);
+  assert.match(homeJs, /primaryText = stats\.todayInterviews \? '准备今日面试' : '查看今日任务'/);
+  assert.match(homeJs, /package-ai\/pages\/daily-brief\/daily-brief/);
+  assert.doesNotMatch(homeJs, /let title = '完成你的求职档案'/);
+  assert.doesNotMatch(homeJs, /title = '先完善简历，再开始精准匹配'/);
+});
+
+test('resume version helper stays inside the AI subpackage instead of bloating the main package', () => {
+  const mainHelper = path.join(ROOT, 'utils', 'resume-versions.js');
+  const packageHelper = path.join(ROOT, 'package-ai', 'utils', 'resume-versions.js');
+  const assistantJs = read('package-ai/pages/ai-assistant/ai-assistant.js');
+  const jdMatchJs = read('package-ai/pages/jd-match/jd-match.js');
+
+  assert.equal(fs.existsSync(mainHelper), false);
+  assert.equal(fs.existsSync(packageHelper), true);
+  assert.match(assistantJs, /require\('\.\.\/\.\.\/utils\/resume-versions\.js'\)/);
+  assert.match(jdMatchJs, /require\('\.\.\/\.\.\/utils\/resume-versions\.js'\)/);
+});
+
 test('resource hub groups tools by task while home uses a latest campus list', () => {
   const resourceWxml = read('pages/resources/resources.wxml');
   const resourceJs = read('pages/resources/resources.js');

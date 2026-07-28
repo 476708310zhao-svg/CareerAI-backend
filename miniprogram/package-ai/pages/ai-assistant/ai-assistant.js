@@ -3,7 +3,7 @@ const config   = require('../../../utils/app-config.js');
 const { post } = require('../../../utils/api-client.js');
 const progress = require('../../../utils/job-progress.js');
 const appMaterials = require('../../../utils/application-materials.js');
-const resumeVersions = require('../../../utils/resume-versions.js');
+const resumeVersions = require('../../utils/resume-versions.js');
 
 const API_BASE    = config.API_BASE_URL;
 const CACHE_KEY   = 'ai_assistant_messages';

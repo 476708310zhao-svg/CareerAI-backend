@@ -121,10 +121,10 @@ Page({
     showBackToTop: false, // 控制回到顶部按钮显隐
     workbench: {
       isLoggedIn: false,
-      title: '今天先完成一个求职动作',
-      subtitle: '先上传/管理简历，再用 JD 匹配校准投递方向。',
-      primaryText: '管理简历',
-      primaryUrl: '/package-career/pages/resume/resume',
+      title: '今天有 3 项求职任务',
+      subtitle: '先完成一项今日任务，逐步推进简历、岗位和面试准备。',
+      primaryText: '查看今日任务',
+      primaryUrl: '/package-ai/pages/daily-brief/daily-brief',
       metrics: [
         { label: '推荐岗位', value: '0', suffix: '个', tone: 'blue', icon: '/images/icon-ai-assistant.png' },
         { label: '待投递', value: '0', suffix: '个', tone: 'muted', icon: '/images/icon-apply.png' },
@@ -1025,43 +1025,15 @@ Page({
       hasResume = hasResume || Object.keys(resume).some(key => !!resume[key]);
     } catch (e) {}
     const isLoggedIn = !!(hasToken || profile.nickName || hasResume || stats.total);
-    const role = this.getWorkbenchTargetRole(profile);
-    const hasTargetRole = role !== '目标岗位';
-
-    let title = '完成你的求职档案';
-    let subtitle = '上传简历、选择目标岗位并设置求职地区后，我们会生成个性化计划。';
-    let primaryText = '开始建立档案';
-    let primaryUrl = '/package-user/pages/profile-edit/profile-edit';
-
-    if (isLoggedIn && !hasResume) {
-      title = '先完善简历，再开始精准匹配';
-      subtitle = '完成基础信息、项目经历和技能关键词，系统才能判断岗位匹配度。';
-      primaryText = '开始简历优化';
-      primaryUrl = '/package-career/pages/ats-optimize/ats-optimize';
-    } else if (isLoggedIn && !hasTargetRole) {
-      title = '设置目标岗位，刷新今日计划';
-      subtitle = '明确岗位方向与求职地区后，推荐和任务排序会更准确。';
-      primaryText = '完善求职目标';
-      primaryUrl = '/package-user/pages/profile-edit/profile-edit';
-    } else if (isLoggedIn && stats.total > 0) {
-      title = `今天有 ${Math.max(1, taskStats.pending || stats.active)} 项求职任务`;
-      subtitle = stats.todayInterviews
-        ? '今天有面试安排，优先完成岗位复盘和 STAR 案例准备。'
-        : progress.buildDailyAdvice();
-      primaryText = stats.todayInterviews ? '准备今日面试' : '查看今日任务';
-      primaryUrl = stats.todayInterviews
-        ? '/package-ai/pages/interview-setup/interview-setup'
-        : '/package-ai/pages/daily-brief/daily-brief';
-    } else if (isLoggedIn) {
-      title = recommendationCount
-        ? `今天有 ${recommendationCount} 个岗位值得优先推进`
-        : '今天从一个目标岗位开始';
-      subtitle = atsScore
-        ? `最近 ATS 为 ${atsScore} 分，优先查看 ${role} 方向的高匹配机会。`
-        : `围绕 ${role} 方向查看推荐，并用 JD 匹配确认是否值得投递。`;
-      primaryText = recommendationCount ? '查看推荐岗位' : '搜索目标岗位';
-      primaryUrl = '/pages/jobs/jobs';
-    }
+    const pendingTaskCount = Math.max(1, Number(taskStats.pending || taskStats.total || 0));
+    const title = `今天有 ${pendingTaskCount} 项求职任务`;
+    const subtitle = stats.todayInterviews
+      ? '今天有面试安排，优先完成岗位复盘和 STAR 案例准备。'
+      : progress.buildDailyAdvice();
+    const primaryText = stats.todayInterviews ? '准备今日面试' : '查看今日任务';
+    const primaryUrl = stats.todayInterviews
+      ? '/package-ai/pages/interview-setup/interview-setup'
+      : '/package-ai/pages/daily-brief/daily-brief';
 
     this.setData({
       workbench: {
