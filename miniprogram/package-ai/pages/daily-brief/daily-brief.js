@@ -110,7 +110,6 @@ function normalizeHighlights(highlights, fallback) {
     .filter(Boolean)
     .slice(0, 3)
     .map(item => ({
-      icon: safeText(item.icon, '•'),
       label: safeText(item.label, '数据'),
       value: safeText(item.value, '')
     }));

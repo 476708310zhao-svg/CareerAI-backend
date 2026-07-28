@@ -165,7 +165,6 @@
       <view class="highlights-row">
         <block wx:for="{{result.highlights}}" wx:key="label">
           <view class="highlight-card">
-            <text class="hl-icon">{{item.icon}}</text>
             <text class="hl-value">{{item.value}}</text>
             <text class="hl-label">{{item.label}}</text>
           </view>

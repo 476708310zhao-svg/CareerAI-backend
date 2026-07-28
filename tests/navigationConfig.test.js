@@ -130,6 +130,7 @@ test('daily brief follows the home workbench visual language without the legacy 
   assert.match(dailyWxml, /class="brief-hero"/);
   assert.match(dailyWxml, /今日求职计划/);
   assert.match(dailyWxml, /class="hero-metrics"/);
+  assert.doesNotMatch(dailyWxml, /class="hl-icon"|\{\{item\.icon\}\}/);
   assert.doesNotMatch(dailyWxml, /class="date-header"/);
   assert.doesNotMatch(dailyWxml, /class="stats-summary"/);
   assert.match(dailyWxss, /linear-gradient\(145deg, #ffffff 0%, #f5f9ff 100%\)/);
