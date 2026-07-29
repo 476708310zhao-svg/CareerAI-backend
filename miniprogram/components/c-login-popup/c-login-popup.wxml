@@ -13,7 +13,7 @@
     <!-- 品牌标题 -->
     <view class="sheet-header">
       <view class="logo-wrap">
-        <image class="logo-img" src="/images/home-active.png" mode="aspectFit" />
+        <image class="logo-img" src="/images/zhiyin-logo.png" mode="aspectFit" />
       </view>
       <text class="sheet-title">登录职引</text>
       <text class="sheet-subtitle">{{subtitle}}</text>

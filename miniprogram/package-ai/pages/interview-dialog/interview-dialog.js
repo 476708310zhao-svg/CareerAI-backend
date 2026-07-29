@@ -6,6 +6,7 @@ const safePage = require('../../behaviors/safe-page');
 const sendChatToDeepSeek = api.sendChatToDeepSeek;
 const config   = require('../../../utils/app-config.js');
 const analytics = require('../../../utils/analytics.js');
+const loginGate = require('../../../behaviors/login-gate.js');
 const API_BASE = config.API_BASE_URL;
 
 // 录音管理器（全局单例）
@@ -26,7 +27,7 @@ function normalizeText(value) {
 }
 
 Page({
-  behaviors: [safePage],
+  behaviors: [safePage, loginGate],
   data: {
     // 基础参数
     jobId: '',
@@ -113,9 +114,16 @@ Page({
 
     if (!wx.getStorageSync('token')) {
       this.setData({
-        loadError: '登录后才能开始 AI 模拟面试，请返回完成登录。',
+        loadError: '登录后才能开始 AI 模拟面试。',
         errorRequiresLogin: true
       });
+      this.ensureAuthenticated(
+        '登录后开始 AI 模拟面试并保存训练报告',
+        () => {
+          this.setData({ loadError: '', errorRequiresLogin: false });
+          this.initInterview();
+        }
+      );
       return;
     }
 
@@ -606,7 +614,10 @@ ${firstInstruction}
 
   retryInterview: function() {
     if (!wx.getStorageSync('token')) {
-      this.backToSetup();
+      this.ensureAuthenticated(
+        '登录后继续 AI 模拟面试',
+        () => this.retryInterview()
+      );
       return;
     }
     if (this._pendingAiRequest) {

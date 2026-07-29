@@ -152,6 +152,13 @@
   <view style="height: 140rpx;"></view>
 </view>
 
+<c-login-popup
+  show="{{authPromptVisible}}"
+  subtitle="{{authPromptSubtitle}}"
+  bindclose="closeAuthPrompt"
+  bindsuccess="onAuthPromptSuccess"
+/>
+
 <!-- 隐藏画布（保存为图片用） -->
 <canvas type="2d" id="exp-save-canvas" class="exp-save-canvas"></canvas>
 

@@ -4,6 +4,7 @@ const { getExchangeRates } = require('../../../utils/api-news.js');
 const { SALARY_ROLES, SALARY_COMPANIES, COMPANY_SALARY_BASE } = require('../../utils/salary-data.js');
 const demoData = require('../../../utils/demo-data.js');
 const vipUtil = require('../../../utils/vip.js');
+const loginGate = require('../../../behaviors/login-gate.js');
 
 // 货币显示配置
 const CURRENCIES = [
@@ -25,6 +26,8 @@ const ALLOW_DEMO_FALLBACK = demoData.enabled();
 const LOADING_TIPS = ['分析中...', 'AI 正在分析，请稍候...', '分析时间较长，请耐心等待...'];
 
 Page({
+  behaviors: [loginGate],
+
   data: {
     region: REGION_NA,   // REGION_NA or REGION_CN
     loadingTip: '',
@@ -638,7 +641,10 @@ Page({
   openShareModal: function() {
     const token = wx.getStorageSync('token');
     if (!token) {
-      wx.showToast({ title: '请先登录后再分享', icon: 'none' });
+      this.ensureAuthenticated(
+        '登录后匿名分享薪资并查看完整统计',
+        () => this.openShareModal()
+      );
       return;
     }
     const defaultPos = this.data.jobTitle || (this.data.region === REGION_NA ? 'Software Engineer' : '软件工程师');

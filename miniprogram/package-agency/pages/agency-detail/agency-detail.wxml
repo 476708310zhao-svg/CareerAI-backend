@@ -524,3 +524,10 @@
   </view>
 
 </view>
+
+<c-login-popup
+  show="{{authPromptVisible}}"
+  subtitle="{{authPromptSubtitle}}"
+  bindclose="closeAuthPrompt"
+  bindsuccess="onAuthPromptSuccess"
+/>

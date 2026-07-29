@@ -23,7 +23,7 @@
     <view class="state-symbol">AI</view>
     <text class="state-title">登录后使用 AI Career</text>
     <text class="state-desc">Agent 需要读取你的画像、申请上下文和历史任务，才能给出个性化建议。</text>
-    <view class="primary-button" bindtap="goProfile">前往登录</view>
+    <view class="primary-button" bindtap="promptLogin">立即登录</view>
   </view>
 
   <view wx:elif="{{pageLoading}}" class="state-card compact"><view class="spinner"></view><text class="state-desc">正在准备四位 AI 专家…</text></view>
@@ -120,4 +120,11 @@
       <view wx:else class="confirm close-action" bindtap="closeTask">完成</view>
     </view>
   </view>
+
+  <c-login-popup
+    show="{{authPromptVisible}}"
+    subtitle="{{authPromptSubtitle}}"
+    bindclose="closeAuthPrompt"
+    bindsuccess="onAuthPromptSuccess"
+  />
 </view>

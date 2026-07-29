@@ -5,4 +5,5 @@ require('./agentCompat.test');
 require('./dailyTasks.test');
 require('./applicationWorkbench.test');
 require('./navigationConfig.test');
+require('./loginGate.test');
 require('./smoke.test');

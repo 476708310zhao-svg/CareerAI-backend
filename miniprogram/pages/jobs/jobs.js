@@ -7,6 +7,7 @@ const favUtil = require('../../utils/favorites.js');
 const demoData = require('../../utils/demo-data.js');
 const { fromNow, formatSalaryRange } = require('../../utils/util.js');
 const matcher = require('../../utils/matcher.js');
+const loginGate = require('../../behaviors/login-gate.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 const JOB_LIST_CACHE_TTL = 30 * 60 * 1000;
 
@@ -102,6 +103,8 @@ function resolveMapCity(location) {
 }
 
 Page({
+  behaviors: [loginGate],
+
   data: {
     jobs: [],
     isMockData: false,
@@ -332,7 +335,10 @@ Page({
   onFilterSponsorSelect: function(e) {
     const val = e.currentTarget.dataset.val;
     if (!wx.getStorageSync('token')) {
-      wx.showToast({ title: '登录后可使用 Sponsor 精准筛选', icon: 'none' });
+      this.ensureAuthenticated(
+        '登录后使用 Sponsor 精准筛选和个性化岗位匹配',
+        () => this.onFilterSponsorSelect(e)
+      );
       return;
     }
     this.setData({ filterSponsor: this.data.filterSponsor === val ? '' : val });

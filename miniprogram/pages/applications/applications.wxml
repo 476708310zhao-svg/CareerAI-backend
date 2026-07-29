@@ -44,7 +44,7 @@
     <view class="state-symbol lock">锁</view>
     <text class="state-title">登录后开启求职进度中心</text>
     <text class="state-desc">申请状态、材料、联系人、任务和面试记录会安全同步到你的账号。</text>
-    <view class="primary-button" bindtap="goProfile">前往登录</view>
+    <view class="primary-button" bindtap="promptLogin">立即登录</view>
   </view>
 
   <view wx:elif="{{error}}" class="state-card">
@@ -142,4 +142,11 @@
       <view class="sheet-actions"><view class="cancel-button" bindtap="closeCreate">取消</view><view class="submit-button {{creating?'disabled':''}}" bindtap="submitCreate">{{creating?'正在保存…':'加入求职进度'}}</view></view>
     </view>
   </view>
+
+  <c-login-popup
+    show="{{authPromptVisible}}"
+    subtitle="{{authPromptSubtitle}}"
+    bindclose="closeAuthPrompt"
+    bindsuccess="onAuthPromptSuccess"
+  />
 </view>

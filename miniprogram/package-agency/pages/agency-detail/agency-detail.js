@@ -2,6 +2,7 @@
 const api      = require('../../../utils/api');
 const favUtil  = require('../../../utils/favorites');
 const SK       = require('../../utils/store-keys');
+const loginGate = require('../../../behaviors/login-gate.js');
 
 const RATING_LABELS = ['很差', '较差', '一般', '不错', '很棒'];
 
@@ -10,6 +11,8 @@ function firstChars(text, len) {
 }
 
 Page({
+  behaviors: [loginGate],
+
   data: {
     agency: null,
     activeTab: 'ai',          // 'ai' | 'reviews'
@@ -126,7 +129,10 @@ Page({
 
     const token = wx.getStorageSync('token');
     if (!token) {
-      wx.showToast({ title: '请先登录', icon: 'none' });
+      this.ensureAuthenticated(
+        '登录后生成机构 AI 测评',
+        () => this.generateAiEval()
+      );
       return;
     }
 
@@ -214,7 +220,10 @@ Page({
     const { agency, isFavorited } = this.data;
     const token = wx.getStorageSync('token');
     if (!token) {
-      wx.showToast({ title: '请先登录', icon: 'none' });
+      this.ensureAuthenticated(
+        '登录后收藏机构并同步到你的账号',
+        () => this.toggleFavorite()
+      );
       return;
     }
     favUtil.toggle('agency', String(this.agencyId), agency.name, agency.type);
@@ -242,7 +251,10 @@ Page({
   openReviewModal() {
     const token = wx.getStorageSync('token');
     if (!token) {
-      wx.showToast({ title: '请先登录后再评测', icon: 'none' });
+      this.ensureAuthenticated(
+        '登录后发布真实机构评价',
+        () => this.openReviewModal()
+      );
       return;
     }
     this.setData({ reviewModalVisible: true });

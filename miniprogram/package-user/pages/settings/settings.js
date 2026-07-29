@@ -2,6 +2,7 @@
 const browseHistory = require('../../../utils/browse-history.js');
 const apiClient = require('../../../utils/api-client.js');
 const analytics = require('../../../utils/analytics.js');
+const loginGate = require('../../../behaviors/login-gate.js');
 
 function removeStorageByPrefix(prefix) {
   try {
@@ -38,6 +39,8 @@ function clearLocalResumeData() {
 }
 
 Page({
+  behaviors: [loginGate],
+
   data: {
     version: '1.0.0',
     pushEnabled: true,
@@ -152,7 +155,10 @@ Page({
 
   deleteServerData() {
     if (!wx.getStorageSync('token')) {
-      wx.showToast({ title: '请先登录', icon: 'none' });
+      this.ensureAuthenticated(
+        '登录后管理云端求职数据',
+        () => this.deleteServerData()
+      );
       return;
     }
     wx.showModal({
@@ -181,7 +187,10 @@ Page({
 
   deleteAccount() {
     if (!wx.getStorageSync('token')) {
-      wx.showToast({ title: '请先登录', icon: 'none' });
+      this.ensureAuthenticated(
+        '登录后进行账号注销操作',
+        () => this.deleteAccount()
+      );
       return;
     }
     wx.showModal({

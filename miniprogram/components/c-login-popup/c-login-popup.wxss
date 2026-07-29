@@ -58,21 +58,22 @@
 }
 
 .logo-wrap {
-  width: 96rpx;
-  height: 96rpx;
-  background: linear-gradient(135deg, #3B6EF8, #2B5CE6);
-  border-radius: 24rpx;
+  width: 112rpx;
+  height: 112rpx;
+  background: #ffffff;
+  border: 2rpx solid #E6EEFF;
+  border-radius: 28rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 20rpx;
-  box-shadow: 0 8rpx 24rpx rgba(43, 92, 230, 0.28);
+  box-shadow: 0 10rpx 28rpx rgba(35, 92, 225, 0.16);
+  overflow: hidden;
 }
 
 .logo-img {
-  width: 52rpx;
-  height: 52rpx;
-  filter: brightness(10);
+  width: 96rpx;
+  height: 96rpx;
 }
 
 .sheet-title {

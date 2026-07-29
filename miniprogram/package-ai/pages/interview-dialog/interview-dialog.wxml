@@ -131,10 +131,17 @@
   </block>
   <block wx:else>
     <view class="error-action-btn" bindtap="retryInterview">
-      {{errorRequiresLogin ? '返回并登录' : '重新尝试'}}
+      {{errorRequiresLogin ? '立即登录' : '重新尝试'}}
     </view>
   </block>
 </view>
+
+<c-login-popup
+  show="{{authPromptVisible}}"
+  subtitle="{{authPromptSubtitle}}"
+  bindclose="closeAuthPrompt"
+  bindsuccess="onAuthPromptSuccess"
+/>
 
 <!-- 面试报告弹窗 -->
 <view class="modal-mask" wx:if="{{showReport}}">

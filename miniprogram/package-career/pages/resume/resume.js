@@ -6,6 +6,7 @@ const vip = require('../../../utils/vip.js');
 const aiMethods = require('./resume-ai');
 const exportMethods = require('./resume-export');
 const analytics = require('../../../utils/analytics.js');
+const loginGate = require('../../../behaviors/login-gate.js');
 
 const DEFAULT_RESUME = {
   score: 65,
@@ -56,7 +57,7 @@ function decorateOptimizationHistory(list) {
 }
 
 Page(Object.assign({
-  behaviors: [safePage],
+  behaviors: [safePage, loginGate],
   data: {
     currentTab: 0,
 
@@ -1005,11 +1006,10 @@ Page(Object.assign({
     }
     const token = wx.getStorageSync('token');
     if (!token) {
-      wx.showModal({
-        title: '请先登录',
-        content: '同步提取需要登录后读取已上传的附件简历。',
-        showCancel: false
-      });
+      this.ensureAuthenticated(
+        '登录后同步提取附件简历',
+        () => this.syncAttachmentToOnlineResume(file)
+      );
       return;
     }
 
@@ -1071,6 +1071,13 @@ Page(Object.assign({
   },
 
   handleUpload() {
+    if (!wx.getStorageSync('token')) {
+      this.ensureAuthenticated(
+        '登录后上传并安全保存附件简历',
+        () => this.handleUpload()
+      );
+      return;
+    }
     wx.showActionSheet({
       itemList: ['从微信聊天选择', '从手机文件选择'],
       success: async (res) => {

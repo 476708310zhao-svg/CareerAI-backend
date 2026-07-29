@@ -4,6 +4,7 @@ const agentCompat = require('../../utils/agent-compat.js');
 const config = require('../../utils/app-config.js');
 const navigation = require('../../utils/navigation.js');
 const { extractBoardData } = require('../../utils/application-workbench.js');
+const loginGate = require('../../behaviors/login-gate.js');
 
 const LOCAL_COMPAT_TASKS_KEY = 'aiCareerCompatTasks_v1';
 const LOCAL_COMPAT_TASK_LIMIT = 20;
@@ -41,6 +42,8 @@ const STATUS_TEXT = {
 };
 
 Page({
+  behaviors: [loginGate],
+
   data: {
     agents: FALLBACK_AGENTS,
     selectedAgent: 'job_advisor',
@@ -285,8 +288,11 @@ Page({
     }).catch(error => wx.showToast({ title: error && error.message || '取消失败', icon: 'none' }));
   },
 
-  goProfile() {
-    navigation.safeSwitchTab('/pages/profile/profile');
+  promptLogin() {
+    this.ensureAuthenticated(
+      '登录后使用 AI 专家并保留任务上下文与历史记录',
+      () => this.refresh(true)
+    );
   },
 
   openInterviews() {

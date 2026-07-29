@@ -285,4 +285,11 @@
     <view wx:if="{{!hasMore && jobs.length > 0}}" class="tip">已显示全部结果</view>
     <view class="safe-tail"></view>
   </view>
+
+  <c-login-popup
+    show="{{authPromptVisible}}"
+    subtitle="{{authPromptSubtitle}}"
+    bindclose="closeAuthPrompt"
+    bindsuccess="onAuthPromptSuccess"
+  />
 </view>

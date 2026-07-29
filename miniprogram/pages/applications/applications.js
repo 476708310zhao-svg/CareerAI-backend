@@ -1,6 +1,7 @@
 const api = require('../../utils/api-v4.js');
 const navigation = require('../../utils/navigation.js');
 const progress = require('../../utils/job-progress.js');
+const loginGate = require('../../behaviors/login-gate.js');
 const {
   buildApplicationWorkbench,
   extractBoardData,
@@ -27,6 +28,8 @@ function todayLabel() {
 }
 
 Page({
+  behaviors: [loginGate],
+
   data: {
     todayLabel: todayLabel(),
     loading: true,
@@ -173,8 +176,11 @@ Page({
     navigation.safeNavigateTo('/pages/campus/campus');
   },
 
-  goProfile() {
-    navigation.safeSwitchTab('/pages/profile/profile');
+  promptLogin() {
+    this.ensureAuthenticated(
+      '登录后开启求职进度、状态同步和面试管理',
+      () => this.loadBoard(true)
+    );
   },
 
   goResumeCenter() {
@@ -187,8 +193,10 @@ Page({
 
   openCreate() {
     if (!this.hasToken()) {
-      wx.showToast({ title: '登录后可新增申请', icon: 'none' });
-      this.goProfile();
+      this.ensureAuthenticated(
+        '登录后新增申请并同步求职进度',
+        () => this.openCreate()
+      );
       return;
     }
     this.setData({ showCreate: true, creating: false, createForm: emptyCreateForm() });

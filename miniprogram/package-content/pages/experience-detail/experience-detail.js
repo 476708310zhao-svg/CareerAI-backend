@@ -2,8 +2,11 @@
 const api = require('../../../utils/api.js');
 const favUtil = require('../../../utils/favorites.js');
 const demoData = require('../../../utils/demo-data.js');
+const loginGate = require('../../../behaviors/login-gate.js');
 
 Page({
+  behaviors: [loginGate],
+
   data: {
     expId: null,
     experience: {},
@@ -333,6 +336,13 @@ Page({
       wx.showToast({ title: '请输入评论内容', icon: 'none' });
       return;
     }
+    if (!wx.getStorageSync('token')) {
+      this.ensureAuthenticated(
+        '登录后参与面经评论与交流',
+        () => this.sendComment()
+      );
+      return;
+    }
 
     if (this.data.replyTo) {
       api.replyExperienceComment(this.data.replyTo.id, text).then((res) => {
@@ -377,6 +387,13 @@ Page({
 
   // 评论点赞（切换，后端防重复）
   likeComment(e) {
+    if (!wx.getStorageSync('token')) {
+      this.ensureAuthenticated(
+        '登录后点赞优质评论',
+        () => this.likeComment(e)
+      );
+      return;
+    }
     const index = e.currentTarget.dataset.index;
     const comments = this.data.comments;
     const comment = comments[index];
@@ -423,6 +440,13 @@ Page({
     if (!numId) {
       // Mock/本地面经：仅本地切换
       this.setData({ isLiked: !this.data.isLiked });
+      return;
+    }
+    if (!wx.getStorageSync('token')) {
+      this.ensureAuthenticated(
+        '登录后点赞并同步你的面经互动',
+        () => this.likeExperience()
+      );
       return;
     }
     api.likeExperience(numId).then((res) => {

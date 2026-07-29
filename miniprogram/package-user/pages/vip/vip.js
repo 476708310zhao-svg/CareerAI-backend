@@ -1,5 +1,6 @@
 const featureFlags = require('../../../utils/feature-flags.js');
 const api = require('../../../utils/api.js');
+const loginGate = require('../../../behaviors/login-gate.js');
 
 const ALL_PLANS = [
   { id: 3, name: '体验会员', price: '10.00', unit: '7 天', desc: '先试完整权益', tag: '体验' },
@@ -80,6 +81,8 @@ function formatQuotaFeatures(status) {
 }
 
 Page({
+  behaviors: [loginGate],
+
   data: {
     membershipEnabled: false,
     plans: INITIAL_PLANS,
@@ -348,6 +351,13 @@ Page({
 
   handlePay() {
     if (this.data.paying) return;
+    if (!wx.getStorageSync('token')) {
+      this.ensureAuthenticated(
+        '登录后开通会员并同步账号权益',
+        () => this.handlePay()
+      );
+      return;
+    }
     const plan = this.getSelectedPlan();
     const config = this.data.paymentConfig || {};
 

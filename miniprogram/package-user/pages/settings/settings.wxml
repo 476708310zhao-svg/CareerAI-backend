@@ -135,3 +135,10 @@
     <text class="status-desc">当前偏好会保存在本机，清除缓存不会影响收藏、简历和账号信息。</text>
   </view>
 </view>
+
+<c-login-popup
+  show="{{authPromptVisible}}"
+  subtitle="{{authPromptSubtitle}}"
+  bindclose="closeAuthPrompt"
+  bindsuccess="onAuthPromptSuccess"
+/>
