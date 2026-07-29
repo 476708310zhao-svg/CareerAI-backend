@@ -30,7 +30,10 @@ function formatExperience(e) {
     company: e.company, position: e.position, type: e.type, round: e.round,
     title: e.title, content: e.content, tags: ja(e.tags),
     likesCount: e.likes_count, commentsCount: e.comments_count,
-    isAnonymous: !!e.is_anonymous, createdAt: e.created_at
+    isAnonymous: !!e.is_anonymous,
+    moderationStatus: e.moderation_status || 'approved',
+    moderationNote: e.moderation_note || '',
+    createdAt: e.created_at
   };
 }
 
@@ -44,12 +47,16 @@ function formatComment(c, replies) {
     userAvatar: c.user_avatar,
     content: c.content,
     likesCount: c.likes_count,
+    moderationStatus: c.moderation_status || 'approved',
+    moderationNote: c.moderation_note || '',
     createdAt: c.created_at,
     replies: (replies || []).map(r => ({
       id: r.id,
       userId: r.user_id,
       userName: r.user_name,
       content: r.content,
+      moderationStatus: r.moderation_status || 'approved',
+      moderationNote: r.moderation_note || '',
       createdAt: r.created_at
     }))
   };
@@ -273,6 +280,8 @@ function formatAgencyReview(r) {
     cons:          r.cons,
     isAnonymous:   !!r.is_anonymous,
     likesCount:    r.likes_count,
+    moderationStatus: r.moderation_status || 'approved',
+    moderationNote: r.moderation_note || '',
     createdAt:     r.created_at
   };
 }

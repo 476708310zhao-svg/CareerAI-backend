@@ -69,7 +69,7 @@ function permissionForAdminPath(path = '') {
   if (path.includes('/api/experiences')) return 'experiences';
   if (path.includes('/api/interview-questions')) return 'questions';
   if (path.includes('/api/star-templates')) return 'starTemplates';
-  if (path.includes('/api/comments')) return 'comments';
+  if (path.includes('/api/comments') || path.includes('/api/comment-replies')) return 'comments';
   if (path.includes('/api/campus')) return 'campus';
   if (path.includes('/api/agency-reviews') || path.includes('/api/agencies')) return 'agencies';
   if (path.includes('/api/announcements')) return 'announcements';

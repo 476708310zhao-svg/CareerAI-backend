@@ -169,7 +169,7 @@ router.get('/', (req, res) => {
   try {
     const { keyword, company, type } = req.query;
     const { page, pageSize, offset } = parsePage(req.query);
-    let where = '1=1';
+    let where = "moderation_status = 'approved'";
     const params = [];
 
     if (keyword) {
@@ -203,7 +203,7 @@ router.get('/:id', (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
 
-  const e = db.prepare('SELECT * FROM experiences WHERE id = ?').get(id)
+  const e = db.prepare("SELECT * FROM experiences WHERE id = ? AND moderation_status = 'approved'").get(id)
     || curatedExperiences.find((item) => item.id === id);
 
   if (!e) return res.status(404).json({ code: -1, message: '面经不存在' });
@@ -229,8 +229,11 @@ router.post('/', writeLimiter, authMiddleware, (req, res) => {
 
     const user = db.prepare('SELECT nickname, avatar FROM users WHERE id = ?').get(req.user.userId);
     const result = db.prepare(`
-      INSERT INTO experiences (user_id, user_name, user_avatar, company, position, type, round, title, content, tags, is_anonymous)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO experiences (
+        user_id, user_name, user_avatar, company, position, type, round,
+        title, content, tags, is_anonymous, moderation_status
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
     `).run(
       req.user.userId,
       isAnonymous ? '匿名用户' : (user ? user.nickname : '用户'),
@@ -246,7 +249,11 @@ router.post('/', writeLimiter, authMiddleware, (req, res) => {
     );
 
     const e = db.prepare('SELECT * FROM experiences WHERE id = ?').get(result.lastInsertRowid);
-    res.json({ code: 0, message: '发布成功', data: format(e) });
+    res.status(201).json({
+      code: 0,
+      message: '已提交审核，审核通过后将公开展示',
+      data: format(e)
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ code: -1, message: '服务器内部错误' });
@@ -257,7 +264,7 @@ router.post('/:id/like', authMiddleware, (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
 
-  const e = db.prepare('SELECT id FROM experiences WHERE id = ?').get(id);
+  const e = db.prepare("SELECT id FROM experiences WHERE id = ? AND moderation_status = 'approved'").get(id);
   if (!e) return res.status(404).json({ code: -1, message: '面经不存在' });
 
   const existing = db.prepare(

@@ -440,6 +440,155 @@ test('web-login returns a token for valid credentials', async () => {
   authToken = body.data.token;
 });
 
+test('UGC stays private until admin approval and records moderation state', async () => {
+  await ensureAdminToken();
+  const unique = `ugc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const user = db.prepare('SELECT id FROM users WHERE email = ?').get(testAccount.email);
+  assert.ok(user);
+
+  let experienceId;
+  let commentId;
+  let replyId;
+  let agencyId;
+  let agencyReviewId;
+
+  try {
+    const createExperienceRes = await fetch(`${BASE_URL}/api/experiences`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({
+        company: unique,
+        position: 'Software Engineer',
+        title: `${unique} 面经`,
+        content: '这是一条用于验证发布前审核流程的完整面经内容。',
+        tags: ['审核测试']
+      })
+    });
+    assert.equal(createExperienceRes.status, 201);
+    const createExperienceBody = await readJson(createExperienceRes);
+    experienceId = createExperienceBody.data.id;
+    assert.equal(createExperienceBody.data.moderationStatus, 'pending');
+
+    const hiddenExperienceRes = await fetch(`${BASE_URL}/api/experiences/${experienceId}`);
+    assert.equal(hiddenExperienceRes.status, 404);
+
+    const approveExperienceRes = await fetch(`${BASE_URL}/admin/api/experiences/${experienceId}/moderation`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...adminHeaders() },
+      body: JSON.stringify({ status: 'approved', note: 'smoke approved' })
+    });
+    assert.equal(approveExperienceRes.status, 200);
+
+    const visibleExperienceRes = await fetch(`${BASE_URL}/api/experiences/${experienceId}`);
+    assert.equal(visibleExperienceRes.status, 200);
+
+    const createCommentRes = await fetch(`${BASE_URL}/api/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({
+        experienceId,
+        content: '这是一条用于验证发布前审核流程的评论。'
+      })
+    });
+    assert.equal(createCommentRes.status, 201);
+    const createCommentBody = await readJson(createCommentRes);
+    commentId = createCommentBody.data.id;
+    assert.equal(createCommentBody.data.moderationStatus, 'pending');
+
+    let publicCommentsRes = await fetch(`${BASE_URL}/api/comments/${experienceId}`);
+    let publicCommentsBody = await readJson(publicCommentsRes);
+    assert.equal(publicCommentsBody.data.some(item => item.id === commentId), false);
+
+    const approveCommentRes = await fetch(`${BASE_URL}/admin/api/comments/comment/${commentId}/moderation`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...adminHeaders() },
+      body: JSON.stringify({ status: 'approved' })
+    });
+    assert.equal(approveCommentRes.status, 200);
+
+    const createReplyRes = await fetch(`${BASE_URL}/api/comments/${commentId}/reply`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ content: '这是一条用于验证发布前审核流程的回复。' })
+    });
+    assert.equal(createReplyRes.status, 201);
+    const createReplyBody = await readJson(createReplyRes);
+    replyId = createReplyBody.data.id;
+    assert.equal(createReplyBody.data.moderationStatus, 'pending');
+
+    publicCommentsRes = await fetch(`${BASE_URL}/api/comments/${experienceId}`);
+    publicCommentsBody = await readJson(publicCommentsRes);
+    const approvedCommentBeforeReply = publicCommentsBody.data.find(item => item.id === commentId);
+    assert.ok(approvedCommentBeforeReply);
+    assert.equal(approvedCommentBeforeReply.replies.some(item => item.id === replyId), false);
+
+    const approveReplyRes = await fetch(`${BASE_URL}/admin/api/comments/reply/${replyId}/moderation`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...adminHeaders() },
+      body: JSON.stringify({ status: 'approved' })
+    });
+    assert.equal(approveReplyRes.status, 200);
+
+    publicCommentsRes = await fetch(`${BASE_URL}/api/comments/${experienceId}`);
+    publicCommentsBody = await readJson(publicCommentsRes);
+    const approvedComment = publicCommentsBody.data.find(item => item.id === commentId);
+    assert.ok(approvedComment.replies.some(item => item.id === replyId));
+
+    agencyId = db.prepare(`
+      INSERT INTO agencies (name, type, description)
+      VALUES (?, '求职', 'UGC moderation smoke test')
+    `).run(unique).lastInsertRowid;
+
+    const createAgencyReviewRes = await fetch(`${BASE_URL}/api/agencies/${agencyId}/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({
+        ratingOverall: 5,
+        ratingEffect: 5,
+        ratingValue: 4,
+        ratingService: 5,
+        title: '审核流程测试',
+        content: '这是一条用于验证机构评价发布前审核流程的内容。'
+      })
+    });
+    assert.equal(createAgencyReviewRes.status, 201);
+    const createAgencyReviewBody = await readJson(createAgencyReviewRes);
+    agencyReviewId = createAgencyReviewBody.data.id;
+    assert.equal(createAgencyReviewBody.data.moderationStatus, 'pending');
+
+    let agencyReviewsRes = await fetch(`${BASE_URL}/api/agencies/${agencyId}/reviews`);
+    let agencyReviewsBody = await readJson(agencyReviewsRes);
+    assert.equal(agencyReviewsBody.total, 0);
+
+    const approveAgencyReviewRes = await fetch(`${BASE_URL}/admin/api/agency-reviews/${agencyReviewId}/moderation`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...adminHeaders() },
+      body: JSON.stringify({ status: 'approved' })
+    });
+    assert.equal(approveAgencyReviewRes.status, 200);
+
+    agencyReviewsRes = await fetch(`${BASE_URL}/api/agencies/${agencyId}/reviews`);
+    agencyReviewsBody = await readJson(agencyReviewsRes);
+    assert.equal(agencyReviewsBody.total, 1);
+
+    const logCount = db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM content_moderation_logs
+      WHERE (entity_type = 'experience' AND entity_id = ?)
+         OR (entity_type = 'comment' AND entity_id = ?)
+         OR (entity_type = 'reply' AND entity_id = ?)
+         OR (entity_type = 'agency_review' AND entity_id = ?)
+    `).get(experienceId, commentId, replyId, agencyReviewId).count;
+    assert.ok(logCount >= 4);
+  } finally {
+    if (agencyReviewId) db.prepare('DELETE FROM agency_reviews WHERE id = ?').run(agencyReviewId);
+    if (agencyId) db.prepare('DELETE FROM agencies WHERE id = ?').run(agencyId);
+    if (replyId) db.prepare('DELETE FROM comment_replies WHERE id = ?').run(replyId);
+    if (commentId) db.prepare('DELETE FROM comments WHERE id = ?').run(commentId);
+    if (experienceId) db.prepare('DELETE FROM experiences WHERE id = ?').run(experienceId);
+  }
+});
+
 test('legacy users resumes endpoint is marked deprecated', async () => {
   assert.ok(authToken);
   const res = await fetch(`${BASE_URL}/api/users/resumes`, {

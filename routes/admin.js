@@ -43,6 +43,50 @@ function booleanFlag(value) {
   return value === true || value === 1 || value === '1' || value === 'true';
 }
 
+const MODERATION_STATUSES = new Set(['pending', 'approved', 'rejected']);
+
+function moderationStatus(value) {
+  const status = String(value || '').trim().toLowerCase();
+  return MODERATION_STATUSES.has(status) ? status : '';
+}
+
+function moderatorName(admin) {
+  return String(admin && (admin.displayName || admin.username || admin.id) || 'admin').slice(0, 120);
+}
+
+function updateModerationEntity(tableName, entityType, id, nextStatus, note, admin) {
+  const status = moderationStatus(nextStatus);
+  if (!status) throw Object.assign(new Error('审核状态无效'), { statusCode: 400 });
+  const row = db.prepare(`SELECT * FROM ${tableName} WHERE id = ?`).get(id);
+  if (!row) throw Object.assign(new Error('内容不存在'), { statusCode: 404 });
+  const previousStatus = row.moderation_status || 'approved';
+  const moderationNote = String(note || '').trim().slice(0, 500);
+  db.prepare(`
+    UPDATE ${tableName}
+    SET moderation_status = ?, moderation_note = ?, moderated_at = datetime('now')
+    WHERE id = ?
+  `).run(status, moderationNote, id);
+  db.prepare(`
+    INSERT INTO content_moderation_logs
+      (entity_type, entity_id, previous_status, next_status, note, moderator)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(entityType, id, previousStatus, status, moderationNote, moderatorName(admin));
+  return { row, previousStatus, nextStatus: status, note: moderationNote };
+}
+
+function refreshAgencyRating(agencyId) {
+  const stats = db.prepare(`
+    SELECT COUNT(*) AS count, AVG(rating_overall) AS average
+    FROM agency_reviews
+    WHERE agency_id = ? AND moderation_status = 'approved'
+  `).get(agencyId);
+  db.prepare('UPDATE agencies SET rating_avg = ?, review_count = ? WHERE id = ?').run(
+    stats.average ? Math.round(stats.average * 10) / 10 : 0,
+    stats.count || 0,
+    agencyId
+  );
+}
+
 function makeContentId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -195,7 +239,11 @@ router.get('/api/stats', adminAuth, (req, res) => {
     jobs:          adminJobsStore.countJobs(),
     todayNewUsers: db.prepare("SELECT COUNT(*) as c FROM users WHERE date(created_at) = ?").get(today).c,
     todayComments: db.prepare("SELECT COUNT(*) as c FROM comments WHERE date(created_at) = ?").get(today).c,
-    pendingReviews: db.prepare('SELECT COUNT(*) as c FROM agency_reviews').get().c,
+    pendingReviews:
+      db.prepare("SELECT COUNT(*) as c FROM experiences WHERE moderation_status='pending'").get().c +
+      db.prepare("SELECT COUNT(*) as c FROM comments WHERE moderation_status='pending'").get().c +
+      db.prepare("SELECT COUNT(*) as c FROM comment_replies WHERE moderation_status='pending'").get().c +
+      db.prepare("SELECT COUNT(*) as c FROM agency_reviews WHERE moderation_status='pending'").get().c,
   };
   res.json({ code: 0, data: stats });
 });
@@ -325,15 +373,51 @@ router.delete('/api/companies/:id', adminAuth, (req, res) => {
 // 面经管理
 // ═══════════════════════════════════════════════════════════════
 router.get('/api/experiences', adminAuth, (req, res) => {
-  const { keyword = '' } = req.query;
+  const { keyword = '', status = '' } = req.query;
   const { pageSize, offset } = parsePagination(req.query, { pageSize: 15 });
-  const k = `%${keyword}%`;
-  const where = keyword ? 'WHERE title LIKE ? OR company LIKE ? OR user_name LIKE ?' : '';
-  const params = keyword ? [k, k, k] : [];
-  const total = db.prepare(`SELECT COUNT(*) as c FROM experiences ${where}`).get(...params).c;
-  const list  = db.prepare(`SELECT id, user_name, company, position, type, title, likes_count, comments_count, created_at FROM experiences ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`)
+  const where = [];
+  const params = [];
+  if (keyword) {
+    const k = `%${keyword}%`;
+    where.push('(title LIKE ? OR company LIKE ? OR user_name LIKE ? OR content LIKE ?)');
+    params.push(k, k, k, k);
+  }
+  const normalizedStatus = moderationStatus(status);
+  if (normalizedStatus) {
+    where.push('moderation_status = ?');
+    params.push(normalizedStatus);
+  }
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const total = db.prepare(`SELECT COUNT(*) as c FROM experiences ${whereSql}`).get(...params).c;
+  const list  = db.prepare(`
+    SELECT id, user_name, company, position, type, title, content,
+           likes_count, comments_count, moderation_status, moderation_note,
+           moderated_at, created_at
+    FROM experiences ${whereSql}
+    ORDER BY CASE moderation_status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 ELSE 2 END,
+             created_at DESC
+    LIMIT ? OFFSET ?
+  `)
                   .all(...params, Number(pageSize), offset);
   res.json({ code: 0, data: { list, total } });
+});
+
+router.put('/api/experiences/:id/moderation', adminAuth, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  try {
+    const result = db.transaction(() => updateModerationEntity(
+        'experiences',
+        'experience',
+        id,
+        req.body && req.body.status,
+        req.body && req.body.note,
+        req.admin
+      ))();
+    res.json({ code: 0, message: result.nextStatus === 'approved' ? '面经已通过审核' : '面经已驳回' });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ code: -1, message: error.message || '审核失败' });
+  }
 });
 
 router.delete('/api/experiences/:id', adminAuth, (req, res) => {
@@ -348,29 +432,97 @@ router.delete('/api/experiences/:id', adminAuth, (req, res) => {
 // 评论管理
 // ═══════════════════════════════════════════════════════════════
 router.get('/api/comments', adminAuth, (req, res) => {
-  const { keyword = '' } = req.query;
+  const { keyword = '', status = '' } = req.query;
   const { pageSize, offset } = parsePagination(req.query, { pageSize: 20 });
-  const k = `%${keyword}%`;
-  const where = keyword ? 'WHERE c.content LIKE ? OR c.user_name LIKE ?' : '';
-  const params = keyword ? [k, k] : [];
-  const total = db.prepare(`SELECT COUNT(*) as n FROM comments c ${where}`).get(...params).n;
-  const list  = db.prepare(`
-    SELECT c.id, c.user_name, c.content, c.likes_count, c.created_at,
-           e.title as exp_title, e.id as exp_id
+  const unionSql = `
+    SELECT 'comment' AS content_type, c.id, c.user_name, c.content, c.likes_count,
+           c.moderation_status, c.moderation_note, c.moderated_at, c.created_at,
+           e.title AS exp_title, e.id AS exp_id
     FROM comments c
     LEFT JOIN experiences e ON e.id = c.experience_id
-    ${where} ORDER BY c.created_at DESC LIMIT ? OFFSET ?
+    UNION ALL
+    SELECT 'reply' AS content_type, r.id, r.user_name, r.content, 0 AS likes_count,
+           r.moderation_status, r.moderation_note, r.moderated_at, r.created_at,
+           e.title AS exp_title, e.id AS exp_id
+    FROM comment_replies r
+    LEFT JOIN comments c ON c.id = r.comment_id
+    LEFT JOIN experiences e ON e.id = c.experience_id
+  `;
+  const where = [];
+  const params = [];
+  if (keyword) {
+    const k = `%${keyword}%`;
+    where.push('(ugc.content LIKE ? OR ugc.user_name LIKE ? OR ugc.exp_title LIKE ?)');
+    params.push(k, k, k);
+  }
+  const normalizedStatus = moderationStatus(status);
+  if (normalizedStatus) {
+    where.push('ugc.moderation_status = ?');
+    params.push(normalizedStatus);
+  }
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const total = db.prepare(`SELECT COUNT(*) as n FROM (${unionSql}) ugc ${whereSql}`).get(...params).n;
+  const list  = db.prepare(`
+    SELECT * FROM (${unionSql}) ugc
+    ${whereSql}
+    ORDER BY CASE ugc.moderation_status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 ELSE 2 END,
+             ugc.created_at DESC
+    LIMIT ? OFFSET ?
   `).all(...params, Number(pageSize), offset);
   res.json({ code: 0, data: { list, total } });
+});
+
+router.put('/api/comments/:kind/:id/moderation', adminAuth, (req, res) => {
+  const id = parseId(req.params.id);
+  const kind = req.params.kind === 'reply' ? 'reply' : (req.params.kind === 'comment' ? 'comment' : '');
+  if (!id || !kind) return res.status(400).json({ code: -1, message: '参数无效' });
+  const tableName = kind === 'reply' ? 'comment_replies' : 'comments';
+  try {
+    const result = db.transaction(() => {
+      const moderationResult = updateModerationEntity(
+        tableName,
+        kind,
+        id,
+        req.body && req.body.status,
+        req.body && req.body.note,
+        req.admin
+      );
+      if (kind === 'comment') {
+        const wasApproved = moderationResult.previousStatus === 'approved';
+        const isApproved = moderationResult.nextStatus === 'approved';
+        if (!wasApproved && isApproved) {
+          db.prepare('UPDATE experiences SET comments_count = comments_count + 1 WHERE id = ?')
+            .run(moderationResult.row.experience_id);
+        } else if (wasApproved && !isApproved) {
+          db.prepare('UPDATE experiences SET comments_count = MAX(0, comments_count - 1) WHERE id = ?')
+            .run(moderationResult.row.experience_id);
+        }
+      }
+      return moderationResult;
+    })();
+    res.json({ code: 0, message: result.nextStatus === 'approved' ? '内容已通过审核' : '内容已驳回' });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ code: -1, message: error.message || '审核失败' });
+  }
 });
 
 router.delete('/api/comments/:id', adminAuth, (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
-  const c = db.prepare('SELECT experience_id FROM comments WHERE id = ?').get(id);
+  const c = db.prepare('SELECT experience_id, moderation_status FROM comments WHERE id = ?').get(id);
   if (!c) return res.status(404).json({ code: -1, message: '评论不存在' });
   db.prepare('DELETE FROM comments WHERE id = ?').run(id);
-  db.prepare('UPDATE experiences SET comments_count = MAX(0, comments_count - 1) WHERE id = ?').run(c.experience_id);
+  if ((c.moderation_status || 'approved') === 'approved') {
+    db.prepare('UPDATE experiences SET comments_count = MAX(0, comments_count - 1) WHERE id = ?').run(c.experience_id);
+  }
+  res.json({ code: 0, message: '删除成功' });
+});
+
+router.delete('/api/comment-replies/:id', adminAuth, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  const result = db.prepare('DELETE FROM comment_replies WHERE id = ?').run(id);
+  if (!result.changes) return res.status(404).json({ code: -1, message: '回复不存在' });
   res.json({ code: 0, message: '删除成功' });
 });
 
@@ -660,22 +812,54 @@ router.delete('/api/agencies/:id', adminAuth, (req, res) => {
 
 // ─── 机构评价管理 ──────────────────────────────────────────────────────────────
 router.get('/api/agency-reviews', adminAuth, (req, res) => {
+  const normalizedStatus = moderationStatus(req.query.status);
   const { pageSize, offset } = parsePagination(req.query, { pageSize: 20 });
-  const total = db.prepare('SELECT COUNT(*) as c FROM agency_reviews').get().c;
+  const whereSql = normalizedStatus ? 'WHERE r.moderation_status = ?' : '';
+  const params = normalizedStatus ? [normalizedStatus] : [];
+  const total = db.prepare(`SELECT COUNT(*) as c FROM agency_reviews r ${whereSql}`).get(...params).c;
   const list  = db.prepare(`
     SELECT r.id, r.rating_overall, r.title, r.content, r.created_at,
-           r.is_anonymous, a.name as agency_name
+           r.is_anonymous, r.moderation_status, r.moderation_note,
+           r.moderated_at, a.name as agency_name
     FROM agency_reviews r LEFT JOIN agencies a ON a.id = r.agency_id
-    ORDER BY r.created_at DESC LIMIT ? OFFSET ?
-  `).all(Number(pageSize), offset);
+    ${whereSql}
+    ORDER BY CASE r.moderation_status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 ELSE 2 END,
+             r.created_at DESC
+    LIMIT ? OFFSET ?
+  `).all(...params, Number(pageSize), offset);
   res.json({ code: 0, data: { list, total } });
+});
+
+router.put('/api/agency-reviews/:id/moderation', adminAuth, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  try {
+    const result = db.transaction(() => {
+      const moderationResult = updateModerationEntity(
+        'agency_reviews',
+        'agency_review',
+        id,
+        req.body && req.body.status,
+        req.body && req.body.note,
+        req.admin
+      );
+      refreshAgencyRating(moderationResult.row.agency_id);
+      return moderationResult;
+    })();
+    res.json({ code: 0, message: result.nextStatus === 'approved' ? '机构评价已通过审核' : '机构评价已驳回' });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ code: -1, message: error.message || '审核失败' });
+  }
 });
 
 router.delete('/api/agency-reviews/:id', adminAuth, (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  const review = db.prepare('SELECT agency_id, moderation_status FROM agency_reviews WHERE id = ?').get(id);
+  if (!review) return res.status(404).json({ code: -1, message: '评价不存在' });
   const r = db.prepare('DELETE FROM agency_reviews WHERE id = ?').run(id);
   if (r.changes === 0) return res.status(404).json({ code: -1, message: '评价不存在' });
+  if ((review.moderation_status || 'approved') === 'approved') refreshAgencyRating(review.agency_id);
   res.json({ code: 0, message: '删除成功' });
 });
 

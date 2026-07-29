@@ -346,41 +346,28 @@ Page({
 
     if (this.data.replyTo) {
       api.replyExperienceComment(this.data.replyTo.id, text).then((res) => {
-        const comments = this.data.comments;
-        const target = comments.find(c => c.id === this.data.replyTo.id);
-        if (target) {
-          target.replies = target.replies || [];
-          target.replies.push({
-            id: res.data.id,
-            userName: res.data.userName,
-            content: res.data.content,
-            createdAt: res.data.createdAt
-          });
-        }
-        this.setData({ comments, commentText: '', replyTo: null });
-        wx.showToast({ title: '回复成功', icon: 'success' });
+        this.setData({ commentText: '', replyTo: null });
+        wx.showModal({
+          title: '已提交审核',
+          content: (res && res.message) || '回复审核通过后将公开展示。',
+          showCancel: false
+        });
       }).catch(() => {
-        wx.showToast({ title: '回复失败，请先登录', icon: 'none' });
+        wx.showToast({ title: '回复提交失败，请稍后重试', icon: 'none' });
       });
     } else {
       api.createExperienceComment({
         experienceId: this.data.expId,
         content: text
       }).then((res) => {
-        const newComment = {
-          ...res.data,
-          isLiked: false,
-          replies: []
-        };
-        const comments = [newComment, ...this.data.comments];
-        this.setData({
-          comments,
-          commentText: '',
-          'experience.commentsCount': this.data.experience.commentsCount + 1
+        this.setData({ commentText: '' });
+        wx.showModal({
+          title: '已提交审核',
+          content: (res && res.message) || '评论审核通过后将公开展示。',
+          showCancel: false
         });
-        wx.showToast({ title: '评论成功', icon: 'success' });
       }).catch((err) => {
-        wx.showToast({ title: err.message || '评论失败，请先登录', icon: 'none' });
+        wx.showToast({ title: err.message || '评论提交失败，请稍后重试', icon: 'none' });
       });
     }
   },

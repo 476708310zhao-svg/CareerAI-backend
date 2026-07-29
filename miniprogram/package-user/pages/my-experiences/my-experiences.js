@@ -234,7 +234,7 @@ Page({
       totalCount: this.data.collectionList.length + myPosts.length
     }, () => this.refreshDisplayList());
     wx.setStorageSync('myExperiencePosts', myPosts);
-    wx.showToast({ title: this.data._editIndex >= 0 ? '已更新' : '发布成功', icon: 'success' });
+    wx.showToast({ title: this.data._editIndex >= 0 ? '已更新' : '已保存到本机', icon: 'success' });
   },
 
   // ========== AI 生成面经 ==========

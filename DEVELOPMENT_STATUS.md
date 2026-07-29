@@ -14,6 +14,7 @@
 
 | 日期 | 事项 | 文件 | 验证 |
 |---|---|---|---|
+| 2026-07-29 | 修复上线审核阻断风险：面经、评论、回复和机构评价实行发布前人工审核，公开接口仅展示已通过内容；后台支持通过/驳回并保留审核日志，评论数与机构评分按审核状态联动；隐私政策同步虚拟支付、运营主体和社区审核规则 | `db/database.js`、UGC/API 路由、后台审核页、小程序提交反馈、隐私政策、测试与 `docs/UGC_MODERATION_RELEASE.md` | `check:release` 通过，105/105 tests、内容错误 0；微信开发者工具预览编译通过，主包 771.6 KB |
 | 2026-07-29 | 将全端登录受限入口统一为当前页登录弹层，登录成功后自动继续原操作；登录弹层替换为压缩后的职引品牌 Logo | 小程序 `components/c-login-popup`、`behaviors/login-gate.js`、进度/AI 专家/岗位/简历/面经/机构/薪资/会员/设置/面试页面及回归测试 | `check:release` 通过，101/101 tests、内容错误 0；微信开发者工具预览编译通过，主包约 770.6 KB |
 | 2026-07-20 | 按产品参考图重新制作资源中心：自定义导航、大标题、校招日历主视觉、横向双列工具卡和内容服务列表 | 小程序 `pages/resources`、回归测试与 V4 文档 | `check:release` 通过，91/91 tests、内容错误 0，主包约 0.96 MB |
 | 2026-07-20 | 首页校招从双列瀑布流调整为单列最新信息流，每个岗位独占一行并按更新时间倒序；资源中心按求职任务重新分组并全面优化视觉层级 | 小程序 `pages/index`、`pages/resources`、`components/home-campus-updates`、测试与 V4 文档 | `check:release` 通过，91/91 tests、内容错误 0，主包约 0.96 MB |
@@ -75,6 +76,7 @@
 
 | 负责人 | 文件 | 任务 | 状态 |
 |---|---|---|---|
+| Codex | UGC 数据表、面经/评论/回复/机构评价接口、管理后台审核页、隐私政策及审核测试文档 | 建立发布前人工审核、公开内容过滤、统计联动和审核日志；同步虚拟支付与公司主体隐私披露 | 已完成；105/105 tests、发布检查与微信预览通过 |
 | Codex | `miniprogram/components/c-login-popup`、`miniprogram/behaviors/login-gate.js`、所有登录受限入口及登录回归测试 | 将未登录点击统一改为当前页登录弹层，登录成功后继续原操作；登录弹层替换职引品牌 Logo | 已完成；101/101 tests、发布检查与微信预览编译通过 |
 | Codex | `miniprogram/package-ai/pages/daily-brief/*`、导航回归测试 | 移除求职日报旧绿色问候头部，按首页蓝白求职计划卡片重构概览、统计与内容模块；移除 AI 返回的单字“伪图标” | 已完成；98/98 tests、发布检查与微信预览编译通过 |
 | Codex | `miniprogram/utils/resume-versions.js`、`miniprogram/package-ai/utils/resume-versions.js`、AI 助手/JD 匹配引用与导航测试 | 将仅供 AI 分包使用的简历版本工具迁出主包，修复微信代码质量“主包未使用 JS”提示 | 已完成；97/97 tests、发布检查与微信预览编译通过，主包减少约 3 KB |

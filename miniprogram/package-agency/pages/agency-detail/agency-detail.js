@@ -313,11 +313,11 @@ Page({
         reviewForm: { ratingOverall: 0, ratingEffect: 0, ratingValue: 0, ratingService: 0,
                       title: '', content: '', pros: '', cons: '', isAnonymous: false }
       });
-      wx.showToast({ title: '评测提交成功', icon: 'success' });
-      // 刷新评测列表和评分
-      this.loadReviews(true);
-      this.loadDetail();
-      this.setData({ activeTab: 'reviews' });
+      wx.showModal({
+        title: '已提交审核',
+        content: (res && res.message) || '评价审核通过后将公开展示并计入机构评分。',
+        showCancel: false
+      });
     }).catch(err => {
       this.setData({ submitLoading: false });
       wx.showToast({ title: err.message || '提交失败', icon: 'none' });

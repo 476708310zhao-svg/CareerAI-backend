@@ -62,6 +62,9 @@ db.exec(`
     likes_count   INTEGER DEFAULT 0,
     comments_count INTEGER DEFAULT 0,
     is_anonymous  INTEGER DEFAULT 0,
+    moderation_status TEXT DEFAULT 'approved',
+    moderation_note TEXT DEFAULT '',
+    moderated_at  TEXT DEFAULT '',
     created_at    TEXT    DEFAULT (datetime('now'))
   );
 
@@ -172,6 +175,9 @@ db.exec(`
     user_avatar   TEXT    DEFAULT '',
     content       TEXT    NOT NULL,
     likes_count   INTEGER DEFAULT 0,
+    moderation_status TEXT DEFAULT 'approved',
+    moderation_note TEXT DEFAULT '',
+    moderated_at  TEXT DEFAULT '',
     created_at    TEXT    DEFAULT (datetime('now'))
   );
 
@@ -181,6 +187,9 @@ db.exec(`
     user_id    INTEGER NOT NULL,
     user_name  TEXT    DEFAULT '匿名用户',
     content    TEXT    NOT NULL,
+    moderation_status TEXT DEFAULT 'approved',
+    moderation_note TEXT DEFAULT '',
+    moderated_at TEXT DEFAULT '',
     created_at TEXT    DEFAULT (datetime('now'))
   );
 
@@ -234,8 +243,22 @@ db.exec(`
     cons           TEXT    DEFAULT '',
     is_anonymous   INTEGER DEFAULT 0,
     likes_count    INTEGER DEFAULT 0,
+    moderation_status TEXT DEFAULT 'approved',
+    moderation_note TEXT DEFAULT '',
+    moderated_at   TEXT DEFAULT '',
     created_at     TEXT    DEFAULT (datetime('now')),
     UNIQUE(user_id, agency_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS content_moderation_logs (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity_type     TEXT NOT NULL,
+    entity_id       INTEGER NOT NULL,
+    previous_status TEXT DEFAULT '',
+    next_status     TEXT NOT NULL,
+    note            TEXT DEFAULT '',
+    moderator       TEXT DEFAULT '',
+    created_at      TEXT DEFAULT (datetime('now'))
   );
 
   CREATE TABLE IF NOT EXISTS announcements (
@@ -466,6 +489,55 @@ const feedbackCols = db.pragma('table_info(feedbacks)').map(c => c.name);
     db.exec(`ALTER TABLE feedbacks ADD COLUMN ${name} ${ddl}`);
   }
 });
+
+// ─── UGC 发布前审核：旧数据视为已审核，新提交由业务接口显式写入 pending ──────
+[
+  ['experiences', [
+    ['moderation_status', 'TEXT DEFAULT "approved"'],
+    ['moderation_note', 'TEXT DEFAULT ""'],
+    ['moderated_at', 'TEXT DEFAULT ""']
+  ]],
+  ['comments', [
+    ['moderation_status', 'TEXT DEFAULT "approved"'],
+    ['moderation_note', 'TEXT DEFAULT ""'],
+    ['moderated_at', 'TEXT DEFAULT ""']
+  ]],
+  ['comment_replies', [
+    ['moderation_status', 'TEXT DEFAULT "approved"'],
+    ['moderation_note', 'TEXT DEFAULT ""'],
+    ['moderated_at', 'TEXT DEFAULT ""']
+  ]],
+  ['agency_reviews', [
+    ['moderation_status', 'TEXT DEFAULT "approved"'],
+    ['moderation_note', 'TEXT DEFAULT ""'],
+    ['moderated_at', 'TEXT DEFAULT ""']
+  ]]
+].forEach(([tableName, columns]) => {
+  const existing = db.pragma(`table_info(${tableName})`).map(column => column.name);
+  columns.forEach(([name, ddl]) => {
+    if (!existing.includes(name)) {
+      db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${name} ${ddl}`);
+    }
+  });
+});
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS content_moderation_logs (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity_type     TEXT NOT NULL,
+    entity_id       INTEGER NOT NULL,
+    previous_status TEXT DEFAULT '',
+    next_status     TEXT NOT NULL,
+    note            TEXT DEFAULT '',
+    moderator       TEXT DEFAULT '',
+    created_at      TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_experiences_moderation ON experiences(moderation_status, created_at);
+  CREATE INDEX IF NOT EXISTS idx_comments_moderation ON comments(moderation_status, created_at);
+  CREATE INDEX IF NOT EXISTS idx_comment_replies_moderation ON comment_replies(moderation_status, created_at);
+  CREATE INDEX IF NOT EXISTS idx_agency_reviews_moderation ON agency_reviews(moderation_status, created_at);
+  CREATE INDEX IF NOT EXISTS idx_content_moderation_entity ON content_moderation_logs(entity_type, entity_id, created_at);
+`);
 
 const announcementCols = db.pragma('table_info(announcements)').map(c => c.name);
 [
