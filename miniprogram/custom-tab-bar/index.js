@@ -16,13 +16,13 @@ const FULL_TAB_LIST = [
   {
     pagePath: 'pages/applications/applications',
     text: '进度',
-    iconPath: '/images/icon-apply.png',
+    iconPath: '/images/icon-apply-muted.png',
     selectedIconPath: '/images/icon-apply.png'
   },
   {
     pagePath: 'pages/ai-career/ai-career',
     text: 'AI专家',
-    iconPath: '/images/icon-ai-assistant.png',
+    iconPath: '/images/icon-ai-assistant-muted.png',
     selectedIconPath: '/images/icon-ai-assistant.png'
   },
   {

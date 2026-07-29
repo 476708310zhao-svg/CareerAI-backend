@@ -53,6 +53,7 @@ test('V4 TabBar uses Home, Resources, Progress, AI Expert and Profile main-packa
 });
 
 test('custom TabBar and navigation helper stay aligned with app.json', () => {
+  const app = JSON.parse(read('app.json'));
   const customSource = read('custom-tab-bar/index.js');
   const customPaths = Array.from(customSource.matchAll(/pagePath:\s*['"]([^'"]+)['"]/g)).map(match => match[1]);
   assert.deepEqual(customPaths, EXPECTED_TABS);
@@ -61,6 +62,13 @@ test('custom TabBar and navigation helper stay aligned with app.json', () => {
   const navigationSource = read('utils/navigation.js');
   EXPECTED_TABS.forEach(pagePath => {
     assert.ok(navigationSource.includes("'/" + pagePath + "'"), pagePath + ' missing from navigation helper');
+  });
+  app.tabBar.list.forEach(item => {
+    assert.notEqual(
+      item.iconPath,
+      item.selectedIconPath,
+      item.pagePath + ' must use different inactive and active icons'
+    );
   });
 });
 
