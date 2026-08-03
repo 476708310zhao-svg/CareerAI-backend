@@ -14,6 +14,7 @@
 
 | 日期 | 事项 | 文件 | 验证 |
 |---|---|---|---|
+| 2026-08-03 | 优化编辑资料页多选交互：已选地区、行业、岗位和技能时，将继续搜索缩短为卡片右上角“继续添加”按钮；毕业年份从固定标签改为 1970 年至未来 20 年的年份选择器 | 小程序 `package-user/pages/profile-edit/*` 与导航回归测试 | 导航回归 11/11、全量测试 111/111、`check:miniprogram` 通过；微信开发者工具预览编译成功，主包 776.6 KB |
 | 2026-08-03 | 将隐藏的职业工具中心功能并入资源中心：新增 AI 求职规划、简历中心和 Offer 对比入口，复用已有薪酬查询与职业洞察入口；原职业工具中心收口为单一 AI 求职规划页 | 小程序 `pages/resources/*`、`package-career/pages/career-planner/*` 与导航回归测试 | 导航回归 10/10、全量测试 110/110、`check:miniprogram` 通过；微信开发者工具预览编译成功，主包 776.6 KB |
 | 2026-08-03 | 隐藏“我的简历”页面及内部纵向滚动区域的滚动指示器，并将基本信息与个人优势合并为同一卡片 | 小程序 `package-career/pages/resume/resume.wxml`、`resume.wxss` 与导航回归测试 | 页面回归 10/10、`check:miniprogram` 通过；微信开发者工具预览编译成功，主包 776.0 KB |
 | 2026-08-03 | 修复 AI 简历润色长期误走 `fallback-rules`、建议与原文相同、时间戳和个人隐私被当作优化内容的问题；完善降级标识并发布后端修复 | `services/v4AiRuntime.js`、`services/v4ResumeCenter.js`、小程序 `resume-center`、测试与 AI 运行文档 | `check:release` 通过，109/109 tests、内容错误 0；生产 readiness 全通过，DeepSeek 实测 `source=live`、无降级 |
@@ -80,6 +81,7 @@
 
 | 负责人 | 文件 | 任务 | 状态 |
 |---|---|---|---|
+| Codex | 小程序 `package-user/pages/profile-edit/*`、导航回归测试 | 压缩编辑资料页多选项的继续搜索入口并移至卡片右上角；毕业年份改为宽范围年份选择器 | 已完成；导航回归、全量测试、小程序检查和微信预览编译通过 |
 | Codex | 小程序 `pages/resources/*`、`package-career/pages/career-planner/*`、导航回归测试 | 将隐藏的职业工具中心缺失功能并入资源中心，补充 AI 求职规划、Offer 对比和简历中心入口，并将规划页收口为单一功能页 | 已完成；导航回归、全量测试、小程序检查和微信预览编译通过 |
 | Codex | `miniprogram/package-career/pages/resume/resume.wxml`、`resume.wxss`、页面回归测试 | 隐藏“我的简历”页面滚动条，并合并基本信息与个人优势卡片 | 已完成；页面回归、小程序检查和微信预览编译通过 |
 | Codex | `services/v4AiRuntime.js`、`services/v4ResumeCenter.js`、`miniprogram/package-career/pages/resume-center/*`、`tests/`、`DEVELOPMENT_STATUS.md` | 修复 AI 简历润色误走 fallback、原文与建议相同及敏感/无意义字段被推荐的问题 | 已完成；109/109 tests、发布检查和生产 AI 实测通过 |

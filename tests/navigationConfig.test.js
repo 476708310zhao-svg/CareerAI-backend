@@ -147,6 +147,23 @@ test('resume page hides scroll indicators and keeps profile details in one card'
   assert.match(resumeWxss, /\.profile-card-divider/);
 });
 
+test('profile editor keeps multi-select search compact and allows any graduation year in range', () => {
+  const profileWxml = read('package-user/pages/profile-edit/profile-edit.wxml');
+  const profileJs = read('package-user/pages/profile-edit/profile-edit.js');
+  const profileWxss = read('package-user/pages/profile-edit/profile-edit.wxss');
+
+  assert.match(profileWxml, /class="compact-select-trigger"/);
+  assert.match(profileWxml, /继续添加/);
+  assert.doesNotMatch(profileWxml, /继续搜索添加地区|继续搜索添加行业/);
+  assert.match(profileWxml, /mode="date"[\s\S]*fields="year"[\s\S]*bindchange="onGradYearChange"/);
+  assert.doesNotMatch(profileWxml, /wx:for="\{\{gradYearOptions\}\}"/);
+  assert.match(profileJs, /gradYearStart: '1970-01-01'/);
+  assert.match(profileJs, /gradYearEnd: `\$\{CURRENT_YEAR \+ 20\}-12-31`/);
+  assert.match(profileJs, /onGradYearChange\(e\)/);
+  assert.match(profileWxss, /\.selection-summary/);
+  assert.match(profileWxss, /\.year-picker/);
+});
+
 test('daily brief follows the home workbench visual language without the legacy green header', () => {
   const dailyWxml = read('package-ai/pages/daily-brief/daily-brief.wxml');
   const dailyWxss = read('package-ai/pages/daily-brief/daily-brief.wxss');

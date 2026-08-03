@@ -9,6 +9,7 @@ const {
   buildProfilePayload
 } = require('../../../utils/user-profile-schema.js');
 const API_BASE = config.API_BASE_URL;
+const CURRENT_YEAR = new Date().getFullYear();
 
 const MULTI_FIELD_CONFIG = {
   targetLocation: {
@@ -73,7 +74,9 @@ Page({
     // 预设选项
     statusOptions: PROFILE_SCHEMA.options.statusOptions,
     degreeOptions: PROFILE_SCHEMA.options.degreeOptions,
-    gradYearOptions: PROFILE_SCHEMA.options.gradYearOptions,
+    gradYearPickerValue: String(CURRENT_YEAR),
+    gradYearStart: '1970-01-01',
+    gradYearEnd: `${CURRENT_YEAR + 20}-12-31`,
     rolePresets: PROFILE_SCHEMA.options.roleOptions,
     roleOptions: [],
     locationPresets: PROFILE_SCHEMA.options.locationOptions,
@@ -139,7 +142,6 @@ Page({
       this.setData({
         statusOptions: options.statusOptions || this.data.statusOptions,
         degreeOptions: options.degreeOptions || this.data.degreeOptions,
-        gradYearOptions: options.gradYearOptions || this.data.gradYearOptions,
         rolePresets: options.roleOptions || this.data.rolePresets,
         locationPresets: options.locationOptions || this.data.locationPresets,
         industryPresets: options.industryOptions || this.data.industryPresets,
@@ -435,7 +437,7 @@ Page({
     this._calcCompleteness();
   },
 
-  // ── 单选切换（status / gradYear）─────────────────────────────────────────
+  // ── 单选切换 ─────────────────────────────────────────────────────────────
   selectSingle(e) {
     const { field, value } = e.currentTarget.dataset;
     const current = this.data.userInfo[field];
@@ -455,6 +457,13 @@ Page({
 
   onSponsorNeededChange(e) {
     this.setData({ 'userInfo.sponsorNeeded': !!e.detail.value });
+    this._calcCompleteness();
+  },
+
+  onGradYearChange(e) {
+    const gradYear = String(e.detail.value || '').slice(0, 4);
+    if (!/^\d{4}$/.test(gradYear)) return;
+    this.setData({ 'userInfo.gradYear': gradYear });
     this._calcCompleteness();
   },
 

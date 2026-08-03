@@ -85,16 +85,19 @@
     </view>
 
     <text class="sub-label mt">预计毕业年份</text>
-    <view class="chip-row wrap">
-      <block wx:for="{{gradYearOptions}}" wx:key="*this">
-        <view
-          class="chip {{userInfo.gradYear === item ? 'chip-active' : ''}}"
-          bindtap="selectSingle"
-          data-field="gradYear"
-          data-value="{{item}}"
-        >{{item}}</view>
-      </block>
-    </view>
+    <picker
+      mode="date"
+      fields="year"
+      value="{{userInfo.gradYear || gradYearPickerValue}}"
+      start="{{gradYearStart}}"
+      end="{{gradYearEnd}}"
+      bindchange="onGradYearChange"
+    >
+      <view class="year-picker {{userInfo.gradYear ? 'has-value' : ''}}">
+        <text>{{userInfo.gradYear || '点击选择毕业年份'}}</text>
+        <text class="year-picker-arrow">›</text>
+      </view>
+    </picker>
   </view>
 
   <!-- 目标地区 -->
@@ -103,16 +106,22 @@
     <text>目标地区</text>
     <text class="section-note">可多选</text>
   </view>
-  <view class="form-card pad">
-    <view class="selected-tags" wx:if="{{userInfo.targetLocation.length > 0}}">
-      <view class="selected-tag" wx:for="{{userInfo.targetLocation}}" wx:key="*this">
-        <text>{{item}}</text>
-        <text class="tag-remove" catchtap="removeMultiValue" data-field="targetLocation" data-value="{{item}}">×</text>
+  <view class="form-card pad multi-select-card">
+    <view class="selection-summary" wx:if="{{userInfo.targetLocation.length > 0}}">
+      <view class="selected-tags">
+        <view class="selected-tag" wx:for="{{userInfo.targetLocation}}" wx:key="*this">
+          <text>{{item}}</text>
+          <text class="tag-remove" catchtap="removeMultiValue" data-field="targetLocation" data-value="{{item}}">×</text>
+        </view>
+      </view>
+      <view class="compact-select-trigger" bindtap="openMultiSelector" data-field="targetLocation">
+        <text class="compact-select-icon">⌕</text>
+        <text>继续添加</text>
       </view>
     </view>
 
-    <view class="select-trigger {{userInfo.targetLocation.length > 0 ? 'has-value' : ''}}" bindtap="openMultiSelector" data-field="targetLocation">
-      <text>{{userInfo.targetLocation.length > 0 ? '继续搜索添加地区' : '搜索并选择目标地区'}}</text>
+    <view wx:if="{{!userInfo.targetLocation.length}}" class="select-trigger" bindtap="openMultiSelector" data-field="targetLocation">
+      <text>搜索并选择目标地区</text>
       <text class="select-trigger-icon">⌕</text>
     </view>
 
@@ -134,16 +143,22 @@
     <text>目标行业</text>
     <text class="section-note">可多选</text>
   </view>
-  <view class="form-card pad">
-    <view class="selected-tags" wx:if="{{userInfo.targetIndustries.length > 0}}">
-      <view class="selected-tag" wx:for="{{userInfo.targetIndustries}}" wx:key="*this">
-        <text>{{item}}</text>
-        <text class="tag-remove" catchtap="removeMultiValue" data-field="targetIndustries" data-value="{{item}}">×</text>
+  <view class="form-card pad multi-select-card">
+    <view class="selection-summary" wx:if="{{userInfo.targetIndustries.length > 0}}">
+      <view class="selected-tags">
+        <view class="selected-tag" wx:for="{{userInfo.targetIndustries}}" wx:key="*this">
+          <text>{{item}}</text>
+          <text class="tag-remove" catchtap="removeMultiValue" data-field="targetIndustries" data-value="{{item}}">×</text>
+        </view>
+      </view>
+      <view class="compact-select-trigger" bindtap="openMultiSelector" data-field="targetIndustries">
+        <text class="compact-select-icon">⌕</text>
+        <text>继续添加</text>
       </view>
     </view>
 
-    <view class="select-trigger {{userInfo.targetIndustries.length > 0 ? 'has-value' : ''}}" bindtap="openMultiSelector" data-field="targetIndustries">
-      <text>{{userInfo.targetIndustries.length > 0 ? '继续搜索添加行业' : '搜索并选择目标行业'}}</text>
+    <view wx:if="{{!userInfo.targetIndustries.length}}" class="select-trigger" bindtap="openMultiSelector" data-field="targetIndustries">
+      <text>搜索并选择目标行业</text>
       <text class="select-trigger-icon">⌕</text>
     </view>
 
@@ -227,17 +242,23 @@
     <text>目标岗位</text>
     <text class="section-note">最多5个</text>
   </view>
-  <view class="form-card pad">
+  <view class="form-card pad multi-select-card">
     <!-- 已选岗位 -->
-    <view class="selected-tags" wx:if="{{userInfo.targetRoles.length > 0}}">
-      <view class="selected-tag" wx:for="{{userInfo.targetRoles}}" wx:key="*this">
-        <text>{{item}}</text>
-        <text class="tag-remove" catchtap="removeRole" data-value="{{item}}">×</text>
+    <view class="selection-summary" wx:if="{{userInfo.targetRoles.length > 0}}">
+      <view class="selected-tags">
+        <view class="selected-tag" wx:for="{{userInfo.targetRoles}}" wx:key="*this">
+          <text>{{item}}</text>
+          <text class="tag-remove" catchtap="removeRole" data-value="{{item}}">×</text>
+        </view>
+      </view>
+      <view class="compact-select-trigger" bindtap="openMultiSelector" data-field="targetRoles">
+        <text class="compact-select-icon">⌕</text>
+        <text>继续添加</text>
       </view>
     </view>
 
-    <view class="select-trigger {{userInfo.targetRoles.length > 0 ? 'has-value' : ''}}" bindtap="openMultiSelector" data-field="targetRoles">
-      <text>{{userInfo.targetRoles.length > 0 ? '搜索并继续添加岗位' : '搜索标准岗位，未命中可补充'}}</text>
+    <view wx:if="{{!userInfo.targetRoles.length}}" class="select-trigger" bindtap="openMultiSelector" data-field="targetRoles">
+      <text>搜索标准岗位，未命中可补充</text>
       <text class="select-trigger-icon">⌕</text>
     </view>
 
@@ -259,17 +280,23 @@
     <text>技能标签</text>
     <text class="section-note">最多20个</text>
   </view>
-  <view class="form-card pad">
+  <view class="form-card pad multi-select-card">
     <!-- 已选技能 -->
-    <view class="selected-tags" wx:if="{{userInfo.skills.length > 0}}">
-      <view class="selected-tag" wx:for="{{userInfo.skills}}" wx:key="*this">
-        <text>{{item}}</text>
-        <text class="tag-remove" catchtap="removeSkill" data-value="{{item}}">×</text>
+    <view class="selection-summary" wx:if="{{userInfo.skills.length > 0}}">
+      <view class="selected-tags">
+        <view class="selected-tag" wx:for="{{userInfo.skills}}" wx:key="*this">
+          <text>{{item}}</text>
+          <text class="tag-remove" catchtap="removeSkill" data-value="{{item}}">×</text>
+        </view>
+      </view>
+      <view class="compact-select-trigger" bindtap="openMultiSelector" data-field="skills">
+        <text class="compact-select-icon">⌕</text>
+        <text>继续添加</text>
       </view>
     </view>
 
-    <view class="select-trigger {{userInfo.skills.length > 0 ? 'has-value' : ''}}" bindtap="openMultiSelector" data-field="skills">
-      <text>{{userInfo.skills.length > 0 ? '搜索并继续添加技能' : '搜索标准技能，未命中可补充'}}</text>
+    <view wx:if="{{!userInfo.skills.length}}" class="select-trigger" bindtap="openMultiSelector" data-field="skills">
+      <text>搜索标准技能，未命中可补充</text>
       <text class="select-trigger-icon">⌕</text>
     </view>
 
