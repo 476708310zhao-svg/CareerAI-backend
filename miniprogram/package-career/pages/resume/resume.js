@@ -22,6 +22,15 @@ function cloneDefaultResume() {
   return JSON.parse(JSON.stringify(DEFAULT_RESUME));
 }
 
+function updateFormField(page, formKey, event) {
+  const field = event && event.currentTarget && event.currentTarget.dataset.field;
+  if (!field) return;
+  const value = event.detail && event.detail.value != null ? String(event.detail.value) : '';
+  page.setData({
+    [formKey]: Object.assign({}, page.data[formKey] || {}, { [field]: value })
+  });
+}
+
 function formatDateText(value) {
   const text = String(value || '');
   const match = text.match(/(\d{4})-(\d{2})-(\d{2})/);
@@ -235,8 +244,8 @@ Page(Object.assign({
   },
 
   // ── 保存简历（登录时存服务端，否则存 localStorage）──────────────────────────
-  _saveResume() {
-    const resume = this.data.onlineResume;
+  _saveResume(resumeValue) {
+    const resume = JSON.parse(JSON.stringify(resumeValue || this.data.onlineResume || cloneDefaultResume()));
     resume.score = this._calcScore(resume);
     this.setData({ onlineResume: resume });
     wx.setStorageSync('onlineResume', resume); // 本地始终同步一份备份
@@ -437,8 +446,7 @@ Page(Object.assign({
   },
 
   onResumeMetaInput(e) {
-    const field = e.currentTarget.dataset.field;
-    this.setData({ ['editResumeMetaForm.' + field]: e.detail.value });
+    updateFormField(this, 'editResumeMetaForm', e);
   },
 
   async saveResumeMeta() {
@@ -528,17 +536,20 @@ Page(Object.assign({
   },
 
   onBasicInput(e) {
-    const field = e.currentTarget.dataset.field;
-    this.setData({ ['editBasicForm.' + field]: e.detail.value });
+    updateFormField(this, 'editBasicForm', e);
   },
 
   saveBasicInfo() {
-    this.setData({
-      'onlineResume.basicInfo': this.data.editBasicForm,
-      showEditBasic: false
+    const nextResume = Object.assign({}, this.data.onlineResume, {
+      basicInfo: Object.assign({}, this.data.editBasicForm)
     });
-    this._saveResume();
-    wx.showToast({ title: '已保存', icon: 'success' });
+    this.setData({
+      onlineResume: nextResume,
+      showEditBasic: false
+    }, () => {
+      this._saveResume(nextResume);
+      wx.showToast({ title: '已保存', icon: 'success' });
+    });
   },
 
   cancelEditBasic() {
@@ -561,12 +572,16 @@ Page(Object.assign({
   },
 
   saveSummary() {
-    this.setData({
-      'onlineResume.summary': this.data.editSummaryText,
-      showEditSummary: false
+    const nextResume = Object.assign({}, this.data.onlineResume, {
+      summary: this.data.editSummaryText
     });
-    this._saveResume();
-    wx.showToast({ title: '已保存', icon: 'success' });
+    this.setData({
+      onlineResume: nextResume,
+      showEditSummary: false
+    }, () => {
+      this._saveResume(nextResume);
+      wx.showToast({ title: '已保存', icon: 'success' });
+    });
   },
 
   cancelEditSummary() {
@@ -597,12 +612,14 @@ Page(Object.assign({
   },
 
   onWorkInput(e) {
-    const field = e.currentTarget.dataset.field;
-    this.setData({ ['editWorkForm.' + field]: e.detail.value });
+    updateFormField(this, 'editWorkForm', e);
   },
 
   saveWorkExp() {
-    const form = this.data.editWorkForm;
+    const form = Object.assign({}, this.data.editWorkForm, {
+      company: String(this.data.editWorkForm.company || '').trim(),
+      role: String(this.data.editWorkForm.role || '').trim()
+    });
     if (!form.company || !form.role) {
       wx.showToast({ title: '请填写公司和职位', icon: 'none' });
       return;
@@ -615,12 +632,14 @@ Page(Object.assign({
       workExp.push({ ...form, id: Date.now() });
     }
 
+    const nextResume = Object.assign({}, this.data.onlineResume, { workExp });
     this.setData({
-      'onlineResume.workExp': workExp,
+      onlineResume: nextResume,
       showEditWork: false
+    }, () => {
+      this._saveResume(nextResume);
+      wx.showToast({ title: '已保存', icon: 'success' });
     });
-    this._saveResume();
-    wx.showToast({ title: '已保存', icon: 'success' });
   },
 
   deleteWorkExp() {
@@ -657,10 +676,13 @@ Page(Object.assign({
     this.setData({ showEditEdu: true, _modalStyle: 'height: 60vh; background: #fff; border-radius: 24rpx 24rpx 0 0;', editEduIndex: index, editEduForm: JSON.parse(JSON.stringify(this.data.onlineResume.education[index])) });
   },
   onEduInput(e) {
-    this.setData({ ['editEduForm.' + e.currentTarget.dataset.field]: e.detail.value });
+    updateFormField(this, 'editEduForm', e);
   },
   saveEdu() {
-    const form = this.data.editEduForm;
+    const form = Object.assign({}, this.data.editEduForm, {
+      school: String(this.data.editEduForm.school || '').trim(),
+      degree: String(this.data.editEduForm.degree || '').trim()
+    });
     if (!form.school || !form.degree) { wx.showToast({ title: '请填写学校和学历', icon: 'none' }); return; }
     const education = this.data.onlineResume.education.slice();
     if (this.data.editEduIndex >= 0) {
@@ -668,9 +690,11 @@ Page(Object.assign({
     } else {
       education.push({ ...form, id: Date.now() });
     }
-    this.setData({ 'onlineResume.education': education, showEditEdu: false });
-    this._saveResume();
-    wx.showToast({ title: '已保存', icon: 'success' });
+    const nextResume = Object.assign({}, this.data.onlineResume, { education });
+    this.setData({ onlineResume: nextResume, showEditEdu: false }, () => {
+      this._saveResume(nextResume);
+      wx.showToast({ title: '已保存', icon: 'success' });
+    });
   },
   deleteEdu() {
     if (this.data.editEduIndex < 0) return;
@@ -726,10 +750,12 @@ Page(Object.assign({
     this.setData({ showEditProject: true, _modalStyle: 'height: 72vh; background: #fff; border-radius: 24rpx 24rpx 0 0;', editProjectIndex: index, editProjectForm: JSON.parse(JSON.stringify(this.data.onlineResume.projects[index])) });
   },
   onProjectInput(e) {
-    this.setData({ ['editProjectForm.' + e.currentTarget.dataset.field]: e.detail.value });
+    updateFormField(this, 'editProjectForm', e);
   },
   saveProject() {
-    const form = this.data.editProjectForm;
+    const form = Object.assign({}, this.data.editProjectForm, {
+      name: String(this.data.editProjectForm.name || '').trim()
+    });
     if (!form.name) { wx.showToast({ title: '请填写项目名称', icon: 'none' }); return; }
     const projects = this.data.onlineResume.projects.slice();
     if (this.data.editProjectIndex >= 0) {
@@ -737,9 +763,11 @@ Page(Object.assign({
     } else {
       projects.push({ ...form, id: Date.now() });
     }
-    this.setData({ 'onlineResume.projects': projects, showEditProject: false });
-    this._saveResume();
-    wx.showToast({ title: '已保存', icon: 'success' });
+    const nextResume = Object.assign({}, this.data.onlineResume, { projects });
+    this.setData({ onlineResume: nextResume, showEditProject: false }, () => {
+      this._saveResume(nextResume);
+      wx.showToast({ title: '已保存', icon: 'success' });
+    });
   },
   deleteProject() {
     if (this.data.editProjectIndex < 0) return;

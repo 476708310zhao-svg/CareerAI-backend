@@ -147,6 +147,23 @@ test('resume page hides scroll indicators and keeps profile details in one card'
   assert.match(resumeWxss, /\.profile-card-divider/);
 });
 
+test('resume manual editors keep native input text visible and persist controlled values', () => {
+  const resumeWxml = read('package-career/pages/resume/resume.wxml');
+  const resumeJs = read('package-career/pages/resume/resume.js');
+  const resumeWxss = read('package-career/pages/resume/resume.wxss');
+
+  assert.match(resumeWxml, /class="form-input"[^>]*placeholder-class="form-placeholder"[^>]*always-embed="\{\{true\}\}"/);
+  assert.match(resumeWxml, /class="form-textarea"[^>]*placeholder-class="form-placeholder"/);
+  assert.doesNotMatch(resumeWxml, /class="(?:form-textarea|edit-textarea)"[^>]*auto-height/);
+  assert.match(resumeWxss, /\.form-input\s*\{[\s\S]*?height:\s*88rpx;[\s\S]*?padding:\s*0 24rpx;/);
+  assert.match(resumeWxss, /\.skill-input\s*\{[\s\S]*?height:\s*80rpx;[\s\S]*?padding:\s*0 20rpx;/);
+  assert.match(resumeWxss, /\.form-placeholder\s*\{[\s\S]*?color:\s*#98a2b3;/);
+  assert.match(resumeJs, /function updateFormField\(page, formKey, event\)/);
+  assert.match(resumeJs, /saveWorkExp\(\)[\s\S]*?onlineResume:\s*nextResume[\s\S]*?_saveResume\(nextResume\)/);
+  assert.match(resumeJs, /saveEdu\(\)[\s\S]*?onlineResume:\s*nextResume[\s\S]*?_saveResume\(nextResume\)/);
+  assert.match(resumeJs, /saveProject\(\)[\s\S]*?onlineResume:\s*nextResume[\s\S]*?_saveResume\(nextResume\)/);
+});
+
 test('profile editor keeps multi-select search compact and allows any graduation year in range', () => {
   const profileWxml = read('package-user/pages/profile-edit/profile-edit.wxml');
   const profileJs = read('package-user/pages/profile-edit/profile-edit.js');

@@ -353,11 +353,11 @@
       <view class="edit-form">
         <view class="form-item">
           <text class="form-label">版本名称</text>
-          <input class="form-input" value="{{editResumeMetaForm.name}}" bindinput="onResumeMetaInput" data-field="name" placeholder="如：产品经理投递版" />
+          <input class="form-input" value="{{editResumeMetaForm.name}}" bindinput="onResumeMetaInput" data-field="name" placeholder="如：产品经理投递版" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">目标岗位</text>
-          <input class="form-input" value="{{editResumeMetaForm.targetRole}}" bindinput="onResumeMetaInput" data-field="targetRole" placeholder="如 Data Analyst / 产品经理" />
+          <input class="form-input" value="{{editResumeMetaForm.targetRole}}" bindinput="onResumeMetaInput" data-field="targetRole" placeholder="如 Data Analyst / 产品经理" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
       </view>
       <c-button class="save-btn" bindtap="saveResumeMeta">保存版本信息</c-button>
@@ -372,19 +372,19 @@
       <view class="edit-form">
         <view class="form-item">
           <text class="form-label">姓名</text>
-          <input class="form-input" value="{{editBasicForm.name}}" bindinput="onBasicInput" data-field="name" placeholder="请输入姓名" />
+          <input class="form-input" value="{{editBasicForm.name}}" bindinput="onBasicInput" data-field="name" placeholder="请输入姓名" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">求职意向</text>
-          <input class="form-input" value="{{editBasicForm.title}}" bindinput="onBasicInput" data-field="title" placeholder="如 Frontend Developer" />
+          <input class="form-input" value="{{editBasicForm.title}}" bindinput="onBasicInput" data-field="title" placeholder="如 Frontend Developer" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">电话</text>
-          <input class="form-input" value="{{editBasicForm.phone}}" bindinput="onBasicInput" data-field="phone" placeholder="请输入手机号" type="number" />
+          <input class="form-input" value="{{editBasicForm.phone}}" bindinput="onBasicInput" data-field="phone" placeholder="请输入手机号" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" type="number" />
         </view>
         <view class="form-item">
           <text class="form-label">邮箱</text>
-          <input class="form-input" value="{{editBasicForm.email}}" bindinput="onBasicInput" data-field="email" placeholder="请输入邮箱" />
+          <input class="form-input" value="{{editBasicForm.email}}" bindinput="onBasicInput" data-field="email" placeholder="请输入邮箱" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
       </view>
       <c-button class="save-btn" bindtap="saveBasicInfo">保存</c-button>
@@ -396,7 +396,7 @@
         <text class="edit-modal-title">编辑个人优势</text>
         <view class="close-btn" bindtap="cancelEditSummary">X</view>
       </view>
-      <textarea class="edit-textarea" value="{{editSummaryText}}" bindinput="onSummaryInput" placeholder="描述你的核心竞争力、专业技能和职业亮点..." maxlength="500" auto-height></textarea>
+      <textarea class="edit-textarea" value="{{editSummaryText}}" bindinput="onSummaryInput" placeholder="描述你的核心竞争力、专业技能和职业亮点..." placeholder-class="form-placeholder" maxlength="500" cursor-spacing="24"></textarea>
       <c-button class="save-btn" bindtap="saveSummary">保存</c-button>
     </view>
 
@@ -409,19 +409,19 @@
       <view class="edit-form">
         <view class="form-item">
           <text class="form-label">公司名称</text>
-          <input class="form-input" value="{{editWorkForm.company}}" bindinput="onWorkInput" data-field="company" placeholder="请输入公司名称" />
+          <input class="form-input" value="{{editWorkForm.company}}" bindinput="onWorkInput" data-field="company" placeholder="请输入公司名称" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">职位</text>
-          <input class="form-input" value="{{editWorkForm.role}}" bindinput="onWorkInput" data-field="role" placeholder="请输入职位名称" />
+          <input class="form-input" value="{{editWorkForm.role}}" bindinput="onWorkInput" data-field="role" placeholder="请输入职位名称" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">时间</text>
-          <input class="form-input" value="{{editWorkForm.time}}" bindinput="onWorkInput" data-field="time" placeholder="如 2022.06 - 至今" />
+          <input class="form-input" value="{{editWorkForm.time}}" bindinput="onWorkInput" data-field="time" placeholder="如 2022.06 - 至今" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">工作描述</text>
-          <textarea class="form-textarea" value="{{editWorkForm.desc}}" bindinput="onWorkInput" data-field="desc" placeholder="描述你的工作职责和成果..." maxlength="500" auto-height></textarea>
+          <textarea class="form-textarea" value="{{editWorkForm.desc}}" bindinput="onWorkInput" data-field="desc" placeholder="描述你的工作职责和成果..." placeholder-class="form-placeholder" maxlength="500" cursor-spacing="24"></textarea>
         </view>
       </view>
       <view class="edit-modal-footer">
@@ -439,19 +439,19 @@
       <view class="edit-form">
         <view class="form-item">
           <text class="form-label">学校名称</text>
-          <input class="form-input" value="{{editEduForm.school}}" bindinput="onEduInput" data-field="school" placeholder="请输入学校名称" />
+          <input class="form-input" value="{{editEduForm.school}}" bindinput="onEduInput" data-field="school" placeholder="请输入学校名称" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">学历</text>
-          <input class="form-input" value="{{editEduForm.degree}}" bindinput="onEduInput" data-field="degree" placeholder="如：本科 / 硕士 / 博士" />
+          <input class="form-input" value="{{editEduForm.degree}}" bindinput="onEduInput" data-field="degree" placeholder="如：本科 / 硕士 / 博士" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">专业</text>
-          <input class="form-input" value="{{editEduForm.major}}" bindinput="onEduInput" data-field="major" placeholder="请输入专业名称" />
+          <input class="form-input" value="{{editEduForm.major}}" bindinput="onEduInput" data-field="major" placeholder="请输入专业名称" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">时间</text>
-          <input class="form-input" value="{{editEduForm.time}}" bindinput="onEduInput" data-field="time" placeholder="如 2020.09 - 2024.06" />
+          <input class="form-input" value="{{editEduForm.time}}" bindinput="onEduInput" data-field="time" placeholder="如 2020.09 - 2024.06" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
       </view>
       <view class="edit-modal-footer">
@@ -475,7 +475,7 @@
         </block>
       </view>
       <view class="skill-input-row">
-        <input class="skill-input" value="{{skillInput}}" bindinput="onSkillInput" bindconfirm="addSkill" placeholder="输入技能后按回车添加" />
+        <input class="skill-input" value="{{skillInput}}" bindinput="onSkillInput" bindconfirm="addSkill" placeholder="输入技能后按回车添加" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         <view class="add-skill-btn" bindtap="addSkill">添加</view>
       </view>
       <c-button class="save-btn" style="margin-top: 20rpx;" bindtap="closeSkillsEdit">完成</c-button>
@@ -490,19 +490,19 @@
       <view class="edit-form">
         <view class="form-item">
           <text class="form-label">项目名称</text>
-          <input class="form-input" value="{{editProjectForm.name}}" bindinput="onProjectInput" data-field="name" placeholder="请输入项目名称" />
+          <input class="form-input" value="{{editProjectForm.name}}" bindinput="onProjectInput" data-field="name" placeholder="请输入项目名称" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">担任角色</text>
-          <input class="form-input" value="{{editProjectForm.role}}" bindinput="onProjectInput" data-field="role" placeholder="如：前端开发 / 项目负责人" />
+          <input class="form-input" value="{{editProjectForm.role}}" bindinput="onProjectInput" data-field="role" placeholder="如：前端开发 / 项目负责人" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">时间</text>
-          <input class="form-input" value="{{editProjectForm.time}}" bindinput="onProjectInput" data-field="time" placeholder="如 2023.01 - 2023.06" />
+          <input class="form-input" value="{{editProjectForm.time}}" bindinput="onProjectInput" data-field="time" placeholder="如 2023.01 - 2023.06" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">项目描述</text>
-          <textarea class="form-textarea" value="{{editProjectForm.desc}}" bindinput="onProjectInput" data-field="desc" placeholder="描述项目背景、你的贡献和成果..." maxlength="500" auto-height></textarea>
+          <textarea class="form-textarea" value="{{editProjectForm.desc}}" bindinput="onProjectInput" data-field="desc" placeholder="描述项目背景、你的贡献和成果..." placeholder-class="form-placeholder" maxlength="500" cursor-spacing="24"></textarea>
         </view>
       </view>
       <view class="edit-modal-footer">
