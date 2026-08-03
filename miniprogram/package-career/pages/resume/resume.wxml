@@ -54,7 +54,7 @@
         <text class="rmp-title">我的简历</text>
         <text class="rmp-close" bindtap="hideResumeManager">✕</text>
       </view>
-      <scroll-view class="rmp-list" scroll-y>
+      <scroll-view class="rmp-list" scroll-y enhanced show-scrollbar="{{false}}">
         <view wx:for="{{serverResumes}}" wx:key="id"
               class="rmp-item {{item.id === currentResumeId ? 'active' : ''}}"
               bindtap="selectResume" data-id="{{item.id}}" data-name="{{item.name}}">
@@ -98,8 +98,8 @@
     <!-- 隐藏画布（用于导出为图片） -->
     <canvas type="2d" id="resumeExportCanvas" style="position:fixed;left:-9999rpx;top:-9999rpx;width:750rpx;height:1rpx;"></canvas>
 
-    <!-- 基本信息 -->
-    <view class="section-card">
+    <!-- 基本信息与个人优势 -->
+    <view class="section-card profile-summary-card">
       <view class="card-header">
         <view class="left-border">基本信息</view>
         <view class="edit-icon" bindtap="editBasicInfo">编辑</view>
@@ -123,11 +123,10 @@
         </view>
       </view>
       <view wx:else class="empty-hint" bindtap="editBasicInfo">点击填写基本信息</view>
-    </view>
 
-    <!-- 个人优势 -->
-    <view class="section-card">
-      <view class="card-header">
+      <view class="profile-card-divider"></view>
+
+      <view class="card-header profile-summary-header">
         <view class="left-border">个人优势</view>
         <view class="ai-group">
           <view class="ai-btn review" bindtap="handleAiReview">AI审核</view>
@@ -330,7 +329,7 @@
       </view>
       <text class="nlp-panel-close" bindtap="closeNlpPanel">✕</text>
     </view>
-    <scroll-view class="nlp-panel-body" scroll-y>
+    <scroll-view class="nlp-panel-body" scroll-y enhanced show-scrollbar="{{false}}">
       <text class="nlp-result-text" user-select>{{nlpResult}}</text>
     </scroll-view>
     <view class="nlp-panel-footer">
@@ -518,7 +517,7 @@
         <text class="ai-title">{{aiResultTitle}}</text>
         <view class="close-btn" bindtap="closeAiResult">×</view>
       </view>
-      <scroll-view scroll-y enhanced show-scrollbar class="ai-content-scroll">
+      <scroll-view scroll-y enhanced show-scrollbar="{{false}}" class="ai-content-scroll">
         <text class="ai-text" user-select>{{aiResultContent}}</text>
       </scroll-view>
       <view class="ai-footer">

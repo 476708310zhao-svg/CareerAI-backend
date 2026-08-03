@@ -131,6 +131,22 @@ test('resume version helper stays inside the AI subpackage instead of bloating t
   assert.match(jdMatchJs, /require\('\.\.\/\.\.\/utils\/resume-versions\.js'\)/);
 });
 
+test('resume page hides scroll indicators and keeps profile details in one card', () => {
+  const resumeWxml = read('package-career/pages/resume/resume.wxml');
+  const resumeWxss = read('package-career/pages/resume/resume.wxss');
+
+  assert.match(
+    resumeWxml,
+    /class="section-card profile-summary-card"[\s\S]*基本信息[\s\S]*profile-card-divider[\s\S]*个人优势/
+  );
+  assert.doesNotMatch(
+    resumeWxml,
+    /<scroll-view(?=[^>]*scroll-y)(?![^>]*show-scrollbar="\{\{false\}\}")/
+  );
+  assert.match(resumeWxss, /page::-webkit-scrollbar/);
+  assert.match(resumeWxss, /\.profile-card-divider/);
+});
+
 test('daily brief follows the home workbench visual language without the legacy green header', () => {
   const dailyWxml = read('package-ai/pages/daily-brief/daily-brief.wxml');
   const dailyWxss = read('package-ai/pages/daily-brief/daily-brief.wxss');

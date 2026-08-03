@@ -5,6 +5,16 @@ page {
   font-family: -apple-system, sans-serif;
 }
 
+/* 隐藏页面及内部滚动区域的原生滚动指示器，保留正常上下滑动。 */
+page::-webkit-scrollbar,
+scroll-view::-webkit-scrollbar,
+.container::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+  color: transparent;
+}
+
 .container {
   padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
   overflow-x: hidden;
@@ -578,6 +588,16 @@ page {
   color: var(--text-secondary);
   line-height: 1.6;
   position: relative;
+}
+
+.profile-card-divider {
+  height: 1rpx;
+  margin: 28rpx 0;
+  background: var(--border-faint);
+}
+
+.profile-summary-header {
+  margin-bottom: 22rpx;
 }
 
 .tap-edit {
