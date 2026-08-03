@@ -171,6 +171,12 @@ test('resource hub groups tools by task while home uses a latest campus list', (
 
   assert.match(resourceWxml, /资源中心/);
   assert.match(resourceJs, /面试与笔试/);
+  assert.match(resourceJs, /AI 求职规划/);
+  assert.match(resourceJs, /package-career\/pages\/career-planner\/career-planner/);
+  assert.match(resourceJs, /Offer 对比/);
+  assert.match(resourceJs, /package-career\/pages\/offer-compare\/offer-compare/);
+  assert.match(resourceJs, /简历中心/);
+  assert.match(resourceJs, /package-career\/pages\/resume\/resume/);
   assert.match(resourceJs, /职业决策/);
   assert.match(resourceWxml, /内容与服务/);
   assert.equal(resourceJson.navigationStyle, 'custom');

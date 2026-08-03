@@ -5,45 +5,6 @@
 
   <!-- ══ 输入步骤 ══ -->
   <view wx:if="{{step === 'input'}}" class="input-page">
-
-    <view class="hub-hero">
-      <view class="hub-copy">
-        <text class="hub-kicker">CAREER WORKSPACE</text>
-        <text class="hub-title">职业工具中心</text>
-        <text class="hub-sub">简历、ATS、薪资、Offer 和求职路线统一管理</text>
-      </view>
-      <view class="hub-count">
-        <text class="hub-count-num">{{careerTools.length}}</text>
-        <text class="hub-count-label">工具</text>
-      </view>
-    </view>
-
-    <view class="section-head">
-      <view>
-        <text class="section-title">常用工具</text>
-        <text class="section-sub">覆盖准备、投递、面试和 Offer 决策</text>
-      </view>
-      <text class="section-chip">快捷入口</text>
-    </view>
-
-    <view class="tool-grid">
-      <view
-        wx:for="{{careerTools}}"
-        wx:key="title"
-        class="tool-card {{item.tone}}"
-        bindtap="openCareerTool"
-        data-url="{{item.url}}"
-        hover-class="card-hover"
-      >
-        <view class="tool-card-top">
-          <view class="tool-icon">{{item.icon}}</view>
-          <text class="tool-arrow">›</text>
-        </view>
-        <text class="tool-title">{{item.title}}</text>
-        <text class="tool-desc">{{item.desc}}</text>
-      </view>
-    </view>
-
     <view class="planner-panel">
       <view class="planner-head">
         <view class="planner-head-copy">

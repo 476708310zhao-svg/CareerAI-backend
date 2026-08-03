@@ -12,6 +12,17 @@ const FEATURED_RESOURCE = {
 
 const RESOURCE_SECTIONS = [
   {
+    id: 'career',
+    title: '规划与材料',
+    subtitle: '完善简历、生成路线、比较 Offer',
+    accent: 'violet',
+    items: [
+      { id: 'planner', title: 'AI 求职规划', desc: '生成 3 / 6 / 12 个月行动路线', icon: '规', tone: 'indigo', url: '/package-career/pages/career-planner/career-planner' },
+      { id: 'resume', title: '简历中心', desc: '诊断简历并优化表达', icon: '简', tone: 'blue', url: '/package-career/pages/resume/resume' },
+      { id: 'offer', title: 'Offer 对比', desc: '比较现金、股票与成长性', icon: '比', tone: 'orange', url: '/package-career/pages/offer-compare/offer-compare' }
+    ]
+  },
+  {
     id: 'interview',
     title: '面试与笔试',
     subtitle: '从真题练习到模拟面试',
@@ -77,7 +88,7 @@ Page({
 
   onShareAppMessage() {
     return {
-      title: '职引求职资源中心｜校招、题库、薪酬与职业探索',
+      title: '职引求职资源中心｜规划、简历、Offer 与校招工具',
       path: '/pages/resources/resources'
     };
   }

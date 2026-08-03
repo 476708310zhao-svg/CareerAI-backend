@@ -350,6 +350,11 @@ page {
 .tone-amber { color: #d17622; background: #fff0dd; }
 .tone-rose { color: #dc536b; background: #ffe9ed; }
 .tone-teal { color: #13987b; background: #e0f7ee; }
+.tone-orange { color: #e36c1c; background: #fff0e2; }
+
+.section-career .tool-card:last-child {
+  grid-column: 1 / -1;
+}
 
 .tool-copy,
 .service-copy {

@@ -39,7 +39,7 @@
     </view>
   </view>
 
-  <view class="section" wx:for="{{resourceSections}}" wx:key="id">
+  <view class="section section-{{item.id}}" wx:for="{{resourceSections}}" wx:key="id">
     <view class="section-head">
       <view class="section-accent accent-{{item.accent}}"></view>
       <view class="section-copy">
