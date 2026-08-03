@@ -2,6 +2,7 @@ require('./envValidation.test');
 require('./aiClient.test');
 require('./v4AiRuntime.test');
 require('./v4ResumeCenter.test');
+require('./careerPlanGenerator.test');
 require('./agentCompat.test');
 require('./dailyTasks.test');
 require('./applicationWorkbench.test');

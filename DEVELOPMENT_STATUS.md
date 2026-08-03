@@ -81,6 +81,7 @@
 
 | 负责人 | 文件 | 任务 | 状态 |
 |---|---|---|---|
+| Codex | `routes/ai.js`、职业规划生成服务、小程序 `package-career/pages/career-planner/*`、测试与文档 | 将 AI 求职规划从关键词清单升级为包含技能标准、项目证据、阶段交付物、量化指标、每周节奏和风险应对的可执行方案 | 进行中 |
 | Codex | 小程序 `package-user/pages/profile-edit/*`、导航回归测试 | 压缩编辑资料页多选项的继续搜索入口并移至卡片右上角；毕业年份改为宽范围年份选择器 | 已完成；导航回归、全量测试、小程序检查和微信预览编译通过 |
 | Codex | 小程序 `pages/resources/*`、`package-career/pages/career-planner/*`、导航回归测试 | 将隐藏的职业工具中心缺失功能并入资源中心，补充 AI 求职规划、Offer 对比和简历中心入口，并将规划页收口为单一功能页 | 已完成；导航回归、全量测试、小程序检查和微信预览编译通过 |
 | Codex | `miniprogram/package-career/pages/resume/resume.wxml`、`resume.wxss`、页面回归测试 | 隐藏“我的简历”页面滚动条，并合并基本信息与个人优势卡片 | 已完成；页面回归、小程序检查和微信预览编译通过 |

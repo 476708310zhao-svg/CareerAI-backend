@@ -164,6 +164,24 @@ test('profile editor keeps multi-select search compact and allows any graduation
   assert.match(profileWxss, /\.year-picker/);
 });
 
+test('career planner renders evidence, outcomes, weekly rhythm and risk controls', () => {
+  const plannerWxml = read('package-career/pages/career-planner/career-planner.wxml');
+  const plannerJs = read('package-career/pages/career-planner/career-planner.js');
+  const plannerWxss = read('package-career/pages/career-planner/career-planner.wxss');
+
+  assert.match(plannerWxml, /规划结论/);
+  assert.match(plannerWxml, /掌握标准/);
+  assert.match(plannerWxml, /本阶段产出与验收/);
+  assert.match(plannerWxml, /每周执行节奏/);
+  assert.match(plannerWxml, /风险预警与应对/);
+  assert.match(plannerJs, /skill_actions/);
+  assert.match(plannerJs, /project_blueprints/);
+  assert.match(plannerJs, /success_metrics/);
+  assert.match(plannerWxss, /\.skill-action-card/);
+  assert.match(plannerWxss, /\.routine-card/);
+  assert.match(plannerWxss, /\.risk-card/);
+});
+
 test('daily brief follows the home workbench visual language without the legacy green header', () => {
   const dailyWxml = read('package-ai/pages/daily-brief/daily-brief.wxml');
   const dailyWxss = read('package-ai/pages/daily-brief/daily-brief.wxss');
