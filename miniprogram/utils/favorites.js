@@ -2,6 +2,7 @@
 const STORAGE_KEY = 'userFavorites';
 const API_BASE = require('./app-config.js').API_BASE_URL;
 const reminders = require('./reminders.js');
+const favoriteReminder = require('./favorite-reminder.js');
 const SYNC_TTL = 2 * 60 * 1000;
 let _syncPending = null;
 let _lastSyncAt = 0;
@@ -83,6 +84,14 @@ function _pushLocalMissingToServer(localAll, remoteAll) {
   });
 }
 
+function _syncJobReminders(all) {
+  ((all && all.job) || [])
+    .filter(item => item && item.reminderEnabled !== false && item.deadline)
+    .forEach(item => {
+      reminders.upsertReminder(favoriteReminder.buildJobReminderPayload(item));
+    });
+}
+
 function syncFromServer() {
   const token = wx.getStorageSync('token');
   if (!token) return Promise.resolve(_getAll());
@@ -120,6 +129,7 @@ function syncFromServer() {
         });
         _saveAll(merged);
         _pushLocalMissingToServer(localAll, remoteAll);
+        _syncJobReminders(merged);
         _lastSyncAt = Date.now();
         resolve(merged);
       },
@@ -139,16 +149,22 @@ function add(type, item) {
   // 去重
   const exists = all[type].some(f => String(f.targetId) === String(item.targetId));
   if (exists) return false;
-  item.createdAt = new Date().toISOString().slice(0, 10);
-  all[type].unshift(item);
+  const favorite = type === 'job'
+    ? favoriteReminder.withJobReminderDefaults(item)
+    : Object.assign({}, item);
+  favorite.createdAt = new Date().toISOString().slice(0, 10);
+  all[type].unshift(favorite);
   _saveAll(all);
   _lastSyncAt = 0;
   _syncToServer('POST', {
     type,
-    targetId: item.targetId,
-    title: item.title || '',
-    subtitle: item.subtitle || item.company || item.type || ''
+    targetId: favorite.targetId,
+    title: favorite.title || '',
+    subtitle: favorite.subtitle || favorite.company || favorite.type || ''
   });
+  if (type === 'job') {
+    reminders.upsertReminder(favoriteReminder.buildJobReminderPayload(favorite));
+  }
   return true;
 }
 

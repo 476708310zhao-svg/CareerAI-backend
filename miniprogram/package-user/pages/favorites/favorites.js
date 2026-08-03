@@ -232,7 +232,7 @@ Page({
     favUtil.update('job', targetId, {
       deadline,
       reminderEnabled: true,
-      reminderLeadDays: [3, 1, 0]
+      reminderLeadDays: [3, 1]
     });
     const item = favUtil.getList('job').find(row => String(row.targetId) === String(targetId)) || {};
     reminders.upsertReminder({
@@ -243,7 +243,7 @@ Page({
       title: item.title || '',
       company: item.company || item.subtitle || '',
       jobTitle: item.title || '',
-      leadDays: [3, 1, 0],
+      leadDays: [3, 1],
       enabled: true,
       payload: item
     }, { withSubscribe: true });

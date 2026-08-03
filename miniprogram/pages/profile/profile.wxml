@@ -62,8 +62,6 @@
     <view class="vip-btn">{{isVip ? '查看权益 ›' : '去开通 ›'}}</view>
   </view>
 
-  <c-ai-disclosure text="我的页面中的简历优化、AI 面试与智能建议由人工智能生成，仅供求职参考，请核验后使用。" />
-
   <view class="stats-card">
     <view class="stat-item" bindtap="goToFavorites" hover-class="tap-soft">
       <text class="stat-num">{{stats.favorites}}</text>

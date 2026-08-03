@@ -26,8 +26,6 @@
       </view>
     </view>
 
-    <c-ai-disclosure text="会员权益中的 AI 内容仅供求职参考，关键信息请结合自身情况核验。" />
-
     <view class="pricing-panel">
       <view class="section-head">
         <view class="section-icon price-icon">¥</view>

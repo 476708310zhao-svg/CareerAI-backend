@@ -83,6 +83,7 @@ Page({
       state: snapshot.state,
       type: snapshot.type || 'Full-time',
       postedAt: snapshot.postedAt || 'Recently posted',
+      deadline: snapshot.deadline || '',
       applyLink: snapshot.applyLink || '',
       description: this.formatDescription(desc) || '暂无职位详情，请通过原始招聘链接查看完整 JD。',
       salary: snapshot.salary || 'Negotiable',
@@ -147,6 +148,7 @@ Page({
         state: rawData.job_state,
         type: rawData.job_employment_type || 'Full-time',
         postedAt: rawData.job_posted_at_datetime_utc ? fromNow(rawData.job_posted_at_datetime_utc) : 'Recently posted',
+        deadline: rawData.job_offer_expiration_datetime_utc || rawData.job_offer_expiration_date || rawData.valid_through || '',
         applyLink: rawData.job_apply_link,
         description: this.formatDescription(rawData.job_description),
         salary: formatSalaryRange(rawData.job_min_salary, rawData.job_max_salary) || (snapshot && snapshot.salary) || 'Negotiable',
@@ -239,6 +241,7 @@ Requirements:
         city: raw.location || raw.city || current.city || 'Remote',
         type: raw.employmentType || raw.type || current.type || 'Full-time',
         salary: raw.salary || current.salary || 'Negotiable',
+        deadline: raw.deadline || current.deadline || '',
         applyLink: raw.officialApplyUrl || raw.applyUrl || raw.sourceUrl || current.applyLink || '',
         description: this.formatDescription(description) || current.description,
         logo: current.logo || this.buildCompanyLogo(raw.company),
@@ -279,7 +282,8 @@ Requirements:
       logo: this.data.job.logo,
       city: this.data.job.city,
       salary: this.data.job.salary,
-      type: this.data.job.type
+      type: this.data.job.type,
+      deadline: this.data.job.deadline || ''
     };
     const isSaved = favUtil.toggle('job', jobData);
     this.setData({ isSaved });
@@ -291,7 +295,6 @@ Requirements:
     if (isSaved) {
       const savedProgress = progress.upsertFromJob(this.data.job, { status: 'collected' });
       this.setData({ inProgress: true, progressStatusText: savedProgress.statusText });
-      this.promptFavoriteReminder();
     }
     wx.showToast({
       title: isSaved ? '已收藏' : '已取消收藏',
@@ -304,20 +307,6 @@ Requirements:
     this.setData({
       inProgress: !!record,
       progressStatusText: record ? record.statusText : ''
-    });
-  },
-
-  promptFavoriteReminder: function() {
-    wx.showModal({
-      title: '已加入收藏',
-      content: '可以在收藏夹为这个岗位设置截止提醒，截止前 3 天和 1 天优先提醒自己。',
-      cancelText: '稍后',
-      confirmText: '去设置',
-      success: (res) => {
-        if (res.confirm) {
-          wx.navigateTo({ url: '/package-user/pages/favorites/favorites?tab=job' });
-        }
-      }
     });
   },
 

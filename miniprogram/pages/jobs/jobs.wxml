@@ -70,8 +70,6 @@
       </view>
     </view>
 
-    <c-ai-disclosure wx:if="{{matchMode}}" text="岗位智能匹配结果由人工智能生成，仅供求职参考，请结合岗位详情自行核验。" />
-
     <view class="brief-match-detail" wx:if="{{matchMode}}">
       <scroll-view scroll-x class="match-kw-scroll" wx:if="{{matchKeywords.length > 0}}" enhanced="{{true}}" show-scrollbar="{{false}}">
         <view class="match-kw-inner">

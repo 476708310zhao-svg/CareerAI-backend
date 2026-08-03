@@ -61,10 +61,6 @@
       <text class="intro-loading-text">✨ AI 正在生成简介...</text>
     </view>
     <text wx:else class="desc-text">{{company.description || '暂无公司介绍'}}</text>
-    <c-ai-disclosure
-      wx:if="{{introGeneratedByAI}}"
-      text="本公司简介由人工智能基于公开信息生成，请以公司官方信息为准。"
-    />
     <view class="info-row">
       <view class="info-item">
         <text class="info-label">成立时间</text>
@@ -121,7 +117,6 @@
 
   <!-- Tab 内容: 面经 (DeepSeek AI) -->
   <view wx:if="{{currentTab === 1}}" class="tab-content">
-    <c-ai-disclosure text="带“AI生成”标识的面经由人工智能生成，仅供面试准备参考。" />
     <view class="ai-exp-bar">
       <view class="ai-exp-btn {{expLoading ? 'disabled' : ''}}" bindtap="aiGenerateExperience">
         <text wx:if="{{!expLoading}}">AI 生成最新面经</text>
@@ -166,7 +161,6 @@
 
   <!-- Tab 内容: AI洞察 -->
   <view wx:if="{{currentTab === 3}}" class="tab-content insight-tab-content">
-    <c-ai-disclosure text="公司洞察、面试题与求职建议由人工智能生成，请结合官方信息核验。" />
     <view class="tab-section-head">
       <view>
         <text class="tab-section-kicker">AI Insight</text>

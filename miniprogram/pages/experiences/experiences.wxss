@@ -170,10 +170,6 @@
   height: 232rpx;
 }
 
-.header-spacer.source-local.with-ai {
-  height: 340rpx;
-}
-
 .header-spacer.source-leetcode {
   height: 160rpx;
 }

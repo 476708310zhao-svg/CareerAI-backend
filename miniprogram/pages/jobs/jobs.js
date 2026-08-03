@@ -485,6 +485,7 @@ Page({
           companyInitial: this.getCompanyInitial(item.company),
           postedAt: item.postedAt ? fromNow(item.postedAt) : 'Recently posted',
           postedAtRaw: item.postedAt || '',
+          deadline: item.deadline || '',
           isSaved: favUtil.isFavorited('job', String(item.id)),
           optFriendly: sponsor.optFriendly === true,
           stemFriendly: sponsor.stemFriendly === true,
@@ -544,6 +545,7 @@ Page({
         companyInitial: this.getCompanyInitial(company),
         postedAt: job.job_posted_at_datetime_utc ? fromNow(job.job_posted_at_datetime_utc) : 'Recently posted',
         postedAtRaw: job.job_posted_at_datetime_utc || '',
+        deadline: job.job_offer_expiration_datetime_utc || job.job_offer_expiration_date || job.valid_through || '',
         isSaved: favUtil.isFavorited('job', String(job.job_id)),
         optFriendly
       };
@@ -605,7 +607,8 @@ Page({
       subtitle: job.company,
       logo: job.logo,
       salary: job.salary,
-      type: job.type
+      type: job.type,
+      deadline: job.deadline || ''
     };
     const isSaved = favUtil.toggle('job', jobData);
     const jobs = this.data.jobs.map((j, i) =>
@@ -707,6 +710,7 @@ Page({
         salary: job.salary,
         postedAt: job.postedAt,
         postedAtRaw: job.postedAtRaw,
+        deadline: job.deadline || '',
         optFriendly: job.optFriendly,
         applyLink: job.applyLink,
         description: job.rawDescription || job.description || ''
