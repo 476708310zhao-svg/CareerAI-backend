@@ -27,6 +27,22 @@ test('v4 AI runtime uses deterministic fallback when live AI is disabled', async
   assert.deepEqual(result.value, { message: 'fallback' });
 });
 
+test('v4 AI runtime uses a configured provider when the live flag is absent', async () => {
+  let calls = 0;
+  const runtime = createRuntime({
+    env: {},
+    getAiConfig: () => config(),
+    createChatCompletion: async () => {
+      calls += 1;
+      return { data: { choices: [{ message: { content: '{"message":"ok"}' } }] } };
+    }
+  });
+  const result = await runtime.generate({ fallback: () => ({ message: 'fallback' }) });
+  assert.equal(calls, 1);
+  assert.equal(result.source, 'live');
+  assert.equal(result.value.message, 'ok');
+});
+
 test('v4 AI runtime parses a live JSON response', async () => {
   const runtime = createRuntime({
     env: { V4_AI_LIVE_ENABLED: 'true' },

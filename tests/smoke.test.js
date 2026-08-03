@@ -45,6 +45,7 @@ function startServer() {
     DISABLE_FREE_JOB_SOURCES: 'true',
     NEWS_RSS_ENABLED: 'false',
     NEWS_JOB_API_ENABLED: 'false',
+    V4_AI_LIVE_ENABLED: 'false',
     RECRUITMENT_FEATURE_ENABLED: 'true',
     MEMBERSHIP_FEATURE_ENABLED: 'false'
   });

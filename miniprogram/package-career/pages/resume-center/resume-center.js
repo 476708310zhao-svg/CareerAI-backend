@@ -131,6 +131,13 @@ Page({
     this.setData({ loading: true });
     api.createResumeChangeSet(this.data.currentResume.id, {}).then(res => {
       const proposal = res.data;
+      const generation = proposal.generation || {};
+      proposal.isFallback = generation.degraded === true;
+      proposal.modelLabel = proposal.isFallback ? '规则降级（非大模型）' : proposal.aiModel;
+      proposal.suggestionLabel = proposal.isFallback ? '规则建议' : 'AI 建议';
+      if (proposal.isFallback) {
+        proposal.generationNotice = '大模型服务暂不可用，以下是本地规则生成的基础建议，请仔细核验后再接受。';
+      }
       const decisions = {};
       (proposal.suggestions || []).forEach(item => { decisions[item.id] = 'reject'; });
       this.setData({ proposal, decisions, manualMode: false, manualJson: JSON.stringify(proposal.sourceContent || {}, null, 2), loading: false });

@@ -93,8 +93,11 @@ function createRuntime(dependencies = {}) {
 
   function getStatus() {
     const config = configReader();
-    const requested = boolValue(environment.V4_AI_LIVE_ENABLED, false);
     const configured = !!config.apiKey;
+    // A configured provider implies live AI unless the kill switch is
+    // explicitly disabled. This prevents older production environments from
+    // silently falling back just because the newer flag is absent.
+    const requested = boolValue(environment.V4_AI_LIVE_ENABLED, configured);
     return {
       requested,
       configured,

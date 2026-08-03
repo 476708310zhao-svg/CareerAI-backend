@@ -5,7 +5,7 @@ const aiRuntime = require('./v4AiRuntime');
 const RESUME_TYPES = ['sde', 'ai_engineer', 'data', 'quant', 'general'];
 const EXPERIENCE_TYPES = ['education', 'experience', 'project', 'skill', 'award'];
 const AI_MODEL = process.env.RESUME_AI_MODEL || aiRuntime.getStatus().model;
-const PROMPT_VERSION = process.env.RESUME_PROMPT_VERSION || 'resume-v4.0-s2-1';
+const PROMPT_VERSION = process.env.RESUME_PROMPT_VERSION || 'resume-v4.0-s2-2';
 
 function parseJson(value, fallback) {
   if (value === undefined || value === null || value === '') return fallback;
@@ -132,17 +132,97 @@ function collectStrings(value, output = []) {
   return output;
 }
 
+function collectStringEntries(value, prefix = '', output = []) {
+  if (typeof value === 'string' && value.trim()) {
+    output.push({ path: prefix || '$', text: value.trim() });
+  } else if (Array.isArray(value)) {
+    value.forEach((item, index) => collectStringEntries(item, `${prefix}[${index}]`, output));
+  } else if (value && typeof value === 'object') {
+    Object.entries(value).forEach(([key, item]) => {
+      collectStringEntries(item, prefix ? `${prefix}.${key}` : key, output);
+    });
+  }
+  return output;
+}
+
+function normalizeComparableText(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function isNonResumeMetadata(value) {
+  const text = normalizeComparableText(value);
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/i.test(text)
+    || /^(?:created|updated|timestamp|version)[_-]?(?:at|time)?\s*[:：]/i.test(text);
+}
+
+function containsSensitivePersonalInfo(value) {
+  const text = String(value || '');
+  return /\b1[3-9]\d{9}\b/.test(text)
+    || /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text)
+    || /(?:联系电话|手机号码?|手机号|联系方式|电话)\s*[:：]?/i.test(text)
+    || /\b\d{15,18}[0-9X]\b/i.test(text);
+}
+
+function compactDelimitedResumeText(value) {
+  const source = normalizeComparableText(value);
+  const parts = source.split(/[；;|｜\n]+/).map(item => item.trim()).filter(Boolean);
+  if (parts.length < 2) return source;
+
+  const hasResumeContext = parts.some(item => /工作经验|学历|本科|硕士|博士|项目|技能|教育/.test(item));
+  const kept = [];
+  for (let index = 0; index < parts.length; index += 1) {
+    const part = parts[index];
+    const next = parts[index + 1] || '';
+    if (containsSensitivePersonalInfo(part)) continue;
+    if (/^\d{1,2}$/.test(part) && /^岁(?:男|女)?$/.test(next)) {
+      index += 1;
+      continue;
+    }
+    if (/^\d{1,2}\s*岁(?:男|女)?$/.test(part) || /^(?:男|女)$/.test(part)) continue;
+    if (index === 0 && hasResumeContext && /^[\u3400-\u9fff·]{2,5}$/.test(part)) continue;
+    if (/^\d{1,2}$/.test(part) && /^年(?:工作)?经验/.test(next)) {
+      kept.push(`${part}${next}`);
+      index += 1;
+      continue;
+    }
+    kept.push(part);
+  }
+  return kept.join('｜');
+}
+
+function polishFallbackText(value) {
+  let after = normalizeComparableText(value);
+  if (/[；;|｜\n]/.test(after)) after = compactDelimitedResumeText(after);
+  after = after
+    .replace(/(?:本人|我)\s*(?:主要)?负责(?:了)?/g, '负责')
+    .replace(/主要负责(?:了)?/g, '负责')
+    .replace(/参与了/g, '参与')
+    .replace(/进行了/g, '开展')
+    .replace(/，并且/g, '，')
+    .replace(/([，,；;])\s*\1+/g, '$1')
+    .replace(/\s+([，。；：])/g, '$1')
+    .replace(/^[｜；;，,\s]+|[｜；;，,\s]+$/g, '')
+    .trim();
+  return after;
+}
+
 function defaultSuggestions(content, jdText) {
-  const strings = collectStrings(content).filter(item => item.length >= 18).slice(0, 3);
-  return strings.map((before, index) => ({
-    id: `suggestion_${index + 1}`,
-    path: '$',
-    before,
-    after: before.replace(/\s+/g, ' ').replace(/，并且/g, '，').trim(),
-    reason: jdText ? '压缩冗余表达，使真实经历更便于与岗位要求对照' : '压缩冗余表达，提高可读性',
-    sourceExperienceIds: [],
-    addsFacts: false
-  }));
+  return collectStringEntries(content)
+    .filter(item => item.text.length >= 8 && !isNonResumeMetadata(item.text))
+    .map(item => ({ ...item, after: polishFallbackText(item.text) }))
+    .filter(item => item.after && normalizeComparableText(item.after) !== normalizeComparableText(item.text))
+    .slice(0, 5)
+    .map((item, index) => ({
+      id: `suggestion_${index + 1}`,
+      path: item.path,
+      before: item.text,
+      after: item.after,
+      reason: containsSensitivePersonalInfo(item.text)
+        ? '移除与求职无关的隐私信息，并整理为易读表达'
+        : (jdText ? '压缩冗余表达，使真实经历更便于与岗位要求对照' : '压缩冗余表达，提高可读性'),
+      sourceExperienceIds: [],
+      addsFacts: false
+    }));
 }
 
 function validateSuggestions(userId, content, suggestions) {
@@ -158,6 +238,12 @@ function validateSuggestions(userId, content, suggestions) {
       addsFacts: raw.addsFacts === true
     };
     if (!suggestion.after) throw Object.assign(new Error(`第 ${index + 1} 条建议缺少修改后内容`), { status: 400 });
+    if (normalizeComparableText(suggestion.before) === normalizeComparableText(suggestion.after)) {
+      throw Object.assign(new Error(`第 ${index + 1} 条建议与原内容相同`), { status: 422, code: 'AI_SUGGESTION_UNCHANGED' });
+    }
+    if (isNonResumeMetadata(suggestion.before)) {
+      throw Object.assign(new Error(`第 ${index + 1} 条建议引用的是系统元数据，不是简历内容`), { status: 422, code: 'AI_SUGGESTION_INVALID_FIELD' });
+    }
     if (!suggestion.before || !sourceText.includes(suggestion.before)) {
       throw Object.assign(new Error(`第 ${index + 1} 条建议未准确引用原简历内容`), { status: 422, code: 'UNVERIFIED_FACT' });
     }
@@ -199,14 +285,17 @@ async function createChangeSet({ userId, resumeId, jobId = '', applicationId = n
   if (Array.isArray(suggestions) && suggestions.length) {
     checked = validateSuggestions(userId, content, suggestions);
   } else {
+    const resumeFields = collectStringEntries(content)
+      .filter(item => item.text.length >= 8 && !isNonResumeMetadata(item.text) && !containsSensitivePersonalInfo(item.text))
+      .slice(0, 40);
     const generated = await aiRuntime.generate({
-      systemPrompt: '你是职引的简历优化助手。只能改写用户原简历中已经存在的句子，不得新增经历、技能、学历、公司、日期或数字。输出 JSON 数组，每项格式为 {"id":"suggestion_1","path":"$","before":"原文完整句子","after":"优化后句子","reason":"修改原因","sourceExperienceIds":[],"addsFacts":false}。最多 5 条。',
-      userPrompt: JSON.stringify({ resume: content, jd: cleanText(jdText, 8000) }),
+      systemPrompt: '你是职引的专业简历优化助手。请针对求职价值、动作表达、结果呈现和可读性进行实质改写。只能改写 resumeFields 中已经存在的完整原文，不得新增经历、技能、学历、公司、日期、数字或任何未经证实的事实；不得返回与原文相同或仅改空格的内容；不得处理姓名、电话、邮箱、年龄、性别和系统时间戳。输出 JSON 数组，每项格式为 {"id":"suggestion_1","path":"原字段路径","before":"原文完整内容","after":"实质优化后的内容","reason":"具体修改原因","sourceExperienceIds":[],"addsFacts":false}。返回 1 到 5 条。',
+      userPrompt: JSON.stringify({ resumeFields, jd: cleanText(jdText, 8000) }),
       temperature: 0.2,
       maxTokens: 2400,
       fallback: () => defaultSuggestions(content, jdText),
       validate: value => {
-        if (!Array.isArray(value) || value.length > 5) return false;
+        if (!Array.isArray(value) || !value.length || value.length > 5) return false;
         validateSuggestions(userId, content, value);
         return true;
       }
@@ -214,6 +303,12 @@ async function createChangeSet({ userId, resumeId, jobId = '', applicationId = n
     checked = validateSuggestions(userId, content, generated.value);
     model = generated.model;
     generation = aiRuntime.safeMetadata(generated);
+  }
+  if (!checked.length) {
+    throw Object.assign(new Error('当前简历没有可安全生成的有效优化建议，请补充项目、工作或教育经历后重试'), {
+      status: 503,
+      code: 'AI_SUGGESTION_UNAVAILABLE'
+    });
   }
   const result = db.prepare(`
     INSERT INTO resume_ai_change_sets
@@ -285,6 +380,8 @@ module.exports = {
   ensureCurrentVersion,
   createVersion,
   compareContent,
+  defaultSuggestions,
+  validateSuggestions,
   createChangeSet,
   getChangeSet,
   confirmChangeSet
