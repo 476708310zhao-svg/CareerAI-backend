@@ -101,3 +101,19 @@ test('job lists share one card component and detail follows the decision order',
   assert.match(detailWxml, /loading && !job/);
   assert.match(detailWxml, /bindtap="retryLoad"/);
 });
+
+test('job search starts the production source immediately and closes stale loading states', () => {
+  const apiJobs = read('utils/api-jobs.js');
+  const searchJs = read('package-user/pages/search/search.js');
+
+  const productionRequest = apiJobs.indexOf("request({ path: '/api/jobs/search'");
+  const feishuFallback = apiJobs.indexOf('feishuContent.getFeishuJobs');
+  assert.ok(productionRequest >= 0 && feishuFallback > productionRequest);
+  assert.match(apiJobs, /const sources = \[/);
+  assert.match(apiJobs, /Array\.isArray\(result\.data\) && result\.data\.length/);
+
+  assert.match(searchJs, /const searchSeq = \(this\._searchSeq \|\| 0\) \+ 1/);
+  assert.match(searchJs, /if \(seq !== this\._searchSeq\) return/);
+  assert.match(searchJs, /this\._jobSearchGuard = setTimeout/);
+  assert.match(searchJs, /loading: false, loadingMore: false, jobHasMore: false/);
+});

@@ -16,8 +16,28 @@ function getJobs(data) {
     date_posted: data.date_posted || 'all'
   };
   if (data.employment_types) params.employment_types = data.employment_types;
-  return feishuContent.getFeishuJobs(data || {})
-    .catch(() => request({ path: '/api/jobs/search', params, timeout: data.timeout || 15000 }));
+
+  // 正式职位接口是搜索页主数据源；飞书人工职位仅作为并行兜底。
+  // 不再串行等待飞书超时后才请求正式接口，避免搜索页长时间停留在 loading。
+  const sources = [
+    request({ path: '/api/jobs/search', params, timeout: data.timeout || 10000 }),
+    feishuContent.getFeishuJobs(Object.assign({}, data, { timeout: Math.min(data.timeout || 6000, 6000) }))
+  ];
+
+  return new Promise(resolve => {
+    let settled = 0;
+    let emptyResult = { data: [] };
+    const accept = result => {
+      settled += 1;
+      if (result && Array.isArray(result.data) && result.data.length) {
+        resolve(result);
+        return;
+      }
+      if (result && Array.isArray(result.data)) emptyResult = result;
+      if (settled === sources.length) resolve(emptyResult);
+    };
+    sources.forEach(source => source.then(accept).catch(() => accept({ data: [] })));
+  });
 }
 
 function getJobDetail(jobId) {

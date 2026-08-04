@@ -55,6 +55,7 @@ Page({
 
   onUnload() {
     clearTimeout(this._searchTimer);
+    clearTimeout(this._jobSearchGuard);
   },
 
   onShow() {
@@ -86,15 +87,23 @@ Page({
   executeSearch(recordHistory) {
     const kw = this.data.keyword.trim();
     if (!kw) return;
+    const searchSeq = (this._searchSeq || 0) + 1;
+    this._searchSeq = searchSeq;
 
     if (recordHistory) this.saveSearchHistory(kw);
 
     this.setData({ loading: true, hasSearched: true, jobPage: 1, jobHasMore: false, jobResults: [] });
 
     // 并行：API 搜职位 + 本地搜公司/面经
-    this.searchJobsAPI(kw, 1, false);
+    this.searchJobsAPI(kw, 1, false, searchSeq);
     this.searchCompanies(kw);
     this.searchExperiences(kw);
+
+    clearTimeout(this._jobSearchGuard);
+    this._jobSearchGuard = setTimeout(() => {
+      if (searchSeq !== this._searchSeq || !this.data.loading) return;
+      this.setData({ loading: false, loadingMore: false, jobHasMore: false });
+    }, 12000);
   },
 
   saveSearchHistory(keyword) {
@@ -107,9 +116,12 @@ Page({
   },
 
   // 职位搜索 — 接入真实 API
-  searchJobsAPI(kw, page, isLoadMore) {
-    getJobs({ keyword: kw, country: 'us', size: 10, page })
+  searchJobsAPI(kw, page, isLoadMore, searchSeq) {
+    const seq = searchSeq || this._searchSeq || 0;
+    getJobs({ keyword: kw, country: 'us', size: 10, page, timeout: 10000 })
       .then(res => {
+        if (seq !== this._searchSeq) return;
+        clearTimeout(this._jobSearchGuard);
         if (res.data && res.data.length > 0) {
           const newJobs = res.data.map(job => {
             const salary = formatSalaryRange(job.job_min_salary, job.job_max_salary);
@@ -147,6 +159,8 @@ Page({
         }
       })
       .catch(() => {
+        if (seq !== this._searchSeq) return;
+        clearTimeout(this._jobSearchGuard);
         if (!isLoadMore && ALLOW_DEMO_FALLBACK) this.searchJobsLocal(kw);
         this.setData({ loading: false, loadingMore: false, jobHasMore: false });
       });
@@ -158,7 +172,7 @@ Page({
     const kw = this.data.keyword.trim();
     if (!kw) return;
     this.setData({ loadingMore: true });
-    this.searchJobsAPI(kw, this.data.jobPage + 1, true);
+    this.searchJobsAPI(kw, this.data.jobPage + 1, true, this._searchSeq || 0);
   },
 
   onReachBottom() {
