@@ -1,6 +1,7 @@
 {
   "usingComponents": {
-    "c-company-logo": "/components/c-company-logo/c-company-logo"
+    "c-company-logo": "/components/c-company-logo/c-company-logo",
+    "c-job-card": "/components/c-job-card/c-job-card"
   },
   "navigationBarTitleText": "搜索"
 }

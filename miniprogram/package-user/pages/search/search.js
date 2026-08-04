@@ -4,6 +4,8 @@ const demoData = require('../../../utils/demo-data.js');
 const { formatSalaryRange } = require('../../../utils/util.js');
 const browseHistory = require('../../../utils/browse-history.js');
 const featureFlags = require('../../../utils/feature-flags.js');
+const favUtil = require('../../../utils/favorites.js');
+const progress = require('../../../utils/job-progress.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
 function normalizeSearchHistory(list) {
@@ -53,6 +55,16 @@ Page({
 
   onUnload() {
     clearTimeout(this._searchTimer);
+  },
+
+  onShow() {
+    if (!this.data.jobResults.length) return;
+    this.setData({
+      jobResults: this.data.jobResults.map(job => Object.assign({}, job, {
+        isSaved: favUtil.isFavorited('job', String(job.id)),
+        isApplied: !!progress.getByJobId(job.id)
+      }))
+    });
   },
 
   onInput(e) {
@@ -108,11 +120,17 @@ Page({
               salary,
               city: job.job_city || 'Remote',
               state: job.job_state || '',
-              type: job.job_employment_type || 'Full-time',
+              type: job.job_employment_type || '',
               logo: job.employer_logo || '/images/default-company.png',
               postedAt: job.job_posted_at_datetime_utc || '',
+              deadline: job.job_offer_expiration_datetime_utc || job.job_offer_expiration_date || job.valid_through || '',
               rawDescription: job.job_description || '',
-              applyLink: job.job_apply_link || ''
+              applyLink: job.job_apply_link || '',
+              remoteType: job.job_is_remote ? '支持远程' : '',
+              requirements: job.job_highlights && (job.job_highlights.Qualifications || job.job_highlights.qualifications) || [],
+              jobHighlights: job.job_highlights || {},
+              isSaved: favUtil.isFavorited('job', String(job.job_id)),
+              isApplied: !!progress.getByJobId(job.job_id)
             };
           });
           const jobs = isLoadMore ? this.data.jobResults.concat(newJobs) : newJobs;
@@ -157,7 +175,12 @@ Page({
     }
     const lower = kw.toLowerCase();
     const MOCK_JOBS = demoData.getList('JOBS');
-    const results = MOCK_JOBS.filter(j => j.title.toLowerCase().includes(lower) || j.company.toLowerCase().includes(lower));
+    const results = MOCK_JOBS
+      .filter(j => j.title.toLowerCase().includes(lower) || j.company.toLowerCase().includes(lower))
+      .map(job => Object.assign({}, job, {
+        isSaved: favUtil.isFavorited('job', String(job.id)),
+        isApplied: !!progress.getByJobId(job.id)
+      }));
     this.setData({ jobResults: results, loading: false });
   },
 
@@ -238,7 +261,7 @@ Page({
 
   // 跳转
   goToJobDetail(e) {
-    const id = e.currentTarget.dataset.id;
+    const id = e.detail && e.detail.id !== undefined ? e.detail.id : e.currentTarget.dataset.id;
     const job = (this.data.jobResults || []).find(item => String(item.id) === String(id));
     if (job) {
       const snapshot = {
@@ -257,10 +280,30 @@ Page({
       wx.setStorageSync('tempJobDetail', snapshot);
       wx.setStorageSync('jobDetailSnapshot_' + String(id), snapshot);
     }
-    const title = e.currentTarget.dataset.title || '';
+    const title = (job && job.title) || e.currentTarget.dataset.title || '';
     // 记录浏览历史
     if (title) browseHistory.add({ id, title });
     wx.navigateTo({ url: '/package-user/pages/job-detail/job-detail?id=' + encodeURIComponent(id) });
+  },
+
+  toggleJobFavorite(e) {
+    const index = e.detail && Number.isInteger(e.detail.index) ? e.detail.index : -1;
+    const job = this.data.jobResults[index];
+    if (!job) return;
+    const isSaved = favUtil.toggle('job', {
+      targetId: String(job.id),
+      title: job.title,
+      subtitle: job.company,
+      logo: job.logo,
+      salary: job.salary,
+      type: job.type,
+      deadline: job.deadline || ''
+    });
+    const jobResults = this.data.jobResults.map((item, itemIndex) => itemIndex === index
+      ? Object.assign({}, item, { isSaved })
+      : item);
+    this.setData({ jobResults });
+    wx.showToast({ title: isSaved ? '已收藏' : '已取消', icon: 'none' });
   },
 
   goToCompanyDetail(e) {

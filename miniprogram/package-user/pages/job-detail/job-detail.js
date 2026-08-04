@@ -12,19 +12,29 @@ const featureFlags = require('../../../utils/feature-flags.js');
 const navigation = require('../../../utils/navigation.js');
 const reminders = require('../../../utils/reminders.js');
 const analytics = require('../../../utils/analytics.js');
+const { presentJob, clean } = require('../../../utils/job-presenter.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
 Page({
   data: {
     jobId: '',
     job: null,
+    jobView: null,
     loading: true,
+    loadError: false,
     isSaved: false,
+    isApplied: false,
+    isApplying: false,
     inProgress: false,
     progressStatusText: '',
     showMatchPanel: false,
     matchReport: null,
+    inlineMatch: null,
     sponsorProfile: null,
+    companyProfile: null,
+    companyView: null,
+    companyExpanded: false,
+    similarJobs: [],
     v4Application: null,
     // 一键投递弹窗
     showApplyModal: false,
@@ -79,23 +89,123 @@ Page({
       logo: snapshot.logo || this.buildCompanyLogo(snapshot.company),
       logoFailed: !!snapshot.logoFailed,
       companyInitial: snapshot.companyInitial || this.getCompanyInitial(snapshot.company),
-      city: snapshot.city || 'Remote',
+      city: snapshot.city || '',
       state: snapshot.state,
-      type: snapshot.type || 'Full-time',
+      type: snapshot.type || '',
       postedAt: snapshot.postedAt || 'Recently posted',
       deadline: snapshot.deadline || '',
       applyLink: snapshot.applyLink || '',
       description: this.formatDescription(desc) || '暂无职位详情，请通过原始招聘链接查看完整 JD。',
       salary: snapshot.salary || 'Negotiable',
       visaSponsored: !!snapshot.optFriendly,
+      optFriendly: !!snapshot.optFriendly,
+      stemFriendly: !!snapshot.stemFriendly,
+      h1bSponsor: !!snapshot.h1bSponsor,
+      citizenRequired: !!snapshot.citizenRequired,
+      industry: snapshot.industry || '',
+      requirements: snapshot.requirements || [],
+      tags: snapshot.tags || [],
+      graduationYear: snapshot.graduationYear || '',
+      recruitmentType: snapshot.recruitmentType || '',
+      education: snapshot.education || '',
+      remoteType: snapshot.remoteType || '',
+      conversionOpportunity: !!snapshot.conversionOpportunity,
+      applyCount: Number(snapshot.applyCount || 0),
+      matchScore100: Number(snapshot.matchScore100 || 0),
+      matchReason: snapshot.matchReason || '',
       skillTags: extractSkillTags(desc || `${snapshot.title || ''} ${snapshot.company || ''}`)
     };
   },
 
+  buildInlineMatch: function(match) {
+    if (!match || !Number(match.score)) return null;
+    const statusText = match.qualificationStatus === 'eligible'
+      ? '资格条件符合，建议优先投递'
+      : (match.qualificationStatus === 'partial' ? '部分条件需要投递前核实' : '存在明确资格限制，请谨慎判断');
+    return {
+      score: Math.round(Number(match.score)),
+      statusText,
+      strengths: (match.strengths || []).slice(0, 4),
+      gaps: (match.gaps || match.missingSkills || []).slice(0, 2),
+      actions: (match.actions || []).slice(0, 2)
+    };
+  },
+
+  buildCompanyView: function(company, job) {
+    const source = company || {};
+    const current = job || {};
+    const name = clean(source.displayName || source.name || current.company);
+    if (!name) return null;
+    return {
+      id: source.id || source.companyId || '',
+      name,
+      logo: source.logo || source.logoUrl || current.logo || '',
+      industry: clean(source.industry || current.industry),
+      size: clean(source.size || source.companySize || current.companySize),
+      stage: clean(source.financingStage || source.stage),
+      location: clean(source.location || source.city || current.city),
+      description: clean(source.description || source.summary || current.companyDescription),
+      website: clean(source.website || source.officialWebsite),
+      canExpand: clean(source.description || source.summary || current.companyDescription).length > 150
+    };
+  },
+
+  buildSimilarJobs: function(job) {
+    const cached = wx.getStorageSync('cachedJobsList');
+    const items = Array.isArray(cached) ? cached : (cached && cached.items);
+    if (!Array.isArray(items) || !job) return [];
+    const currentId = String(job.id || '');
+    const titleWords = String(job.title || '').toLowerCase().split(/[^a-z0-9\u4e00-\u9fa5]+/).filter(word => word.length > 2);
+    return items
+      .filter(item => String(item.id) !== currentId)
+      .map(item => {
+        let score = 0;
+        if (item.type && job.type && String(item.type).toLowerCase() === String(job.type).toLowerCase()) score += 3;
+        if (item.city && job.city && String(item.city).toLowerCase() === String(job.city).toLowerCase()) score += 2;
+        const candidateTitle = String(item.title || '').toLowerCase();
+        if (titleWords.some(word => candidateTitle.includes(word))) score += 4;
+        return Object.assign({}, item, {
+          _similarScore: score,
+          isSaved: favUtil.isFavorited('job', String(item.id)),
+          isApplied: !!progress.getByJobId(item.id)
+        });
+      })
+      .filter(item => item._similarScore > 0)
+      .sort((a, b) => b._similarScore - a._similarScore)
+      .slice(0, 4);
+  },
+
+  commitJob: function(job, patch) {
+    if (!job) return;
+    const record = progress.getByJobId(job.id);
+    const application = patch && Object.prototype.hasOwnProperty.call(patch, 'v4Application')
+      ? patch.v4Application
+      : this.data.v4Application;
+    const isApplied = !!(record && record.status !== 'collected') || !!application;
+    const displaySource = Object.assign({}, job, {
+      isSaved: this.data.isSaved,
+      isApplied,
+      applyStatus: record ? record.statusText : (application && application.statusText) || ''
+    });
+    const companyProfile = patch && Object.prototype.hasOwnProperty.call(patch, 'companyProfile')
+      ? patch.companyProfile
+      : this.data.companyProfile;
+    this.setData(Object.assign({
+      job,
+      jobView: presentJob(displaySource),
+      companyView: this.buildCompanyView(companyProfile, job),
+      similarJobs: this.buildSimilarJobs(job),
+      isApplied,
+      inProgress: !!record || !!application,
+      progressStatusText: record ? record.statusText : (application && application.statusText) || '',
+      loading: false,
+      loadError: false
+    }, patch || {}));
+  },
+
   useFallbackDetail: function(id, snapshotDetail) {
     if (snapshotDetail) {
-      this.setData({ job: snapshotDetail, loading: false });
-      this.refreshProgressState(snapshotDetail.id);
+      this.commitJob(snapshotDetail);
       this._saveBrowseHistory(snapshotDetail);
       return;
     }
@@ -103,12 +213,12 @@ Page({
       this.loadMockDetail(id);
       return;
     }
-    this.setData({ job: null, loading: false });
+    this.setData({ job: null, jobView: null, loading: false, loadError: true });
     wx.showToast({ title: '职位信息暂不可用', icon: 'none' });
   },
 
   fetchJobDetail: function(id) {
-    this.setData({ loading: true });
+    this.setData({ loading: true, loadError: false });
     const snapshot = this.getJobSnapshot(id);
     const snapshotDetail = this.buildSnapshotDetail(snapshot);
 
@@ -117,14 +227,14 @@ Page({
       if (ALLOW_DEMO_FALLBACK) {
         this.loadMockDetail(id);
       } else {
-        this.setData({ job: null, loading: false });
+        this.setData({ job: null, jobView: null, loading: false, loadError: true });
         wx.showToast({ title: '职位信息暂不可用', icon: 'none' });
       }
       return;
     }
 
     if (snapshotDetail) {
-      this.setData({ job: snapshotDetail, loading: false });
+      this.commitJob(snapshotDetail);
     }
 
     getJobDetail(id).then(res => {
@@ -144,20 +254,29 @@ Page({
         logo: (snapshot && snapshot.logo) || (rawData.employer_logo ? normalizeCompanyLogo(rawData.employer_logo) : this.buildCompanyLogo(rawData.employer_name)),
         logoFailed: !!(snapshot && snapshot.logoFailed),
         companyInitial: (snapshot && snapshot.companyInitial) || this.getCompanyInitial(rawData.employer_name),
-        city: rawData.job_city || 'Remote',
+        city: rawData.job_city || '',
         state: rawData.job_state,
-        type: rawData.job_employment_type || 'Full-time',
+        type: rawData.job_employment_type || '',
         postedAt: rawData.job_posted_at_datetime_utc ? fromNow(rawData.job_posted_at_datetime_utc) : 'Recently posted',
         deadline: rawData.job_offer_expiration_datetime_utc || rawData.job_offer_expiration_date || rawData.valid_through || '',
         applyLink: rawData.job_apply_link,
-        description: this.formatDescription(rawData.job_description),
+        description: rawData.job_description || '',
         salary: formatSalaryRange(rawData.job_min_salary, rawData.job_max_salary) || (snapshot && snapshot.salary) || 'Negotiable',
         visaSponsored,
+        remoteType: rawData.job_is_remote ? '支持远程' : '',
+        education: rawData.job_required_education && (rawData.job_required_education.postgraduate_degree
+          ? '研究生及以上'
+          : (rawData.job_required_education.bachelors_degree ? '本科及以上' : '')),
+        experience: rawData.job_required_experience && rawData.job_required_experience.required_experience_in_months
+          ? `${Math.ceil(rawData.job_required_experience.required_experience_in_months / 12)}年以上`
+          : '',
+        requirements: rawData.job_highlights && (rawData.job_highlights.Qualifications || rawData.job_highlights.qualifications) || [],
+        jobHighlights: rawData.job_highlights || {},
+        industry: rawData.employer_company_type || '',
         skillTags: extractSkillTags(desc)
       };
 
-      this.setData({ job: jobDetail, loading: false });
-      this.refreshProgressState(jobDetail.id);
+      this.commitJob(jobDetail);
       this._saveBrowseHistory(jobDetail);
     }).catch(err => {
       console.warn('[job-detail] detail request failed, using fallback:', err && (err.message || err.errMsg || err));
@@ -220,8 +339,7 @@ Requirements:
 • Experience with cloud platforms (AWS/GCP).
 • Excellent problem-solving skills.`
     };
-    this.setData({ job: mockJob, loading: false });
-    this.refreshProgressState(mockJob.id);
+    this.commitJob(mockJob);
     this._saveBrowseHistory(mockJob);
   },
 
@@ -238,24 +356,40 @@ Requirements:
         id: raw.id || id,
         title: raw.title || current.title,
         company: raw.company || current.company,
-        city: raw.location || raw.city || current.city || 'Remote',
-        type: raw.employmentType || raw.type || current.type || 'Full-time',
+        city: raw.location || raw.city || current.city || '',
+        type: raw.employmentType || raw.type || current.type || '',
         salary: raw.salary || current.salary || 'Negotiable',
         deadline: raw.deadline || current.deadline || '',
         applyLink: raw.officialApplyUrl || raw.applyUrl || raw.sourceUrl || current.applyLink || '',
-        description: this.formatDescription(description) || current.description,
+        description: description || current.description,
         logo: current.logo || this.buildCompanyLogo(raw.company),
         companyInitial: current.companyInitial || this.getCompanyInitial(raw.company),
         visaSponsored: !!(data.sponsor && (data.sponsor.h1bSponsor || data.sponsor.optFriendly)),
+        optFriendly: !!(data.sponsor && data.sponsor.optFriendly),
+        stemFriendly: !!(data.sponsor && data.sponsor.stemFriendly),
+        h1bSponsor: !!(data.sponsor && data.sponsor.h1bSponsor),
+        citizenRequired: !!(data.sponsor && data.sponsor.citizenRequired),
+        industry: raw.industry || current.industry || '',
+        requirements: raw.requirements || current.requirements || [],
+        tags: raw.tags || current.tags || [],
+        graduationYear: raw.graduationYear || current.graduationYear || '',
+        recruitmentType: raw.recruitmentType || current.recruitmentType || '',
+        education: raw.education || current.education || '',
+        experience: raw.experience || current.experience || '',
+        remoteType: raw.remoteType || current.remoteType || '',
+        conversionOpportunity: !!(raw.conversionOpportunity || current.conversionOpportunity),
+        applyCount: Number(raw.applyCount || current.applyCount || 0),
+        matchScore100: Number(data.match && data.match.score || current.matchScore100 || 0),
+        matchReason: data.match ? (data.match.qualificationStatus === 'eligible'
+          ? '资格条件符合，建议优先投递'
+          : (data.match.qualificationStatus === 'partial' ? '部分条件需要核实' : '存在资格限制')) : current.matchReason,
         skillTags: current.skillTags || extractSkillTags(description),
       };
-      this.setData({
-        job,
+      this.commitJob(job, {
         sponsorProfile: data.sponsor || null,
-        v4Application: data.application || null,
-        inProgress: !!data.application || this.data.inProgress,
-        progressStatusText: (data.application && data.application.statusText) || this.data.progressStatusText,
-        loading: false,
+        companyProfile: data.company || null,
+        inlineMatch: this.buildInlineMatch(data.match),
+        v4Application: data.application || null
       });
       this._saveBrowseHistory(job);
     }).catch(() => {});
@@ -286,7 +420,7 @@ Requirements:
       deadline: this.data.job.deadline || ''
     };
     const isSaved = favUtil.toggle('job', jobData);
-    this.setData({ isSaved });
+    this.setData({ isSaved, 'jobView.isSaved': isSaved });
     analytics.track(isSaved ? 'favorite_job' : 'unfavorite_job', {
       jobId: jobData.targetId,
       company: jobData.company,
@@ -304,9 +438,59 @@ Requirements:
 
   refreshProgressState: function(jobId) {
     const record = progress.getByJobId(jobId || this.data.jobId);
-    this.setData({
+    const patch = {
       inProgress: !!record,
+      isApplied: !!(record && record.status !== 'collected'),
       progressStatusText: record ? record.statusText : ''
+    };
+    if (this.data.jobView) {
+      patch['jobView.isApplied'] = !!(record && record.status !== 'collected');
+      patch['jobView.appliedText'] = record && record.status !== 'collected' ? record.statusText : '';
+      patch['jobView.applyButtonText'] = record && record.status !== 'collected'
+        ? '已投递'
+        : (this.data.jobView.deadlineClosed ? '已截止' : (this.data.jobView.hasApplyLink ? '前往投递' : '保存投递'));
+    }
+    this.setData(patch);
+  },
+
+  retryLoad: function() {
+    if (!this.data.jobId) return this.goBack();
+    this.fetchJobDetail(this.data.jobId);
+    this.loadV4Detail(this.data.jobId);
+  },
+
+  goToCompanyDetail: function() {
+    const company = this.data.companyView;
+    if (!company || !company.id) return;
+    wx.navigateTo({
+      url: `/package-user/pages/company-detail/company-detail?id=${encodeURIComponent(company.id)}&name=${encodeURIComponent(company.name)}`
+    });
+  },
+
+  toggleCompanyDescription: function() {
+    this.setData({ companyExpanded: !this.data.companyExpanded });
+  },
+
+  openSimilarJob: function(e) {
+    const id = e.detail && e.detail.id;
+    if (!id) return;
+    const job = this.data.similarJobs.find(item => String(item.id) === String(id));
+    if (job) wx.setStorageSync('jobDetailSnapshot_' + String(id), job);
+    wx.navigateTo({ url: `/package-user/pages/job-detail/job-detail?id=${encodeURIComponent(id)}` });
+  },
+
+  toggleSimilarFavorite: function(e) {
+    const index = e.detail && Number.isInteger(e.detail.index) ? e.detail.index : -1;
+    const job = this.data.similarJobs[index];
+    if (!job) return;
+    const isSaved = favUtil.toggle('job', {
+      targetId: String(job.id), title: job.title, subtitle: job.company,
+      logo: job.logo, salary: job.salary, type: job.type, deadline: job.deadline || ''
+    });
+    this.setData({
+      similarJobs: this.data.similarJobs.map((item, itemIndex) => itemIndex === index
+        ? Object.assign({}, item, { isSaved })
+        : item)
     });
   },
 
@@ -364,7 +548,14 @@ Requirements:
             dimensions: match.dimensions || {},
             qualificationReasons: match.qualificationReasons || [],
           };
-          this.setData({ matchReport: report, showMatchPanel: true });
+          this.setData({
+            matchReport: report,
+            inlineMatch: this.buildInlineMatch(match),
+            showMatchPanel: true,
+            'job.matchScore100': Number(match.score || 0),
+            'jobView.matchScore': Number(match.score || 0),
+            'jobView.hasMatch': true
+          });
           wx.hideLoading();
           return;
         }
@@ -430,6 +621,15 @@ Requirements:
   applyJob: function() {
     const job = this.data.job;
     if (!job) return;
+    if (this.data.jobView && this.data.jobView.deadlineClosed) {
+      wx.showToast({ title: '该职位已截止，可先收藏关注', icon: 'none' });
+      return;
+    }
+    if (this.data.isApplied) {
+      wx.showToast({ title: '该职位已在投递看板中', icon: 'none' });
+      return;
+    }
+    if (this.data.isApplying) return;
     const resume = wx.getStorageSync('onlineResume') || {};
     const b = resume.basicInfo || {};
     const snap = {
@@ -451,7 +651,8 @@ Requirements:
   doOneClickApply: function() {
     const job  = this.data.job;
     const snap = this.data.resumeSnap;
-    if (!job) return;
+    if (!job || this.data.isApplying) return;
+    this.setData({ isApplying: true });
 
     // 1. 构建简历摘要文本
     const lines = [];
@@ -477,7 +678,8 @@ Requirements:
       content: job.applyLink
         ? '岗位已加入投递看板。请在浏览器中粘贴链接，进入官方招聘页完成申请。'
         : '岗位已加入投递看板。当前职位暂无官方投递链接，可在看板中继续跟进。',
-      showCancel: false
+      showCancel: false,
+      complete: () => this.setData({ isApplying: false })
     });
   },
 

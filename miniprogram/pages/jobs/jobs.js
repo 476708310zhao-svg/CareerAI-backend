@@ -4,6 +4,7 @@ const { getJobs, getAggregatedJobs, normalizeCompanyLogo } = require('../../util
 const v4Api = require('../../utils/api-v4.js');
 const { getCountries } = require('../../utils/api-news.js');
 const favUtil = require('../../utils/favorites.js');
+const progress = require('../../utils/job-progress.js');
 const demoData = require('../../utils/demo-data.js');
 const { fromNow, formatSalaryRange } = require('../../utils/util.js');
 const matcher = require('../../utils/matcher.js');
@@ -181,7 +182,8 @@ Page({
     if (this.data.jobs.length > 0) {
       const jobs = this.data.jobs.map(j => ({
         ...j,
-        isSaved: favUtil.isFavorited('job', String(j.id))
+        isSaved: favUtil.isFavorited('job', String(j.id)),
+        isApplied: !!progress.getByJobId(j.id)
       }));
       this.setData({ jobs });
     }
@@ -476,7 +478,7 @@ Page({
           salary: item.salary || 'Negotiable',
           city: location,
           state: '',
-          type: item.jobType || item.employmentType || 'Full-time',
+          type: item.jobType || item.employmentType || '',
           description: String(item.description || '').slice(0, 84),
           rawDescription: item.description || '',
           applyLink: item.applyUrl || item.sourceUrl || '',
@@ -498,6 +500,16 @@ Page({
           matchReason: match.qualificationStatus === 'eligible'
             ? '资格符合 · 建议优先投递'
             : (match.qualificationStatus === 'partial' ? '部分符合 · 投递前核实资格' : '存在资格限制 · 请查看详情'),
+          industry: item.industry || '',
+          requirements: item.requirements || [],
+          tags: item.tags || [],
+          graduationYear: item.graduationYear || '',
+          recruitmentType: item.recruitmentType || '',
+          education: item.education || '',
+          remoteType: item.remoteType || '',
+          conversionOpportunity: !!item.conversionOpportunity,
+          applyCount: Number(item.applyCount || 0),
+          isApplied: !!progress.getByJobId(item.id),
         };
       });
       this.setData({
@@ -536,7 +548,7 @@ Page({
         salary: salaryDisplay,
         city: job.job_city || 'Remote',
         state: job.job_state,
-        type: job.job_employment_type || 'Full-time',
+        type: job.job_employment_type || '',
         description: job.job_description ? job.job_description.substring(0, 80).replace(/\n/g, ' ') + '...' : '',
         rawDescription: job.job_description || '',
         applyLink: job.job_apply_link || '',
@@ -547,7 +559,12 @@ Page({
         postedAtRaw: job.job_posted_at_datetime_utc || '',
         deadline: job.job_offer_expiration_datetime_utc || job.job_offer_expiration_date || job.valid_through || '',
         isSaved: favUtil.isFavorited('job', String(job.job_id)),
-        optFriendly
+        isApplied: !!progress.getByJobId(job.job_id),
+        optFriendly,
+        remoteType: job.job_is_remote ? '支持远程' : '',
+        requirements: job.job_highlights && (job.job_highlights.Qualifications || job.job_highlights.qualifications) || [],
+        jobHighlights: job.job_highlights || {},
+        applyCount: Number(job.apply_count || job.application_count || 0)
       };
     });
   },
@@ -570,7 +587,9 @@ Page({
         company,
         logo: this.buildCompanyLogo(company) || job.logo || '',
         logoFailed: false,
-        companyInitial: this.getCompanyInitial(company)
+        companyInitial: this.getCompanyInitial(company),
+        isSaved: favUtil.isFavorited('job', String(job.id)),
+        isApplied: !!progress.getByJobId(job.id)
       });
     });
   },
@@ -598,7 +617,9 @@ Page({
 
   // 快捷收藏切换
   toggleSave: function(e) {
-    const index = e.currentTarget.dataset.index;
+    const index = e.detail && Number.isInteger(e.detail.index)
+      ? e.detail.index
+      : Number(e.currentTarget.dataset.index);
     const job = this.data.jobs[index];
     if (!job) return;
     const jobData = {
@@ -694,7 +715,7 @@ Page({
   },
 
   navigateToDetail: function(e) {
-    const jobId = e.currentTarget.dataset.id;
+    const jobId = e.detail && e.detail.id !== undefined ? e.detail.id : e.currentTarget.dataset.id;
     const job = (this.data.jobs || []).find(item => String(item.id) === String(jobId));
     if (job) {
       const snapshot = {
@@ -712,6 +733,21 @@ Page({
         postedAtRaw: job.postedAtRaw,
         deadline: job.deadline || '',
         optFriendly: job.optFriendly,
+        stemFriendly: job.stemFriendly,
+        h1bSponsor: job.h1bSponsor,
+        citizenRequired: job.citizenRequired,
+        industry: job.industry || '',
+        requirements: job.requirements || [],
+        tags: job.tags || [],
+        graduationYear: job.graduationYear || '',
+        recruitmentType: job.recruitmentType || '',
+        education: job.education || '',
+        remoteType: job.remoteType || '',
+        conversionOpportunity: !!job.conversionOpportunity,
+        applyCount: Number(job.applyCount || 0),
+        matchScore100: Number(job.matchScore100 || 0),
+        matchReason: job.matchReason || '',
+        isApplied: !!job.isApplied,
         applyLink: job.applyLink,
         description: job.rawDescription || job.description || ''
       };

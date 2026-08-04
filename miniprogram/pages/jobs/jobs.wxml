@@ -221,44 +221,15 @@
       desc="换个关键词，或者点热门标签试试"
     ></empty-state>
 
-    <view wx:for="{{jobs}}" wx:key="id" class="card" bindtap="navigateToDetail" data-id="{{item.id}}">
-      <view class="card-glow"></view>
-      <view class="card-top">
-        <view class="logo-wrap">
-          <image wx:if="{{item.logo && !item.logoFailed}}" src="{{item.logo}}" class="logo-img" mode="aspectFit" lazy-load binderror="onLogoError" data-index="{{index}}"></image>
-          <text wx:else class="logo-initial">{{item.companyInitial || 'C'}}</text>
-        </view>
-        <view class="card-info">
-          <text class="card-title">{{item.title}}</text>
-          <text class="card-company">{{item.company}}</text>
-        </view>
-        <view class="card-save {{item.isSaved ? 'saved' : ''}}" catchtap="toggleSave" data-index="{{index}}">
-          <text class="save-icon">{{item.isSaved ? '♥' : '♡'}}</text>
-        </view>
-      </view>
-
-      <view class="card-salary-row">
-        <text class="card-salary" wx:if="{{item.salary !== 'Negotiable'}}">{{item.salary}}</text>
-        <text class="card-salary muted" wx:else>薪资面议</text>
-        <text class="card-time">{{item.postedAt}}</text>
-      </view>
-
-      <view class="card-tags">
-        <text class="ctag loc">{{item.city}}{{item.state ? ', ' + item.state : ''}}</text>
-        <text class="ctag type">{{item.type}}</text>
-        <text class="ctag opt" wx:if="{{item.optFriendly}}">OPT 友好</text>
-        <text class="ctag opt" wx:if="{{item.stemFriendly}}">STEM OPT</text>
-        <text class="ctag opt" wx:if="{{item.h1bSponsor}}">H-1B</text>
-        <text class="ctag sponsor-risk" wx:if="{{item.citizenRequired}}">公民限定</text>
-        <text class="ctag match-high" wx:if="{{matchMode && item.matchScore >= 6}}">高匹配</text>
-        <text class="ctag match-mid" wx:elif="{{matchMode && item.matchScore >= 2}}">匹配</text>
-      </view>
-
-      <view class="card-match-row" wx:if="{{matchMode && item.matchReason}}">
-        <text class="match-score-v4" wx:if="{{item.matchScore100}}">{{item.matchScore100}} 分</text>
-        <text class="match-reason-txt">{{item.matchReason}}</text>
-      </view>
-    </view>
+    <c-job-card
+      wx:for="{{jobs}}"
+      wx:key="id"
+      job="{{item}}"
+      item-index="{{index}}"
+      show-match="{{matchMode}}"
+      bind:open="navigateToDetail"
+      bind:favorite="toggleSave"
+    ></c-job-card>
 
     <view wx:if="{{loading && jobs.length === 0}}" class="skeleton-list">
       <view wx:for="{{skeletonRows}}" wx:key="*this" class="skeleton-card">

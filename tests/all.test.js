@@ -8,6 +8,7 @@ require('./agentCompat.test');
 require('./dailyTasks.test');
 require('./applicationWorkbench.test');
 require('./navigationConfig.test');
+require('./jobPresentation.test');
 require('./loginGate.test');
 require('./ugcModeration.test');
 require('./smoke.test');

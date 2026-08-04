@@ -1,0 +1,254 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.job-card {
+  width: 100%;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+  border: 1rpx solid #e6eaf0;
+  border-radius: 16rpx;
+  background: #ffffff;
+  box-shadow: 0 8rpx 22rpx rgba(15, 23, 42, 0.045);
+  box-sizing: border-box;
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.job-card--pressed {
+  transform: scale(0.988);
+  opacity: 0.9;
+}
+
+.job-card--closed {
+  background: #fbfcfd;
+}
+
+.job-card__headline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.job-card__title {
+  flex: 1;
+  min-width: 0;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: #172033;
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.job-card__salary {
+  max-width: 42%;
+  flex-shrink: 0;
+  color: #2563eb;
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.job-card__company-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+.job-card__logo {
+  box-shadow: none;
+  border-radius: 14rpx;
+}
+
+.job-card__company-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.job-card__company,
+.job-card__company-meta {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-card__company {
+  color: #344054;
+  font-size: 26rpx;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.job-card__company-meta {
+  margin-top: 5rpx;
+  color: #7b8493;
+  font-size: 23rpx;
+  line-height: 1.35;
+}
+
+.job-card__applied {
+  flex-shrink: 0;
+  padding: 6rpx 12rpx;
+  color: #2563eb;
+  background: #edf4ff;
+  border-radius: 999rpx;
+  font-size: 21rpx;
+  font-weight: 650;
+}
+
+.job-card__tags,
+.job-card__skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-top: 18rpx;
+}
+
+.job-card__tag,
+.job-card__skill {
+  max-width: 100%;
+  padding: 7rpx 13rpx;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.job-card__tag {
+  color: #315b9e;
+  background: #eef4ff;
+}
+
+.job-card__tag--more {
+  color: #667085;
+  background: #f2f4f7;
+}
+
+.job-card__skill {
+  color: #596273;
+  background: #f5f6f8;
+  border: 1rpx solid #eaecf0;
+}
+
+.job-card__decision {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18rpx;
+  margin-top: 18rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid #edf0f3;
+}
+
+.job-card__match {
+  flex: 1;
+  min-width: 0;
+}
+
+.job-card__match-score,
+.job-card__match-reason {
+  display: block;
+}
+
+.job-card__match-score {
+  color: #245bd6;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.job-card__match-reason {
+  margin-top: 5rpx;
+  color: #667085;
+  font-size: 21rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-card__deadline {
+  flex-shrink: 0;
+  color: #4f6b58;
+  font-size: 23rpx;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.job-card__deadline--urgent {
+  color: #d97706;
+}
+
+.job-card__deadline--closed {
+  color: #98a2b3;
+}
+
+.job-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-top: 17rpx;
+}
+
+.job-card__aux {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+  color: #98a2b3;
+  font-size: 21rpx;
+}
+
+.job-card__favorite {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  min-height: 52rpx;
+  padding: 0 10rpx;
+  color: #667085;
+  font-size: 22rpx;
+}
+
+.job-card__favorite--saved {
+  color: #2563eb;
+}
+
+.job-card__favorite--pressed {
+  opacity: 0.55;
+}
+
+.job-card__favorite-icon {
+  font-size: 30rpx;
+  line-height: 1;
+}
+
+.job-card--compact {
+  padding: 20rpx;
+  margin-bottom: 14rpx;
+}
+
+.job-card--compact .job-card__title {
+  font-size: 28rpx;
+  -webkit-line-clamp: 1;
+}
+
+.job-card--compact .job-card__salary {
+  font-size: 24rpx;
+}
+
+.job-card--compact .job-card__company-row {
+  margin-top: 14rpx;
+}
