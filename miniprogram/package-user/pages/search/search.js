@@ -6,6 +6,24 @@ const browseHistory = require('../../../utils/browse-history.js');
 const featureFlags = require('../../../utils/feature-flags.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
+function normalizeSearchHistory(list) {
+  const unique = [];
+  (Array.isArray(list) ? list : []).forEach(item => {
+    const keyword = String(item || '').trim();
+    if (keyword && !unique.some(saved => saved.toLowerCase() === keyword.toLowerCase())) {
+      unique.push(keyword);
+    }
+  });
+
+  return unique.filter((keyword, index) => {
+    const lower = keyword.toLowerCase();
+    return !unique.slice(0, index).some(newerKeyword => {
+      const newerLower = newerKeyword.toLowerCase();
+      return newerLower.length > lower.length && newerLower.startsWith(lower);
+    });
+  }).slice(0, 10);
+}
+
 Page({
   data: {
     keyword: '',
@@ -25,8 +43,16 @@ Page({
 
   onLoad() {
     if (!featureFlags.guardRecruitmentPage()) return;
-    const history = wx.getStorageSync('searchHistory') || [];
+    const storedHistory = wx.getStorageSync('searchHistory') || [];
+    const history = normalizeSearchHistory(storedHistory);
     this.setData({ searchHistory: history });
+    if (JSON.stringify(history) !== JSON.stringify(storedHistory)) {
+      wx.setStorageSync('searchHistory', history);
+    }
+  },
+
+  onUnload() {
+    clearTimeout(this._searchTimer);
   },
 
   onInput(e) {
@@ -34,21 +60,22 @@ Page({
     // 防抖：输入停止 400ms 后自动触发搜索
     clearTimeout(this._searchTimer);
     this._searchTimer = setTimeout(() => {
-      if (this.data.keyword.trim()) this.doSearch();
+      if (this.data.keyword.trim()) this.executeSearch(false);
     }, 400);
   },
 
-  // 执行搜索
+  // 用户点击搜索按钮或键盘搜索时，才把完整关键词写入历史。
   doSearch() {
+    clearTimeout(this._searchTimer);
+    this.executeSearch(true);
+  },
+
+  // 实时匹配与历史提交分离，避免把输入过程中的半成品写入历史。
+  executeSearch(recordHistory) {
     const kw = this.data.keyword.trim();
     if (!kw) return;
 
-    // 保存搜索历史
-    let history = this.data.searchHistory.filter(h => h !== kw);
-    history.unshift(kw);
-    if (history.length > 10) history = history.slice(0, 10);
-    this.setData({ searchHistory: history });
-    wx.setStorageSync('searchHistory', history);
+    if (recordHistory) this.saveSearchHistory(kw);
 
     this.setData({ loading: true, hasSearched: true, jobPage: 1, jobHasMore: false, jobResults: [] });
 
@@ -56,6 +83,15 @@ Page({
     this.searchJobsAPI(kw, 1, false);
     this.searchCompanies(kw);
     this.searchExperiences(kw);
+  },
+
+  saveSearchHistory(keyword) {
+    const history = normalizeSearchHistory([
+      keyword,
+      ...this.data.searchHistory.filter(item => item !== keyword)
+    ]);
+    this.setData({ searchHistory: history });
+    wx.setStorageSync('searchHistory', history);
   },
 
   // 职位搜索 — 接入真实 API
@@ -182,13 +218,13 @@ Page({
 
   // 快捷/历史搜索
   quickSearch(e) {
-    this.setData({ keyword: e.currentTarget.dataset.keyword });
-    this.doSearch();
+    clearTimeout(this._searchTimer);
+    this.setData({ keyword: e.currentTarget.dataset.keyword }, () => this.doSearch());
   },
 
   historySearch(e) {
-    this.setData({ keyword: e.currentTarget.dataset.keyword });
-    this.doSearch();
+    clearTimeout(this._searchTimer);
+    this.setData({ keyword: e.currentTarget.dataset.keyword }, () => this.doSearch());
   },
 
   clearHistory() {

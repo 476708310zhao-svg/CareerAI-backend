@@ -164,6 +164,19 @@ test('resume manual editors keep native input text visible and persist controlle
   assert.match(resumeJs, /saveProject\(\)[\s\S]*?onlineResume:\s*nextResume[\s\S]*?_saveResume\(nextResume\)/);
 });
 
+test('search keeps live matching but records history only after an explicit submit', () => {
+  const searchJs = read('package-user/pages/search/search.js');
+  const searchWxml = read('package-user/pages/search/search.wxml');
+
+  assert.match(searchWxml, /bindinput="onInput"[^>]*bindconfirm="doSearch"/);
+  assert.match(searchWxml, /class="search-btn" bindtap="doSearch"/);
+  assert.match(searchJs, /setTimeout\(\(\) => \{[\s\S]*?executeSearch\(false\)/);
+  assert.match(searchJs, /doSearch\(\) \{[\s\S]*?executeSearch\(true\)/);
+  assert.match(searchJs, /executeSearch\(recordHistory\)[\s\S]*?if \(recordHistory\) this\.saveSearchHistory\(kw\)/);
+  assert.match(searchJs, /function normalizeSearchHistory\(list\)/);
+  assert.doesNotMatch(searchJs, /this\._searchTimer = setTimeout\(\(\) => \{\s*if \([^}]+this\.doSearch\(\)/);
+});
+
 test('profile editor keeps multi-select search compact and allows any graduation year in range', () => {
   const profileWxml = read('package-user/pages/profile-edit/profile-edit.wxml');
   const profileJs = read('package-user/pages/profile-edit/profile-edit.js');
