@@ -271,10 +271,42 @@ test('public campus endpoint handles filtered summer internship query', async ()
   });
   const res = await fetch(`${BASE_URL}/api/campus?${query.toString()}`);
   assert.equal(res.status, 200);
+  assert.match(res.headers.get('cache-control') || '', /no-store/);
   const body = await readJson(res);
   assert.equal(body.code, 0);
   assert.ok(Array.isArray(body.data.list));
   assert.equal(typeof body.data.total, 'number');
+});
+
+test('latest campus day is based on opening date instead of full-table sync time', async () => {
+  const marker = `campus_latest_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const insert = db.prepare(`
+    INSERT INTO campus_schedules
+      (company, position_name, start_date, source, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+  try {
+    insert.run(`${marker}_older_sync`, '较晚开放日期', '2026-12-31', marker, '2026-08-01 08:00:00', '2026-08-01 08:00:00');
+    insert.run(`${marker}_newer_sync`, '较早开放日期', '2026-01-01', marker, '2026-08-02 08:00:00', '2026-08-02 08:00:00');
+
+    const query = new URLSearchParams({
+      keyword: marker,
+      sort: 'latest',
+      latest_day: '1',
+      page: '0',
+      pageSize: '20'
+    });
+    const res = await fetch(`${BASE_URL}/api/campus?${query.toString()}`);
+    assert.equal(res.status, 200);
+    const body = await readJson(res);
+    assert.equal(body.code, 0);
+    assert.equal(body.data.latestDate, '2026-12-31');
+    assert.equal(body.data.total, 1);
+    assert.equal(body.data.list[0].company, `${marker}_older_sync`);
+    assert.equal(body.data.list[0].startDate, '2026-12-31');
+  } finally {
+    db.prepare('DELETE FROM campus_schedules WHERE source = ?').run(marker);
+  }
 });
 
 test('aggregate jobs endpoint returns a paginated recommendation pool sorted by recency', async () => {
