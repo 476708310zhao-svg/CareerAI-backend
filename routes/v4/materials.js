@@ -9,11 +9,14 @@ const aiRuntime = require('../../services/v4AiRuntime');
 const router = express.Router();
 router.use(authMiddleware);
 
-const MATERIAL_TYPES = ['tailored_resume', 'cover_letter', 'recruiter_message', 'follow_up_email'];
+// 整份简历属于简历中心。申请文案接口只生成可阅读、可复制的文本。
+const MATERIAL_TYPES = ['cover_letter', 'why_company', 'why_role', 'recruiter_message', 'follow_up_email'];
 const MATERIAL_PROMPT_VERSION = process.env.MATERIAL_PROMPT_VERSION || 'application-material-v4.0-2';
 const LABELS = {
   tailored_resume: '按 JD 定制简历',
   cover_letter: 'Cover Letter',
+  why_company: 'Why this company?',
+  why_role: 'Why this role?',
   recruiter_message: 'Recruiter 消息',
   follow_up_email: 'Follow-up 邮件'
 };
@@ -27,6 +30,11 @@ function applicationView(row) {
     jobTitle: row.job_title || snapshot.title || snapshot.jobTitle || '目标岗位',
     jdText: snapshot.description || snapshot.jd || row.notes || ''
   };
+}
+
+function hasUsefulResumeContent(content) {
+  if (!content || typeof content !== 'object' || Array.isArray(content)) return false;
+  return resumeFacts(content).length > 0;
 }
 
 function draftView(row) {
@@ -44,11 +52,27 @@ function draftView(row) {
 function resumeFacts(content) {
   const texts = [];
   (function walk(value) {
-    if (typeof value === 'string' && value.trim()) texts.push(value.trim());
+    if (typeof value === 'string' && value.trim()) {
+      const text = value.trim();
+      const isMetadata = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(text)
+        || /\.(?:pdf|docx?)$/i.test(text)
+        || /(?:联系电话|手机号码?|手机号|电话|邮箱|email|e-mail)\s*[:：]?/i.test(text)
+        || /\b1[3-9]\d{9}\b/.test(text)
+        || /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text);
+      if (!isMetadata && text.length >= 2) texts.push(text);
+    }
     else if (Array.isArray(value)) value.forEach(walk);
     else if (value && typeof value === 'object') Object.values(value).forEach(walk);
-  })(content);
-  return texts.slice(0, 8);
+  })([
+    content.summary,
+    content.workExp,
+    content.experience,
+    content.projects,
+    content.skills,
+    content.education,
+    content.awards
+  ]);
+  return Array.from(new Set(texts)).slice(0, 16);
 }
 
 function generateContent(type, application, version) {
@@ -64,6 +88,12 @@ function generateContent(type, application, version) {
   }
   if (type === 'cover_letter') {
     return `尊敬的招聘团队：\n\n我希望申请 ${application.company} 的 ${application.jobTitle} 职位。我的经历中，${primary}；同时，${secondary}。这些真实积累让我能够更快理解岗位目标、与团队协作并推动任务落地。\n\n我期待有机会进一步介绍与岗位相关的经历。感谢您的时间与考虑。`;
+  }
+  if (type === 'why_company') {
+    return `我希望加入 ${application.company}，是因为 ${application.jobTitle} 与我希望持续发展的方向高度相关。基于 ${primary}，以及 ${secondary}，我能够将已有的真实积累用于理解业务问题、协作推进并交付结果。我也期待进一步了解团队当前最重要的目标，并在真实场景中持续成长。`;
+  }
+  if (type === 'why_role') {
+    return `${application.jobTitle} 吸引我，是因为岗位重点与我的真实经历有直接联系：${primary}；同时，${secondary}。这些积累让我具备理解任务、拆解问题和与团队协作的基础。我希望在这个岗位上继续深化相关能力，并对清晰的业务目标负责。`;
   }
   if (type === 'recruiter_message') {
     return `您好，我正在申请 ${application.company} 的 ${application.jobTitle}。我的相关经历包括：${primary}。如果方便，希望能与您交流岗位重点和团队需求，感谢！`;
@@ -90,8 +120,7 @@ async function generateAiContent(type, application, version, jdText) {
     company: application.company,
     jobTitle: application.jobTitle,
     jd: center.cleanText(jdText || application.jdText, 6000),
-    verifiedResumeFacts: facts,
-    resumeContent: content
+    verifiedResumeFacts: facts
   });
 
   if (type === 'tailored_resume') {
@@ -156,7 +185,11 @@ router.post('/drafts', async (req, res) => { try {
   } else if (applicationRow.resume_id) {
     owned = center.ensureCurrentVersion(req.user.userId, applicationRow.resume_id);
   }
-  if (type === 'tailored_resume' && !owned) return res.status(400).json({ code: -1, message: '定制简历必须选择原简历' });
+  if (!owned) return res.status(400).json({ code: 'RESUME_REQUIRED', message: '生成申请文案前，请先选择一份已完善的简历' });
+  const resumeContent = center.parseJson(owned.version.content, {});
+  if (!hasUsefulResumeContent(resumeContent)) {
+    return res.status(422).json({ code: 'RESUME_INCOMPLETE', message: '所选简历缺少可用经历或技能，请先到简历中心补充真实内容' });
+  }
   if (!consumeDailyLimit(req, res, 'application_assistant')) return;
   const application = applicationView(applicationRow);
   const generated = await generateAiContent(type, application, owned && owned.version, body.jdText || application.jdText);
@@ -186,25 +219,20 @@ router.post('/drafts/:id/confirm', (req, res) => {
   const draft = db.prepare('SELECT * FROM ai_application_material_drafts WHERE id=? AND user_id=?').get(Number(req.params.id), req.user.userId);
   if (!draft) return res.status(404).json({ code: -1, message: '草稿不存在' });
   if (draft.status !== 'pending') return res.status(409).json({ code: -1, message: '草稿已处理，不能重复保存' });
+  if (draft.material_type === 'tailored_resume') {
+    return res.status(409).json({
+      code: 'TAILORED_RESUME_MOVED',
+      message: '整份简历定制已移至简历中心，请在那里生成和管理岗位版本'
+    });
+  }
   const applicationRow = db.prepare('SELECT * FROM applications WHERE id=? AND user_id=?').get(draft.application_id, req.user.userId);
   if (!applicationRow) return res.status(409).json({ code: -1, message: '关联申请记录不存在' });
-  let content = req.body && req.body.content !== undefined ? req.body.content : (draft.material_type === 'tailored_resume' ? center.parseJson(draft.content, {}) : draft.content);
-  if (draft.material_type === 'tailored_resume' && (!content || typeof content !== 'object' || Array.isArray(content))) {
-    return res.status(400).json({ code: -1, message: '定制简历内容必须是完整简历对象' });
-  }
-  if (draft.material_type !== 'tailored_resume') {
-    content = center.cleanText(content, 12000);
-    if (!content) return res.status(400).json({ code: -1, message: '材料内容不能为空' });
-  }
+  const content = center.cleanText(req.body && req.body.content !== undefined ? req.body.content : draft.content, 12000);
+  if (!content) return res.status(400).json({ code: -1, message: '材料内容不能为空' });
   const application = applicationView(applicationRow);
   try {
     const saved = db.transaction(() => {
-      let version = null;
-      if (draft.material_type === 'tailored_resume') {
-        version = center.createVersion({ userId: req.user.userId, resumeId: draft.resume_id, content,
-          sourceVersionId: draft.resume_version_id, summary: `按 ${application.company} ${application.jobTitle} JD 定制`, createdBy: 'application_assistant_confirmed' });
-      }
-      const storedContent = draft.material_type === 'tailored_resume' ? JSON.stringify(content) : content;
+      const storedContent = content;
       const clientId = `v4_material_${draft.id}`;
       const result = db.prepare(`
         INSERT INTO application_materials
@@ -213,17 +241,13 @@ router.post('/drafts/:id/confirm', (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'saved', ?, ?, ?, datetime('now'))
       `).run(req.user.userId, clientId, draft.material_type, LABELS[draft.material_type], application.jobId,
         application.company, application.jobTitle, draft.resume_id ? (db.prepare('SELECT name FROM resumes WHERE id=?').get(draft.resume_id) || {}).name || '' : '',
-        version ? String(version.id) : String(draft.resume_version_id || ''), storedContent, application.id, draft.id, draft.ai_model, draft.prompt_version);
+        String(draft.resume_version_id || ''), storedContent, application.id, draft.id, draft.ai_model, draft.prompt_version);
       if (draft.material_type === 'cover_letter') {
         db.prepare('UPDATE applications SET cover_letter=?, updated_at=datetime(\'now\') WHERE id=? AND user_id=?').run(content, application.id, req.user.userId);
       }
-      if (version) {
-        db.prepare('UPDATE applications SET resume_id=?, resume_version_id=?, updated_at=datetime(\'now\') WHERE id=? AND user_id=?')
-          .run(draft.resume_id, String(version.id), application.id, req.user.userId);
-      }
       db.prepare("UPDATE ai_application_material_drafts SET status='confirmed', content=?, saved_material_id=?, confirmed_at=datetime('now') WHERE id=?")
         .run(storedContent, result.lastInsertRowid, draft.id);
-      return { materialId: result.lastInsertRowid, version };
+      return { materialId: result.lastInsertRowid };
     })();
     res.status(201).json({ code: 0, data: Object.assign(saved, { draft: draftView(db.prepare('SELECT * FROM ai_application_material_drafts WHERE id=?').get(draft.id)) }), message: '用户已确认，材料已保存' });
   } catch (error) {

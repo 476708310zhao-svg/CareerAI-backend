@@ -1189,6 +1189,15 @@ test('v4 application assistant saves only confirmed drafts and enforces free quo
   assert.ok(confirmed.data.materialId);
   assert.equal(db.prepare('SELECT application_id FROM application_materials WHERE id=?').get(confirmed.data.materialId).application_id, v4ApplicationId);
 
+  const tailoredRes = await fetch(`${BASE_URL}/api/v4/materials/drafts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ applicationId: v4ApplicationId, resumeId: resume.id, materialType: 'tailored_resume' })
+  });
+  assert.equal(tailoredRes.status, 400);
+  const tailored = await readJson(tailoredRes);
+  assert.equal(tailored.message, '材料类型无效');
+
   db.prepare(`INSERT INTO ai_usage (user_id, feature, usage_date, count, updated_at)
     VALUES (?, 'application_assistant', date('now'), 3, datetime('now'))
     ON CONFLICT(user_id, feature, usage_date) DO UPDATE SET count=3`).run(user.id);
@@ -1202,6 +1211,12 @@ test('v4 application assistant saves only confirmed drafts and enforces free quo
 
 test('career asset APIs persist materials, match reports and interview notebook', async () => {
   assert.ok(authToken);
+
+  const hiddenTailored = db.prepare(`
+    INSERT INTO application_materials
+      (user_id, client_id, question_type, question_label, content, updated_at)
+    VALUES (?, ?, 'tailored_resume', '按 JD 定制简历', ?, datetime('now'))
+  `).run(db.prepare('SELECT id FROM users WHERE email=?').get(testAccount.email).id, `legacy_tailored_${Date.now()}`, '{"skills":[]}');
 
   const materialRes = await fetch(`${BASE_URL}/api/career-assets/application-materials`, {
     method: 'POST',
@@ -1229,7 +1244,9 @@ test('career asset APIs persist materials, match reports and interview notebook'
   });
   assert.equal(materialListRes.status, 200);
   const materialList = await readJson(materialListRes);
+  assert.ok(!materialList.data.some(item => Number(item.id) === Number(hiddenTailored.lastInsertRowid)), 'legacy resume JSON must not appear in the copy library');
   assert.ok(materialList.data.some(item => item.clientId === 'material_smoke_1'));
+  db.prepare('DELETE FROM application_materials WHERE id=?').run(hiddenTailored.lastInsertRowid);
 
   const materialUpdateRes = await fetch(`${BASE_URL}/api/career-assets/application-materials/${encodeURIComponent('material_smoke_1')}`, {
     method: 'PUT',

@@ -188,7 +188,7 @@ router.get('/star-templates', (req, res) => {
 
 router.get('/application-materials', authMiddleware, (req, res) => {
   const { questionType, jobId } = req.query;
-  const where = ['user_id = ?'];
+  const where = ['user_id = ?', "question_type <> 'tailored_resume'"];
   const params = [req.user.userId];
   if (questionType) { where.push('question_type = ?'); params.push(String(questionType)); }
   if (jobId) { where.push('job_id = ?'); params.push(String(jobId)); }
@@ -202,6 +202,9 @@ router.get('/application-materials', authMiddleware, (req, res) => {
 
 router.post('/application-materials', authMiddleware, (req, res) => {
   const body = req.body || {};
+  if (stringValue(body.questionType) === 'tailored_resume') {
+    return res.status(400).json({ code: 'TAILORED_RESUME_MOVED', message: '整份简历请在简历中心管理' });
+  }
   const content = stringValue(body.content).trim();
   if (!content) return res.status(400).json({ code: -1, message: '请填写材料内容' });
 
@@ -265,6 +268,9 @@ router.put('/application-materials/:id', authMiddleware, (req, res) => {
   const row = findOwnedRow('application_materials', req.user.userId, id);
   if (!row) return res.status(404).json({ code: -1, message: '材料不存在' });
   const body = req.body || {};
+  if (stringValue(body.questionType, row.question_type) === 'tailored_resume') {
+    return res.status(400).json({ code: 'TAILORED_RESUME_MOVED', message: '整份简历请在简历中心管理' });
+  }
   const content = body.content !== undefined ? stringValue(body.content).trim() : row.content;
   if (!content) return res.status(400).json({ code: -1, message: '请填写材料内容' });
   db.prepare(`
