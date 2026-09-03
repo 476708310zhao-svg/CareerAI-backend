@@ -1,4 +1,5 @@
 const db = require('../db/database');
+const { applicationRefs, mergeCoreRefs } = require('../utils/coreEntityRefs');
 
 const PRIORITIES = new Set(['high', 'medium', 'low']);
 const SOURCE_URLS = {
@@ -39,6 +40,43 @@ function normalizeLocalTask(raw) {
   };
 }
 
+function taskRefs(row) {
+  if (!row) return mergeCoreRefs();
+  const base = { userId: row.user_id, todayTaskId: row.id };
+  let application = null;
+  let related = {};
+
+  if (row.source_type === 'interview_report' && row.source_id) {
+    const report = db.prepare('SELECT id, session_id, space_id FROM interview_reports_v4 WHERE id=? AND user_id=?')
+      .get(row.source_id, row.user_id);
+    if (report) {
+      const space = db.prepare('SELECT application_id FROM interview_spaces_v4 WHERE id=? AND user_id=?')
+        .get(report.space_id, row.user_id);
+      application = space && space.application_id
+        ? db.prepare('SELECT * FROM applications WHERE id=? AND user_id=?').get(space.application_id, row.user_id)
+        : null;
+      related = {
+        applicationId: space && space.application_id,
+        interviewSpaceId: report.space_id,
+        interviewSessionId: report.session_id,
+        interviewReportId: report.id
+      };
+    }
+  } else if (row.source_type === 'ai_agent' && row.source_id) {
+    const agentTask = db.prepare('SELECT application_id FROM ai_agent_tasks_v4 WHERE id=? AND user_id=?')
+      .get(row.source_id, row.user_id);
+    application = agentTask && agentTask.application_id
+      ? db.prepare('SELECT * FROM applications WHERE id=? AND user_id=?').get(agentTask.application_id, row.user_id)
+      : null;
+    related = { applicationId: agentTask && agentTask.application_id };
+  } else if (row.source_type === 'application' && row.source_id) {
+    application = db.prepare('SELECT * FROM applications WHERE id=? AND user_id=?').get(row.source_id, row.user_id);
+    related = { applicationId: row.source_id };
+  }
+
+  return mergeCoreRefs(applicationRefs(application || {}), base, related);
+}
+
 function view(row) {
   if (!row) return null;
   return {
@@ -57,7 +95,8 @@ function view(row) {
     taskDate: row.task_date,
     completedAt: row.completed_at || '',
     updatedAt: row.updated_at || row.created_at || '',
-    createdAt: row.created_at || ''
+    createdAt: row.created_at || '',
+    refs: taskRefs(row)
   };
 }
 
@@ -122,4 +161,4 @@ function updateStatus(userId, id, completed) {
   return view(db.prepare('SELECT * FROM today_tasks_v4 WHERE id=? AND user_id=?').get(Number(id), userId));
 }
 
-module.exports = { list, syncLocal, updateStatus, view, normalizeLocalTask };
+module.exports = { list, syncLocal, updateStatus, view, taskRefs, normalizeLocalTask };

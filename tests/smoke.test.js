@@ -706,6 +706,7 @@ test('v4 career profile extends legacy profile without breaking it', async () =>
   assert.equal(updated.data.sponsorNeeded, true);
   assert.ok(updated.data.completion >= 80);
   assert.ok(updated.data.profileVersion >= 2);
+  assert.ok(updated.data.refs.userId);
 
   const completionRes = await fetch(`${BASE_URL}/api/v4/profile/completion`, { headers: authHeaders() });
   assert.equal(completionRes.status, 200);
@@ -713,6 +714,7 @@ test('v4 career profile extends legacy profile without breaking it', async () =>
   assert.equal(completion.code, 0);
   assert.ok(completion.data.completion >= 80);
   assert.deepEqual(completion.data.missing, []);
+  assert.equal(completion.data.refs.userId, updated.data.refs.userId);
 });
 
 test('v4 job match returns explainable qualification and capability scores', async () => {
@@ -880,6 +882,15 @@ test('v4 application status machine writes an auditable history', async () => {
   const created = await readJson(createRes);
   v4ApplicationId = created.data.id;
   assert.ok(v4ApplicationId);
+  assert.equal(created.data.refs.applicationId, v4ApplicationId);
+  assert.equal(created.data.refs.jobId, '1');
+  const smokeUser = db.prepare('SELECT id FROM users WHERE email=?').get(testAccount.email);
+  db.prepare('UPDATE applications SET job_id=? WHERE id=? AND user_id=?').run('client-local-job-1', v4ApplicationId, smokeUser.id);
+  const jobDetailRes = await fetch(`${BASE_URL}/api/v4/jobs/1/detail`, { headers: authHeaders() });
+  assert.equal(jobDetailRes.status, 200);
+  const jobDetail = await readJson(jobDetailRes);
+  assert.equal(jobDetail.data.application.status, 'interested');
+  assert.equal(jobDetail.data.application.refs.jobId, '1');
 
   const patchRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}`, {
     method: 'PATCH',
@@ -966,12 +977,19 @@ test('v4 interview loop auto-creates a job space, scores practice and creates To
   const space = spaces.data.find(item => item.applicationId === v4ApplicationId);
   assert.ok(space);
   assert.ok(Array.isArray(space.frequentQuestions));
+  assert.equal(space.refs.applicationId, v4ApplicationId);
+  assert.equal(space.refs.jobId, '1');
+  assert.equal(space.refs.interviewSpaceId, space.id);
 
   const sessionRes = await fetch(`${BASE_URL}/api/v4/interviews/spaces/${space.id}/sessions`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ sessionType: 'star' })
   });
   assert.equal(sessionRes.status, 201);
   const session = await readJson(sessionRes);
+  assert.equal(session.data.refs.applicationId, v4ApplicationId);
+  assert.equal(session.data.refs.jobId, '1');
+  assert.equal(session.data.refs.interviewSpaceId, space.id);
+  assert.equal(session.data.refs.interviewSessionId, session.data.id);
   const answerRes = await fetch(`${BASE_URL}/api/v4/interviews/sessions/${session.data.id}/answers`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ questionType: 'behavior', question: '请讲述一次解决困难问题的经历', answer: '情况：系统延迟较高。任务：定位瓶颈。行动：我分析日志并优化查询。结果：延迟降低20%。' })
@@ -979,15 +997,26 @@ test('v4 interview loop auto-creates a job space, scores practice and creates To
   assert.equal(answerRes.status, 201);
   const answer = await readJson(answerRes);
   assert.ok(answer.data.structure >= 70);
+  assert.equal(answer.data.refs.interviewSessionId, session.data.id);
 
   const reportRes = await fetch(`${BASE_URL}/api/v4/interviews/sessions/${session.data.id}/complete`, { method: 'POST', headers: authHeaders() });
   assert.equal(reportRes.status, 201);
   const report = await readJson(reportRes);
   assert.ok(report.data.overallScore > 0);
   assert.equal(report.data.questionFeedback.length, 1);
+  assert.equal(report.data.refs.applicationId, v4ApplicationId);
+  assert.equal(report.data.refs.jobId, '1');
+  assert.equal(report.data.refs.interviewSpaceId, space.id);
+  assert.equal(report.data.refs.interviewSessionId, session.data.id);
+  assert.equal(report.data.refs.interviewReportId, report.data.id);
   const tasksRes = await fetch(`${BASE_URL}/api/v4/interviews/today-tasks`, { headers: authHeaders() });
   const tasks = await readJson(tasksRes);
-  assert.ok(tasks.data.some(item => item.title.includes('补强面试')));
+  const interviewTask = tasks.data.find(item => item.title.includes('补强面试'));
+  assert.ok(interviewTask);
+  assert.equal(interviewTask.refs.applicationId, v4ApplicationId);
+  assert.equal(interviewTask.refs.jobId, '1');
+  assert.equal(interviewTask.refs.interviewReportId, report.data.id);
+  assert.equal(interviewTask.refs.todayTaskId, interviewTask.id);
   const trendsRes = await fetch(`${BASE_URL}/api/v4/interviews/trends`, { headers: authHeaders() });
   const trends = await readJson(trendsRes);
   assert.equal(trends.data.length, 1);
@@ -1007,6 +1036,8 @@ test('v4 Today tasks sync local workbench tasks idempotently and preserves serve
   const resumeTask = firstSync.data.find(item => item.localKey === 'resume_polish');
   assert.ok(resumeTask);
   assert.equal(resumeTask.completed, true);
+  assert.equal(resumeTask.refs.todayTaskId, resumeTask.id);
+  assert.ok(resumeTask.refs.userId);
   assert.ok(firstSync.data.some(item => item.sourceType === 'interview_report'), 'server-generated tasks must be preserved');
 
   const secondSyncRes = await fetch(`${BASE_URL}/api/v4/today/tasks/sync`, {
@@ -1137,7 +1168,13 @@ test('v4 resume center keeps immutable versions and confirms AI suggestions expl
     body: JSON.stringify({ applicationId: v4ApplicationId })
   });
   assert.equal(linkRes.status, 200);
-  assert.equal(linkRes.status, 200);
+  const links = await readJson(linkRes);
+  const applicationLink = links.data.find(item => item.applicationId === v4ApplicationId);
+  assert.ok(applicationLink);
+  assert.equal(applicationLink.jobId, '1');
+  assert.equal(applicationLink.refs.jobId, '1');
+  assert.equal(applicationLink.refs.applicationId, v4ApplicationId);
+  assert.equal(applicationLink.refs.resumeId, resumeId);
 
   const versionsBeforeRes = await fetch(`${BASE_URL}/api/v4/resumes/${resumeId}/versions`, { headers: authHeaders() });
   const versionsBefore = await readJson(versionsBeforeRes);

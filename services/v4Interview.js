@@ -1,6 +1,7 @@
 const db = require('../db/database');
 const membership = require('./v4Membership');
 const aiRuntime = require('./v4AiRuntime');
+const { applicationRefs, mergeCoreRefs } = require('../utils/coreEntityRefs');
 
 function parseJson(value, fallback) { try { return JSON.parse(value); } catch (e) { return fallback; } }
 function text(value, max = 1000) { return String(value || '').replace(/\s+/g, ' ').trim().slice(0, max); }
@@ -36,11 +37,41 @@ function ensureSpace(userId, applicationId) {
 
 function spaceView(row) {
   if (!row) return null;
-  return { id: row.id, applicationId: row.application_id, company: row.company, jobTitle: row.job_title,
+  const refs = refsForSpace(row);
+  return { id: row.id, applicationId: row.application_id, jobId: refs.jobId, company: row.company, jobTitle: row.job_title,
     interviewTime: row.interview_time, round: row.round, preparationCompletion: row.preparation_completion,
     companyExperiences: parseJson(row.company_experiences, []), frequentQuestions: parseJson(row.frequent_questions, []),
     algorithmQuestions: parseJson(row.algorithm_questions, []), behaviorQuestions: parseJson(row.behavior_questions, []),
-    roleQuestions: parseJson(row.role_questions, []), createdAt: row.created_at, updatedAt: row.updated_at };
+    roleQuestions: parseJson(row.role_questions, []), createdAt: row.created_at, updatedAt: row.updated_at, refs };
+}
+
+function refsForSpace(row, extra = {}) {
+  if (!row) return mergeCoreRefs(extra);
+  const application = row.application_id
+    ? db.prepare('SELECT * FROM applications WHERE id=? AND user_id=?').get(row.application_id, row.user_id)
+    : null;
+  return mergeCoreRefs(applicationRefs(application || {}), {
+    userId: row.user_id,
+    applicationId: row.application_id,
+    interviewSpaceId: row.id
+  }, extra);
+}
+
+function sessionView(row) {
+  if (!row) return null;
+  const space = db.prepare('SELECT * FROM interview_spaces_v4 WHERE id=? AND user_id=?').get(row.space_id, row.user_id);
+  const refs = refsForSpace(space, { interviewSessionId: row.id });
+  return {
+    id: row.id,
+    spaceId: row.space_id,
+    sessionType: row.session_type,
+    status: row.status,
+    aiModel: row.ai_model,
+    promptVersion: row.prompt_version,
+    startedAt: row.started_at,
+    completedAt: row.completed_at,
+    refs
+  };
 }
 
 function scoreAnswerFallback(answer, question, jobTitle) {
@@ -133,8 +164,16 @@ function completeSession(userId, sessionId) {
   return result;
 }
 
-function reportView(row) { return row ? { id: row.id, sessionId: row.session_id, spaceId: row.space_id, overallScore: row.overall_score,
-  dimensions: parseJson(row.dimensions, {}), strengths: parseJson(row.strengths, []), weaknesses: parseJson(row.weaknesses, []),
-  questionFeedback: parseJson(row.question_feedback, []), summary: row.summary, createdAt: row.created_at } : null; }
+function reportView(row) {
+  if (!row) return null;
+  const space = db.prepare('SELECT * FROM interview_spaces_v4 WHERE id=? AND user_id=?').get(row.space_id, row.user_id);
+  const refs = refsForSpace(space, {
+    interviewSessionId: row.session_id,
+    interviewReportId: row.id
+  });
+  return { id: row.id, sessionId: row.session_id, spaceId: row.space_id, overallScore: row.overall_score,
+    dimensions: parseJson(row.dimensions, {}), strengths: parseJson(row.strengths, []), weaknesses: parseJson(row.weaknesses, []),
+    questionFeedback: parseJson(row.question_feedback, []), summary: row.summary, createdAt: row.created_at, refs };
+}
 
-module.exports = { ensureSpace, spaceView, scoreAnswer, startSession, completeSession, reportView };
+module.exports = { ensureSpace, spaceView, refsForSpace, sessionView, scoreAnswer, startSession, completeSession, reportView };

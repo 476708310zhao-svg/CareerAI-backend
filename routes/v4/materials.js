@@ -5,6 +5,7 @@ const { consumeDailyLimit, getQuotaStatus } = require('../../utils/aiQuota');
 const center = require('../../services/v4ResumeCenter');
 const analytics = require('../../services/v4Analytics');
 const aiRuntime = require('../../services/v4AiRuntime');
+const { applicationRefs, mergeCoreRefs, withCoreRefs } = require('../../utils/coreEntityRefs');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -23,12 +24,14 @@ const LABELS = {
 
 function applicationView(row) {
   const snapshot = center.parseJson(row.job_snapshot, {});
+  const refs = applicationRefs(row);
   return {
-    id: row.id,
-    jobId: row.job_id || '',
+    id: refs.applicationId,
+    jobId: refs.jobId,
     company: row.company || snapshot.company || '目标公司',
     jobTitle: row.job_title || snapshot.title || snapshot.jobTitle || '目标岗位',
-    jdText: snapshot.description || snapshot.jd || row.notes || ''
+    jdText: snapshot.description || snapshot.jd || row.notes || '',
+    refs
   };
 }
 
@@ -38,6 +41,15 @@ function hasUsefulResumeContent(content) {
 }
 
 function draftView(row) {
+  const application = row.application_id
+    ? db.prepare('SELECT * FROM applications WHERE id=? AND user_id=?').get(row.application_id, row.user_id)
+    : null;
+  const refs = mergeCoreRefs(applicationRefs(application || {}), {
+    userId: row.user_id,
+    applicationId: row.application_id,
+    resumeId: row.resume_id,
+    resumeVersionId: row.resume_version_id
+  });
   return {
     id: row.id, applicationId: row.application_id, resumeId: row.resume_id,
     resumeVersionId: row.resume_version_id, materialType: row.material_type,
@@ -45,7 +57,8 @@ function draftView(row) {
     content: row.material_type === 'tailored_resume' ? center.parseJson(row.content, {}) : row.content,
     aiModel: row.ai_model, promptVersion: row.prompt_version,
     quotaCost: row.quota_cost, savedMaterialId: row.saved_material_id,
-    createdAt: row.created_at, confirmedAt: row.confirmed_at
+    createdAt: row.created_at, confirmedAt: row.confirmed_at,
+    refs
   };
 }
 
@@ -201,7 +214,11 @@ router.post('/drafts', async (req, res) => { try {
   `).run(req.user.userId, application.id, owned && owned.resume.id, owned && owned.version.id, type,
     typeof generated.value === 'string' ? generated.value : JSON.stringify(generated.value), generated.model, MATERIAL_PROMPT_VERSION, promptSnapshot);
   const data = draftView(db.prepare('SELECT * FROM ai_application_material_drafts WHERE id=?').get(result.lastInsertRowid));
-  analytics.track(req.user.userId, 'application_material_generated', { applicationId: application.id, materialType: type }, '/api/v4/materials/drafts');
+  analytics.track(req.user.userId, 'application_material_generated', withCoreRefs(
+    { applicationId: application.id, materialType: type },
+    application.refs,
+    { resumeId: owned.resume.id, resumeVersionId: owned.version.id }
+  ), '/api/v4/materials/drafts');
   res.status(201).json({ code: 0, data: Object.assign(data, { quota: getQuotaStatus(req.user.userId), generation: aiRuntime.safeMetadata(generated) }), message: '草稿已生成，确认前不会保存到申请材料' });
 } catch (error) {
   res.status(error.status || 500).json({ code: error.code || -1, message: error.message || '申请材料生成失败' });

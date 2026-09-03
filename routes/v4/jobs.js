@@ -8,6 +8,8 @@ const { buildJobMatch } = require('../../services/v4JobMatch');
 const { getSponsorProfile } = require('../../services/v4Sponsor');
 const { persistJobMatch, formatMatch } = require('../../services/v4JobMatchStore');
 const companyService = require('../../services/companyService');
+const { applicationRefs, withCoreRefs } = require('../../utils/coreEntityRefs');
+const { STATUS_TEXT, toV4Status } = require('../../utils/applicationStatus');
 
 const router = express.Router();
 const analytics = require('../../services/v4Analytics');
@@ -131,10 +133,14 @@ router.get('/:id/detail', authMiddleware, (req, res) => {
   const companies = companyResult && companyResult.list ? companyResult.list : [];
   const company = companies.find(item => String(item.displayName || item.name || '').toLowerCase() === String(job.company).toLowerCase()) || companies[0] || null;
   const application = db.prepare(`
-    SELECT id, status, status_text, progress_status, deadline, interview_time, updated_at
+    SELECT *
     FROM applications WHERE user_id=? AND (job_id=? OR source_job_id=?) ORDER BY id DESC LIMIT 1
   `).get(req.user.userId, String(job.id), String(job.id));
-  analytics.track(req.user.userId, 'job_viewed', { jobId: String(job.id) }, '/api/v4/jobs/:id/detail');
+  analytics.track(req.user.userId, 'job_viewed', withCoreRefs(
+    { jobId: String(job.id) },
+    { userId: req.user.userId, jobId: String(job.id) },
+    applicationRefs(application || {})
+  ), '/api/v4/jobs/:id/detail');
   return ok(res, {
     job: { ...job, deadline: job.deadline || '', officialApplyUrl: job.applyUrl || job.sourceUrl || '' },
     sponsor,
@@ -142,10 +148,11 @@ router.get('/:id/detail', authMiddleware, (req, res) => {
     company,
     application: application ? {
       id: application.id,
-      status: application.progress_status || application.status,
-      statusText: application.status_text,
+      status: toV4Status(application),
+      statusText: STATUS_TEXT[toV4Status(application)],
       deadline: application.deadline || '', interviewTime: application.interview_time || '',
-      updatedAt: application.updated_at || ''
+      updatedAt: application.updated_at || '',
+      refs: applicationRefs(application)
     } : null
   });
 });
@@ -162,7 +169,10 @@ router.post('/:id/match', authMiddleware, (req, res) => {
   try {
     const sponsor = getSponsorProfile(job);
     const match = persistJobMatch(req.user.userId, job, profile, sponsor);
-    analytics.track(req.user.userId, 'job_matched', { jobId: String(job.id), score: match.score }, '/api/v4/jobs/:id/match');
+    analytics.track(req.user.userId, 'job_matched', withCoreRefs(
+      { jobId: String(job.id), score: match.score },
+      { userId: req.user.userId, jobId: String(job.id) }
+    ), '/api/v4/jobs/:id/match');
     return ok(res, match, '岗位匹配完成');
   } catch (error) {
     console.error('[v4/jobs/match] failed:', error.message);
@@ -176,7 +186,10 @@ router.post('/:id/match/advanced', authMiddleware, (req, res) => {
   const job = findJobById(req.params.id); if (!job) return fail(res, '职位不存在', 404);
   const profile = getProfile(req.user.userId); if (!profile || profile.completion < 40) return fail(res, '请先完善求职画像', 422);
   const match = persistJobMatch(req.user.userId, job, profile, getSponsorProfile(job));
-  analytics.track(req.user.userId, 'advanced_job_matched', { jobId: String(job.id), score: match.score }, '/api/v4/jobs/:id/match/advanced');
+  analytics.track(req.user.userId, 'advanced_job_matched', withCoreRefs(
+    { jobId: String(job.id), score: match.score },
+    { userId: req.user.userId, jobId: String(job.id) }
+  ), '/api/v4/jobs/:id/match/advanced');
   return ok(res, { ...match, advanced: true }, '高级岗位匹配完成');
 });
 

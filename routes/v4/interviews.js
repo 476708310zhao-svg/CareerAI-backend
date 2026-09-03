@@ -4,6 +4,7 @@ const { authMiddleware } = require('../../middleware/auth');
 const interview = require('../../services/v4Interview');
 const analytics = require('../../services/v4Analytics');
 const todayTasks = require('../../services/v4TodayTasks');
+const { withCoreRefs } = require('../../utils/coreEntityRefs');
 const router = express.Router();
 router.use(authMiddleware);
 
@@ -18,8 +19,8 @@ router.get('/spaces', (req, res) => {
 router.get('/spaces/:id', (req, res) => {
   const row = db.prepare('SELECT * FROM interview_spaces_v4 WHERE id=? AND user_id=?').get(Number(req.params.id), req.user.userId);
   if (!row) return res.status(404).json({ code: -1, message: '面试空间不存在' });
-  const sessions = db.prepare('SELECT id, session_type AS sessionType, status, started_at AS startedAt, completed_at AS completedAt FROM interview_sessions_v4 WHERE space_id=? AND user_id=? ORDER BY id DESC').all(row.id, req.user.userId);
-  res.json({ code: 0, data: { space: interview.spaceView(row), sessions } });
+  const sessions = db.prepare('SELECT * FROM interview_sessions_v4 WHERE space_id=? AND user_id=? ORDER BY id DESC').all(row.id, req.user.userId);
+  res.json({ code: 0, data: { space: interview.spaceView(row), sessions: sessions.map(interview.sessionView) } });
 });
 router.patch('/spaces/:id', (req, res) => {
   const row = db.prepare('SELECT * FROM interview_spaces_v4 WHERE id=? AND user_id=?').get(Number(req.params.id), req.user.userId);
@@ -31,8 +32,12 @@ router.patch('/spaces/:id', (req, res) => {
 });
 router.post('/spaces/:id/sessions', (req, res) => { try {
   const data = interview.startSession(req.user.userId, Number(req.params.id), req.body && req.body.sessionType);
-  analytics.track(req.user.userId, 'interview_training_started', { spaceId: data.space_id, sessionId: data.id, type: data.session_type }, '/api/v4/interviews/spaces/:id/sessions');
-  res.status(201).json({ code: 0, data: { id: data.id, spaceId: data.space_id, sessionType: data.session_type, status: data.status, aiModel: data.ai_model, promptVersion: data.prompt_version } });
+  const session = interview.sessionView(data);
+  analytics.track(req.user.userId, 'interview_training_started', withCoreRefs(
+    { spaceId: data.space_id, sessionId: data.id, type: data.session_type },
+    session.refs
+  ), '/api/v4/interviews/spaces/:id/sessions');
+  res.status(201).json({ code: 0, data: session });
 } catch (err) { error(res, err); } });
 router.post('/sessions/:id/answers', async (req, res) => { try {
   const session = db.prepare(`SELECT s.*, p.job_title FROM interview_sessions_v4 s JOIN interview_spaces_v4 p ON p.id=s.space_id WHERE s.id=? AND s.user_id=? AND s.status='active'`).get(Number(req.params.id), req.user.userId);
@@ -44,12 +49,15 @@ router.post('/sessions/:id/answers', async (req, res) => { try {
     (session_id,user_id,question_type,question,answer,feedback,content_score,structure_score,expression_score,job_match_score)
     VALUES (?,?,?,?,?,?,?,?,?,?)`).run(session.id, req.user.userId, String(req.body.questionType || 'role').slice(0, 30), question, answer, score.feedback, score.content, score.structure, score.expression, score.jobMatch);
   db.prepare('UPDATE interview_sessions_v4 SET ai_model=? WHERE id=?').run(score.generation.model, session.id);
-  res.status(201).json({ code: 0, data: { id: result.lastInsertRowid, ...score } });
+  res.status(201).json({ code: 0, data: { id: result.lastInsertRowid, ...score, refs: interview.sessionView(session).refs } });
 } catch (err) { error(res, err); }
 });
 router.post('/sessions/:id/complete', (req, res) => { try {
   const report = interview.reportView(interview.completeSession(req.user.userId, Number(req.params.id)));
-  analytics.track(req.user.userId, 'interview_training_completed', { sessionId: report.sessionId, score: report.overallScore }, '/api/v4/interviews/sessions/:id/complete');
+  analytics.track(req.user.userId, 'interview_training_completed', withCoreRefs(
+    { sessionId: report.sessionId, score: report.overallScore },
+    report.refs
+  ), '/api/v4/interviews/sessions/:id/complete');
   res.status(201).json({ code: 0, data: report });
 } catch (err) { error(res, err); } });
 router.post('/sessions/:id/cancel', (req, res) => {
@@ -72,7 +80,7 @@ router.patch('/today-tasks/:id', (req, res) => {
   const done = req.body && req.body.completed === true;
   const data = todayTasks.updateStatus(req.user.userId, req.params.id, done);
   if (!data) return res.status(404).json({ code: -1, message: '任务不存在' });
-  if (done) analytics.track(req.user.userId, 'today_task_completed', { taskId: Number(req.params.id) }, '/api/v4/interviews/today-tasks/:id');
+  if (done) analytics.track(req.user.userId, 'today_task_completed', withCoreRefs({ taskId: data.id }, data.refs), '/api/v4/interviews/today-tasks/:id');
   res.json({ code: 0, data, message: '任务已更新' });
 });
 

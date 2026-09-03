@@ -57,6 +57,42 @@
 
 ---
 
+## 2026-09-03｜Sprint 2 第一批：核心数据引用契约
+
+### 本次完成
+
+- 新增统一核心实体 `refs`，覆盖用户、岗位、申请、简历/版本、面试空间/会话/报告和 Today 任务。
+- 抽取唯一的申请 V4 状态机，岗位详情与申请看板使用同一状态及文案。
+- canonical Job ID 统一优先使用 `source_job_id`，修复旧数据中 `job_id` 与官方 ID 不一致时简历和面试链路可能错连的问题。
+- Today 任务可按面试报告、AI Agent 或申请来源回溯完整业务链；申请、岗位匹配、简历优化、材料生成、面试和任务完成埋点增加紧凑 `refs`。
+- 记录各实体状态枚举、兼容关系和后续 migration 边界；本批不修改生产表结构。
+
+### 修改文件
+
+- `utils/coreEntityRefs.js`、`utils/applicationStatus.js`
+- `routes/v4/applications.js`、`jobs.js`、`resumes.js`、`materials.js`、`interviews.js`、`today.js`
+- `services/v4Profile.js`、`services/v4Interview.js`、`services/v4TodayTasks.js`
+- `tests/coreEntityRefs.test.js`、`tests/smoke.test.js`、`tests/all.test.js`
+- `docs/CORE_ENTITY_REFERENCE_CONTRACT.md` 及项目状态/路线图/TODO
+
+### 技术决策
+
+- 先建立兼容层，API 保留旧字段并增加完整 `refs`；埋点保留旧字段并增加去空的紧凑 `refs`。
+- 外部岗位 ID 保持字符串；SQLite 主键统一输出正整数或 `null`。
+- 数据库 migration、历史数据清洗和外键加固作为独立批次，避免把 API 契约变化和生产数据变更混在一次提交中。
+
+### 验证
+
+- 核心引用与申请状态专项测试 6/6 通过。
+- 全量测试 143/143 通过，包含旧双轨岗位 ID 的申请→简历→面试→报告→Today 关联验证。
+- `git diff --check` 通过；未运行真实微信 E2E。
+
+### 下一步
+
+- Sprint 2 第二批：统一职位/校招的数据来源标识、更新时间、过期规则和失败降级。
+
+---
+
 ## 2026-08-21
 
 ### 本次完成

@@ -4,6 +4,7 @@ const { authMiddleware } = require('../../middleware/auth');
 const { consumeDailyLimit, getQuotaStatus } = require('../../utils/aiQuota');
 const center = require('../../services/v4ResumeCenter');
 const analytics = require('../../services/v4Analytics');
+const { applicationRefs, canonicalJobId, mergeCoreRefs, withCoreRefs } = require('../../utils/coreEntityRefs');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -190,24 +191,41 @@ router.post('/:id/links', (req, res) => {
   const applicationId = Number(req.body && req.body.applicationId) || null;
   const application = ownedApplication(req.user.userId, applicationId);
   if (applicationId && !application) return res.status(404).json({ code: -1, message: '申请记录不存在' });
-  const jobId = center.cleanText((req.body && req.body.jobId) || (application && application.job_id), 120);
+  const jobId = center.cleanText((req.body && req.body.jobId) || canonicalJobId(application), 120);
   if (!jobId && !applicationId) return res.status(400).json({ code: -1, message: '目标岗位或申请记录至少填写一项' });
   db.prepare('INSERT OR IGNORE INTO resume_job_links (resume_id, user_id, job_id, application_id) VALUES (?, ?, ?, ?)')
     .run(resume.id, req.user.userId, jobId, applicationId);
   if (applicationId) db.prepare('UPDATE applications SET resume_id=?, resume_version_id=? WHERE id=? AND user_id=?')
     .run(resume.id, center.ensureCurrentVersion(req.user.userId, resume.id).version.id, applicationId, req.user.userId);
-  const links = db.prepare('SELECT id, job_id AS jobId, application_id AS applicationId, created_at AS createdAt FROM resume_job_links WHERE resume_id=? AND user_id=?').all(resume.id, req.user.userId);
+  const links = db.prepare('SELECT id, job_id AS jobId, application_id AS applicationId, created_at AS createdAt FROM resume_job_links WHERE resume_id=? AND user_id=?').all(resume.id, req.user.userId)
+    .map(link => {
+      const linkedApplication = link.applicationId ? ownedApplication(req.user.userId, link.applicationId) : null;
+      return {
+        ...link,
+        refs: mergeCoreRefs(applicationRefs(linkedApplication || {}), {
+          userId: req.user.userId,
+          jobId: link.jobId,
+          applicationId: link.applicationId,
+          resumeId: resume.id
+        })
+      };
+    });
   res.json({ code: 0, data: links });
 });
 
 router.post('/:id/ai-change-sets', async (req, res) => {
   if (!consumeDailyLimit(req, res, 'resume_optimize')) return;
   const applicationId = Number(req.body && req.body.applicationId) || null;
-  if (applicationId && !ownedApplication(req.user.userId, applicationId)) return res.status(404).json({ code: -1, message: '申请记录不存在' });
+  const application = applicationId ? ownedApplication(req.user.userId, applicationId) : null;
+  if (applicationId && !application) return res.status(404).json({ code: -1, message: '申请记录不存在' });
   try {
     const data = await center.createChangeSet({ userId: req.user.userId, resumeId: Number(req.params.id), jobId: req.body.jobId,
       applicationId, suggestions: req.body.suggestions, jdText: req.body.jdText });
-    analytics.track(req.user.userId, 'resume_optimize_started', { resumeId: Number(req.params.id), changeSetId: data.id }, '/api/v4/resumes/:id/ai-change-sets');
+    analytics.track(req.user.userId, 'resume_optimize_started', withCoreRefs(
+      { resumeId: Number(req.params.id), changeSetId: data.id },
+      applicationRefs(application || {}),
+      { resumeId: Number(req.params.id), resumeVersionId: data.sourceVersionId, jobId: data.jobId, applicationId }
+    ), '/api/v4/resumes/:id/ai-change-sets');
     res.status(201).json({ code: 0, data: Object.assign(data, { quota: getQuotaStatus(req.user.userId) }), message: 'AI 建议已生成，确认前不会修改简历' });
   } catch (error) { fail(res, error); }
 });

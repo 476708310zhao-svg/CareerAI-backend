@@ -5,53 +5,13 @@ const { ok, fail } = require('../../utils/response');
 const { findJobById } = require('../../utils/jobData');
 const { ensureSpace } = require('../../services/v4Interview');
 const analytics = require('../../services/v4Analytics');
+const { applicationRefs, mergeCoreRefs, withCoreRefs } = require('../../utils/coreEntityRefs');
+const {
+  STATUS_TEXT, TRANSITIONS, V4_TO_PROGRESS,
+  toV4Status, broadStatus, boardGroup, allowedStatusViews
+} = require('../../utils/applicationStatus');
 
 const router = express.Router();
-
-const STATUS_TEXT = {
-  interested: '感兴趣', preparing: '准备申请', applied: '已申请', oa: '在线测评',
-  phone_screen: '电话面试', interview_1: '一轮面试', interview_2: '二轮面试',
-  final: '终面', offer: 'Offer', rejected: '已拒绝', withdrawn: '已撤回'
-};
-
-const TRANSITIONS = {
-  interested: ['preparing', 'withdrawn'],
-  preparing: ['interested', 'applied', 'withdrawn'],
-  applied: ['oa', 'phone_screen', 'interview_1', 'rejected', 'withdrawn'],
-  oa: ['phone_screen', 'interview_1', 'rejected', 'withdrawn'],
-  phone_screen: ['interview_1', 'rejected', 'withdrawn'],
-  interview_1: ['interview_2', 'final', 'offer', 'rejected', 'withdrawn'],
-  interview_2: ['final', 'offer', 'rejected', 'withdrawn'],
-  final: ['offer', 'rejected', 'withdrawn'],
-  offer: ['withdrawn'], rejected: [], withdrawn: []
-};
-
-const LEGACY_TO_V4 = {
-  pending: 'interested', collected: 'interested', online_apply: 'preparing',
-  applied: 'applied', viewed: 'applied', oa: 'oa',
-  first_interview: 'interview_1', interview: 'interview_1',
-  second_interview: 'interview_2', hr_interview: 'final',
-  offer: 'offer', rejected: 'rejected', closed: 'withdrawn'
-};
-
-const V4_TO_PROGRESS = {
-  interested: 'collected', preparing: 'online_apply', applied: 'applied', oa: 'oa',
-  phone_screen: 'first_interview', interview_1: 'first_interview',
-  interview_2: 'second_interview', final: 'hr_interview', offer: 'offer',
-  rejected: 'rejected', withdrawn: 'closed'
-};
-
-function toV4Status(row) {
-  return row.v4_status || LEGACY_TO_V4[row.progress_status] || LEGACY_TO_V4[row.status] || 'interested';
-}
-
-function broadStatus(status) {
-  if (status === 'offer') return 'offer';
-  if (['rejected', 'withdrawn'].includes(status)) return 'rejected';
-  if (['phone_screen', 'interview_1', 'interview_2', 'final'].includes(status)) return 'interview';
-  if (['applied', 'oa'].includes(status)) return 'applied';
-  return 'pending';
-}
 
 function parseJson(value, fallback) {
   try { return JSON.parse(value); } catch (error) { return fallback; }
@@ -64,31 +24,21 @@ function cleanText(value, max = 1000) {
 function applicationView(row) {
   const snapshot = parseJson(row.job_snapshot, {});
   const status = toV4Status(row);
+  const refs = applicationRefs(row);
   return {
-    id: row.id, jobId: row.source_job_id || row.job_id,
+    id: refs.applicationId, jobId: refs.jobId,
     company: row.company || snapshot.company || '',
     jobTitle: row.job_title || snapshot.title || '',
     city: row.city || snapshot.location || '', salary: row.salary || snapshot.salary || '',
     status, statusText: STATUS_TEXT[status],
     deadline: row.deadline || '', interviewTime: row.interview_time || '',
     nextAction: row.next_action || '', notes: row.notes || '',
-    resumeId: row.resume_id || null, resumeVersionId: row.resume_version_id || '',
+    resumeId: refs.resumeId, resumeVersionId: refs.resumeVersionId,
     coverLetter: row.cover_letter || '', officialApplyUrl: row.job_link || snapshot.applyUrl || '',
     appliedAt: row.applied_at || '', updatedAt: row.updated_at || row.applied_at || '',
-    jobSnapshot: snapshot
+    jobSnapshot: snapshot,
+    refs
   };
-}
-
-function boardGroup(status) {
-  if (['interested', 'preparing'].includes(status)) return 'preparing';
-  if (['applied', 'oa'].includes(status)) return 'applied';
-  if (['phone_screen', 'interview_1', 'interview_2', 'final'].includes(status)) return 'interview';
-  if (status === 'offer') return 'offer';
-  return 'closed';
-}
-
-function allowedStatusViews(status) {
-  return (TRANSITIONS[status] || []).map(value => ({ value, label: STATUS_TEXT[value] }));
 }
 
 function ownedApplication(id, userId) {
@@ -147,7 +97,10 @@ router.post('/', authMiddleware, (req, res) => {
     VALUES (?, ?, '', ?, '加入申请看板', 'user')
   `).run(result.lastInsertRowid, req.user.userId, status);
   db.prepare('UPDATE applications SET v4_status=? WHERE id=?').run(status, result.lastInsertRowid);
-  analytics.track(req.user.userId, 'application_added', { applicationId: result.lastInsertRowid, jobId }, '/api/v4/applications');
+  analytics.track(req.user.userId, 'application_added', withCoreRefs(
+    { applicationId: result.lastInsertRowid, jobId },
+    applicationRefs(ownedApplication(result.lastInsertRowid, req.user.userId))
+  ), '/api/v4/applications');
   return ok(res, applicationView(ownedApplication(result.lastInsertRowid, req.user.userId)), '已加入申请看板');
 });
 
@@ -156,7 +109,10 @@ router.post('/:id/official-apply', authMiddleware, (req, res) => {
   if (!row) return fail(res, '申请记录不存在', 404);
   const snapshot = parseJson(row.job_snapshot, {});
   const url = row.job_link || snapshot.applyUrl || snapshot.sourceUrl || '';
-  analytics.track(req.user.userId, 'official_apply_clicked', { applicationId: row.id, jobId: row.source_job_id || row.job_id }, '/api/v4/applications/:id/official-apply');
+  analytics.track(req.user.userId, 'official_apply_clicked', withCoreRefs(
+    { applicationId: row.id, jobId: row.source_job_id || row.job_id },
+    applicationRefs(row)
+  ), '/api/v4/applications/:id/official-apply');
   return ok(res, { url });
 });
 
@@ -276,10 +232,15 @@ router.patch('/:id/status', authMiddleware, (req, res) => {
   transaction();
   const interviewSpace = ['phone_screen', 'interview_1', 'interview_2', 'final'].includes(nextStatus)
     ? ensureSpace(req.user.userId, row.id) : null;
-  db.prepare(`INSERT INTO analytics_events (user_id,event_name,route,source,payload) VALUES (?,?,?,?,?)`)
-    .run(req.user.userId, 'application_status_changed', '/api/v4/applications/:id/status', 'server', JSON.stringify({ applicationId: row.id, from: currentStatus, to: nextStatus }));
+  const refs = mergeCoreRefs(applicationRefs(row), {
+    interviewSpaceId: interviewSpace && interviewSpace.id
+  });
+  analytics.track(req.user.userId, 'application_status_changed', withCoreRefs(
+    { applicationId: row.id, from: currentStatus, to: nextStatus },
+    refs
+  ), '/api/v4/applications/:id/status');
   return ok(res, { id: row.id, status: nextStatus, statusText: STATUS_TEXT[nextStatus], previousStatus: currentStatus,
-    interviewSpaceId: interviewSpace && interviewSpace.id || null }, '申请状态已更新');
+    interviewSpaceId: refs.interviewSpaceId, refs }, '申请状态已更新');
 });
 
 router.get('/:id/history', authMiddleware, (req, res) => {

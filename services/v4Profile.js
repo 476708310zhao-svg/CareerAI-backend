@@ -1,5 +1,6 @@
 const db = require('../db/database');
 const { buildUserProfile } = require('../utils/userProfileStandard');
+const { normalizeCoreRefs } = require('../utils/coreEntityRefs');
 
 function parseJson(value, fallback) {
   if (!value) return fallback;
@@ -38,7 +39,7 @@ function legacyProfile(userId) {
     targetCities: legacy.targetLocation || [],
     employmentTypes: legacy.jobTypes || [],
     skills: legacy.skills || [], projects: [], fieldSources: {},
-    completion: 0, profileVersion: 1, updatedAt: ''
+    completion: 0, profileVersion: 1, updatedAt: '', refs: normalizeCoreRefs({ userId })
   };
 }
 
@@ -65,7 +66,8 @@ function rowToProfile(row) {
     targetCities: parseJson(row.target_cities, []), employmentTypes: parseJson(row.employment_types, []),
     skills: parseJson(row.skills, []), projects: parseJson(row.projects, []),
     fieldSources: parseJson(row.field_sources, {}), completion: row.completion || 0,
-    profileVersion: row.profile_version || 1, updatedAt: row.updated_at || ''
+    profileVersion: row.profile_version || 1, updatedAt: row.updated_at || '',
+    refs: normalizeCoreRefs({ userId: row.user_id })
   };
 }
 

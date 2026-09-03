@@ -10,12 +10,13 @@
 
 ## 当前批次
 
-Sprint 1“发布基线收口”仓库侧已完成：恢复内容已按业务主题拆分提交，Node/端口/版本目录/PM2/Nginx/Actions/备份路径已统一，n8n 明文默认密码和日志回显已移除。真实 E2E 按 Human 决定不再作为默认测试；后续使用专项单测、`npm run check:release`、静态检查和人工微信预览。服务器切流、回滚演练、生产严格预检、凭据轮换与真机高风险链路仍由 Human 执行。未推送、未部署。
+Sprint 2“数据闭环与质量基线”已进入开发。第一批统一了用户、岗位、申请、简历版本、面试空间/会话/报告和 Today 任务的 `refs` 关联契约；canonical Job ID 统一优先使用 `source_job_id`，SQLite 主键统一为正整数或 `null`。旧 API 与埋点字段继续兼容，本批未改生产表结构、未执行 migration。下一批处理岗位/校招来源与新鲜度规则。真实 E2E 按 Human 决定不作为默认测试；未推送、未部署。
 
 ## 已完成
 
 | 日期 | 事项 | 文件 | 验证 |
 |---|---|---|---|
+| 2026-09-03 | Sprint 2 第一批：建立核心实体 `refs` 契约，统一官方岗位 ID 优先级、数值主键输出与申请 V4 状态；接通申请、简历、材料、面试、Today 和关键埋点引用 | `utils/coreEntityRefs.js`、`utils/applicationStatus.js`、V4 相关路由/服务、`docs/CORE_ENTITY_REFERENCE_CONTRACT.md`、专项与集成测试 | 143/143 tests 通过；`git diff --check` 通过；未运行真实 E2E，未改数据库结构，未推送、未部署 |
 | 2026-09-03 | Sprint 1 仓库侧收口：将校招、申请文案、管理员限流、分享封面、审核 UI、测试和部署基线拆成可审查提交；统一 Node 20、4400、版本目录/current 软链接、共享数据、备份、PM2/Nginx 与手动生产发布；移除 n8n 默认密码和日志回显 | Git 提交 `35b8956` 至 `a9b92a6`、部署/安全文档 | `check:release` 137/137、媒体 191.2 KB、Errors 0/Warnings 4；完整 smoke 65/65、Shell/JS/JSON/YAML 静态校验和密钥扫描通过；未运行真实 E2E，未推送、未部署 |
 | 2026-09-03 | Sprint 0 清理：完整归档旧备份、旧统一前小程序和 Banner 优化素材；同步 11 份历史开发文档到 Obsidian；注销旧部署工作树并保留独有部署分支；旧目录送入回收站 | `archives/cleanup-20260903/`、Obsidian `历史归档/2026-06旧版/`、Git worktree 元数据 | ZIP 15.54 MB、6,628 个条目可读取；11 份文档 SHA-256 校验一致；主项目分支/HEAD 不变；`check:miniprogram` 通过，微信预览正常 |
 | 2026-09-03 | Sprint 0：确认 D 盘唯一主项目及旧目录 Junction；以 `codex/v4-development` 分支、`bcd6e8430710f374cf8dfab61dd319562c0a1b73` 为 Git 基线，恢复 1,588 个受 Git 跟踪的小程序文件，并从 Codex 历史日志恢复 8 月未提交的小程序增量（登录审核交互、AI 提示条、资源中心、校招刷新与文案、分享图及缓存）；恢复并压缩品牌 Logo | `miniprogram/`、`DEVELOPMENT_STATUS.md`、`DEVELOPMENT_LOG.md` | `npm run check:release` 通过：137/137 tests；媒体总量 191.2 KB；数据检查 Errors 0、Warnings 4；`git diff --check` 通过。未推送、未部署；用户已确认微信开发者工具预览正常 |
@@ -103,6 +104,7 @@ Sprint 1“发布基线收口”仓库侧已完成：恢复内容已按业务主
 
 | 负责人 | 文件 | 任务 | 状态 |
 |---|---|---|---|
+| Codex | `utils/coreEntityRefs.js`、`utils/applicationStatus.js`、V4 核心数据路由/服务、相关测试和 Sprint 2 文档 | Sprint 2 第一批：统一核心对象关联 ID 与申请状态输出，修复岗位 ID 双轨造成的跨模块错链 | 已完成；默认不运行真实 E2E |
 | Codex | `scripts/run-campus-sync.sh`、`scripts/merge-campus-env.js`、`.env.example`、校招同步脚本与测试 | 将新校招表持续同步至职引官网生产共享数据库，隔离营销飞书配置并修复定时任务 Node/数据库路径 | 已完成；生产写入 11,467 条，131/131 tests、公网 API 和真实官网页面显示 8 月 10 日最新记录 |
 | Codex | 小程序 `components/c-ai-disclosure/*`、模拟面试设置/对话/报告页面、`tests/favoriteReminder.test.js`、`scripts/check-miniprogram.js` | 统一缩小所有 AI 提示条，增加左右安全留白并清理三处重复旧样式 | 已完成；130/130 tests、AI 提示专项 4/4、小程序检查通过 |
 | Codex | `.env.example`、`scripts/sync_feishu_server.js`、小程序校招首页/列表/详情与相关测试 | 使用“职引睿选”飞书应用持续同步新校招 Base 指定视图，移除客户端旧飞书代理数据优先级，并修正招聘年度推导 | 已完成；新表全量同步写入 11,439 条，129/129 tests、小程序检查和数据检查通过 |
