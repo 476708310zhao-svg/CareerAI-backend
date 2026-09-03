@@ -1,5 +1,10 @@
 const express = require('express');
 const router = express.Router();
+
+router.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  next();
+});
 const db = require('../db/database');
 const { parseId } = require('../db/utils');
 const { formatCampus: fmt } = require('../db/formatters');
@@ -59,7 +64,8 @@ function timestampToShanghaiDateKey(value) {
 }
 
 function campusBusinessDateKey(item) {
-  return parseDateKey(item && item.startDate) || timestampToShanghaiDateKey(item && item.createdAt);
+  return parseDateKey(item && item.startDate)
+    || timestampToShanghaiDateKey(item && (item.updatedAt || item.createdAt));
 }
 
 function campusStartDateKey(item) {
@@ -156,7 +162,7 @@ router.get('/', (req, res) => {
 
     const where = conds.join(' AND ');
     const orderBy = sort === 'latest'
-      ? 'start_date DESC, created_at DESC, is_hot DESC, recruit_year DESC, company ASC'
+      ? "start_date DESC, COALESCE(NULLIF(updated_at, ''), created_at) DESC, is_hot DESC, recruit_year DESC, company ASC"
       : 'is_hot DESC, recruit_year DESC, start_date DESC, company ASC';
     const rows = db.prepare(
       'SELECT * FROM campus_schedules WHERE ' + where +

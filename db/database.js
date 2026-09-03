@@ -322,7 +322,8 @@ db.exec(`
     source         TEXT    DEFAULT '综合公开信息',
     is_verified    INTEGER DEFAULT 0,
     view_count     INTEGER DEFAULT 0,
-    created_at     TEXT    DEFAULT (datetime('now'))
+    created_at     TEXT    DEFAULT (datetime('now')),
+    updated_at     TEXT    DEFAULT (datetime('now'))
   );
 
   CREATE TABLE IF NOT EXISTS companies (
@@ -463,7 +464,8 @@ const campusColumns = db.prepare("PRAGMA table_info(campus_schedules)").all().ma
   ['is_hot', 'INTEGER DEFAULT 0'],
   ['education_level', 'TEXT DEFAULT ""'],
   ['overseas_friendly', 'INTEGER DEFAULT NULL'],
-  ['visa_status', 'TEXT DEFAULT ""']
+  ['visa_status', 'TEXT DEFAULT ""'],
+  ['updated_at', 'TEXT DEFAULT ""']
 ].forEach(([name, ddl]) => {
   if (!campusColumns.includes(name)) {
     db.exec(`ALTER TABLE campus_schedules ADD COLUMN ${name} ${ddl}`);
@@ -489,6 +491,11 @@ const feedbackCols = db.pragma('table_info(feedbacks)').map(c => c.name);
     db.exec(`ALTER TABLE feedbacks ADD COLUMN ${name} ${ddl}`);
   }
 });
+db.prepare(`
+  UPDATE campus_schedules
+  SET updated_at = created_at
+  WHERE updated_at IS NULL OR updated_at = ''
+`).run();
 
 // ─── UGC 发布前审核：旧数据视为已审核，新提交由业务接口显式写入 pending ──────
 [

@@ -758,7 +758,7 @@ router.put('/api/campus/:id', adminAuth, (req, res) => {
   const r = db.prepare(`
     UPDATE campus_schedules SET company=?, region=?, position_type=?, recruit_year=?,
       position_name=?, industry=?, start_date=?, deadline_date=?, offer_month=?,
-      notes=?, apply_url=?, is_hot=?
+      notes=?, apply_url=?, is_hot=?, updated_at=datetime('now')
     WHERE id = ?
   `).run(company, region, position_type, recruit_year, position_name,
          industry, start_date, deadline_date, offer_month, notes, apply_url,

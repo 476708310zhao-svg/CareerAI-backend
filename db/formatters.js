@@ -218,6 +218,7 @@ function formatCampus(s) {
     isVerified:   s.is_verified === 1,
     viewCount:    s.view_count,
     createdAt:    s.created_at,
+    updatedAt:    s.updated_at || s.created_at,
     educationLevel,
     educationTags: educationTagsFor(educationLevel),
     overseasFriendly: inferOverseasFriendly(s),

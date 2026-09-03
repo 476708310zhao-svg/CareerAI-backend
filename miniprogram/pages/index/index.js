@@ -919,10 +919,10 @@ Page({
     today.setHours(0, 0, 0, 0);
     date.setHours(0, 0, 0, 0);
     const days = Math.round((today.getTime() - date.getTime()) / 86400000);
-    if (days === 0) return '今日新开';
-    if (days === 1) return '昨日新开';
-    if (days > 1 && days <= 7) return days + '天前新开';
-    return key.slice(5) + '新开';
+    if (days === 0) return '今日更新';
+    if (days === 1) return '昨日更新';
+    if (days > 1 && days <= 7) return days + '天前更新';
+    return key.slice(5) + '更新';
   },
 
   getCampusDeadlineMeta(value) {

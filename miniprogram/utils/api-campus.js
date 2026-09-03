@@ -17,7 +17,8 @@ function getCampusList(params) {
       recruit_type: recruitType, written_test: writtenTest, industry,
       education_level: educationLevel, overseas_friendly: overseasFriendly,
       visa, deadline_window: deadlineWindow, grad_year: gradYear,
-      sort, latest_day: latestDay, latest_date: latestDate, page, pageSize
+      sort, latest_day: latestDay, latest_date: latestDate, page, pageSize,
+      _fresh: Date.now()
     },
     noCache: true,
     cacheTTL: 0,
