@@ -336,7 +336,7 @@ Page({
     return {
       title: '职引 | 留学生AI求职助手',
       path: '/pages/index/index',
-      imageUrl: 'https://api.zhiyincareer.com/uploads/banners/banner_1782446347190_ovbr4.png'
+      imageUrl: '/images/banner1.jpg'
     };
   },
 
@@ -344,7 +344,7 @@ Page({
   onShareTimeline() {
     return {
       title: '职引 | 留学生AI求职助手',
-      imageUrl: 'https://api.zhiyincareer.com/uploads/banners/banner_1782446347190_ovbr4.png'
+      imageUrl: '/images/banner1.jpg'
     };
   },
 

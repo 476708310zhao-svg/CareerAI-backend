@@ -1783,26 +1783,40 @@ test('admin can update page share config', async () => {
   const home = listBody.data.find(item => item.route === 'pages/index/index');
   assert.ok(home);
 
-  const title = `分享测试 ${Date.now()}`;
-  const updateRes = await fetch(`${BASE_URL}/admin/api/share-configs/${home.id}`, {
+  const updateUrl = `${BASE_URL}/admin/api/share-configs/${home.id}`;
+  const writeConfig = body => fetch(updateUrl, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...adminHeaders() },
-    body: JSON.stringify({
-      pageName: home.pageName,
+    body: JSON.stringify(body)
+  });
+  const original = {
+    pageName: home.pageName,
+    title: home.title,
+    imageUrl: home.imageUrl,
+    isActive: home.isActive,
+    sortOrder: home.sortOrder
+  };
+
+  try {
+    const title = `分享测试 ${Date.now()}`;
+    const updateRes = await writeConfig({
+      ...original,
       title,
       imageUrl: '/uploads/banners/share-test.jpg',
-      isActive: true,
-      sortOrder: home.sortOrder
-    })
-  });
-  assert.equal(updateRes.status, 200);
-  const updateBody = await readJson(updateRes);
-  assert.equal(updateBody.code, 0);
+      isActive: true
+    });
+    assert.equal(updateRes.status, 200);
+    const updateBody = await readJson(updateRes);
+    assert.equal(updateBody.code, 0);
 
-  const publicRes = await fetch(`${BASE_URL}/api/share/configs`);
-  const publicBody = await readJson(publicRes);
-  assert.equal(publicBody.data.routes['pages/index/index'].title, title);
-  assert.equal(publicBody.data.routes['pages/index/index'].imageUrl, '/uploads/banners/share-test.jpg');
+    const publicRes = await fetch(`${BASE_URL}/api/share/configs`);
+    const publicBody = await readJson(publicRes);
+    assert.equal(publicBody.data.routes['pages/index/index'].title, title);
+    assert.equal(publicBody.data.routes['pages/index/index'].imageUrl, '/uploads/banners/share-test.jpg');
+  } finally {
+    const restoreRes = await writeConfig(original);
+    assert.equal(restoreRes.status, 200);
+  }
 });
 
 test('admin account permissions are enforced by module', async () => {

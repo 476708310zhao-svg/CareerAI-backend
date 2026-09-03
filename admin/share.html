@@ -29,6 +29,17 @@
       color: #9ca3af;
       font-size: 12px;
     }
+    .share-preview-badge {
+      position: absolute;
+      left: 8px;
+      bottom: 8px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      color: #fff;
+      background: rgba(15, 23, 42, .72);
+      font-size: 11px;
+      line-height: 1;
+    }
     .route-cell {
       max-width: 280px;
       color: #6b7280;
@@ -145,7 +156,8 @@
           </div>
         </div>
         <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none" onchange="onFileSelect(event)">
-        <input id="f_imageUrl" placeholder="/images/banner1.jpg 或 https://..." style="margin-top:10px" oninput="updatePreview()">
+        <input id="f_imageUrl" placeholder="/uploads/banners/share_xxx.jpg 或 https://..." style="margin-top:10px" oninput="updatePreview()">
+        <div class="upload-hint">留空时自动使用全局默认封面。</div>
         <div id="uploadProgress" style="display:none;margin-top:8px">
           <div style="background:#e5e7eb;border-radius:4px;height:6px"><div id="progressBar" style="background:#2563eb;height:6px;border-radius:4px;width:0%;transition:width .3s"></div></div>
           <div style="font-size:12px;color:#6b7280;margin-top:4px" id="progressText">上传中...</div>
@@ -178,24 +190,30 @@ initPage('share', '分享配置');
 
 let rows = [];
 let editingId = null;
+let globalDefaultImage = '';
 
 function assetUrl(url) {
   if (!url) return '';
   if (/^https?:\/\//i.test(url)) return url;
-  if (url.startsWith('/images/')) return url;
   return window.ADMIN_API.replace('/admin/api', '') + (url.startsWith('/') ? url : '/' + url);
 }
 
-function sharePreview(url) {
+function sharePreview(url, inherited = false) {
   const src = assetUrl(url);
   if (!src) return '<div class="share-preview"><div class="share-preview-empty">无封面</div></div>';
-  return `<div class="share-preview"><img src="${esc(src)}" alt=""></div>`;
+  return `<div class="share-preview">
+    <img src="${esc(src)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+    <div class="share-preview-empty" style="display:none">图片加载失败</div>
+    ${inherited ? '<span class="share-preview-badge">继承全局</span>' : ''}
+  </div>`;
 }
 
 async function load() {
   const res = await GET('/admin/api/share-configs');
   if (!res || res.code !== 0) return;
   rows = res.data || [];
+  const defaultRow = rows.find(item => item.route === '__default__');
+  globalDefaultImage = defaultRow ? defaultRow.imageUrl || '' : '';
   renderTable();
 }
 
@@ -207,7 +225,7 @@ function renderTable() {
   });
   document.getElementById('tbody').innerHTML = filtered.length ? filtered.map(item => `
     <tr>
-      <td>${sharePreview(item.imageUrl)}</td>
+      <td>${sharePreview(item.imageUrl || globalDefaultImage, !item.imageUrl && item.route !== '__default__')}</td>
       <td>
         <strong>${esc(item.pageName || item.route)}</strong>
         <div class="route-cell">${esc(item.route)}</div>
@@ -250,7 +268,9 @@ function openEdit(id) {
 }
 
 function updatePreview() {
-  const src = assetUrl(document.getElementById('f_imageUrl').value.trim());
+  const ownImage = document.getElementById('f_imageUrl').value.trim();
+  const route = document.getElementById('f_route').value.trim();
+  const src = assetUrl(ownImage || (route === '__default__' ? '' : globalDefaultImage));
   const img = document.getElementById('previewImg');
   const placeholder = document.getElementById('uploadPlaceholder');
   const smallImg = document.getElementById('smallPreviewImg');

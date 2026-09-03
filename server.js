@@ -70,6 +70,10 @@ const { UPLOAD_DIR } = require('./utils/paths');
 app.use(express.static(path.join(__dirname, 'public'), {
   maxAge: '5m'
 }));
+// 分享配置默认封面使用小程序内置 /images 路径；后台预览也应能访问同一份资源。
+app.use('/images', express.static(path.join(__dirname, 'miniprogram', 'images'), {
+  maxAge: '7d'
+}));
 app.use('/uploads', express.static(UPLOAD_DIR, {
   maxAge: '7d',
   immutable: true
