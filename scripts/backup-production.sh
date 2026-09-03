@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP_NAME="${APP_NAME:-jobapp-server}"
 APP_DATA_DIR="${APP_DATA_DIR:-/var/lib/jobapp-server}"
-BACKUP_DIR="${BACKUP_DIR:-/var/backups/jobapp-server}"
+BACKUP_DIR="${BACKUP_DIR:-/www/backups/zhiyincareer}"
 TS="$(date +%Y%m%d_%H%M%S)"
 DEST="$BACKUP_DIR/${APP_NAME}_${TS}"
 

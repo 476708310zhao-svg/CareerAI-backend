@@ -62,7 +62,7 @@ function printHelp() {
 
 Usage:
   npm run bot:acceptance
-  npm run bot:acceptance -- --base-url http://127.0.0.1:3001 --read-only
+  npm run bot:acceptance -- --base-url http://127.0.0.1:4400 --read-only
   npm run check:acceptance
 
 Options:

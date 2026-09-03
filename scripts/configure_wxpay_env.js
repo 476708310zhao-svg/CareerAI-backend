@@ -70,11 +70,11 @@ function redacted(value) {
 }
 
 function main() {
-  const appDir = argValue('app-dir', '/www/wwwroot/jobapp-server');
+  const appDir = argValue('app-dir', '/www/wwwroot/zhiyincareer-main/current');
   const secretFile = argValue('secret', '/tmp/wxpay-secret.env');
   const certSrc = argValue('cert-src', '/tmp/wechatpay-certs');
   const certDest = argValue('cert-dest', '/var/lib/jobapp-server/certs/wechatpay');
-  const backupDir = argValue('backup-dir', '/var/backups/jobapp-server');
+  const backupDir = argValue('backup-dir', '/www/backups/zhiyincareer');
   const envFile = path.join(appDir, '.env');
 
   if (!fs.existsSync(secretFile)) throw new Error(`secret file not found: ${secretFile}`);

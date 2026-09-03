@@ -2,32 +2,47 @@ name: Deploy N8N
 
 on:
   workflow_dispatch:
-    inputs:
-      n8n_password:
-        description: 'N8N 管理员密码'
-        required: false
-        default: 'jobapp2026!'
+
+concurrency:
+  group: production-n8n
+  cancel-in-progress: false
 
 jobs:
   deploy-n8n:
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Install N8N via npm and start with PM2
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          N8N_BASIC_AUTH_USER: ${{ secrets.N8N_BASIC_AUTH_USER }}
+          N8N_BASIC_AUTH_PASSWORD: ${{ secrets.N8N_BASIC_AUTH_PASSWORD }}
+          N8N_VERSION: ${{ vars.N8N_VERSION }}
+          N8N_PUBLIC_HOST: ${{ vars.N8N_PUBLIC_HOST }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 22
           command_timeout: 30m
+          script_stop: true
+          envs: N8N_BASIC_AUTH_USER,N8N_BASIC_AUTH_PASSWORD,N8N_VERSION,N8N_PUBLIC_HOST
           script: |
+            set -euo pipefail
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            nvm use 18
+            nvm use 20
 
-            NPM=/root/.nvm/versions/node/v18.20.8/bin/npm
-            PM2=/root/.nvm/versions/node/v18.20.8/bin/pm2
-            N8N_BIN=/root/.nvm/versions/node/v18.20.8/bin/n8n
+            : "${N8N_BASIC_AUTH_USER:?Configure production secret N8N_BASIC_AUTH_USER}"
+            : "${N8N_BASIC_AUTH_PASSWORD:?Configure production secret N8N_BASIC_AUTH_PASSWORD}"
+            : "${N8N_VERSION:?Configure production variable N8N_VERSION}"
+            : "${N8N_PUBLIC_HOST:?Configure production variable N8N_PUBLIC_HOST}"
+
+            NPM="$(command -v npm)"
+            if ! command -v pm2 >/dev/null 2>&1; then
+              "$NPM" install -g pm2
+            fi
+            PM2="$(command -v pm2)"
 
             echo "=== 服务器资源 ==="
             free -h
@@ -54,11 +69,11 @@ jobs:
 
             # ── 3. 安装 N8N ──────────────────────────────────────────────
             echo "📦 Installing n8n (this takes 3-8 min)..."
-            $NPM install -g n8n --unsafe-perm
+            "$NPM" install -g "n8n@$N8N_VERSION" --unsafe-perm
+            N8N_BIN="$(command -v n8n)"
 
-            if [ ! -f "$N8N_BIN" ]; then
+            if [ ! -x "$N8N_BIN" ]; then
               echo "❌ n8n binary not found"
-              ls /root/.nvm/versions/node/v18.20.8/bin/ | grep n8n || echo "(none)"
               exit 1
             fi
             echo "✅ n8n installed: $($N8N_BIN --version)"
@@ -72,11 +87,13 @@ jobs:
 
             # ── 6. PM2 启动 N8N ───────────────────────────────────────────
             N8N_BASIC_AUTH_ACTIVE=true \
-            N8N_BASIC_AUTH_USER=admin \
-            N8N_BASIC_AUTH_PASSWORD="${{ github.event.inputs.n8n_password }}" \
-            N8N_HOST=0.0.0.0 \
+            N8N_BASIC_AUTH_USER="$N8N_BASIC_AUTH_USER" \
+            N8N_BASIC_AUTH_PASSWORD="$N8N_BASIC_AUTH_PASSWORD" \
+            N8N_HOST="$N8N_PUBLIC_HOST" \
+            N8N_LISTEN_ADDRESS=127.0.0.1 \
             N8N_PORT=5678 \
-            N8N_PROTOCOL=http \
+            N8N_PROTOCOL=https \
+            WEBHOOK_URL="https://$N8N_PUBLIC_HOST/" \
             GENERIC_TIMEZONE=Asia/Shanghai \
             TZ=Asia/Shanghai \
             N8N_USER_FOLDER=/root/.n8n \
@@ -89,9 +106,7 @@ jobs:
             if $PM2 list | grep -q "n8n.*online"; then
               echo ""
               echo "🎉 N8N is running!"
-              echo "🌐 URL:      http://${{ secrets.SERVER_HOST }}:5678"
-              echo "👤 Username: admin"
-              echo "🔑 Password: ${{ github.event.inputs.n8n_password }}"
+              echo "🌐 N8N 已通过受保护的 HTTPS 入口启动"
             else
               echo "❌ N8N failed to start. Logs:"
               $PM2 logs n8n --lines 30 --nostream

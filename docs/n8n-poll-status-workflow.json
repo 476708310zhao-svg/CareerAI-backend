@@ -21,7 +21,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:3001/api/applications/poll-status",
+        "url": "http://localhost:4400/api/applications/poll-status",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

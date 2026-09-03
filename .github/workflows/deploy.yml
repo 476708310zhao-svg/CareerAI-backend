@@ -1,37 +1,45 @@
 name: Deploy Backend
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: production-backend
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - uses: actions/checkout@v4
 
-      - name: Sync files to server (exclude node_modules)
+      - name: Upload immutable release
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 22
-          source: ".,!node_modules,!.git,!.env,!uploads,!tests"
-          target: /www/wwwroot/jobapp-server
+          source: ".,!node_modules,!.git,!.env,!uploads"
+          target: /www/wwwroot/zhiyincareer-main/releases/${{ github.run_id }}-${{ github.sha }}
 
-      - name: Install deps and restart
+      - name: Verify, switch traffic and keep rollback target
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 22
+          command_timeout: 30m
+          script_stop: true
           script: |
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            nvm use 18
-            cd /www/wwwroot/jobapp-server
-            npm install --production --silent
-            /root/.nvm/versions/node/v18.20.8/bin/pm2 restart jobapp-server
+            nvm use 20
+            RELEASE_DIR=/www/wwwroot/zhiyincareer-main/releases/${{ github.run_id }}-${{ github.sha }}
+            cd "$RELEASE_DIR"
+            chmod +x deploy.sh scripts/run-campus-sync.sh scripts/run-reminder-dispatch.sh scripts/backup-production.sh
+            APP_DATA_DIR=/var/lib/jobapp-server BACKUP_DIR=/www/backups/zhiyincareer bash scripts/backup-production.sh
+            bash deploy.sh
             echo "✅ Backend deployed at $(date)"

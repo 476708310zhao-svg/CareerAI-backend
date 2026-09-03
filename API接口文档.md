@@ -1,7 +1,7 @@
 # API 接口文档
 
 > 后端服务地址：`https://api.zhiyincareer.com`  
-> 本地开发地址：`http://localhost:3001`  
+> 本地开发地址：`http://localhost:4400`
 > 所有需要登录的接口请在 Header 中传入：`Authorization: Bearer <token>`
 
 ---

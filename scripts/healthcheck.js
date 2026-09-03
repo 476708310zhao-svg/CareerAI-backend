@@ -1,4 +1,4 @@
-const baseUrl = String(process.env.HEALTHCHECK_BASE_URL || 'http://127.0.0.1:3001').replace(/\/$/, '');
+const baseUrl = String(process.env.HEALTHCHECK_BASE_URL || 'http://127.0.0.1:4400').replace(/\/$/, '');
 const timeoutMs = Number(process.env.HEALTHCHECK_TIMEOUT_MS || 5000);
 
 async function main() {

@@ -11,14 +11,14 @@ const { buildRuntimeReadiness } = require('./utils/runtimeReadiness');
 const db = require('./db/database');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 4400;
 
 // Production traffic reaches Express through the local Nginx reverse proxy.
 // Trust only the loopback proxy so req.ip and login rate limits use the real client IP.
 app.set('trust proxy', 'loopback');
 
 // 中间件
-// ALLOWED_ORIGIN 必须在 .env 中显式配置；本地开发设为 http://localhost:3001
+// ALLOWED_ORIGIN 必须在 .env 中显式配置；本地开发设为 http://localhost:4400
 // 小程序请求不受 CORS 限制，此配置仅影响浏览器客户端（如管理后台）
 // 支持多个来源，用逗号分隔，e.g. http://localhost:5173,https://yoursite.com
 const rawOrigins = process.env.ALLOWED_ORIGIN || '';
