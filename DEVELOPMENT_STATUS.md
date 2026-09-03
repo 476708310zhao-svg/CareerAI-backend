@@ -1,19 +1,35 @@
 # DEVELOPMENT_STATUS
 
-更新时间：2026-08-04
+更新时间：2026-09-03
 
-后端项目目录：`C:\Users\admin\Desktop\求职小程序\jobapp-server`
+主项目目录：`D:\ChatGPT-Projects\求职小程序\jobapp-server`
 
-小程序项目目录：`C:\Users\admin\Desktop\求职小程序\求职小程序`
+小程序源码目录：`D:\ChatGPT-Projects\求职小程序\jobapp-server\miniprogram`
+
+旧入口 `C:\Users\admin\Desktop\求职小程序` 为指向 D 盘项目目录的 Junction，不是第二份独立项目。
 
 ## 当前批次
 
-第二批 P1 优化已完成，P2 正在进行：降低维护成本、补工程化和测试覆盖。继续避免主动改动支付、登录等高风险核心链路。
+Sprint 1“发布基线收口”仓库侧已完成：恢复内容已按业务主题拆分提交，Node/端口/版本目录/PM2/Nginx/Actions/备份路径已统一，n8n 明文默认密码和日志回显已移除。真实 E2E 按 Human 决定不再作为默认测试；后续使用专项单测、`npm run check:release`、静态检查和人工微信预览。服务器切流、回滚演练、生产严格预检、凭据轮换与真机高风险链路仍由 Human 执行。未推送、未部署。
 
 ## 已完成
 
 | 日期 | 事项 | 文件 | 验证 |
 |---|---|---|---|
+| 2026-09-03 | Sprint 1 仓库侧收口：将校招、申请文案、管理员限流、分享封面、审核 UI、测试和部署基线拆成可审查提交；统一 Node 20、4400、版本目录/current 软链接、共享数据、备份、PM2/Nginx 与手动生产发布；移除 n8n 默认密码和日志回显 | Git 提交 `35b8956` 至 `a9b92a6`、部署/安全文档 | `check:release` 137/137、媒体 191.2 KB、Errors 0/Warnings 4；完整 smoke 65/65、Shell/JS/JSON/YAML 静态校验和密钥扫描通过；未运行真实 E2E，未推送、未部署 |
+| 2026-09-03 | Sprint 0 清理：完整归档旧备份、旧统一前小程序和 Banner 优化素材；同步 11 份历史开发文档到 Obsidian；注销旧部署工作树并保留独有部署分支；旧目录送入回收站 | `archives/cleanup-20260903/`、Obsidian `历史归档/2026-06旧版/`、Git worktree 元数据 | ZIP 15.54 MB、6,628 个条目可读取；11 份文档 SHA-256 校验一致；主项目分支/HEAD 不变；`check:miniprogram` 通过，微信预览正常 |
+| 2026-09-03 | Sprint 0：确认 D 盘唯一主项目及旧目录 Junction；以 `codex/v4-development` 分支、`bcd6e8430710f374cf8dfab61dd319562c0a1b73` 为 Git 基线，恢复 1,588 个受 Git 跟踪的小程序文件，并从 Codex 历史日志恢复 8 月未提交的小程序增量（登录审核交互、AI 提示条、资源中心、校招刷新与文案、分享图及缓存）；恢复并压缩品牌 Logo | `miniprogram/`、`DEVELOPMENT_STATUS.md`、`DEVELOPMENT_LOG.md` | `npm run check:release` 通过：137/137 tests；媒体总量 191.2 KB；数据检查 Errors 0、Warnings 4；`git diff --check` 通过。未推送、未部署；用户已确认微信开发者工具预览正常 |
+| 2026-08-25 | 修复微信分享卡片封面空白：移除首页失效的 404 线上图片，新增 5:4 包内分享封面；全局配置、后台配置、旧图片路径和客户端缓存统一迁移到新封面，并避免接口缓存继续下发旧地址 | 小程序分享工具/首页/图片资源、`utils/shareConfig.js`、`routes/share.js`、后台分享页与专项测试 | 全量测试 136/136、分享专项 2/2、`check:miniprogram` 通过；媒体总量 179.8 KB；微信预览因开发者工具登录过期未生成二维码 |
+| 2026-08-12 | 将“申请材料库”收窄为“申请文案库”：移除整份简历 JSON 生成与展示，定制简历统一引导至简历中心；生成前强制选择有效简历并支持补充 JD，隐藏模型/提示词内部信息，历史定制简历记录不再进入文案列表 | `routes/v4/materials.js`、`routes/career-assets.js`、小程序 `application-materials`、材料工具与回归测试 | 待本批验证 |
+| 2026-08-12 | 修复管理后台正确密码也会频繁被误封：后台登录限额改为按真实 IP + 用户名隔离，仅累计失败请求，成功登录不占用限额；同步重置并统一正式 `admin` 账号密码 | `middleware/rateLimit.js`、`server.js`、`tests/adminLoginRateLimit.test.js`与正式 `zhiyincareer-main` 实例 | 134/134 tests 通过；公网新密码连续登录 6 次均返回 200，第 6 次未再触发原 5 次误封，账号角色为 `super_admin` |
+| 2026-08-10 | 修复生产校招已同步但首页仍显示旧批次：服务端按开放日期选取最新批次并禁止中间缓存，小程序每次进入首页强制刷新且携带新鲜度参数，同时升级本地缓存版本 | `routes/campus.js`、小程序 `utils/api-campus.js`、`pages/index/index.js`、部署工作流与校招回归测试 | 公网 API 已返回 2026-08-10 最新 28 条；校招内容测试 4/4、校招接口测试 2/2、`check:miniprogram` 通过 |
+| 2026-08-10 | 将“职引睿选”新校招表同步到职引官网校招日历生产板块：修正生产定时任务的 Node 版本与共享数据库路径，增加校招专属配置白名单合并工具，并完成官网实际数据库全量同步 | `scripts/sync_feishu_server.js`、`scripts/run-campus-sync.sh`、`scripts/merge-campus-env.js`、`.env.example` 与校招回归测试 | 生产原始 11,513 条、有效 11,485 条、去重写入 11,467 条、数据库总计 11,498 条；131/131 tests、公网 API 与真实官网页面均显示 8 月 10 日最新内容 |
+| 2026-08-10 | 统一缩小全端 AI 生成提示条：增加组件左右安全留白，压缩卡片高度、标签、字号与间距，修复长文案贴边拥挤；将模拟面试设置、面试对话和 AI 报告三处旧提示迁移为共享组件 | 小程序 `components/c-ai-disclosure`、3 个面试页面、审核检查与页面回归测试 | 全量测试 130/130、AI 提示专项 4/4、`check:miniprogram` 通过 |
+| 2026-08-10 | 将校招数据源切换为“职引睿选”飞书主体下的新多维表格与指定视图；完成全量重爬并让首页、校招列表和详情统一读取后端同步数据，同时按开始时间自动推导招聘年度 | `.env.example`、`scripts/sync_feishu_server.js`、小程序 `pages/index`、`pages/campus`、`package-content/pages/campus-detail` 与校招回归测试 | 新表原始 11,485 条、有效 11,457 条、去重写入 11,439 条；全量测试 129/129、`check:miniprogram`、数据检查（错误 0）通过 |
+| 2026-08-10 | 修复微信代码质量“图片和音频资源”误判理解：按开发者工具真实算法将编译包内媒体总量从 203.1 KB 降至 191.2 KB，并将本地检查由单文件 200 KB 修正为媒体总量严格小于 200 KB | `miniprogram/images/logo_google.png`、`scripts/check-miniprogram.js` | `check:miniprogram` 通过，媒体总量 191.2 KB / < 200 KB，主包约 1.00 MB |
+| 2026-08-10 | 优化小程序登录审核交互：登录弹层增加显著关闭按钮和“暂不登录，先逛逛”入口；手机号授权被拒绝后立即退出弹层并返回当前页面，避免反复施压授权 | 小程序 `components/c-login-popup`、登录回归测试与小程序审核检查 | 全量测试 128/128、登录专项 4/4、`check:miniprogram` 通过 |
+| 2026-08-10 | 重构资源中心排版：四个模块移除分组副标题，主标题改为蓝/绿/紫主题色胶囊；“内容与服务”由三行紧凑列表改为三张独立服务卡，并让页面底部延续浅蓝灰背景以消除白块 | 小程序 `pages/resources/resources.js`、`resources.wxml`、`resources.wxss` 与导航回归测试 | 资源中心回归 14/14、`check:miniprogram` 通过 |
+| 2026-08-10 | 修复首页与校招页仍显示 6 月 9 日旧数据：优先读取已上线的飞书 2027 届校招源，完整映射中文字段、链接和同步日期；旧后端接口保留兜底并改为按更新时间排序，飞书记录详情支持直接打开；“新开”文案统一为“更新” | `db/database.js`、`db/formatters.js`、`routes/campus.js`、`routes/admin.js`、小程序校招数据适配/首页/列表/详情与测试 | 全量测试 127/127、`check:miniprogram`、数据检查（错误 0）通过；线上飞书内容源验证 33 条，首条毕马威记录公司、岗位、链接和 2026-07-09 同步日期映射正确 |
 | 2026-08-04 | 修复统一搜索页职位长期停留在加载态：正式职位 API 与飞书人工职位源改为并行竞速，优先采用最先返回的非空结果；增加实时搜索序号和 12 秒加载兜底，防止慢速旧请求覆盖新关键词或无限转圈 | 小程序 `utils/api-jobs.js`、`package-user/pages/search/search.js` 与职位搜索回归测试 | 全量测试 125/125、`check:miniprogram`、数据检查（错误 0）通过；生产同链路搜索 `data analyst` 约 2 秒返回 10 个职位；微信开发者工具生成预览二维码成功 |
 | 2026-08-04 | 按产品说明重构职位列表卡片与职位详情决策链路：新增统一职位展示适配层和复用卡片，收敛薪资、地点、标签、技能、AI 匹配、截止与投递状态；详情页依次展示核心信息、公司、匹配、条件、JD、要求、时间、公司介绍、相似职位和安全区固定操作栏，并保留收藏、详情跳转、外链投递、投递看板与 AI 分析 | 小程序 `utils/job-presenter.js`、`components/c-job-card/*`、`pages/jobs/*`、`package-user/pages/search/*`、`package-user/pages/job-detail/*` 与职位展示回归测试 | 全量测试 124/124、`check:miniprogram`、数据检查（错误 0）与微信开发者工具预览编译通过；主包 791.9 KB、`package-user` 451.4 KB |
 | 2026-08-04 | 修复统一搜索页在防抖实时匹配时把每个输入片段写入搜索历史的问题：实时结果保持不变，历史仅记录用户点击搜索、键盘搜索或选择完整关键词的提交动作；加载时自动去重并清理已有连续前缀碎片 | 小程序 `package-user/pages/search/search.js` 与导航回归测试 | 全量测试 120/120、`check:miniprogram` 与数据检查通过；微信开发者工具预览编译成功，主包 777.7 KB |
@@ -87,6 +103,13 @@
 
 | 负责人 | 文件 | 任务 | 状态 |
 |---|---|---|---|
+| Codex | `scripts/run-campus-sync.sh`、`scripts/merge-campus-env.js`、`.env.example`、校招同步脚本与测试 | 将新校招表持续同步至职引官网生产共享数据库，隔离营销飞书配置并修复定时任务 Node/数据库路径 | 已完成；生产写入 11,467 条，131/131 tests、公网 API 和真实官网页面显示 8 月 10 日最新记录 |
+| Codex | 小程序 `components/c-ai-disclosure/*`、模拟面试设置/对话/报告页面、`tests/favoriteReminder.test.js`、`scripts/check-miniprogram.js` | 统一缩小所有 AI 提示条，增加左右安全留白并清理三处重复旧样式 | 已完成；130/130 tests、AI 提示专项 4/4、小程序检查通过 |
+| Codex | `.env.example`、`scripts/sync_feishu_server.js`、小程序校招首页/列表/详情与相关测试 | 使用“职引睿选”飞书应用持续同步新校招 Base 指定视图，移除客户端旧飞书代理数据优先级，并修正招聘年度推导 | 已完成；新表全量同步写入 11,439 条，129/129 tests、小程序检查和数据检查通过 |
+| Codex | `miniprogram/images/logo_google.png`、`scripts/check-miniprogram.js` | 按微信开发者工具实际规则压缩媒体总量，并增加一致的本地防回归检查 | 已完成；媒体总量 191.2 KB，`check:miniprogram` 通过 |
+| Codex | 小程序 `components/c-login-popup/*`、`tests/loginGate.test.js`、`scripts/check-miniprogram.js` | 增加清晰有效的关闭/暂不登录路径，并在拒绝手机号授权后返回当前页面，修复登录环节审核问题 | 已完成；128/128 tests、登录专项 4/4、小程序检查通过 |
+| Codex | 小程序 `pages/resources/resources.js`、`resources.wxml`、`resources.wxss` 与资源中心回归测试 | 移除四个模块副标题，统一主题色标题胶囊，并将“内容与服务”改为独立卡片布局、修复底部白块 | 已完成；资源中心回归 14/14、小程序检查通过 |
+| Codex | 校招数据表/接口/格式化器、小程序校招数据适配/首页/列表/详情、相关测试 | 修复首页仍显示 6 月 9 日旧校招：接入更新的飞书校招源，统一按同步更新时间排序并兼容飞书记录详情 | 已完成；127/127 tests、小程序检查、数据检查与线上飞书详情映射验证通过 |
 | Codex | 小程序 `utils/api-jobs.js`、`package-user/pages/search/search.js` 与搜索回归测试 | 修复职位搜索因飞书职位源超时而长期停留在加载态：正式职位 API 优先、飞书并行兜底，并防止实时搜索的旧请求覆盖新结果 | 已完成；125/125 tests、小程序检查、数据检查、生产同链路搜索与微信预览通过 |
 | Codex | 小程序职位展示适配工具、`components/c-job-card`、`pages/jobs/*`、`package-user/pages/search/*`、`package-user/pages/job-detail/*` 与回归测试 | 按产品说明重构职位列表卡片和职位详情信息架构，统一薪资、截止、标签、技能、匹配及缺省字段展示，同时保留收藏、详情跳转、投递看板和 AI 匹配链路 | 已完成；124/124 tests、小程序检查、数据检查与微信预览编译通过 |
 | Codex | 小程序 `package-user/pages/search/search.js` 与导航回归测试 | 保留搜索输入防抖实时匹配，但仅在用户主动提交搜索时写入历史，并清理历史中的连续输入前缀碎片 | 已完成；120/120 tests、小程序检查、数据检查与微信预览编译通过 |
@@ -132,7 +155,7 @@
 | Codex | 小程序 `pages/jobs`、`package-user/pages/application-detail`、`applications`、`app.json`，后台 `admin/sponsor-profiles.html`、`admin/js/common.js` | V4 小程序第二批：Sponsor 筛选、云端匹配、申请详情协作、后台 Sponsor 审核 | 已完成；`check:miniprogram`、63/63 tests、迁移 dry-run 通过；`check:data` 仅命中既有 `api-feishu-content.js` 乱码问题 |
 | Codex | `routes/v4/jobs.js`、`routes/v4/applications.js`、`tests/smoke.test.js`、小程序 `pages/jobs`、`package-user/pages/application-detail`、`utils/api-feishu-content.js` | V4 第三批发布收尾：筛选一致性、详情状态流转、内容检查清零 | 已完成；`check:release` 通过、63/63 tests、内容错误 0、迁移 pending=0 |
 | Codex | 微信开发者工具与 `scripts/acceptance-bot.js` 验收链路 | V4 联调阶段：开发者工具 E2E 与无 GUI 验收 | E2E 预检 4/4；安全验收 29/29；真实 E2E 已完成 10/11 场景，面试空间 mock 路由问题已修复 |
-| Codex | `scripts/e2e-3.0-bot.js`、微信开发者工具自动化报告 | V4 真实 E2E 兼容修复与重跑 | 待最终复验；微信开发者工具重启后提示 `access_token missing`，需重新登录后执行完整 11 场景回归 |
+| Codex | `scripts/e2e-3.0-bot.js`、微信开发者工具自动化报告 | V4 真实 E2E 兼容修复 | 脚本语法已验证；按 Human 决定真实 E2E 暂停且非默认，用户已确认人工预览正常 |
 
 ## 待决策
 

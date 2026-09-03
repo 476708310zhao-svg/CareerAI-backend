@@ -2,9 +2,9 @@
 
 本文件用于约束多个 AI 同时维护项目时的分工、文件归属和交付流程。本仓库是后端、管理后台和微信小程序共用的唯一主项目。
 
-- 唯一项目根目录：`C:\Users\admin\Desktop\求职小程序\jobapp-server`
-- 后端/API/后台目录：`C:\Users\admin\Desktop\求职小程序\jobapp-server`
-- 微信开发者工具小程序目录：`C:\Users\admin\Desktop\求职小程序\jobapp-server\miniprogram`
+- 唯一项目根目录：`D:\ChatGPT-Projects\求职小程序\jobapp-server`
+- 后端/API/后台目录：`D:\ChatGPT-Projects\求职小程序\jobapp-server`
+- 微信开发者工具小程序目录：`D:\ChatGPT-Projects\求职小程序\jobapp-server\miniprogram`
 - 已弃用副本：`C:\Users\admin\Documents\GitHub\-\留学生求职小程序_v2`，禁止在该目录开发、预览、部署或提交。
 
 ## 基本规则
@@ -18,6 +18,7 @@
 - 不要在同一批提交里混入无关重构、格式化或 UI 大改。
 - 高风险链路包括登录、支付、Webhook、上传、鉴权和数据库迁移。改动前必须单独列出风险和验证方式。
 - 不提交 `.env`、数据库运行文件、`uploads/`、`node_modules/`、微信私有配置和真实密钥。
+- 默认不运行微信开发者工具真实 E2E；除非 Human 明确要求，否则使用专项单测、`npm run check:release`、静态检查和人工微信预览记录。
 
 ## 推荐分工
 
