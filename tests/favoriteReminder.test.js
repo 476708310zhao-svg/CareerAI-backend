@@ -49,6 +49,23 @@ test('ordinary pages do not show the global AI disclosure while dedicated AI too
   ].forEach(page => assert.match(read(page), /<c-ai-disclosure\b/, page));
 });
 
+test('AI disclosure stays compact and inset while legacy interview notices use the shared component', () => {
+  const styles = read('components/c-ai-disclosure/c-ai-disclosure.wxss');
+  assert.match(styles, /:host\s*\{[\s\S]*?padding:\s*0 14rpx/);
+  assert.match(styles, /\.ai-disclosure-text\s*\{[\s\S]*?flex:\s*1[\s\S]*?min-width:\s*0/);
+  assert.match(styles, /\.ai-disclosure-text\s*\{[\s\S]*?font-size:\s*20rpx/);
+
+  [
+    'package-ai/pages/interview-setup/interview-setup.wxml',
+    'package-ai/pages/interview-dialog/interview-dialog.wxml',
+    'package-ai/pages/ai-report/ai-report.wxml'
+  ].forEach(page => {
+    const wxml = read(page);
+    assert.match(wxml, /<c-ai-disclosure\b/, page);
+    assert.doesNotMatch(wxml, /class="ai-(?:disclosure|generated-notice)"/, page);
+  });
+});
+
 test('job detail favorite action stays compact and delegates automatic reminders to the shared favorite utility', () => {
   const detail = read('package-user/pages/job-detail/job-detail.js');
   const favorites = read('utils/favorites.js');

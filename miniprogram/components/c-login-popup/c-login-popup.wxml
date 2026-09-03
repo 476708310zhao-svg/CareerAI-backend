@@ -7,6 +7,11 @@
   <!-- 底部卡片 -->
   <view class="sheet" catchtap="onSheetTap">
 
+    <!-- 显著关闭入口：审核要求登录环节必须允许用户取消或返回 -->
+    <button class="close-button" bindtap="onCloseTap" aria-label="关闭登录弹窗">
+      <text class="close-icon">×</text>
+    </button>
+
     <!-- 顶部拖拽条 -->
     <view class="handle-bar"></view>
 
@@ -77,6 +82,9 @@
         <text class="btn-text">手机号快速验证</text>
       </button>
     </view>
+
+    <button class="skip-login-button" bindtap="onSkipLogin">暂不登录，先逛逛</button>
+    <text class="login-skip-tip">你可以浏览公开内容，使用收藏、进度等账号功能时再登录</text>
 
   </view>
 </view>

@@ -11,7 +11,11 @@ const PACKAGE_SIZE_LIMITS = {
   subpackage: 1.8 * MB,
 };
 const MEDIA_SIZE_LIMIT = 200 * 1024;
-const MEDIA_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.mp3', '.mp4', '.wav', '.aac', '.m4a']);
+const MEDIA_EXTENSIONS = new Set([
+  '.jpg', '.jpeg', '.png', '.svg', '.webp', '.gif',
+  '.flac', '.m4a', '.ogg', '.ape', '.amr', '.wma',
+  '.wav', '.mp3', '.mp4', '.aac', '.aiff', '.caf',
+]);
 
 function fail(message) {
   console.error(message);
@@ -293,6 +297,9 @@ function checkReviewCompliance() {
   if (!/bindtap="onWechatLogin"[\s\S]*?disabled="\{\{loadingWechat \|\| loadingPhone\}\}"/.test(loginWxml)) {
     issues.push('WeChat login button must remain tappable before consent so it can show guidance');
   }
+  if (!/bindtap="onCloseTap"/.test(loginWxml) || !/bindtap="onSkipLogin">暂不登录，先逛逛/.test(loginWxml)) {
+    issues.push('login popup must provide visible close and skip-login controls');
+  }
 
   for (const rel of [
     'package-ai/pages/ai-assistant/ai-assistant.wxml',
@@ -300,7 +307,8 @@ function checkReviewCompliance() {
     'package-ai/pages/interview-dialog/interview-dialog.wxml',
     'package-ai/pages/ai-report/ai-report.wxml',
   ]) {
-    if (!readMini(rel).includes('AI生成')) {
+    const pageWxml = readMini(rel);
+    if (!pageWxml.includes('AI生成') && !pageWxml.includes('<c-ai-disclosure')) {
       issues.push(`${rel}: missing visible AI生成 disclosure`);
     }
   }
@@ -490,8 +498,8 @@ function isPackIgnored(rel, rules) {
   );
 }
 
-function checkMediaAssetSizes() {
-  const issues = [];
+function checkMediaAssetBudget() {
+  const assets = [];
   const ignoreRules = getPackIgnoreRules();
 
   walk(MINI_ROOT, file => {
@@ -501,14 +509,22 @@ function checkMediaAssetSizes() {
     const rel = path.relative(MINI_ROOT, file).replace(/\\/g, '/');
     if (isPackIgnored(rel, ignoreRules)) return;
 
-    const size = fs.statSync(file).size;
-    if (size > MEDIA_SIZE_LIMIT) {
-      issues.push(`${rel}: ${(size / 1024).toFixed(1)} KB`);
-    }
+    assets.push({ rel, size: fs.statSync(file).size });
   });
 
-  if (issues.length) {
-    fail(`[miniprogram] media assets must be <= 200 KB:\n${issues.map(item => `  - ${item}`).join('\n')}`);
+  const total = assets.reduce((sum, asset) => sum + asset.size, 0);
+  console.log(`[miniprogram] compiled media total: ${(total / 1024).toFixed(1)} KB / < 200 KB`);
+
+  if (total >= MEDIA_SIZE_LIMIT) {
+    const largest = assets
+      .sort((left, right) => right.size - left.size)
+      .slice(0, 10)
+      .map(asset => `  - ${asset.rel}: ${(asset.size / 1024).toFixed(1)} KB`)
+      .join('\n');
+    fail(
+      `[miniprogram] compiled image/audio total must be < 200 KB (WeChat code quality rule); ` +
+      `current total is ${(total / 1024).toFixed(1)} KB. Largest assets:\n${largest}`
+    );
   }
 }
 
@@ -559,7 +575,7 @@ checkDemoDataBoundary();
 checkWxmlRiskyExpressions();
 checkReviewCompliance();
 checkAgentSkillManifests();
-checkMediaAssetSizes();
+checkMediaAssetBudget();
 reportPackageSizes();
 
 if (process.exitCode) {

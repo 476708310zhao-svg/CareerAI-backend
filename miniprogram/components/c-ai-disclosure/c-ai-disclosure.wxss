@@ -1,53 +1,58 @@
 :host {
   display: block;
+  padding: 0 14rpx;
+  box-sizing: border-box;
 }
 
 .ai-disclosure {
   width: 100%;
-  margin: 20rpx 0 24rpx;
-  padding: 18rpx 20rpx;
+  margin: 14rpx 0 18rpx;
+  padding: 12rpx 16rpx;
   display: flex;
   align-items: center;
-  gap: 14rpx;
-  border: 2rpx solid #bfdbfe;
-  border-radius: 20rpx;
+  gap: 10rpx;
+  border: 1rpx solid #bfdbfe;
+  border-radius: 14rpx;
   background: #eff6ff;
   box-sizing: border-box;
 }
 
 .ai-disclosure-badge {
   flex-shrink: 0;
-  padding: 6rpx 12rpx;
-  border-radius: 10rpx;
+  padding: 4rpx 9rpx;
+  border-radius: 8rpx;
   color: #ffffff;
   background: #2563eb;
-  font-size: 21rpx;
+  font-size: 18rpx;
   font-weight: 900;
   line-height: 1.2;
 }
 
 .ai-disclosure-text {
+  flex: 1;
+  min-width: 0;
   color: #1e3a8a;
-  font-size: 23rpx;
-  font-weight: 650;
-  line-height: 1.5;
+  font-size: 20rpx;
+  font-weight: 600;
+  line-height: 1.45;
+  word-break: break-word;
 }
 
 .ai-disclosure.compact {
-  margin: 0 0 13rpx;
-  padding: 11rpx 13rpx;
-  gap: 9rpx;
+  margin: 0 0 11rpx;
+  padding: 9rpx 12rpx;
+  gap: 8rpx;
   border-width: 1rpx;
-  border-radius: 14rpx;
+  border-radius: 12rpx;
 }
 
 .ai-disclosure.compact .ai-disclosure-badge {
-  padding: 5rpx 9rpx;
-  border-radius: 8rpx;
-  font-size: 17rpx;
+  padding: 3rpx 8rpx;
+  border-radius: 7rpx;
+  font-size: 16rpx;
 }
 
 .ai-disclosure.compact .ai-disclosure-text {
-  font-size: 18rpx;
+  font-size: 17rpx;
   line-height: 1.4;
 }

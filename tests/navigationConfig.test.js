@@ -229,9 +229,12 @@ test('daily brief follows the home workbench visual language without the legacy 
 test('resource hub groups tools by task while home uses a latest campus list', () => {
   const resourceWxml = read('pages/resources/resources.wxml');
   const resourceJs = read('pages/resources/resources.js');
+  const resourceWxss = read('pages/resources/resources.wxss');
   const resourceJson = JSON.parse(read('pages/resources/resources.json'));
   const homeWxml = read('pages/index/index.wxml');
   const homeJs = read('pages/index/index.js');
+  const campusJs = read('pages/campus/campus.js');
+  const campusDetailJs = read('package-content/pages/campus-detail/campus-detail.js');
   const campusWxml = read('components/home-campus-updates/home-campus-updates.wxml');
 
   assert.match(resourceWxml, /资源中心/);
@@ -247,7 +250,18 @@ test('resource hub groups tools by task while home uses a latest campus list', (
   assert.equal(resourceJson.navigationStyle, 'custom');
   assert.match(resourceWxml, /class="calendar-art"/);
   assert.match(resourceWxml, /class="tool-copy"/);
+  assert.match(resourceWxml, /section-title-chip title-chip-\{\{item\.accent\}\}/);
+  assert.doesNotMatch(resourceWxml, /section-subtitle|item\.subtitle|资讯、测评与产品帮助/);
+  assert.doesNotMatch(resourceJs, /subtitle:\s*['"](?:完善简历|从真题|查公司)/);
   assert.doesNotMatch(resourceWxml, /intro-mark/);
+  assert.match(resourceWxss, /\.service-section\s+\.section-head\s*\{/);
+  assert.match(resourceWxss, /\.service-list\s*\{[\s\S]*?flex-direction:\s*column[\s\S]*?gap:\s*16rpx/);
+  assert.match(resourceWxss, /\.service-row\s*\{[\s\S]*?min-height:\s*128rpx[\s\S]*?border-radius:\s*24rpx/);
+  assert.match(resourceWxss, /\.service-section\s+\.service-title\s*\{[\s\S]*?font-size:\s*26rpx/);
+  assert.match(resourceWxss, /\.service-section\s+\.service-desc\s*\{[\s\S]*?color:\s*#667085[\s\S]*?font-size:\s*21rpx/);
+  assert.match(resourceWxss, /\.service-section\s+\.service-arrow\s*\{[\s\S]*?width:\s*44rpx[\s\S]*?border-radius:\s*50%/);
+  assert.match(resourceWxss, /\.bottom-spacer\s*\{[\s\S]*?background:\s*#eef4fb/);
+  assert.match(resourceWxss, /height:\s*calc\(190rpx\s*\+\s*env\(safe-area-inset-bottom\)\)/);
   assert.match(resourceJs, /\/pages\/campus\/campus/);
   assert.match(resourceJs, /\/pages\/experiences\/experiences/);
   assert.match(resourceJs, /\/package-career\/pages\/oa-bank\/oa-bank/);
@@ -255,8 +269,19 @@ test('resource hub groups tools by task while home uses a latest campus list', (
   assert.doesNotMatch(homeJs, /buildNewsFeed|getNews|HOME_NEWS_CACHE_KEY/);
   assert.match(homeWxml, /items="\{\{campusLatestUpdates\}\}"/);
   assert.match(homeJs, /latestDay:\s*'1'/);
+  assert.doesNotMatch(homeJs, /getFeishuCampusList/);
+  assert.match(homeJs, /getCampusList/);
   assert.match(homeJs, /b\.updateTimestamp\s*-\s*a\.updateTimestamp/);
+  assert.match(homeJs, /今日更新/);
+  assert.doesNotMatch(homeJs, /今日新开|昨日新开|天前新开/);
+  assert.doesNotMatch(campusJs, /getFeishuCampusList/);
+  assert.match(campusJs, /api\.getCampusList/);
+  assert.doesNotMatch(campusDetailJs, /getFeishuCampusDetail/);
+  assert.match(campusDetailJs, /api\.getCampusDetail/);
+  assert.doesNotMatch(campusDetailJs, /\^rec\[a-z0-9\]\+\$/i);
   assert.match(campusWxml, /class="campus-list"/);
   assert.match(campusWxml, /每日最新校招/);
+  assert.match(campusWxml, /持续更新/);
+  assert.doesNotMatch(campusWxml, /今日上新/);
   assert.doesNotMatch(campusWxml, /waterfall-column/);
 });

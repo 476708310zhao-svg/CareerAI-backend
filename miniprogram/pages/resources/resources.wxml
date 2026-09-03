@@ -41,10 +41,9 @@
 
   <view class="section section-{{item.id}}" wx:for="{{resourceSections}}" wx:key="id">
     <view class="section-head">
-      <view class="section-accent accent-{{item.accent}}"></view>
-      <view class="section-copy">
+      <view class="section-title-chip title-chip-{{item.accent}}">
+        <view class="section-accent accent-{{item.accent}}"></view>
         <text class="section-title">{{item.title}}</text>
-        <text class="section-subtitle">{{item.subtitle}}</text>
       </view>
     </view>
     <view class="tool-grid">
@@ -69,10 +68,9 @@
 
   <view class="section service-section">
     <view class="section-head">
-      <view class="section-accent accent-violet"></view>
-      <view class="section-copy">
+      <view class="section-title-chip title-chip-violet">
+        <view class="section-accent accent-violet"></view>
         <text class="section-title">内容与服务</text>
-        <text class="section-subtitle">资讯、测评与产品帮助</text>
       </view>
     </view>
     <view class="service-list">

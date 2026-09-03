@@ -63,3 +63,14 @@ test('login popup uses the optimized Zhiyin brand logo', () => {
   assert.equal(logo.readUInt32BE(16), 256);
   assert.equal(logo.readUInt32BE(20), 256);
 });
+
+test('login popup always provides visible cancel paths and exits after phone denial', () => {
+  const popupJs = read('components/c-login-popup/c-login-popup.js');
+  const popupWxml = read('components/c-login-popup/c-login-popup.wxml');
+
+  assert.match(popupWxml, /bindtap="onCloseTap"/);
+  assert.match(popupWxml, /bindtap="onSkipLogin">暂不登录，先逛逛/);
+  assert.match(popupJs, /onBackdropTap\(\)\s*\{\s*this\._dismissLogin\('backdrop'\)/);
+  assert.match(popupJs, /if \(!e\.detail\.code\) \{[\s\S]*?_dismissLogin\('phone-denied'\)/);
+  assert.match(popupJs, /triggerEvent\('close', \{ reason \}\)/);
+});

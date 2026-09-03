@@ -14,7 +14,6 @@ const RESOURCE_SECTIONS = [
   {
     id: 'career',
     title: '规划与材料',
-    subtitle: '完善简历、生成路线、比较 Offer',
     accent: 'violet',
     items: [
       { id: 'planner', title: 'AI 求职规划', desc: '生成 3 / 6 / 12 个月行动路线', icon: '规', tone: 'indigo', url: '/package-career/pages/career-planner/career-planner' },
@@ -25,7 +24,6 @@ const RESOURCE_SECTIONS = [
   {
     id: 'interview',
     title: '面试与笔试',
-    subtitle: '从真题练习到模拟面试',
     accent: 'blue',
     items: [
       { id: 'question', title: '面试题库', desc: '高频真题与岗位问题', icon: '题', tone: 'blue', url: '/pages/experiences/experiences' },
@@ -37,7 +35,6 @@ const RESOURCE_SECTIONS = [
   {
     id: 'decision',
     title: '职业决策',
-    subtitle: '查公司、看薪资、规划能力',
     accent: 'green',
     items: [
       { id: 'salary', title: '薪酬查询', desc: '了解岗位薪资区间', icon: '薪', tone: 'green', url: '/package-career/pages/salary/salary' },

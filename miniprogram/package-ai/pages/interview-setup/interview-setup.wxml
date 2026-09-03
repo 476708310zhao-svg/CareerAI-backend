@@ -7,10 +7,7 @@
     <text class="page-subtitle">选择你的面试场景，开始模拟练习</text>
   </view>
 
-  <view class="ai-disclosure">
-    <text class="ai-disclosure-badge">AI生成</text>
-    <text class="ai-disclosure-text">面试问题、点评与报告由人工智能生成，仅供练习参考</text>
-  </view>
+  <c-ai-disclosure text="面试问题、点评与报告由人工智能生成，仅供练习参考。" />
 
   <!-- 个性化预填提示 -->
   <view class="profile-hint" wx:if="{{profileHint}}">

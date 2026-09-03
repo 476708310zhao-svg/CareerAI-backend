@@ -3,7 +3,7 @@
     <view class="section-copy">
       <view class="section-title-line">
         <text class="section-title">每日最新校招</text>
-        <text class="section-pill">今日上新</text>
+        <text class="section-pill">持续更新</text>
       </view>
       <text class="section-subtitle">{{dateLabel}} · 按更新时间由新到旧</text>
     </view>

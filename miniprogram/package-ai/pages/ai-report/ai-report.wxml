@@ -17,10 +17,7 @@
     </view>
   </view>
 
-  <view class="ai-generated-notice">
-    <text class="ai-generated-badge">AI生成</text>
-    <text class="ai-generated-text">本报告由人工智能生成，仅供面试练习与自我提升参考</text>
-  </view>
+  <c-ai-disclosure text="本报告由人工智能生成，仅供面试练习与自我提升参考。" />
 
   <!-- 2. Tab 切换 -->
   <view class="report-tabs">
