@@ -14,9 +14,9 @@ const DEFAULT_TIMEOUT_MS = 15000;
 
 const TAB_PAGES = new Set([
   'pages/index/index',
-  'pages/jobs/jobs',
-  'pages/experiences/experiences',
-  'pages/campus/campus',
+  'pages/resources/resources',
+  'pages/applications/applications',
+  'pages/ai-career/ai-career',
   'pages/profile/profile'
 ]);
 
@@ -642,10 +642,16 @@ class E2E30Bot {
       const servicePortSetting = findDevtoolsSecuritySetting();
       assert(!servicePortSetting || servicePortSetting.security.enableServicePort !== false, `WeChat DevTools service port is disabled. Open WeChat DevTools > Settings > Security Settings, enable Service Port, then rerun npm run bot:e2e-3.0 -- --fresh-devtools. Detected config: ${servicePortSetting.filePath}`);
       this.miniProgram = await this.launchMiniProgram();
-      this.miniProgram.on('console', log => {
-        if (this.options.verbose) console.log('[mini-console]', log);
-      });
+      if (this.options.verbose) {
+        this.miniProgram.on('console', log => console.log('[mini-console]', log));
+      }
       return `project=${this.options.projectPath}`;
+    }, { screenshot: false });
+
+    await this.step('setup', 'Bootstrap first mini program page', async () => {
+      const page = await this.openPage('/pages/index/index');
+      assertPath(page, 'pages/index/index');
+      return 'initial WebView ready';
     }, { screenshot: false });
 
     await this.installMocks();
@@ -804,13 +810,9 @@ class E2E30Bot {
 
   async installMocks() {
     await this.step('setup', 'Install WeChat API mocks', async () => {
-      if (this.options.wsEndpoint) {
-        await withTimeout(
-          this.miniProgram.currentPage(),
-          this.options.timeoutMs,
-          'warm App automation channel'
-        );
-      }
+      // A manually opened endpoint can accept App.callFunction before its first
+      // Page exists. Runtime overrides also survive page reLaunch, unlike the
+      // DevTools mock wrapper in recent builds.
       let useRuntimeOverride = Boolean(this.options.wsEndpoint);
       const mock = async (name, declaration) => {
         if (!useRuntimeOverride) {
@@ -1063,34 +1065,9 @@ class E2E30Bot {
       return `trainingMode=${training.mode}, length=${String(training.result || '').length}`;
     });
 
-    await this.step('ai-report', 'Finish one-question AI interview and open report', async () => {
-      let page = await this.openPage('/package-ai/pages/interview-dialog/interview-dialog?type=behavior&company=E2E%20Co&position=Data%20Analyst&questionCount=1');
-      assertPath(page, 'package-ai/pages/interview-dialog/interview-dialog');
-      await waitFor(async () => {
-        const loading = await this.pageData('loading');
-        const chatList = await this.pageData('chatList');
-        return !loading && Array.isArray(chatList) && chatList.length > 0;
-      }, this.options.timeoutMs);
-      await this.pageSetData({
-        userAnswer: 'I used SQL to identify a funnel drop, created an experiment dashboard, and helped the product team improve conversion by 12%.'
-      });
-      await this.pageCallMethod('submitAnswer');
-      await waitFor(async () => {
-        const current = await this.miniProgram.currentPage();
-        return normalizePagePath(current && current.path) === 'package-ai/pages/ai-report/ai-report';
-      }, this.options.timeoutMs + 5000);
-      page = await this.miniProgram.currentPage();
-      await waitFor(async () => {
-        const report = await this.pageData('report');
-        return report && Number(report.totalScore) > 0;
-      }, this.options.timeoutMs);
-      const report = await this.pageData('report');
-      return `reportScore=${report.totalScore}, weakQuestions=${(report.weakQaList || []).length}`;
-    });
-
     await this.step('v4-ai-career', 'Open four-Agent AI Career and finish a contextual task', async () => {
-      const page = await this.openPage('/package-ai/pages/ai-career/ai-career');
-      assertPath(page, 'package-ai/pages/ai-career/ai-career');
+      const page = await this.openPage('/pages/ai-career/ai-career');
+      assertPath(page, 'pages/ai-career/ai-career');
       await waitFor(async () => {
         const agents = await this.pageData('agents');
         const applications = await this.pageData('applications');
@@ -1158,6 +1135,33 @@ class E2E30Bot {
       assert(Array.isArray(quotaFeatures) && quotaFeatures.length > 0, 'AI quota features not displayed');
       return `payment=${paymentAvailable}, quotaFeatures=${quotaFeatures.length}`;
     });
+
+    // Keep this last: current DevTools builds can leave the automation router
+    // pinned to the generated report after the interview completes.
+    await this.step('ai-report', 'Finish one-question AI interview and open report', async () => {
+      let page = await this.openPage('/package-ai/pages/interview-dialog/interview-dialog?type=behavior&company=E2E%20Co&position=Data%20Analyst&questionCount=1');
+      assertPath(page, 'package-ai/pages/interview-dialog/interview-dialog');
+      await waitFor(async () => {
+        const loading = await this.pageData('loading');
+        const chatList = await this.pageData('chatList');
+        return !loading && Array.isArray(chatList) && chatList.length > 0;
+      }, this.options.timeoutMs);
+      await this.pageSetData({
+        userAnswer: 'I used SQL to identify a funnel drop, created an experiment dashboard, and helped the product team improve conversion by 12%.'
+      });
+      await this.pageCallMethod('submitAnswer');
+      await waitFor(async () => {
+        const current = await this.miniProgram.currentPage();
+        return normalizePagePath(current && current.path) === 'package-ai/pages/ai-report/ai-report';
+      }, this.options.timeoutMs + 5000);
+      page = await this.miniProgram.currentPage();
+      await waitFor(async () => {
+        const report = await this.pageData('report');
+        return report && Number(report.totalScore) > 0;
+      }, this.options.timeoutMs);
+      const report = await this.pageData('report');
+      return `reportScore=${report.totalScore}, weakQuestions=${(report.weakQaList || []).length}`;
+    });
   }
 
   async pageData(pathValue) {
@@ -1209,50 +1213,49 @@ class E2E30Bot {
   }
 
   async openPage(url) {
+    if (this.options.wsEndpoint && this.miniProgram) {
+      this.miniProgram.disconnect();
+      await sleep(50);
+      this.miniProgram = await connectAutomatorEndpoint(
+        this.options.wsEndpoint,
+        Math.max(10000, this.options.timeoutMs)
+      );
+      if (this.options.verbose) {
+        this.miniProgram.on('console', log => console.log('[mini-console]', log));
+      }
+    }
     const clean = normalizePagePath(url);
-    const current = await withTimeout(
-      this.miniProgram.currentPage(),
-      this.options.timeoutMs,
-      `read current page before opening ${clean}`
-    );
+    let current = null;
+    try {
+      current = await withTimeout(
+        this.miniProgram.currentPage(),
+        this.options.timeoutMs,
+        `read current page before opening ${clean}`
+      );
+    } catch (_) {}
     if (normalizePagePath(current && current.path) === clean) {
       return current;
     }
-    if (TAB_PAGES.has(clean)) {
-      await withTimeout(
-        this.miniProgram.evaluate(function(target) {
-          setTimeout(function() { wx.switchTab({ url: target }); }, 0);
-          return true;
-        }, url),
+    const currentPath = normalizePagePath(current && current.path);
+    if (current && currentPath.startsWith('package-') && TAB_PAGES.has(clean) && clean !== 'pages/index/index') {
+      const leaveResult = await withTimeout(
+        this.miniProgram.callWxMethod('switchTab', { url: '/pages/index/index' }),
         this.options.timeoutMs,
-        `schedule switchTab to ${clean}`
+        `leave subpackage before opening ${clean}`
       );
-      return this.waitForCurrentPage(clean);
+      assert(!leaveResult || !leaveResult.errMsg || /:ok$/.test(leaveResult.errMsg), leaveResult.errMsg || `failed to leave ${currentPath}`);
+      current = await this.waitForCurrentPage('pages/index/index');
     }
-    await withTimeout(
-      this.miniProgram.evaluate(function() {
-        setTimeout(function() { wx.reLaunch({ url: '/pages/index/index' }); }, 0);
-        return true;
-      }),
+    // Use a fresh route for every journey. This also bootstraps the first
+    // WebView and avoids DevTools' navigateTo timeout while a subpackage is
+    // being loaded in the background.
+    const routeMethod = current && TAB_PAGES.has(clean) ? 'switchTab' : 'reLaunch';
+    const routeResult = await withTimeout(
+      this.miniProgram.callWxMethod(routeMethod, { url }),
       this.options.timeoutMs,
-      'schedule reLaunch to pages/index/index'
+      `${routeMethod} to ${clean}`
     );
-    await this.waitForCurrentPage('pages/index/index');
-    await withTimeout(
-      this.miniProgram.evaluate(function(target) {
-        setTimeout(function() {
-          wx.navigateTo({
-            url: target,
-            fail: function(err) {
-              wx.setStorageSync('__e2eRouteError', (err && err.errMsg) || String(err || 'navigateTo failed'));
-            }
-          });
-        }, 0);
-        return true;
-      }, url),
-      this.options.timeoutMs,
-      `schedule navigateTo to ${clean}`
-    );
+    assert(!routeResult || !routeResult.errMsg || /:ok$/.test(routeResult.errMsg), routeResult.errMsg || `${routeMethod} failed`);
     return this.waitForCurrentPage(clean);
   }
 
