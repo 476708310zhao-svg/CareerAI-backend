@@ -3,6 +3,7 @@ require('./aiClient.test');
 require('./v4AiRuntime.test');
 require('./aiQualityGate.test');
 require('./databaseMigrations.test');
+require('./sprint3AiLoops.test');
 require('./v4ResumeCenter.test');
 require('./coreEntityRefs.test');
 require('./funnelAnalytics.test');

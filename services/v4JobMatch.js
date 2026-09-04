@@ -78,6 +78,67 @@ function requiredDegree(text) {
   return 0;
 }
 
+function buildSponsorAssessment(profile, sponsorProfile, job, citizenRequired) {
+  const sponsorNeeded = profile.sponsorNeeded === true || Number(profile.sponsorNeeded) === 1;
+  const source = String(sponsorProfile.source || job.source || '').trim();
+  const confidence = Number(sponsorProfile.confidence || 0);
+  if (citizenRequired) {
+    return { status: 'blocked', label: '身份条件不满足', reason: '岗位要求公民身份，不能将其视为可投岗位', source, confidence };
+  }
+  if (!sponsorNeeded) {
+    return { status: 'not_required', label: '当前无需 Sponsor', reason: '根据求职画像，当前不依赖雇主提供 Sponsor', source, confidence };
+  }
+  if (sponsorProfile.h1bSponsor === true || job.visaSponsored === true) {
+    return {
+      status: confidence >= 0.8 ? 'supported' : 'likely_supported',
+      label: confidence >= 0.8 ? 'Sponsor 证据较明确' : '可能支持 Sponsor',
+      reason: confidence >= 0.8 ? '现有岗位或公司资料支持 Sponsor，投递前仍应核对官方 JD' : '存在支持信号，但证据强度不足，需在官方渠道复核',
+      source,
+      confidence
+    };
+  }
+  if (sponsorProfile.h1bSponsor === false) {
+    return { status: 'unsupported', label: '资料显示不支持 Sponsor', reason: '当前资料与 Sponsor 需求冲突，建议先核实再投入申请时间', source, confidence };
+  }
+  return { status: 'unknown', label: 'Sponsor 状态未知', reason: '没有足够证据判断是否支持 Sponsor，必须在官方 JD 或招聘方渠道确认', source, confidence };
+}
+
+function buildStrategy(qualificationStatus, score, dimensions, sponsorAssessment) {
+  let tier = 'reach';
+  if (qualificationStatus === 'ineligible' || sponsorAssessment.status === 'blocked') tier = 'blocked';
+  else if (qualificationStatus === 'eligible' && score >= 82 && dimensions.skills >= 70) tier = 'safe';
+  else if (qualificationStatus === 'eligible' && score >= 65) tier = 'target';
+
+  const tierMeta = {
+    safe: { label: 'Safe · 稳妥匹配', note: '条件匹配较稳，但不代表录用保证' },
+    target: { label: 'Target · 主投岗位', note: '核心条件匹配，适合作为主要申请目标' },
+    reach: { label: 'Reach · 冲刺岗位', note: '存在可补强差距，适合控制投入后尝试' },
+    blocked: { label: 'Blocked · 硬条件受限', note: '存在明确身份或资格冲突，不计入投递梯次' }
+  }[tier];
+
+  let code = 'improve_then_apply';
+  if (tier === 'blocked') code = 'skip';
+  else if (qualificationStatus === 'partial' || ['unknown', 'unsupported'].includes(sponsorAssessment.status)) code = 'verify_then_apply';
+  else if (score >= 65) code = 'apply';
+  const decisionMeta = {
+    apply: { label: score >= 82 ? '值得优先投递' : '值得投递', worthApplying: true },
+    verify_then_apply: { label: '核实资格后再投递', worthApplying: 'verify' },
+    improve_then_apply: { label: '补强材料后可投递', worthApplying: true },
+    skip: { label: '当前不建议投入申请时间', worthApplying: false }
+  }[code];
+  return {
+    tier,
+    tierLabel: tierMeta.label,
+    tierNote: tierMeta.note,
+    decision: {
+      code,
+      label: decisionMeta.label,
+      worthApplying: decisionMeta.worthApplying,
+      summary: `${decisionMeta.label}：综合匹配 ${score} 分，资格 ${dimensions.qualification} 分、技能 ${dimensions.skills} 分；${sponsorAssessment.reason}`
+    }
+  };
+}
+
 function buildJobMatch(job, profile, sponsorProfile = {}) {
   const text = cleanText([
     job.title, job.company, job.location, job.region, job.industry,
@@ -180,12 +241,21 @@ function buildJobMatch(job, profile, sponsorProfile = {}) {
   ];
   if (qualificationStatus !== 'eligible') actions.unshift('投递前确认招聘方的工作授权要求');
 
+  const dimensions = { qualification: qualificationScore, skills: skillsScore, roleAndProjects: fitScore };
+  const sponsorAssessment = buildSponsorAssessment(profile, sponsorProfile, job, citizenRequired);
+  const strategy = buildStrategy(qualificationStatus, score, dimensions, sponsorAssessment);
+
   return {
     score,
     qualificationStatus,
     qualificationReasons: reasons,
     recommendation,
-    dimensions: { qualification: qualificationScore, skills: skillsScore, roleAndProjects: fitScore },
+    tier: strategy.tier,
+    tierLabel: strategy.tierLabel,
+    tierNote: strategy.tierNote,
+    decision: strategy.decision,
+    sponsorAssessment,
+    dimensions,
     strengths: strengths.slice(0, 5),
     gaps: gaps.slice(0, 4),
     actions: actions.slice(0, 3),
@@ -195,4 +265,4 @@ function buildJobMatch(job, profile, sponsorProfile = {}) {
   };
 }
 
-module.exports = { buildJobMatch, fingerprintJob };
+module.exports = { buildJobMatch, buildSponsorAssessment, buildStrategy, fingerprintJob };

@@ -557,6 +557,11 @@ Requirements:
             suggestions: match.actions || [],
             dimensions: match.dimensions || {},
             qualificationReasons: match.qualificationReasons || [],
+            tier: match.tier || '',
+            tierLabel: match.tierLabel || '',
+            tierNote: match.tierNote || '',
+            decision: match.decision || null,
+            sponsorAssessment: match.sponsorAssessment || null,
           };
           this.setData({
             matchReport: report,
@@ -615,8 +620,17 @@ Requirements:
   },
 
   goResumeOptimize: function() {
+    const job = this.data.job || {};
+    const application = this.data.v4Application || this.data.application || {};
+    wx.setStorageSync('pendingResumeOptimization', {
+      jobId: String(job.id || ''),
+      applicationId: application.id || null,
+      company: job.company || '',
+      jobTitle: job.title || '',
+      jdText: job.descriptionText || job.description || ''
+    });
     this.closeMatchPanel();
-    wx.navigateTo({ url: '/package-career/pages/resume/resume' });
+    wx.navigateTo({ url: '/package-career/pages/resume-center/resume-center?targeted=1' });
   },
 
   // 跳转 AI 面试

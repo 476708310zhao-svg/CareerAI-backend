@@ -754,11 +754,20 @@ test('v4 job match returns explainable qualification and capability scores', asy
   assert.ok(Array.isArray(body.data.gaps));
   assert.ok(Array.isArray(body.data.actions));
   assert.equal(typeof body.data.dimensions.skills, 'number');
+  assert.ok(['safe', 'target', 'reach', 'blocked'].includes(body.data.tier));
+  assert.equal(typeof body.data.tierLabel, 'string');
+  assert.ok(body.data.decision);
+  assert.ok(['apply', 'verify_then_apply', 'improve_then_apply', 'skip'].includes(body.data.decision.code));
+  assert.equal(typeof body.data.decision.label, 'string');
+  assert.ok(body.data.sponsorAssessment);
+  assert.equal(typeof body.data.sponsorAssessment.reason, 'string');
 
   const cachedRes = await fetch(`${BASE_URL}/api/v4/jobs/1/match`, { headers: authHeaders() });
   assert.equal(cachedRes.status, 200);
   const cached = await readJson(cachedRes);
   assert.equal(cached.data.score, body.data.score);
+  assert.equal(cached.data.tier, body.data.tier);
+  assert.deepEqual(cached.data.decision, body.data.decision);
 });
 
 test('v4 sponsor profile and job filters expose international student eligibility', async () => {
@@ -855,6 +864,7 @@ test('v4 batch match recalculation returns a user summary', async () => {
   const summary = await readJson(summaryRes);
   assert.ok(summary.data.total >= 2);
   assert.ok(summary.data.averageScore >= 0 && summary.data.averageScore <= 100);
+  assert.equal(Object.values(summary.data.tiers).reduce((sum, value) => sum + value, 0), summary.data.total);
 });
 
 test('v4 migration defaults to an idempotent dry-run plan', () => {
@@ -1002,6 +1012,13 @@ test('v4 interview loop auto-creates a job space, scores practice and creates To
   const space = spaces.data.find(item => item.applicationId === v4ApplicationId);
   assert.ok(space);
   assert.ok(Array.isArray(space.frequentQuestions));
+  assert.ok(space.brief);
+  assert.ok(Array.isArray(space.brief.companyFocus));
+  assert.ok(Array.isArray(space.brief.jdCapabilities));
+  assert.ok(Array.isArray(space.brief.roundFocus));
+  assert.ok(Array.isArray(space.brief.starMaterials));
+  assert.ok(Array.isArray(space.brief.reverseQuestions));
+  assert.match(space.brief.evidenceNotice, /不由 AI 补造/);
   assert.equal(space.refs.applicationId, v4ApplicationId);
   assert.equal(space.refs.jobId, '1');
   assert.equal(space.refs.interviewSpaceId, space.id);
@@ -1034,14 +1051,20 @@ test('v4 interview loop auto-creates a job space, scores practice and creates To
   assert.equal(report.data.refs.interviewSpaceId, space.id);
   assert.equal(report.data.refs.interviewSessionId, session.data.id);
   assert.equal(report.data.refs.interviewReportId, report.data.id);
+  assert.equal(report.data.practicePlan.length, 2);
+  assert.ok(report.data.practicePlan.every(item => item.url.includes(`id=${space.id}`)));
   const tasksRes = await fetch(`${BASE_URL}/api/v4/interviews/today-tasks`, { headers: authHeaders() });
   const tasks = await readJson(tasksRes);
-  const interviewTask = tasks.data.find(item => item.title.includes('补强面试'));
+  const interviewTask = tasks.data.find(item => item.type === 'interview_repractice');
   assert.ok(interviewTask);
   assert.equal(interviewTask.refs.applicationId, v4ApplicationId);
   assert.equal(interviewTask.refs.jobId, '1');
   assert.equal(interviewTask.refs.interviewReportId, report.data.id);
   assert.equal(interviewTask.refs.todayTaskId, interviewTask.id);
+  assert.equal(interviewTask.type, 'interview_repractice');
+  assert.ok(interviewTask.url.includes(`id=${space.id}`));
+  const applicationAfterPractice = db.prepare('SELECT next_action AS nextAction FROM applications WHERE id=?').get(v4ApplicationId);
+  assert.equal(applicationAfterPractice.nextAction, '定制 Google 简历');
   const trendsRes = await fetch(`${BASE_URL}/api/v4/interviews/trends`, { headers: authHeaders() });
   const trends = await readJson(trendsRes);
   assert.equal(trends.data.length, 1);
@@ -1266,6 +1289,9 @@ test('v4 resume center keeps immutable versions and confirms AI suggestions expl
   assert.equal(proposalRes.status, 201);
   const proposal = await readJson(proposalRes);
   assert.equal(proposal.data.status, 'pending');
+  assert.equal(proposal.data.jobId, '1');
+  assert.equal(proposal.data.applicationId, v4ApplicationId);
+  assert.equal(proposal.data.sourceVersionId, originalVersion.id);
   const resumePromptSnapshot = db.prepare('SELECT prompt_snapshot AS value FROM resume_ai_change_sets WHERE id=?').get(proposal.data.id).value;
   assert.doesNotMatch(resumePromptSnapshot, /qa@example\.com|415-555-1234/i);
   assert.match(resumePromptSnapshot, /\[邮箱已脱敏\]|\[电话已脱敏\]/);
@@ -1283,6 +1309,9 @@ test('v4 resume center keeps immutable versions and confirms AI suggestions expl
   const confirmed = await readJson(confirmRes);
   assert.equal(confirmed.data.version.versionNo, 2);
   assert.equal(confirmed.data.version.content.summary, 'Improved pipeline latency by 20%');
+  const linkedApplication = db.prepare('SELECT resume_id AS resumeId, resume_version_id AS resumeVersionId FROM applications WHERE id=?').get(v4ApplicationId);
+  assert.equal(linkedApplication.resumeId, resumeId);
+  assert.equal(String(linkedApplication.resumeVersionId), String(confirmed.data.version.id));
 
   const compareRes = await fetch(`${BASE_URL}/api/v4/resumes/${resumeId}/versions/compare?from=${originalVersion.id}&to=${confirmed.data.version.id}`, { headers: authHeaders() });
   const compared = await readJson(compareRes);

@@ -6,6 +6,7 @@
 
 - [x] Sprint 2.1 统一核心实体引用与状态契约
 - [x] Sprint 2.2 统一职位/校招来源、新鲜度、过期和失败降级
+- [x] Sprint 3 三项高价值 AI 闭环
 - [x] TASK-001 审查并收口当前未提交工作区
 - [ ] TASK-002 统一生产发布架构与端口/目录配置（仓库完成，服务器演练待 Human）
 - [ ] TASK-003 修复 n8n 部署凭据暴露并轮换凭据（仓库完成，轮换待 Human）
@@ -39,15 +40,18 @@
 
 # 当前 Sprint
 
-目标：建立可追踪、可解释、可迁移的数据闭环与 AI 质量基线。
+目标：完成岗位匹配、JD 定制简历和面试复练三项高价值 AI 闭环。
 
 任务：
 
-- [x] Sprint 2.1 核心实体 `refs`、canonical Job ID 与状态契约
-- [x] Sprint 2.2 职位/校招来源、新鲜度、过期和失败降级
-- [x] Sprint 2.3 求职漏斗埋点校验与测试数据隔离
-- [x] Sprint 2.4 AI 匿名化异常样本集与安全质量门禁
-- [x] Sprint 2.5 数据库 migration baseline、备份与恢复演练
+- [x] Job Match 输出优势、缺口、Sponsor/身份限制、是否值得投及 Target/Reach/Safe/Blocked 梯次
+- [x] 岗位 JD 选择真实简历版本，逐条确认修改理由后创建不可变新版本
+- [x] 新版本绑定回岗位/申请，保留版本历史、比较和恢复入口
+- [x] 面试空间生成公司×岗位×轮次 Interview Brief
+- [x] 弱项自动生成可深链的 Today 复练任务，并安全回写申请下一步
+- [x] Sprint 3 专项 5/5、全量 170/170 和 `npm run check:release` 通过
+
+下一批：Sprint 4 竞争力诊断与 AI 陪跑；真实供应商 staging、生产 baseline 和部署仍需 Human 审批。
 
 ---
 

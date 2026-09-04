@@ -1129,3 +1129,29 @@ page {
     flex-basis: 148rpx;
   }
 }
+
+.match-verdict {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+  margin: 18rpx 0;
+  padding: 20rpx;
+  border-radius: 16rpx;
+  background: #eef4ff;
+}
+
+.match-tier {
+  align-self: flex-start;
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  background: #dbe8ff;
+  color: #1d4ed8;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.match-decision {
+  color: #101828;
+  font-size: 30rpx;
+  font-weight: 800;
+}

@@ -215,15 +215,24 @@ router.post('/:id/links', (req, res) => {
 
 router.post('/:id/ai-change-sets', async (req, res) => {
   const resumeId = Number(req.params.id);
+  const body = req.body || {};
   const resume = db.prepare('SELECT id FROM resumes WHERE id=? AND user_id=?').get(resumeId, req.user.userId);
   if (!resume) return res.status(404).json({ code: -1, message: '简历不存在' });
-  const applicationId = Number(req.body && req.body.applicationId) || null;
+  const applicationId = Number(body.applicationId) || null;
   const application = applicationId ? ownedApplication(req.user.userId, applicationId) : null;
   if (applicationId && !application) return res.status(404).json({ code: -1, message: '申请记录不存在' });
+  const applicationJobId = canonicalJobId(application || {});
+  const requestedJobId = center.cleanText(body.jobId, 120);
+  if (requestedJobId && applicationJobId && requestedJobId !== applicationJobId) {
+    return res.status(409).json({ code: 'JOB_APPLICATION_MISMATCH', message: '目标岗位与申请记录不一致' });
+  }
+  const jobId = requestedJobId || applicationJobId;
+  const applicationSnapshot = center.parseJson(application && application.job_snapshot, {});
+  const jdText = center.cleanText(body.jdText || applicationSnapshot.description || applicationSnapshot.jd || '', 8000);
   if (!consumeDailyLimit(req, res, 'resume_optimize')) return;
   try {
-    const data = await center.createChangeSet({ userId: req.user.userId, resumeId, jobId: req.body.jobId,
-      applicationId, suggestions: req.body.suggestions, jdText: req.body.jdText });
+    const data = await center.createChangeSet({ userId: req.user.userId, resumeId, jobId,
+      applicationId, suggestions: body.suggestions, jdText });
     analytics.track(req.user.userId, 'resume_optimize_started', withCoreRefs(
       { resumeId, changeSetId: data.id, generation: data.generation },
       applicationRefs(application || {}),

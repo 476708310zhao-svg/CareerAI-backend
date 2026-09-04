@@ -360,6 +360,16 @@ function confirmChangeSet({ userId, changeSetId, decisions = {}, manualContent }
       changeSetId: row.id, summary: `AI 建议确认：接受 ${Object.values(normalizedDecisions).filter(v => v === 'accept').length} 条`,
       createdBy: manualContent ? 'ai_confirmed_manual' : 'ai_confirmed'
     });
+    if (row.job_id || row.application_id) {
+      db.prepare('INSERT OR IGNORE INTO resume_job_links (resume_id, user_id, job_id, application_id) VALUES (?, ?, ?, ?)')
+        .run(row.resume_id, userId, row.job_id || '', row.application_id || null);
+      db.prepare("UPDATE resumes SET target_job_id=?, updated_at=datetime('now') WHERE id=? AND user_id=?")
+        .run(row.job_id || '', row.resume_id, userId);
+    }
+    if (row.application_id) {
+      db.prepare("UPDATE applications SET resume_id=?, resume_version_id=?, updated_at=datetime('now') WHERE id=? AND user_id=?")
+        .run(row.resume_id, String(version.id), row.application_id, userId);
+    }
     db.prepare(`UPDATE resume_ai_change_sets SET status='confirmed', decisions=?, manual_content=?, result_version_id=?, confirmed_at=datetime('now') WHERE id=?`)
       .run(JSON.stringify(normalizedDecisions), manualContent ? JSON.stringify(manualContent) : '', version.id, row.id);
     return version;

@@ -1,13 +1,20 @@
 <view class="page">
   <c-ai-disclosure text="AI 只能提出修改建议；逐条确认后才会创建新版本，原版本始终保留。" />
   <view class="hero">
-    <text class="eyebrow">SPRINT 2 · RESUME CENTER</text>
+    <text class="eyebrow">SPRINT 3 · RESUME CENTER</text>
     <text class="title">AI 简历中心</text>
     <text class="subtitle">一套真实经历库，支撑多岗位简历与可恢复版本。</text>
     <view class="hero-actions">
       <view class="primary" bindtap="openCreate">新建简历</view>
       <view class="secondary" bindtap="openExperience">添加经历</view>
     </view>
+  </view>
+
+  <view wx:if="{{optimizationContext}}" class="target-context">
+    <text class="target-kicker">JD 定制任务</text>
+    <text class="card-title">{{optimizationContext.company}} · {{optimizationContext.jobTitle}}</text>
+    <text class="meta">先选择一份真实简历；系统基于当前版本逐条提出理由，确认后才创建新版本。</text>
+    <text class="meta" wx:if="{{currentResume}}">当前选择：{{currentResume.name}} · 版本 ID {{currentResume.currentVersionId}}</text>
   </view>
 
   <view class="tabs">
@@ -24,7 +31,7 @@
       </view>
       <view class="more" catchtap="resumeActions" data-id="{{item.id}}">•••</view>
     </view>
-    <view class="optimize" wx:if="{{currentResume}}" bindtap="optimizeResume">为「{{currentResume.name}}」生成优化建议</view>
+    <view class="optimize" wx:if="{{currentResume}}" bindtap="optimizeResume">{{optimizationContext ? '按目标 JD 优化「' + currentResume.name + '」' : '为「' + currentResume.name + '」生成优化建议'}}</view>
   </view>
 
   <view wx:if="{{activeTab === 'experiences'}}">
@@ -49,6 +56,7 @@
   <view wx:if="{{proposal}}" class="sheet">
     <text class="sheet-title">逐条确认{{proposal.suggestionLabel}}</text>
     <text class="sheet-note">模型 {{proposal.modelLabel}} · 提示词 {{proposal.promptVersion}}</text>
+    <text class="sheet-note">来源版本 ID {{proposal.sourceVersionId}} · 确认前原版本保持不变</text>
     <text wx:if="{{proposal.generationNotice}}" class="generation-notice">{{proposal.generationNotice}}</text>
     <scroll-view scroll-y class="suggestions">
       <view wx:for="{{proposal.suggestions}}" wx:key="id" class="suggestion">

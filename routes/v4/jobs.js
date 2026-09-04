@@ -87,7 +87,12 @@ router.get('/', authMiddleware, (req, res) => {
   let jobs = listJobs().map(job => {
     const sponsor = getSponsorProfile(job);
     const match = buildJobMatch(job, profile, sponsor);
-    return { ...job, dataMeta: jobDataMeta(job), sponsor, match: { score: match.score, qualificationStatus: match.qualificationStatus, recommendation: match.recommendation } };
+    return { ...job, dataMeta: jobDataMeta(job), sponsor, match: {
+      score: match.score, qualificationStatus: match.qualificationStatus,
+      recommendation: match.recommendation, tier: match.tier,
+      tierLabel: match.tierLabel, decision: match.decision,
+      sponsorAssessment: match.sponsorAssessment
+    } };
   }).filter(job => {
     const text = `${job.title} ${job.company} ${job.location}`.toLowerCase();
     return (!keyword || text.includes(keyword)) && sponsorMatches(job.sponsor, req.query) && coreFiltersMatch(job, req.query);
@@ -115,22 +120,31 @@ router.post('/matches/recalculate', authMiddleware, (req, res) => {
   return ok(res, {
     calculated: results.length,
     profileVersion: profile.profileVersion,
-    results: results.map(item => ({ jobId: item.jobId, score: item.score, qualificationStatus: item.qualificationStatus, recommendation: item.recommendation }))
+    results: results.map(item => ({
+      jobId: item.jobId, score: item.score, qualificationStatus: item.qualificationStatus,
+      recommendation: item.recommendation, tier: item.tier, decision: item.decision
+    }))
   }, '岗位匹配已重新计算');
 });
 
 router.get('/matches/summary', authMiddleware, (req, res) => {
   const rows = db.prepare(`
-    SELECT score, qualification_status, recommendation
+    SELECT *
     FROM job_matches WHERE user_id=?
       AND id IN (SELECT MAX(id) FROM job_matches WHERE user_id=? GROUP BY job_id)
-  `).all(req.user.userId, req.user.userId);
-  const count = value => rows.filter(item => item.qualification_status === value).length;
+  `).all(req.user.userId, req.user.userId).map(formatMatch);
+  const count = value => rows.filter(item => item.qualificationStatus === value).length;
   return ok(res, {
     total: rows.length,
     averageScore: rows.length ? Math.round(rows.reduce((sum, item) => sum + item.score, 0) / rows.length) : 0,
     eligibility: { eligible: count('eligible'), partial: count('partial'), ineligible: count('ineligible') },
-    priority: rows.filter(item => item.recommendation === 'priority').length
+    priority: rows.filter(item => item.recommendation === 'priority').length,
+    tiers: {
+      safe: rows.filter(item => item.tier === 'safe').length,
+      target: rows.filter(item => item.tier === 'target').length,
+      reach: rows.filter(item => item.tier === 'reach').length,
+      blocked: rows.filter(item => item.tier === 'blocked').length
+    }
   });
 });
 

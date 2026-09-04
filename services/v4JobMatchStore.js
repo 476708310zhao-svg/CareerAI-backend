@@ -7,12 +7,21 @@ function parseJson(value, fallback) {
 
 function formatMatch(row) {
   if (!row) return null;
+  const storedDimensions = parseJson(row.dimensions, {});
+  const strategy = storedDimensions._strategy || {};
+  const dimensions = { ...storedDimensions };
+  delete dimensions._strategy;
   return {
     jobId: row.job_id, score: row.score,
     qualificationStatus: row.qualification_status,
     qualificationReasons: parseJson(row.qualification_reasons, []),
     recommendation: row.recommendation,
-    dimensions: parseJson(row.dimensions, {}), strengths: parseJson(row.strengths, []),
+    tier: strategy.tier || (row.qualification_status === 'ineligible' ? 'blocked' : row.score >= 82 ? 'safe' : row.score >= 65 ? 'target' : 'reach'),
+    tierLabel: strategy.tierLabel || '',
+    tierNote: strategy.tierNote || '',
+    decision: strategy.decision || null,
+    sponsorAssessment: strategy.sponsorAssessment || null,
+    dimensions, strengths: parseJson(row.strengths, []),
     gaps: parseJson(row.gaps, []), actions: parseJson(row.actions, []),
     profileVersion: row.profile_version, jobFingerprint: row.job_fingerprint,
     updatedAt: row.updated_at
@@ -34,7 +43,10 @@ function persistJobMatch(userId, job, profile, sponsor) {
   `).run(
     userId, String(job.id), profile.profileVersion, result.jobFingerprint,
     result.qualificationStatus, JSON.stringify(result.qualificationReasons), result.score,
-    JSON.stringify(result.dimensions), JSON.stringify(result.strengths),
+    JSON.stringify({ ...result.dimensions, _strategy: {
+      tier: result.tier, tierLabel: result.tierLabel, tierNote: result.tierNote,
+      decision: result.decision, sponsorAssessment: result.sponsorAssessment
+    } }), JSON.stringify(result.strengths),
     JSON.stringify(result.gaps), JSON.stringify(result.actions), result.recommendation
   );
   const row = db.prepare(`

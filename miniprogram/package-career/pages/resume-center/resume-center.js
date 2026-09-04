@@ -11,6 +11,7 @@ Page({
     resumes: [],
     experiences: [],
     currentResume: null,
+    optimizationContext: null,
     versions: [],
     proposal: null,
     decisions: {},
@@ -26,7 +27,11 @@ Page({
     experienceForm: { title: '', organization: '', description: '' }
   },
 
-  onLoad() { this.refresh(); },
+  onLoad(options) {
+    const context = options && options.targeted === '1' ? wx.getStorageSync('pendingResumeOptimization') : null;
+    this.setData({ optimizationContext: context && context.jobId ? context : null });
+    this.refresh();
+  },
   onPullDownRefresh() { this.refresh().finally(() => wx.stopPullDownRefresh()); },
 
   refresh() {
@@ -129,7 +134,12 @@ Page({
   optimizeResume() {
     if (!this.data.currentResume) return wx.showToast({ title: '请先选择简历', icon: 'none' });
     this.setData({ loading: true });
-    api.createResumeChangeSet(this.data.currentResume.id, {}).then(res => {
+    const context = this.data.optimizationContext || {};
+    api.createResumeChangeSet(this.data.currentResume.id, {
+      jobId: context.jobId || '',
+      applicationId: context.applicationId || null,
+      jdText: context.jdText || ''
+    }).then(res => {
       const proposal = res.data;
       const generation = proposal.generation || {};
       proposal.isFallback = generation.degraded === true;
@@ -164,7 +174,8 @@ Page({
     }
     api.confirmResumeChangeSet(this.data.proposal.id, payload).then(() => {
       wx.showToast({ title: '已保存新版本', icon: 'success' });
-      this.setData({ proposal: null, manualMode: false, manualJson: '' });
+      if (this.data.optimizationContext) wx.removeStorageSync('pendingResumeOptimization');
+      this.setData({ proposal: null, manualMode: false, manualJson: '', optimizationContext: null });
       this.refresh();
     }).catch(err => wx.showToast({ title: err.message || '保存失败', icon: 'none' }));
   },

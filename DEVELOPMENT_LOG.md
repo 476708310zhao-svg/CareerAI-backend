@@ -355,6 +355,41 @@
 
 ---
 
+## 2026-09-04｜Sprint 3：三项高价值 AI 闭环
+
+### 本次完成
+
+- Job Match 在原有三维评分、优势与缺口之外，增加 Safe/Target/Reach/Blocked 梯次、是否值得投的明确决策以及 Sponsor/身份判断；公民身份等硬冲突固定进入 Blocked。
+- 岗位详情将 canonical Job ID、申请 ID、公司、岗位和 JD 传入简历中心；创建优化方案前校验岗位与申请一致，缺省岗位时使用申请的 canonical Job ID。
+- 简历中心明确显示当前真实简历版本，逐条展示原文、建议、理由及接受/拒绝状态；确认后创建不可变新版本，写入岗位关联并绑定回申请，历史比较和恢复入口继续保留。
+- 面试空间新增公司×岗位×轮次 Brief，整理 JD 能力、公开面经、已核验 STAR 素材、轮次重点与反问清单，并明确缺失信息不由 AI 补造。
+- 面试报告根据弱项生成专项复练计划和幂等 Today 任务深链；申请没有下一步或已有复练事项时才回写，避免覆盖用户其他计划。
+
+### 技术决策
+
+- 本批不新增 Job Match 数据库列；策略元数据兼容存入 `job_matches.dimensions._strategy`，API 输出时剥离，保持 `dimensions` 为纯数值对象。
+- Safe 只表示当前条件匹配较稳，不代表录用保证；Sponsor 状态未知或证据不足时返回“核实后再投”，不包装为确定支持。
+- Interview Brief 只使用申请 JD、公开面经和用户已核验经历，不生成不存在的公司事实、经历或指标。
+- 不调用真实 AI 供应商、不运行真实微信 E2E、不操作生产数据库、支付或部署。
+
+### 验证
+
+- Sprint 3 专项测试 5/5，全量测试 170/170。
+- `npm run check:release` 通过：AI 故障矩阵 7/7、外部请求 0、小程序媒体 191.2 KB、数据检查 Errors 0/Warnings 4。
+- `npm run check:miniprogram`、JavaScript 语法检查和 `git diff --check` 通过。
+
+### 遗留问题
+
+- Target/Reach/Safe 阈值仍需在取得真实投递与面试结果后校准，当前不得解释为成功率。
+- 真实 AI 供应商 staging 抽样、生产 migration baseline、服务器切流/回滚和真机高风险链路仍需 Human 审批。
+
+### 下一步
+
+- 进入 Sprint 4：建立可解释的 Career Competitiveness Score，并把低分项连接到真实 Today 任务。
+- 基于真实七阶段漏斗生成动态计划和周复盘，同时保留用户确认、证据来源和回退边界。
+
+---
+
 ## 后续追加模板
 
 ## YYYY-MM-DD
