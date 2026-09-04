@@ -12,6 +12,7 @@ const { normalizeBannerUrl } = require('../../utils/assets.js');
 const browseHistory = require('../../utils/browse-history.js');
 const featureFlags = require('../../utils/feature-flags.js');
 const navigation = require('../../utils/navigation.js');
+const { normalizeDataMeta, markCachedDataMeta, summaryText } = require('../../utils/data-provenance.js');
 const apiV4 = require('../../utils/api-v4.js');
 const BANNER_CACHE_KEY = 'cachedBanners_v2';
 const HOT_COMPANIES_CACHE_KEY = 'cachedHotCompanies_v3';
@@ -404,8 +405,13 @@ Page({
   loadCachedOrMockJobs() {
     const cached = wx.getStorageSync('cachedRecommendJobs');
     if (cached && cached.length >= 3) {
+      const cachedJobs = cached.map(item => Object.assign({}, item, {
+        dataMeta: markCachedDataMeta(item.dataMeta, {
+          domain: 'job', source: item.source || item._source, publishedAt: item.postedAtRaw
+        })
+      }));
       this.setData({
-        recommendJobs: this.withCompanyLogos(cached).slice(0, 3),
+        recommendJobs: this.withCompanyLogos(cachedJobs).slice(0, 3),
         loadingJobs: false,
         jobsError: false
       });
@@ -649,7 +655,10 @@ Page({
         postedAt: this.formatTime(job.job_posted_at_datetime_utc),
         rawDescription: desc,
         applyLink: job.job_apply_link || '',
-        optFriendly: /\b(opt|cpt|h[- ]?1b|visa\s+sponsor|will\s+sponsor|work\s+authori)/i.test(desc)
+        optFriendly: /\b(opt|cpt|h[- ]?1b|visa\s+sponsor|will\s+sponsor|work\s+authori)/i.test(desc),
+        postedAtRaw: job.job_posted_at_datetime_utc || '',
+        dataMeta: job.dataMeta,
+        source: job._source || ''
       };
     });
   },
@@ -708,7 +717,7 @@ Page({
     if (!cached || !Array.isArray(cached.items) || cached.items.length === 0) return false;
     if (cached.version !== HOME_CAMPUS_CACHE_VERSION) return false;
     if ((Date.now() - (cached.t || 0)) > HOME_CAMPUS_CACHE_TTL) return false;
-    this.applyCampusUpdates(cached.items, cached.total || cached.items.length);
+    this.applyCampusUpdates(cached.items, cached.total || cached.items.length, { useCache: true });
     return true;
   },
 
@@ -755,13 +764,25 @@ Page({
     });
   },
 
-  applyCampusUpdates(items, total) {
+  applyCampusUpdates(items, total, options) {
+    const useCache = !!(options && options.useCache);
     const list = (items || [])
       .filter(Boolean)
-      .map(item => Object.assign({}, item, {
-        title: this.buildCampusUpdateTitle(item.company, item.title || item.positionName || item.positionType),
-        subtitle: this.normalizeCampusUpdateSubtitle(item)
-      }));
+      .map(item => {
+        const defaults = {
+          domain: 'campus', source: item.source, publishedAt: item.startDate,
+          updatedAt: item.updatedAt, isExpired: item.deadlineWindow === 'expired'
+        };
+        const dataMeta = useCache
+          ? markCachedDataMeta(item.dataMeta, defaults)
+          : normalizeDataMeta(item.dataMeta, defaults);
+        return Object.assign({}, item, {
+          title: this.buildCampusUpdateTitle(item.company, item.title || item.positionName || item.positionType),
+          subtitle: this.normalizeCampusUpdateSubtitle(item),
+          dataMeta,
+          _sourceSummary: summaryText(dataMeta)
+        });
+      });
     this.setData({
       campusFeatured: list[0] || null,
       campusUpdates: list.slice(1, HOME_CAMPUS_PREVIEW_LIMIT),

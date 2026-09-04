@@ -13,6 +13,7 @@ const navigation = require('../../../utils/navigation.js');
 const reminders = require('../../../utils/reminders.js');
 const analytics = require('../../../utils/analytics.js');
 const { presentJob, clean } = require('../../../utils/job-presenter.js');
+const { markCachedDataMeta } = require('../../../utils/data-provenance.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
 Page({
@@ -113,6 +114,12 @@ Page({
       applyCount: Number(snapshot.applyCount || 0),
       matchScore100: Number(snapshot.matchScore100 || 0),
       matchReason: snapshot.matchReason || '',
+      postedAtRaw: snapshot.postedAtRaw || '',
+      source: 'cache',
+      dataMeta: markCachedDataMeta(snapshot.dataMeta, {
+        domain: 'job', source: snapshot.source || snapshot._source,
+        publishedAt: snapshot.postedAtRaw || snapshot.postedAt
+      }),
       skillTags: extractSkillTags(desc || `${snapshot.title || ''} ${snapshot.company || ''}`)
     };
   },
@@ -273,6 +280,9 @@ Page({
         requirements: rawData.job_highlights && (rawData.job_highlights.Qualifications || rawData.job_highlights.qualifications) || [],
         jobHighlights: rawData.job_highlights || {},
         industry: rawData.employer_company_type || '',
+        postedAtRaw: rawData.job_posted_at_datetime_utc || '',
+        source: rawData._source || '',
+        dataMeta: rawData.dataMeta,
         skillTags: extractSkillTags(desc)
       };
 

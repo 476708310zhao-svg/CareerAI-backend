@@ -123,7 +123,7 @@
       <text class="notes-label">补充说明</text>
       <text class="notes-text">{{detail.notes}}</text>
     </view>
-    <text class="source-note">信息来源：{{detail._sourceText}}。请以企业官方公告和网申页面为准。</text>
+    <text class="source-note">信息来源：{{detail._sourceText}} · {{detail._freshnessText}}。{{detail._freshnessReason}}。请以企业官方公告和网申页面为准。</text>
   </view>
 
   <view class="section-card related-section" wx:if="{{relatedList.length}}">

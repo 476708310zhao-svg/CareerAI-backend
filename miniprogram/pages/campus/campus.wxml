@@ -193,7 +193,10 @@
 
         <!-- 底部 -->
         <view class="card-footer">
-          <view class="region-chip">{{item.region}}</view>
+          <view class="footer-meta">
+            <view class="region-chip">{{item.region}}</view>
+            <text class="source-summary source-summary--{{item._freshnessTone}}">{{item._sourceSummary}}</text>
+          </view>
           <view class="footer-actions">
             <view class="remind-btn {{item._isSubscribed ? 'active' : ''}}" catchtap="subscribeFromCard" data-index="{{index}}">
               {{subscribingId == item.id ? '处理中' : (item._isSubscribed ? '已提醒' : '提醒')}}

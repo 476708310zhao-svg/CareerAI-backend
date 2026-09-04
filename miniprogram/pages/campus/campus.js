@@ -3,6 +3,7 @@ const api = require('../../utils/api.js');
 const demoData = require('../../utils/demo-data');
 const { logoByName } = require('../../utils/logo.js');
 const reminders = require('../../utils/reminders.js');
+const { normalizeDataMeta, markCachedDataMeta, freshnessTone, summaryText } = require('../../utils/data-provenance.js');
 const CAMPUS_LIST_CACHE_KEY = 'cachedCampusList_v2';
 const CAMPUS_LIST_CACHE_TTL = 30 * 60 * 1000;
 
@@ -147,13 +148,32 @@ Page({
     ].join('|');
   },
 
+  _campusProvenance(item, useCache) {
+    const defaults = {
+      domain: 'campus',
+      source: item.source,
+      publishedAt: item.startDate,
+      updatedAt: item.updatedAt,
+      isExpired: item.deadlineWindow === 'expired'
+    };
+    const dataMeta = useCache
+      ? markCachedDataMeta(item.dataMeta, defaults)
+      : normalizeDataMeta(item.dataMeta, defaults);
+    return {
+      dataMeta,
+      _sourceSummary: summaryText(dataMeta),
+      _freshnessTone: freshnessTone(dataMeta)
+    };
+  },
+
   loadCachedList() {
     try {
       const cached = wx.getStorageSync(CAMPUS_LIST_CACHE_KEY);
       if (!cached || cached.key !== this._cacheKey() || (Date.now() - (cached.t || 0)) > CAMPUS_LIST_CACHE_TTL) return false;
       if (!Array.isArray(cached.list) || cached.list.length === 0) return false;
+      const cachedList = cached.list.map(item => Object.assign({}, item, this._campusProvenance(item, true)));
       this.setData({
-        list: cached.list,
+        list: cachedList,
         total: cached.total || cached.list.length,
         page: 1,
         hasMore: cached.hasMore !== false,
@@ -208,7 +228,8 @@ Page({
         _startMonth:    item.startDate ? String(item.startDate).slice(0, 7) : '-',
         _deadlineTone:  this._deadlineTone(item),
         _isSubscribed:  this._isCampusSubscribed(item.id),
-        _identityTags:  this._identityTags(item)
+        _identityTags:  this._identityTags(item),
+        ...this._campusProvenance(item, false)
       }));
       const merged = reset ? items : this.data.list.concat(items);
       this.setData({
@@ -249,7 +270,14 @@ Page({
           _startMonth:    item.startDate || item.appOpenMonth ? String(item.startDate || item.appOpenMonth).slice(0, 7) : '-',
           _deadlineTone:  this._deadlineTone(item),
           _isSubscribed:  this._isCampusSubscribed(item.id),
-          _identityTags:  this._identityTags(item)
+          _identityTags:  this._identityTags(item),
+          ...this._campusProvenance(Object.assign({}, item, {
+            source: 'local_fallback',
+            dataMeta: Object.assign({}, item.dataMeta, {
+              isFallback: true,
+              fallbackReason: '校招接口暂不可用，当前展示开发示例'
+            })
+          }), false)
         }));
         this.setData({ list: items, total: items.length, hasMore: false, loading: false });
         wx.showToast({ title: '已加载推荐内容', icon: 'none', duration: 1500 });

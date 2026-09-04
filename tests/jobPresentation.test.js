@@ -27,7 +27,14 @@ test('job presenter provides restrained fallbacks and caps decision tags', () =>
     h1bSponsor: true,
     tags: ['接受应届生'],
     description: 'Use Python, SQL, Tableau, AWS and Excel for data analysis.',
-    requirements: ['Python', 'SQL', 'Tableau', 'AWS']
+    requirements: ['Python', 'SQL', 'Tableau', 'AWS'],
+    dataMeta: {
+      sourceCode: 'jsearch',
+      sourceLabel: 'JSearch',
+      freshness: 'aging',
+      freshnessLabel: '建议复核',
+      isFallback: false
+    }
   });
 
   assert.equal(view.salary, '薪资面议');
@@ -38,6 +45,8 @@ test('job presenter provides restrained fallbacks and caps decision tags', () =>
   assert.equal(view.skills.length, 3);
   assert.equal(view.deadlineText, '长期招聘');
   assert.equal(view.applyCountText, '');
+  assert.equal(view.sourceSummary, 'JSearch · 建议复核');
+  assert.equal(view.freshnessTone, 'aging');
 });
 
 test('job presenter marks past deadlines and applied jobs as unavailable to apply', () => {
@@ -106,11 +115,15 @@ test('job search starts the production source immediately and closes stale loadi
   const apiJobs = read('utils/api-jobs.js');
   const searchJs = read('package-user/pages/search/search.js');
 
-  const productionRequest = apiJobs.indexOf("request({ path: '/api/jobs/search'");
-  const feishuFallback = apiJobs.indexOf('feishuContent.getFeishuJobs');
-  assert.ok(productionRequest >= 0 && feishuFallback > productionRequest);
-  assert.match(apiJobs, /const sources = \[/);
-  assert.match(apiJobs, /Array\.isArray\(result\.data\) && result\.data\.length/);
+  assert.match(apiJobs, /return request\(\{ path: '\/api\/jobs\/search'[\s\S]*?\.then\(usableJobResult\)[\s\S]*?\.catch\(\(\) => fallback\.then\(usableJobResult\)/);
+  assert.doesNotMatch(apiJobs, /const sources = \[/);
+  assert.match(apiJobs, /markFallbackResult\(result, '正式职位接口暂不可用'\)/);
+  assert.match(apiJobs, /getFeishuJobs[\s\S]*?\.catch\(\(\) => null\)/);
+
+  const presenter = read('utils/job-presenter.js');
+  const card = read('components/c-job-card/c-job-card.wxml');
+  assert.match(presenter, /sourceSummary: summaryText\(dataMeta\)/);
+  assert.match(card, /view\.sourceSummary/);
 
   assert.match(searchJs, /const searchSeq = \(this\._searchSeq \|\| 0\) \+ 1/);
   assert.match(searchJs, /if \(seq !== this\._searchSeq\) return/);

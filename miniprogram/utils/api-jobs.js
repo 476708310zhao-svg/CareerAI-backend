@@ -3,6 +3,30 @@
 
 const { request, post, DETAIL_CACHE_TTL } = require('./api-client.js');
 const feishuContent = require('./api-feishu-content.js');
+const { normalizeDataMeta } = require('./data-provenance.js');
+
+function usableJobResult(result) {
+  if (!result || !Array.isArray(result.data) || result.data.length === 0) throw new Error('empty job source');
+  return result;
+}
+
+function markFallbackResult(result, reason) {
+  const data = (result && Array.isArray(result.data) ? result.data : []).map(job => Object.assign({}, job, {
+    dataMeta: normalizeDataMeta(job.dataMeta, {
+      domain: 'job', source: job._source || (result && result._source) || 'feishu',
+      publishedAt: job.job_posted_at_datetime_utc,
+      isFallback: true, fallbackReason: reason
+    })
+  }));
+  return Object.assign({}, result || {}, {
+    data,
+    dataMeta: Object.assign({}, result && result.dataMeta || {}, {
+      degraded: true,
+      fallbackCount: data.length,
+      fallbackReason: reason
+    })
+  });
+}
 
 // ── 职位搜索 ──
 
@@ -19,25 +43,12 @@ function getJobs(data) {
 
   // 正式职位接口是搜索页主数据源；飞书人工职位仅作为并行兜底。
   // 不再串行等待飞书超时后才请求正式接口，避免搜索页长时间停留在 loading。
-  const sources = [
-    request({ path: '/api/jobs/search', params, timeout: data.timeout || 10000 }),
-    feishuContent.getFeishuJobs(Object.assign({}, data, { timeout: Math.min(data.timeout || 6000, 6000) }))
-  ];
-
-  return new Promise(resolve => {
-    let settled = 0;
-    let emptyResult = { data: [] };
-    const accept = result => {
-      settled += 1;
-      if (result && Array.isArray(result.data) && result.data.length) {
-        resolve(result);
-        return;
-      }
-      if (result && Array.isArray(result.data)) emptyResult = result;
-      if (settled === sources.length) resolve(emptyResult);
-    };
-    sources.forEach(source => source.then(accept).catch(() => accept({ data: [] })));
-  });
+  const fallback = feishuContent
+    .getFeishuJobs(Object.assign({}, data, { timeout: Math.min(data.timeout || 6000, 6000) }))
+    .catch(() => null);
+  return request({ path: '/api/jobs/search', params, timeout: data.timeout || 10000 })
+    .then(usableJobResult)
+    .catch(() => fallback.then(usableJobResult).then(result => markFallbackResult(result, '正式职位接口暂不可用')));
 }
 
 function getJobDetail(jobId) {
@@ -152,12 +163,14 @@ function getAggregatedJobs(data) {
   };
   if (data.date_posted) params.date_posted = data.date_posted;
   if (data.employment_types) params.employment_types = data.employment_types;
-  return feishuContent.getFeishuJobs(data || {}).catch(() => request({
+  const fallback = feishuContent.getFeishuJobs(data || {}).catch(() => null);
+  return request({
     path: '/api/jobs/aggregate',
     params,
     timeout: 15000,
     noCache: !!data.noCache
-  }));
+  }).then(usableJobResult)
+    .catch(() => fallback.then(usableJobResult).then(result => markFallbackResult(result, '多源聚合接口暂不可用')));
 }
 
 // ── The Muse 精选职位（完全免费，科技/创业公司）──

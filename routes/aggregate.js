@@ -9,6 +9,7 @@ const axios   = require('axios');
 const router  = express.Router();
 const db      = require('../db/database');
 const { internalTaskAuth } = require('../middleware/internalAuth');
+const { buildDataMeta, summarizeDataMeta } = require('../utils/dataProvenance');
 
 // ── 建表 ──────────────────────────────────────────────────────────────────────
 db.exec(`
@@ -73,6 +74,18 @@ function detectSponsorship(text) {
 function isRemote(title, location, desc) {
   const hay = `${title} ${location} ${desc}`.toLowerCase();
   return /remote|anywhere|work from home|wfh/.test(hay) ? 1 : 0;
+}
+
+function withJobDataMeta(job) {
+  return {
+    ...job,
+    dataMeta: buildDataMeta({
+      domain: 'job',
+      source: job.source,
+      publishedAt: job.posted_at,
+      fetchedAt: job.fetched_at
+    })
+  };
 }
 
 // ── 公司列表 ──────────────────────────────────────────────────────────────────
@@ -283,9 +296,9 @@ router.get('/jobs', (req, res) => {
      FROM aggregated_jobs ${where}
      ORDER BY fetched_at DESC, posted_at DESC
      LIMIT ${size} OFFSET ${offset}`
-  ).all(params);
+  ).all(params).map(withJobDataMeta);
 
-  res.json({ ok: true, total, page: pg, pageSize: size, jobs });
+  res.json({ ok: true, total, page: pg, pageSize: size, jobs, dataMeta: summarizeDataMeta(jobs) });
 });
 
 // ── GET /api/aggregate/jobs/:id ──────────────────────────────────────────────
@@ -294,7 +307,7 @@ router.get('/jobs/:id', (req, res) => {
   if (!id || id < 1) return res.status(400).json({ ok: false, error: 'invalid id' });
   const job = db.prepare('SELECT * FROM aggregated_jobs WHERE id = ?').get(id);
   if (!job) return res.status(404).json({ ok: false, error: 'not found' });
-  res.json({ ok: true, job });
+  res.json({ ok: true, job: withJobDataMeta(job) });
 });
 
 // ── GET /api/aggregate/stats ─────────────────────────────────────────────────
@@ -304,7 +317,10 @@ router.get('/stats', (_req, res) => {
   const byCompany  = db.prepare('SELECT company, COUNT(*) AS n FROM aggregated_jobs GROUP BY company ORDER BY n DESC LIMIT 20').all();
   const bySponsor  = db.prepare('SELECT sponsorship, COUNT(*) AS n FROM aggregated_jobs GROUP BY sponsorship').all();
   const lastFetch  = db.prepare('SELECT MAX(fetched_at) AS t FROM aggregated_jobs').get().t;
-  res.json({ ok: true, total, bySource, byCompany, bySponsor, lastFetch });
+  res.json({
+    ok: true, total, bySource, byCompany, bySponsor, lastFetch,
+    dataMeta: buildDataMeta({ domain: 'job', source: bySource.length === 1 ? bySource[0].source : 'unknown', fetchedAt: lastFetch })
+  });
 });
 
 // ── GET /api/aggregate/cron-logs ─────────────────────────────────────────────

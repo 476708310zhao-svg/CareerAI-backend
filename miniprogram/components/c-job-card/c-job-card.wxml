@@ -41,6 +41,7 @@
     <view class="job-card__aux">
       <text>{{view.postedText}}</text>
       <text wx:if="{{view.applyCountText}}">{{view.applyCountText}}</text>
+      <text class="job-card__provenance job-card__provenance--{{view.freshnessTone}}">{{view.sourceSummary}}</text>
     </view>
     <view class="job-card__favorite {{view.isSaved ? 'job-card__favorite--saved' : ''}}" catchtap="toggleFavorite" hover-class="job-card__favorite--pressed">
       <text class="job-card__favorite-icon">{{view.isSaved ? '♥' : '♡'}}</text>

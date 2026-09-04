@@ -1,4 +1,5 @@
 const EMPTY_VALUES = new Set(['', 'null', 'undefined', 'n/a', 'na', 'none', '--']);
+const { normalizeDataMeta, freshnessTone, summaryText } = require('./data-provenance.js');
 
 const SKILL_DICTIONARY = [
   ['Python', /\bpython\b/i],
@@ -233,6 +234,12 @@ function requirementValues(source) {
 
 function presentJob(source) {
   const job = source || {};
+  const dataMeta = normalizeDataMeta(job.dataMeta, {
+    domain: 'job',
+    source: first(job, ['source', '_source']),
+    publishedAt: first(job, ['postedAtRaw', 'job_posted_at_datetime_utc', 'postedAt']),
+    isExpired: false
+  });
   const deadline = deadlineMeta(first(job, ['deadline', 'deadlineDate', 'job_offer_expiration_datetime_utc', 'valid_through']));
   const attributes = attributeTexts(job);
   const percentageScore = first(job, ['matchScore100', 'matchScore', 'score']);
@@ -268,7 +275,14 @@ function presentJob(source) {
     appliedText: applied ? (progressStatus || '已投递') : '',
     hasApplyLink: !!clean(first(job, ['applyLink', 'applyUrl', 'officialApplyUrl', 'sourceUrl'])),
     descriptionBlocks: contentBlocks(first(job, ['description', 'rawDescription', 'jobDescription', 'job_description'])),
-    requirementBlocks: requirementValues(job)
+    requirementBlocks: requirementValues(job),
+    dataMeta,
+    sourceLabel: dataMeta.sourceLabel,
+    freshnessLabel: dataMeta.freshnessLabel,
+    freshnessReason: dataMeta.freshnessReason || '',
+    freshnessTone: freshnessTone(dataMeta),
+    sourceSummary: summaryText(dataMeta),
+    isFallback: dataMeta.isFallback
   };
   presentation.basicInfo = basicInfo(job, presentation);
   presentation.applyButtonText = presentation.deadlineClosed

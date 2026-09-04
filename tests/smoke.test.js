@@ -254,6 +254,21 @@ test('public jobs endpoint returns a list payload', async () => {
   const body = await res.json();
   assert.equal(body.code, 0);
   assert.ok(Array.isArray(body.data.list));
+  assert.ok(body.data.dataMeta);
+  if (body.data.list.length) assert.ok(body.data.list[0].dataMeta);
+});
+
+test('job search fallback is explicit and never fabricates pagination records', async () => {
+  const res = await fetch(`${BASE_URL}/api/jobs/search?query=Software%20Engineer&page=1&num_pages=1`);
+  assert.equal(res.status, 200);
+  const body = await readJson(res);
+  assert.equal(body._source, 'local_fallback');
+  assert.equal(body.dataMeta.degraded, true);
+  assert.ok(body.data.length > 0);
+  assert.ok(body.data.every(job => job.dataMeta && job.dataMeta.isFallback));
+  assert.ok(body.data.every(job => job.dataMeta.sourceCode === 'local'));
+  assert.equal(body.data.some(job => String(job.job_id || '').includes('_pool_')), false);
+  assert.ok(body.data.every(job => job.dataMeta.freshness === 'stale'));
 });
 
 test('public campus endpoint handles filtered summer internship query', async () => {
@@ -276,6 +291,8 @@ test('public campus endpoint handles filtered summer internship query', async ()
   assert.equal(body.code, 0);
   assert.ok(Array.isArray(body.data.list));
   assert.equal(typeof body.data.total, 'number');
+  assert.ok(body.data.dataMeta);
+  if (body.data.list.length) assert.ok(body.data.list[0].dataMeta);
 });
 
 test('latest campus day is based on opening date instead of full-table sync time', async () => {
@@ -319,6 +336,9 @@ test('aggregate jobs endpoint returns a paginated recommendation pool sorted by 
   assert.equal(body.data.length, 20);
   assert.ok(body.total > body.data.length);
   assert.equal(body.hasMore, true);
+  assert.ok(body.dataMeta);
+  assert.ok(body.data.every(job => job.dataMeta));
+  assert.equal(body.data.some(job => String(job.job_id || '').includes('_pool_')), false);
 
   const times = body.data
     .map(job => Date.parse(job.job_posted_at_datetime_utc || job.postedAt || job.publication_date || ''))
@@ -759,6 +779,9 @@ test('v4 sponsor profile and job filters expose international student eligibilit
   assert.equal(list.code, 0);
   assert.ok(list.data.list.length > 0);
   assert.ok(list.data.list.every(item => item.sponsor.h1bSponsor === true && item.sponsor.citizenRequired === false));
+  assert.ok(list.data.dataMeta);
+  assert.ok(list.data.list.every(item => item.dataMeta));
+  assert.ok(list.data.list.every(item => item.dataMeta.isFallback === true));
 
   const filteredRes = await fetch(`${BASE_URL}/api/v4/jobs?employmentType=FULLTIME&country=us&pageSize=20`, {
     headers: authHeaders()
@@ -772,6 +795,7 @@ test('v4 sponsor profile and job filters expose international student eligibilit
   assert.equal(detailRes.status, 200);
   const detail = await readJson(detailRes);
   assert.equal(detail.data.job.id, 1);
+  assert.ok(detail.data.job.dataMeta);
   assert.equal(detail.data.sponsor.h1bSponsor, true);
   assert.ok(detail.data.match.score >= 0);
   assert.ok(Object.prototype.hasOwnProperty.call(detail.data, 'company'));

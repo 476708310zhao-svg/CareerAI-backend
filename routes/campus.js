@@ -9,6 +9,7 @@ const db = require('../db/database');
 const { parseId } = require('../db/utils');
 const { formatCampus: fmt } = require('../db/formatters');
 const { ok, fail } = require('../utils/response');
+const { buildDataMeta, summarizeDataMeta } = require('../utils/dataProvenance');
 
 const ALL_LABEL = '\u5168\u90e8';
 const GENERAL_POSITION = '\u7efc\u5408';
@@ -192,7 +193,12 @@ router.get('/', (req, res) => {
     }
     const pageList = list.slice(offset, offset + limit);
 
-    ok(res, { list: pageList, total: list.length, latestDate });
+    ok(res, {
+      list: pageList,
+      total: list.length,
+      latestDate,
+      dataMeta: summarizeDataMeta(pageList)
+    });
   } catch (err) {
     console.error('[campus] list failed:', err);
     fail(res, '\u6821\u62db\u5217\u8868\u52a0\u8f7d\u5931\u8d25');
@@ -205,6 +211,7 @@ router.get('/meta', (_req, res) => {
   const gradYears = db.prepare('SELECT DISTINCT grad_year FROM campus_schedules ORDER BY grad_year DESC').all().map(r => r.grad_year);
   const recruitTypes = db.prepare('SELECT DISTINCT recruit_type FROM campus_schedules ORDER BY recruit_type').all().map(r => r.recruit_type);
   const industries = db.prepare("SELECT DISTINCT industry FROM campus_schedules WHERE industry != '' ORDER BY industry").all().map(r => r.industry);
+  const latest = db.prepare("SELECT source, updated_at, created_at FROM campus_schedules ORDER BY COALESCE(NULLIF(updated_at, ''), created_at) DESC LIMIT 1").get() || {};
   ok(res, {
     years,
     gradYears,
@@ -221,7 +228,8 @@ router.get('/meta', (_req, res) => {
       { label: '30天内', value: '30d' },
       { label: '仍可投', value: 'open' },
       { label: '已截止', value: 'expired' }
-    ]
+    ],
+    dataMeta: buildDataMeta({ domain: 'campus', source: latest.source, updatedAt: latest.updated_at || latest.created_at })
   });
 });
 

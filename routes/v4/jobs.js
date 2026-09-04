@@ -10,6 +10,7 @@ const { persistJobMatch, formatMatch } = require('../../services/v4JobMatchStore
 const companyService = require('../../services/companyService');
 const { applicationRefs, withCoreRefs } = require('../../utils/coreEntityRefs');
 const { STATUS_TEXT, toV4Status } = require('../../utils/applicationStatus');
+const { buildDataMeta, summarizeDataMeta } = require('../../utils/dataProvenance');
 
 const router = express.Router();
 const analytics = require('../../services/v4Analytics');
@@ -62,6 +63,21 @@ function coreFiltersMatch(job, query) {
   return true;
 }
 
+function jobDataMeta(job) {
+  const source = job.source || 'local';
+  const isLocalArchive = source === 'local' || source === 'local_fallback';
+  return buildDataMeta({
+    domain: 'job',
+    source,
+    sourceLabel: job.sourceLabel,
+    publishedAt: job.postedAt,
+    updatedAt: job.updatedAt,
+    isExpired: job.deadline ? new Date(`${String(job.deadline).slice(0, 10)}T23:59:59+08:00`).getTime() < Date.now() : false,
+    isFallback: isLocalArchive,
+    fallbackReason: isLocalArchive ? '当前精准匹配基于历史职位库' : ''
+  });
+}
+
 router.get('/', authMiddleware, (req, res) => {
   const profile = getProfile(req.user.userId);
   if (!profile) return fail(res, '用户不存在', 404);
@@ -71,7 +87,7 @@ router.get('/', authMiddleware, (req, res) => {
   let jobs = listJobs().map(job => {
     const sponsor = getSponsorProfile(job);
     const match = buildJobMatch(job, profile, sponsor);
-    return { ...job, sponsor, match: { score: match.score, qualificationStatus: match.qualificationStatus, recommendation: match.recommendation } };
+    return { ...job, dataMeta: jobDataMeta(job), sponsor, match: { score: match.score, qualificationStatus: match.qualificationStatus, recommendation: match.recommendation } };
   }).filter(job => {
     const text = `${job.title} ${job.company} ${job.location}`.toLowerCase();
     return (!keyword || text.includes(keyword)) && sponsorMatches(job.sponsor, req.query) && coreFiltersMatch(job, req.query);
@@ -82,7 +98,8 @@ router.get('/', authMiddleware, (req, res) => {
     jobs.sort((a, b) => b.match.score - a.match.score);
   }
   const start = (page - 1) * pageSize;
-  return ok(res, { list: jobs.slice(start, start + pageSize), page, pageSize, total: jobs.length });
+  const pageList = jobs.slice(start, start + pageSize);
+  return ok(res, { list: pageList, page, pageSize, total: jobs.length, dataMeta: summarizeDataMeta(pageList) });
 });
 
 router.post('/matches/recalculate', authMiddleware, (req, res) => {
@@ -142,7 +159,7 @@ router.get('/:id/detail', authMiddleware, (req, res) => {
     applicationRefs(application || {})
   ), '/api/v4/jobs/:id/detail');
   return ok(res, {
-    job: { ...job, deadline: job.deadline || '', officialApplyUrl: job.applyUrl || job.sourceUrl || '' },
+    job: { ...job, deadline: job.deadline || '', officialApplyUrl: job.applyUrl || job.sourceUrl || '', dataMeta: jobDataMeta(job) },
     sponsor,
     match,
     company,

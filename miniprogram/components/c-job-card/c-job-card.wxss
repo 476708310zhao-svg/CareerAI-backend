@@ -211,6 +211,24 @@
   font-size: 21rpx;
 }
 
+.job-card__provenance {
+  color: #667085;
+}
+
+.job-card__provenance--fresh {
+  color: #15803d;
+}
+
+.job-card__provenance--aging,
+.job-card__provenance--fallback {
+  color: #b45309;
+}
+
+.job-card__provenance--stale,
+.job-card__provenance--expired {
+  color: #b42318;
+}
+
 .job-card__favorite {
   flex-shrink: 0;
   display: flex;

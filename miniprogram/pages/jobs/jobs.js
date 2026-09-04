@@ -8,6 +8,7 @@ const progress = require('../../utils/job-progress.js');
 const demoData = require('../../utils/demo-data.js');
 const { fromNow, formatSalaryRange } = require('../../utils/util.js');
 const matcher = require('../../utils/matcher.js');
+const { markCachedDataMeta } = require('../../utils/data-provenance.js');
 const loginGate = require('../../behaviors/login-gate.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 const JOB_LIST_CACHE_TTL = 30 * 60 * 1000;
@@ -232,7 +233,12 @@ Page({
       && (Date.now() - (cached.t || 0)) < JOB_LIST_CACHE_TTL;
 
     if (fresh && cachedItems && cachedItems.length > 0) {
-      this.setData({ jobs: this.enrichJobLogos(cachedItems), loading: false });
+      const cachedJobs = cachedItems.map(item => Object.assign({}, item, {
+        dataMeta: markCachedDataMeta(item.dataMeta, {
+          domain: 'job', source: item.source || item._source, publishedAt: item.postedAtRaw
+        })
+      }));
+      this.setData({ jobs: this.enrichJobLogos(cachedJobs), loading: false });
       return true;
     } else if (ALLOW_DEMO_FALLBACK) {
       this.loadMockJobs(true);
@@ -510,6 +516,7 @@ Page({
           conversionOpportunity: !!item.conversionOpportunity,
           applyCount: Number(item.applyCount || 0),
           isApplied: !!progress.getByJobId(item.id),
+          dataMeta: item.dataMeta,
         };
       });
       this.setData({
@@ -564,7 +571,9 @@ Page({
         remoteType: job.job_is_remote ? '支持远程' : '',
         requirements: job.job_highlights && (job.job_highlights.Qualifications || job.job_highlights.qualifications) || [],
         jobHighlights: job.job_highlights || {},
-        applyCount: Number(job.apply_count || job.application_count || 0)
+        applyCount: Number(job.apply_count || job.application_count || 0),
+        dataMeta: job.dataMeta,
+        source: job._source || ''
       };
     });
   },

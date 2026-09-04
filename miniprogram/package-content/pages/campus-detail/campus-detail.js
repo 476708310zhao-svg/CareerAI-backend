@@ -3,6 +3,7 @@ const api = require('../../../utils/api.js');
 const favUtil = require('../../../utils/favorites.js');
 const { logoByName } = require('../../../utils/logo.js');
 const reminders = require('../../../utils/reminders.js');
+const { normalizeDataMeta, markCachedDataMeta } = require('../../../utils/data-provenance.js');
 
 const TYPE_COLOR = {
   '春招': { bg: '#EEF2FF', color: '#4F46E5', border: '#C7D2FE' },
@@ -120,7 +121,14 @@ Page({
   applySnapshotOrFail(id, message) {
     const snapshot = this.readCampusSnapshot(id);
     if (snapshot && (snapshot.company || snapshot.positionName || snapshot.positionType)) {
-      const raw = Object.assign({ id, source: '本地缓存' }, snapshot);
+      const raw = Object.assign({}, snapshot, {
+        id,
+        source: 'cache',
+        dataMeta: markCachedDataMeta(snapshot.dataMeta, {
+          domain: 'campus', source: snapshot.source, publishedAt: snapshot.startDate,
+          isExpired: snapshot.deadlineWindow === 'expired'
+        })
+      });
       this.applyDetail(raw, id, { skipRelated: true });
       wx.showToast({ title: '已显示缓存信息', icon: 'none' });
       return;
@@ -151,7 +159,11 @@ Page({
     const viewCount = Number(d.viewCount || 0);
     const startText = d.startDate || '暂无';
     const deadlineText = d.deadlineDate || '暂无';
-    const sourceText = d.source || '公开招聘信息';
+    const dataMeta = normalizeDataMeta(d.dataMeta, {
+      domain: 'campus', source: d.source, publishedAt: d.startDate,
+      updatedAt: d.updatedAt, isExpired: d.deadlineWindow === 'expired'
+    });
+    const sourceText = dataMeta.sourceLabel;
     const isDeadlineUrgent = !d.deadlineDate || d.deadlineDate === '尽快投递' || d.deadlineWindow === 'urgent' || d.deadlineWindow === '7d';
     const educationText = d.educationLevel || '以公告为准';
     const overseasText = d.overseasFriendly ? '留学生友好' : '以公告为准';
@@ -228,7 +240,10 @@ Page({
       _detailSections: detailSections,
       _announceShort: compactUrl(d.announceUrl),
       _applyShort: compactUrl(d.applyUrl),
-      _sourceText: sourceText
+      dataMeta,
+      _sourceText: sourceText,
+      _freshnessText: dataMeta.freshnessLabel,
+      _freshnessReason: dataMeta.freshnessReason || ''
     };
   },
 

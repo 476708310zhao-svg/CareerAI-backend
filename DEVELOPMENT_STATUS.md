@@ -1,6 +1,6 @@
 # DEVELOPMENT_STATUS
 
-更新时间：2026-09-03
+更新时间：2026-09-04
 
 主项目目录：`D:\ChatGPT-Projects\求职小程序\jobapp-server`
 
@@ -10,12 +10,13 @@
 
 ## 当前批次
 
-Sprint 2“数据闭环与质量基线”已进入开发。第一批统一了用户、岗位、申请、简历版本、面试空间/会话/报告和 Today 任务的 `refs` 关联契约；canonical Job ID 统一优先使用 `source_job_id`，SQLite 主键统一为正整数或 `null`。旧 API 与埋点字段继续兼容，本批未改生产表结构、未执行 migration。下一批处理岗位/校招来源与新鲜度规则。真实 E2E 按 Human 决定不作为默认测试；未推送、未部署。
+Sprint 2“数据闭环与质量基线”已完成 2.1 与 2.2。核心实体已统一 `refs` 关联契约；职位和校招已统一 `dataMeta` 来源、新鲜度、过期及失败降级口径，正式职位接口恢复为主源，飞书仅作客户端兜底，本地历史职位不再复制或伪造当前发布时间。下一批进入 Sprint 2.3 求职漏斗埋点校验与测试数据隔离。真实 E2E 不作为默认测试；未推送、未部署。
 
 ## 已完成
 
 | 日期 | 事项 | 文件 | 验证 |
 |---|---|---|---|
+| 2026-09-04 | Sprint 2.2：统一职位/校招 `dataMeta` 来源与新鲜度契约，修正正式职位主源优先级、历史职位伪造时间与分页复制，补齐校招短日期解析、明确截止过期、缓存/失败降级标记和小程序紧凑展示 | `utils/dataProvenance.js`、职位/校招路由与格式化器、小程序职位/校招适配和卡片、`docs/JOB_CAMPUS_DATA_PROVENANCE_CONTRACT.md`、专项与 smoke 测试 | `check:release` 151/151 通过、Errors 0/Warnings 4；未运行真实 E2E，未推送、未部署 |
 | 2026-09-03 | Sprint 2 第一批：建立核心实体 `refs` 契约，统一官方岗位 ID 优先级、数值主键输出与申请 V4 状态；接通申请、简历、材料、面试、Today 和关键埋点引用 | `utils/coreEntityRefs.js`、`utils/applicationStatus.js`、V4 相关路由/服务、`docs/CORE_ENTITY_REFERENCE_CONTRACT.md`、专项与集成测试 | 143/143 tests 通过；`git diff --check` 通过；未运行真实 E2E，未改数据库结构，未推送、未部署 |
 | 2026-09-03 | Sprint 1 仓库侧收口：将校招、申请文案、管理员限流、分享封面、审核 UI、测试和部署基线拆成可审查提交；统一 Node 20、4400、版本目录/current 软链接、共享数据、备份、PM2/Nginx 与手动生产发布；移除 n8n 默认密码和日志回显 | Git 提交 `35b8956` 至 `a9b92a6`、部署/安全文档 | `check:release` 137/137、媒体 191.2 KB、Errors 0/Warnings 4；完整 smoke 65/65、Shell/JS/JSON/YAML 静态校验和密钥扫描通过；未运行真实 E2E，未推送、未部署 |
 | 2026-09-03 | Sprint 0 清理：完整归档旧备份、旧统一前小程序和 Banner 优化素材；同步 11 份历史开发文档到 Obsidian；注销旧部署工作树并保留独有部署分支；旧目录送入回收站 | `archives/cleanup-20260903/`、Obsidian `历史归档/2026-06旧版/`、Git worktree 元数据 | ZIP 15.54 MB、6,628 个条目可读取；11 份文档 SHA-256 校验一致；主项目分支/HEAD 不变；`check:miniprogram` 通过，微信预览正常 |
@@ -104,6 +105,7 @@ Sprint 2“数据闭环与质量基线”已进入开发。第一批统一了用
 
 | 负责人 | 文件 | 任务 | 状态 |
 |---|---|---|---|
+| Codex | `utils/dataProvenance.js`、职位/校招路由与格式化器、小程序职位/校招适配与相关测试/文档 | Sprint 2.2：统一数据来源、更新时间、过期与失败降级口径，停止伪造本地职位新鲜度 | 已完成；发布检查通过，未运行真实 E2E，未推送、未部署 |
 | Codex | `utils/coreEntityRefs.js`、`utils/applicationStatus.js`、V4 核心数据路由/服务、相关测试和 Sprint 2 文档 | Sprint 2 第一批：统一核心对象关联 ID 与申请状态输出，修复岗位 ID 双轨造成的跨模块错链 | 已完成；默认不运行真实 E2E |
 | Codex | `scripts/run-campus-sync.sh`、`scripts/merge-campus-env.js`、`.env.example`、校招同步脚本与测试 | 将新校招表持续同步至职引官网生产共享数据库，隔离营销飞书配置并修复定时任务 Node/数据库路径 | 已完成；生产写入 11,467 条，131/131 tests、公网 API 和真实官网页面显示 8 月 10 日最新记录 |
 | Codex | 小程序 `components/c-ai-disclosure/*`、模拟面试设置/对话/报告页面、`tests/favoriteReminder.test.js`、`scripts/check-miniprogram.js` | 统一缩小所有 AI 提示条，增加左右安全留白并清理三处重复旧样式 | 已完成；130/130 tests、AI 提示专项 4/4、小程序检查通过 |

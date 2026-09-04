@@ -50,6 +50,7 @@
         </view>
         <text class="campus-title">{{item.title}}</text>
         <text class="campus-sub">{{item.subtitle}}</text>
+        <text class="campus-source">{{item._sourceSummary}}</text>
         <view class="campus-footer">
           <view class="campus-tags">
             <text wx:if="{{item.tagText}}">{{item.tagText}}</text>

@@ -142,7 +142,10 @@ Page({
               requirements: job.job_highlights && (job.job_highlights.Qualifications || job.job_highlights.qualifications) || [],
               jobHighlights: job.job_highlights || {},
               isSaved: favUtil.isFavorited('job', String(job.job_id)),
-              isApplied: !!progress.getByJobId(job.job_id)
+              isApplied: !!progress.getByJobId(job.job_id),
+              dataMeta: job.dataMeta,
+              source: job._source || '',
+              postedAtRaw: job.job_posted_at_datetime_utc || ''
             };
           });
           const jobs = isLoadMore ? this.data.jobResults.concat(newJobs) : newJobs;

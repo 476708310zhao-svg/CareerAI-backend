@@ -6,6 +6,7 @@ const { buildRecordQuery, transform } = require('../scripts/sync_feishu_server')
 
 const ROOT = path.join(__dirname, '..');
 const { CAMPUS_KEYS, mergeCampusEnv } = require('../scripts/merge-campus-env');
+const { formatCampus } = require('../db/formatters');
 
 test('campus sync reads the configured Feishu view', () => {
   const query = new URLSearchParams(buildRecordQuery('next-page'));
@@ -64,4 +65,51 @@ test('campus deployment only replaces campus-specific Feishu settings', () => {
   CAMPUS_KEYS.forEach((key, index) => {
     assert.match(merged, new RegExp(`${key}=career-${index}`));
   });
+});
+
+test('campus formatter normalizes compact deadlines and exposes provenance', () => {
+  const compactYear = formatCampus({
+    id: 901,
+    company: '示例科技',
+    start_date: '2026-05-01',
+    deadline_date: '26.6.30',
+    source: '飞书校招日历',
+    updated_at: '2026-06-01 09:00:00'
+  });
+  const inferredYear = formatCampus({
+    id: 902,
+    company: '跨年招聘',
+    start_date: '2026-10-01',
+    deadline_date: '4.30',
+    source: '综合公开信息',
+    updated_at: '2026-10-01 09:00:00'
+  });
+  const invalidDate = formatCampus({
+    id: 903,
+    company: '错误日期',
+    start_date: '2026-01-01',
+    deadline_date: '2026-02-31',
+    source: '综合公开信息'
+  });
+
+  assert.equal(compactYear.deadlineDateNormalized, '2026-06-30');
+  assert.equal(compactYear.deadlineWindow, 'expired');
+  assert.equal(compactYear.dataMeta.sourceCode, 'campus_feishu');
+  assert.equal(compactYear.dataMeta.freshness, 'expired');
+  assert.equal(inferredYear.deadlineDateNormalized, '2027-04-30');
+  assert.equal(invalidDate.deadlineDateNormalized, '');
+});
+
+test('campus list and detail show source and freshness metadata', () => {
+  const listJs = fs.readFileSync(path.join(ROOT, 'miniprogram/pages/campus/campus.js'), 'utf8');
+  const listWxml = fs.readFileSync(path.join(ROOT, 'miniprogram/pages/campus/campus.wxml'), 'utf8');
+  const detailJs = fs.readFileSync(path.join(ROOT, 'miniprogram/package-content/pages/campus-detail/campus-detail.js'), 'utf8');
+  const detailWxml = fs.readFileSync(path.join(ROOT, 'miniprogram/package-content/pages/campus-detail/campus-detail.wxml'), 'utf8');
+  const homeWxml = fs.readFileSync(path.join(ROOT, 'miniprogram/components/home-campus-updates/home-campus-updates.wxml'), 'utf8');
+
+  assert.match(listJs, /markCachedDataMeta/);
+  assert.match(listWxml, /item\._sourceSummary/);
+  assert.match(detailJs, /_freshnessReason/);
+  assert.match(detailWxml, /detail\._freshnessText/);
+  assert.match(homeWxml, /item\._sourceSummary/);
 });
