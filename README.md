@@ -126,7 +126,13 @@ RECRUITMENT_FEATURE_ENABLED=false
 
 ## 数据库变更
 
-当前数据库结构仍主要由 `db/database.js` 启动时创建和补字段。后续新增复杂结构前先参考 `docs/DATABASE_MIGRATION_PLAN.md`，避免在业务路由中继续分散创建表。
+数据库已建立 `schema_migrations` 和 `db/migrations/*.sql` 基线。查询状态必须显式指定数据库，且只读不写：
+
+```bash
+npm run migrate:db -- --db="D:\path\to\jobapp.db" --status
+```
+
+apply 必须同时提供已验证备份和确认口令；生产 apply 还需要 Human 上线审批。隔离的备份、迁移、失败事务和恢复演练使用 `npm run rehearse:db-migrations`。完整规则见 `docs/DATABASE_MIGRATION_PLAN.md`。现有启动期 DDL 暂时作为兼容兜底，新增表、字段和索引必须先写 migration，禁止继续在业务路由中增加建表逻辑。
 
 ## 提交规则
 
