@@ -13,10 +13,18 @@ router.get('/tasks', (req, res) => {
   res.json({ code: 0, data: rows.map(agents.view) });
 });
 router.post('/tasks', async (req, res) => { try {
+  const applicationId = Number(req.body.applicationId) || null;
+  agents.validateTaskRequest(req.user.userId, req.body.agentType, applicationId);
   membership.consumeQuota(req.user.userId, 'ai_daily', 1, 'day');
-  const row = await agents.createTask(req.user.userId, req.body.agentType, Number(req.body.applicationId) || null, req.body.input || {}, req.body.timeoutMs);
-  analytics.track(req.user.userId, 'ai_agent_started', { taskId: row.id, agentType: row.agent_type }, '/api/v4/agents/tasks');
-  res.status(201).json({ code: 0, data: agents.view(row) });
+  const row = await agents.createTask(req.user.userId, req.body.agentType, applicationId, req.body.input || {}, req.body.timeoutMs);
+  const task = agents.view(row);
+  analytics.track(req.user.userId, 'ai_agent_started', {
+    taskId: row.id,
+    agentType: row.agent_type,
+    status: row.status,
+    generation: task.output && task.output.generation || null
+  }, '/api/v4/agents/tasks');
+  res.status(201).json({ code: 0, data: task });
 } catch (err) { sendError(res, err); } });
 router.post('/tasks/:id/retry', async (req, res) => {
   const row = db.prepare("SELECT * FROM ai_agent_tasks_v4 WHERE id=? AND user_id=? AND status='failed'").get(Number(req.params.id), req.user.userId);

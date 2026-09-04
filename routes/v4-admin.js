@@ -104,6 +104,34 @@ router.get('/operations/dashboard', adminAuth, (req, res) => {
   const retained = count(`SELECT COUNT(DISTINCT u.id) AS count FROM users u JOIN analytics_events e ON e.user_id=u.id
     WHERE ${analyticsScope(req, 'e')} AND date(u.created_at)=date('now','-7 day') AND date(e.created_at)>=date(u.created_at,'+6 day')`);
   const events = db.prepare(`SELECT event_name AS eventName,COUNT(*) AS count FROM analytics_events WHERE ${scope} AND created_at>=datetime('now','-7 day') GROUP BY event_name ORDER BY count DESC LIMIT 20`).all();
+  const aiQualityRow = db.prepare(`
+    SELECT COUNT(*) AS calls,
+      SUM(CASE WHEN json_extract(payload,'$.generation.source')='live' THEN 1 ELSE 0 END) AS liveCalls,
+      SUM(CASE WHEN COALESCE(json_extract(payload,'$.generation.degraded'),0)=1 THEN 1 ELSE 0 END) AS degradedCalls,
+      ROUND(AVG(CASE WHEN json_extract(payload,'$.generation.elapsedMs') IS NOT NULL THEN json_extract(payload,'$.generation.elapsedMs') END)) AS avgElapsedMs,
+      SUM(COALESCE(json_extract(payload,'$.generation.usage.inputTokens'),0)) AS inputTokens,
+      SUM(COALESCE(json_extract(payload,'$.generation.usage.outputTokens'),0)) AS outputTokens,
+      SUM(CASE WHEN json_extract(payload,'$.generation.estimatedCostUsd') IS NOT NULL THEN 1 ELSE 0 END) AS pricedCalls,
+      ROUND(SUM(COALESCE(json_extract(payload,'$.generation.estimatedCostUsd'),0)),8) AS estimatedCostUsd
+    FROM analytics_events
+    WHERE ${scope} AND source='server' AND created_at>=datetime('now','-7 day')
+      AND event_name IN ('ai_agent_started','resume_optimize_started','application_material_generated','interview_answer_scored')
+      AND json_extract(payload,'$.generation.source') IN ('live','fallback')
+  `).get() || {};
+  const aiQuality7d = {
+    calls: Number(aiQualityRow.calls || 0),
+    liveCalls: Number(aiQualityRow.liveCalls || 0),
+    liveSuccessRate: Number(aiQualityRow.calls || 0)
+      ? Math.round(Number(aiQualityRow.liveCalls || 0) * 1000 / Number(aiQualityRow.calls)) / 10 : 0,
+    degradedCalls: Number(aiQualityRow.degradedCalls || 0),
+    degradationRate: Number(aiQualityRow.calls || 0)
+      ? Math.round(Number(aiQualityRow.degradedCalls || 0) * 1000 / Number(aiQualityRow.calls)) / 10 : 0,
+    avgElapsedMs: Number(aiQualityRow.avgElapsedMs || 0),
+    inputTokens: Number(aiQualityRow.inputTokens || 0),
+    outputTokens: Number(aiQualityRow.outputTokens || 0),
+    pricedCalls: Number(aiQualityRow.pricedCalls || 0),
+    estimatedCostUsd: Number(aiQualityRow.pricedCalls || 0) ? Number(aiQualityRow.estimatedCostUsd || 0) : null
+  };
   const dataClasses = db.prepare("SELECT COALESCE(data_class,'production') AS dataClass,COUNT(*) AS count FROM analytics_events WHERE created_at>=datetime('now','-30 day') GROUP BY COALESCE(data_class,'production') ORDER BY count DESC").all();
   const missingRefs = count(`SELECT COUNT(*) AS count FROM analytics_events WHERE ${scope} AND source='server' AND event_name IN (${FUNNEL_STAGES.map(() => '?').join(',')}) AND created_at>=datetime('now','-30 day') AND COALESCE(json_array_length(json_extract(payload,'$.missingRefs')),0)>0`, ...FUNNEL_STAGES.map(item => item.eventName));
   const slow = db.prepare("SELECT route,method,COUNT(*) AS count,ROUND(AVG(duration_ms)) AS avgMs,MAX(duration_ms) AS maxMs FROM api_performance_v4 WHERE slow=1 AND created_at>=datetime('now','-24 hour') GROUP BY route,method ORDER BY avgMs DESC LIMIT 20").all();
@@ -116,7 +144,7 @@ router.get('/operations/dashboard', adminAuth, (req, res) => {
   };
   return ok(res, { analyticsDataClass: selectedAnalyticsClass(req), activeUsers7d: active7d,
     retention7d: { cohort, retained, rate: cohort ? Math.round(retained * 1000 / cohort) / 10 : 0 },
-    funnel, analyticsQuality: { dataClasses, missingRefs },
+    funnel, analyticsQuality: { dataClasses, missingRefs }, aiQuality7d,
     aiUsageRate: active7d ? Math.round(aiUsers * 1000 / active7d) / 10 : 0, topEvents: events, slowQueries: slow, errors, membership });
 });
 

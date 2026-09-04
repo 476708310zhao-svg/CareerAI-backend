@@ -1,8 +1,8 @@
 # V4 AI 生产运行时说明
 
-> 更新时间：2026-07-16
+> 更新时间：2026-09-04
 >
-> 状态：代码接入完成，生产供应商密钥验收待执行
+> 状态：匿名样本、故障注入与安全门禁完成，真实供应商 staging 验收待执行
 
 ## 1. 覆盖范围
 
@@ -60,7 +60,8 @@ V4_AI_RETRY_DELAY_MS=200
 - AI_CONFIG_MISSING：功能开关已开启，但供应商未配置；
 - AI_TIMEOUT：模型请求超时；
 - AI_NETWORK_ERROR：DNS、连接重置或网络不可达；
-- AI_UPSTREAM_ERROR：供应商限流或服务端错误；
+- AI_RATE_LIMITED：供应商 HTTP 429 限流；
+- AI_UPSTREAM_ERROR：供应商 5xx 或其他服务端错误；
 - AI_SCHEMA_INVALID：返回内容不是有效 JSON 或未通过业务校验；
 - AI_REQUEST_REJECTED：供应商拒绝请求且不适合自动重试。
 
@@ -69,6 +70,7 @@ V4_AI_RETRY_DELAY_MS=200
 - Agent 任务记录为 failed，保留降级内容，可由用户重试；
 - 申请材料、简历建议和面试评分直接返回安全规则结果；
 - generation 字段会标记 source、degraded、model、attempts、fallbackReason 和 errorCode。
+- generation 同时记录 elapsedMs、Token usage、可选成本估算和上游状态码；这些安全元数据进入 Analytics，不记录提示词正文。
 
 ## 5. 发布验收清单
 
@@ -76,14 +78,19 @@ V4_AI_RETRY_DELAY_MS=200
 - [x] JSON 成功响应解析
 - [x] 超时重试后安全降级
 - [x] 非法 JSON 自动降级
-- [x] 后端完整回归 73/73
+- [x] 匿名合成样本覆盖四 Agent、五类文案、简历和面试
+- [x] 超时、429、5xx、断网、非法 JSON、配置缺失和 kill switch 故障注入
+- [x] 输入/输出递归脱敏、虚构执行拦截、写入确认和额度语义回归
+- [x] `npm run check:ai-quality` 并入发布检查
 - [ ] 测试环境配置真实供应商 Key
 - [ ] 分别验证四个 Agent 的真实回答
 - [ ] 验证四种申请材料的事实一致性
 - [ ] 验证简历建议的原文引用与数字拦截
 - [ ] 验证面试评分稳定性和中文反馈质量
-- [ ] 执行供应商超时、429、5xx 和网络中断演练
+- [x] 使用无外部请求的故障注入执行超时、429、5xx 和网络中断演练
 - [ ] 观察调用耗时、错误率与额度消耗后再开启灰度
+
+详细样本、阈值和回滚口径见 `docs/AI_QUALITY_GATE.md`。
 
 ## 6. 回滚方式
 

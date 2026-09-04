@@ -49,6 +49,10 @@ router.post('/sessions/:id/answers', async (req, res) => { try {
     (session_id,user_id,question_type,question,answer,feedback,content_score,structure_score,expression_score,job_match_score)
     VALUES (?,?,?,?,?,?,?,?,?,?)`).run(session.id, req.user.userId, String(req.body.questionType || 'role').slice(0, 30), question, answer, score.feedback, score.content, score.structure, score.expression, score.jobMatch);
   db.prepare('UPDATE interview_sessions_v4 SET ai_model=? WHERE id=?').run(score.generation.model, session.id);
+  analytics.track(req.user.userId, 'interview_answer_scored', withCoreRefs(
+    { sessionId: session.id, generation: score.generation },
+    interview.sessionView(session).refs
+  ), '/api/v4/interviews/sessions/:id/answers');
   res.status(201).json({ code: 0, data: { id: result.lastInsertRowid, ...score, refs: interview.sessionView(session).refs } });
 } catch (err) { error(res, err); }
 });

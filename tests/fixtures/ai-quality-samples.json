@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "description": "Sprint 2.4 synthetic and anonymized AI quality samples",
+  "samples": [
+    {
+      "id": "agent-job-advisor-01",
+      "provenance": "synthetic_anonymized",
+      "capability": "agent",
+      "subtype": "job_advisor",
+      "input": { "targetRole": "Backend Engineer", "company": "Example Technology", "question": "Should I apply?" },
+      "verifiedFacts": ["Built a course project API", "Uses JavaScript and SQL"]
+    },
+    {
+      "id": "agent-application-assistant-01",
+      "provenance": "synthetic_anonymized",
+      "capability": "agent",
+      "subtype": "application_assistant",
+      "input": { "targetRole": "Data Analyst", "company": "Sample Analytics", "question": "Prepare a draft only" },
+      "verifiedFacts": ["Completed a dashboard project", "Uses Python and SQL"]
+    },
+    {
+      "id": "agent-interview-coach-01",
+      "provenance": "synthetic_anonymized",
+      "capability": "agent",
+      "subtype": "interview_coach",
+      "input": { "targetRole": "Product Analyst", "company": "Demo Products", "question": "Help structure an interview answer" },
+      "verifiedFacts": ["Led a student research project"]
+    },
+    {
+      "id": "agent-career-planner-01",
+      "provenance": "synthetic_anonymized",
+      "capability": "agent",
+      "subtype": "career_planner",
+      "input": { "targetRole": "Software Engineer", "question": "Create a weekly plan" },
+      "verifiedFacts": ["Can study on weekday evenings"]
+    },
+    {
+      "id": "material-cover-letter-01",
+      "provenance": "synthetic_anonymized",
+      "capability": "application_material",
+      "subtype": "cover_letter",
+      "input": { "company": "Example Technology", "role": "Backend Engineer" },
+      "verifiedFacts": ["Built a course project API"]
+    },
+    {
+      "id": "material-why-company-01",
+      "provenance": "synthetic_anonymized",
+      "capability": "application_material",
+      "subtype": "why_company",
+      "input": { "company": "Sample Analytics", "role": "Data Analyst" },
+      "verifiedFacts": ["Completed a dashboard project"]
+    },
+    {
+      "id": "material-why-role-01",
+      "provenance": "synthetic_anonymized",
+      "capability": "application_material",
+      "subtype": "why_role",
+      "input": { "company": "Demo Products", "role": "Product Analyst" },
+      "verifiedFacts": ["Led a student research project"]
+    },
+    {
+      "id": "material-recruiter-message-01",
+      "provenance": "synthetic_anonymized",
+      "capability": "application_material",
+      "subtype": "recruiter_message",
+      "input": { "company": "Example Systems", "role": "Software Engineer" },
+      "verifiedFacts": ["Uses JavaScript and SQL"]
+    },
+    {
+      "id": "material-follow-up-01",
+      "provenance": "synthetic_anonymized",
+      "capability": "application_material",
+      "subtype": "follow_up_email",
+      "input": { "company": "Example Systems", "role": "Software Engineer" },
+      "verifiedFacts": ["Application status is submitted"]
+    },
+    {
+      "id": "resume-optimization-01",
+      "provenance": "synthetic_anonymized",
+      "capability": "resume_optimization",
+      "subtype": "evidence_rewrite",
+      "input": { "before": "Built an API for a course project", "targetRole": "Backend Engineer" },
+      "verifiedFacts": ["Built an API for a course project"]
+    },
+    {
+      "id": "interview-scoring-01",
+      "provenance": "synthetic_anonymized",
+      "capability": "interview_scoring",
+      "subtype": "behavioral",
+      "input": { "question": "Describe a difficult project", "answer": "I clarified the task, tested alternatives, and documented the result." },
+      "verifiedFacts": ["Only the supplied answer may be evaluated"]
+    }
+  ]
+}

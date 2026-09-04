@@ -206,7 +206,9 @@ router.post('/drafts', async (req, res) => { try {
   if (!consumeDailyLimit(req, res, 'application_assistant')) return;
   const application = applicationView(applicationRow);
   const generated = await generateAiContent(type, application, owned && owned.version, body.jdText || application.jdText);
-  const promptSnapshot = [LABELS[type], application.company, application.jobTitle, center.cleanText(body.jdText || application.jdText, 6000)].join('\n');
+  const promptSnapshot = aiRuntime.redactSensitive(
+    [LABELS[type], application.company, application.jobTitle, center.cleanText(body.jdText || application.jdText, 6000)].join('\n')
+  );
   const result = db.prepare(`
     INSERT INTO ai_application_material_drafts
       (user_id, application_id, resume_id, resume_version_id, material_type, content, ai_model, prompt_version, prompt_snapshot)
@@ -215,7 +217,7 @@ router.post('/drafts', async (req, res) => { try {
     typeof generated.value === 'string' ? generated.value : JSON.stringify(generated.value), generated.model, MATERIAL_PROMPT_VERSION, promptSnapshot);
   const data = draftView(db.prepare('SELECT * FROM ai_application_material_drafts WHERE id=?').get(result.lastInsertRowid));
   analytics.track(req.user.userId, 'application_material_generated', withCoreRefs(
-    { applicationId: application.id, materialType: type },
+    { applicationId: application.id, materialType: type, generation: aiRuntime.safeMetadata(generated) },
     application.refs,
     { resumeId: owned.resume.id, resumeVersionId: owned.version.id }
   ), '/api/v4/materials/drafts');

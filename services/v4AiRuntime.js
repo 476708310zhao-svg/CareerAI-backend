@@ -1,7 +1,7 @@
 const { createChatCompletion, getAiConfig } = require('../utils/aiClient');
 
 const TRUE_VALUES = new Set(['1', 'true', 'yes', 'on']);
-const RETRYABLE_CODES = new Set(['AI_TIMEOUT', 'AI_NETWORK_ERROR', 'AI_UPSTREAM_ERROR', 'AI_SCHEMA_INVALID']);
+const RETRYABLE_CODES = new Set(['AI_TIMEOUT', 'AI_NETWORK_ERROR', 'AI_RATE_LIMITED', 'AI_UPSTREAM_ERROR', 'AI_SCHEMA_INVALID']);
 
 function boolValue(value, fallback = false) {
   if (value === undefined || value === null || value === '') return fallback;
@@ -17,9 +17,48 @@ function clampNumber(value, fallback, min, max) {
 function redactSensitive(value) {
   return String(value === undefined || value === null ? '' : value)
     .replace(/\b1[3-9]\d{9}\b/g, '[手机号已脱敏]')
+    .replace(/\+\d{1,3}[ -]?(?:\(?\d{1,4}\)?[ -]?){2,4}\d{2,4}\b/g, '[电话已脱敏]')
+    .replace(/\b\d{3}[ -]\d{3}[ -]\d{4}\b/g, '[电话已脱敏]')
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig, '[邮箱已脱敏]')
     .replace(/\b\d{15,18}[0-9X]\b/ig, '[证件号已脱敏]')
     .replace(/\b(?:\d[ -]*?){13,19}\b/g, '[银行卡已脱敏]');
+}
+
+function redactSensitiveDeep(value) {
+  if (typeof value === 'string') return redactSensitive(value);
+  if (Array.isArray(value)) return value.map(redactSensitiveDeep);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, redactSensitiveDeep(item)]));
+  }
+  return value;
+}
+
+function normalizeUsage(response) {
+  const usage = response && response.data && response.data.usage;
+  if (!usage || typeof usage !== 'object') {
+    return { inputTokens: null, outputTokens: null, totalTokens: null };
+  }
+  const number = value => Number.isFinite(Number(value)) ? Math.max(0, Math.round(Number(value))) : null;
+  const inputTokens = number(usage.prompt_tokens ?? usage.input_tokens);
+  const outputTokens = number(usage.completion_tokens ?? usage.output_tokens);
+  const reportedTotal = number(usage.total_tokens);
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens: reportedTotal === null && inputTokens !== null && outputTokens !== null
+      ? inputTokens + outputTokens : reportedTotal
+  };
+}
+
+function estimateCostUsd(usage, environment) {
+  const inputRateText = String(environment.AI_INPUT_COST_PER_1M_USD ?? '').trim();
+  const outputRateText = String(environment.AI_OUTPUT_COST_PER_1M_USD ?? '').trim();
+  if (!inputRateText || !outputRateText) return null;
+  const inputRate = Number(inputRateText);
+  const outputRate = Number(outputRateText);
+  if (!Number.isFinite(inputRate) || inputRate < 0 || !Number.isFinite(outputRate) || outputRate < 0
+    || usage.inputTokens === null || usage.outputTokens === null) return null;
+  return Math.round(((usage.inputTokens * inputRate + usage.outputTokens * outputRate) / 1000000) * 100000000) / 100000000;
 }
 
 function extractMessage(response) {
@@ -65,11 +104,15 @@ function normalizeError(error) {
   else if (rawCode === 'AI_SCHEMA_INVALID') code = rawCode;
   else if (rawCode === 'ECONNABORTED' || rawCode === 'ETIMEDOUT' || /timeout|超时/i.test(message)) code = 'AI_TIMEOUT';
   else if (['ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'].includes(rawCode)) code = 'AI_NETWORK_ERROR';
+  else if (status === 429) code = 'AI_RATE_LIMITED';
   else if (status && status < 500 && status !== 429) code = 'AI_REQUEST_REJECTED';
   return {
     code,
-    message: code === 'AI_TIMEOUT' ? 'AI 请求超时' : 'AI 服务暂时不可用',
-    retryable: RETRYABLE_CODES.has(code) || status === 429 || status >= 500
+    message: code === 'AI_TIMEOUT' ? 'AI 请求超时'
+      : code === 'AI_RATE_LIMITED' ? 'AI 服务请求过于频繁'
+        : 'AI 服务暂时不可用',
+    retryable: RETRYABLE_CODES.has(code) || status >= 500,
+    upstreamStatus: status >= 100 && status <= 599 ? status : null
   };
 }
 
@@ -80,8 +123,12 @@ function safeMetadata(result) {
     provider: result.provider,
     model: result.model,
     attempts: result.attempts,
+    elapsedMs: result.elapsedMs,
+    usage: result.usage,
+    estimatedCostUsd: result.estimatedCostUsd,
     fallbackReason: result.fallbackReason || '',
-    errorCode: result.error && result.error.code || ''
+    errorCode: result.error && result.error.code || '',
+    upstreamStatus: result.error && result.error.upstreamStatus || null
   };
 }
 
@@ -90,6 +137,7 @@ function createRuntime(dependencies = {}) {
   const configReader = dependencies.getAiConfig || getAiConfig;
   const environment = dependencies.env || process.env;
   const sleep = dependencies.sleep || (milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)));
+  const now = dependencies.now || (() => Date.now());
 
   function getStatus() {
     const config = configReader();
@@ -107,9 +155,10 @@ function createRuntime(dependencies = {}) {
     };
   }
 
-  async function fallbackResult(options, status, reason, attempts, error) {
+  async function fallbackResult(options, status, reason, attempts, error, startedAt, usage) {
     const fallback = typeof options.fallback === 'function' ? options.fallback : () => options.fallback;
-    const value = await Promise.resolve(fallback());
+    const value = redactSensitiveDeep(await Promise.resolve(fallback()));
+    const normalizedUsage = usage || { inputTokens: null, outputTokens: null, totalTokens: null };
     return {
       value,
       source: 'fallback',
@@ -117,26 +166,32 @@ function createRuntime(dependencies = {}) {
       provider: status.provider,
       model: 'fallback-rules',
       attempts,
+      elapsedMs: Math.max(0, now() - startedAt),
+      usage: normalizedUsage,
+      estimatedCostUsd: estimateCostUsd(normalizedUsage, environment),
       fallbackReason: reason,
       error: error || null
     };
   }
 
   async function generate(options = {}) {
+    const startedAt = now();
     const status = getStatus();
-    if (!status.requested) return fallbackResult(options, status, 'feature_disabled', 0, null);
+    if (!status.requested) return fallbackResult(options, status, 'feature_disabled', 0, null, startedAt);
     if (!status.configured) {
       return fallbackResult(options, status, 'provider_not_configured', 0, {
         code: 'AI_CONFIG_MISSING',
         message: 'AI 服务尚未配置',
-        retryable: false
-      });
+        retryable: false,
+        upstreamStatus: null
+      }, startedAt);
     }
 
     const timeoutMs = clampNumber(options.timeoutMs || environment.V4_AI_TIMEOUT_MS, 20000, 1000, 120000);
     const retries = clampNumber(options.retries === undefined ? environment.V4_AI_MAX_RETRIES : options.retries, 1, 0, 3);
     const retryDelayMs = clampNumber(options.retryDelayMs === undefined ? environment.V4_AI_RETRY_DELAY_MS : options.retryDelayMs, 200, 0, 5000);
     let lastError = null;
+    let lastUsage = null;
 
     for (let attempt = 1; attempt <= retries + 1; attempt += 1) {
       try {
@@ -152,7 +207,8 @@ function createRuntime(dependencies = {}) {
           timeout: timeoutMs,
           model: status.model
         });
-        const raw = extractMessage(response);
+        lastUsage = normalizeUsage(response);
+        const raw = redactSensitive(extractMessage(response));
         const value = options.format === 'text' ? raw : parseJsonContent(raw);
         if (typeof options.validate === 'function' && !options.validate(value)) {
           const validationError = new Error('AI 返回未通过业务校验');
@@ -160,12 +216,15 @@ function createRuntime(dependencies = {}) {
           throw validationError;
         }
         return {
-          value,
+          value: redactSensitiveDeep(value),
           source: 'live',
           degraded: false,
           provider: status.provider,
           model: status.model,
           attempts: attempt,
+          elapsedMs: Math.max(0, now() - startedAt),
+          usage: lastUsage,
+          estimatedCostUsd: estimateCostUsd(lastUsage, environment),
           fallbackReason: '',
           error: null
         };
@@ -175,10 +234,10 @@ function createRuntime(dependencies = {}) {
           if (retryDelayMs) await sleep(retryDelayMs * attempt);
           continue;
         }
-        return fallbackResult(options, status, lastError.code.toLowerCase(), attempt, lastError);
+        return fallbackResult(options, status, lastError.code.toLowerCase(), attempt, lastError, startedAt, lastUsage);
       }
     }
-    return fallbackResult(options, status, 'ai_upstream_error', retries + 1, lastError);
+    return fallbackResult(options, status, 'ai_upstream_error', retries + 1, lastError, startedAt, lastUsage);
   }
 
   return { generate, getStatus };
@@ -190,6 +249,8 @@ module.exports = {
   ...runtime,
   createRuntime,
   redactSensitive,
+  redactSensitiveDeep,
+  normalizeUsage,
   parseJsonContent,
   normalizeError,
   safeMetadata

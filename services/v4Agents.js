@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const db = require('../db/database');
 const aiRuntime = require('./v4AiRuntime');
+const { containsFabricatedExecutionClaim } = require('../utils/aiSafety');
 
 const AGENTS = {
   job_advisor: { name: 'AI 岗位顾问', promptVersion: 'job-advisor-v4.0-1' },
@@ -11,11 +12,7 @@ const AGENTS = {
 
 function parseJson(value, fallback) { try { return JSON.parse(value); } catch (e) { return fallback; } }
 function redact(value) {
-  return String(value || '')
-    .replace(/\b1[3-9]\d{9}\b/g, '[手机号已脱敏]')
-    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig, '[邮箱已脱敏]')
-    .replace(/\b\d{15,18}[0-9X]\b/ig, '[证件号已脱敏]')
-    .replace(/\b(?:\d[ -]*?){13,19}\b/g, '[银行卡已脱敏]');
+  return aiRuntime.redactSensitive(value);
 }
 
 function context(userId, applicationId) {
@@ -48,6 +45,13 @@ function normalizeOutput(value, input) {
   };
 }
 
+function validateTaskRequest(userId, agentType, applicationId) {
+  if (!AGENTS[agentType]) { const error = new Error('Agent 类型无效'); error.status = 400; throw error; }
+  if (applicationId && !db.prepare('SELECT id FROM applications WHERE id=? AND user_id=?').get(applicationId, userId)) {
+    const error = new Error('当前申请不存在'); error.status = 404; throw error;
+  }
+}
+
 async function runTask(userId, taskId) {
   const row = db.prepare('SELECT * FROM ai_agent_tasks_v4 WHERE id=? AND user_id=?').get(taskId, userId);
   if (!row) return null;
@@ -68,7 +72,8 @@ async function runTask(userId, taskId) {
     maxTokens: 1800,
     timeoutMs: Number(row.timeout_ms),
     fallback: () => buildOutput(row.agent_type, input, snapshot),
-    validate: value => !!(value && typeof value.message === 'string' && value.message.trim())
+    validate: value => !!(value && typeof value.message === 'string' && value.message.trim()
+      && !containsFabricatedExecutionClaim(value.message))
   });
   const output = {
     ...normalizeOutput(generated.value, input),
@@ -86,11 +91,9 @@ async function runTask(userId, taskId) {
 }
 
 async function createTask(userId, agentType, applicationId, input, timeoutMs) {
-  if (!AGENTS[agentType]) { const error = new Error('Agent 类型无效'); error.status = 400; throw error; }
-  if (applicationId && !db.prepare('SELECT id FROM applications WHERE id=? AND user_id=?').get(applicationId, userId)) {
-    const error = new Error('当前申请不存在'); error.status = 404; throw error;
-  }
-  const safeInput = { ...input, query: redact(input.query || input.message || '') };
+  validateTaskRequest(userId, agentType, applicationId);
+  const safeInput = aiRuntime.redactSensitiveDeep(input || {});
+  safeInput.query = redact(input.query || input.message || '');
   const writeAction = input.requestWrite ? String(input.writeAction || 'create_today_task').slice(0, 80) : '';
   const token = writeAction ? crypto.randomBytes(24).toString('hex') : '';
   const result = db.prepare(`INSERT INTO ai_agent_tasks_v4
@@ -120,4 +123,4 @@ function confirmWrite(userId, taskId, token) {
   return db.prepare('SELECT * FROM ai_agent_tasks_v4 WHERE id=?').get(row.id);
 }
 
-module.exports = { AGENTS, redact, createTask, runTask, view, confirmWrite };
+module.exports = { AGENTS, redact, validateTaskRequest, createTask, runTask, view, confirmWrite };

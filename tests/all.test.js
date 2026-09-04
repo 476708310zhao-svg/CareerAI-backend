@@ -1,6 +1,7 @@
 require('./envValidation.test');
 require('./aiClient.test');
 require('./v4AiRuntime.test');
+require('./aiQualityGate.test');
 require('./v4ResumeCenter.test');
 require('./coreEntityRefs.test');
 require('./funnelAnalytics.test');

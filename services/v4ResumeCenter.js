@@ -315,7 +315,7 @@ async function createChangeSet({ userId, resumeId, jobId = '', applicationId = n
       (user_id, resume_id, source_version_id, job_id, application_id, suggestions, ai_model, prompt_version, prompt_snapshot)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(userId, resumeId, owned.version.id, cleanText(jobId, 120), applicationId || null,
-    JSON.stringify(checked), model, PROMPT_VERSION, cleanText(jdText, 8000));
+    JSON.stringify(checked), model, PROMPT_VERSION, cleanText(aiRuntime.redactSensitive(jdText), 8000));
   return Object.assign(getChangeSet(userId, result.lastInsertRowid), { generation });
 }
 

@@ -1096,24 +1096,54 @@ test('v4 Today tasks sync local workbench tasks idempotently and preserves serve
 });
 
 test('v4 AI Career agents redact secrets and require confirmation before writes', async () => {
+  const user = db.prepare('SELECT id FROM users WHERE email=?').get(testAccount.email);
+  const quotaUsed = () => Number((db.prepare("SELECT COALESCE(SUM(used),0) AS used FROM quota_usage_v4 WHERE user_id=? AND quota_key='ai_daily'").get(user.id) || {}).used || 0);
+  const quotaBefore = quotaUsed();
+  const invalidRes = await fetch(`${BASE_URL}/api/v4/agents/tasks`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ agentType: 'unknown_agent', input: { query: 'invalid request' } })
+  });
+  assert.equal(invalidRes.status, 400);
+  assert.equal(quotaUsed(), quotaBefore, 'rejected Agent requests must not consume quota');
+
   const createRes = await fetch(`${BASE_URL}/api/v4/agents/tasks`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ agentType: 'interview_coach', applicationId: v4ApplicationId,
-      input: { query: '联系我 13800138000 或 smoke@example.com', requestWrite: true, writeAction: 'create_today_task', taskTitle: '复练行为题' } })
+      input: { query: '联系我 13800138000 或 smoke@example.com', requestWrite: true, writeAction: 'create_today_task',
+        taskTitle: '复练行为题 13800138000', writeValue: '发给 smoke@example.com' } })
   });
   assert.equal(createRes.status, 201);
   const task = await readJson(createRes);
   assert.equal(task.data.status, 'awaiting_confirmation');
   assert.ok(task.data.input.query.includes('[手机号已脱敏]'));
   assert.ok(task.data.input.query.includes('[邮箱已脱敏]'));
+  assert.ok(task.data.input.taskTitle.includes('[手机号已脱敏]'));
+  assert.ok(task.data.input.writeValue.includes('[邮箱已脱敏]'));
+  assert.equal(task.data.output.generation.source, 'fallback');
+  assert.equal(task.data.output.generation.degraded, true);
+  assert.equal(typeof task.data.output.generation.elapsedMs, 'number');
+  assert.equal(quotaUsed(), quotaBefore + 1);
   const before = db.prepare("SELECT COUNT(*) AS count FROM today_tasks_v4 WHERE source_type='ai_agent' AND source_id=?").get(task.data.id).count;
   assert.equal(before, 0);
+  const rejectedConfirmRes = await fetch(`${BASE_URL}/api/v4/agents/tasks/${task.data.id}/confirm`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ confirmationToken: 'invalid-token' })
+  });
+  assert.equal(rejectedConfirmRes.status, 409);
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM today_tasks_v4 WHERE source_type='ai_agent' AND source_id=?").get(task.data.id).count, 0);
   const confirmRes = await fetch(`${BASE_URL}/api/v4/agents/tasks/${task.data.id}/confirm`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ confirmationToken: task.data.confirmationToken })
   });
   assert.equal(confirmRes.status, 200);
   assert.equal(db.prepare("SELECT COUNT(*) AS count FROM today_tasks_v4 WHERE source_type='ai_agent' AND source_id=?").get(task.data.id).count, 1);
+  const savedTask = db.prepare("SELECT title,detail FROM today_tasks_v4 WHERE source_type='ai_agent' AND source_id=?").get(task.data.id);
+  assert.doesNotMatch(`${savedTask.title} ${savedTask.detail}`, /13800138000|smoke@example\.com/i);
+  const duplicateConfirmRes = await fetch(`${BASE_URL}/api/v4/agents/tasks/${task.data.id}/confirm`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ confirmationToken: task.data.confirmationToken })
+  });
+  assert.equal(duplicateConfirmRes.status, 409);
 
   const timeoutRes = await fetch(`${BASE_URL}/api/v4/agents/tasks`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -1122,12 +1152,14 @@ test('v4 AI Career agents redact secrets and require confirmation before writes'
   const timeoutTask = await readJson(timeoutRes);
   assert.equal(timeoutTask.data.status, 'failed');
   assert.equal(timeoutTask.data.error.code, 'AI_TIMEOUT');
+  assert.equal(quotaUsed(), quotaBefore + 2);
   const retryRes = await fetch(`${BASE_URL}/api/v4/agents/tasks/${timeoutTask.data.id}/retry`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ timeoutMs: 20000 })
   });
   assert.equal(retryRes.status, 200);
   const retried = await readJson(retryRes);
   assert.equal(retried.data.status, 'completed');
+  assert.equal(quotaUsed(), quotaBefore + 2, 'retrying an existing Agent task must not consume quota again');
 });
 
 test('v4 membership exposes configurable entitlements while real payment remains gated', async () => {
@@ -1150,6 +1182,8 @@ test('v4 operations dashboard and staged rollout are admin-protected', async () 
   const dashboard = await readJson(dashboardRes);
   assert.ok(Array.isArray(dashboard.data.funnel));
   assert.equal(typeof dashboard.data.aiUsageRate, 'number');
+  assert.equal(typeof dashboard.data.aiQuality7d.calls, 'number');
+  assert.equal(typeof dashboard.data.aiQuality7d.degradationRate, 'number');
   const rolloutRes = await fetch(`${BASE_URL}/admin/api/v4/rollout/v4`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json', ...adminHeaders() }, body: JSON.stringify({ percentage: 5 })
   });
@@ -1164,6 +1198,17 @@ test('v4 operations dashboard and staged rollout are admin-protected', async () 
 });
 
 test('v4 resume center keeps immutable versions and confirms AI suggestions explicitly', async () => {
+  const quotaUser = db.prepare('SELECT id FROM users WHERE email=?').get(testAccount.email);
+  const resumeQuotaUsed = () => Number((db.prepare("SELECT COALESCE(SUM(count),0) AS used FROM ai_usage WHERE user_id=? AND feature='resume_optimize'").get(quotaUser.id) || {}).used || 0);
+  const resumeQuotaBefore = resumeQuotaUsed();
+  const invalidResumeRes = await fetch(`${BASE_URL}/api/v4/resumes/999999999/ai-change-sets`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ jdText: 'Synthetic job description' })
+  });
+  assert.equal(invalidResumeRes.status, 404);
+  assert.equal(resumeQuotaUsed(), resumeQuotaBefore, 'invalid resume requests must not consume quota');
+
   const experienceRes = await fetch(`${BASE_URL}/api/v4/resumes/experiences`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -1211,7 +1256,7 @@ test('v4 resume center keeps immutable versions and confirms AI suggestions expl
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({
       applicationId: v4ApplicationId,
-      jdText: 'Seeking Node.js and distributed systems experience',
+      jdText: 'Seeking Node.js and distributed systems experience. Contact qa@example.com or +1 415-555-1234.',
       suggestions: [{
         id: 'clarify_metric', path: 'summary', before: 'Built pipeline improving latency by 20%',
         after: 'Improved pipeline latency by 20%', reason: '突出已有量化结果', addsFacts: false
@@ -1221,6 +1266,9 @@ test('v4 resume center keeps immutable versions and confirms AI suggestions expl
   assert.equal(proposalRes.status, 201);
   const proposal = await readJson(proposalRes);
   assert.equal(proposal.data.status, 'pending');
+  const resumePromptSnapshot = db.prepare('SELECT prompt_snapshot AS value FROM resume_ai_change_sets WHERE id=?').get(proposal.data.id).value;
+  assert.doesNotMatch(resumePromptSnapshot, /qa@example\.com|415-555-1234/i);
+  assert.match(resumePromptSnapshot, /\[邮箱已脱敏\]|\[电话已脱敏\]/);
 
   const untouchedRes = await fetch(`${BASE_URL}/api/v4/resumes/${resumeId}/versions`, { headers: authHeaders() });
   const untouched = await readJson(untouchedRes);
@@ -1318,6 +1366,10 @@ test('canonical job funnel is complete and smoke analytics stay outside producti
   assert.equal(testRes.status, 200);
   assert.equal(testDashboard.data.analyticsDataClass, 'test');
   assert.equal(testDashboard.data.analyticsQuality.missingRefs, 0);
+  assert.ok(testDashboard.data.aiQuality7d.calls >= 2);
+  assert.ok(testDashboard.data.aiQuality7d.degradedCalls >= 2);
+  assert.equal(testDashboard.data.aiQuality7d.liveSuccessRate, 0);
+  assert.equal(testDashboard.data.aiQuality7d.estimatedCostUsd, null);
   for (const eventName of canonicalEvents) {
     assert.ok(testDashboard.data.funnel.find(item => item.event === eventName && item.users >= 1));
   }
@@ -1334,11 +1386,17 @@ test('v4 application assistant saves only confirmed drafts and enforces free quo
   const draftRes = await fetch(`${BASE_URL}/api/v4/materials/drafts`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ applicationId: v4ApplicationId, resumeId: resume.id, materialType: 'cover_letter' })
+    body: JSON.stringify({ applicationId: v4ApplicationId, resumeId: resume.id, materialType: 'cover_letter',
+      jdText: 'Synthetic role details. Contact hiring@example.com or +1 212-555-0100.' })
   });
   assert.equal(draftRes.status, 201);
   const draft = await readJson(draftRes);
   assert.equal(draft.data.status, 'pending');
+  assert.equal(draft.data.generation.source, 'fallback');
+  assert.equal(typeof draft.data.generation.elapsedMs, 'number');
+  const materialPromptSnapshot = db.prepare('SELECT prompt_snapshot AS value FROM ai_application_material_drafts WHERE id=?').get(draft.data.id).value;
+  assert.doesNotMatch(materialPromptSnapshot, /hiring@example\.com|212-555-0100/i);
+  const materialQuotaAfterDraft = Number((db.prepare("SELECT count FROM ai_usage WHERE user_id=? AND feature='application_assistant' AND usage_date=date('now')").get(user.id) || {}).count || 0);
   const before = db.prepare('SELECT COUNT(*) AS count FROM application_materials WHERE ai_draft_id=?').get(draft.data.id).count;
   assert.equal(before, 0, 'unconfirmed material must not be saved');
 
@@ -1360,6 +1418,8 @@ test('v4 application assistant saves only confirmed drafts and enforces free quo
   assert.equal(tailoredRes.status, 400);
   const tailored = await readJson(tailoredRes);
   assert.equal(tailored.message, '材料类型无效');
+  assert.equal(Number((db.prepare("SELECT count FROM ai_usage WHERE user_id=? AND feature='application_assistant' AND usage_date=date('now')").get(user.id) || {}).count || 0), materialQuotaAfterDraft,
+    'rejected material requests must not consume quota');
 
   db.prepare(`INSERT INTO ai_usage (user_id, feature, usage_date, count, updated_at)
     VALUES (?, 'application_assistant', date('now'), 3, datetime('now'))
