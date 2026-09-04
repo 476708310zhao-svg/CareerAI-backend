@@ -262,6 +262,37 @@
 
 ---
 
+## 2026-09-04｜Sprint 2.3：求职漏斗与数据隔离基线
+
+### 本次完成
+
+- 将求职主链路统一为 `job_viewed`、`job_matched`、`resume_optimized`、`application_added`、`application_submitted`、`interview_reached`、`offer_received` 七个 canonical 事件。
+- 职位详情、普通/高级匹配、简历 AI 修改确认、V4 与兼容申请链路均由服务端写入可信漏斗事件；客户端埋点只保留行为辅助分析。
+- Analytics 增加 `data_class`、`is_test`、`event_version` 兼容字段，按 production/demo/test/system 分类；运营看板默认只统计 production，可显式切换分类。
+- 所有漏斗事件携带紧凑 `refs`、`missingRefs` 和事件版本；后台同时显示独立用户漏斗、原始事件数与缺失引用数量。
+- 官网按钮点击继续记为 `official_apply_clicked`，不冒充投递完成；模拟面试训练事件不冒充真实进入面试；面试子状态只在首次进入真实面试阶段时计一次漏斗事件。
+
+### 技术决策
+
+- 漏斗可信来源固定为 `source=server`；看板按独立用户统计，避免重复详情加载放大转化人数。
+- 自动化测试显式配置 `ANALYTICS_DATA_CLASS=test`，演示 fallback 标记为 demo，默认运营口径不包含非生产事件。
+- 本批只做 Analytics 表兼容式加列，不删除或改写历史业务数据；正式 migration baseline 留在 Sprint 2.5。
+- 当前转化率是 30 天窗口内相邻阶段独立用户数之比，不是严格同 cohort 归因；严格 cohort 与渠道归因留待真实业务数据校验。
+
+### 验证
+
+- 漏斗工具专项测试 4/4 通过。
+- 完整 smoke 67/67 通过，覆盖七阶段、事件版本、核心引用、面试阶段去重、测试分类和运营看板默认隔离。
+- `npm run check:release` 156/156 通过，小程序媒体 191.2 KB，数据检查 Errors 0/Warnings 4。
+- JavaScript 语法及 `git diff --check` 通过；未运行真实微信 E2E。
+
+### 下一步
+
+- Sprint 2.4 建立 AI 匿名化异常样本集与安全质量门禁。
+- 生产发布后再以只读方式对真实漏斗、留存和 AI 使用率抽样对账；当前不推送、不部署。
+
+---
+
 ## 后续追加模板
 
 ## YYYY-MM-DD

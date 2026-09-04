@@ -11,6 +11,9 @@ const { formatApp } = require('../db/formatters');
 const { ja } = require('../db/utils');
 const { findJobById, findJobsByIds, toApplicationJob } = require('../utils/jobData');
 const { applicationFeedbackData } = require('../utils/wechatTemplates');
+const analytics = require('../services/v4Analytics');
+const { applicationRefs, withCoreRefs } = require('../utils/coreEntityRefs');
+const { eventForApplicationStatus } = require('../utils/funnelAnalytics');
 
 const PROGRESS_STATUSES = new Set([
   'collected', 'applied', 'online_apply', 'oa', 'first_interview',
@@ -94,6 +97,27 @@ function progressRow(row) {
     createdAt: row.applied_at || row.created_at || '',
     updatedAt: row.updated_at || ''
   };
+}
+
+function trackProgressFunnel(userId, row, options = {}) {
+  if (!row) return;
+  const refs = applicationRefs(row);
+  const afterStatus = normalizeProgressStatus(row.progress_status || row.status);
+  const beforeStatus = normalizeProgressStatus(options.beforeStatus || 'collected');
+  const afterEvent = eventForApplicationStatus(afterStatus);
+  const beforeEvent = eventForApplicationStatus(beforeStatus);
+  if (options.created) {
+    analytics.trackFunnel(userId, 'application_added', withCoreRefs(
+      { applicationId: row.id, jobId: refs.jobId, sourceType: row.source_type || 'manual' },
+      refs
+    ), options.route || '/api/applications/progress');
+  }
+  if (afterEvent && (options.created || afterEvent !== beforeEvent)) {
+    analytics.trackFunnel(userId, afterEvent, withCoreRefs(
+      { applicationId: row.id, from: beforeStatus, to: afterStatus },
+      refs
+    ), options.route || '/api/applications/progress');
+  }
 }
 
 function findProgressRecord(userId, body = {}) {
@@ -229,6 +253,7 @@ router.post('/progress', authMiddleware, (req, res) => {
     }
 
     if (existing) {
+      const beforeStatus = normalizeProgressStatus(existing.progress_status || existing.status);
       db.prepare(`
         UPDATE applications SET
           client_id=@clientId,
@@ -256,6 +281,7 @@ router.post('/progress', authMiddleware, (req, res) => {
         WHERE id=@id AND user_id=@userId
       `).run(Object.assign({ id: existing.id, userId: req.user.userId }, payload));
       const row = db.prepare('SELECT * FROM applications WHERE id=?').get(existing.id);
+      trackProgressFunnel(req.user.userId, row, { beforeStatus, route: '/api/applications/progress' });
       return res.json({ code: 0, data: progressRow(row), message: '已更新' });
     }
 
@@ -272,6 +298,7 @@ router.post('/progress', authMiddleware, (req, res) => {
          @progressStatus, @reminderEnabled, @reminderLeadDays, datetime('now'))
     `).run(Object.assign({ userId: req.user.userId }, payload));
     const row = db.prepare('SELECT * FROM applications WHERE id=?').get(result.lastInsertRowid);
+    trackProgressFunnel(req.user.userId, row, { created: true, route: '/api/applications/progress' });
     res.json({ code: 0, data: progressRow(row), message: '已保存' });
   } catch (error) {
     console.error(error);
@@ -285,6 +312,7 @@ router.put('/progress/:id', authMiddleware, (req, res) => {
     const existing = findProgressRecord(req.user.userId, Object.assign({}, req.body || {}, { id: req.params.id }));
     if (!existing) return res.status(404).json({ code: -1, message: '进度记录不存在' });
     const payload = progressPayload(Object.assign({}, req.body || {}, { id: req.params.id }), existing);
+    const beforeStatus = normalizeProgressStatus(existing.progress_status || existing.status);
     db.prepare(`
       UPDATE applications SET
         client_id=@clientId,
@@ -312,6 +340,7 @@ router.put('/progress/:id', authMiddleware, (req, res) => {
       WHERE id=@id AND user_id=@userId
     `).run(Object.assign({ id: existing.id, userId: req.user.userId }, payload));
     const row = db.prepare('SELECT * FROM applications WHERE id=?').get(existing.id);
+    trackProgressFunnel(req.user.userId, row, { beforeStatus, route: '/api/applications/progress/:id' });
     res.json({ code: 0, data: progressRow(row), message: '已更新' });
   } catch (error) {
     console.error(error);
@@ -355,6 +384,7 @@ router.post('/', authMiddleware, (req, res) => {
     `).run(req.user.userId, String(jobId), JSON.stringify(jobSnapshot || {}), resumeId || null);
 
     const newApp = db.prepare('SELECT * FROM applications WHERE id = ?').get(result.lastInsertRowid);
+    trackProgressFunnel(req.user.userId, newApp, { created: true, route: '/api/applications' });
 
     // 保存到看板不等于已完成官方投递，避免给用户造成误解。
     const snap = jobSnapshot || {};

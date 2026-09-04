@@ -240,7 +240,20 @@ router.post('/ai-change-sets/:changeSetId/confirm', (req, res) => {
   try {
     const data = center.confirmChangeSet({ userId: req.user.userId, changeSetId: Number(req.params.changeSetId),
       decisions: req.body && req.body.decisions || {}, manualContent: req.body && req.body.manualContent });
-    analytics.track(req.user.userId, 'resume_suggestions_accepted', { changeSetId: Number(req.params.changeSetId), decisions: req.body && req.body.decisions || {} }, '/api/v4/resumes/ai-change-sets/:id/confirm');
+    analytics.trackFunnel(req.user.userId, 'resume_optimized', withCoreRefs(
+      {
+        changeSetId: Number(req.params.changeSetId),
+        decisions: req.body && req.body.decisions || {},
+        acceptedCount: Object.values(data.changeSet.decisions || {}).filter(value => value === 'accept').length
+      },
+      {
+        userId: req.user.userId,
+        jobId: data.changeSet.jobId,
+        applicationId: data.changeSet.applicationId,
+        resumeId: data.changeSet.resumeId,
+        resumeVersionId: data.version.id
+      }
+    ), '/api/v4/resumes/ai-change-sets/:id/confirm');
     res.status(201).json({ code: 0, data, message: '已保存为新版本，原版本未被覆盖' });
   } catch (error) { fail(res, error); }
 });

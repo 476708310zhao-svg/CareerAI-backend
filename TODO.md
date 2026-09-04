@@ -45,7 +45,7 @@
 
 - [x] Sprint 2.1 核心实体 `refs`、canonical Job ID 与状态契约
 - [x] Sprint 2.2 职位/校招来源、新鲜度、过期和失败降级
-- [ ] Sprint 2.3 求职漏斗埋点校验与测试数据隔离
+- [x] Sprint 2.3 求职漏斗埋点校验与测试数据隔离
 - [ ] Sprint 2.4 AI 匿名化异常样本集与安全质量门禁
 - [ ] Sprint 2.5 数据库 migration baseline、备份与恢复演练
 

@@ -10,12 +10,13 @@
 
 ## 当前批次
 
-Sprint 2“数据闭环与质量基线”已完成 2.1 与 2.2。核心实体已统一 `refs` 关联契约；职位和校招已统一 `dataMeta` 来源、新鲜度、过期及失败降级口径，正式职位接口恢复为主源，飞书仅作客户端兜底，本地历史职位不再复制或伪造当前发布时间。下一批进入 Sprint 2.3 求职漏斗埋点校验与测试数据隔离。真实 E2E 不作为默认测试；未推送、未部署。
+Sprint 2“数据闭环与质量基线”已完成 2.1～2.3。核心实体已统一 `refs`，职位和校招已统一 `dataMeta`，求职漏斗已统一为七个服务端可信事件并按 production/demo/test/system 隔离。下一批进入 Sprint 2.4 AI 匿名化异常样本集与安全质量门禁。真实 E2E 不作为默认测试；未推送、未部署。
 
 ## 已完成
 
 | 日期 | 事项 | 文件 | 验证 |
 |---|---|---|---|
+| 2026-09-04 | Sprint 2.3：建立岗位查看、匹配、简历确认、加入看板、确认投递、进入面试、收到 Offer 七阶段漏斗；区分官网点击与真实投递、模拟训练与真实面试；统一服务端可信事件、版本化 `refs`/缺失引用质量标记，并默认从运营看板排除 demo/test/system | `utils/funnelAnalytics.js`、Analytics/职位/申请/简历路由与服务、运营看板、小程序埋点、`.env.example`、`docs/FUNNEL_ANALYTICS_CONTRACT.md`、专项与 smoke 测试 | `check:release` 156/156 通过、媒体 191.2 KB、Errors 0/Warnings 4；专项 4/4、smoke 67/67；未运行真实 E2E，未推送、未部署 |
 | 2026-09-04 | Sprint 2.2：统一职位/校招 `dataMeta` 来源与新鲜度契约，修正正式职位主源优先级、历史职位伪造时间与分页复制，补齐校招短日期解析、明确截止过期、缓存/失败降级标记和小程序紧凑展示 | `utils/dataProvenance.js`、职位/校招路由与格式化器、小程序职位/校招适配和卡片、`docs/JOB_CAMPUS_DATA_PROVENANCE_CONTRACT.md`、专项与 smoke 测试 | `check:release` 151/151 通过、Errors 0/Warnings 4；未运行真实 E2E，未推送、未部署 |
 | 2026-09-03 | Sprint 2 第一批：建立核心实体 `refs` 契约，统一官方岗位 ID 优先级、数值主键输出与申请 V4 状态；接通申请、简历、材料、面试、Today 和关键埋点引用 | `utils/coreEntityRefs.js`、`utils/applicationStatus.js`、V4 相关路由/服务、`docs/CORE_ENTITY_REFERENCE_CONTRACT.md`、专项与集成测试 | 143/143 tests 通过；`git diff --check` 通过；未运行真实 E2E，未改数据库结构，未推送、未部署 |
 | 2026-09-03 | Sprint 1 仓库侧收口：将校招、申请文案、管理员限流、分享封面、审核 UI、测试和部署基线拆成可审查提交；统一 Node 20、4400、版本目录/current 软链接、共享数据、备份、PM2/Nginx 与手动生产发布；移除 n8n 默认密码和日志回显 | Git 提交 `35b8956` 至 `a9b92a6`、部署/安全文档 | `check:release` 137/137、媒体 191.2 KB、Errors 0/Warnings 4；完整 smoke 65/65、Shell/JS/JSON/YAML 静态校验和密钥扫描通过；未运行真实 E2E，未推送、未部署 |
@@ -105,6 +106,7 @@ Sprint 2“数据闭环与质量基线”已完成 2.1 与 2.2。核心实体已
 
 | 负责人 | 文件 | 任务 | 状态 |
 |---|---|---|---|
+| Codex | `utils/funnelAnalytics.js`、Analytics/职位/简历/申请/面试路由与服务、运营漏斗、小程序埋点、相关测试/文档 | Sprint 2.3：统一求职漏斗事件与 `refs`，隔离 production/demo/test/system 数据 | 已完成；兼容式 Analytics 加列，不运行真实 E2E |
 | Codex | `utils/dataProvenance.js`、职位/校招路由与格式化器、小程序职位/校招适配与相关测试/文档 | Sprint 2.2：统一数据来源、更新时间、过期与失败降级口径，停止伪造本地职位新鲜度 | 已完成；发布检查通过，未运行真实 E2E，未推送、未部署 |
 | Codex | `utils/coreEntityRefs.js`、`utils/applicationStatus.js`、V4 核心数据路由/服务、相关测试和 Sprint 2 文档 | Sprint 2 第一批：统一核心对象关联 ID 与申请状态输出，修复岗位 ID 双轨造成的跨模块错链 | 已完成；默认不运行真实 E2E |
 | Codex | `scripts/run-campus-sync.sh`、`scripts/merge-campus-env.js`、`.env.example`、校招同步脚本与测试 | 将新校招表持续同步至职引官网生产共享数据库，隔离营销飞书配置并修复定时任务 Node/数据库路径 | 已完成；生产写入 11,467 条，131/131 tests、公网 API 和真实官网页面显示 8 月 10 日最新记录 |

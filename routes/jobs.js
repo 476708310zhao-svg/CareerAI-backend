@@ -5,6 +5,9 @@ const { readJobsData } = require('../utils/jobData');
 const { jobsLimiter } = require('../middleware/rateLimit');
 const { parseId } = require('../db/utils');
 const { buildDataMeta, summarizeDataMeta } = require('../utils/dataProvenance');
+const { optionalAuth } = require('../middleware/auth');
+const analytics = require('../services/v4Analytics');
+const { withCoreRefs } = require('../utils/coreEntityRefs');
 
 function localJobs() {
   return readJobsData().jobs || [];
@@ -240,6 +243,14 @@ function _withRawJobMeta(job, source, options = {}) {
 
 function _collectionMeta(items, options = {}) {
   return summarizeDataMeta(items, options);
+}
+
+function _trackJobView(req, jobId) {
+  if (!req.user || !req.user.userId || !jobId) return;
+  analytics.trackFunnel(req.user.userId, 'job_viewed', withCoreRefs(
+    { jobId: String(jobId), surface: 'legacy_job_detail' },
+    { userId: req.user.userId, jobId: String(jobId) }
+  ), '/api/jobs/detail');
 }
 const MAP_KEYWORDS = ['software', 'data', 'product', 'finance', 'design', 'consulting'];
 const MAP_MUSE_PAGES = [1, 2];
@@ -1113,7 +1124,7 @@ function _localSearch(req, res) {
 // GET /api/jobs/detail
 // 优先级：JSearch → 本地数据
 // ════════════════════════════════════════════════════════════════════════════════
-router.get('/detail', jobsLimiter, async (req, res) => {
+router.get('/detail', optionalAuth, jobsLimiter, async (req, res) => {
   if (!req.query.job_id) {
     return res.status(400).json({ error: 'job_id 不能为空' });
   }
@@ -1125,6 +1136,7 @@ router.get('/detail', jobsLimiter, async (req, res) => {
         job_description: job.description || '', job_city: job.location || '',
         job_apply_link: job.applyUrl || '', job_posted_at_datetime_utc: job.postedAt || '', _local: true
       }, 'local_fallback', { isFallback: true, fallbackReason: '未配置实时职位源' })];
+      _trackJobView(req, req.query.job_id);
       return res.json({ data, status: 'OK', _source: 'local_fallback', dataMeta: _collectionMeta(data, { degraded: true, fallbackReason: '未配置实时职位源' }) });
     }
     return res.status(404).json({ error: '职位不存在', data: [] });
@@ -1135,6 +1147,7 @@ router.get('/detail', jobsLimiter, async (req, res) => {
     });
     const payload = result.data || {};
     const data = (Array.isArray(payload.data) ? payload.data : []).map(job => _withRawJobMeta(job, 'jsearch'));
+    if (data.length) _trackJobView(req, req.query.job_id);
     res.json({ ...payload, data, _source: 'jsearch', dataMeta: _collectionMeta(data) });
   } catch (err) {
     const status = err.response?.status || 500;
@@ -1146,6 +1159,7 @@ router.get('/detail', jobsLimiter, async (req, res) => {
         job_description: job.description || '', job_city: job.location || '',
         job_apply_link: job.applyUrl || '', job_posted_at_datetime_utc: job.postedAt || '', _local: true
       }, 'local_fallback', { isFallback: true, fallbackReason: 'JSearch 详情加载失败' })];
+      _trackJobView(req, req.query.job_id);
       return res.json({ data, status: 'OK', _source: 'local_fallback', dataMeta: _collectionMeta(data, { degraded: true, fallbackReason: 'JSearch 详情加载失败' }) });
     }
     res.status(404).json({ error: '职位不存在', data: [] });

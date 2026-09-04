@@ -10,6 +10,7 @@ const {
   STATUS_TEXT, TRANSITIONS, V4_TO_PROGRESS,
   toV4Status, broadStatus, boardGroup, allowedStatusViews
 } = require('../../utils/applicationStatus');
+const { eventForApplicationStatus } = require('../../utils/funnelAnalytics');
 
 const router = express.Router();
 
@@ -97,7 +98,7 @@ router.post('/', authMiddleware, (req, res) => {
     VALUES (?, ?, '', ?, '加入申请看板', 'user')
   `).run(result.lastInsertRowid, req.user.userId, status);
   db.prepare('UPDATE applications SET v4_status=? WHERE id=?').run(status, result.lastInsertRowid);
-  analytics.track(req.user.userId, 'application_added', withCoreRefs(
+  analytics.trackFunnel(req.user.userId, 'application_added', withCoreRefs(
     { applicationId: result.lastInsertRowid, jobId },
     applicationRefs(ownedApplication(result.lastInsertRowid, req.user.userId))
   ), '/api/v4/applications');
@@ -239,6 +240,13 @@ router.patch('/:id/status', authMiddleware, (req, res) => {
     { applicationId: row.id, from: currentStatus, to: nextStatus },
     refs
   ), '/api/v4/applications/:id/status');
+  const funnelEvent = eventForApplicationStatus(nextStatus);
+  if (funnelEvent && funnelEvent !== eventForApplicationStatus(currentStatus)) {
+    analytics.trackFunnel(req.user.userId, funnelEvent, withCoreRefs(
+      { applicationId: row.id, from: currentStatus, to: nextStatus },
+      refs
+    ), '/api/v4/applications/:id/status');
+  }
   return ok(res, { id: row.id, status: nextStatus, statusText: STATUS_TEXT[nextStatus], previousStatus: currentStatus,
     interviewSpaceId: refs.interviewSpaceId, refs }, '申请状态已更新');
 });

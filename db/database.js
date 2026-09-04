@@ -401,6 +401,9 @@ db.exec(`
     source     TEXT    DEFAULT '',
     scene      TEXT    DEFAULT '',
     payload    TEXT    DEFAULT '{}',
+    data_class TEXT    DEFAULT 'production',
+    is_test    INTEGER DEFAULT 0,
+    event_version INTEGER DEFAULT 1,
     created_at TEXT    DEFAULT (datetime('now'))
   );
 
@@ -446,6 +449,20 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_admin_accounts_username ON admin_accounts(username);
   CREATE INDEX IF NOT EXISTS idx_share_configs_route ON share_configs(route);
   CREATE INDEX IF NOT EXISTS idx_feature_flags_feature ON feature_flags(feature);
+`);
+
+// Analytics 分类字段为兼容式加列；旧记录保留为 production，Sprint 2.5 再纳入正式 migration baseline。
+const analyticsColumns = db.pragma('table_info(analytics_events)').map(column => column.name);
+[
+  ['data_class', 'TEXT DEFAULT "production"'],
+  ['is_test', 'INTEGER DEFAULT 0'],
+  ['event_version', 'INTEGER DEFAULT 1']
+].forEach(([name, ddl]) => {
+  if (!analyticsColumns.includes(name)) db.exec(`ALTER TABLE analytics_events ADD COLUMN ${name} ${ddl}`);
+});
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_analytics_events_class_name_time
+  ON analytics_events(data_class, event_name, created_at)
 `);
 
 // 兼容旧库：为 campus_schedules 补齐后续迭代新增字段

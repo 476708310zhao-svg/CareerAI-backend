@@ -46,6 +46,7 @@ function startServer() {
     NEWS_RSS_ENABLED: 'false',
     NEWS_JOB_API_ENABLED: 'false',
     V4_AI_LIVE_ENABLED: 'false',
+    ANALYTICS_DATA_CLASS: 'test',
     RECRUITMENT_FEATURE_ENABLED: 'true',
     MEMBERSHIP_FEATURE_ENABLED: 'false'
   });
@@ -1256,6 +1257,75 @@ test('v4 resume center keeps immutable versions and confirms AI suggestions expl
   assert.equal(fabricatedRes.status, 422);
   const fabricated = await readJson(fabricatedRes);
   assert.equal(fabricated.code, 'UNVERIFIED_FACT');
+});
+
+test('canonical job funnel is complete and smoke analytics stay outside production', async () => {
+  for (const status of ['interview_2', 'final', 'offer']) {
+    const statusRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ status, note: `funnel smoke to ${status}` })
+    });
+    assert.equal(statusRes.status, 200);
+  }
+
+  const columns = db.pragma('table_info(analytics_events)').map(column => column.name);
+  for (const column of ['data_class', 'is_test', 'event_version']) assert.ok(columns.includes(column));
+
+  const user = db.prepare('SELECT id FROM users WHERE email=?').get(testAccount.email);
+  const canonicalEvents = [
+    'job_viewed',
+    'job_matched',
+    'resume_optimized',
+    'application_added',
+    'application_submitted',
+    'interview_reached',
+    'offer_received'
+  ];
+  const rows = db.prepare(`
+    SELECT event_name AS eventName, payload, data_class AS dataClass,
+           is_test AS isTest, event_version AS eventVersion, source
+    FROM analytics_events
+    WHERE user_id=? AND event_name IN (${canonicalEvents.map(() => '?').join(',')})
+    ORDER BY id ASC
+  `).all(user.id, ...canonicalEvents);
+
+  for (const eventName of canonicalEvents) {
+    const row = rows.find(item => item.eventName === eventName);
+    assert.ok(row, `missing canonical event: ${eventName}`);
+    assert.equal(row.source, 'server');
+    assert.equal(row.dataClass, 'test');
+    assert.equal(row.isTest, 1);
+    assert.equal(row.eventVersion, 1);
+    const payload = JSON.parse(row.payload);
+    assert.equal(payload.eventVersion, 1);
+    assert.equal(payload.funnelStage, eventName);
+    assert.ok(payload.refs.userId);
+    assert.deepEqual(payload.missingRefs, []);
+  }
+
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM analytics_events WHERE user_id=? AND data_class='production'").get(user.id).count, 0);
+  assert.equal(rows.filter(item => item.eventName === 'interview_reached').length, 1, 'interview sub-statuses must not duplicate the funnel stage');
+
+  await ensureAdminToken();
+  const productionRes = await fetch(`${BASE_URL}/admin/api/v4/operations/dashboard`, { headers: adminHeaders() });
+  const production = await readJson(productionRes);
+  assert.equal(productionRes.status, 200);
+  assert.equal(production.data.analyticsDataClass, 'production');
+
+  const testRes = await fetch(`${BASE_URL}/admin/api/v4/operations/dashboard?dataClass=test`, { headers: adminHeaders() });
+  const testDashboard = await readJson(testRes);
+  assert.equal(testRes.status, 200);
+  assert.equal(testDashboard.data.analyticsDataClass, 'test');
+  assert.equal(testDashboard.data.analyticsQuality.missingRefs, 0);
+  for (const eventName of canonicalEvents) {
+    assert.ok(testDashboard.data.funnel.find(item => item.event === eventName && item.users >= 1));
+  }
+
+  const invalidRes = await fetch(`${BASE_URL}/admin/api/v4/operations/dashboard?dataClass=unexpected`, { headers: adminHeaders() });
+  const invalid = await readJson(invalidRes);
+  assert.equal(invalidRes.status, 200);
+  assert.equal(invalid.data.analyticsDataClass, 'production');
 });
 
 test('v4 application assistant saves only confirmed drafts and enforces free quota', async () => {

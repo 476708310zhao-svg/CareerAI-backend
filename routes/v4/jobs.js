@@ -153,7 +153,7 @@ router.get('/:id/detail', authMiddleware, (req, res) => {
     SELECT *
     FROM applications WHERE user_id=? AND (job_id=? OR source_job_id=?) ORDER BY id DESC LIMIT 1
   `).get(req.user.userId, String(job.id), String(job.id));
-  analytics.track(req.user.userId, 'job_viewed', withCoreRefs(
+  analytics.trackFunnel(req.user.userId, 'job_viewed', withCoreRefs(
     { jobId: String(job.id) },
     { userId: req.user.userId, jobId: String(job.id) },
     applicationRefs(application || {})
@@ -186,7 +186,7 @@ router.post('/:id/match', authMiddleware, (req, res) => {
   try {
     const sponsor = getSponsorProfile(job);
     const match = persistJobMatch(req.user.userId, job, profile, sponsor);
-    analytics.track(req.user.userId, 'job_matched', withCoreRefs(
+    analytics.trackFunnel(req.user.userId, 'job_matched', withCoreRefs(
       { jobId: String(job.id), score: match.score },
       { userId: req.user.userId, jobId: String(job.id) }
     ), '/api/v4/jobs/:id/match');
@@ -203,6 +203,10 @@ router.post('/:id/match/advanced', authMiddleware, (req, res) => {
   const job = findJobById(req.params.id); if (!job) return fail(res, '职位不存在', 404);
   const profile = getProfile(req.user.userId); if (!profile || profile.completion < 40) return fail(res, '请先完善求职画像', 422);
   const match = persistJobMatch(req.user.userId, job, profile, getSponsorProfile(job));
+  analytics.trackFunnel(req.user.userId, 'job_matched', withCoreRefs(
+    { jobId: String(job.id), score: match.score, matchType: 'advanced' },
+    { userId: req.user.userId, jobId: String(job.id) }
+  ), '/api/v4/jobs/:id/match/advanced');
   analytics.track(req.user.userId, 'advanced_job_matched', withCoreRefs(
     { jobId: String(job.id), score: match.score },
     { userId: req.user.userId, jobId: String(job.id) }

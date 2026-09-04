@@ -1,4 +1,5 @@
 const apiClient = require('./api-client.js');
+const config = require('./app-config.js');
 
 const QUEUE_KEY = 'analyticsEventQueue';
 const DISABLED_UNTIL_KEY = 'analyticsDisabledUntil';
@@ -51,6 +52,36 @@ function cleanPayload(payload) {
     }
   });
   return out;
+}
+
+function analyticsDataClass(payload) {
+  if (config.ENABLE_DEMO_FALLBACK === true) return 'demo';
+  const value = payload || {};
+  const ids = [value.jobId, value.sourceJobId, value.applicationId, value.clientId, value.reportId, value.taskId]
+    .map(item => String(item || ''));
+  if (ids.some(id => /(?:^|[_:-])(test|smoke|fixture)(?:[_:-]|$)/i.test(id))) return 'test';
+  if (ids.some(id => /(?:^|[_:-])(mock|demo|default)(?:[_:-]|$)/i.test(id))) return 'demo';
+  return 'production';
+}
+
+function coreRefs(payload) {
+  const value = payload || {};
+  const refs = Object.assign({}, value.refs || {});
+  const mappings = {
+    jobId: value.sourceJobId || value.jobId,
+    applicationId: value.applicationId || value.id,
+    resumeId: value.resumeId,
+    resumeVersionId: value.resumeVersionId,
+    interviewSpaceId: value.interviewSpaceId || value.spaceId,
+    interviewSessionId: value.interviewSessionId || value.sessionId,
+    interviewReportId: value.interviewReportId || value.reportId,
+    todayTaskId: value.todayTaskId || value.taskId
+  };
+  Object.keys(mappings).forEach(key => {
+    const candidate = mappings[key];
+    if (candidate !== undefined && candidate !== null && String(candidate).trim()) refs[key] = candidate;
+  });
+  return refs;
 }
 
 function enqueue(event) {
@@ -123,12 +154,15 @@ function flush() {
 
 function track(eventName, payload) {
   if (isDisabled()) return Promise.resolve(true);
+  const clean = cleanPayload(payload);
+  clean.refs = coreRefs(clean);
   const event = {
     eventName: String(eventName || '').trim(),
     route: currentRoute(),
     source: launchOptions.query && (launchOptions.query.source || launchOptions.query.channel) || '',
     scene: launchOptions.scene ? String(launchOptions.scene) : '',
-    payload: cleanPayload(payload)
+    dataClass: analyticsDataClass(clean),
+    payload: clean
   };
   if (!event.eventName) return Promise.resolve(false);
   return send(event).then(ok => {
