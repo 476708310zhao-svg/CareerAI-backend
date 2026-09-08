@@ -17,6 +17,7 @@ const RESOURCE_SECTIONS = [
     accent: 'violet',
     items: [
       { id: 'coach', title: '竞争力陪跑', desc: '七维诊断、Today 与周复盘', icon: '诊', tone: 'violet', url: '/package-career/pages/career-coach/career-coach' },
+      { id: 'networking', title: 'Networking Copilot', desc: '联系人、话术、跟进与 Referral', icon: '联', tone: 'teal', url: '/package-career/pages/networking/networking' },
       { id: 'planner', title: 'AI 求职规划', desc: '生成 3 / 6 / 12 个月行动路线', icon: '规', tone: 'indigo', url: '/package-career/pages/career-planner/career-planner' },
       { id: 'resume', title: '简历中心', desc: '诊断简历并优化表达', icon: '简', tone: 'blue', url: '/package-career/pages/resume/resume' },
       { id: 'offer', title: 'Offer 对比', desc: '比较现金、股票与成长性', icon: '比', tone: 'orange', url: '/package-career/pages/offer-compare/offer-compare' }

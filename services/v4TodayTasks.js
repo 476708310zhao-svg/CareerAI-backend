@@ -72,6 +72,19 @@ function taskRefs(row) {
   } else if (row.source_type === 'application' && row.source_id) {
     application = db.prepare('SELECT * FROM applications WHERE id=? AND user_id=?').get(row.source_id, row.user_id);
     related = { applicationId: row.source_id };
+  } else if (row.source_type === 'networking_contact' && row.source_id) {
+    const contact = db.prepare('SELECT application_id, resume_id, resume_version_id, job_id FROM networking_contacts_v4 WHERE id=? AND user_id=?')
+      .get(row.source_id, row.user_id);
+    application = contact && contact.application_id
+      ? db.prepare('SELECT * FROM applications WHERE id=? AND user_id=?').get(contact.application_id, row.user_id)
+      : null;
+    related = {
+      applicationId: contact && contact.application_id,
+      resumeId: contact && contact.resume_id,
+      resumeVersionId: contact && contact.resume_version_id,
+      jobId: contact && contact.job_id,
+      networkingContactId: row.source_id
+    };
   }
 
   return mergeCoreRefs(applicationRefs(application || {}), base, related);
@@ -162,11 +175,17 @@ function syncLocal(userId, tasks) {
 }
 
 function updateStatus(userId, id, completed) {
+  const current = db.prepare('SELECT * FROM today_tasks_v4 WHERE id=? AND user_id=?').get(Number(id), userId);
+  if (!current) return null;
   const result = db.prepare(`UPDATE today_tasks_v4
     SET status=?, completed_at=CASE WHEN ? THEN datetime('now') ELSE '' END, updated_at=datetime('now')
     WHERE id=? AND user_id=?`)
     .run(completed ? 'completed' : 'pending', completed ? 1 : 0, Number(id), userId);
   if (!result.changes) return null;
+  if (current.source_type === 'networking_contact' && current.source_id) {
+    db.prepare("UPDATE networking_contacts_v4 SET next_follow_up_at=?, updated_at=datetime('now') WHERE id=? AND user_id=?")
+      .run(completed ? '' : current.task_date || '', current.source_id, userId);
+  }
   return view(db.prepare('SELECT * FROM today_tasks_v4 WHERE id=? AND user_id=?').get(Number(id), userId));
 }
 

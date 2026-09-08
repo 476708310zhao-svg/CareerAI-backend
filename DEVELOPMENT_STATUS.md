@@ -10,12 +10,13 @@
 
 ## 当前批次
 
-Sprint 4“竞争力诊断与 AI 陪跑”已完成。系统已形成教育、经历、技能、项目、简历、面试、Networking 七维证据评分，低分项可转 Today；3/6/12 月计划与周报告使用真实申请漏斗动态调整，每日生成 3～5 个可完成、延期和跨设备同步的任务。下一批进入 Sprint 5“Networking Copilot MVP”。真实供应商 staging 抽样、生产 migration 与上线仍待 Human 审批；未运行真实 E2E，未推送、未部署。
+Sprint 5“Networking Copilot MVP”已完成。系统已支持联系人 CRM、五类可编辑话术草稿、跟进 Today 提醒、“已联系→已回复→Coffee Chat→Referral”真实漏斗，并把 Referral 结果关联到岗位、简历版本和正式申请。下一批进入 Sprint 6“OA、项目补强与岗位可信度”。真实供应商 staging 抽样、生产 migration 与上线仍待 Human 审批；未运行真实 E2E，未推送、未部署。
 
 ## 已完成
 
 | 日期 | 事项 | 文件 | 验证 |
 |---|---|---|---|
+| 2026-09-08 | Sprint 5：新增联系人 CRM、Connect Note/Cold Message/Coffee Chat/Follow-up/Referral Request 五类可编辑草稿、用户确认外部发送、跟进 Today 提醒和 Networking 真实漏斗；Referral 成功关联岗位、正式申请、简历及版本 | `services/v4Networking.js`、Networking V4 路由、新增 Networking migration、Today/竞争力关联、小程序 Networking Copilot、`tests/sprint5Networking.test.js`、`docs/V4_SPRINT5_NETWORKING_COPILOT.md` | Sprint 5 专项 5/5、migration 5/5、全量 182/182、`check:release` 通过；AI 故障矩阵 7/7、外部请求 0、媒体 191.2 KB、Errors 0/Warnings 4；未运行真实 E2E |
 | 2026-09-08 | Sprint 4：新增七维 Career Competitiveness Score、证据/差距/行动入口、真实漏斗驱动的 3/6/12 月计划与周报告；每日幂等生成 3～5 个 Today 任务，支持完成、延期、跨设备同步和站内提醒 | `services/v4CareerCoach.js`、Career/Today 路由、新增诊断与周报 migration、小程序竞争力陪跑页、`tests/sprint4CareerCoach.test.js`、`docs/V4_SPRINT4_CAREER_COACH.md` | Sprint 4 专项 5/5、migration 5/5、全量 176/176、`check:release` 通过；AI 故障矩阵 7/7、外部请求 0、媒体 191.2 KB、Errors 0/Warnings 4；未运行真实 E2E |
 | 2026-09-04 | Sprint 3：完成可行动岗位梯次与投递决策、Sponsor/身份限制说明；接通岗位 JD 到真实简历版本的逐条确认和不可变新版本；新增公司×岗位×轮次 Interview Brief、弱项专项复练及 Today/申请进度回写 | Job Match、V4 简历中心、面试服务，小程序岗位详情/简历中心/面试空间，`tests/sprint3AiLoops.test.js`、`docs/V4_SPRINT3_HIGH_VALUE_AI_LOOPS.md` | Sprint 3 专项 5/5、全量 170/170、`check:release` 通过；AI 质量矩阵 7/7、外部请求 0、媒体 191.2 KB、Errors 0/Warnings 4；未运行真实 E2E |
 | 2026-09-04 | Sprint 2.5：建立 `schema_migrations`、顺序 SQL migration、SHA-256 漂移检测、baseline 结构前置检查与显式目标/备份/确认保护；在隔离副本验证备份、迁移、幂等、故障事务、恢复和回滚 | `db/migrate.js`、`db/backup.js`、`db/migrations/0001_current_schema_baseline.sql`、迁移/演练脚本、专项测试、`docs/DATABASE_MIGRATION_PLAN.md` | migration 专项 5/5、全量 165/165；隔离演练 8 项检查通过，11,182,080-byte 备份恢复 SHA-256 一致，生产写入 0；未运行真实 E2E |
@@ -110,6 +111,7 @@ Sprint 4“竞争力诊断与 AI 陪跑”已完成。系统已形成教育、�
 
 | 负责人 | 文件 | 任务 | 状态 |
 |---|---|---|---|
+| Codex | Networking V4 数据表/服务/路由、Today 关联、小程序 Networking 页面、专项测试和文档 | Sprint 5：联系人 CRM、五类可编辑草稿、跟进提醒、Referral 漏斗及岗位/简历/申请关联 | 已完成；182/182 tests 与发布检查通过，只生成/保存/复制草稿，不自动外发，不调用真实 AI，不运行真实 E2E，不推送、不部署 |
 | Codex | 竞争力诊断/动态计划/周复盘服务与路由、Today 任务、小程序陪跑页面、专项测试和文档 | Sprint 4：七维竞争力评分、证据化差距、每日 3～5 项关键任务、漏斗驱动动态计划与周复盘 | 已完成；176/176 tests 与发布检查通过，不调用真实 AI，不运行真实 E2E，不推送、不部署 |
 | Codex | Job Match、V4 简历中心/材料、面试空间/报告、Today 回写、小程序对应页面、专项测试与文档 | Sprint 3：可行动岗位分层、JD 定制简历确认式新版本、Interview Brief 与弱项复练闭环 | 已完成；170/170 tests 与发布检查通过，不调用真实 AI，不运行真实 E2E |
 | Codex | `db/migrate.js`、`db/migrations/`、数据库迁移/备份演练脚本、相关测试与文档 | Sprint 2.5：建立 schema migration baseline，在隔离数据库验证备份、迁移、幂等、失败事务、恢复与回滚 | 已完成自动化与隔离演练；生产 baseline 登记待 Human，不运行真实 E2E |

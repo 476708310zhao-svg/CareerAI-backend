@@ -73,6 +73,14 @@ function createCareerDiagnosticTasks(dimensions) { return write('POST', '/api/v4
 function getDynamicCareerPlan() { return get('/api/v4/career/plan'); }
 function getCareerWeeklyReport() { return get('/api/v4/career/weekly-report'); }
 function generateCareerTodayTasks() { return write('POST', '/api/v4/career/today/generate'); }
+function getNetworkingDashboard() { return get('/api/v4/networking/dashboard'); }
+function createNetworkingContact(payload) { return write('POST', '/api/v4/networking/contacts', payload); }
+function updateNetworkingContact(id, payload) { return write('PATCH', '/api/v4/networking/contacts/' + encodeURIComponent(id), payload); }
+function updateNetworkingStage(id, payload) { return write('POST', '/api/v4/networking/contacts/' + encodeURIComponent(id) + '/stage', payload); }
+function createNetworkingDraft(id, payload) { return write('POST', '/api/v4/networking/contacts/' + encodeURIComponent(id) + '/drafts', payload); }
+function updateNetworkingDraft(id, payload) { return write('PATCH', '/api/v4/networking/drafts/' + encodeURIComponent(id), payload); }
+function markNetworkingDraftSent(id, payload) { return write('POST', '/api/v4/networking/drafts/' + encodeURIComponent(id) + '/mark-sent', payload); }
+function recordNetworkingReferral(id, payload) { return write('POST', '/api/v4/networking/contacts/' + encodeURIComponent(id) + '/referral', payload); }
 function getAgents() { return get('/api/v4/agents'); }
 function getAgentTasks() { return get('/api/v4/agents/tasks'); }
 function createAgentTask(payload) { return write('POST', '/api/v4/agents/tasks', payload); }
@@ -141,6 +149,14 @@ module.exports = {
   getDynamicCareerPlan,
   getCareerWeeklyReport,
   generateCareerTodayTasks,
+  getNetworkingDashboard,
+  createNetworkingContact,
+  updateNetworkingContact,
+  updateNetworkingStage,
+  createNetworkingDraft,
+  updateNetworkingDraft,
+  markNetworkingDraftSent,
+  recordNetworkingReferral,
   getAgents,
   getAgentTasks,
   createAgentTask,

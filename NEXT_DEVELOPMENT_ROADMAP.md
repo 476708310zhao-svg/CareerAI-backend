@@ -27,7 +27,7 @@
 | 投递管理与复盘 | 已有申请 CRM、七阶段漏斗、Today 任务和证据化周复盘 | 以真实匿名数据校准瓶颈阈值与提醒节奏 |
 | AI 面试 | 已有公司×岗位×轮次 Brief、模拟评分、弱项复练和 Today 回写 | 用真实面试反馈校准题型与复练优先级 |
 | AI Career Agent | 已有四 Agent、工具调用和写入确认 | 生产可用性、可验证结果、跨模块连续任务 |
-| Networking | 已纳入竞争力七维诊断，已有单次 AI 话术生成 | 缺联系人 CRM、跟进提醒、Referral 漏斗 |
+| Networking | 已有联系人 CRM、五类可编辑草稿、Today 跟进、真实漏斗及 Referral 关联闭环 | 用匿名真实样本校准节奏；如接真实 AI 必须先过隐私和无虚构门禁 |
 | 求职竞争力诊断 | 已有七维证据评分、行动入口、动态计划、Today 和周报告 | 用真实匿名样本校准评分阈值与时区/提醒策略 |
 | OA / 笔试 | 已有题库/记录基础 | 缺训练计划、计时练习、错题与能力统计 |
 | Project Builder | 已有 AI 项目生成 | 缺证据导向交付物、进度、作品集与简历回写 |
@@ -82,11 +82,11 @@
 
 ### Sprint 5｜Networking Copilot MVP（1～2 周，P1）
 
-- [ ] 建联系人、公司、岗位、渠道、状态、最近联系和下次跟进的数据模型。
-- [ ] 支持 Connect Note、Cold Message、Coffee Chat、Follow-up、Referral Request 五类话术。
-- [ ] 话术读取用户画像和目标岗位，但不虚构共同经历、校友关系或推荐资格。
-- [ ] 建立“已联系→已回复→Coffee Chat→Referral”漏斗与提醒。
-- [ ] 将 Referral 结果连接到岗位、定制简历和正式投递。
+- [x] 建联系人、公司、岗位、渠道、状态、最近联系和下次跟进的数据模型。
+- [x] 支持 Connect Note、Cold Message、Coffee Chat、Follow-up、Referral Request 五类话术。
+- [x] 话术读取用户画像和目标岗位，但不虚构共同经历、校友关系或推荐资格。
+- [x] 建立“已联系→已回复→Coffee Chat→Referral”漏斗与提醒。
+- [x] 将 Referral 结果连接到岗位、定制简历和正式投递。
 
 完成标准：用户可以管理完整联系人周期；AI 内容可编辑后发送；系统不代替用户向外部人员自动发送消息。
 
@@ -143,4 +143,4 @@
 
 ## 六、立即开始的下一项
 
-进入 Sprint 5：先建立联系人、公司、岗位、渠道、状态、最近联系和下次跟进的数据模型，再接通 Connect Note、Cold Message、Coffee Chat、Follow-up、Referral Request 五类可编辑草稿与提醒，最后形成“已联系→已回复→Coffee Chat→Referral”真实漏斗。系统不得代替用户外发，也不得虚构共同经历、校友关系或推荐资格。真实 AI 供应商 staging 抽样、生产 migration、服务器切流/回滚、生产严格预检和 n8n 凭据轮换仍由 Human 完成。
+进入 Sprint 6：先把 OA 训练升级为按公司/岗位/题型的计划、计时练习、错题本和能力统计；再把 Project Builder 改为真实差距驱动的里程碑、数据来源、交付物和验收；最后增加 Job Trust Score，展示官网可验证性、发布时间、新鲜度、重复度、状态变化和风险证据。项目未完成不得写入简历，岗位不确定信息不得包装成结论。真实 AI 供应商 staging 抽样、生产 migration、服务器切流/回滚、生产严格预检和 n8n 凭据轮换仍由 Human 完成。

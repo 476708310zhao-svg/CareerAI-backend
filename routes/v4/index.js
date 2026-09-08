@@ -12,11 +12,12 @@ router.use('/materials', require('./materials'));
 router.use('/interviews', require('./interviews'));
 router.use('/today', require('./today'));
 router.use('/career', require('./career'));
+router.use('/networking', require('./networking'));
 router.use('/agents', require('./agents'));
 router.use('/membership', require('./membership'));
 
 router.get('/health', (_req, res) => {
-  res.json({ code: 0, message: 'V4 API 运行正常', data: { version: '4.0.0', sprint: 4 } });
+  res.json({ code: 0, message: 'V4 API 运行正常', data: { version: '4.0.0', sprint: 5 } });
 });
 
 module.exports = router;

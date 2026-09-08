@@ -4,6 +4,16 @@
 
 ## 2026-09-08
 
+### Sprint 5 Networking Copilot MVP
+
+- 内容：
+  - 新增联系人 CRM、真实阶段历史、联系方式/渠道、最近联系、下次跟进及岗位/申请/简历版本关联。
+  - 支持 Connect Note、Cold Message、Coffee Chat、Follow-up、Referral Request 五类中英文可编辑规则草稿；未确认共同背景不会进入草稿。
+  - 用户二次确认后才记录本人外部发送，系统不执行外发；跟进日期同步到 Today，完成提醒会清除待跟进状态。
+  - 新增无伪成功率 Networking 漏斗；Referral 成功必须关联正式申请和简历。
+- 验证：Sprint 5 专项 5/5、migration 5/5、全量 182/182、`npm run check:release` 通过；AI 质量矩阵 7/7，外部请求 0；未运行真实 E2E。
+- 注意：当前草稿 `source=rules`，没有把联系人或用户资料发送给外部 AI；生产 migration、真实用户灰度和系统级通知仍需 Human 审批。
+
 ### Sprint 4 竞争力诊断与 AI 陪跑
 
 - 内容：

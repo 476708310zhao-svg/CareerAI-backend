@@ -428,6 +428,45 @@
 
 ---
 
+## 2026-09-08｜Sprint 5：Networking Copilot MVP
+
+### 本次完成
+
+- 建立独立联系人 CRM，记录联系人、公司、岗位、渠道、联系方式、关系背景、阶段、最近联系、下次跟进、Referral 结果以及关联申请/简历/版本/岗位。
+- 支持 Connect Note、Cold Message、Coffee Chat、Follow-up、Referral Request 五类中英文、正式/友好草稿；草稿保存后仍可编辑和复制。
+- 未确认的共同背景不会进入草稿；Referral Request 至少在用户记录“已回复”后才能生成，文案明确由联系人自行判断是否推荐。
+- “我已外部发送”需要二次确认，接口只记录用户报告的外部动作并返回 `sentBySystem=false`，不存在自动外发能力。
+- 下次跟进会写入服务端 Today，完成 Today 提醒后同步清除联系人待跟进日期；联系人和草稿可跨设备读取。
+- 建立“已联系→已回复→Coffee Chat→Referral”历史漏斗，样本不足时不计算比例，也不预测回复或 Referral 成功率。
+- Referral 成功前必须关联本人正式申请和简历；结果同时保存 canonical Job ID、简历及版本引用。
+
+### 技术决策
+
+- 新版 Networking 使用独立 V4 表，不改写旧 `application_contacts`，旧申请详情接口和旧 `/api/ai/networking` 保持兼容。
+- 本批草稿由可审计的本地规则基于账户画像和用户确认信息生成，`source=rules`；未向外部 AI 供应商发送联系人或用户资料。
+- 联系人阶段变化写入追加式事件表；漏斗按曾到达的最高真实阶段计算，避免用户修正当前状态时抹掉历史证据。
+- migration 只新增三张表和索引；生产应用仍必须走备份、显式目标、校验和及 Human 审批流程。
+
+### 验证
+
+- Sprint 5 专项测试 5/5，migration 专项 5/5，全量测试 182/182。
+- `npm run check:release` 通过：AI 故障矩阵 7/7、外部请求 0、小程序媒体 191.2 KB、数据检查 Errors 0/Warnings 4。
+- JavaScript/JSON 静态检查和 `git diff --check` 通过。
+- 未运行真实微信 E2E，未调用真实 AI，未操作生产数据库、真实支付、外部联系人、推送或部署。
+
+### 遗留问题
+
+- 当前只提供站内 Today 跟进提醒；微信订阅消息、系统通知和用户时区策略尚未接入。
+- 草稿为规则版 MVP，后续如接入真实 AI 必须沿用 PII 脱敏、用户确认、无虚构关系和供应商灰度门禁。
+- 真实回复率、Coffee Chat 与 Referral 阈值需在取得匿名生产样本后校准。
+
+### 下一步
+
+- 进入 Sprint 6：先做 OA Copilot 的计划/计时/错题/统计，再完成证据导向 Project Builder 与 Job Trust Score。
+- 项目成果只有用户确认真实完成后才能回写简历；岗位可信度必须展示证据与不确定性。
+
+---
+
 ## 后续追加模板
 
 ## YYYY-MM-DD

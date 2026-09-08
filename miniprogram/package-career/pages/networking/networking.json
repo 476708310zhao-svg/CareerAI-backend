@@ -1,4 +1,5 @@
 {
-  "navigationBarTitleText": "Networking 消息生成",
-  "backgroundColor": "#f3f4f6"
+  "navigationBarTitleText": "Networking Copilot",
+  "enablePullDownRefresh": true,
+  "backgroundColor": "#f3f6fb"
 }

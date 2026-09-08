@@ -113,7 +113,10 @@ function collectCareerSnapshot(userId, now = new Date()) {
   const confirmedResumeChanges = db.prepare("SELECT COUNT(*) AS count FROM resume_ai_change_sets WHERE user_id=? AND status='confirmed'").get(userId).count;
   const resumeLinks = db.prepare('SELECT COUNT(*) AS count FROM resume_job_links WHERE user_id=?').get(userId).count;
   const interviewReports = db.prepare('SELECT overall_score, created_at FROM interview_reports_v4 WHERE user_id=? ORDER BY id DESC').all(userId);
-  const contactRows = db.prepare('SELECT application_id FROM application_contacts WHERE user_id=?').all(userId);
+  const legacyContactRows = db.prepare('SELECT application_id FROM application_contacts WHERE user_id=?').all(userId);
+  const networkingContactRows = db.prepare(`SELECT application_id FROM networking_contacts_v4
+    WHERE user_id=? AND COALESCE(archived_at,'')=''`).all(userId);
+  const contactRows = legacyContactRows.concat(networkingContactRows);
   const applications = db.prepare(`SELECT id, v4_status, progress_status, status, company, job_title,
       deadline, interview_time, next_action, applied_at, updated_at
     FROM applications WHERE user_id=? AND COALESCE(archived_at,'')=''`).all(userId)

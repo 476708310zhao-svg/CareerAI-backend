@@ -1384,6 +1384,225 @@ test('v4 resume center keeps immutable versions and confirms AI suggestions expl
   assert.equal(fabricated.code, 'UNVERIFIED_FACT');
 });
 
+test('v4 Networking Copilot keeps contacts, drafts, reminders and Referral links evidence-based', async () => {
+  const user = db.prepare('SELECT id FROM users WHERE email=?').get(testAccount.email);
+  const application = db.prepare(`SELECT id, resume_id AS resumeId, resume_version_id AS resumeVersionId,
+    source_job_id AS sourceJobId, job_id AS jobId FROM applications WHERE id=? AND user_id=?`)
+    .get(v4ApplicationId, user.id);
+  assert.ok(application.resumeId);
+  assert.ok(application.resumeVersionId);
+
+  const initialRes = await fetch(`${BASE_URL}/api/v4/networking/dashboard`, { headers: authHeaders() });
+  assert.equal(initialRes.status, 200);
+  const initial = await readJson(initialRes);
+  assert.match(initial.data.safetyNotice, /不会代替你/);
+  assert.equal(initial.data.draftTypes.length, 5);
+
+  const followUpDate = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+  const createContactRes = await fetch(`${BASE_URL}/api/v4/networking/contacts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({
+      name: 'Alex Smoke',
+      company: 'Example Labs',
+      role: 'Data Analyst',
+      channel: 'linkedin',
+      relationshipContext: '我们可能是同校校友',
+      contextVerified: false,
+      applicationId: v4ApplicationId,
+      nextFollowUpAt: followUpDate
+    })
+  });
+  assert.equal(createContactRes.status, 201);
+  const createdContact = await readJson(createContactRes);
+  const contact = createdContact.data;
+  assert.equal(contact.applicationId, v4ApplicationId);
+  assert.equal(contact.resumeId, application.resumeId);
+  assert.equal(contact.resumeVersionId, Number(application.resumeVersionId));
+
+  const alternateResumeRes = await fetch(`${BASE_URL}/api/v4/resumes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({
+      name: 'Sprint 5 alternate resume',
+      resumeType: 'data',
+      content: { summary: 'Verified alternate resume for association regression coverage' }
+    })
+  });
+  assert.equal(alternateResumeRes.status, 201);
+  const alternateResume = (await readJson(alternateResumeRes)).data;
+  assert.ok(alternateResume.currentVersionId);
+
+  const alternateApplicationRes = await fetch(`${BASE_URL}/api/v4/applications`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({
+      jobId: 'sprint5-association-regression',
+      resumeId: alternateResume.id,
+      resumeVersionId: alternateResume.currentVersionId,
+      jobSnapshot: { company: 'Regression Labs', title: 'Data Engineer' }
+    })
+  });
+  assert.equal(alternateApplicationRes.status, 200);
+  const alternateApplication = (await readJson(alternateApplicationRes)).data;
+
+  const switchApplicationRes = await fetch(`${BASE_URL}/api/v4/networking/contacts/${contact.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ applicationId: alternateApplication.id })
+  });
+  assert.equal(switchApplicationRes.status, 200);
+  const switchedContact = (await readJson(switchApplicationRes)).data;
+  assert.equal(switchedContact.applicationId, alternateApplication.id);
+  assert.equal(switchedContact.resumeId, alternateResume.id);
+  assert.equal(switchedContact.resumeVersionId, alternateResume.currentVersionId);
+  assert.equal(switchedContact.jobId, 'sprint5-association-regression');
+
+  const restoreApplicationRes = await fetch(`${BASE_URL}/api/v4/networking/contacts/${contact.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ applicationId: v4ApplicationId })
+  });
+  assert.equal(restoreApplicationRes.status, 200);
+  const restoredContact = (await readJson(restoreApplicationRes)).data;
+  assert.equal(restoredContact.applicationId, v4ApplicationId);
+  assert.equal(restoredContact.resumeId, application.resumeId);
+  assert.equal(restoredContact.resumeVersionId, Number(application.resumeVersionId));
+  assert.equal(restoredContact.jobId, application.sourceJobId || application.jobId);
+
+  const switchReferralLinkRes = await fetch(`${BASE_URL}/api/v4/networking/contacts/${contact.id}/referral`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ outcome: 'pending', applicationId: alternateApplication.id })
+  });
+  assert.equal(switchReferralLinkRes.status, 200);
+  const referralLinkedContact = (await readJson(switchReferralLinkRes)).data;
+  assert.equal(referralLinkedContact.applicationId, alternateApplication.id);
+  assert.equal(referralLinkedContact.resumeId, alternateResume.id);
+  assert.equal(referralLinkedContact.resumeVersionId, alternateResume.currentVersionId);
+  assert.equal(referralLinkedContact.jobId, 'sprint5-association-regression');
+
+  const restoreAfterReferralRes = await fetch(`${BASE_URL}/api/v4/networking/contacts/${contact.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ applicationId: v4ApplicationId })
+  });
+  assert.equal(restoreAfterReferralRes.status, 200);
+  const restoredAfterReferral = (await readJson(restoreAfterReferralRes)).data;
+  assert.equal(restoredAfterReferral.applicationId, v4ApplicationId);
+  assert.equal(restoredAfterReferral.resumeId, application.resumeId);
+  assert.equal(restoredAfterReferral.resumeVersionId, Number(application.resumeVersionId));
+  assert.equal(restoredAfterReferral.jobId, application.sourceJobId || application.jobId);
+
+  const reminder = db.prepare("SELECT * FROM today_tasks_v4 WHERE user_id=? AND source_type='networking_contact' AND source_id=? AND status='pending'")
+    .get(user.id, contact.id);
+  assert.ok(reminder);
+  assert.equal(reminder.task_date, followUpDate);
+  assert.match(reminder.url, /networking\?contactId=/);
+
+  const earlyReferralRes = await fetch(`${BASE_URL}/api/v4/networking/contacts/${contact.id}/drafts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ type: 'referral_request' })
+  });
+  assert.equal(earlyReferralRes.status, 409);
+
+  const draftTypes = ['connect_note', 'cold_message', 'coffee_chat', 'follow_up'];
+  let editableDraft;
+  for (const type of draftTypes) {
+    const draftRes = await fetch(`${BASE_URL}/api/v4/networking/contacts/${contact.id}/drafts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ type, requestDetail: '想了解真实岗位要求' })
+    });
+    assert.equal(draftRes.status, 201);
+    const draft = await readJson(draftRes);
+    assert.equal(draft.data.source, 'rules');
+    assert.doesNotMatch(draft.data.content, /同校校友/);
+    if (type === 'cold_message') editableDraft = draft.data;
+  }
+
+  const editDraftRes = await fetch(`${BASE_URL}/api/v4/networking/drafts/${editableDraft.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ content: `${editableDraft.content}\n我已人工核对。` })
+  });
+  assert.equal(editDraftRes.status, 200);
+  const editedDraft = await readJson(editDraftRes);
+  assert.match(editedDraft.data.content, /人工核对/);
+
+  const unconfirmedSendRes = await fetch(`${BASE_URL}/api/v4/networking/drafts/${editableDraft.id}/mark-sent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ confirmExternalSend: false })
+  });
+  assert.equal(unconfirmedSendRes.status, 400);
+
+  const repliedRes = await fetch(`${BASE_URL}/api/v4/networking/contacts/${contact.id}/stage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ stage: 'replied', note: '收到真实回复' })
+  });
+  assert.equal(repliedRes.status, 200);
+
+  const referralDraftRes = await fetch(`${BASE_URL}/api/v4/networking/contacts/${contact.id}/drafts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ type: 'referral_request', language: 'en' })
+  });
+  assert.equal(referralDraftRes.status, 201);
+  const referralDraft = await readJson(referralDraftRes);
+  assert.match(referralDraft.data.content, /if you know the role and believe/i);
+
+  const sentRes = await fetch(`${BASE_URL}/api/v4/networking/drafts/${editableDraft.id}/mark-sent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ confirmExternalSend: true, nextFollowUpAt: followUpDate })
+  });
+  assert.equal(sentRes.status, 200);
+  const sent = await readJson(sentRes);
+  assert.equal(sent.data.sentBySystem, false);
+  assert.equal(sent.data.draft.status, 'user_sent');
+
+  const scheduledFollowUp = db.prepare("SELECT id FROM today_tasks_v4 WHERE user_id=? AND source_type='networking_contact' AND source_id=? AND status='pending'")
+    .get(user.id, contact.id);
+  assert.ok(scheduledFollowUp);
+  const completeFollowUpRes = await fetch(`${BASE_URL}/api/v4/today/tasks/${scheduledFollowUp.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ completed: true })
+  });
+  assert.equal(completeFollowUpRes.status, 200);
+  assert.equal(db.prepare('SELECT next_follow_up_at AS value FROM networking_contacts_v4 WHERE id=?').get(contact.id).value, '');
+
+  const coffeeRes = await fetch(`${BASE_URL}/api/v4/networking/contacts/${contact.id}/stage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ stage: 'coffee_chat', note: '已完成真实 Coffee Chat' })
+  });
+  assert.equal(coffeeRes.status, 200);
+
+  const referralRes = await fetch(`${BASE_URL}/api/v4/networking/contacts/${contact.id}/referral`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ outcome: 'referred' })
+  });
+  assert.equal(referralRes.status, 200);
+  const referral = await readJson(referralRes);
+  assert.equal(referral.data.status, 'referral');
+  assert.equal(referral.data.applicationId, v4ApplicationId);
+  assert.equal(referral.data.resumeId, application.resumeId);
+  assert.equal(referral.data.resumeVersionId, Number(application.resumeVersionId));
+  assert.equal(referral.data.jobId, application.sourceJobId || application.jobId);
+
+  const finalRes = await fetch(`${BASE_URL}/api/v4/networking/dashboard`, { headers: authHeaders() });
+  assert.equal(finalRes.status, 200);
+  const final = await readJson(finalRes);
+  assert.ok(final.data.contacts.some(item => item.id === contact.id));
+  for (const stage of final.data.funnel.stages) assert.equal(stage.count, 1);
+  assert.match(final.data.funnel.notice, /不预测/);
+});
+
 test('canonical job funnel is complete and smoke analytics stay outside production', async () => {
   for (const status of ['interview_2', 'final', 'offer']) {
     const statusRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/status`, {

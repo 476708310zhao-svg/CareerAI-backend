@@ -8,6 +8,7 @@
 - [x] Sprint 2.2 统一职位/校招来源、新鲜度、过期和失败降级
 - [x] Sprint 3 三项高价值 AI 闭环
 - [x] Sprint 4 竞争力诊断与 AI 陪跑
+- [x] Sprint 5 Networking Copilot MVP
 - [x] TASK-001 审查并收口当前未提交工作区
 - [ ] TASK-002 统一生产发布架构与端口/目录配置（仓库完成，服务器演练待 Human）
 - [ ] TASK-003 修复 n8n 部署凭据暴露并轮换凭据（仓库完成，轮换待 Human）
@@ -41,18 +42,19 @@
 
 # 当前 Sprint
 
-目标：完成竞争力诊断、动态规划、每日任务和周复盘的证据化陪跑闭环。
+目标：完成联系人 CRM、五类可编辑话术、跟进提醒和 Referral 真实漏斗。
 
 任务：
 
-- [x] 七维 Career Competitiveness Score 输出证据、差距和行动入口
-- [x] 3/6/12 月计划根据真实投递漏斗与最低分维度动态刷新
-- [x] 每日幂等生成 3～5 个 Today 任务，支持完成、延期和服务端同步
-- [x] 周报告输出投入、历史转化、瓶颈与下周重点，样本不足不计算比例
-- [x] 新增诊断/周报持久化 migration 和小程序竞争力陪跑页
-- [x] Sprint 4 专项 5/5、migration 5/5、全量 176/176 和 `npm run check:release` 通过
+- [x] 联系人记录公司、岗位、渠道、联系方式、状态、最近联系和下次跟进
+- [x] 支持五类中英文可编辑草稿，未确认关系不进入文案
+- [x] 只有用户二次确认后记录“本人已外部发送”，系统不自动外发
+- [x] 跟进日期写入 Today，完成提醒后同步清除待跟进状态
+- [x] 建立已联系→已回复→Coffee Chat→Referral 真实漏斗
+- [x] Referral 成功关联 canonical Job、正式申请、简历和版本
+- [x] Sprint 5 专项 5/5、migration 5/5、全量 182/182 和 `npm run check:release` 通过
 
-下一批：Sprint 5 Networking Copilot MVP；真实供应商 staging、生产 migration 和部署仍需 Human 审批。
+下一批：Sprint 6 OA、项目补强与岗位可信度；真实供应商 staging、生产 migration 和部署仍需 Human 审批。
 
 ---
 
@@ -596,6 +598,7 @@
 
 # 已完成
 
+- [x] 2026-09-08 Sprint 5 Networking Copilot MVP：联系人 CRM、五类可编辑草稿、Today 跟进、真实漏斗及 Referral 与岗位/申请/简历关联；182/182 tests
 - [x] 2026-09-08 Sprint 4 竞争力诊断与 AI 陪跑：七维证据评分、动态 3/6/12 月计划、每日 3～5 项 Today、延期/同步及无伪成功率周报；176/176 tests
 - [x] 2026-09-03 Sprint 0 恢复开发基线：确认唯一主项目、恢复 `miniprogram/` 和历史未提交增量、137/137 tests、微信开发者工具正常预览
 - [x] 2026-09-03 清理旧开发目录：完整 ZIP 归档、11 份历史文档同步 Obsidian、注销部署工作树并保留独有分支、旧目录送入回收站

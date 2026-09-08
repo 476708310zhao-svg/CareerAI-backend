@@ -29,7 +29,7 @@ const SHARE_PAGES = [
   { route: 'package-career/pages/skill-pathways/skill-pathways', page_name: '技能路径', title: '技能成长路径 | 职引', image_url: DEFAULT_IMAGE, sort_order: 250 },
   { route: 'package-career/pages/job-insights/job-insights', page_name: '趋势洞察', title: '求职趋势洞察 | 职引', image_url: DEFAULT_IMAGE, sort_order: 260 },
   { route: 'package-career/pages/ats-optimize/ats-optimize', page_name: 'ATS优化', title: 'ATS简历优化 | 职引', image_url: DEFAULT_IMAGE, sort_order: 270 },
-  { route: 'package-career/pages/networking/networking', page_name: 'Networking助手', title: 'Networking助手 | 职引', image_url: DEFAULT_IMAGE, sort_order: 280 },
+  { route: 'package-career/pages/networking/networking', page_name: 'Networking Copilot', title: 'Networking Copilot | 职引', image_url: DEFAULT_IMAGE, sort_order: 280 },
   { route: 'package-career/pages/oa-bank/oa-bank', page_name: 'OA题库', title: 'OA题库 | 职引', image_url: DEFAULT_IMAGE, sort_order: 290 },
   { route: 'package-content/pages/experience-detail/experience-detail', page_name: '面经详情', title: '面经详情 | 职引', image_url: DEFAULT_IMAGE, sort_order: 300 },
   { route: 'package-content/pages/question-detail/question-detail', page_name: '题目详情', title: '面试题目详解 | 职引', image_url: DEFAULT_IMAGE, sort_order: 310 },
