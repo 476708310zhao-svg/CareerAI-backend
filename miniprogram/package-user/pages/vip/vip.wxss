@@ -213,6 +213,83 @@ page {
   font-size: 20rpx;
 }
 
+.account-icon {
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
+  font-size: 22rpx;
+}
+
+.pack-list,
+.order-list,
+.refund-list {
+  margin-top: 20rpx;
+}
+
+.pack-row,
+.order-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid #edf2f7;
+}
+
+.pack-name,
+.order-name,
+.refund-heading,
+.refund-item {
+  display: block;
+  color: #172033;
+  font-size: 23rpx;
+  font-weight: 800;
+}
+
+.pack-expiry,
+.order-meta,
+.commerce-note {
+  color: #64748b;
+  font-size: 20rpx;
+  line-height: 1.45;
+}
+
+.order-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.order-meta {
+  display: block;
+  margin-top: 7rpx;
+}
+
+.refund-button {
+  flex-shrink: 0;
+  margin: 0;
+  color: #9a3412;
+  background: #fff7ed;
+  border: 1rpx solid #fed7aa;
+  border-radius: 999rpx;
+  font-size: 20rpx;
+}
+
+.refund-button::after {
+  border: 0;
+}
+
+.refund-item {
+  margin-top: 10rpx;
+  color: #475569;
+  font-weight: 650;
+}
+
+.commerce-note {
+  display: block;
+  margin-top: 20rpx;
+  padding: 16rpx;
+  border-radius: 14rpx;
+  background: #f8fafc;
+}
+
 .section-copy {
   min-width: 0;
   flex: 1;

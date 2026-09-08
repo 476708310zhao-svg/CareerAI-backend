@@ -5,6 +5,7 @@ const { ok, fail } = require('../utils/response');
 const { listJobs, findJobById } = require('../utils/jobData');
 const { getSponsorProfile, saveSponsorProfile } = require('../services/v4Sponsor');
 const { FUNNEL_STAGES, normalizeDataClass } = require('../utils/funnelAnalytics');
+const commerce = require('../services/v4Commerce');
 
 const router = express.Router();
 
@@ -145,7 +146,28 @@ router.get('/operations/dashboard', adminAuth, (req, res) => {
   return ok(res, { analyticsDataClass: selectedAnalyticsClass(req), activeUsers7d: active7d,
     retention7d: { cohort, retained, rate: cohort ? Math.round(retained * 1000 / cohort) / 10 : 0 },
     funnel, analyticsQuality: { dataClasses, missingRefs }, aiQuality7d,
-    aiUsageRate: active7d ? Math.round(aiUsers * 1000 / active7d) / 10 : 0, topEvents: events, slowQueries: slow, errors, membership });
+    aiUsageRate: active7d ? Math.round(aiUsers * 1000 / active7d) / 10 : 0, topEvents: events, slowQueries: slow,
+    errors, membership, commerce: commerce.overview() });
+});
+
+router.get('/commerce/overview', adminAuth, (_req, res) => {
+  return ok(res, commerce.overview());
+});
+
+router.post('/commerce/alerts/evaluate', adminAuth, (_req, res) => {
+  return ok(res, commerce.evaluateAlerts(), '商业化运行告警已评估；未执行外部操作');
+});
+
+router.patch('/commerce/alerts/:id', adminAuth, (req, res) => {
+  try { return ok(res, commerce.updateAlert(req.params.id, cleanText(req.body.status, 30), cleanText(req.admin && req.admin.sub, 120)), '告警状态已更新'); }
+  catch (error) { return fail(res, error.message, error.status || 400, error.data); }
+});
+
+router.patch('/commerce/refunds/:refundNo', adminAuth, (req, res) => {
+  try {
+    return ok(res, commerce.decideRefund(req.params.refundNo, req.body, cleanText(req.admin && req.admin.sub, 120)),
+      req.body.status === 'completed' ? '外部退款凭据已记录并撤销对应权益' : '退款审核状态已更新');
+  } catch (error) { return fail(res, error.message, error.status || 400, error.data); }
 });
 
 router.get('/rollout', adminAuth, (_req, res) => {
@@ -155,10 +177,14 @@ router.get('/rollout', adminAuth, (_req, res) => {
 router.put('/rollout/:feature', adminAuth, (req, res) => {
   const percentage = Number(req.body.percentage);
   if (![0, 5, 20, 50, 100].includes(percentage)) return fail(res, '放量比例仅支持 0/5/20/50/100', 400);
+  const feature = cleanText(req.params.feature, 80);
+  if (feature === 'commerce' && percentage > 0 && String(process.env.COMMERCE_ROLLOUT_APPROVED || 'false').toLowerCase() !== 'true') {
+    return fail(res, '商业化灰度尚未获得 Human 审批，当前只能保持 0%', 403);
+  }
   const status = percentage === 0 ? 'paused' : (percentage === 100 ? 'full' : 'rolling');
   db.prepare(`INSERT INTO rollout_config_v4 (feature,percentage,status,updated_by,updated_at) VALUES (?,?,?,?,datetime('now'))
     ON CONFLICT(feature) DO UPDATE SET percentage=excluded.percentage,status=excluded.status,updated_by=excluded.updated_by,updated_at=datetime('now')`)
-    .run(cleanText(req.params.feature, 80), percentage, status, cleanText(req.admin && req.admin.sub, 120));
+    .run(feature, percentage, status, cleanText(req.admin && req.admin.sub, 120));
   return ok(res, db.prepare('SELECT * FROM rollout_config_v4 WHERE feature=?').get(req.params.feature), '灰度比例已更新');
 });
 

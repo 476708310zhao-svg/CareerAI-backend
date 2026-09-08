@@ -89,6 +89,9 @@ function cancelAgentTask(id) { return write('POST', '/api/v4/agents/tasks/' + en
 function confirmAgentTask(id, payload) { return write('POST', '/api/v4/agents/tasks/' + encodeURIComponent(id) + '/confirm', payload); }
 function getMembershipPlans() { return get('/api/v4/membership/plans'); }
 function getMembershipStatus() { return get('/api/v4/membership/status'); }
+function getMembershipOrders() { return get('/api/v4/membership/orders'); }
+function getCommerceLedger(params) { return get('/api/v4/membership/ledger', params); }
+function requestMembershipRefund(payload) { return write('POST', '/api/v4/membership/refunds', payload); }
 function getOaDashboard() { return get('/api/v4/oa/dashboard'); }
 function createOaPlan(payload) { return write('POST', '/api/v4/oa/plans', payload); }
 function updateOaPlan(id, payload) { return write('PATCH', '/api/v4/oa/plans/' + encodeURIComponent(id), payload); }
@@ -183,6 +186,9 @@ module.exports = {
   confirmAgentTask,
   getMembershipPlans,
   getMembershipStatus,
+  getMembershipOrders,
+  getCommerceLedger,
+  requestMembershipRefund,
   getOaDashboard,
   createOaPlan,
   updateOaPlan,

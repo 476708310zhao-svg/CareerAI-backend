@@ -81,6 +81,7 @@ npm test
 | `RECRUITMENT_FEATURE_ENABLED` | 职位功能总开关，默认 `false` | 否 |
 | `WEBHOOK_SECRET` | GitHub Webhook 签名 | 部署 Webhook 必填 |
 | `PAYMENT_ENABLED` / `PAYMENT_PROVIDER` | 会员支付开关和支付方式 | 支付上线时配置 |
+| `REAL_PAYMENT_LAUNCH_APPROVED` / `COMMERCE_ROLLOUT_APPROVED` | 真实支付与商业灰度 Human 审批门禁，默认 `false` | 资质、商品与退款方案审批后配置 |
 | `VIRTUAL_PAY_*` | 小程序虚拟支付 | `PAYMENT_PROVIDER=virtual` 时必填 |
 | `WXPAY_MCH_ID` / `WXPAY_API_KEY` / `WXPAY_APP_ID` / `WXPAY_NOTIFY_URL` | 普通微信支付 JSAPI | `PAYMENT_PROVIDER=wxpay` 时必填 |
 | `ALLOWED_ORIGIN` | 浏览器管理后台跨域来源 | 浏览器访问时按需配置 |
@@ -101,12 +102,12 @@ RECRUITMENT_FEATURE_ENABLED=false
 
 支付支持两种方式：
 
-- `PAYMENT_PROVIDER=virtual`：小程序虚拟支付，道具直购模式。后端创建订单并返回 `wx.requestVirtualPayment` 所需的 `signData`、`paySig`、`signature`，微信发货通知到 `/api/payment/virtual-notify` 或 `/api/payment/notify` 后开通 VIP。
+- `PAYMENT_PROVIDER=virtual`：小程序虚拟支付，道具直购模式。后端创建订单并返回 `wx.requestVirtualPayment` 所需的 `signData`、`paySig`、`signature`，微信发货通知到 `/api/payment/virtual-notify` 或 `/api/payment/notify` 后发放对应 Pro 或场景包权益。
 - `PAYMENT_PROVIDER=wxpay`：普通微信支付 JSAPI v2，保留兼容旧链路。
 
-未配置完整真实支付变量时，本地可通过 `ENABLE_MOCK_PAYMENT=true` 使用 Mock 模式，覆盖下单、模拟确认、订单校验、VIP 开通和订单列表。
+未配置完整真实支付变量时，本地可通过 `ENABLE_MOCK_PAYMENT=true` 使用 Mock 模式，覆盖下单、模拟确认、订单校验、权益发放、订单/账本和审核式退款；Mock 不执行外部支付或退款。
 
-真实微信支付分阶段上线：营业执照和微信商户资质完成后，再单独评审并配置真实支付参数。详细方案见 `docs/PAYMENT_ROLLOUT_PLAN.md`。
+真实微信支付分阶段上线：营业执照、微信商户资质、商品和退款方案完成后，再单独评审并配置真实支付参数；商业灰度从 0% 提高还要求 `COMMERCE_ROLLOUT_APPROVED=true`。详细治理见 `docs/V4_SPRINT7_COMMERCE_GOVERNANCE.md`。
 
 ## 管理后台
 

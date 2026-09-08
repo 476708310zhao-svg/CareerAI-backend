@@ -1,14 +1,18 @@
 const featureFlags = require('../../../utils/feature-flags.js');
 const api = require('../../../utils/api.js');
+const v4Api = require('../../../utils/api-v4.js');
 const loginGate = require('../../../behaviors/login-gate.js');
 
 const ALL_PLANS = [
-  { id: 3, name: '体验会员', price: '10.00', unit: '7 天', desc: '先试完整权益', tag: '体验' },
-  { id: 0, name: '月卡会员', price: '40.00', unit: '30 天', desc: '短期冲刺' },
-  { id: 1, name: '季卡会员', price: '100.00', unit: '90 天', desc: '求职季推荐', tag: '推荐' },
-  { id: 2, name: '年卡会员', price: '299.00', unit: '365 天', desc: '长期成长' }
+  { id: 3, kind: 'subscription', kindLabel: 'Pro', name: '体验会员', price: '10.00', unit: '7 天', desc: '先试完整 Pro 权益', tag: '体验' },
+  { id: 0, kind: 'subscription', kindLabel: 'Pro', name: 'Pro 月卡', price: '40.00', unit: '30 天', desc: '完整求职工作台' },
+  { id: 1, kind: 'subscription', kindLabel: 'Pro', name: 'Pro 季卡', price: '100.00', unit: '90 天', desc: '完整求职工作台', tag: '推荐' },
+  { id: 2, kind: 'subscription', kindLabel: 'Pro', name: 'Pro 年卡', price: '299.00', unit: '365 天', desc: '长期求职与成长' },
+  { id: 4, kind: 'scenario', kindLabel: '场景包', name: 'JD 简历包', price: '19.90', unit: '30 天', desc: '5 个简历版本 + 10 次申请助手' },
+  { id: 5, kind: 'scenario', kindLabel: '场景包', name: '7 天面试冲刺包', price: '29.90', unit: '7 天', desc: '面试训练与 AI 复练额度' },
+  { id: 6, kind: 'scenario', kindLabel: '场景包', name: '秋招季度包', price: '99.00', unit: '90 天', desc: '投递、简历与面试组合额度' }
 ];
-const DEFAULT_AVAILABLE_PLAN_IDS = ALL_PLANS.filter(item => item.id !== 3).map(item => item.id);
+const DEFAULT_AVAILABLE_PLAN_IDS = [0, 1, 2];
 
 function getPlansByConfig(config) {
   const availableIds = Array.isArray(config && config.availablePlanIds)
@@ -89,6 +93,7 @@ Page({
     selectedPlanId: INITIAL_PLAN.id,
     selectedPlanName: INITIAL_PLAN.name,
     selectedPlanPrice: INITIAL_PLAN.price,
+    selectedPlanKind: INITIAL_PLAN.kind,
     paying: false,
     paymentConfig: null,
     paymentAvailable: false,
@@ -97,7 +102,12 @@ Page({
     quotaDate: '',
     quotaIsVip: false,
     quotaFeatures: [],
-    quotaMessage: '登录后查看今日 AI 免费额度'
+    quotaMessage: '登录后查看今日 AI 免费额度',
+    currentPlanName: 'Free 免费版',
+    currentPlanExpiresAt: '',
+    scenarioPacks: [],
+    commerceOrders: [],
+    commerceRefunds: []
   },
 
   onLoad() {
@@ -109,10 +119,14 @@ Page({
     });
     this.loadPaymentConfig();
     this.loadQuotaStatus();
+    this.loadCommerceStatus();
   },
 
   onShow() {
-    if (this.data.membershipEnabled) this.loadQuotaStatus();
+    if (this.data.membershipEnabled) {
+      this.loadQuotaStatus();
+      this.loadCommerceStatus();
+    }
   },
 
   _onFeatureFlagsChange(flags) {
@@ -132,6 +146,7 @@ Page({
           selectedPlanId: selectedPlan.id,
           selectedPlanName: selectedPlan.name,
           selectedPlanPrice: selectedPlan.price,
+          selectedPlanKind: selectedPlan.kind,
           paymentConfig: config || null,
           paymentAvailable: available,
           paymentReason: available ? '' : ((config && config.reason) || '支付暂未开放')
@@ -178,6 +193,55 @@ Page({
       });
   },
 
+  loadCommerceStatus() {
+    if (!wx.getStorageSync('token')) {
+      this.setData({ currentPlanName: 'Free 免费版', currentPlanExpiresAt: '', scenarioPacks: [], commerceOrders: [], commerceRefunds: [] });
+      return;
+    }
+    Promise.all([v4Api.getMembershipStatus(), v4Api.getMembershipOrders()])
+      .then(([statusRes, ordersRes]) => {
+        const status = statusRes && statusRes.code === 0 ? (statusRes.data || {}) : {};
+        const orderData = ordersRes && ordersRes.code === 0 ? (ordersRes.data || {}) : {};
+        this.setData({
+          currentPlanName: status.planName || 'Free 免费版',
+          currentPlanExpiresAt: status.expiresAt || '',
+          scenarioPacks: Array.isArray(status.scenarioPacks) ? status.scenarioPacks : [],
+          commerceOrders: (orderData.orders || []).slice(0, 5).map(item => Object.assign({}, item, {
+            amountText: (Number(item.amount || 0) / 100).toFixed(2),
+            canRefund: item.status === 'paid'
+          })),
+          commerceRefunds: (orderData.refunds || []).slice(0, 5)
+        });
+      })
+      .catch(err => console.warn('[VIP] 商业权益状态同步失败:', err && (err.message || err.errMsg) || err));
+  },
+
+  requestRefund(e) {
+    const orderNo = e.currentTarget.dataset.orderNo;
+    if (!orderNo) return;
+    wx.showModal({
+      title: '申请退款',
+      content: '请填写退款原因。提交后仅进入人工审核，不会自动执行外部退款。',
+      editable: true,
+      placeholderText: '退款原因',
+      confirmText: '确认提交',
+      success: result => {
+        const reason = String(result.content || '').trim();
+        if (!result.confirm) return;
+        if (!reason) {
+          wx.showToast({ title: '请填写退款原因', icon: 'none' });
+          return;
+        }
+        v4Api.requestMembershipRefund({ orderNo, reason, confirmRequest: true })
+          .then(() => {
+            wx.showToast({ title: '已提交审核', icon: 'success' });
+            this.loadCommerceStatus();
+          })
+          .catch(err => wx.showToast({ title: (err && err.message) || '提交失败', icon: 'none' }));
+      }
+    });
+  },
+
   selectPlan(e) {
     const planId = parseInt(e.currentTarget.dataset.planId, 10);
     const plan = this.data.plans.find(item => item.id === planId);
@@ -189,7 +253,8 @@ Page({
       this.setData({
         selectedPlanId: planId,
         selectedPlanName: plan.name,
-        selectedPlanPrice: plan.price
+        selectedPlanPrice: plan.price,
+        selectedPlanKind: plan.kind
       });
     }
   },
@@ -265,8 +330,8 @@ Page({
     this.pollPaid(orderNo, 8, 2500)
       .then(result => {
         if (result && result.status === 'paid') {
-          this.syncVipState(result);
-          wx.showToast({ title: '会员已开通', icon: 'success' });
+          this.syncPurchaseState(result);
+          wx.showToast({ title: result.grantType === 'scenario' ? '权益包已开通' : '会员已开通', icon: 'success' });
         }
       })
       .catch(err => {
@@ -274,7 +339,11 @@ Page({
       });
   },
 
-  syncVipState(result) {
+  syncPurchaseState(result) {
+    if (result.grantType === 'scenario' || result.isMember === false) {
+      this.loadCommerceStatus();
+      return;
+    }
     const planName = result.planName || this.getSelectedPlan().name;
     const expireDate = result.expireDate || '';
     wx.setStorageSync('vipInfo', {
@@ -418,8 +487,8 @@ Page({
       .then(({ result }) => {
         wx.hideLoading();
         if (result && result.status === 'paid') {
-          this.syncVipState(result);
-          wx.showToast({ title: '会员已开通', icon: 'success' });
+          this.syncPurchaseState(result);
+          wx.showToast({ title: result.grantType === 'scenario' ? '权益包已开通' : '会员已开通', icon: 'success' });
           return;
         }
         if (currentOrder && (currentOrder.provider === 'virtual' || currentOrder.paymentProvider === 'virtual')) {

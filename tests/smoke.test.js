@@ -147,6 +147,8 @@ test.after(async () => {
     db.prepare('DELETE FROM quota_usage_v4 WHERE user_id = ?').run(user.id);
     db.prepare('DELETE FROM user_subscriptions_v4 WHERE user_id = ?').run(user.id);
     db.prepare('DELETE FROM payment_refunds_v4 WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM entitlement_grants_v4 WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM commerce_ledger_v4 WHERE user_id = ?').run(user.id);
     db.prepare('DELETE FROM analytics_events WHERE user_id = ?').run(user.id);
     db.prepare('DELETE FROM ai_application_material_drafts WHERE user_id = ?').run(user.id);
     db.prepare('DELETE FROM resume_ai_change_sets WHERE user_id = ?').run(user.id);
@@ -2536,6 +2538,17 @@ test('payment mock create-order, confirm and verify flow works', async () => {
   assert.equal(confirmBody.code, 0);
   const confirmed = confirmBody.data;
   assert.equal(confirmed.success, true);
+  assert.equal(confirmed.grantType, 'subscription');
+  assert.equal(confirmed.isMember, true);
+
+  const repeatConfirmRes = await fetch(`${BASE_URL}/api/payment/mock-confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ orderNo: createdOrderNo })
+  });
+  assert.equal(repeatConfirmRes.status, 200);
+  assert.equal((await readJson(repeatConfirmRes)).data.already, true);
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM entitlement_grants_v4 WHERE order_no=?').get(createdOrderNo).count, 1);
 
   const verifyRes = await fetch(`${BASE_URL}/api/payment/verify/${encodeURIComponent(createdOrderNo)}`, {
     headers: authHeaders()
@@ -2554,6 +2567,79 @@ test('payment mock create-order, confirm and verify flow works', async () => {
   assert.equal(ordersBody.code, 0);
   assert.ok(Array.isArray(ordersBody.data.orders));
   assert.ok(ordersBody.data.orders.some(order => order.order_no === createdOrderNo));
+
+  const ledgerRes = await fetch(`${BASE_URL}/api/v4/membership/ledger`, { headers: authHeaders() });
+  assert.equal(ledgerRes.status, 200);
+  const ledger = await readJson(ledgerRes);
+  assert.ok(ledger.data.list.some(item => item.orderNo === createdOrderNo && item.eventType === 'payment_confirmed'));
+});
+
+test('scenario pack purchase and reviewed refund keep entitlement ledger consistent', async () => {
+  await ensureAdminToken();
+  const createRes = await fetch(`${BASE_URL}/api/payment/create-order`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ planId: 4 })
+  });
+  assert.equal(createRes.status, 200);
+  const orderNo = (await readJson(createRes)).data.orderNo;
+
+  const confirmRes = await fetch(`${BASE_URL}/api/payment/mock-confirm`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ orderNo })
+  });
+  const confirmed = await readJson(confirmRes);
+  assert.equal(confirmRes.status, 200);
+  assert.equal(confirmed.data.grantType, 'scenario');
+  assert.equal(confirmed.data.isMember, false);
+
+  const unconfirmedRes = await fetch(`${BASE_URL}/api/v4/membership/refunds`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ orderNo, reason: 'smoke refund' })
+  });
+  assert.equal(unconfirmedRes.status, 400);
+
+  const requestRes = await fetch(`${BASE_URL}/api/v4/membership/refunds`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ orderNo, reason: 'smoke refund', confirmRequest: true })
+  });
+  assert.equal(requestRes.status, 201);
+  const refundNo = (await readJson(requestRes)).data.refundNo;
+
+  const directCompleteRes = await fetch(`${BASE_URL}/admin/api/v4/commerce/refunds/${encodeURIComponent(refundNo)}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json', ...adminHeaders() },
+    body: JSON.stringify({ status: 'completed', confirmExternalRefund: true, externalReference: 'SMOKE-EARLY' })
+  });
+  assert.equal(directCompleteRes.status, 409);
+
+  const approveRes = await fetch(`${BASE_URL}/admin/api/v4/commerce/refunds/${encodeURIComponent(refundNo)}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json', ...adminHeaders() }, body: JSON.stringify({ status: 'approved' })
+  });
+  assert.equal(approveRes.status, 200);
+
+  const missingEvidenceRes = await fetch(`${BASE_URL}/admin/api/v4/commerce/refunds/${encodeURIComponent(refundNo)}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json', ...adminHeaders() }, body: JSON.stringify({ status: 'completed' })
+  });
+  assert.equal(missingEvidenceRes.status, 400);
+
+  const completeRes = await fetch(`${BASE_URL}/admin/api/v4/commerce/refunds/${encodeURIComponent(refundNo)}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json', ...adminHeaders() },
+    body: JSON.stringify({ status: 'completed', confirmExternalRefund: true, externalReference: `LOCAL-SMOKE-${refundNo}` })
+  });
+  assert.equal(completeRes.status, 200);
+  assert.equal(db.prepare('SELECT status FROM orders WHERE order_no=?').get(orderNo).status, 'refunded');
+  assert.equal(db.prepare('SELECT status FROM entitlement_grants_v4 WHERE order_no=?').get(orderNo).status, 'revoked');
+
+  const overviewRes = await fetch(`${BASE_URL}/admin/api/v4/commerce/overview`, { headers: adminHeaders() });
+  assert.equal(overviewRes.status, 200);
+  assert.equal((await readJson(overviewRes)).data.paymentLive, false);
+  const evaluateRes = await fetch(`${BASE_URL}/admin/api/v4/commerce/alerts/evaluate`, {
+    method: 'POST', headers: adminHeaders()
+  });
+  assert.equal(evaluateRes.status, 200);
+  assert.equal(typeof (await readJson(evaluateRes)).data.databaseReady, 'boolean');
+
+  const rolloutRes = await fetch(`${BASE_URL}/admin/api/v4/rollout/commerce`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json', ...adminHeaders() }, body: JSON.stringify({ percentage: 5 })
+  });
+  assert.equal(rolloutRes.status, 403);
 });
 
 test('virtual payment notify accepts WeChat OutTradeNo field', async () => {

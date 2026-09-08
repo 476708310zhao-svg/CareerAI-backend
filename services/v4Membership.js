@@ -1,4 +1,6 @@
 const db = require('../db/database');
+const commerce = require('./v4Commerce');
+const { planKind, productByCode } = require('./v4CommerceCatalog');
 
 function parseJson(value, fallback) { try { return JSON.parse(value); } catch (e) { return fallback; } }
 function monthKey() { return new Date().toISOString().slice(0, 7); }
@@ -21,11 +23,17 @@ function getMembership(userId) {
   const planCode = subscription ? subscription.plan_code : (Number(user.vip_level) > 0 ? 'pro_month' : 'free');
   const plan = db.prepare('SELECT * FROM membership_plans_v4 WHERE code=? AND enabled=1').get(planCode)
     || db.prepare("SELECT * FROM membership_plans_v4 WHERE code='free'").get();
+  const baseEntitlements = parseJson(plan.entitlements, {});
+  const scenarioPacks = commerce.activeScenarioGrants(userId);
   return {
     planCode: plan.code, planName: plan.name, isMember: plan.code !== 'free',
     expiresAt: subscription ? subscription.expires_at : (user.vip_expires_at || ''),
     subscriptionStatus: subscription ? subscription.status : (plan.code === 'free' ? 'inactive' : 'legacy_active'),
-    entitlements: parseJson(plan.entitlements, {})
+    baseEntitlements,
+    entitlements: commerce.mergedEntitlements(baseEntitlements, scenarioPacks),
+    scenarioPacks: scenarioPacks.map(item => ({ id: item.id, planCode: item.planCode, orderNo: item.orderNo,
+      expiresAt: item.expiresAt, name: (productByCode(item.planCode) || {}).name || item.planCode,
+      entitlements: item.entitlements }))
   };
 }
 
@@ -38,21 +46,28 @@ function quotaStatus(userId, quotaKey, period = 'month') {
   return { quotaKey, periodKey, limit, used, remaining: Math.max(0, limit - used), unlimited: limit < 0 };
 }
 
-function consumeQuota(userId, quotaKey, amount = 1, period = 'month') {
+function consumeQuota(userId, quotaKey, amount = 1, period = 'month', context = {}) {
   const status = quotaStatus(userId, quotaKey, period);
   if (!status.unlimited && status.used + amount > status.limit) {
     const error = new Error('当前套餐额度不足'); error.status = 429; error.code = 'QUOTA_EXCEEDED'; error.data = status; throw error;
   }
-  db.prepare(`INSERT INTO quota_usage_v4 (user_id, quota_key, period_key, used) VALUES (?, ?, ?, ?)
-    ON CONFLICT(user_id, quota_key, period_key) DO UPDATE SET used=used+excluded.used, updated_at=datetime('now')`)
-    .run(userId, quotaKey, status.periodKey, amount);
+  const transaction = db.transaction(() => {
+    db.prepare(`INSERT INTO quota_usage_v4 (user_id, quota_key, period_key, used) VALUES (?, ?, ?, ?)
+      ON CONFLICT(user_id, quota_key, period_key) DO UPDATE SET used=used+excluded.used, updated_at=datetime('now')`)
+      .run(userId, quotaKey, status.periodKey, amount);
+    commerce.recordQuotaUse(userId, quotaKey, amount, status.periodKey, context);
+  });
+  transaction();
   return quotaStatus(userId, quotaKey, period);
 }
 
 function listPlans() {
   return db.prepare('SELECT * FROM membership_plans_v4 WHERE enabled=1 ORDER BY sort_order, id').all().map(row => ({
     code: row.code, name: row.name, priceCents: row.price_cents, durationDays: row.duration_days,
-    entitlements: parseJson(row.entitlements, {})
+    planType: planKind(row.code),
+    description: (productByCode(row.code) || {}).description || '',
+    entitlements: parseJson(row.entitlements, {}),
+    purchaseStatus: row.code === 'free' ? 'included' : 'approval_required'
   }));
 }
 

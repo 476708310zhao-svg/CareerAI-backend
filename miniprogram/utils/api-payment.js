@@ -11,7 +11,7 @@ function unwrapPaymentResponse(res, fallbackMessage) {
 
 /**
  * 创建支付订单
- * @param {number} planId  0=月卡 1=季卡 2=年卡 3=体验卡
+ * @param {number} planId  0=月卡 1=季卡 2=年卡 3=体验卡 4=JD简历包 5=面试冲刺包 6=秋招季度包
  * @returns Promise<{ mock, orderNo, planName, amount, ... }>
  */
 function createPayOrder(planId) {

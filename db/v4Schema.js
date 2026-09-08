@@ -420,6 +420,30 @@ function ensureV4Schema() {
       updated_by TEXT DEFAULT '', updated_at TEXT DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS commerce_ledger_v4 (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, idempotency_key TEXT UNIQUE NOT NULL, event_type TEXT NOT NULL,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL, order_no TEXT DEFAULT '', refund_no TEXT DEFAULT '',
+      plan_code TEXT DEFAULT '', amount_delta INTEGER DEFAULT 0, currency TEXT DEFAULT 'CNY', quota_key TEXT DEFAULT '',
+      quota_delta INTEGER DEFAULT 0, entitlement_snapshot TEXT NOT NULL DEFAULT '{}', metadata TEXT NOT NULL DEFAULT '{}',
+      actor_type TEXT DEFAULT 'system', actor_id TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS entitlement_grants_v4 (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      plan_code TEXT NOT NULL, order_no TEXT NOT NULL, grant_type TEXT NOT NULL CHECK(grant_type IN ('subscription','scenario')),
+      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','expired','revoked')), starts_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL, entitlements TEXT NOT NULL DEFAULT '{}', source TEXT DEFAULT 'payment', revoked_at TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')), UNIQUE(order_no, plan_code)
+    );
+
+    CREATE TABLE IF NOT EXISTS commerce_alerts_v4 (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, fingerprint TEXT UNIQUE NOT NULL, category TEXT NOT NULL,
+      severity TEXT NOT NULL DEFAULT 'warning', status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','acknowledged','resolved')),
+      message TEXT NOT NULL, evidence TEXT NOT NULL DEFAULT '{}', occurrences INTEGER DEFAULT 1,
+      first_seen_at TEXT DEFAULT (datetime('now')), last_seen_at TEXT DEFAULT (datetime('now')),
+      acknowledged_by TEXT DEFAULT '', acknowledged_at TEXT DEFAULT '', resolved_at TEXT DEFAULT ''
+    );
+
     CREATE TABLE IF NOT EXISTS error_events_v4 (
       id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT DEFAULT '', severity TEXT DEFAULT 'error', code TEXT DEFAULT '',
       message TEXT DEFAULT '', route TEXT DEFAULT '', user_id INTEGER, context TEXT DEFAULT '{}', created_at TEXT DEFAULT (datetime('now'))
@@ -474,13 +498,23 @@ function ensureV4Schema() {
     CREATE INDEX IF NOT EXISTS idx_subscriptions_user_status ON user_subscriptions_v4(user_id, status, expires_at);
     CREATE INDEX IF NOT EXISTS idx_quota_usage_user_period ON quota_usage_v4(user_id, period_key);
     CREATE INDEX IF NOT EXISTS idx_performance_slow_time ON api_performance_v4(slow, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_commerce_ledger_user_time ON commerce_ledger_v4(user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_commerce_ledger_order ON commerce_ledger_v4(order_no, event_type);
+    CREATE INDEX IF NOT EXISTS idx_entitlement_grants_user_status ON entitlement_grants_v4(user_id, status, expires_at);
+    CREATE INDEX IF NOT EXISTS idx_commerce_alerts_status_severity ON commerce_alerts_v4(status, severity, last_seen_at DESC);
   `);
 
   db.prepare(`INSERT OR IGNORE INTO rollout_config_v4 (feature, percentage, status) VALUES ('v4', 0, 'paused')`).run();
+  db.prepare(`INSERT OR IGNORE INTO rollout_config_v4 (feature, percentage, status) VALUES ('commerce', 0, 'paused')`).run();
   const insertPlan = db.prepare(`INSERT OR IGNORE INTO membership_plans_v4 (code, name, price_cents, duration_days, entitlements, sort_order) VALUES (?, ?, ?, ?, ?, ?)`);
   insertPlan.run('free', '免费版', 0, 0, JSON.stringify({ ai_daily: 3, resume_versions: 3, interview_monthly: 2, advanced_match: false }), 0);
   insertPlan.run('pro_month', '求职 Pro 月卡', 4000, 30, JSON.stringify({ ai_daily: 100, resume_versions: 50, interview_monthly: 30, advanced_match: true }), 1);
-  insertPlan.run('pro_year', '求职 Pro 年卡', 29900, 365, JSON.stringify({ ai_daily: 100, resume_versions: 100, interview_monthly: 365, advanced_match: true }), 2);
+  insertPlan.run('pro_quarter', '求职 Pro 季卡', 10000, 90, JSON.stringify({ ai_daily: 100, resume_versions: 60, interview_monthly: 90, advanced_match: true }), 2);
+  insertPlan.run('pro_year', '求职 Pro 年卡', 29900, 365, JSON.stringify({ ai_daily: 100, resume_versions: 100, interview_monthly: 365, advanced_match: true }), 3);
+  insertPlan.run('pro_trial_7d', '体验会员', 1000, 7, JSON.stringify({ ai_daily: 20, resume_versions: 10, interview_monthly: 5, advanced_match: true }), 4);
+  insertPlan.run('jd_resume_pack', 'JD 简历包', 1990, 30, JSON.stringify({ resume_versions: 5, application_assistant: 10 }), 5);
+  insertPlan.run('interview_sprint_7d', '7 天面试冲刺包', 2990, 7, JSON.stringify({ interview_monthly: 20, ai_daily: 20 }), 6);
+  insertPlan.run('autumn_recruit_quarter', '秋招季度包', 9900, 90, JSON.stringify({ ai_daily: 30, resume_versions: 25, interview_monthly: 30, application_assistant: 30, advanced_match: true }), 7);
 
   const resumeColumns = db.pragma('table_info(resumes)').map(column => column.name);
   [

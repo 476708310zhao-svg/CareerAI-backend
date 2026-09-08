@@ -15,10 +15,14 @@ function withTempDir(run) {
 }
 
 function createRequiredBaselineTables(db) {
-  const baseline = readMigrations()[0];
-  baseline.requirements.forEach(requirement => {
-    const columns = requirement.columns.length > 0 ? requirement.columns : ['id'];
-    db.exec(`CREATE TABLE "${requirement.table}" (${columns.map(column => `"${column}" TEXT`).join(', ')})`);
+  const requirements = new Map();
+  readMigrations().forEach(migration => migration.requirements.forEach(requirement => {
+    const columns = requirements.get(requirement.table) || new Set();
+    (requirement.columns.length > 0 ? requirement.columns : ['id']).forEach(column => columns.add(column));
+    requirements.set(requirement.table, columns);
+  }));
+  requirements.forEach((columns, table) => {
+    db.exec(`CREATE TABLE "${table}" (${Array.from(columns).map(column => `"${column}" TEXT`).join(', ')})`);
   });
 }
 
@@ -30,9 +34,9 @@ test('database migration baseline is recorded once and exposes status', () => wi
   const second = applyPendingMigrations(db);
   const status = getMigrationStatus(db);
 
-  assert.equal(first.appliedNow.length, 4);
+  assert.equal(first.appliedNow.length, 5);
   assert.equal(second.appliedNow.length, 0);
-  assert.equal(status.applied.length, 4);
+  assert.equal(status.applied.length, 5);
   assert.equal(status.pending.length, 0);
   assert.match(status.applied[0].checksum, /^[a-f0-9]{64}$/);
   db.close();

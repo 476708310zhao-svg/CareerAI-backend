@@ -10,12 +10,13 @@
 
 ## 当前批次
 
-Sprint 6“OA、项目补强与岗位可信度”已完成。系统已支持 OA 训练计划、计时练习、错题本和本人记录能力统计；证据型 Project Builder 会从岗位差距建立里程碑、数据源、交付物和验收标准，只有真实完成并确认的成果才能写入经历库；Job Trust Score 以五项证据展示风险与不确定性。下一批为 Sprint 7 商业化灰度，但真实支付、生产 migration、供应商 staging 与上线必须先获 Human 审批；未运行真实 E2E，未推送、未部署。
+Sprint 7“商业化治理与 Mock 灰度准备”已完成代码侧收口。Free、Pro、历史会员套餐和三类场景包已分层；订单、支付、权益、额度与退款进入幂等追加账本，退款必须经过本人确认、管理员审核和外部凭据记录；六类运行信号已接入商业告警，商业灰度默认 0% 且无 Human 审批不能提高。真实支付、外部退款、生产 migration、供应商 staging 与上线均未执行；未运行真实 E2E，未推送、未部署。
 
 ## 已完成
 
 | 日期 | 事项 | 文件 | 验证 |
 |---|---|---|---|
+| 2026-09-08 | Sprint 7：定义 Free/Pro 与 JD 简历包、7 天面试冲刺包、秋招季度包；保持历史 planId 0～3 兼容；建立订单/支付/权益/额度/退款统一账本、权益 Grant、退款审批状态机、六类告警和 0% 商业灰度审批门禁；会员页增加场景包边界、权益/订单/退款入口 | `services/v4Commerce*.js`、支付/会员/管理路由、商业化 migration、小程序会员页、`tests/sprint7Commerce.test.js`、`docs/V4_SPRINT7_COMMERCE_GOVERNANCE.md` | Sprint 7 专项 4/4、migration 5/5、Smoke 71/71、全量 195/195、`check:release` 通过；AI 故障矩阵 7/7、外部请求 0、媒体 191.2 KB、Errors 0/Warnings 4；未运行真实 E2E |
 | 2026-09-08 | Sprint 6：新增 OA 计划/计时/错题/能力统计；将旧项目生成页升级为真实岗位差距驱动的证据项目、四里程碑留证、完成证据和确认式经历库写入；岗位详情增加五项证据 Job Trust Score 与本人官网核验记录 | OA/Project/Job Trust V4 数据表、服务、路由和小程序页面，`tests/sprint6Copilots.test.js`、`docs/V4_SPRINT6_OA_PROJECTS_JOB_TRUST.md` | Sprint 6 专项 7/7、migration 5/5、全量 190/190、`check:release` 通过；AI 故障矩阵 7/7、外部请求 0、媒体 191.2 KB、Errors 0/Warnings 4；未运行真实 E2E |
 | 2026-09-08 | Sprint 5：新增联系人 CRM、Connect Note/Cold Message/Coffee Chat/Follow-up/Referral Request 五类可编辑草稿、用户确认外部发送、跟进 Today 提醒和 Networking 真实漏斗；Referral 成功关联岗位、正式申请、简历及版本 | `services/v4Networking.js`、Networking V4 路由、新增 Networking migration、Today/竞争力关联、小程序 Networking Copilot、`tests/sprint5Networking.test.js`、`docs/V4_SPRINT5_NETWORKING_COPILOT.md` | Sprint 5 专项 5/5、migration 5/5、全量 182/182、`check:release` 通过；AI 故障矩阵 7/7、外部请求 0、媒体 191.2 KB、Errors 0/Warnings 4；未运行真实 E2E |
 | 2026-09-08 | Sprint 4：新增七维 Career Competitiveness Score、证据/差距/行动入口、真实漏斗驱动的 3/6/12 月计划与周报告；每日幂等生成 3～5 个 Today 任务，支持完成、延期、跨设备同步和站内提醒 | `services/v4CareerCoach.js`、Career/Today 路由、新增诊断与周报 migration、小程序竞争力陪跑页、`tests/sprint4CareerCoach.test.js`、`docs/V4_SPRINT4_CAREER_COACH.md` | Sprint 4 专项 5/5、migration 5/5、全量 176/176、`check:release` 通过；AI 故障矩阵 7/7、外部请求 0、媒体 191.2 KB、Errors 0/Warnings 4；未运行真实 E2E |
@@ -112,6 +113,7 @@ Sprint 6“OA、项目补强与岗位可信度”已完成。系统已支持 OA 
 
 | 负责人 | 文件 | 任务 | 状态 |
 |---|---|---|---|
+| Codex | 商业套餐/权益/额度账本、退款审计、运营告警、会员小程序页、Sprint 7 migration/测试/文档 | Sprint 7：Free/Pro/场景包、统一商业账本、Mock 支付与退款一致性、可暂停灰度及异常告警 | 已完成；195/195 tests 与 `check:release` 通过，真实支付与外部退款保持关闭，不运行真实 E2E，不推送、不部署，生产 migration 待 Human |
 | Codex | OA/Project Builder/Job Trust V4 数据表、服务、路由、小程序页面、专项测试和文档 | Sprint 6：OA 计划/计时/错题/统计，证据导向项目里程碑/交付物/验收/真实成果确认，以及可追溯岗位可信度评分 | 已完成；190/190 tests 与 `check:release` 通过，不调用真实 AI，不运行真实 E2E，不推送、不部署，生产 migration 待 Human |
 | Codex | Networking V4 数据表/服务/路由、Today 关联、小程序 Networking 页面、专项测试和文档 | Sprint 5：联系人 CRM、五类可编辑草稿、跟进提醒、Referral 漏斗及岗位/简历/申请关联 | 已完成；182/182 tests 与发布检查通过，只生成/保存/复制草稿，不自动外发，不调用真实 AI，不运行真实 E2E，不推送、不部署 |
 | Codex | 竞争力诊断/动态计划/周复盘服务与路由、Today 任务、小程序陪跑页面、专项测试和文档 | Sprint 4：七维竞争力评分、证据化差距、每日 3～5 项关键任务、漏斗驱动动态计划与周复盘 | 已完成；176/176 tests 与发布检查通过，不调用真实 AI，不运行真实 E2E，不推送、不部署 |

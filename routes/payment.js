@@ -9,6 +9,8 @@ const db = require('../db/database');
 const { ok, fail } = require('../utils/response');
 const notify = require('./notify');
 const analytics = require('../services/v4Analytics');
+const commerce = require('../services/v4Commerce');
+const { productById } = require('../services/v4CommerceCatalog');
 const {
   formatWxTime,
   paymentReminderData,
@@ -43,28 +45,63 @@ const PAYMENT_REMINDER_TEMPLATE_ID = process.env.WX_TPL_PAYMENT_REMINDER || '';
 // ── 套餐 ─────────────────────────────────────────────────────────
 const PLANS = {
   0: {
-    name: '月卡会员',
+    planCode: 'pro_month',
+    kind: 'subscription',
+    name: '求职 Pro 月卡',
     price: 4000,
     days: 30,
     productId: process.env.VIRTUAL_PAY_MONTH_PRODUCT_ID || ''
   },
   1: {
-    name: '季卡会员',
+    planCode: 'pro_quarter',
+    kind: 'subscription',
+    name: '求职 Pro 季卡',
     price: 10000,
     days: 90,
     productId: process.env.VIRTUAL_PAY_QUARTER_PRODUCT_ID || ''
   },
   2: {
-    name: '年卡会员',
+    planCode: 'pro_year',
+    kind: 'subscription',
+    name: '求职 Pro 年卡',
     price: 29900,
     days: 365,
     productId: process.env.VIRTUAL_PAY_YEAR_PRODUCT_ID || ''
   },
   3: {
+    planCode: 'pro_trial_7d',
+    kind: 'subscription',
     name: '体验会员',
     price: 1000,
     days: 7,
     productId: process.env.VIRTUAL_PAY_TRIAL_PRODUCT_ID || '',
+    optional: true
+  },
+  4: {
+    planCode: 'jd_resume_pack',
+    kind: 'scenario',
+    name: 'JD 简历包',
+    price: 1990,
+    days: 30,
+    productId: process.env.VIRTUAL_PAY_RESUME_PACK_PRODUCT_ID || '',
+    optional: true
+  },
+  5: {
+    planCode: 'interview_sprint_7d',
+    kind: 'scenario',
+    name: '7 天面试冲刺包',
+    price: 2990,
+    days: 7,
+    productId: process.env.VIRTUAL_PAY_INTERVIEW_PACK_PRODUCT_ID || '',
+    optional: true
+  },
+  6: {
+    planCode: 'autumn_recruit_quarter',
+    kind: 'scenario',
+    name: '秋招季度包',
+    price: 9900,
+    days: 90,
+    productId: process.env.VIRTUAL_PAY_AUTUMN_PACK_PRODUCT_ID || '',
     optional: true
   }
 };
@@ -225,11 +262,11 @@ function formatAmount(amount) {
   return `${(Number(amount || 0) / 100).toFixed(2)}元`;
 }
 
-function notifyPaymentSuccess(order, expireDate) {
+function notifyPaymentSuccess(order, expireDate, plan) {
   if (!order || !notify || typeof notify.sendToUser !== 'function') return;
   notify.sendToUser(order.user_id, {
     type: 'payment',
-    title: '会员支付成功',
+    title: plan && plan.kind === 'scenario' ? '权益开通成功' : '会员支付成功',
     content: `${order.plan_name}已开通，有效期至 ${expireDate}`,
     templateId: PAYMENT_SUCCESS_TEMPLATE_ID,
     wxData: paymentSuccessData({
@@ -267,10 +304,24 @@ function notifyPaymentReminder(order, reason) {
 }
 
 function insertOrder(orderNo, userId, planId, plan) {
-  db.prepare(`
-    INSERT INTO orders (order_no, user_id, plan_id, plan_name, amount, provider)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(orderNo, userId, planId, plan.name, plan.price, USE_VIRTUAL_PAY ? 'virtual' : 'wxpay');
+  const provider = IS_MOCK ? 'mock' : (USE_VIRTUAL_PAY ? 'virtual' : 'wxpay');
+  db.transaction(() => {
+    db.prepare(`
+      INSERT INTO orders (order_no, user_id, plan_id, plan_name, amount, provider)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(orderNo, userId, planId, plan.name, plan.price, provider);
+    commerce.recordOrderCreated({ order_no: orderNo, user_id: userId, amount: plan.price, provider }, plan);
+  })();
+}
+
+function planEntitlements(planCode) {
+  const row = db.prepare('SELECT entitlements FROM membership_plans_v4 WHERE code=? AND enabled=1').get(planCode);
+  return commerce.parseJson(row && row.entitlements, {});
+}
+
+function orderGrant(orderNo) {
+  return db.prepare(`SELECT plan_code AS planCode,grant_type AS grantType,status,expires_at AS expiresAt
+    FROM entitlement_grants_v4 WHERE order_no=? ORDER BY id DESC LIMIT 1`).get(orderNo) || null;
 }
 
 function parseDateOnly(value) {
@@ -302,31 +353,48 @@ function getVipExpireDate(userId, days) {
 
 function markOrderPaid(order, transactionId, paidAmount, extra) {
   if (!order) return { ok: false, status: 404, message: '订单不存在' };
+  const plan = PLANS[order.plan_id];
+  if (!plan) return { ok: false, status: 400, message: '订单套餐不存在' };
   if (order.status === 'paid') {
-    const user = db.prepare('SELECT vip_expires_at FROM users WHERE id = ?').get(order.user_id);
-    return { ok: true, already: true, expireDate: user && user.vip_expires_at };
+    let grant = orderGrant(order.order_no);
+    if (!grant) {
+      const user = db.prepare('SELECT vip_expires_at FROM users WHERE id=?').get(order.user_id) || {};
+      const historicalExpiry = plan.kind === 'subscription' && user.vip_expires_at
+        ? String(user.vip_expires_at).slice(0, 10)
+        : commerce.addDays(order.paid_at || order.created_at, plan.days);
+      db.transaction(() => {
+        if (plan.kind === 'subscription') {
+          db.prepare('UPDATE users SET vip_level=1,vip_expires_at=? WHERE id=?').run(historicalExpiry, order.user_id);
+        }
+        commerce.activatePurchase(order, plan, planEntitlements(plan.planCode), historicalExpiry);
+      })();
+      grant = orderGrant(order.order_no);
+    }
+    return { ok: true, already: true, expireDate: grant && grant.expiresAt, grantType: grant && grant.grantType,
+      planCode: grant && grant.planCode, isMember: grant && grant.grantType === 'subscription' };
   }
   if (Number.isFinite(paidAmount) && paidAmount !== order.amount) {
     return { ok: false, status: 400, message: '金额不匹配' };
   }
 
-  const plan = PLANS[order.plan_id];
-  const expireDateStr = getVipExpireDate(order.user_id, plan ? plan.days : 30);
-  db.prepare(`
-    UPDATE orders
-       SET status='paid',
-           transaction_id=?,
-           paid_at=datetime('now'),
-           wx_order_id=COALESCE(?, wx_order_id),
-           raw_notify=COALESCE(?, raw_notify)
-     WHERE order_no=?
-  `).run(transactionId || '', extra && extra.wxOrderId || '', extra && extra.rawNotify || '', order.order_no);
-  db.prepare('UPDATE users SET vip_level=1, vip_expires_at=? WHERE id=?')
-    .run(expireDateStr, order.user_id);
+  const expireDateStr = plan.kind === 'subscription'
+    ? getVipExpireDate(order.user_id, plan.days)
+    : commerce.addDays('', plan.days);
+  const transaction = db.transaction(() => {
+    db.prepare(`UPDATE orders SET status='paid',transaction_id=?,paid_at=datetime('now'),
+      wx_order_id=COALESCE(?,wx_order_id),raw_notify=COALESCE(?,raw_notify) WHERE order_no=? AND status!='paid'`)
+      .run(transactionId || '', extra && extra.wxOrderId || '', extra && extra.rawNotify || '', order.order_no);
+    if (plan.kind === 'subscription') {
+      db.prepare('UPDATE users SET vip_level=1,vip_expires_at=? WHERE id=?').run(expireDateStr, order.user_id);
+    }
+    commerce.activatePurchase(order, plan, planEntitlements(plan.planCode), expireDateStr);
+  });
+  transaction();
 
-  console.log(`[Payment] 订单 ${order.order_no} 支付成功，用户 ${order.user_id} VIP 至 ${expireDateStr}`);
-  notifyPaymentSuccess(order, expireDateStr);
-  return { ok: true, expireDate: expireDateStr };
+  console.log(`[Payment] 订单 ${order.order_no} 支付成功，用户 ${order.user_id} 权益至 ${expireDateStr}`);
+  notifyPaymentSuccess(order, expireDateStr, plan);
+  return { ok: true, expireDate: expireDateStr, grantType: plan.kind, planCode: plan.planCode,
+    isMember: plan.kind === 'subscription' };
 }
 
 function parseNotifyBody(req) {
@@ -504,7 +572,12 @@ function handleVirtualNotify(req, res, params) {
     wxOrderId,
     rawNotify: JSON.stringify(params)
   });
-  if (!result.ok) return respondVirtualNotify(res, 5, result.message);
+  if (!result.ok) {
+    commerce.recordLedger({ idempotencyKey: `payment-callback-rejected:${orderNo}:${Date.now()}`,
+      eventType: 'payment_callback_rejected', userId: order.user_id, orderNo,
+      planCode: (productById(order.plan_id) || {}).planCode || '', metadata: { reason: result.message } });
+    return respondVirtualNotify(res, 5, result.message);
+  }
 
   respondVirtualNotify(res, 0, 'OK');
 }
@@ -702,7 +775,8 @@ router.post('/mock-confirm', authMiddleware, (req, res) => {
   const result = markOrderPaid(order, `MOCK_${orderNo}`, order.amount, {});
   if (!result.ok) return fail(res, result.message, result.status || 500);
 
-  ok(res, { success: true, already: !!result.already, expireDate: result.expireDate, planName: order.plan_name });
+  ok(res, { success: true, already: !!result.already, expireDate: result.expireDate, planName: order.plan_name,
+    planCode: result.planCode, grantType: result.grantType, isMember: result.isMember });
 });
 
 // ── POST /api/payment/unpaid-reminder  (支付未完成提示/站内消息) ─────────────
@@ -728,12 +802,15 @@ router.get('/verify/:orderNo', authMiddleware, (req, res) => {
   if (!order) return fail(res, '订单不存在', 404);
 
   if (order.status === 'paid') {
-    const user = db.prepare('SELECT vip_expires_at FROM users WHERE id = ?').get(userId);
+    const grant = orderGrant(orderNo);
     return ok(res, {
       status: 'paid',
       provider: order.provider || 'wxpay',
       planName: order.plan_name,
-      expireDate: user && user.vip_expires_at
+      planCode: grant && grant.planCode,
+      grantType: grant && grant.grantType,
+      isMember: grant ? grant.grantType === 'subscription' : true,
+      expireDate: grant && grant.expiresAt
     });
   }
 
