@@ -1155,3 +1155,14 @@ page {
   font-size: 30rpx;
   font-weight: 800;
 }
+
+.trust-card{border:1rpx solid #dce4ff;background:linear-gradient(180deg,#fbfcff,#f6f8ff)}
+.trust-head,.trust-evidence-head,.trust-actions{display:flex;align-items:center;justify-content:space-between;gap:16rpx}
+.trust-score{display:flex;align-items:baseline;padding:13rpx 17rpx;border-radius:18rpx;background:#fff0e5;color:#b54708;font-size:34rpx;font-weight:900}
+.trust-score--higher{background:#eaf8ef;color:#187a40}.trust-score--review{background:#fff6dc;color:#966a00}.trust-score-unit{font-size:19rpx;font-weight:700}
+.trust-label{display:block;margin:17rpx 0;color:#344054;font-size:24rpx;font-weight:750}
+.trust-evidence{padding:14rpx 0;border-bottom:1rpx solid #e7ebf3;color:#344054;font-size:23rpx}
+.trust-evidence-head{font-weight:750}.trust-explanation{display:block;margin-top:6rpx;color:#667085;font-size:21rpx;line-height:1.5}
+.trust-risks{margin-top:14rpx}.trust-risk{display:block;margin-top:6rpx;color:#b42318;font-size:21rpx;line-height:1.5}
+.trust-recommendation{display:block;margin-top:16rpx;color:#344054;font-size:23rpx;font-weight:750;line-height:1.5}.trust-notice{display:block;margin-top:10rpx;color:#667085;font-size:20rpx;line-height:1.5}
+.trust-actions{margin-top:18rpx}.trust-button{flex:1;padding:18rpx 12rpx;border-radius:16rpx;background:#315ff4;color:#fff;text-align:center;font-size:23rpx;font-weight:750}.trust-button.secondary{background:#e9edfa;color:#354fc4}

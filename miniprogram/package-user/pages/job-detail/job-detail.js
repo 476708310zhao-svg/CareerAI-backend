@@ -37,6 +37,8 @@ Page({
     companyExpanded: false,
     similarJobs: [],
     v4Application: null,
+    jobTrust: null,
+    trustObserving: false,
     // 一键投递弹窗
     showApplyModal: false,
     resumeSnap: null
@@ -399,10 +401,67 @@ Requirements:
         sponsorProfile: data.sponsor || null,
         companyProfile: data.company || null,
         inlineMatch: this.buildInlineMatch(data.match),
-        v4Application: data.application || null
+        v4Application: data.application || null,
+        jobTrust: data.trust || null
       });
       this._saveBrowseHistory(job);
     }).catch(() => {});
+  },
+
+  openOfficialForTrust: function() {
+    const trust = this.data.jobTrust || {};
+    const verification = trust.officialVerification || {};
+    const url = verification.url || (this.data.job && this.data.job.applyLink) || '';
+    if (!url) {
+      wx.showToast({ title: '当前没有可核验链接', icon: 'none' });
+      return;
+    }
+    wx.setClipboardData({
+      data: url,
+      success: () => wx.showModal({
+        title: '官网链接已复制',
+        content: '请在浏览器打开并亲自核对岗位状态。返回小程序后点击“记录核验结果”。',
+        showCancel: false
+      })
+    });
+  },
+
+  recordTrustObservation: function() {
+    if (this.data.trustObserving) return;
+    const trust = this.data.jobTrust || {};
+    const verification = trust.officialVerification || {};
+    const url = verification.url || (this.data.job && this.data.job.applyLink) || '';
+    if (!url) { wx.showToast({ title: '请先取得官网岗位链接', icon: 'none' }); return; }
+    const statuses = [
+      { value: 'active', label: '官网仍可申请' },
+      { value: 'closed', label: '官网显示已关闭' },
+      { value: 'redirected', label: '链接跳转到其他岗位' },
+      { value: 'unavailable', label: '官网链接无法访问' },
+      { value: 'unknown', label: '无法判断' }
+    ];
+    wx.showActionSheet({
+      itemList: statuses.map(item => item.label),
+      success: result => {
+        const status = statuses[result.tapIndex];
+        wx.showModal({
+          title: '确认本人核验',
+          content: '确认你已亲自打开官网，并记录为“' + status.label + '”。该记录不代表系统持续监控。',
+          confirmText: '本人确认',
+          success: async choice => {
+            if (!choice.confirm) return;
+            this.setData({ trustObserving: true });
+            try {
+              const res = await v4Api.recordJobTrustObservation(this.data.jobId,
+                { status: status.value, officialUrl: url, confirmObserved: true });
+              if (res && res.code === 0) this.setData({ jobTrust: res.data });
+              wx.showToast({ title: '核验结果已记录', icon: 'success' });
+            } catch (error) {
+              wx.showToast({ title: error.message || '记录失败', icon: 'none' });
+            } finally { this.setData({ trustObserving: false }); }
+          }
+        });
+      }
+    });
   },
 
   // --- 交互功能 ---

@@ -60,6 +60,22 @@
       <view class="company-link" wx:if="{{companyView.id}}" bindtap="goToCompanyDetail" hover-class="tap-muted">查看公司 ›</view>
     </view>
 
+    <view class="section-card trust-card" wx:if="{{jobTrust}}">
+      <view class="trust-head">
+        <view><text class="section-kicker">JOB TRUST</text><text class="section-title">岗位可信度辅助判断</text></view>
+        <view class="trust-score trust-score--{{jobTrust.level}}"><text>{{jobTrust.score}}</text><text class="trust-score-unit">/100</text></view>
+      </view>
+      <text class="trust-label">{{jobTrust.label}} · {{jobTrust.confidenceLabel}}</text>
+      <view class="trust-evidence" wx:for="{{jobTrust.evidence}}" wx:key="key">
+        <view class="trust-evidence-head"><text>{{item.label}}</text><text>{{item.score}}/{{item.maximum}}</text></view>
+        <text class="trust-explanation">{{item.explanation}}</text>
+      </view>
+      <view class="trust-risks" wx:if="{{jobTrust.risks.length}}"><text class="trust-risk" wx:for="{{jobTrust.risks}}" wx:key="*this">提醒：{{item}}</text></view>
+      <text class="trust-recommendation">建议：{{jobTrust.recommendation}}</text>
+      <text class="trust-notice">{{jobTrust.notice}}</text>
+      <view class="trust-actions"><view class="trust-button secondary" bindtap="openOfficialForTrust">打开官网核对</view><view class="trust-button" bindtap="recordTrustObservation">{{trustObserving ? '记录中...' : '记录核验结果'}}</view></view>
+    </view>
+
     <view class="section-card match-summary-card" wx:if="{{inlineMatch}}">
       <view class="section-heading-row">
         <view>

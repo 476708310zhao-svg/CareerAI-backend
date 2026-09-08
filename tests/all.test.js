@@ -6,6 +6,7 @@ require('./databaseMigrations.test');
 require('./sprint3AiLoops.test');
 require('./sprint4CareerCoach.test');
 require('./sprint5Networking.test');
+require('./sprint6Copilots.test');
 require('./v4ResumeCenter.test');
 require('./coreEntityRefs.test');
 require('./funnelAnalytics.test');

@@ -89,6 +89,24 @@ function cancelAgentTask(id) { return write('POST', '/api/v4/agents/tasks/' + en
 function confirmAgentTask(id, payload) { return write('POST', '/api/v4/agents/tasks/' + encodeURIComponent(id) + '/confirm', payload); }
 function getMembershipPlans() { return get('/api/v4/membership/plans'); }
 function getMembershipStatus() { return get('/api/v4/membership/status'); }
+function getOaDashboard() { return get('/api/v4/oa/dashboard'); }
+function createOaPlan(payload) { return write('POST', '/api/v4/oa/plans', payload); }
+function updateOaPlan(id, payload) { return write('PATCH', '/api/v4/oa/plans/' + encodeURIComponent(id), payload); }
+function startOaSession(id, payload) { return write('POST', '/api/v4/oa/plans/' + encodeURIComponent(id) + '/sessions', payload); }
+function completeOaSession(id, payload) { return write('POST', '/api/v4/oa/sessions/' + encodeURIComponent(id) + '/complete', payload); }
+function abandonOaSession(id) { return write('POST', '/api/v4/oa/sessions/' + encodeURIComponent(id) + '/abandon'); }
+function updateOaMistake(id, payload) { return write('PATCH', '/api/v4/oa/mistakes/' + encodeURIComponent(id), payload); }
+function getProjectDashboard() { return get('/api/v4/projects/dashboard'); }
+function createEvidenceProject(payload) { return write('POST', '/api/v4/projects', payload); }
+function updateProjectMilestone(id, milestoneId, payload) {
+  return write('PATCH', '/api/v4/projects/' + encodeURIComponent(id) + '/milestones/' + encodeURIComponent(milestoneId), payload);
+}
+function completeEvidenceProject(id, payload) { return write('POST', '/api/v4/projects/' + encodeURIComponent(id) + '/complete', payload); }
+function exportProjectExperience(id, payload) { return write('POST', '/api/v4/projects/' + encodeURIComponent(id) + '/export-experience', payload); }
+function getJobTrust(jobId) { return get('/api/v4/jobs/' + encodeURIComponent(jobId) + '/trust'); }
+function recordJobTrustObservation(jobId, payload) {
+  return write('POST', '/api/v4/jobs/' + encodeURIComponent(jobId) + '/trust/observations', payload);
+}
 
 module.exports = {
   getProfile,
@@ -165,4 +183,18 @@ module.exports = {
   confirmAgentTask,
   getMembershipPlans,
   getMembershipStatus,
+  getOaDashboard,
+  createOaPlan,
+  updateOaPlan,
+  startOaSession,
+  completeOaSession,
+  abandonOaSession,
+  updateOaMistake,
+  getProjectDashboard,
+  createEvidenceProject,
+  updateProjectMilestone,
+  completeEvidenceProject,
+  exportProjectExperience,
+  getJobTrust,
+  recordJobTrustObservation,
 };

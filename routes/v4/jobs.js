@@ -11,6 +11,7 @@ const companyService = require('../../services/companyService');
 const { applicationRefs, withCoreRefs } = require('../../utils/coreEntityRefs');
 const { STATUS_TEXT, toV4Status } = require('../../utils/applicationStatus');
 const { buildDataMeta, summarizeDataMeta } = require('../../utils/dataProvenance');
+const jobTrust = require('../../services/v4JobTrust');
 
 const router = express.Router();
 const analytics = require('../../services/v4Analytics');
@@ -76,6 +77,10 @@ function jobDataMeta(job) {
     isFallback: isLocalArchive,
     fallbackReason: isLocalArchive ? '当前精准匹配基于历史职位库' : ''
   });
+}
+
+function buildJobTrust(userId, job) {
+  return jobTrust.buildTrust(job, listJobs(), jobTrust.listObservations(userId, job.id));
 }
 
 router.get('/', authMiddleware, (req, res) => {
@@ -174,6 +179,7 @@ router.get('/:id/detail', authMiddleware, (req, res) => {
   ), '/api/v4/jobs/:id/detail');
   return ok(res, {
     job: { ...job, deadline: job.deadline || '', officialApplyUrl: job.applyUrl || job.sourceUrl || '', dataMeta: jobDataMeta(job) },
+    trust: buildJobTrust(req.user.userId, job),
     sponsor,
     match,
     company,
@@ -186,6 +192,23 @@ router.get('/:id/detail', authMiddleware, (req, res) => {
       refs: applicationRefs(application)
     } : null
   });
+});
+
+router.get('/:id/trust', authMiddleware, (req, res) => {
+  const job = findJobById(req.params.id);
+  if (!job) return fail(res, '职位不存在', 404);
+  return ok(res, buildJobTrust(req.user.userId, job));
+});
+
+router.post('/:id/trust/observations', authMiddleware, (req, res) => {
+  const job = findJobById(req.params.id);
+  if (!job) return fail(res, '职位不存在', 404);
+  try {
+    jobTrust.recordObservation(req.user.userId, job, req.body);
+    return ok(res, buildJobTrust(req.user.userId, job), '官网核验记录已保存');
+  } catch (error) {
+    return res.status(error.status || 400).json({ code: error.code || -1, message: error.message || '核验记录保存失败', data: null });
+  }
 });
 
 router.post('/:id/match', authMiddleware, (req, res) => {

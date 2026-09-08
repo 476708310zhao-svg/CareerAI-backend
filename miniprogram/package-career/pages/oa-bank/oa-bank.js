@@ -1,224 +1,127 @@
-// pages/oa-bank/oa-bank.js
-const { request, post, put, _write } = require('../../../utils/api-client.js');
+// Sprint 6 OA Copilot：所有成绩、耗时与错题都由用户本人记录并确认。
+const v4Api = require('../../../utils/api-v4.js');
 
-const STATUS_MAP = {
-  pending:    { label: '待完成', color: '#d97706', bg: '#fef9c3' },
-  doing:      { label: '进行中', color: '#2563eb', bg: '#dbeafe' },
-  done:       { label: '已完成', color: '#16a34a', bg: '#dcfce7' },
-  expired:    { label: '已过期', color: '#6b7280', bg: '#f3f4f6' },
-};
-const TYPE_MAP = {
-  coding:     '算法编程',
-  video:      '视频面试',
-  written:    '笔试',
-  survey:     '问卷测评',
-  case:       'Case Study',
-  other:      '其他',
-};
-const DIFF_MAP = {
-  easy:   { label: '简单', color: '#16a34a' },
-  medium: { label: '中等', color: '#d97706' },
-  hard:   { label: '困难', color: '#dc2626' },
-};
+const EMPTY_PLAN = { company: '', role: '', targetDate: '', weeklyMinutes: '180', focusTypes: [] };
+const EMPTY_RESULT = { totalQuestions: '', correctCount: '', prompt: '', userAnswer: '', correctAnswer: '', notes: '' };
 
-const EMPTY_FORM = {
-  company: '', role: '', oa_type: 'coding', platform: '',
-  difficulty: 'medium', status: 'pending', deadline: '',
-  duration_min: '', question_cnt: '', topics: '', notes: '', source_url: '',
-};
+function modal(options) {
+  return new Promise(resolve => wx.showModal(Object.assign({}, options, { success: resolve, fail: () => resolve({ confirm: false }) })));
+}
 
 Page({
   data: {
-    // 列表
-    items:    [],
-    loading:  false,
-    filterStatus: '',  // '' | pending | doing | done | expired
-
-    // 统计
-    stats: null,
-
-    // 弹窗
-    showForm:    false,
-    editId:      null,   // null = 新建
-    form:        { ...EMPTY_FORM },
-    saving:      false,
-
-    // 详情展开
-    expandId: null,
-
-    STATUS_MAP, TYPE_MAP, DIFF_MAP,
-    typeList:   Object.entries(TYPE_MAP).map(([k, v]) => ({ key: k, label: v })),
-    diffList:   Object.entries(DIFF_MAP).map(([k, v]) => ({ key: k, label: v.label })),
-    statusList: Object.entries(STATUS_MAP).map(([k, v]) => ({ key: k, label: v.label })),
+    loading: false, dashboard: null, plans: [], capabilities: [], mistakes: [], questionTypes: [],
+    activeSession: null, elapsedSeconds: 0, elapsedText: '00:00', showPlanForm: false,
+    planForm: Object.assign({}, EMPTY_PLAN), showResultForm: false,
+    resultForm: Object.assign({}, EMPTY_RESULT), saving: false
   },
 
-  onLoad() {
-    this.loadItems();
-    this.loadStats();
-  },
+  onLoad() { this.loadDashboard(); },
+  onShow() { if (this.data.dashboard) this.loadDashboard(); },
+  onUnload() { this.stopTimer(); },
+  onPullDownRefresh() { this.loadDashboard().finally(() => wx.stopPullDownRefresh()); },
 
-  onPullDownRefresh() {
-    this.loadItems().finally(() => wx.stopPullDownRefresh());
-  },
-
-  async loadItems() {
+  async loadDashboard() {
     this.setData({ loading: true });
-    const { filterStatus } = this.data;
     try {
-      const res = await request({
-        path: '/api/oa',
-        params: filterStatus ? { status: filterStatus, pageSize: 100 } : { pageSize: 100 },
-        cacheTTL: 0,
-      });
-      if (res && res.code === 0) {
-        const items = (res.data.items || []).map(r => this._decorate(r));
-        this.setData({ items });
-      }
-    } catch (e) {
-      wx.showToast({ title: '加载失败', icon: 'none' });
-    } finally {
-      this.setData({ loading: false });
-    }
+      const res = await v4Api.getOaDashboard();
+      if (!res || res.code !== 0) throw new Error((res && res.message) || '加载失败');
+      const data = res.data || {};
+      this.setData({ dashboard: data, plans: data.plans || [], capabilities: data.capabilities || [],
+        mistakes: data.mistakes || [],
+        questionTypes: (data.questionTypes || []).map(item => Object.assign({}, item, { selected: false })),
+        activeSession: data.activeSession || null });
+      if (data.activeSession) this.startTimer(data.activeSession.startedAt); else this.stopTimer();
+    } catch (error) { wx.showToast({ title: error.message || '加载失败', icon: 'none' }); }
+    finally { this.setData({ loading: false }); }
   },
 
-  async loadStats() {
-    try {
-      const res = await request({ path: '/api/oa/stats', params: {}, cacheTTL: 0 });
-      if (res && res.code === 0) this.setData({ stats: res.data });
-    } catch (e) {}
-  },
-
-  _decorate(r) {
-    const sm = STATUS_MAP[r.status] || STATUS_MAP.pending;
-    const dm = DIFF_MAP[r.difficulty] || DIFF_MAP.medium;
-    const deadlineFmt = r.deadline ? r.deadline.slice(0, 10) : '';
-    const isUrgent = deadlineFmt && r.status !== 'done' && r.status !== 'expired'
-      && (new Date(deadlineFmt) - new Date()) < 3 * 86400 * 1000
-      && new Date(deadlineFmt) >= new Date();
-    return {
-      ...r,
-      statusLabel:  sm.label,
-      statusColor:  sm.color,
-      statusBg:     sm.bg,
-      diffLabel:    dm.label,
-      diffColor:    dm.color,
-      typeLabel:    TYPE_MAP[r.oa_type] || r.oa_type,
-      deadlineFmt,
-      isUrgent,
+  startTimer(startedAt) {
+    this.stopTimer();
+    const text = String(startedAt || '');
+    const started = new Date(text.replace(' ', 'T') + (text.includes('Z') ? '' : 'Z')).getTime();
+    const refresh = () => {
+      const seconds = Number.isFinite(started) ? Math.max(0, Math.floor((Date.now() - started) / 1000)) : 0;
+      this.setData({ elapsedSeconds: seconds,
+        elapsedText: String(Math.floor(seconds / 60)).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0') });
     };
+    refresh();
+    this._timer = setInterval(refresh, 1000);
+  },
+  stopTimer() { if (this._timer) clearInterval(this._timer); this._timer = null; },
+
+  openPlanForm() {
+    this.setData({ showPlanForm: true, planForm: Object.assign({}, EMPTY_PLAN),
+      questionTypes: this.data.questionTypes.map(item => Object.assign({}, item, { selected: false })) });
+  },
+  closePlanForm() { this.setData({ showPlanForm: false }); },
+  onPlanInput(e) { this.setData({ ['planForm.' + e.currentTarget.dataset.key]: e.detail.value }); },
+  toggleFocusType(e) {
+    const value = e.currentTarget.dataset.value;
+    const selected = this.data.planForm.focusTypes.slice();
+    const index = selected.indexOf(value);
+    if (index >= 0) selected.splice(index, 1); else selected.push(value);
+    this.setData({ 'planForm.focusTypes': selected,
+      questionTypes: this.data.questionTypes.map(item => Object.assign({}, item, { selected: selected.includes(item.value) })) });
   },
 
-  setFilter(e) {
-    const v = e.currentTarget.dataset.val;
-    this.setData({ filterStatus: this.data.filterStatus === v ? '' : v });
-    this.loadItems();
-  },
-
-  toggleExpand(e) {
-    const id = e.currentTarget.dataset.id;
-    this.setData({ expandId: this.data.expandId === id ? null : id });
-  },
-
-  // ── 表单 ────────────────────────────────────────────────────
-  openCreate() {
-    this.setData({ showForm: true, editId: null, form: { ...EMPTY_FORM } });
-  },
-
-  openEdit(e) {
-    const id = e.currentTarget.dataset.id;
-    const item = this.data.items.find(i => i.id === id);
-    if (!item) return;
-    this.setData({
-      showForm: true,
-      editId: id,
-      form: {
-        company:      item.company,
-        role:         item.role,
-        oa_type:      item.oa_type,
-        platform:     item.platform,
-        difficulty:   item.difficulty,
-        status:       item.status,
-        deadline:     item.deadline,
-        duration_min: item.duration_min ? String(item.duration_min) : '',
-        question_cnt: item.question_cnt ? String(item.question_cnt) : '',
-        topics:       Array.isArray(item.topics) ? item.topics.join(', ') : '',
-        notes:        item.notes,
-        source_url:   item.source_url,
-      },
-    });
-  },
-
-  closeForm() { this.setData({ showForm: false }); },
-
-  onFormInput(e) {
-    const key = e.currentTarget.dataset.key;
-    this.setData({ [`form.${key}`]: e.detail.value });
-  },
-
-  setFormField(e) {
-    const key = e.currentTarget.dataset.key;
-    const val = e.currentTarget.dataset.val;
-    this.setData({ [`form.${key}`]: val });
-  },
-
-  async saveForm() {
-    const { form, editId } = this.data;
-    if (!form.company.trim()) { wx.showToast({ title: '公司名不能为空', icon: 'none' }); return; }
+  async savePlan() {
+    const form = this.data.planForm;
+    if (!form.company.trim() || !form.focusTypes.length) { wx.showToast({ title: '请填写公司并选择题型', icon: 'none' }); return; }
     this.setData({ saving: true });
-
-    const body = {
-      ...form,
-      topics:       form.topics ? form.topics.split(/[,，]/).map(s => s.trim()).filter(Boolean) : [],
-      duration_min: parseInt(form.duration_min) || 0,
-      question_cnt: parseInt(form.question_cnt) || 0,
-    };
-
     try {
-      let res;
-      if (editId) {
-        res = await put({ path: `/api/oa/${editId}`, body });
-      } else {
-        res = await post({ path: '/api/oa', body });
-      }
-      if (!res || res.code !== 0) throw new Error(res && res.message ? res.message : '保存失败');
-      wx.showToast({ title: editId ? '已更新' : '已添加', icon: 'success' });
-      this.setData({ showForm: false });
-      this.loadItems();
-      this.loadStats();
-    } catch (e) {
-      wx.showToast({ title: e.message || '保存失败', icon: 'none' });
-    } finally {
-      this.setData({ saving: false });
-    }
+      await v4Api.createOaPlan({ company: form.company.trim(), role: form.role.trim(), targetDate: form.targetDate,
+        weeklyMinutes: Number(form.weeklyMinutes) || 180, focusTypes: form.focusTypes });
+      this.setData({ showPlanForm: false }); await this.loadDashboard(); wx.showToast({ title: '计划已创建', icon: 'success' });
+    } catch (error) { wx.showToast({ title: error.message || '创建失败', icon: 'none' }); }
+    finally { this.setData({ saving: false }); }
   },
 
-  async quickStatus(e) {
-    const { id, status } = e.currentTarget.dataset;
-    const next = status === 'pending' ? 'doing' : status === 'doing' ? 'done' : 'pending';
-    try {
-      await put({ path: `/api/oa/${id}`, body: { status: next } });
-      const items = this.data.items.map(i => i.id === id ? this._decorate({ ...i, status: next }) : i);
-      this.setData({ items });
-      this.loadStats();
-    } catch (e) {}
-  },
-
-  async deleteItem(e) {
-    const id = e.currentTarget.dataset.id;
-    wx.showModal({
-      title: '确认删除',
-      content: '删除后不可恢复',
-      success: async ({ confirm }) => {
-        if (!confirm) return;
-        try {
-          await _write({ path: `/api/oa/${id}`, method: 'DELETE', body: {} });
-          const items = this.data.items.filter(i => i.id !== id);
-          this.setData({ items });
-          this.loadStats();
-        } catch (e) {
-          wx.showToast({ title: '删除失败', icon: 'none' });
-        }
-      }
+  startPractice(e) {
+    if (this.data.activeSession) { wx.showToast({ title: '请先结束当前练习', icon: 'none' }); return; }
+    const plan = this.data.plans.find(item => String(item.id) === String(e.currentTarget.dataset.id));
+    if (!plan || !plan.focusTypes.length) return;
+    const options = plan.focusTypes.map(value => {
+      const item = this.data.questionTypes.find(type => type.value === value); return item ? item.label : value;
     });
+    wx.showActionSheet({ itemList: options, success: async result => {
+      try { await v4Api.startOaSession(plan.id, { questionType: plan.focusTypes[result.tapIndex], plannedMinutes: 30 }); await this.loadDashboard(); }
+      catch (error) { wx.showToast({ title: error.message || '开始失败', icon: 'none' }); }
+    } });
   },
+
+  openResultForm() { this.setData({ showResultForm: true, resultForm: Object.assign({}, EMPTY_RESULT) }); },
+  closeResultForm() { this.setData({ showResultForm: false }); },
+  onResultInput(e) { this.setData({ ['resultForm.' + e.currentTarget.dataset.key]: e.detail.value }); },
+  async completePractice() {
+    const session = this.data.activeSession; const form = this.data.resultForm;
+    if (!session || !Number(form.totalQuestions)) { wx.showToast({ title: '请填写练习题数', icon: 'none' }); return; }
+    const result = await modal({ title: '确认本人记录', content: '请确认题数、答对数、耗时和错题均来自你本次真实练习。确认后才会计入能力统计。', confirmText: '本人确认' });
+    if (!result.confirm) return;
+    const wrongItems = form.prompt.trim() ? [{ prompt: form.prompt, userAnswer: form.userAnswer, correctAnswer: form.correctAnswer, notes: form.notes }] : [];
+    this.setData({ saving: true });
+    try {
+      await v4Api.completeOaSession(session.id, { totalQuestions: Number(form.totalQuestions), correctCount: Number(form.correctCount) || 0,
+        elapsedSeconds: Math.max(1, this.data.elapsedSeconds), wrongItems, confirmSelfReported: true });
+      this.setData({ showResultForm: false }); await this.loadDashboard(); wx.showToast({ title: '练习已记录', icon: 'success' });
+    } catch (error) { wx.showToast({ title: error.message || '保存失败', icon: 'none' }); }
+    finally { this.setData({ saving: false }); }
+  },
+
+  async abandonPractice() {
+    const result = await modal({ title: '结束练习', content: '本次记录将不计入能力统计，确定结束吗？' });
+    if (!result.confirm || !this.data.activeSession) return;
+    try { await v4Api.abandonOaSession(this.data.activeSession.id); await this.loadDashboard(); }
+    catch (error) { wx.showToast({ title: error.message || '操作失败', icon: 'none' }); }
+  },
+
+  async markMistake(e) {
+    const id = e.currentTarget.dataset.id; const status = e.currentTarget.dataset.status; let confirmed = false;
+    if (status === 'mastered') {
+      const result = await modal({ title: '确认已掌握', content: '请确认你已重新练习并能独立完成该题。', confirmText: '确认掌握' });
+      confirmed = result.confirm; if (!confirmed) return;
+    }
+    try { await v4Api.updateOaMistake(id, { status, confirmReviewed: confirmed }); await this.loadDashboard(); }
+    catch (error) { wx.showToast({ title: error.message || '操作失败', icon: 'none' }); }
+  }
 });

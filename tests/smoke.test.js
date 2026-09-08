@@ -130,6 +130,12 @@ test.after(async () => {
   }
   const user = db.prepare('SELECT id FROM users WHERE email = ?').get(testAccount.email);
   if (user) {
+    db.prepare('DELETE FROM oa_mistakes_v4 WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM oa_practice_sessions_v4 WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM oa_training_plans_v4 WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM career_project_milestones_v4 WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM career_projects_v4 WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM job_trust_observations_v4 WHERE user_id = ?').run(user.id);
     db.prepare('DELETE FROM interview_answers_v4 WHERE user_id = ?').run(user.id);
     db.prepare('DELETE FROM interview_reports_v4 WHERE user_id = ?').run(user.id);
     db.prepare('DELETE FROM interview_sessions_v4 WHERE user_id = ?').run(user.id);
@@ -1601,6 +1607,125 @@ test('v4 Networking Copilot keeps contacts, drafts, reminders and Referral links
   assert.ok(final.data.contacts.some(item => item.id === contact.id));
   for (const stage of final.data.funnel.stages) assert.equal(stage.count, 1);
   assert.match(final.data.funnel.notice, /不预测/);
+});
+
+test('Sprint 6 OA, evidence project and Job Trust APIs enforce confirmation gates', async () => {
+  assert.ok(authToken);
+
+  const emptyOaRes = await fetch(`${BASE_URL}/api/v4/oa/dashboard`, { headers: authHeaders() });
+  assert.equal(emptyOaRes.status, 200);
+  const emptyOa = await readJson(emptyOaRes);
+  assert.ok(emptyOa.data.capabilities.every(item => item.accuracy === null));
+
+  const planRes = await fetch(`${BASE_URL}/api/v4/oa/plans`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ company: 'Sprint 6 Test Co', role: 'Data Analyst', focusTypes: ['numerical'], weeklyMinutes: 120 })
+  });
+  assert.equal(planRes.status, 201);
+  const plan = (await readJson(planRes)).data;
+  const sessionRes = await fetch(`${BASE_URL}/api/v4/oa/plans/${plan.id}/sessions`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ questionType: 'numerical', plannedMinutes: 20 })
+  });
+  assert.equal(sessionRes.status, 201);
+  const session = (await readJson(sessionRes)).data;
+  const secondSessionRes = await fetch(`${BASE_URL}/api/v4/oa/plans/${plan.id}/sessions`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ questionType: 'numerical' })
+  });
+  assert.equal(secondSessionRes.status, 409);
+  const resultPayload = { totalQuestions: 10, correctCount: 8, elapsedSeconds: 600,
+    wrongItems: [{ questionKey: 'smoke-q-1', prompt: '2 + 2 = ?', userAnswer: '5', correctAnswer: '4', notes: '重新计算' }] };
+  const unconfirmedCompleteRes = await fetch(`${BASE_URL}/api/v4/oa/sessions/${session.id}/complete`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(resultPayload)
+  });
+  assert.equal(unconfirmedCompleteRes.status, 400);
+  const completeRes = await fetch(`${BASE_URL}/api/v4/oa/sessions/${session.id}/complete`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ ...resultPayload, confirmSelfReported: true })
+  });
+  assert.equal(completeRes.status, 200);
+  const oaDashboard = await readJson(await fetch(`${BASE_URL}/api/v4/oa/dashboard`, { headers: authHeaders() }));
+  const numerical = oaDashboard.data.capabilities.find(item => item.type === 'numerical');
+  assert.equal(numerical.accuracy, 80);
+  assert.equal(numerical.averageSecondsPerQuestion, 60);
+  const mistake = oaDashboard.data.mistakes[0];
+  const unconfirmedMasteredRes = await fetch(`${BASE_URL}/api/v4/oa/mistakes/${mistake.id}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ status: 'mastered' })
+  });
+  assert.equal(unconfirmedMasteredRes.status, 400);
+  const masteredRes = await fetch(`${BASE_URL}/api/v4/oa/mistakes/${mistake.id}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ status: 'mastered', confirmReviewed: true })
+  });
+  assert.equal(masteredRes.status, 200);
+
+  const projectRes = await fetch(`${BASE_URL}/api/v4/projects`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ applicationId: v4ApplicationId, track: 'data', targetRole: 'Data Analyst', gaps: ['缺少真实数据项目证据'] })
+  });
+  assert.equal(projectRes.status, 201);
+  let project = (await readJson(projectRes)).data;
+  assert.equal(project.source, 'rules');
+  assert.equal(project.milestones.length, 4);
+  const prematureExportRes = await fetch(`${BASE_URL}/api/v4/projects/${project.id}/export-experience`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ resumeBullet: '尚未完成', confirmResumeWriteback: true })
+  });
+  assert.equal(prematureExportRes.status, 409);
+  for (const milestone of project.milestones) {
+    const milestoneRes = await fetch(`${BASE_URL}/api/v4/projects/${project.id}/milestones/${milestone.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ status: 'completed', evidenceNote: `smoke evidence for ${milestone.title}`, confirmEvidence: true })
+    });
+    assert.equal(milestoneRes.status, 200);
+    project = (await readJson(milestoneRes)).data;
+  }
+  assert.equal(project.progress, 100);
+  const unconfirmedProjectRes = await fetch(`${BASE_URL}/api/v4/projects/${project.id}/complete`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ evidence: { outcomes: ['处理 120 条公开数据，准确率 91%'], artifacts: ['https://example.com/sprint6'] } })
+  });
+  assert.equal(unconfirmedProjectRes.status, 400);
+  const completedProjectRes = await fetch(`${BASE_URL}/api/v4/projects/${project.id}/complete`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ confirmRealCompletion: true,
+      evidence: { outcomes: ['处理 120 条公开数据，准确率 91%'], artifacts: ['https://example.com/sprint6'], limitations: ['仅使用公开测试样本'] } })
+  });
+  assert.equal(completedProjectRes.status, 200);
+  const unsupportedMetricRes = await fetch(`${BASE_URL}/api/v4/projects/${project.id}/export-experience`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ resumeBullet: '处理 120 条数据，准确率 99%', confirmResumeWriteback: true })
+  });
+  assert.equal(unsupportedMetricRes.status, 422);
+  const exportRes = await fetch(`${BASE_URL}/api/v4/projects/${project.id}/export-experience`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ resumeBullet: '处理 120 条公开数据，实际测试准确率 91%', confirmResumeWriteback: true })
+  });
+  assert.equal(exportRes.status, 201);
+  const exported = await readJson(exportRes);
+  assert.ok(exported.data.experienceId);
+  assert.equal(exported.data.project.resumeExperienceId, exported.data.experienceId);
+
+  const trustDetailRes = await fetch(`${BASE_URL}/api/v4/jobs/1/detail`, { headers: authHeaders() });
+  assert.equal(trustDetailRes.status, 200);
+  const trustDetail = await readJson(trustDetailRes);
+  assert.equal(trustDetail.data.trust.evidence.length, 5);
+  assert.equal(trustDetail.data.trust.evidence.reduce((sum, item) => sum + item.maximum, 0), 100);
+  assert.match(trustDetail.data.trust.notice, /辅助|不能证明|仅汇总/);
+  const unconfirmedObservationRes = await fetch(`${BASE_URL}/api/v4/jobs/1/trust/observations`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ status: 'active', officialUrl: 'https://example.com/jobs/1' })
+  });
+  assert.equal(unconfirmedObservationRes.status, 400);
+  const observationRes = await fetch(`${BASE_URL}/api/v4/jobs/1/trust/observations`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ status: 'active', officialUrl: 'https://example.com/jobs/1', confirmObserved: true })
+  });
+  assert.equal(observationRes.status, 200);
+  const observedTrust = await readJson(observationRes);
+  assert.equal(observedTrust.data.evidence.find(item => item.key === 'status').status, 'active');
+  assert.equal(observedTrust.data.observations[0].source, 'user_reported');
 });
 
 test('canonical job funnel is complete and smoke analytics stay outside production', async () => {
