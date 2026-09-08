@@ -1,6 +1,6 @@
 # DEVELOPMENT_STATUS
 
-更新时间：2026-09-04
+更新时间：2026-09-08
 
 主项目目录：`D:\ChatGPT-Projects\求职小程序\jobapp-server`
 
@@ -10,12 +10,13 @@
 
 ## 当前批次
 
-Sprint 3“三项高价值 AI 闭环”已完成。岗位匹配已输出 Target/Reach/Safe/Blocked 梯次、明确投递建议和 Sponsor/身份判断；JD 定制简历已接通真实版本、逐条确认、不可变新版本及申请绑定；面试空间已提供公司×岗位×轮次 Brief，并把弱项复练写入 Today。下一批进入 Sprint 4“竞争力诊断与 AI 陪跑”。真实供应商 staging 抽样与生产 baseline 登记待 Human 审批；未运行真实 E2E，未推送、未部署。
+Sprint 4“竞争力诊断与 AI 陪跑”已完成。系统已形成教育、经历、技能、项目、简历、面试、Networking 七维证据评分，低分项可转 Today；3/6/12 月计划与周报告使用真实申请漏斗动态调整，每日生成 3～5 个可完成、延期和跨设备同步的任务。下一批进入 Sprint 5“Networking Copilot MVP”。真实供应商 staging 抽样、生产 migration 与上线仍待 Human 审批；未运行真实 E2E，未推送、未部署。
 
 ## 已完成
 
 | 日期 | 事项 | 文件 | 验证 |
 |---|---|---|---|
+| 2026-09-08 | Sprint 4：新增七维 Career Competitiveness Score、证据/差距/行动入口、真实漏斗驱动的 3/6/12 月计划与周报告；每日幂等生成 3～5 个 Today 任务，支持完成、延期、跨设备同步和站内提醒 | `services/v4CareerCoach.js`、Career/Today 路由、新增诊断与周报 migration、小程序竞争力陪跑页、`tests/sprint4CareerCoach.test.js`、`docs/V4_SPRINT4_CAREER_COACH.md` | Sprint 4 专项 5/5、migration 5/5、全量 176/176、`check:release` 通过；AI 故障矩阵 7/7、外部请求 0、媒体 191.2 KB、Errors 0/Warnings 4；未运行真实 E2E |
 | 2026-09-04 | Sprint 3：完成可行动岗位梯次与投递决策、Sponsor/身份限制说明；接通岗位 JD 到真实简历版本的逐条确认和不可变新版本；新增公司×岗位×轮次 Interview Brief、弱项专项复练及 Today/申请进度回写 | Job Match、V4 简历中心、面试服务，小程序岗位详情/简历中心/面试空间，`tests/sprint3AiLoops.test.js`、`docs/V4_SPRINT3_HIGH_VALUE_AI_LOOPS.md` | Sprint 3 专项 5/5、全量 170/170、`check:release` 通过；AI 质量矩阵 7/7、外部请求 0、媒体 191.2 KB、Errors 0/Warnings 4；未运行真实 E2E |
 | 2026-09-04 | Sprint 2.5：建立 `schema_migrations`、顺序 SQL migration、SHA-256 漂移检测、baseline 结构前置检查与显式目标/备份/确认保护；在隔离副本验证备份、迁移、幂等、故障事务、恢复和回滚 | `db/migrate.js`、`db/backup.js`、`db/migrations/0001_current_schema_baseline.sql`、迁移/演练脚本、专项测试、`docs/DATABASE_MIGRATION_PLAN.md` | migration 专项 5/5、全量 165/165；隔离演练 8 项检查通过，11,182,080-byte 备份恢复 SHA-256 一致，生产写入 0；未运行真实 E2E |
 | 2026-09-04 | Sprint 2.4：建立 11 个合成匿名 AI 样本和超时/429/5xx/断网/非法 JSON/配置缺失/kill switch 故障矩阵；增加递归 PII 脱敏、虚构执行拦截、确认写入和额度不多扣；记录耗时、Token、降级与可选成本并汇总到运营看板 | AI runtime/Agent/简历/文案/面试路由与服务、`utils/aiSafety.js`、匿名 fixtures/门禁辅助程序、质量脚本/测试、`docs/AI_QUALITY_GATE.md` | `check:release` 160/160 通过、AI 故障矩阵 7/7、媒体 191.2 KB、Errors 0/Warnings 4；外部请求 0，未运行真实 E2E |
@@ -109,6 +110,7 @@ Sprint 3“三项高价值 AI 闭环”已完成。岗位匹配已输出 Target/
 
 | 负责人 | 文件 | 任务 | 状态 |
 |---|---|---|---|
+| Codex | 竞争力诊断/动态计划/周复盘服务与路由、Today 任务、小程序陪跑页面、专项测试和文档 | Sprint 4：七维竞争力评分、证据化差距、每日 3～5 项关键任务、漏斗驱动动态计划与周复盘 | 已完成；176/176 tests 与发布检查通过，不调用真实 AI，不运行真实 E2E，不推送、不部署 |
 | Codex | Job Match、V4 简历中心/材料、面试空间/报告、Today 回写、小程序对应页面、专项测试与文档 | Sprint 3：可行动岗位分层、JD 定制简历确认式新版本、Interview Brief 与弱项复练闭环 | 已完成；170/170 tests 与发布检查通过，不调用真实 AI，不运行真实 E2E |
 | Codex | `db/migrate.js`、`db/migrations/`、数据库迁移/备份演练脚本、相关测试与文档 | Sprint 2.5：建立 schema migration baseline，在隔离数据库验证备份、迁移、幂等、失败事务、恢复与回滚 | 已完成自动化与隔离演练；生产 baseline 登记待 Human，不运行真实 E2E |
 | Codex | `services/v4AiRuntime.js`、`services/v4Agents.js`、AI 路由、`utils/aiSafety.js`、匿名样本/门禁辅助程序、测试/脚本/文档 | Sprint 2.4：AI 异常矩阵、PII/真实性/确认写入/额度质量门禁 | 已完成自动化基线；真实供应商 staging 抽样待 Human，不运行真实 E2E |

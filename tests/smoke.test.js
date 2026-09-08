@@ -135,6 +135,8 @@ test.after(async () => {
     db.prepare('DELETE FROM interview_sessions_v4 WHERE user_id = ?').run(user.id);
     db.prepare('DELETE FROM interview_spaces_v4 WHERE user_id = ?').run(user.id);
     db.prepare('DELETE FROM today_tasks_v4 WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM career_diagnostics_v4 WHERE user_id = ?').run(user.id);
+    db.prepare('DELETE FROM career_weekly_reports_v4 WHERE user_id = ?').run(user.id);
     db.prepare('DELETE FROM ai_agent_tasks_v4 WHERE user_id = ?').run(user.id);
     db.prepare('DELETE FROM quota_usage_v4 WHERE user_id = ?').run(user.id);
     db.prepare('DELETE FROM user_subscriptions_v4 WHERE user_id = ?').run(user.id);
@@ -1116,6 +1118,52 @@ test('v4 Today tasks sync local workbench tasks idempotently and preserves serve
   assert.equal(listRes.status, 200);
   const listed = await readJson(listRes);
   assert.equal(listed.data.find(item => item.id === idempotentTask.id).completed, false);
+});
+
+test('v4 career coach connects diagnostic, dynamic plan, weekly report and deferred Today tasks', async () => {
+  const user = db.prepare('SELECT id FROM users WHERE email=?').get(testAccount.email);
+  const dashboardRes = await fetch(`${BASE_URL}/api/v4/career/dashboard`, { headers: authHeaders() });
+  assert.equal(dashboardRes.status, 200);
+  const dashboard = await readJson(dashboardRes);
+  assert.equal(dashboard.data.diagnostic.dimensions.length, 7);
+  assert.deepEqual(dashboard.data.dynamicPlan.horizons.map(item => item.months), [3, 6, 12]);
+  assert.match(dashboard.data.weeklyReport.evidenceNotice, /不预测未来录用概率/);
+  const coachTasks = dashboard.data.today.tasks.filter(item => item.sourceType === 'career_coach');
+  assert.ok(coachTasks.length >= 3 && coachTasks.length <= 5);
+  assert.ok(coachTasks.every(item => item.reminderAt && item.refs.todayTaskId === item.id));
+
+  const createRes = await fetch(`${BASE_URL}/api/v4/career/diagnostic/tasks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ dimensions: ['networking'] })
+  });
+  assert.equal(createRes.status, 201);
+  const created = await readJson(createRes);
+  assert.ok(created.data.tasks.some(item => item.type === 'career_networking'));
+
+  const task = coachTasks[0];
+  const invalidDeferRes = await fetch(`${BASE_URL}/api/v4/today/tasks/${task.id}/defer`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ days: 0 })
+  });
+  assert.equal(invalidDeferRes.status, 400);
+
+  const deferRes = await fetch(`${BASE_URL}/api/v4/today/tasks/${task.id}/defer`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ days: 1 })
+  });
+  assert.equal(deferRes.status, 200);
+  const deferred = await readJson(deferRes);
+  assert.ok(deferred.data.taskDate > dashboard.data.today.date);
+  assert.ok(deferred.data.reminderAt.startsWith(deferred.data.taskDate));
+
+  const refreshedRes = await fetch(`${BASE_URL}/api/v4/career/dashboard`, { headers: authHeaders() });
+  const refreshed = await readJson(refreshedRes);
+  assert.ok(refreshed.data.today.scheduled.some(item => item.id === task.id));
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM career_diagnostics_v4 WHERE user_id=?').get(user.id).count > 0, true);
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM career_weekly_reports_v4 WHERE user_id=?').get(user.id).count > 0, true);
 });
 
 test('v4 AI Career agents redact secrets and require confirmation before writes', async () => {

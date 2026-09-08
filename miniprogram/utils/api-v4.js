@@ -66,6 +66,13 @@ function getInterviewTrends() { return get('/api/v4/interviews/trends'); }
 function getTodayTasks() { return get('/api/v4/today/tasks'); }
 function syncTodayTasks(payload) { return write('POST', '/api/v4/today/tasks/sync', payload); }
 function updateTodayTask(id, payload) { return write('PATCH', '/api/v4/today/tasks/' + encodeURIComponent(id), payload); }
+function deferTodayTask(id, days) { return write('POST', '/api/v4/today/tasks/' + encodeURIComponent(id) + '/defer', { days }); }
+function getCareerCoachDashboard() { return get('/api/v4/career/dashboard'); }
+function getCareerDiagnostic() { return get('/api/v4/career/diagnostic'); }
+function createCareerDiagnosticTasks(dimensions) { return write('POST', '/api/v4/career/diagnostic/tasks', { dimensions }); }
+function getDynamicCareerPlan() { return get('/api/v4/career/plan'); }
+function getCareerWeeklyReport() { return get('/api/v4/career/weekly-report'); }
+function generateCareerTodayTasks() { return write('POST', '/api/v4/career/today/generate'); }
 function getAgents() { return get('/api/v4/agents'); }
 function getAgentTasks() { return get('/api/v4/agents/tasks'); }
 function createAgentTask(payload) { return write('POST', '/api/v4/agents/tasks', payload); }
@@ -127,6 +134,13 @@ module.exports = {
   getTodayTasks,
   syncTodayTasks,
   updateTodayTask,
+  deferTodayTask,
+  getCareerCoachDashboard,
+  getCareerDiagnostic,
+  createCareerDiagnosticTasks,
+  getDynamicCareerPlan,
+  getCareerWeeklyReport,
+  generateCareerTodayTasks,
   getAgents,
   getAgentTasks,
   createAgentTask,

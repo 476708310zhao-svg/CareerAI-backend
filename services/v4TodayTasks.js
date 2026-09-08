@@ -79,6 +79,7 @@ function taskRefs(row) {
 
 function view(row) {
   if (!row) return null;
+  const taskDate = row.task_date || '';
   return {
     id: row.id,
     sourceType: row.source_type || '',
@@ -92,7 +93,8 @@ function view(row) {
     priority: row.priority || 'medium',
     status: row.status || 'pending',
     completed: row.status === 'completed',
-    taskDate: row.task_date,
+    taskDate,
+    reminderAt: row.status === 'pending' && taskDate ? `${taskDate}T09:00:00+08:00` : '',
     completedAt: row.completed_at || '',
     updatedAt: row.updated_at || row.created_at || '',
     createdAt: row.created_at || '',
@@ -106,6 +108,13 @@ function list(userId) {
     ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END,
       CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, id DESC`)
     .all(userId).map(view);
+}
+
+function listScheduled(userId, limit = 10) {
+  return db.prepare(`SELECT * FROM today_tasks_v4
+    WHERE user_id=? AND status='pending' AND task_date>date('now')
+    ORDER BY task_date ASC, CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, id DESC
+    LIMIT ?`).all(userId, Math.max(1, Math.min(30, Number(limit) || 10))).map(view);
 }
 
 function syncLocal(userId, tasks) {
@@ -161,4 +170,18 @@ function updateStatus(userId, id, completed) {
   return view(db.prepare('SELECT * FROM today_tasks_v4 WHERE id=? AND user_id=?').get(Number(id), userId));
 }
 
-module.exports = { list, syncLocal, updateStatus, view, taskRefs, normalizeLocalTask };
+function deferTask(userId, id, days) {
+  const taskId = Number(id);
+  const delay = Math.max(1, Math.min(30, Number(days) || 1));
+  const row = db.prepare('SELECT * FROM today_tasks_v4 WHERE id=? AND user_id=?').get(taskId, userId);
+  if (!row) return { task: null, conflict: false };
+  const target = db.prepare("SELECT date('now', ?) AS value").get(`+${delay} days`).value;
+  const duplicate = row.local_key ? db.prepare(`SELECT id FROM today_tasks_v4
+    WHERE user_id=? AND task_date=? AND local_key=? AND id!=?`).get(userId, target, row.local_key, row.id) : null;
+  if (duplicate) return { task: null, conflict: true, existingTaskId: duplicate.id, taskDate: target };
+  db.prepare(`UPDATE today_tasks_v4 SET task_date=?, status='pending', completed_at='', updated_at=datetime('now')
+    WHERE id=? AND user_id=?`).run(target, row.id, userId);
+  return { task: view(db.prepare('SELECT * FROM today_tasks_v4 WHERE id=? AND user_id=?').get(row.id, userId)), conflict: false };
+}
+
+module.exports = { list, listScheduled, syncLocal, updateStatus, deferTask, view, taskRefs, normalizeLocalTask };
