@@ -1,6 +1,7 @@
 const api = require('../../../utils/api-v4.js');
 const navigation = require('../../../utils/navigation.js');
 const loginGate = require('../../../behaviors/login-gate.js');
+const { parseDashboardResponse } = require('./career-coach-state.js');
 
 const INPUT_LABELS = {
   jobsViewed: '查看岗位', jobsMatched: '完成匹配', resumesConfirmed: '确认简历',
@@ -47,10 +48,45 @@ Page({
     }
     this.setData({ loading: true, loginRequired: false, error: '' });
     const request = api.getCareerCoachDashboard().then(response => {
-      const data = response.data || {};
-      const diagnostic = data.diagnostic || {};
-      const weekly = data.weeklyReport || {};
-      const today = data.today || {};
+      const parsed = parseDashboardResponse(response);
+      if (parsed.state === 'login') {
+        this.setData({
+          loading: false,
+          loginRequired: true,
+          error: '',
+          diagnostic: null,
+          dimensions: [],
+          plan: null,
+          horizons: [],
+          weekly: null,
+          weeklyInput: [],
+          conversions: [],
+          todayTasks: [],
+          scheduledTasks: []
+        });
+        return;
+      }
+      if (parsed.state === 'error') {
+        this.setData({
+          loading: false,
+          loginRequired: false,
+          error: parsed.message,
+          diagnostic: null,
+          dimensions: [],
+          plan: null,
+          horizons: [],
+          weekly: null,
+          weeklyInput: [],
+          conversions: [],
+          todayTasks: [],
+          scheduledTasks: []
+        });
+        return;
+      }
+      const data = parsed.data;
+      const diagnostic = data.diagnostic;
+      const weekly = data.weeklyReport;
+      const today = data.today;
       const weeklyInput = Object.keys(weekly.input || {}).map(key => ({
         key, label: INPUT_LABELS[key] || key, value: weekly.input[key]
       }));
@@ -64,9 +100,9 @@ Page({
       this.setData({
         loading: false,
         diagnostic,
-        dimensions: diagnostic.dimensions || [],
-        plan: data.dynamicPlan || {},
-        horizons: data.dynamicPlan && data.dynamicPlan.horizons || [],
+        dimensions: diagnostic.dimensions,
+        plan: data.dynamicPlan,
+        horizons: data.dynamicPlan.horizons,
         weekly,
         weeklyInput,
         conversions,

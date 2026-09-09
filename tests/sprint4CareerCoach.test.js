@@ -10,6 +10,9 @@ const {
   buildDynamicPlan,
   dailyCandidates
 } = require('../services/v4CareerCoach');
+const {
+  parseDashboardResponse
+} = require('../miniprogram/package-career/pages/career-coach/career-coach-state');
 
 function snapshot(overrides = {}) {
   return {
@@ -93,5 +96,32 @@ test('Sprint 4 mini program exposes the coach page, task completion and deferral
   assert.match(page, /getCareerCoachDashboard/);
   assert.match(page, /deferTodayTask/);
   assert.match(page, /updateTodayTask/);
+  assert.match(page, /parseDashboardResponse/);
   assert.match(resource, /career-coach\/career-coach/);
+});
+
+test('Sprint 4 mini program never renders request failures as an empty dashboard', () => {
+  assert.equal(parseDashboardResponse({ data: [], _source: 'unauthorized' }).state, 'login');
+  for (const source of ['timeout', 'networkError', 'rateLimit', 'error']) {
+    const parsed = parseDashboardResponse({ data: [], _source: source });
+    assert.equal(parsed.state, 'error');
+    assert.ok(parsed.message);
+  }
+  assert.equal(parseDashboardResponse({ code: 0, data: {} }).state, 'error');
+
+  const source = snapshot();
+  const diagnostic = buildDiagnostic(source);
+  const weeklyReport = buildWeeklyReport(source);
+  const dynamicPlan = buildDynamicPlan(diagnostic, weeklyReport);
+  const parsed = parseDashboardResponse({
+    code: 0,
+    data: {
+      diagnostic,
+      weeklyReport,
+      dynamicPlan,
+      today: { tasks: [], scheduled: [] }
+    }
+  });
+  assert.equal(parsed.state, 'ready');
+  assert.equal(parsed.data.diagnostic.dimensions.length, 7);
 });

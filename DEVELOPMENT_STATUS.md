@@ -10,12 +10,13 @@
 
 ## 当前批次
 
-Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成代码和自动化验证。提醒使用唯一投递键、租约、失败重试、有界并发和结构化耗时；Today 改为跨设备增量合并并拒绝旧状态覆盖；收藏增加幂等 outbox、删除 tombstone，并统一进入小程序请求层。真实双设备/微信订阅消息 staging、生产 migration 和上线仍待 Human；未运行真实 E2E、未调用真实 AI、未推送、未部署。
+Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成代码和自动化验证。提醒使用唯一投递键、租约、失败重试、有界并发和结构化耗时；Today 改为跨设备增量合并并拒绝旧状态覆盖；收藏增加幂等 outbox、删除 tombstone，并统一进入小程序请求层。竞争力陪跑已补充响应完整性校验，登录失效、网络错误和后端未就绪不会再显示伪空白仪表盘。真实双设备/微信订阅消息 staging、生产 migration 和上线仍待 Human；未运行真实 E2E、未调用真实 AI、未部署。
 
 ## 已完成
 
 | 日期 | 事项 | 文件 | 验证 |
 |---|---|---|---|
+| 2026-09-09 | 修复竞争力陪跑在 401、超时、网络错误、HTTP 错误或残缺响应下仍进入成功视图，造成分数、七维诊断、周报和计划全部空白的问题；登录失效改为重新登录，其余异常展示可重试错误 | `career-coach.js`、`career-coach-state.js`、`tests/sprint4CareerCoach.test.js` | Sprint 4 专项 6/6、全量 203/203、`check:release` 通过；未运行真实 E2E，生产后端仍需独立发布 |
 | 2026-09-09 | Sprint 8：提醒派发增加唯一投递账本、租约、失败重试、有界并发、游标续跑和耗时埋点；Today 改为跨设备增量合并与更新时间冲突控制；收藏增加 outbox、操作回执、删除 tombstone 并迁入统一 API 客户端 | `routes/notify.js`、`scripts/dispatch_reminders.js`、Today 服务/首页、收藏路由与工具、`0006_sprint8_reliability.sql`、`tests/sprint8Reliability.test.js`、Sprint 8 文档 | 专项 6/6、Smoke 72/72、全量 202/202、小程序检查与 `git diff --check` 通过；真实微信请求 0，未运行真实 E2E，生产 migration 待 Human |
 | 2026-09-08 | Sprint 7：定义 Free/Pro 与 JD 简历包、7 天面试冲刺包、秋招季度包；保持历史 planId 0～3 兼容；建立订单/支付/权益/额度/退款统一账本、权益 Grant、退款审批状态机、六类告警和 0% 商业灰度审批门禁；会员页增加场景包边界、权益/订单/退款入口 | `services/v4Commerce*.js`、支付/会员/管理路由、商业化 migration、小程序会员页、`tests/sprint7Commerce.test.js`、`docs/V4_SPRINT7_COMMERCE_GOVERNANCE.md` | Sprint 7 专项 4/4、migration 5/5、Smoke 71/71、全量 195/195、`check:release` 通过；AI 故障矩阵 7/7、外部请求 0、媒体 191.2 KB、Errors 0/Warnings 4；未运行真实 E2E |
 | 2026-09-08 | Sprint 6：新增 OA 计划/计时/错题/能力统计；将旧项目生成页升级为真实岗位差距驱动的证据项目、四里程碑留证、完成证据和确认式经历库写入；岗位详情增加五项证据 Job Trust Score 与本人官网核验记录 | OA/Project/Job Trust V4 数据表、服务、路由和小程序页面，`tests/sprint6Copilots.test.js`、`docs/V4_SPRINT6_OA_PROJECTS_JOB_TRUST.md` | Sprint 6 专项 7/7、migration 5/5、全量 190/190、`check:release` 通过；AI 故障矩阵 7/7、外部请求 0、媒体 191.2 KB、Errors 0/Warnings 4；未运行真实 E2E |
@@ -118,7 +119,7 @@ Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成
 | Codex | 商业套餐/权益/额度账本、退款审计、运营告警、会员小程序页、Sprint 7 migration/测试/文档 | Sprint 7：Free/Pro/场景包、统一商业账本、Mock 支付与退款一致性、可暂停灰度及异常告警 | 已完成；195/195 tests 与 `check:release` 通过，真实支付与外部退款保持关闭，不运行真实 E2E，不推送、不部署，生产 migration 待 Human |
 | Codex | OA/Project Builder/Job Trust V4 数据表、服务、路由、小程序页面、专项测试和文档 | Sprint 6：OA 计划/计时/错题/统计，证据导向项目里程碑/交付物/验收/真实成果确认，以及可追溯岗位可信度评分 | 已完成；190/190 tests 与 `check:release` 通过，不调用真实 AI，不运行真实 E2E，不推送、不部署，生产 migration 待 Human |
 | Codex | Networking V4 数据表/服务/路由、Today 关联、小程序 Networking 页面、专项测试和文档 | Sprint 5：联系人 CRM、五类可编辑草稿、跟进提醒、Referral 漏斗及岗位/简历/申请关联 | 已完成；182/182 tests 与发布检查通过，只生成/保存/复制草稿，不自动外发，不调用真实 AI，不运行真实 E2E，不推送、不部署 |
-| Codex | 竞争力诊断/动态计划/周复盘服务与路由、Today 任务、小程序陪跑页面、专项测试和文档 | Sprint 4：七维竞争力评分、证据化差距、每日 3～5 项关键任务、漏斗驱动动态计划与周复盘 | 已完成；176/176 tests 与发布检查通过，不调用真实 AI，不运行真实 E2E，不推送、不部署 |
+| Codex | `miniprogram/package-career/pages/career-coach/*`、`tests/sprint4CareerCoach.test.js`、开发记录 | 修复竞争力陪跑将 401、网络错误和残缺响应误渲染为空白的问题 | 已完成；专项 6/6、全量 203/203 与发布检查通过；未运行真实 E2E，未部署 |
 | Codex | Job Match、V4 简历中心/材料、面试空间/报告、Today 回写、小程序对应页面、专项测试与文档 | Sprint 3：可行动岗位分层、JD 定制简历确认式新版本、Interview Brief 与弱项复练闭环 | 已完成；170/170 tests 与发布检查通过，不调用真实 AI，不运行真实 E2E |
 | Codex | `db/migrate.js`、`db/migrations/`、数据库迁移/备份演练脚本、相关测试与文档 | Sprint 2.5：建立 schema migration baseline，在隔离数据库验证备份、迁移、幂等、失败事务、恢复与回滚 | 已完成自动化与隔离演练；生产 baseline 登记待 Human，不运行真实 E2E |
 | Codex | `services/v4AiRuntime.js`、`services/v4Agents.js`、AI 路由、`utils/aiSafety.js`、匿名样本/门禁辅助程序、测试/脚本/文档 | Sprint 2.4：AI 异常矩阵、PII/真实性/确认写入/额度质量门禁 | 已完成自动化基线；真实供应商 staging 抽样待 Human，不运行真实 E2E |
