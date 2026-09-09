@@ -8,6 +8,7 @@ require('./sprint4CareerCoach.test');
 require('./sprint5Networking.test');
 require('./sprint6Copilots.test');
 require('./sprint7Commerce.test');
+require('./sprint8Reliability.test');
 require('./v4ResumeCenter.test');
 require('./coreEntityRefs.test');
 require('./funnelAnalytics.test');

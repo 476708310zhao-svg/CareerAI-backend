@@ -26,7 +26,7 @@ router.post('/tasks/sync', (req, res) => {
 
 router.patch('/tasks/:id', (req, res) => {
   const completed = req.body && req.body.completed === true;
-  const data = todayTasks.updateStatus(req.user.userId, req.params.id, completed);
+  const data = todayTasks.updateStatus(req.user.userId, req.params.id, completed, req.body && req.body.updatedAt);
   if (!data) return res.status(404).json({ code: -1, message: '任务不存在' });
   if (completed) {
     analytics.track(req.user.userId, 'today_task_completed', withCoreRefs({ taskId: data.id }, data.refs), '/api/v4/today/tasks/:id');

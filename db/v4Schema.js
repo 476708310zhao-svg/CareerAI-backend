@@ -238,6 +238,38 @@ function ensureV4Schema() {
       UNIQUE(user_id, source_type, source_id, title)
     );
 
+    CREATE TABLE IF NOT EXISTS reminder_deliveries_v4 (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      reminder_id INTEGER NOT NULL REFERENCES job_reminders(id) ON DELETE CASCADE,
+      delivery_key TEXT NOT NULL,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','sending','sent','failed')),
+      attempts INTEGER NOT NULL DEFAULT 0, lease_until TEXT DEFAULT '', in_app_message_id INTEGER,
+      wx_status TEXT DEFAULT '', last_error TEXT DEFAULT '', sent_at TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(reminder_id, delivery_key)
+    );
+
+    CREATE TABLE IF NOT EXISTS favorite_sync_v4 (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type TEXT NOT NULL, target_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','deleted')),
+      title TEXT DEFAULT '', subtitle TEXT DEFAULT '', payload TEXT NOT NULL DEFAULT '{}',
+      client_updated_at TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(user_id, type, target_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS favorite_operations_v4 (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      operation_id TEXT NOT NULL, type TEXT NOT NULL, target_id TEXT NOT NULL,
+      action TEXT NOT NULL CHECK(action IN ('upsert','delete')),
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(user_id, operation_id)
+    );
+
     CREATE TABLE IF NOT EXISTS career_diagnostics_v4 (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -482,6 +514,10 @@ function ensureV4Schema() {
     CREATE INDEX IF NOT EXISTS idx_interview_sessions_space ON interview_sessions_v4(space_id, status, started_at DESC);
     CREATE INDEX IF NOT EXISTS idx_interview_reports_user ON interview_reports_v4(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_today_tasks_user_date ON today_tasks_v4(user_id, task_date, status);
+    CREATE INDEX IF NOT EXISTS idx_reminder_deliveries_status_lease ON reminder_deliveries_v4(status, lease_until, updated_at);
+    CREATE INDEX IF NOT EXISTS idx_reminder_deliveries_reminder ON reminder_deliveries_v4(reminder_id, status);
+    CREATE INDEX IF NOT EXISTS idx_favorite_sync_user_status ON favorite_sync_v4(user_id, status, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_favorite_operations_user_time ON favorite_operations_v4(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_career_diagnostics_user_date ON career_diagnostics_v4(user_id, snapshot_date DESC);
     CREATE INDEX IF NOT EXISTS idx_career_weekly_reports_user_week ON career_weekly_reports_v4(user_id, week_start DESC);
     CREATE INDEX IF NOT EXISTS idx_networking_contacts_user_status ON networking_contacts_v4(user_id, status, next_follow_up_at);

@@ -1099,7 +1099,8 @@ Page({
         url: task.url,
         priority: task.priority,
         done: state.done,
-        doneKnown: state.pending
+        doneKnown: state.pending,
+        updatedAt: state.updatedAt
       };
     });
 
@@ -1111,11 +1112,10 @@ Page({
       const merged = rows.map(row => {
         const localKey = row.localKey || '';
         const storageKey = localKey || ('remote_' + row.id);
-        const state = dailyTasks.readTaskState(storageKey);
         const serverDone = row.completed === true || row.status === 'completed';
-        const keepPendingRemote = !localKey && state.pending && Number(state.serverId) === Number(row.id);
+        const state = dailyTasks.reconcileServerTask(storageKey, row);
+        const keepPendingRemote = state.pending === true;
         const done = keepPendingRemote ? state.done : serverDone;
-        if (!keepPendingRemote) dailyTasks.markTaskSynced(storageKey, serverDone, row.id);
         return {
           id: storageKey,
           serverId: Number(row.id),
@@ -1153,11 +1153,12 @@ Page({
   flushPendingTodayTaskUpdates() {
     const pending = dailyTasks.getPendingRemoteUpdates();
     pending.forEach(item => {
-      apiV4.updateTodayTask(item.serverId, { completed: item.done }).then(response => {
+      apiV4.updateTodayTask(item.serverId, { completed: item.done, updatedAt: item.updatedAt }).then(response => {
         const data = response && response.data || {};
-        dailyTasks.markTaskSynced(item.key, data.completed === undefined ? item.done : data.completed, item.serverId);
+        const confirmedState = dailyTasks.reconcileServerTask(item.key,
+          Object.assign({ id: item.serverId, completed: item.done, updatedAt: item.updatedAt }, data), item.updatedAt);
         const tasks = (this.data.todayTasks || []).map(task => task.id === item.key
-          ? Object.assign({}, task, { done: data.completed === undefined ? item.done : data.completed, pendingSync: false })
+          ? Object.assign({}, task, { done: confirmedState.done, pendingSync: confirmedState.pending })
           : task);
         this.setData({ todayTasks: tasks, todayTaskStats: dailyTasks.getStats(tasks) });
         this.loadWorkbenchSummary();
@@ -1172,18 +1173,19 @@ Page({
     const current = (this.data.todayTasks || []).find(item => String(item.id) === String(id));
     if (current && current.serverId) {
       const done = !current.done;
-      dailyTasks.setTaskDone(current.id, done, { pending: true, serverId: current.serverId });
+      const pendingState = dailyTasks.setTaskDone(current.id, done, { pending: true, serverId: current.serverId });
       const tasks = (this.data.todayTasks || []).map(item => String(item.id) === String(id)
         ? Object.assign({}, item, { done, pendingSync: true })
         : item);
       this.setData({ todayTasks: tasks, todayTaskStats: dailyTasks.getStats(tasks) });
       this.loadWorkbenchSummary();
-      apiV4.updateTodayTask(current.serverId, { completed: done }).then(response => {
+      apiV4.updateTodayTask(current.serverId, { completed: done, updatedAt: pendingState.updatedAt }).then(response => {
         const data = response && response.data || {};
-        const confirmed = data.completed === undefined ? done : data.completed;
-        dailyTasks.markTaskSynced(current.id, confirmed, current.serverId);
+        const confirmedState = dailyTasks.reconcileServerTask(current.id,
+          Object.assign({ id: current.serverId, completed: done, updatedAt: pendingState.updatedAt }, data), pendingState.updatedAt);
+        const confirmed = confirmedState.done;
         const latest = (this.data.todayTasks || []).map(item => String(item.id) === String(id)
-          ? Object.assign({}, item, { done: confirmed, pendingSync: false })
+          ? Object.assign({}, item, { done: confirmed, pendingSync: confirmedState.pending })
           : item);
         this.setData({ todayTasks: latest, todayTaskStats: dailyTasks.getStats(latest) });
         this.loadWorkbenchSummary();

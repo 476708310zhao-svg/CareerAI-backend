@@ -16,6 +16,7 @@ const db      = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
 const { internalTaskAuth } = require('../middleware/internalAuth');
 const { scheduleReminderData } = require('../utils/wechatTemplates');
+const analytics = require('../services/v4Analytics');
 
 const WX_APP_ID     = process.env.WX_APP_ID     || '';
 const WX_APP_SECRET = process.env.WX_APP_SECRET  || '';
@@ -70,25 +71,46 @@ async function getAccessToken() {
 }
 
 // ─── 核心：写站内消息 + 调用微信订阅消息接口 ─────────────────────────────────
-async function sendToUser(userId, { type = 'system', title, content, templateId, wxData }) {
+async function sendToUser(userId, { type = 'system', title, content, templateId, wxData }, options = {}) {
+  const result = {
+    inApp: { status: options.inAppMessageId ? 'existing' : 'skipped', messageId: Number(options.inAppMessageId) || null },
+    wechat: { status: 'skipped', reason: '' }
+  };
   // 1. 写入站内消息（SQLite）
-  try {
-    db.prepare('INSERT INTO messages (user_id, type, title, content) VALUES (?, ?, ?, ?)')
-      .run(userId, type, title, content);
-  } catch (e) {
-    console.error('[notify] 写站内消息失败:', e.message);
+  if (!options.inAppMessageId && options.skipInApp !== true) {
+    try {
+      const inserted = db.prepare('INSERT INTO messages (user_id, type, title, content) VALUES (?, ?, ?, ?)')
+        .run(userId, type, title, content);
+      result.inApp = { status: 'sent', messageId: Number(inserted.lastInsertRowid) };
+    } catch (e) {
+      console.error('[notify] 写站内消息失败:', e.message);
+      result.inApp = { status: 'failed', messageId: null, error: 'in_app_write_failed' };
+    }
   }
 
   // 2. 微信订阅消息（需要 templateId 且已有 openid）
-  if (!templateId || !WX_APP_ID) return;
+  if (process.env.NODE_ENV === 'test' || process.env.NOTIFY_EXTERNAL_DISABLED === '1') {
+    result.wechat = { status: 'skipped', reason: 'external_disabled' };
+    return result;
+  }
+  if (!templateId || !WX_APP_ID) {
+    result.wechat = { status: 'skipped', reason: !templateId ? 'template_missing' : 'app_not_configured' };
+    return result;
+  }
   const user = db.prepare('SELECT openid FROM users WHERE id = ?').get(userId);
-  if (!user || !user.openid || user.openid.startsWith('dev_')) return;
+  if (!user || !user.openid || user.openid.startsWith('dev_')) {
+    result.wechat = { status: 'skipped', reason: 'openid_unavailable' };
+    return result;
+  }
 
   const token = await getAccessToken();
-  if (!token) return;
+  if (!token) {
+    result.wechat = { status: 'failed', reason: 'access_token_unavailable' };
+    return result;
+  }
 
   try {
-    await axios.post(
+    const response = await axios.post(
       `https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=${token}`,
       {
         touser:           user.openid,
@@ -99,10 +121,17 @@ async function sendToUser(userId, { type = 'system', title, content, templateId,
       },
       { timeout: 8000 }
     );
+    if (response.data && Number(response.data.errcode) !== 0) {
+      result.wechat = { status: 'failed', reason: 'wechat_rejected' };
+      return result;
+    }
     console.log(`[notify] 微信订阅消息已发送 → userId=${userId}`);
+    result.wechat = { status: 'sent', reason: '' };
   } catch (e) {
     console.error('[notify] 微信推送失败:', e.message);
+    result.wechat = { status: 'failed', reason: 'wechat_request_failed' };
   }
+  return result;
 }
 
 module.exports.sendToUser = sendToUser;
@@ -393,42 +422,174 @@ router.delete('/reminders/:sourceType/:targetId/:reminderType', authMiddleware, 
 
 // POST /api/notify/reminders/dispatch
 // Header: X-Cron-Secret
-router.post('/reminders/dispatch', internalTaskAuth, async (req, res) => {
-  try {
-  const today = String((req.body && req.body.date) || req.query.date || dateOnlyInShanghai()).slice(0, 10);
-  const rows = db.prepare(`
-    SELECT * FROM job_reminders
-    WHERE enabled=1 AND reminder_date!=''
-    ORDER BY reminder_date ASC, id ASC
-    LIMIT 500
-  `).all();
-  const sent = [];
-  const skipped = [];
+const REMINDER_BATCH_DEFAULT = 100;
+const REMINDER_BATCH_MAX = 200;
+const REMINDER_CONCURRENCY_DEFAULT = 3;
+const REMINDER_CONCURRENCY_MAX = 5;
+const REMINDER_LEASE_SECONDS = 90;
+const REMINDER_MAX_ATTEMPTS = 5;
 
-  for (const row of rows) {
-    const leadDays = normalizeLeadDays(row.lead_days, row.reminder_type);
-    const sentKeys = safeJson(row.sent_keys, []);
-    const dueLeads = leadDays.filter(day => addDays(row.reminder_date, -day) === today);
-    if (!dueLeads.length) {
-      skipped.push({ id: row.id, reason: 'not_due' });
-      continue;
+function boundedInt(value, fallback, max) {
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0 ? Math.min(number, max) : fallback;
+}
+
+function claimReminderDelivery(row, key) {
+  return db.transaction(() => {
+    db.prepare(`INSERT OR IGNORE INTO reminder_deliveries_v4
+      (reminder_id,delivery_key,user_id,status,attempts,lease_until,updated_at)
+      VALUES (?,?,?,'pending',0,'',datetime('now'))`).run(row.id, key, row.user_id);
+    const current = db.prepare(`SELECT * FROM reminder_deliveries_v4
+      WHERE reminder_id=? AND delivery_key=?`).get(row.id, key);
+    if (current.status === 'sent') return { claimed: false, reason: 'already_sent', delivery: current };
+    if (current.attempts >= REMINDER_MAX_ATTEMPTS) {
+      return { claimed: false, reason: 'retry_exhausted', delivery: current };
     }
-    for (const leadDay of dueLeads) {
-      const key = `${row.reminder_type}:${row.source_type}:${row.target_id}:${row.reminder_date}:${leadDay}`;
-      if (sentKeys.includes(key)) {
-        skipped.push({ id: row.id, reason: 'already_sent', key });
-        continue;
-      }
-      const message = buildReminderMessage(row, leadDay);
-      await sendToUser(row.user_id, message);
-      sentKeys.push(key);
-      db.prepare("UPDATE job_reminders SET sent_keys=?, updated_at=datetime('now') WHERE id=?")
-        .run(JSON.stringify(sentKeys), row.id);
-      sent.push({ id: row.id, userId: row.user_id, key, type: message.type });
+    const result = db.prepare(`UPDATE reminder_deliveries_v4
+      SET status='sending', attempts=attempts+1,
+        lease_until=datetime('now', ?), last_error='', updated_at=datetime('now')
+      WHERE id=? AND (status IN ('pending','failed') OR (status='sending' AND lease_until<=datetime('now')))`)
+      .run(`+${REMINDER_LEASE_SECONDS} seconds`, current.id);
+    if (!result.changes) return { claimed: false, reason: 'in_progress', delivery: current };
+    return {
+      claimed: true,
+      delivery: db.prepare('SELECT * FROM reminder_deliveries_v4 WHERE id=?').get(current.id)
+    };
+  }).immediate();
+}
+
+function ensureDeliveryInAppMessage(deliveryId, userId, message) {
+  return db.transaction(() => {
+    const delivery = db.prepare('SELECT * FROM reminder_deliveries_v4 WHERE id=?').get(deliveryId);
+    if (!delivery) throw new Error('delivery_missing');
+    if (delivery.in_app_message_id) return Number(delivery.in_app_message_id);
+    const inserted = db.prepare('INSERT INTO messages (user_id,type,title,content) VALUES (?,?,?,?)')
+      .run(userId, message.type || 'system', message.title, message.content);
+    const messageId = Number(inserted.lastInsertRowid);
+    db.prepare(`UPDATE reminder_deliveries_v4 SET in_app_message_id=?, updated_at=datetime('now') WHERE id=?`)
+      .run(messageId, deliveryId);
+    return messageId;
+  }).immediate();
+}
+
+function finishReminderDelivery(deliveryId, row, key, result, error) {
+  const wxStatus = result && result.wechat ? result.wechat.status : 'failed';
+  const failure = error || (wxStatus === 'failed' ? (result.wechat.reason || 'wechat_failed') : '');
+  if (failure) {
+    db.prepare(`UPDATE reminder_deliveries_v4
+      SET status='failed', lease_until='', wx_status=?, last_error=?, updated_at=datetime('now') WHERE id=?`)
+      .run(wxStatus, String(failure).slice(0, 200), deliveryId);
+    return false;
+  }
+  db.transaction(() => {
+    db.prepare(`UPDATE reminder_deliveries_v4
+      SET status='sent', lease_until='', wx_status=?, last_error='', sent_at=datetime('now'), updated_at=datetime('now')
+      WHERE id=?`).run(wxStatus, deliveryId);
+    const current = db.prepare('SELECT sent_keys FROM job_reminders WHERE id=?').get(row.id);
+    const sentKeys = safeJson(current && current.sent_keys, []);
+    if (!sentKeys.includes(key)) sentKeys.push(key);
+    db.prepare("UPDATE job_reminders SET sent_keys=?, updated_at=datetime('now') WHERE id=?")
+      .run(JSON.stringify(sentKeys), row.id);
+  }).immediate();
+  return true;
+}
+
+async function runWithConcurrency(items, concurrency, worker) {
+  const results = new Array(items.length);
+  let cursor = 0;
+  async function run() {
+    while (cursor < items.length) {
+      const index = cursor++;
+      results[index] = await worker(items[index]);
     }
   }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, run));
+  return results;
+}
 
-  res.json({ code: 0, data: { date: today, checked: rows.length, sent, skipped } });
+router.post('/reminders/dispatch', internalTaskAuth, async (req, res) => {
+  try {
+    const startedAt = Date.now();
+    const body = req.body || {};
+    const today = String(body.date || req.query.date || dateOnlyInShanghai()).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) {
+      return res.status(400).json({ code: -1, message: 'date must be YYYY-MM-DD' });
+    }
+    const batchSize = boundedInt(body.batchSize || req.query.batchSize, REMINDER_BATCH_DEFAULT, REMINDER_BATCH_MAX);
+    const concurrency = boundedInt(body.concurrency || req.query.concurrency, REMINDER_CONCURRENCY_DEFAULT, REMINDER_CONCURRENCY_MAX);
+    const scanPageSize = Math.min(batchSize * 2, 400);
+    const maxReminderDate = addDays(today, 30);
+    let cursorId = Math.max(0, Number(body.cursorId || req.query.cursorId) || 0);
+    let checked = 0;
+    let hasMore = false;
+    const due = [];
+    const skipped = [];
+
+    for (let page = 0; page < 10 && due.length < batchSize; page += 1) {
+      const rows = db.prepare(`SELECT * FROM job_reminders
+        WHERE enabled=1 AND reminder_date BETWEEN ? AND ? AND id>?
+        ORDER BY id ASC LIMIT ?`).all(today, maxReminderDate, cursorId, scanPageSize);
+      if (!rows.length) { hasMore = false; break; }
+      let hitBatch = false;
+      for (const row of rows) {
+        checked += 1;
+        cursorId = row.id;
+        const sentKeys = safeJson(row.sent_keys, []);
+        const dueLeads = normalizeLeadDays(row.lead_days, row.reminder_type)
+          .filter(day => addDays(row.reminder_date, -day) === today);
+        for (const leadDay of dueLeads) {
+          const key = `${row.reminder_type}:${row.source_type}:${row.target_id}:${row.reminder_date}:${leadDay}`;
+          if (sentKeys.includes(key)) {
+            db.prepare(`INSERT OR IGNORE INTO reminder_deliveries_v4
+              (reminder_id,delivery_key,user_id,status,attempts,wx_status,sent_at,updated_at)
+              VALUES (?,?,?,'sent',1,'legacy',datetime('now'),datetime('now'))`).run(row.id, key, row.user_id);
+            skipped.push({ id: row.id, key, reason: 'already_sent' });
+            continue;
+          }
+          due.push({ row, leadDay });
+          if (due.length >= batchSize) { hitBatch = true; break; }
+        }
+        if (hitBatch) break;
+      }
+      hasMore = hitBatch || rows.length === scanPageSize;
+      if (!hasMore) break;
+    }
+
+    const outcomes = await runWithConcurrency(due, concurrency, async ({ row, leadDay }) => {
+      const key = `${row.reminder_type}:${row.source_type}:${row.target_id}:${row.reminder_date}:${leadDay}`;
+      if (safeJson(row.sent_keys, []).includes(key)) {
+        db.prepare(`INSERT OR IGNORE INTO reminder_deliveries_v4
+          (reminder_id,delivery_key,user_id,status,attempts,wx_status,sent_at,updated_at)
+          VALUES (?,?,?,'sent',1,'legacy',datetime('now'),datetime('now'))`).run(row.id, key, row.user_id);
+        return { status: 'skipped', id: row.id, key, reason: 'already_sent' };
+      }
+      const claim = claimReminderDelivery(row, key);
+      if (!claim.claimed) return { status: 'skipped', id: row.id, key, reason: claim.reason };
+      const message = buildReminderMessage(row, leadDay);
+      try {
+        const messageId = ensureDeliveryInAppMessage(claim.delivery.id, row.user_id, message);
+        const notifyResult = await sendToUser(row.user_id, message, { inAppMessageId: messageId });
+        const completed = finishReminderDelivery(claim.delivery.id, row, key, notifyResult, '');
+        return completed
+          ? { status: 'sent', id: row.id, userId: row.user_id, key, type: message.type, wxStatus: notifyResult.wechat.status }
+          : { status: 'failed', id: row.id, key, reason: notifyResult.wechat.reason || 'delivery_failed' };
+      } catch (error) {
+        finishReminderDelivery(claim.delivery.id, row, key, null, 'delivery_processing_failed');
+        return { status: 'failed', id: row.id, key, reason: 'delivery_processing_failed' };
+      }
+    });
+    const sent = outcomes.filter(item => item.status === 'sent');
+    const failed = outcomes.filter(item => item.status === 'failed');
+    skipped.push(...outcomes.filter(item => item.status === 'skipped'));
+    const durationMs = Date.now() - startedAt;
+    analytics.track(null, 'reminder_dispatch_completed', {
+      checked, due: due.length, sent: sent.length, failed: failed.length, skipped: skipped.length,
+      durationMs, concurrency, batchSize
+    }, '/api/notify/reminders/dispatch', 'server', { dataClass: 'system', scene: 'cron' });
+    res.json({ code: 0, data: {
+      date: today, checked, due: due.length, sent, failed, skipped, durationMs,
+      concurrency, batchSize, nextCursorId: hasMore ? cursorId : null
+    } });
   } catch (e) {
     console.error('[notify] reminders dispatch failed:', e.message);
     res.status(500).json({ code: -1, message: 'reminder dispatch failed' });
@@ -544,3 +705,10 @@ router.post('/test', authMiddleware, async (req, res) => {
 });
 
 module.exports.router = router;
+module.exports._test = {
+  claimReminderDelivery,
+  ensureDeliveryInAppMessage,
+  finishReminderDelivery,
+  runWithConcurrency,
+  boundedInt
+};

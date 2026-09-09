@@ -34,9 +34,9 @@ test('database migration baseline is recorded once and exposes status', () => wi
   const second = applyPendingMigrations(db);
   const status = getMigrationStatus(db);
 
-  assert.equal(first.appliedNow.length, 5);
+  assert.equal(first.appliedNow.length, 6);
   assert.equal(second.appliedNow.length, 0);
-  assert.equal(status.applied.length, 5);
+  assert.equal(status.applied.length, 6);
   assert.equal(status.pending.length, 0);
   assert.match(status.applied[0].checksum, /^[a-f0-9]{64}$/);
   db.close();

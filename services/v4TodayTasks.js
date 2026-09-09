@@ -21,6 +21,20 @@ function hashKey(value) {
   return Math.abs(hash | 0) || 1;
 }
 
+function normalizeTimestamp(value) {
+  const text = clean(value, 40);
+  if (!text) return '';
+  const timestamp = new Date(text).getTime();
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : '';
+}
+
+function timestampValue(value) {
+  if (!value) return 0;
+  const normalized = String(value).includes('T') ? String(value) : String(value).replace(' ', 'T') + 'Z';
+  const timestamp = new Date(normalized).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
 function normalizeLocalTask(raw) {
   const localKey = clean(raw && raw.id, 120);
   const title = clean(raw && raw.title, 160);
@@ -36,7 +50,8 @@ function normalizeLocalTask(raw) {
     url: url.startsWith('/') ? url : '',
     priority: PRIORITIES.has(priority) ? priority : 'medium',
     doneKnown: raw.doneKnown === true,
-    completed: raw.completed === true || raw.done === true
+    completed: raw.completed === true || raw.done === true,
+    clientUpdatedAt: normalizeTimestamp(raw.updatedAt || raw.clientUpdatedAt)
   };
 }
 
@@ -135,8 +150,6 @@ function syncLocal(userId, tasks) {
     .slice(0, 20)
     .map(normalizeLocalTask)
     .filter(Boolean);
-  const incomingKeys = new Set(normalized.map(item => item.localKey));
-
   db.transaction(() => {
     const existing = db.prepare("SELECT * FROM today_tasks_v4 WHERE user_id=? AND task_date=date('now') AND source_type='home_local'")
       .all(userId);
@@ -148,7 +161,7 @@ function syncLocal(userId, tasks) {
       SET task_type=?, title=?, detail=?, url=?, priority=?,
         status=CASE WHEN ? THEN ? ELSE status END,
         completed_at=CASE WHEN ? THEN ? ELSE completed_at END,
-        updated_at=datetime('now')
+        updated_at=?
       WHERE id=? AND user_id=?`);
 
     normalized.forEach(item => {
@@ -156,17 +169,19 @@ function syncLocal(userId, tasks) {
       const nextStatus = item.completed ? 'completed' : 'pending';
       const completedAt = item.completed ? new Date().toISOString() : '';
       if (current) {
+        if (item.clientUpdatedAt && timestampValue(item.clientUpdatedAt) < timestampValue(current.updated_at)) return;
+        const nextUpdatedAt = item.clientUpdatedAt || new Date().toISOString();
         update.run(item.taskType, item.title, item.detail, item.url, item.priority,
-          item.doneKnown ? 1 : 0, nextStatus, item.doneKnown ? 1 : 0, completedAt, current.id, userId);
+          item.doneKnown ? 1 : 0, nextStatus, item.doneKnown ? 1 : 0, completedAt,
+          nextUpdatedAt, current.id, userId);
       } else {
         insert.run(userId, item.sourceId, item.localKey, item.taskType, item.title, item.detail, item.url,
           item.priority, item.completed ? 'completed' : 'pending', completedAt);
-      }
-    });
-
-    existing.forEach(row => {
-      if (!incomingKeys.has(row.local_key)) {
-        db.prepare("DELETE FROM today_tasks_v4 WHERE id=? AND user_id=? AND source_type='home_local'").run(row.id, userId);
+        if (item.clientUpdatedAt) {
+          db.prepare(`UPDATE today_tasks_v4 SET updated_at=?
+            WHERE user_id=? AND task_date=date('now') AND local_key=?`)
+            .run(item.clientUpdatedAt, userId, item.localKey);
+        }
       }
     });
   })();
@@ -174,13 +189,19 @@ function syncLocal(userId, tasks) {
   return list(userId);
 }
 
-function updateStatus(userId, id, completed) {
+function updateStatus(userId, id, completed, clientUpdatedAt) {
   const current = db.prepare('SELECT * FROM today_tasks_v4 WHERE id=? AND user_id=?').get(Number(id), userId);
   if (!current) return null;
+  const normalizedClientAt = normalizeTimestamp(clientUpdatedAt);
+  if (normalizedClientAt && timestampValue(normalizedClientAt) < timestampValue(current.updated_at)) {
+    return Object.assign(view(current), { conflict: true });
+  }
+  const updatedAt = normalizedClientAt || new Date().toISOString();
   const result = db.prepare(`UPDATE today_tasks_v4
-    SET status=?, completed_at=CASE WHEN ? THEN datetime('now') ELSE '' END, updated_at=datetime('now')
+    SET status=?, completed_at=CASE WHEN ? THEN ? ELSE '' END, updated_at=?
     WHERE id=? AND user_id=?`)
-    .run(completed ? 'completed' : 'pending', completed ? 1 : 0, Number(id), userId);
+    .run(completed ? 'completed' : 'pending', completed ? 1 : 0,
+      completed ? updatedAt : '', updatedAt, Number(id), userId);
   if (!result.changes) return null;
   if (current.source_type === 'networking_contact' && current.source_id) {
     db.prepare("UPDATE networking_contacts_v4 SET next_follow_up_at=?, updated_at=datetime('now') WHERE id=? AND user_id=?")
@@ -203,4 +224,7 @@ function deferTask(userId, id, days) {
   return { task: view(db.prepare('SELECT * FROM today_tasks_v4 WHERE id=? AND user_id=?').get(row.id, userId)), conflict: false };
 }
 
-module.exports = { list, listScheduled, syncLocal, updateStatus, deferTask, view, taskRefs, normalizeLocalTask };
+module.exports = {
+  list, listScheduled, syncLocal, updateStatus, deferTask, view, taskRefs,
+  normalizeLocalTask, normalizeTimestamp, timestampValue
+};

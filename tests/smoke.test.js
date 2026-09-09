@@ -33,6 +33,7 @@ function startServer() {
     PAYMENT_ENABLED: 'true',
     PAYMENT_PROVIDER: 'wxpay',
     ENABLE_MOCK_PAYMENT: 'true',
+    NOTIFY_EXTERNAL_DISABLED: '1',
     VIRTUAL_PAY_NOTIFY_TOKEN: '',
     WXPAY_MCH_ID: '',
     WXPAY_API_KEY: '',
@@ -1111,7 +1112,8 @@ test('v4 Today tasks sync local workbench tasks idempotently and preserves serve
   assert.equal(idempotentTask.completed, true, 'server status must win when client has no pending change');
   assert.equal(idempotentTask.priority, 'high');
   assert.equal(secondSync.data.filter(item => item.localKey === 'resume_polish').length, 1);
-  assert.equal(secondSync.data.some(item => item.localKey === 'search_jobs'), false, 'stale home-local tasks should be pruned');
+  assert.equal(secondSync.data.some(item => item.localKey === 'search_jobs'), true,
+    'another device\'s unreported home-local task must be preserved');
 
   const updateRes = await fetch(`${BASE_URL}/api/v4/today/tasks/${idempotentTask.id}`, {
     method: 'PATCH',
@@ -2005,6 +2007,44 @@ test('career asset APIs persist materials, match reports and interview notebook'
     headers: authHeaders()
   });
   assert.equal(deleteMaterialRes.status, 200);
+});
+
+test('favorite sync API applies operation ids and cross-device tombstones', async () => {
+  assert.ok(authToken);
+  const targetId = `favorite_sync_smoke_${Date.now()}`;
+  const user = db.prepare('SELECT id FROM users WHERE email=?').get(testAccount.email);
+  try {
+    const addPayload = {
+      type: 'job', targetId, title: 'Favorite sync role', operationId: `add_${targetId}`,
+      updatedAt: '2031-01-01T00:00:00.000Z', payload: { deadline: '2031-02-01' }
+    };
+    for (let index = 0; index < 2; index += 1) {
+      const addRes = await fetch(`${BASE_URL}/api/favorites`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify(addPayload)
+      });
+      assert.equal(addRes.status, 200);
+    }
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM favorites WHERE user_id=? AND target_id=?').get(user.id, targetId).count, 1);
+
+    const deleteRes = await fetch(`${BASE_URL}/api/favorites`, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ type: 'job', targetId, operationId: `delete_${targetId}`, updatedAt: '2031-01-02T00:00:00.000Z' })
+    });
+    assert.equal(deleteRes.status, 200);
+    const staleRes = await fetch(`${BASE_URL}/api/favorites`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ type: 'job', targetId, title: 'Stale', operationId: `stale_${targetId}`, updatedAt: '2031-01-01T12:00:00.000Z' })
+    });
+    assert.equal(staleRes.status, 200);
+    const listRes = await fetch(`${BASE_URL}/api/favorites?includeDeleted=1`, { headers: authHeaders() });
+    const list = await readJson(listRes);
+    assert.ok(list.data.some(item => item.targetId === targetId && item.deleted));
+  } finally {
+    db.prepare('DELETE FROM favorite_operations_v4 WHERE user_id=? AND target_id=?').run(user.id, targetId);
+    db.prepare('DELETE FROM favorite_sync_v4 WHERE user_id=? AND target_id=?').run(user.id, targetId);
+    db.prepare('DELETE FROM favorites WHERE user_id=? AND target_id=?').run(user.id, targetId);
+  }
 });
 
 test('job reminder APIs persist and dispatch reminders once', async () => {

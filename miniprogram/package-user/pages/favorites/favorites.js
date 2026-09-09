@@ -2,7 +2,6 @@
 const favUtil = require('../../../utils/favorites.js');
 const featureFlags = require('../../../utils/feature-flags.js');
 const reminders = require('../../../utils/reminders.js');
-const config = require('../../../utils/app-config.js');
 const navigation = require('../../../utils/navigation.js');
 const TAB_KEYS = ['job', 'experience', 'company', 'agency', 'campus'];
 
@@ -264,27 +263,7 @@ Page({
   },
 
   requestDeadlineSubscribe() {
-    const tmplId = config.WX_TPL_APPLICATION || config.WX_TPL_SYSTEM || '';
-    if (!tmplId || typeof wx.requestSubscribeMessage !== 'function') return;
-    wx.requestSubscribeMessage({
-      tmplIds: [tmplId],
-      success: (subRes) => {
-        if (subRes[tmplId] !== 'accept') return;
-        const token = wx.getStorageSync('token');
-        if (!token) return;
-        wx.request({
-          url: config.API_BASE_URL + '/api/notify/subscribe',
-          method: 'POST',
-          header: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
-          },
-          data: { templateIds: [tmplId] },
-          fail: () => {}
-        });
-      },
-      fail: () => {}
-    });
+    reminders.requestSubscribe('deadline');
   },
 
   // ── 跳转详情 ──

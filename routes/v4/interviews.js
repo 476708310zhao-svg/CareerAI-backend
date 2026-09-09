@@ -82,7 +82,7 @@ router.get('/today-tasks', (req, res) => {
 });
 router.patch('/today-tasks/:id', (req, res) => {
   const done = req.body && req.body.completed === true;
-  const data = todayTasks.updateStatus(req.user.userId, req.params.id, done);
+  const data = todayTasks.updateStatus(req.user.userId, req.params.id, done, req.body && req.body.updatedAt);
   if (!data) return res.status(404).json({ code: -1, message: '任务不存在' });
   if (done) analytics.track(req.user.userId, 'today_task_completed', withCoreRefs({ taskId: data.id }, data.refs), '/api/v4/interviews/today-tasks/:id');
   res.json({ code: 0, data, message: '任务已更新' });

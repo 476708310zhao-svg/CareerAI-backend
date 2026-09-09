@@ -64,8 +64,34 @@ function setTaskDone(id, done, options) {
   return map[key];
 }
 
-function markTaskSynced(id, done, serverId) {
-  return setTaskDone(id, done, { pending: false, serverId });
+function markTaskSynced(id, done, serverId, updatedAt) {
+  const key = String(id || '');
+  if (!key) return null;
+  const map = readDoneMap();
+  const previous = readTaskState(key, map);
+  map[key] = {
+    done: !!done,
+    pending: false,
+    serverId: Number(serverId || previous.serverId) || null,
+    updatedAt: updatedAt || previous.updatedAt || new Date().toISOString()
+  };
+  writeDoneMap(map);
+  return map[key];
+}
+
+function timestampValue(value) {
+  const timestamp = new Date(value || 0).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function reconcileServerTask(id, serverTask, expectedUpdatedAt) {
+  const row = serverTask || {};
+  const state = readTaskState(id);
+  if (expectedUpdatedAt && state.updatedAt && state.updatedAt !== expectedUpdatedAt) return state;
+  const serverUpdatedAt = row.updatedAt || row.updated_at || '';
+  if (state.pending && timestampValue(state.updatedAt) > timestampValue(serverUpdatedAt)) return state;
+  const done = row.completed === true || row.status === 'completed';
+  return markTaskSynced(id, done, row.id || state.serverId, serverUpdatedAt || state.updatedAt);
 }
 
 function getPendingRemoteUpdates() {
@@ -249,6 +275,7 @@ module.exports = {
   readTaskState,
   setTaskDone,
   markTaskSynced,
+  reconcileServerTask,
   getPendingRemoteUpdates,
   buildTasks,
   getStats,
