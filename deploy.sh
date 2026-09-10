@@ -34,6 +34,7 @@ echo "✅ PM2: $(pm2 -v)"
 
 # ── 3. 准备共享配置与数据目录 ────────────────
 SHARED_ENV="$DATA_ROOT/.env"
+LEGACY_ENV="/www/wwwroot/jobapp-server/.env"
 mkdir -p "$APP_ROOT/releases" "$DATA_ROOT/db" "$DATA_ROOT/uploads" "$DATA_ROOT/data" /var/log/jobapp-server
 
 # ── 4. 校验当前版本目录 ─────────────────────
@@ -43,7 +44,13 @@ case "$DEPLOY_DIR" in
 esac
 
 # ── 5. 链接共享 .env ────────────────────────
-if [ ! -f "$SHARED_ENV" ]; then
+if [ -f "$LEGACY_ENV" ] && [ "$LEGACY_ENV" != "$SHARED_ENV" ] \
+  && ! grep -Eq '^[[:space:]]*JWT_SECRET[[:space:]]*=[[:space:]]*[^[:space:]#]+' "$SHARED_ENV" 2>/dev/null \
+  && grep -Eq '^[[:space:]]*JWT_SECRET[[:space:]]*=[[:space:]]*[^[:space:]#]+' "$LEGACY_ENV"; then
+  cp "$LEGACY_ENV" "$SHARED_ENV"
+  chmod 600 "$SHARED_ENV"
+  echo "✅ 已从旧版部署目录迁移共享 .env 配置"
+elif [ ! -f "$SHARED_ENV" ]; then
   cp "$DEPLOY_DIR/.env.example" "$SHARED_ENV"
   chmod 600 "$SHARED_ENV"
   echo ""
