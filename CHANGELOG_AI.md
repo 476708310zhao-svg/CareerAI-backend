@@ -4,6 +4,12 @@
 
 ## 2026-09-10
 
+### 修复竞争力陪跑组件加载失败
+
+- 内容：在竞争力陪跑分包页面中显式声明 `c-ai-disclosure`，避免启用 `lazyCodeLoading: requiredComponents` 时组件依赖偶发被运行时降级为 `wx://not-found`；新增页面配置回归断言。
+- 验证：Sprint 4 专项 6/6、全量 204/204、`npm run check:release` 和微信开发者工具官方 CLI preview 均通过。
+- 注意：开发者工具若仍保留旧运行缓存，请点击一次“编译”或重新打开项目。
+
 ### 修复收藏日期在部分 iOS 无法解析
 
 - 内容：新增小程序日期解析工具，对 SQLite `yyyy-MM-dd HH:mm:ss` 时间按 UTC 逐字段解析；收藏合并和排序不再直接调用不兼容的 `new Date(value)`。
