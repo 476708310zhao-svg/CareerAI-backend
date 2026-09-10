@@ -1,7 +1,9 @@
 const baseUrl = String(process.env.HEALTHCHECK_BASE_URL || 'http://127.0.0.1:4400').replace(/\/$/, '');
 const timeoutMs = Number(process.env.HEALTHCHECK_TIMEOUT_MS || 5000);
+const deadlineMs = Number(process.env.HEALTHCHECK_DEADLINE_MS || 30000);
+const retryDelayMs = Number(process.env.HEALTHCHECK_RETRY_DELAY_MS || 1000);
 
-async function main() {
+async function checkOnce() {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -10,10 +12,30 @@ async function main() {
     if (!response.ok || body.ready !== true) {
       throw new Error(`readiness failed (${response.status}): ${JSON.stringify(body)}`);
     }
-    console.log(`[healthcheck] ready: ${baseUrl}`);
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function main() {
+  const startedAt = Date.now();
+  let attempts = 0;
+  let lastError = null;
+
+  while (Date.now() - startedAt < deadlineMs) {
+    attempts += 1;
+    try {
+      await checkOnce();
+      console.log(`[healthcheck] ready: ${baseUrl} (${attempts} attempt${attempts === 1 ? '' : 's'})`);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (Date.now() - startedAt >= deadlineMs) break;
+      await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+    }
+  }
+
+  throw new Error(`readiness did not succeed within ${deadlineMs}ms: ${lastError && lastError.message || 'unknown error'}`);
 }
 
 main().catch(error => {
