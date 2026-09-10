@@ -44,13 +44,23 @@ case "$DEPLOY_DIR" in
 esac
 
 # ── 5. 链接共享 .env ────────────────────────
-if [ -f "$LEGACY_ENV" ] && [ "$LEGACY_ENV" != "$SHARED_ENV" ] \
-  && ! grep -Eq '^[[:space:]]*JWT_SECRET[[:space:]]*=[[:space:]]*[^[:space:]#]+' "$SHARED_ENV" 2>/dev/null \
-  && grep -Eq '^[[:space:]]*JWT_SECRET[[:space:]]*=[[:space:]]*[^[:space:]#]+' "$LEGACY_ENV"; then
-  cp "$LEGACY_ENV" "$SHARED_ENV"
-  chmod 600 "$SHARED_ENV"
-  echo "✅ 已从旧版部署目录迁移共享 .env 配置"
-elif [ ! -f "$SHARED_ENV" ]; then
+if ! grep -Eq '^[[:space:]]*JWT_SECRET[[:space:]]*=[[:space:]]*[^[:space:]#]+' "$SHARED_ENV" 2>/dev/null; then
+  for CANDIDATE_ENV in \
+    "$LEGACY_ENV" \
+    "$APP_ROOT/current/.env" \
+    "$APP_ROOT/.env" \
+    /www/wwwroot/*/.env; do
+    [ -f "$CANDIDATE_ENV" ] || continue
+    [ "$CANDIDATE_ENV" = "$SHARED_ENV" ] && continue
+    if grep -Eq '^[[:space:]]*JWT_SECRET[[:space:]]*=[[:space:]]*[^[:space:]#]+' "$CANDIDATE_ENV"; then
+      cp "$CANDIDATE_ENV" "$SHARED_ENV"
+      chmod 600 "$SHARED_ENV"
+      echo "✅ 已从旧版部署目录迁移共享 .env 配置"
+      break
+    fi
+  done
+fi
+if ! grep -Eq '^[[:space:]]*JWT_SECRET[[:space:]]*=[[:space:]]*[^[:space:]#]+' "$SHARED_ENV" 2>/dev/null && [ ! -f "$SHARED_ENV" ]; then
   cp "$DEPLOY_DIR/.env.example" "$SHARED_ENV"
   chmod 600 "$SHARED_ENV"
   echo ""
