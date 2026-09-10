@@ -1,5 +1,7 @@
 // pages/ai-report/ai-report.js
 const demoData = require('../../../utils/demo-data.js');
+const analytics = require('../../../utils/analytics.js');
+const notebook = require('../../../utils/interview-notebook.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
 Page({
@@ -58,6 +60,9 @@ Page({
         }));
 
         const benchmark = this.buildBenchmark(cached.totalScore, dimensions);
+        const weakQaList = this.buildWeakQaList(qaList);
+        const actionPlan = this.buildActionPlan(cached, dimensions, qaList, weakQaList);
+        const nextPractice = this.buildNextPractice(cached, actionPlan, weakQaList);
         this.setData({
           loading: false,
           report: {
@@ -65,12 +70,21 @@ Page({
             dimensions,
             radarData,
             qaList,
+            weakQaList,
             improveItems,
+            actionPlan,
+            nextPractice,
+            redFlags: Array.isArray(cached.redFlags) ? cached.redFlags.slice(0, 3) : [],
             benchmark,
             scoreLevel: this.getScoreLevel(cached.totalScore),
             scoreColor: this.getScoreColor(cached.totalScore),
             scoreDesc: this.getScoreDesc(cached.totalScore)
           }
+        });
+        analytics.track('ai_report_view', {
+          reportId,
+          score: cached.totalScore || 0,
+          qaCount: qaList.length
         });
         setTimeout(() => this.drawRadarChart(dimensions), 300);
         this.buildBookmarkSet(qaList);
@@ -127,6 +141,8 @@ Page({
     ].map((item, i) => ({ ...item, qid: `mock_q${i}`, feedbackSegments: this.processHighlights(item.feedback) }));
 
     const mockBenchmark = this.buildBenchmark(85, mockDimensions);
+    const mockWeakQaList = this.buildWeakQaList(mockQaList);
+    const mockActionPlan = this.buildActionPlan({}, mockDimensions, mockQaList, mockWeakQaList);
     this.setData({
       loading: false,
       report: {
@@ -143,8 +159,12 @@ Page({
         strengths: '对前端基础掌握扎实，React 原理部分回答清晰有条理，能够结合实际项目经验进行阐述。',
         weaknesses: '系统设计方面略显生疏，对分布式架构和性能优化缺乏深入理解。',
         suggestion: '建议加强大型项目架构设计的学习，多做 System Design 类题目练习。',
+        actionPlan: mockActionPlan,
+        nextPractice: this.buildNextPractice({}, mockActionPlan, mockWeakQaList),
+        redFlags: ['回答缺少量化指标', '系统设计没有讲清取舍'],
         summary: '候选人综合表现良好，技术基础扎实，建议在系统设计方面继续提升。',
         qaList: mockQaList,
+        weakQaList: mockWeakQaList,
         createTime: new Date().toLocaleDateString('zh-CN')
       }
     });
@@ -154,31 +174,109 @@ Page({
 
   // 初始化当前报告的题目收藏状态
   buildBookmarkSet(qaList) {
-    const stored = wx.getStorageSync('bookmarkedQuestions') || [];
-    const storedIds = new Set(stored.map(b => b.qid));
     const set = {};
-    (qaList || []).forEach(item => { set[item.qid] = storedIds.has(item.qid); });
+    (qaList || []).forEach(item => { set[item.qid] = !!notebook.getItem(item.qid); });
     this.setData({ qaBookmarkSet: set });
+  },
+
+  buildWeakQaList(qaList) {
+    return (qaList || [])
+      .filter(item => Number(item.score || 0) < 80)
+      .sort((a, b) => Number(a.score || 0) - Number(b.score || 0))
+      .slice(0, 5);
+  },
+
+  buildActionPlan(report, dimensions, qaList, weakQaList) {
+    const fromCache = Array.isArray(report && report.actionPlan) ? report.actionPlan : [];
+    const normalized = fromCache.map((item, index) => {
+      if (typeof item === 'string') {
+        return { title: item, detail: '', priority: index === 0 ? 'high' : 'medium' };
+      }
+      return {
+        title: item && item.title || '',
+        detail: item && (item.detail || item.desc || item.content) || '',
+        priority: item && item.priority || (index === 0 ? 'high' : 'medium')
+      };
+    }).filter(item => item.title).slice(0, 3);
+    if (normalized.length) return normalized;
+
+    const lowDim = (dimensions || []).slice().sort((a, b) => a.score - b.score)[0] || {};
+    const weakCount = (weakQaList || []).length;
+    return [
+      {
+        title: `补强${lowDim.name || '薄弱维度'}`,
+        detail: `当前 ${lowDim.score || '--'} 分，下一轮面试前准备 2 个可复用案例。`,
+        priority: 'high'
+      },
+      {
+        title: weakCount ? '重写薄弱题回答' : '保持高分回答结构',
+        detail: weakCount ? `已识别 ${weakCount} 道薄弱题，建议先收藏到错题本再逐题复练。` : '本次问答表现较稳，继续补充量化结果和岗位关键词。',
+        priority: weakCount ? 'high' : 'medium'
+      },
+      {
+        title: '做一次短面复练',
+        detail: `用 ${(qaList || []).length || 3} 道题模拟 15 分钟快面，训练表达节奏。`,
+        priority: 'medium'
+      }
+    ];
+  },
+
+  buildNextPractice(report, actionPlan, weakQaList) {
+    const fromCache = Array.isArray(report && report.nextPractice) ? report.nextPractice.filter(Boolean).slice(0, 3) : [];
+    if (fromCache.length) return fromCache;
+    const weak = (weakQaList || []).slice(0, 2).map(item => item.q);
+    return weak.concat((actionPlan || []).map(item => item.title)).filter(Boolean).slice(0, 3);
   },
 
   // 切换题目收藏（加入/移出错题本）
   toggleQaBookmark(e) {
     const { qid, question, answer, feedback, score, source } = e.currentTarget.dataset;
     const set = { ...this.data.qaBookmarkSet };
-    let bookmarks = wx.getStorageSync('bookmarkedQuestions') || [];
 
     if (set[qid]) {
-      bookmarks = bookmarks.filter(b => b.qid !== qid);
+      notebook.remove(qid);
+      notebook.removeDailyPractice(qid);
       set[qid] = false;
       wx.showToast({ title: '已移出错题本', icon: 'none' });
     } else {
-      bookmarks.unshift({ qid, question, answer, feedback, score: Number(score) || 0, source: source || '', timestamp: Date.now() });
+      notebook.mark({
+        id: qid,
+        title: question,
+        answer,
+        category: source || 'ai_report',
+        difficulty: Number(score) < 80 ? '需加强' : '中等',
+        feedback
+      }, Number(score) < 80 ? 'unknown' : 'saved');
       set[qid] = true;
       wx.showToast({ title: '已加入错题本', icon: 'success' });
     }
 
-    wx.setStorageSync('bookmarkedQuestions', bookmarks);
     this.setData({ qaBookmarkSet: set });
+  },
+
+  bookmarkWeakQuestions() {
+    const report = this.data.report;
+    if (!report || !report.weakQaList || !report.weakQaList.length) {
+      wx.showToast({ title: '暂无薄弱题', icon: 'none' });
+      return;
+    }
+    const set = { ...this.data.qaBookmarkSet };
+    let count = 0;
+    report.weakQaList.forEach(item => {
+      if (set[item.qid]) return;
+      notebook.mark({
+        id: item.qid,
+        title: item.q,
+        answer: item.a,
+        category: report.role || 'ai_report',
+        difficulty: Number(item.score) < 70 ? '重点复习' : '需加强',
+        feedback: item.feedback
+      }, 'unknown');
+      set[item.qid] = true;
+      count += 1;
+    });
+    this.setData({ qaBookmarkSet: set });
+    wx.showToast({ title: count ? `已加入${count}题` : '已收藏过', icon: count ? 'success' : 'none' });
   },
 
   // 将 feedback 文本按关键词拆分为高亮片段

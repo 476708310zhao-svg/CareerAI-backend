@@ -52,8 +52,8 @@ Component({
 
     openCampusList() {
       const url = '/pages/campus/campus';
-      if (typeof wx !== 'undefined' && wx.switchTab) {
-        wx.switchTab({ url });
+      if (typeof wx !== 'undefined' && wx.navigateTo) {
+        wx.navigateTo({ url });
       } else if (this._viewCtx && typeof this._viewCtx.openDetailPage === 'function') {
         this._viewCtx.openDetailPage({ url });
       }

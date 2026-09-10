@@ -125,8 +125,7 @@
     </view>
   </view>
 
-  <!-- Offer AI 对比横幅 -->
-  <c-ai-disclosure wx:if="{{stats.offer >= 2}}" text="Offer 对比分析由人工智能生成，仅供求职决策参考，不构成职业或财务建议。" />
+  <!-- Offer 对比入口 -->
   <view class="offer-compare-banner" wx:if="{{stats.offer >= 2}}" hover-class="card-press" hover-stay-time="80" bindtap="goToOfferCompare">
     <view class="ocb-left">
       <text class="ocb-icon">AI</text>
@@ -181,6 +180,7 @@
               <text wx:if="{{item.salary && item.salary !== '面议'}}" class="meta-chip salary-chip">{{item.salary}}</text>
             </view>
             <text wx:if="{{item.notes}}" class="notes-preview">备注 · {{item.notes}}</text>
+            <text wx:if="{{item.cloudManaged && item.nextAction}}" class="next-action-preview">下一步 · {{item.nextAction}}</text>
             <view wx:if="{{item.deadline}}" class="deadline-row {{item.deadlineUrgent ? 'urgent' : ''}}">
               <text class="deadline-text">截止 {{item.deadline}}</text>
             </view>

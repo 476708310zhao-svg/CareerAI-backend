@@ -70,6 +70,7 @@
       <view class="question-footer">
         <view wx:if="{{item.inDailyPractice}}" class="footer-link" bindtap="removeDaily" data-id="{{item.id}}">移出每日练习</view>
         <view wx:else class="footer-link" bindtap="addDaily" data-id="{{item.id}}">加入每日练习</view>
+        <view class="footer-link" bindtap="scheduleReview" data-id="{{item.id}}">复习提醒</view>
         <view class="footer-link danger" bindtap="removeItem" data-id="{{item.id}}">移出错题本</view>
       </view>
     </view>

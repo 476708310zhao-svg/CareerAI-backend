@@ -23,6 +23,91 @@ const shareConfig = require('../utils/shareConfig');
 const featureFlags = require('../utils/featureFlags');
 const { USER_PROFILE_SCHEMA, buildUserProfile, normalizeProfilePayload } = require('../utils/userProfileStandard');
 
+function safeJsonParse(value, fallback) {
+  if (value === undefined || value === null || value === '') return fallback;
+  try { return JSON.parse(value); } catch (_) { return fallback; }
+}
+
+function normalizeTagList(value) {
+  const source = Array.isArray(value)
+    ? value
+    : String(value || '').split(/[,，、\n]/);
+  return [...new Set(source.map(item => String(item || '').trim()).filter(Boolean))];
+}
+
+function jsonString(value, fallback) {
+  return JSON.stringify(value === undefined ? fallback : value);
+}
+
+function booleanFlag(value) {
+  return value === true || value === 1 || value === '1' || value === 'true';
+}
+
+const MODERATION_STATUSES = new Set(['pending', 'approved', 'rejected']);
+
+function moderationStatus(value) {
+  const status = String(value || '').trim().toLowerCase();
+  return MODERATION_STATUSES.has(status) ? status : '';
+}
+
+function moderatorName(admin) {
+  return String(admin && (admin.displayName || admin.username || admin.id) || 'admin').slice(0, 120);
+}
+
+function updateModerationEntity(tableName, entityType, id, nextStatus, note, admin) {
+  const status = moderationStatus(nextStatus);
+  if (!status) throw Object.assign(new Error('审核状态无效'), { statusCode: 400 });
+  const row = db.prepare(`SELECT * FROM ${tableName} WHERE id = ?`).get(id);
+  if (!row) throw Object.assign(new Error('内容不存在'), { statusCode: 404 });
+  const previousStatus = row.moderation_status || 'approved';
+  const moderationNote = String(note || '').trim().slice(0, 500);
+  db.prepare(`
+    UPDATE ${tableName}
+    SET moderation_status = ?, moderation_note = ?, moderated_at = datetime('now')
+    WHERE id = ?
+  `).run(status, moderationNote, id);
+  db.prepare(`
+    INSERT INTO content_moderation_logs
+      (entity_type, entity_id, previous_status, next_status, note, moderator)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(entityType, id, previousStatus, status, moderationNote, moderatorName(admin));
+  return { row, previousStatus, nextStatus: status, note: moderationNote };
+}
+
+function refreshAgencyRating(agencyId) {
+  const stats = db.prepare(`
+    SELECT COUNT(*) AS count, AVG(rating_overall) AS average
+    FROM agency_reviews
+    WHERE agency_id = ? AND moderation_status = 'approved'
+  `).get(agencyId);
+  db.prepare('UPDATE agencies SET rating_avg = ?, review_count = ? WHERE id = ?').run(
+    stats.average ? Math.round(stats.average * 10) / 10 : 0,
+    stats.count || 0,
+    agencyId
+  );
+}
+
+function makeContentId(prefix) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function questionRow(row) {
+  return Object.assign({}, row, {
+    tags: safeJsonParse(row.tags, []),
+    isFeatured: !!row.is_featured,
+    isPublished: !!row.is_published
+  });
+}
+
+function starTemplateRow(row) {
+  return Object.assign({}, row, {
+    id: row.template_id || String(row.id),
+    serverId: row.id,
+    tags: safeJsonParse(row.tags, []),
+    isPublished: !!row.is_published
+  });
+}
+
 // ─── 管理后台图片上传（Banner 等） ─────────────────────────────────────────────
 const adminStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -148,10 +233,17 @@ router.get('/api/stats', adminAuth, (req, res) => {
     companies:     db.prepare('SELECT COUNT(*) as c FROM companies').get().c,
     campus:        db.prepare('SELECT COUNT(*) as c FROM campus_schedules').get().c,
     announcements: db.prepare('SELECT COUNT(*) as c FROM announcements').get().c,
+    questions:     db.prepare('SELECT COUNT(*) as c FROM interview_questions').get().c,
+    starTemplates: db.prepare('SELECT COUNT(*) as c FROM star_templates').get().c,
+    feedbacks:     db.prepare('SELECT COUNT(*) as c FROM feedbacks').get().c,
     jobs:          adminJobsStore.countJobs(),
     todayNewUsers: db.prepare("SELECT COUNT(*) as c FROM users WHERE date(created_at) = ?").get(today).c,
     todayComments: db.prepare("SELECT COUNT(*) as c FROM comments WHERE date(created_at) = ?").get(today).c,
-    pendingReviews: db.prepare('SELECT COUNT(*) as c FROM agency_reviews').get().c,
+    pendingReviews:
+      db.prepare("SELECT COUNT(*) as c FROM experiences WHERE moderation_status='pending'").get().c +
+      db.prepare("SELECT COUNT(*) as c FROM comments WHERE moderation_status='pending'").get().c +
+      db.prepare("SELECT COUNT(*) as c FROM comment_replies WHERE moderation_status='pending'").get().c +
+      db.prepare("SELECT COUNT(*) as c FROM agency_reviews WHERE moderation_status='pending'").get().c,
   };
   res.json({ code: 0, data: stats });
 });
@@ -281,15 +373,51 @@ router.delete('/api/companies/:id', adminAuth, (req, res) => {
 // 面经管理
 // ═══════════════════════════════════════════════════════════════
 router.get('/api/experiences', adminAuth, (req, res) => {
-  const { keyword = '' } = req.query;
+  const { keyword = '', status = '' } = req.query;
   const { pageSize, offset } = parsePagination(req.query, { pageSize: 15 });
-  const k = `%${keyword}%`;
-  const where = keyword ? 'WHERE title LIKE ? OR company LIKE ? OR user_name LIKE ?' : '';
-  const params = keyword ? [k, k, k] : [];
-  const total = db.prepare(`SELECT COUNT(*) as c FROM experiences ${where}`).get(...params).c;
-  const list  = db.prepare(`SELECT id, user_name, company, position, type, title, likes_count, comments_count, created_at FROM experiences ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`)
+  const where = [];
+  const params = [];
+  if (keyword) {
+    const k = `%${keyword}%`;
+    where.push('(title LIKE ? OR company LIKE ? OR user_name LIKE ? OR content LIKE ?)');
+    params.push(k, k, k, k);
+  }
+  const normalizedStatus = moderationStatus(status);
+  if (normalizedStatus) {
+    where.push('moderation_status = ?');
+    params.push(normalizedStatus);
+  }
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const total = db.prepare(`SELECT COUNT(*) as c FROM experiences ${whereSql}`).get(...params).c;
+  const list  = db.prepare(`
+    SELECT id, user_name, company, position, type, title, content,
+           likes_count, comments_count, moderation_status, moderation_note,
+           moderated_at, created_at
+    FROM experiences ${whereSql}
+    ORDER BY CASE moderation_status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 ELSE 2 END,
+             created_at DESC
+    LIMIT ? OFFSET ?
+  `)
                   .all(...params, Number(pageSize), offset);
   res.json({ code: 0, data: { list, total } });
+});
+
+router.put('/api/experiences/:id/moderation', adminAuth, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  try {
+    const result = db.transaction(() => updateModerationEntity(
+        'experiences',
+        'experience',
+        id,
+        req.body && req.body.status,
+        req.body && req.body.note,
+        req.admin
+      ))();
+    res.json({ code: 0, message: result.nextStatus === 'approved' ? '面经已通过审核' : '面经已驳回' });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ code: -1, message: error.message || '审核失败' });
+  }
 });
 
 router.delete('/api/experiences/:id', adminAuth, (req, res) => {
@@ -304,30 +432,292 @@ router.delete('/api/experiences/:id', adminAuth, (req, res) => {
 // 评论管理
 // ═══════════════════════════════════════════════════════════════
 router.get('/api/comments', adminAuth, (req, res) => {
-  const { keyword = '' } = req.query;
+  const { keyword = '', status = '' } = req.query;
   const { pageSize, offset } = parsePagination(req.query, { pageSize: 20 });
-  const k = `%${keyword}%`;
-  const where = keyword ? 'WHERE c.content LIKE ? OR c.user_name LIKE ?' : '';
-  const params = keyword ? [k, k] : [];
-  const total = db.prepare(`SELECT COUNT(*) as n FROM comments c ${where}`).get(...params).n;
-  const list  = db.prepare(`
-    SELECT c.id, c.user_name, c.content, c.likes_count, c.created_at,
-           e.title as exp_title, e.id as exp_id
+  const unionSql = `
+    SELECT 'comment' AS content_type, c.id, c.user_name, c.content, c.likes_count,
+           c.moderation_status, c.moderation_note, c.moderated_at, c.created_at,
+           e.title AS exp_title, e.id AS exp_id
     FROM comments c
     LEFT JOIN experiences e ON e.id = c.experience_id
-    ${where} ORDER BY c.created_at DESC LIMIT ? OFFSET ?
+    UNION ALL
+    SELECT 'reply' AS content_type, r.id, r.user_name, r.content, 0 AS likes_count,
+           r.moderation_status, r.moderation_note, r.moderated_at, r.created_at,
+           e.title AS exp_title, e.id AS exp_id
+    FROM comment_replies r
+    LEFT JOIN comments c ON c.id = r.comment_id
+    LEFT JOIN experiences e ON e.id = c.experience_id
+  `;
+  const where = [];
+  const params = [];
+  if (keyword) {
+    const k = `%${keyword}%`;
+    where.push('(ugc.content LIKE ? OR ugc.user_name LIKE ? OR ugc.exp_title LIKE ?)');
+    params.push(k, k, k);
+  }
+  const normalizedStatus = moderationStatus(status);
+  if (normalizedStatus) {
+    where.push('ugc.moderation_status = ?');
+    params.push(normalizedStatus);
+  }
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const total = db.prepare(`SELECT COUNT(*) as n FROM (${unionSql}) ugc ${whereSql}`).get(...params).n;
+  const list  = db.prepare(`
+    SELECT * FROM (${unionSql}) ugc
+    ${whereSql}
+    ORDER BY CASE ugc.moderation_status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 ELSE 2 END,
+             ugc.created_at DESC
+    LIMIT ? OFFSET ?
   `).all(...params, Number(pageSize), offset);
   res.json({ code: 0, data: { list, total } });
+});
+
+router.put('/api/comments/:kind/:id/moderation', adminAuth, (req, res) => {
+  const id = parseId(req.params.id);
+  const kind = req.params.kind === 'reply' ? 'reply' : (req.params.kind === 'comment' ? 'comment' : '');
+  if (!id || !kind) return res.status(400).json({ code: -1, message: '参数无效' });
+  const tableName = kind === 'reply' ? 'comment_replies' : 'comments';
+  try {
+    const result = db.transaction(() => {
+      const moderationResult = updateModerationEntity(
+        tableName,
+        kind,
+        id,
+        req.body && req.body.status,
+        req.body && req.body.note,
+        req.admin
+      );
+      if (kind === 'comment') {
+        const wasApproved = moderationResult.previousStatus === 'approved';
+        const isApproved = moderationResult.nextStatus === 'approved';
+        if (!wasApproved && isApproved) {
+          db.prepare('UPDATE experiences SET comments_count = comments_count + 1 WHERE id = ?')
+            .run(moderationResult.row.experience_id);
+        } else if (wasApproved && !isApproved) {
+          db.prepare('UPDATE experiences SET comments_count = MAX(0, comments_count - 1) WHERE id = ?')
+            .run(moderationResult.row.experience_id);
+        }
+      }
+      return moderationResult;
+    })();
+    res.json({ code: 0, message: result.nextStatus === 'approved' ? '内容已通过审核' : '内容已驳回' });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ code: -1, message: error.message || '审核失败' });
+  }
 });
 
 router.delete('/api/comments/:id', adminAuth, (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
-  const c = db.prepare('SELECT experience_id FROM comments WHERE id = ?').get(id);
+  const c = db.prepare('SELECT experience_id, moderation_status FROM comments WHERE id = ?').get(id);
   if (!c) return res.status(404).json({ code: -1, message: '评论不存在' });
   db.prepare('DELETE FROM comments WHERE id = ?').run(id);
-  db.prepare('UPDATE experiences SET comments_count = MAX(0, comments_count - 1) WHERE id = ?').run(c.experience_id);
+  if ((c.moderation_status || 'approved') === 'approved') {
+    db.prepare('UPDATE experiences SET comments_count = MAX(0, comments_count - 1) WHERE id = ?').run(c.experience_id);
+  }
   res.json({ code: 0, message: '删除成功' });
+});
+
+router.delete('/api/comment-replies/:id', adminAuth, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  const result = db.prepare('DELETE FROM comment_replies WHERE id = ?').run(id);
+  if (!result.changes) return res.status(404).json({ code: -1, message: '回复不存在' });
+  res.json({ code: 0, message: '删除成功' });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// 题库管理
+// ═══════════════════════════════════════════════════════════════
+router.get('/api/interview-questions', adminAuth, (req, res) => {
+  const { keyword = '', category = '', status = '' } = req.query;
+  const { pageSize, offset } = parsePagination(req.query, { pageSize: 20 });
+  const where = [];
+  const params = [];
+  if (keyword) {
+    const k = `%${keyword}%`;
+    where.push('(title LIKE ? OR answer LIKE ? OR tags LIKE ?)');
+    params.push(k, k, k);
+  }
+  if (category) {
+    where.push('category = ?');
+    params.push(String(category));
+  }
+  if (status === 'published') where.push('is_published = 1');
+  if (status === 'draft') where.push('is_published = 0');
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const total = db.prepare(`SELECT COUNT(*) as c FROM interview_questions ${whereSql}`).get(...params).c;
+  const list = db.prepare(`
+    SELECT * FROM interview_questions
+    ${whereSql}
+    ORDER BY sort_order ASC, updated_at DESC, id DESC
+    LIMIT ? OFFSET ?
+  `).all(...params, Number(pageSize), offset).map(questionRow);
+  res.json({ code: 0, data: { list, total } });
+});
+
+router.post('/api/interview-questions', adminAuth, (req, res) => {
+  const body = req.body || {};
+  const title = String(body.title || body.question || '').trim();
+  if (!title) return res.status(400).json({ code: -1, message: '题目不能为空' });
+  const questionId = String(body.question_id || body.questionId || body.id || makeContentId('q')).trim();
+  const tags = normalizeTagList(body.tags);
+  const r = db.prepare(`
+    INSERT INTO interview_questions
+      (question_id, title, answer, category, difficulty, tags, views, source, is_featured, is_published, sort_order, updated_at)
+    VALUES
+      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+  `).run(
+    questionId,
+    title,
+    String(body.answer || ''),
+    String(body.category || 'behavior'),
+    String(body.difficulty || '中等'),
+    jsonString(tags, []),
+    Number(body.views) || 0,
+    String(body.source || 'admin'),
+    body.isFeatured || body.is_featured ? 1 : 0,
+    body.isPublished === false || body.is_published === false ? 0 : 1,
+    Number(body.sortOrder || body.sort_order) || 0
+  );
+  const row = db.prepare('SELECT * FROM interview_questions WHERE id = ?').get(r.lastInsertRowid);
+  res.json({ code: 0, message: '题目已创建', data: questionRow(row) });
+});
+
+router.put('/api/interview-questions/:id', adminAuth, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  const body = req.body || {};
+  const title = String(body.title || body.question || '').trim();
+  if (!title) return res.status(400).json({ code: -1, message: '题目不能为空' });
+  const tags = normalizeTagList(body.tags);
+  const r = db.prepare(`
+    UPDATE interview_questions SET
+      title=?, answer=?, category=?, difficulty=?, tags=?, views=?, source=?,
+      is_featured=?, is_published=?, sort_order=?, updated_at=datetime('now')
+    WHERE id=?
+  `).run(
+    title,
+    String(body.answer || ''),
+    String(body.category || 'behavior'),
+    String(body.difficulty || '中等'),
+    jsonString(tags, []),
+    Number(body.views) || 0,
+    String(body.source || 'admin'),
+    body.isFeatured || body.is_featured ? 1 : 0,
+    body.isPublished === false || body.is_published === false ? 0 : 1,
+    Number(body.sortOrder || body.sort_order) || 0,
+    id
+  );
+  if (!r.changes) return res.status(404).json({ code: -1, message: '题目不存在' });
+  const row = db.prepare('SELECT * FROM interview_questions WHERE id = ?').get(id);
+  res.json({ code: 0, message: '题目已更新', data: questionRow(row) });
+});
+
+router.delete('/api/interview-questions/:id', adminAuth, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  const r = db.prepare('DELETE FROM interview_questions WHERE id = ?').run(id);
+  if (!r.changes) return res.status(404).json({ code: -1, message: '题目不存在' });
+  res.json({ code: 0, message: '题目已删除' });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// STAR 模板管理
+// ═══════════════════════════════════════════════════════════════
+router.get('/api/star-templates', adminAuth, (req, res) => {
+  const { keyword = '', role = '', status = '' } = req.query;
+  const { pageSize, offset } = parsePagination(req.query, { pageSize: 20 });
+  const where = [];
+  const params = [];
+  if (keyword) {
+    const k = `%${keyword}%`;
+    where.push('(title LIKE ? OR tags LIKE ? OR situation LIKE ? OR task LIKE ? OR action LIKE ? OR result LIKE ?)');
+    params.push(k, k, k, k, k, k);
+  }
+  if (role) {
+    where.push('role = ?');
+    params.push(String(role));
+  }
+  if (status === 'published') where.push('is_published = 1');
+  if (status === 'draft') where.push('is_published = 0');
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const total = db.prepare(`SELECT COUNT(*) as c FROM star_templates ${whereSql}`).get(...params).c;
+  const list = db.prepare(`
+    SELECT * FROM star_templates
+    ${whereSql}
+    ORDER BY sort_order ASC, updated_at DESC, id DESC
+    LIMIT ? OFFSET ?
+  `).all(...params, Number(pageSize), offset).map(starTemplateRow);
+  res.json({ code: 0, data: { list, total } });
+});
+
+router.post('/api/star-templates', adminAuth, (req, res) => {
+  const body = req.body || {};
+  const title = String(body.title || '').trim();
+  if (!title) return res.status(400).json({ code: -1, message: '模板标题不能为空' });
+  const templateId = String(body.template_id || body.templateId || body.id || makeContentId('star')).trim();
+  const tags = normalizeTagList(body.tags);
+  const r = db.prepare(`
+    INSERT INTO star_templates
+      (template_id, role, role_label, role_color, title, tags, situation, task, action, result,
+       is_published, sort_order, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+  `).run(
+    templateId,
+    String(body.role || 'general'),
+    String(body.roleLabel || body.role_label || '通用'),
+    String(body.roleColor || body.role_color || '#6B7280'),
+    title,
+    jsonString(tags, []),
+    String(body.situation || ''),
+    String(body.task || ''),
+    String(body.action || ''),
+    String(body.result || ''),
+    body.isPublished === false || body.is_published === false ? 0 : 1,
+    Number(body.sortOrder || body.sort_order) || 0
+  );
+  const row = db.prepare('SELECT * FROM star_templates WHERE id = ?').get(r.lastInsertRowid);
+  res.json({ code: 0, message: '模板已创建', data: starTemplateRow(row) });
+});
+
+router.put('/api/star-templates/:id', adminAuth, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  const body = req.body || {};
+  const title = String(body.title || '').trim();
+  if (!title) return res.status(400).json({ code: -1, message: '模板标题不能为空' });
+  const tags = normalizeTagList(body.tags);
+  const r = db.prepare(`
+    UPDATE star_templates SET
+      role=?, role_label=?, role_color=?, title=?, tags=?, situation=?, task=?, action=?, result=?,
+      is_published=?, sort_order=?, updated_at=datetime('now')
+    WHERE id=?
+  `).run(
+    String(body.role || 'general'),
+    String(body.roleLabel || body.role_label || '通用'),
+    String(body.roleColor || body.role_color || '#6B7280'),
+    title,
+    jsonString(tags, []),
+    String(body.situation || ''),
+    String(body.task || ''),
+    String(body.action || ''),
+    String(body.result || ''),
+    body.isPublished === false || body.is_published === false ? 0 : 1,
+    Number(body.sortOrder || body.sort_order) || 0,
+    id
+  );
+  if (!r.changes) return res.status(404).json({ code: -1, message: '模板不存在' });
+  const row = db.prepare('SELECT * FROM star_templates WHERE id = ?').get(id);
+  res.json({ code: 0, message: '模板已更新', data: starTemplateRow(row) });
+});
+
+router.delete('/api/star-templates/:id', adminAuth, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  const r = db.prepare('DELETE FROM star_templates WHERE id = ?').run(id);
+  if (!r.changes) return res.status(404).json({ code: -1, message: '模板不存在' });
+  res.json({ code: 0, message: '模板已删除' });
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -368,7 +758,7 @@ router.put('/api/campus/:id', adminAuth, (req, res) => {
   const r = db.prepare(`
     UPDATE campus_schedules SET company=?, region=?, position_type=?, recruit_year=?,
       position_name=?, industry=?, start_date=?, deadline_date=?, offer_month=?,
-      notes=?, apply_url=?, is_hot=?
+      notes=?, apply_url=?, is_hot=?, updated_at=datetime('now')
     WHERE id = ?
   `).run(company, region, position_type, recruit_year, position_name,
          industry, start_date, deadline_date, offer_month, notes, apply_url,
@@ -422,43 +812,123 @@ router.delete('/api/agencies/:id', adminAuth, (req, res) => {
 
 // ─── 机构评价管理 ──────────────────────────────────────────────────────────────
 router.get('/api/agency-reviews', adminAuth, (req, res) => {
+  const normalizedStatus = moderationStatus(req.query.status);
   const { pageSize, offset } = parsePagination(req.query, { pageSize: 20 });
-  const total = db.prepare('SELECT COUNT(*) as c FROM agency_reviews').get().c;
+  const whereSql = normalizedStatus ? 'WHERE r.moderation_status = ?' : '';
+  const params = normalizedStatus ? [normalizedStatus] : [];
+  const total = db.prepare(`SELECT COUNT(*) as c FROM agency_reviews r ${whereSql}`).get(...params).c;
   const list  = db.prepare(`
     SELECT r.id, r.rating_overall, r.title, r.content, r.created_at,
-           r.is_anonymous, a.name as agency_name
+           r.is_anonymous, r.moderation_status, r.moderation_note,
+           r.moderated_at, a.name as agency_name
     FROM agency_reviews r LEFT JOIN agencies a ON a.id = r.agency_id
-    ORDER BY r.created_at DESC LIMIT ? OFFSET ?
-  `).all(Number(pageSize), offset);
+    ${whereSql}
+    ORDER BY CASE r.moderation_status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 ELSE 2 END,
+             r.created_at DESC
+    LIMIT ? OFFSET ?
+  `).all(...params, Number(pageSize), offset);
   res.json({ code: 0, data: { list, total } });
+});
+
+router.put('/api/agency-reviews/:id/moderation', adminAuth, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  try {
+    const result = db.transaction(() => {
+      const moderationResult = updateModerationEntity(
+        'agency_reviews',
+        'agency_review',
+        id,
+        req.body && req.body.status,
+        req.body && req.body.note,
+        req.admin
+      );
+      refreshAgencyRating(moderationResult.row.agency_id);
+      return moderationResult;
+    })();
+    res.json({ code: 0, message: result.nextStatus === 'approved' ? '机构评价已通过审核' : '机构评价已驳回' });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ code: -1, message: error.message || '审核失败' });
+  }
 });
 
 router.delete('/api/agency-reviews/:id', adminAuth, (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  const review = db.prepare('SELECT agency_id, moderation_status FROM agency_reviews WHERE id = ?').get(id);
+  if (!review) return res.status(404).json({ code: -1, message: '评价不存在' });
   const r = db.prepare('DELETE FROM agency_reviews WHERE id = ?').run(id);
   if (r.changes === 0) return res.status(404).json({ code: -1, message: '评价不存在' });
+  if ((review.moderation_status || 'approved') === 'approved') refreshAgencyRating(review.agency_id);
   res.json({ code: 0, message: '删除成功' });
 });
 
 // ═══════════════════════════════════════════════════════════════
 // 资讯公告管理
 // ═══════════════════════════════════════════════════════════════
+function normalizeAnnouncementList(value) {
+  const parsed = safeJsonParse(value, null);
+  return normalizeTagList(Array.isArray(parsed) ? parsed : value);
+}
+
+function normalizeAnnouncementPayload(body = {}, defaults = {}) {
+  const publishedValue = body.is_published ?? body.isPublished;
+  const pinnedValue = body.is_pinned ?? body.isPinned;
+  return {
+    title: String(body.title ?? defaults.title ?? '').trim(),
+    content: String(body.content ?? defaults.content ?? '').trim(),
+    category: String(body.category ?? defaults.category ?? '公告').trim() || '公告',
+    cover_url: String(body.cover_url ?? body.coverUrl ?? defaults.cover_url ?? '').trim(),
+    summary: String(body.summary ?? body.desc ?? defaults.summary ?? '').trim(),
+    tags: jsonString(normalizeAnnouncementList(body.tags ?? defaults.tags), []),
+    target_roles: jsonString(normalizeAnnouncementList(body.target_roles ?? body.targetRoles ?? defaults.target_roles), []),
+    target_regions: jsonString(normalizeAnnouncementList(body.target_regions ?? body.targetRegions ?? defaults.target_regions), []),
+    action_type: String(body.action_type ?? body.actionType ?? defaults.action_type ?? '').trim(),
+    action_label: String(body.action_label ?? body.actionLabel ?? defaults.action_label ?? '').trim(),
+    action_url: String(body.action_url ?? body.actionUrl ?? defaults.action_url ?? '').trim(),
+    source_url: String(body.source_url ?? body.sourceUrl ?? defaults.source_url ?? '').trim(),
+    sort_order: Number(body.sort_order ?? body.sortOrder ?? defaults.sort_order ?? 0) || 0,
+    is_pinned: booleanFlag(pinnedValue ?? defaults.is_pinned) ? 1 : 0,
+    is_published: publishedValue === undefined && defaults.is_published === undefined
+      ? 1
+      : (booleanFlag(publishedValue ?? defaults.is_published) ? 1 : 0)
+  };
+}
+
 router.get('/api/announcements', adminAuth, (req, res) => {
+  const { keyword = '', category = '' } = req.query;
   const { pageSize, offset } = parsePagination(req.query, { pageSize: 15 });
-  const total = db.prepare('SELECT COUNT(*) as c FROM announcements').get().c;
-  const list  = db.prepare('SELECT * FROM announcements ORDER BY is_pinned DESC, created_at DESC LIMIT ? OFFSET ?')
-                  .all(Number(pageSize), offset);
+  const where = [];
+  const params = [];
+  if (keyword) {
+    const k = `%${keyword}%`;
+    where.push('(title LIKE ? OR content LIKE ? OR summary LIKE ? OR tags LIKE ? OR target_roles LIKE ? OR target_regions LIKE ?)');
+    params.push(k, k, k, k, k, k);
+  }
+  if (category) {
+    where.push('category = ?');
+    params.push(String(category));
+  }
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const total = db.prepare(`SELECT COUNT(*) as c FROM announcements ${whereSql}`).get(...params).c;
+  const list  = db.prepare(`SELECT * FROM announcements ${whereSql} ORDER BY is_pinned DESC, sort_order DESC, created_at DESC LIMIT ? OFFSET ?`)
+                  .all(...params, Number(pageSize), offset);
   res.json({ code: 0, data: { list, total } });
 });
 
 router.post('/api/announcements', adminAuth, (req, res) => {
-  const { title, content, category = '公告', cover_url = '', is_pinned = 0, is_published = 1 } = req.body;
-  if (!title || !content) return res.status(400).json({ code: -1, message: '标题和内容不能为空' });
+  const payload = normalizeAnnouncementPayload(req.body);
+  if (!payload.title || !payload.content) return res.status(400).json({ code: -1, message: '标题和内容不能为空' });
   const r = db.prepare(`
-    INSERT INTO announcements (title, content, category, cover_url, is_pinned, is_published)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(title, content, category, cover_url, is_pinned ? 1 : 0, is_published ? 1 : 0);
+    INSERT INTO announcements (
+      title, content, category, cover_url, summary, tags, target_roles, target_regions,
+      action_type, action_label, action_url, source_url, sort_order, is_pinned, is_published
+    )
+    VALUES (
+      @title, @content, @category, @cover_url, @summary, @tags, @target_roles, @target_regions,
+      @action_type, @action_label, @action_url, @source_url, @sort_order, @is_pinned, @is_published
+    )
+  `).run(payload);
   const row = db.prepare('SELECT * FROM announcements WHERE id = ?').get(r.lastInsertRowid);
   res.json({ code: 0, message: '发布成功', data: row });
 });
@@ -466,13 +936,33 @@ router.post('/api/announcements', adminAuth, (req, res) => {
 router.put('/api/announcements/:id', adminAuth, (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
-  const { title, content, category, cover_url, is_pinned, is_published } = req.body;
+  const existing = db.prepare('SELECT * FROM announcements WHERE id = ?').get(id);
+  if (!existing) return res.status(404).json({ code: -1, message: '公告不存在' });
+  const payload = Object.assign({ id }, normalizeAnnouncementPayload(req.body, existing));
+  if (!payload.title || !payload.content) return res.status(400).json({ code: -1, message: '标题和内容不能为空' });
   const r = db.prepare(`
-    UPDATE announcements SET title=?, content=?, category=?, cover_url=?,
-      is_pinned=?, is_published=?, updated_at=datetime('now') WHERE id=?
-  `).run(title, content, category, cover_url, is_pinned ? 1 : 0, is_published ? 1 : 0, id);
+    UPDATE announcements SET
+      title=@title,
+      content=@content,
+      category=@category,
+      cover_url=@cover_url,
+      summary=@summary,
+      tags=@tags,
+      target_roles=@target_roles,
+      target_regions=@target_regions,
+      action_type=@action_type,
+      action_label=@action_label,
+      action_url=@action_url,
+      source_url=@source_url,
+      sort_order=@sort_order,
+      is_pinned=@is_pinned,
+      is_published=@is_published,
+      updated_at=datetime('now')
+    WHERE id=@id
+  `).run(payload);
   if (r.changes === 0) return res.status(404).json({ code: -1, message: '公告不存在' });
-  res.json({ code: 0, message: '更新成功' });
+  const row = db.prepare('SELECT * FROM announcements WHERE id = ?').get(id);
+  res.json({ code: 0, message: '更新成功', data: row });
 });
 
 router.delete('/api/announcements/:id', adminAuth, (req, res) => {
@@ -481,6 +971,68 @@ router.delete('/api/announcements/:id', adminAuth, (req, res) => {
   const r = db.prepare('DELETE FROM announcements WHERE id = ?').run(id);
   if (r.changes === 0) return res.status(404).json({ code: -1, message: '公告不存在' });
   res.json({ code: 0, message: '删除成功' });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// 用户反馈管理
+// ═══════════════════════════════════════════════════════════════
+router.get('/api/feedbacks', adminAuth, (req, res) => {
+  const { keyword = '', status = '', type = '' } = req.query;
+  const { pageSize, offset } = parsePagination(req.query, { pageSize: 20 });
+  const where = [];
+  const params = [];
+  if (keyword) {
+    const k = `%${keyword}%`;
+    where.push('(f.content LIKE ? OR f.contact LIKE ? OR u.nickname LIKE ?)');
+    params.push(k, k, k);
+  }
+  if (status) {
+    where.push('COALESCE(NULLIF(f.status, \'\'), \'open\') = ?');
+    params.push(String(status));
+  }
+  if (type) {
+    where.push('f.type = ?');
+    params.push(String(type));
+  }
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const total = db.prepare(`
+    SELECT COUNT(*) as c
+    FROM feedbacks f LEFT JOIN users u ON u.id=f.user_id
+    ${whereSql}
+  `).get(...params).c;
+  const list = db.prepare(`
+    SELECT f.*, u.nickname, u.avatar
+    FROM feedbacks f LEFT JOIN users u ON u.id=f.user_id
+    ${whereSql}
+    ORDER BY f.created_at DESC, f.id DESC
+    LIMIT ? OFFSET ?
+  `).all(...params, Number(pageSize), offset);
+  res.json({ code: 0, data: { list, total } });
+});
+
+router.put('/api/feedbacks/:id', adminAuth, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  const status = String(req.body.status || 'open');
+  if (!['open', 'processing', 'resolved', 'ignored'].includes(status)) {
+    return res.status(400).json({ code: -1, message: '状态无效' });
+  }
+  const r = db.prepare(`
+    UPDATE feedbacks
+    SET status=?, admin_note=?, updated_at=datetime('now')
+    WHERE id=?
+  `).run(status, String(req.body.adminNote || req.body.admin_note || ''), id);
+  if (!r.changes) return res.status(404).json({ code: -1, message: '反馈不存在' });
+  const row = db.prepare('SELECT * FROM feedbacks WHERE id=?').get(id);
+  res.json({ code: 0, message: '反馈已更新', data: row });
+});
+
+router.delete('/api/feedbacks/:id', adminAuth, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  const r = db.prepare('DELETE FROM feedbacks WHERE id=?').run(id);
+  if (!r.changes) return res.status(404).json({ code: -1, message: '反馈不存在' });
+  res.json({ code: 0, message: '反馈已删除' });
 });
 
 // ═══════════════════════════════════════════════════════════════

@@ -49,6 +49,16 @@ Page({
           if (item.interviewType) tags.push(item.interviewType === 'tech' ? '技术面' : (item.interviewType === 'behavior' ? '行为面' : item.interviewType));
           if (item.difficulty) tags.push(item.difficulty === 'hard' ? '困难' : (item.difficulty === 'medium' ? '中等' : '简单'));
         }
+        const report = item.reportKey ? wx.getStorageSync(item.reportKey) : null;
+        const dimensions = report && Array.isArray(report.dimensions) ? report.dimensions : [];
+        const lowestDimension = item.lowestDimension || dimensions.slice().sort((a, b) => (a.score || 0) - (b.score || 0))[0] || null;
+        const weakCount = item.weakCount !== undefined
+          ? item.weakCount
+          : (report && Array.isArray(report.weakQuestions)
+            ? report.weakQuestions.length
+            : (report && Array.isArray(report.qaList) ? report.qaList.filter(q => Number(q.score || 0) < 80).length : 0));
+        const actionPlan = report && Array.isArray(report.actionPlan) ? report.actionPlan : [];
+        const nextAction = item.nextAction || (actionPlan[0] && actionPlan[0].title) || '';
 
         return {
           id: item.id || `hist_${idx}`,
@@ -58,7 +68,10 @@ Page({
           duration: duration,
           score: item.score || item.overallScore || 0,
           tags: tags,
-          reportKey: item.reportKey || ''
+          reportKey: item.reportKey || '',
+          weakCount,
+          nextAction,
+          lowestDimension
         };
       });
 

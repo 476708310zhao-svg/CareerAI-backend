@@ -1,11 +1,15 @@
 // pages/jobs/jobs.js
 const featureFlags = require('../../utils/feature-flags.js');
 const { getJobs, getAggregatedJobs, normalizeCompanyLogo } = require('../../utils/api.js');
+const v4Api = require('../../utils/api-v4.js');
 const { getCountries } = require('../../utils/api-news.js');
 const favUtil = require('../../utils/favorites.js');
+const progress = require('../../utils/job-progress.js');
 const demoData = require('../../utils/demo-data.js');
 const { fromNow, formatSalaryRange } = require('../../utils/util.js');
 const matcher = require('../../utils/matcher.js');
+const { markCachedDataMeta } = require('../../utils/data-provenance.js');
+const loginGate = require('../../behaviors/login-gate.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 const JOB_LIST_CACHE_TTL = 30 * 60 * 1000;
 
@@ -101,6 +105,8 @@ function resolveMapCity(location) {
 }
 
 Page({
+  behaviors: [loginGate],
+
   data: {
     jobs: [],
     isMockData: false,
@@ -131,6 +137,7 @@ Page({
     filterType: '',      // '' | 'FULLTIME' | 'PARTTIME' | 'CONTRACTOR' | 'INTERN'
     filterDate: '',      // '' | 'today' | 'week' | 'month'
     filterCountry: 'us', // ISO alpha2 小写
+    filterSponsor: '',   // opt | stem | h1b | international | excludeCitizen
     filterActive: false,
     countryList: [],     // 从 /api/countries 加载
 
@@ -159,6 +166,8 @@ Page({
       this.data.filterCountry || 'us',
       dateMap[this.data.filterDate] || 'auto',
       this.data.filterType || 'any'
+      , this.data.filterSponsor || 'any-sponsor'
+      , this.data.matchMode ? 'v4-match' : 'normal'
     ].join('|');
   },
 
@@ -174,7 +183,8 @@ Page({
     if (this.data.jobs.length > 0) {
       const jobs = this.data.jobs.map(j => ({
         ...j,
-        isSaved: favUtil.isFavorited('job', String(j.id))
+        isSaved: favUtil.isFavorited('job', String(j.id)),
+        isApplied: !!progress.getByJobId(j.id)
       }));
       this.setData({ jobs });
     }
@@ -223,7 +233,12 @@ Page({
       && (Date.now() - (cached.t || 0)) < JOB_LIST_CACHE_TTL;
 
     if (fresh && cachedItems && cachedItems.length > 0) {
-      this.setData({ jobs: this.enrichJobLogos(cachedItems), loading: false });
+      const cachedJobs = cachedItems.map(item => Object.assign({}, item, {
+        dataMeta: markCachedDataMeta(item.dataMeta, {
+          domain: 'job', source: item.source || item._source, publishedAt: item.postedAtRaw
+        })
+      }));
+      this.setData({ jobs: this.enrichJobLogos(cachedJobs), loading: false });
       return true;
     } else if (ALLOW_DEMO_FALLBACK) {
       this.loadMockJobs(true);
@@ -325,13 +340,25 @@ Page({
     this.setData({ filterCountry: this.data.filterCountry === val ? 'us' : val });
   },
 
+  onFilterSponsorSelect: function(e) {
+    const val = e.currentTarget.dataset.val;
+    if (!wx.getStorageSync('token')) {
+      this.ensureAuthenticated(
+        '登录后使用 Sponsor 精准筛选和个性化岗位匹配',
+        () => this.onFilterSponsorSelect(e)
+      );
+      return;
+    }
+    this.setData({ filterSponsor: this.data.filterSponsor === val ? '' : val });
+  },
+
   resetFilter: function() {
-    this.setData({ filterType: '', filterDate: '', filterCountry: 'us', filterActive: false, filterVisible: false });
+    this.setData({ filterType: '', filterDate: '', filterCountry: 'us', filterSponsor: '', filterActive: false, filterVisible: false });
     this.loadJobs(true);
   },
 
   applyFilter: function() {
-    const active = !!(this.data.filterType || this.data.filterDate || this.data.filterCountry !== 'us');
+    const active = !!(this.data.filterType || this.data.filterDate || this.data.filterCountry !== 'us' || this.data.filterSponsor);
     this.setData({ filterActive: active, filterVisible: false });
     this.loadJobs(true);
   },
@@ -361,6 +388,11 @@ Page({
       patch.hasMore = true;
     }
     this.setData(patch);
+
+    if (wx.getStorageSync('token') && (this.data.matchMode || this.data.filterSponsor)) {
+      this._loadV4Jobs({ query, page, reset, seq });
+      return;
+    }
 
     getAggregatedJobs({
       keyword: query,
@@ -420,6 +452,93 @@ Page({
     });
   },
 
+  _loadV4Jobs: function({ query, page, reset, seq }) {
+    const sponsorParams = {
+      opt: { optFriendly: true },
+      stem: { stemFriendly: true },
+      h1b: { h1bSponsor: true },
+      international: { internationalStudentFriendly: true },
+      excludeCitizen: { excludeCitizenRequired: true },
+    };
+    const params = {
+      keyword: query === 'Software Engineer jobs' ? '' : query,
+      page,
+      pageSize: this.data.pageSize,
+      country: this.data.filterCountry || '',
+      employmentType: this.data.filterType || '',
+      datePosted: ({ today: 'today', week: '3days', month: 'month' })[this.data.filterDate] || '',
+      ...(sponsorParams[this.data.filterSponsor] || {}),
+    };
+    v4Api.getJobs(params).then(res => {
+      if (seq !== this._jobRequestSeq) return;
+      const data = res && res.code === 0 ? res.data : null;
+      if (!data || !Array.isArray(data.list)) throw new Error('V4 jobs unavailable');
+      let jobs = data.list.map(item => {
+        const sponsor = item.sponsor || {};
+        const match = item.match || {};
+        const location = item.location || item.city || 'Remote';
+        return {
+          id: item.id,
+          title: item.title,
+          company: item.company,
+          salary: item.salary || 'Negotiable',
+          city: location,
+          state: '',
+          type: item.jobType || item.employmentType || '',
+          description: String(item.description || '').slice(0, 84),
+          rawDescription: item.description || '',
+          applyLink: item.applyUrl || item.sourceUrl || '',
+          logo: item.companyLogo || this.buildCompanyLogo(item.company),
+          logoFailed: false,
+          companyInitial: this.getCompanyInitial(item.company),
+          postedAt: item.postedAt ? fromNow(item.postedAt) : 'Recently posted',
+          postedAtRaw: item.postedAt || '',
+          deadline: item.deadline || '',
+          isSaved: favUtil.isFavorited('job', String(item.id)),
+          optFriendly: sponsor.optFriendly === true,
+          stemFriendly: sponsor.stemFriendly === true,
+          h1bSponsor: sponsor.h1bSponsor === true,
+          citizenRequired: sponsor.citizenRequired === true,
+          sponsorConfidence: Math.round(Number(sponsor.confidence || 0) * 100),
+          matchScore: Math.round(Number(match.score || 0) / 10),
+          matchScore100: Number(match.score || 0),
+          isMatch: Number(match.score || 0) >= 60,
+          matchReason: match.qualificationStatus === 'eligible'
+            ? '资格符合 · 建议优先投递'
+            : (match.qualificationStatus === 'partial' ? '部分符合 · 投递前核实资格' : '存在资格限制 · 请查看详情'),
+          industry: item.industry || '',
+          requirements: item.requirements || [],
+          tags: item.tags || [],
+          graduationYear: item.graduationYear || '',
+          recruitmentType: item.recruitmentType || '',
+          education: item.education || '',
+          remoteType: item.remoteType || '',
+          conversionOpportunity: !!item.conversionOpportunity,
+          applyCount: Number(item.applyCount || 0),
+          isApplied: !!progress.getByJobId(item.id),
+          dataMeta: item.dataMeta,
+        };
+      });
+      this.setData({
+        jobs: reset ? jobs : [...this.data.jobs, ...jobs],
+        currentPage: page,
+        totalJobs: Number(data.total || jobs.length),
+        hasMore: page * this.data.pageSize < Number(data.total || 0),
+        loading: false,
+        isRefreshing: false,
+        isMockData: false,
+      });
+      if (this.data.viewMode === 'map') this._buildMapMarkers();
+    }).catch(err => {
+      if (seq !== this._jobRequestSeq) return;
+      console.warn('[jobs] V4 list failed:', err && err.message);
+      this.setData({ loading: false, isRefreshing: false, hasMore: false });
+      wx.showToast({ title: '精准岗位暂不可用，请稍后重试', icon: 'none' });
+    }).finally(() => {
+      if (seq === this._jobRequestSeq) wx.stopPullDownRefresh();
+    });
+  },
+
   // 数据格式化
   formatJobData: function(rawList) {
     return rawList.map(job => {
@@ -436,7 +555,7 @@ Page({
         salary: salaryDisplay,
         city: job.job_city || 'Remote',
         state: job.job_state,
-        type: job.job_employment_type || 'Full-time',
+        type: job.job_employment_type || '',
         description: job.job_description ? job.job_description.substring(0, 80).replace(/\n/g, ' ') + '...' : '',
         rawDescription: job.job_description || '',
         applyLink: job.job_apply_link || '',
@@ -445,8 +564,16 @@ Page({
         companyInitial: this.getCompanyInitial(company),
         postedAt: job.job_posted_at_datetime_utc ? fromNow(job.job_posted_at_datetime_utc) : 'Recently posted',
         postedAtRaw: job.job_posted_at_datetime_utc || '',
+        deadline: job.job_offer_expiration_datetime_utc || job.job_offer_expiration_date || job.valid_through || '',
         isSaved: favUtil.isFavorited('job', String(job.job_id)),
-        optFriendly
+        isApplied: !!progress.getByJobId(job.job_id),
+        optFriendly,
+        remoteType: job.job_is_remote ? '支持远程' : '',
+        requirements: job.job_highlights && (job.job_highlights.Qualifications || job.job_highlights.qualifications) || [],
+        jobHighlights: job.job_highlights || {},
+        applyCount: Number(job.apply_count || job.application_count || 0),
+        dataMeta: job.dataMeta,
+        source: job._source || ''
       };
     });
   },
@@ -469,7 +596,9 @@ Page({
         company,
         logo: this.buildCompanyLogo(company) || job.logo || '',
         logoFailed: false,
-        companyInitial: this.getCompanyInitial(company)
+        companyInitial: this.getCompanyInitial(company),
+        isSaved: favUtil.isFavorited('job', String(job.id)),
+        isApplied: !!progress.getByJobId(job.id)
       });
     });
   },
@@ -497,7 +626,9 @@ Page({
 
   // 快捷收藏切换
   toggleSave: function(e) {
-    const index = e.currentTarget.dataset.index;
+    const index = e.detail && Number.isInteger(e.detail.index)
+      ? e.detail.index
+      : Number(e.currentTarget.dataset.index);
     const job = this.data.jobs[index];
     if (!job) return;
     const jobData = {
@@ -506,7 +637,8 @@ Page({
       subtitle: job.company,
       logo: job.logo,
       salary: job.salary,
-      type: job.type
+      type: job.type,
+      deadline: job.deadline || ''
     };
     const isSaved = favUtil.toggle('job', jobData);
     const jobs = this.data.jobs.map((j, i) =>
@@ -539,8 +671,10 @@ Page({
         this.setData({ searchKeyword: primaryKw, activeTag: primaryKw });
       }
 
-      // 重新排序现有结果；若无数据则发起搜索
-      if (this.data.jobs.length > 0) {
+      // 登录用户使用服务端 V4 三层匹配；未登录保留本地匹配回退。
+      if (wx.getStorageSync('token')) {
+        this.loadJobs(true);
+      } else if (this.data.jobs.length > 0) {
         const scored = matcher.matchJobs(profile, this.data.jobs);
         this.setData({ jobs: scored });
       } else {
@@ -571,6 +705,14 @@ Page({
       profileComplete: completeness,
       profileMissing: missing
     });
+    if (wx.getStorageSync('token')) {
+      v4Api.getProfileCompletion().then(res => {
+        if (res && res.code === 0 && res.data) {
+          this.setData({ profileComplete: Number(res.data.completion) || 0, profileMissing: res.data.missing || [] });
+        }
+      }).catch(() => {});
+      return;
+    }
     if (this.data.jobs.length > 0) {
       const scored = matcher.matchJobs(profile, this.data.jobs);
       this.setData({ jobs: scored });
@@ -582,7 +724,7 @@ Page({
   },
 
   navigateToDetail: function(e) {
-    const jobId = e.currentTarget.dataset.id;
+    const jobId = e.detail && e.detail.id !== undefined ? e.detail.id : e.currentTarget.dataset.id;
     const job = (this.data.jobs || []).find(item => String(item.id) === String(jobId));
     if (job) {
       const snapshot = {
@@ -598,7 +740,23 @@ Page({
         salary: job.salary,
         postedAt: job.postedAt,
         postedAtRaw: job.postedAtRaw,
+        deadline: job.deadline || '',
         optFriendly: job.optFriendly,
+        stemFriendly: job.stemFriendly,
+        h1bSponsor: job.h1bSponsor,
+        citizenRequired: job.citizenRequired,
+        industry: job.industry || '',
+        requirements: job.requirements || [],
+        tags: job.tags || [],
+        graduationYear: job.graduationYear || '',
+        recruitmentType: job.recruitmentType || '',
+        education: job.education || '',
+        remoteType: job.remoteType || '',
+        conversionOpportunity: !!job.conversionOpportunity,
+        applyCount: Number(job.applyCount || 0),
+        matchScore100: Number(job.matchScore100 || 0),
+        matchReason: job.matchReason || '',
+        isApplied: !!job.isApplied,
         applyLink: job.applyLink,
         description: job.rawDescription || job.description || ''
       };

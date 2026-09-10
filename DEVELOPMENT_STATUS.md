@@ -1,19 +1,70 @@
 # DEVELOPMENT_STATUS
 
-更新时间：2026-05-09
+更新时间：2026-09-09
 
-后端项目目录：`C:\Users\admin\Desktop\求职小程序\jobapp-server`
+主项目目录：`D:\ChatGPT-Projects\求职小程序\jobapp-server`
 
-小程序项目目录：`C:\Users\admin\Desktop\求职小程序\求职小程序`
+小程序源码目录：`D:\ChatGPT-Projects\求职小程序\jobapp-server\miniprogram`
+
+旧入口 `C:\Users\admin\Desktop\求职小程序` 为指向 D 盘项目目录的 Junction，不是第二份独立项目。
 
 ## 当前批次
 
-第二批 P1 优化已完成，P2 正在进行：降低维护成本、补工程化和测试覆盖。继续避免主动改动支付、登录等高风险核心链路。
+Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成代码和自动化验证。提醒使用唯一投递键、租约、失败重试、有界并发和结构化耗时；Today 改为跨设备增量合并并拒绝旧状态覆盖；收藏增加幂等 outbox、删除 tombstone，并统一进入小程序请求层。竞争力陪跑已补充响应完整性校验，登录失效、网络错误和后端未就绪不会再显示伪空白仪表盘。真实双设备/微信订阅消息 staging、生产 migration 和上线仍待 Human；未运行真实 E2E、未调用真实 AI、未部署。
 
 ## 已完成
 
 | 日期 | 事项 | 文件 | 验证 |
 |---|---|---|---|
+| 2026-09-09 | 修复竞争力陪跑在 401、超时、网络错误、HTTP 错误或残缺响应下仍进入成功视图，造成分数、七维诊断、周报和计划全部空白的问题；登录失效改为重新登录，其余异常展示可重试错误 | `career-coach.js`、`career-coach-state.js`、`tests/sprint4CareerCoach.test.js` | Sprint 4 专项 6/6、全量 203/203、`check:release` 通过；未运行真实 E2E，生产后端仍需独立发布 |
+| 2026-09-09 | Sprint 8：提醒派发增加唯一投递账本、租约、失败重试、有界并发、游标续跑和耗时埋点；Today 改为跨设备增量合并与更新时间冲突控制；收藏增加 outbox、操作回执、删除 tombstone 并迁入统一 API 客户端 | `routes/notify.js`、`scripts/dispatch_reminders.js`、Today 服务/首页、收藏路由与工具、`0006_sprint8_reliability.sql`、`tests/sprint8Reliability.test.js`、Sprint 8 文档 | 专项 6/6、Smoke 72/72、全量 202/202、小程序检查与 `git diff --check` 通过；真实微信请求 0，未运行真实 E2E，生产 migration 待 Human |
+| 2026-09-08 | Sprint 7：定义 Free/Pro 与 JD 简历包、7 天面试冲刺包、秋招季度包；保持历史 planId 0～3 兼容；建立订单/支付/权益/额度/退款统一账本、权益 Grant、退款审批状态机、六类告警和 0% 商业灰度审批门禁；会员页增加场景包边界、权益/订单/退款入口 | `services/v4Commerce*.js`、支付/会员/管理路由、商业化 migration、小程序会员页、`tests/sprint7Commerce.test.js`、`docs/V4_SPRINT7_COMMERCE_GOVERNANCE.md` | Sprint 7 专项 4/4、migration 5/5、Smoke 71/71、全量 195/195、`check:release` 通过；AI 故障矩阵 7/7、外部请求 0、媒体 191.2 KB、Errors 0/Warnings 4；未运行真实 E2E |
+| 2026-09-08 | Sprint 6：新增 OA 计划/计时/错题/能力统计；将旧项目生成页升级为真实岗位差距驱动的证据项目、四里程碑留证、完成证据和确认式经历库写入；岗位详情增加五项证据 Job Trust Score 与本人官网核验记录 | OA/Project/Job Trust V4 数据表、服务、路由和小程序页面，`tests/sprint6Copilots.test.js`、`docs/V4_SPRINT6_OA_PROJECTS_JOB_TRUST.md` | Sprint 6 专项 7/7、migration 5/5、全量 190/190、`check:release` 通过；AI 故障矩阵 7/7、外部请求 0、媒体 191.2 KB、Errors 0/Warnings 4；未运行真实 E2E |
+| 2026-09-08 | Sprint 5：新增联系人 CRM、Connect Note/Cold Message/Coffee Chat/Follow-up/Referral Request 五类可编辑草稿、用户确认外部发送、跟进 Today 提醒和 Networking 真实漏斗；Referral 成功关联岗位、正式申请、简历及版本 | `services/v4Networking.js`、Networking V4 路由、新增 Networking migration、Today/竞争力关联、小程序 Networking Copilot、`tests/sprint5Networking.test.js`、`docs/V4_SPRINT5_NETWORKING_COPILOT.md` | Sprint 5 专项 5/5、migration 5/5、全量 182/182、`check:release` 通过；AI 故障矩阵 7/7、外部请求 0、媒体 191.2 KB、Errors 0/Warnings 4；未运行真实 E2E |
+| 2026-09-08 | Sprint 4：新增七维 Career Competitiveness Score、证据/差距/行动入口、真实漏斗驱动的 3/6/12 月计划与周报告；每日幂等生成 3～5 个 Today 任务，支持完成、延期、跨设备同步和站内提醒 | `services/v4CareerCoach.js`、Career/Today 路由、新增诊断与周报 migration、小程序竞争力陪跑页、`tests/sprint4CareerCoach.test.js`、`docs/V4_SPRINT4_CAREER_COACH.md` | Sprint 4 专项 5/5、migration 5/5、全量 176/176、`check:release` 通过；AI 故障矩阵 7/7、外部请求 0、媒体 191.2 KB、Errors 0/Warnings 4；未运行真实 E2E |
+| 2026-09-04 | Sprint 3：完成可行动岗位梯次与投递决策、Sponsor/身份限制说明；接通岗位 JD 到真实简历版本的逐条确认和不可变新版本；新增公司×岗位×轮次 Interview Brief、弱项专项复练及 Today/申请进度回写 | Job Match、V4 简历中心、面试服务，小程序岗位详情/简历中心/面试空间，`tests/sprint3AiLoops.test.js`、`docs/V4_SPRINT3_HIGH_VALUE_AI_LOOPS.md` | Sprint 3 专项 5/5、全量 170/170、`check:release` 通过；AI 质量矩阵 7/7、外部请求 0、媒体 191.2 KB、Errors 0/Warnings 4；未运行真实 E2E |
+| 2026-09-04 | Sprint 2.5：建立 `schema_migrations`、顺序 SQL migration、SHA-256 漂移检测、baseline 结构前置检查与显式目标/备份/确认保护；在隔离副本验证备份、迁移、幂等、故障事务、恢复和回滚 | `db/migrate.js`、`db/backup.js`、`db/migrations/0001_current_schema_baseline.sql`、迁移/演练脚本、专项测试、`docs/DATABASE_MIGRATION_PLAN.md` | migration 专项 5/5、全量 165/165；隔离演练 8 项检查通过，11,182,080-byte 备份恢复 SHA-256 一致，生产写入 0；未运行真实 E2E |
+| 2026-09-04 | Sprint 2.4：建立 11 个合成匿名 AI 样本和超时/429/5xx/断网/非法 JSON/配置缺失/kill switch 故障矩阵；增加递归 PII 脱敏、虚构执行拦截、确认写入和额度不多扣；记录耗时、Token、降级与可选成本并汇总到运营看板 | AI runtime/Agent/简历/文案/面试路由与服务、`utils/aiSafety.js`、匿名 fixtures/门禁辅助程序、质量脚本/测试、`docs/AI_QUALITY_GATE.md` | `check:release` 160/160 通过、AI 故障矩阵 7/7、媒体 191.2 KB、Errors 0/Warnings 4；外部请求 0，未运行真实 E2E |
+| 2026-09-04 | Sprint 2.3：建立岗位查看、匹配、简历确认、加入看板、确认投递、进入面试、收到 Offer 七阶段漏斗；区分官网点击与真实投递、模拟训练与真实面试；统一服务端可信事件、版本化 `refs`/缺失引用质量标记，并默认从运营看板排除 demo/test/system | `utils/funnelAnalytics.js`、Analytics/职位/申请/简历路由与服务、运营看板、小程序埋点、`.env.example`、`docs/FUNNEL_ANALYTICS_CONTRACT.md`、专项与 smoke 测试 | `check:release` 156/156 通过、媒体 191.2 KB、Errors 0/Warnings 4；专项 4/4、smoke 67/67；未运行真实 E2E，未推送、未部署 |
+| 2026-09-04 | Sprint 2.2：统一职位/校招 `dataMeta` 来源与新鲜度契约，修正正式职位主源优先级、历史职位伪造时间与分页复制，补齐校招短日期解析、明确截止过期、缓存/失败降级标记和小程序紧凑展示 | `utils/dataProvenance.js`、职位/校招路由与格式化器、小程序职位/校招适配和卡片、`docs/JOB_CAMPUS_DATA_PROVENANCE_CONTRACT.md`、专项与 smoke 测试 | `check:release` 151/151 通过、Errors 0/Warnings 4；未运行真实 E2E，未推送、未部署 |
+| 2026-09-03 | Sprint 2 第一批：建立核心实体 `refs` 契约，统一官方岗位 ID 优先级、数值主键输出与申请 V4 状态；接通申请、简历、材料、面试、Today 和关键埋点引用 | `utils/coreEntityRefs.js`、`utils/applicationStatus.js`、V4 相关路由/服务、`docs/CORE_ENTITY_REFERENCE_CONTRACT.md`、专项与集成测试 | 143/143 tests 通过；`git diff --check` 通过；未运行真实 E2E，未改数据库结构，未推送、未部署 |
+| 2026-09-03 | Sprint 1 仓库侧收口：将校招、申请文案、管理员限流、分享封面、审核 UI、测试和部署基线拆成可审查提交；统一 Node 20、4400、版本目录/current 软链接、共享数据、备份、PM2/Nginx 与手动生产发布；移除 n8n 默认密码和日志回显 | Git 提交 `35b8956` 至 `a9b92a6`、部署/安全文档 | `check:release` 137/137、媒体 191.2 KB、Errors 0/Warnings 4；完整 smoke 65/65、Shell/JS/JSON/YAML 静态校验和密钥扫描通过；未运行真实 E2E，未推送、未部署 |
+| 2026-09-03 | Sprint 0 清理：完整归档旧备份、旧统一前小程序和 Banner 优化素材；同步 11 份历史开发文档到 Obsidian；注销旧部署工作树并保留独有部署分支；旧目录送入回收站 | `archives/cleanup-20260903/`、Obsidian `历史归档/2026-06旧版/`、Git worktree 元数据 | ZIP 15.54 MB、6,628 个条目可读取；11 份文档 SHA-256 校验一致；主项目分支/HEAD 不变；`check:miniprogram` 通过，微信预览正常 |
+| 2026-09-03 | Sprint 0：确认 D 盘唯一主项目及旧目录 Junction；以 `codex/v4-development` 分支、`bcd6e8430710f374cf8dfab61dd319562c0a1b73` 为 Git 基线，恢复 1,588 个受 Git 跟踪的小程序文件，并从 Codex 历史日志恢复 8 月未提交的小程序增量（登录审核交互、AI 提示条、资源中心、校招刷新与文案、分享图及缓存）；恢复并压缩品牌 Logo | `miniprogram/`、`DEVELOPMENT_STATUS.md`、`DEVELOPMENT_LOG.md` | `npm run check:release` 通过：137/137 tests；媒体总量 191.2 KB；数据检查 Errors 0、Warnings 4；`git diff --check` 通过。未推送、未部署；用户已确认微信开发者工具预览正常 |
+| 2026-08-25 | 修复微信分享卡片封面空白：移除首页失效的 404 线上图片，新增 5:4 包内分享封面；全局配置、后台配置、旧图片路径和客户端缓存统一迁移到新封面，并避免接口缓存继续下发旧地址 | 小程序分享工具/首页/图片资源、`utils/shareConfig.js`、`routes/share.js`、后台分享页与专项测试 | 全量测试 136/136、分享专项 2/2、`check:miniprogram` 通过；媒体总量 179.8 KB；微信预览因开发者工具登录过期未生成二维码 |
+| 2026-08-12 | 将“申请材料库”收窄为“申请文案库”：移除整份简历 JSON 生成与展示，定制简历统一引导至简历中心；生成前强制选择有效简历并支持补充 JD，隐藏模型/提示词内部信息，历史定制简历记录不再进入文案列表 | `routes/v4/materials.js`、`routes/career-assets.js`、小程序 `application-materials`、材料工具与回归测试 | 待本批验证 |
+| 2026-08-12 | 修复管理后台正确密码也会频繁被误封：后台登录限额改为按真实 IP + 用户名隔离，仅累计失败请求，成功登录不占用限额；同步重置并统一正式 `admin` 账号密码 | `middleware/rateLimit.js`、`server.js`、`tests/adminLoginRateLimit.test.js`与正式 `zhiyincareer-main` 实例 | 134/134 tests 通过；公网新密码连续登录 6 次均返回 200，第 6 次未再触发原 5 次误封，账号角色为 `super_admin` |
+| 2026-08-10 | 修复生产校招已同步但首页仍显示旧批次：服务端按开放日期选取最新批次并禁止中间缓存，小程序每次进入首页强制刷新且携带新鲜度参数，同时升级本地缓存版本 | `routes/campus.js`、小程序 `utils/api-campus.js`、`pages/index/index.js`、部署工作流与校招回归测试 | 公网 API 已返回 2026-08-10 最新 28 条；校招内容测试 4/4、校招接口测试 2/2、`check:miniprogram` 通过 |
+| 2026-08-10 | 将“职引睿选”新校招表同步到职引官网校招日历生产板块：修正生产定时任务的 Node 版本与共享数据库路径，增加校招专属配置白名单合并工具，并完成官网实际数据库全量同步 | `scripts/sync_feishu_server.js`、`scripts/run-campus-sync.sh`、`scripts/merge-campus-env.js`、`.env.example` 与校招回归测试 | 生产原始 11,513 条、有效 11,485 条、去重写入 11,467 条、数据库总计 11,498 条；131/131 tests、公网 API 与真实官网页面均显示 8 月 10 日最新内容 |
+| 2026-08-10 | 统一缩小全端 AI 生成提示条：增加组件左右安全留白，压缩卡片高度、标签、字号与间距，修复长文案贴边拥挤；将模拟面试设置、面试对话和 AI 报告三处旧提示迁移为共享组件 | 小程序 `components/c-ai-disclosure`、3 个面试页面、审核检查与页面回归测试 | 全量测试 130/130、AI 提示专项 4/4、`check:miniprogram` 通过 |
+| 2026-08-10 | 将校招数据源切换为“职引睿选”飞书主体下的新多维表格与指定视图；完成全量重爬并让首页、校招列表和详情统一读取后端同步数据，同时按开始时间自动推导招聘年度 | `.env.example`、`scripts/sync_feishu_server.js`、小程序 `pages/index`、`pages/campus`、`package-content/pages/campus-detail` 与校招回归测试 | 新表原始 11,485 条、有效 11,457 条、去重写入 11,439 条；全量测试 129/129、`check:miniprogram`、数据检查（错误 0）通过 |
+| 2026-08-10 | 修复微信代码质量“图片和音频资源”误判理解：按开发者工具真实算法将编译包内媒体总量从 203.1 KB 降至 191.2 KB，并将本地检查由单文件 200 KB 修正为媒体总量严格小于 200 KB | `miniprogram/images/logo_google.png`、`scripts/check-miniprogram.js` | `check:miniprogram` 通过，媒体总量 191.2 KB / < 200 KB，主包约 1.00 MB |
+| 2026-08-10 | 优化小程序登录审核交互：登录弹层增加显著关闭按钮和“暂不登录，先逛逛”入口；手机号授权被拒绝后立即退出弹层并返回当前页面，避免反复施压授权 | 小程序 `components/c-login-popup`、登录回归测试与小程序审核检查 | 全量测试 128/128、登录专项 4/4、`check:miniprogram` 通过 |
+| 2026-08-10 | 重构资源中心排版：四个模块移除分组副标题，主标题改为蓝/绿/紫主题色胶囊；“内容与服务”由三行紧凑列表改为三张独立服务卡，并让页面底部延续浅蓝灰背景以消除白块 | 小程序 `pages/resources/resources.js`、`resources.wxml`、`resources.wxss` 与导航回归测试 | 资源中心回归 14/14、`check:miniprogram` 通过 |
+| 2026-08-10 | 修复首页与校招页仍显示 6 月 9 日旧数据：优先读取已上线的飞书 2027 届校招源，完整映射中文字段、链接和同步日期；旧后端接口保留兜底并改为按更新时间排序，飞书记录详情支持直接打开；“新开”文案统一为“更新” | `db/database.js`、`db/formatters.js`、`routes/campus.js`、`routes/admin.js`、小程序校招数据适配/首页/列表/详情与测试 | 全量测试 127/127、`check:miniprogram`、数据检查（错误 0）通过；线上飞书内容源验证 33 条，首条毕马威记录公司、岗位、链接和 2026-07-09 同步日期映射正确 |
+| 2026-08-04 | 修复统一搜索页职位长期停留在加载态：正式职位 API 与飞书人工职位源改为并行竞速，优先采用最先返回的非空结果；增加实时搜索序号和 12 秒加载兜底，防止慢速旧请求覆盖新关键词或无限转圈 | 小程序 `utils/api-jobs.js`、`package-user/pages/search/search.js` 与职位搜索回归测试 | 全量测试 125/125、`check:miniprogram`、数据检查（错误 0）通过；生产同链路搜索 `data analyst` 约 2 秒返回 10 个职位；微信开发者工具生成预览二维码成功 |
+| 2026-08-04 | 按产品说明重构职位列表卡片与职位详情决策链路：新增统一职位展示适配层和复用卡片，收敛薪资、地点、标签、技能、AI 匹配、截止与投递状态；详情页依次展示核心信息、公司、匹配、条件、JD、要求、时间、公司介绍、相似职位和安全区固定操作栏，并保留收藏、详情跳转、外链投递、投递看板与 AI 分析 | 小程序 `utils/job-presenter.js`、`components/c-job-card/*`、`pages/jobs/*`、`package-user/pages/search/*`、`package-user/pages/job-detail/*` 与职位展示回归测试 | 全量测试 124/124、`check:miniprogram`、数据检查（错误 0）与微信开发者工具预览编译通过；主包 791.9 KB、`package-user` 451.4 KB |
+| 2026-08-04 | 修复统一搜索页在防抖实时匹配时把每个输入片段写入搜索历史的问题：实时结果保持不变，历史仅记录用户点击搜索、键盘搜索或选择完整关键词的提交动作；加载时自动去重并清理已有连续前缀碎片 | 小程序 `package-user/pages/search/search.js` 与导航回归测试 | 全量测试 120/120、`check:miniprogram` 与数据检查通过；微信开发者工具预览编译成功，主包 777.7 KB |
+| 2026-08-03 | 修复“我的简历”手动编辑弹层：恢复单行输入框可点击高度、光标及输入文字/占位符显示，统一工作、教育、项目、基本信息和技能表单 UI；保存时使用完整新对象更新，确保关闭弹层后内容立即回显 | 小程序 `package-career/pages/resume/resume.js`、`resume.wxml`、`resume.wxss` 与导航回归测试 | 全量测试 119/119、`check:miniprogram` 与数据检查通过；微信开发者工具预览编译成功，主包 777.7 KB |
+| 2026-08-03 | 清理职位详情、职位列表、个人中心、公司详情等非 AI 专属页面的顶部 AI 说明；职位收藏改为静默开启截止提醒，优先使用岗位真实截止日，无截止日时默认收藏后 30 天，并提前 3 天和 1 天提醒 | 小程序普通页面 WXML、`utils/favorite-reminder.js`、`utils/favorites.js`、职位列表/详情、收藏夹与测试 | 全量测试 118/118、`check:miniprogram` 与数据检查通过；微信开发者工具预览编译成功，主包 777.7 KB |
+| 2026-08-03 | 将 AI 求职规划从简短关键词清单升级为可执行方案：补充岗位结论与假设、能力差距、技能练习与证明、项目蓝图、阶段交付物与量化指标、6 个里程碑、每周执行节奏和风险预案；生成改为两部分并行 JSON 并增加完整度质量门禁 | `services/careerPlanGenerator.js`、`routes/ai.js`、小程序 `package-career/pages/career-planner/*` 与回归测试 | 全量测试 115/115、小程序检查与微信预览编译通过；真实方舟模型 43 秒生成，质量门禁 9/9；生产 readiness 与公网健康检查通过 |
+| 2026-08-03 | 优化编辑资料页多选交互：已选地区、行业、岗位和技能时，将继续搜索缩短为卡片右上角“继续添加”按钮；毕业年份从固定标签改为 1970 年至未来 20 年的年份选择器 | 小程序 `package-user/pages/profile-edit/*` 与导航回归测试 | 导航回归 11/11、全量测试 111/111、`check:miniprogram` 通过；微信开发者工具预览编译成功，主包 776.6 KB |
+| 2026-08-03 | 将隐藏的职业工具中心功能并入资源中心：新增 AI 求职规划、简历中心和 Offer 对比入口，复用已有薪酬查询与职业洞察入口；原职业工具中心收口为单一 AI 求职规划页 | 小程序 `pages/resources/*`、`package-career/pages/career-planner/*` 与导航回归测试 | 导航回归 10/10、全量测试 110/110、`check:miniprogram` 通过；微信开发者工具预览编译成功，主包 776.6 KB |
+| 2026-08-03 | 隐藏“我的简历”页面及内部纵向滚动区域的滚动指示器，并将基本信息与个人优势合并为同一卡片 | 小程序 `package-career/pages/resume/resume.wxml`、`resume.wxss` 与导航回归测试 | 页面回归 10/10、`check:miniprogram` 通过；微信开发者工具预览编译成功，主包 776.0 KB |
+| 2026-08-03 | 修复 AI 简历润色长期误走 `fallback-rules`、建议与原文相同、时间戳和个人隐私被当作优化内容的问题；完善降级标识并发布后端修复 | `services/v4AiRuntime.js`、`services/v4ResumeCenter.js`、小程序 `resume-center`、测试与 AI 运行文档 | `check:release` 通过，109/109 tests、内容错误 0；生产 readiness 全通过，DeepSeek 实测 `source=live`、无降级 |
+| 2026-07-29 | 修复底部导航“进度”和“AI专家”未选中仍显示蓝色的问题，为两项补充独立灰色未选中图标，保留品牌蓝作为选中状态并增加防回归检查 | 小程序 `custom-tab-bar/index.js`、`app.json`、`images/*-muted.png` 与导航测试 | 导航测试 9/9、`check:miniprogram` 通过；微信开发者工具预览成功，主包 776.0 KB |
+| 2026-07-29 | 修复上线审核阻断风险：面经、评论、回复和机构评价实行发布前人工审核，公开接口仅展示已通过内容；后台支持通过/驳回并保留审核日志，评论数与机构评分按审核状态联动；隐私政策同步虚拟支付、运营主体和社区审核规则 | `db/database.js`、UGC/API 路由、后台审核页、小程序提交反馈、隐私政策、测试与 `docs/UGC_MODERATION_RELEASE.md` | `check:release` 通过，105/105 tests、内容错误 0；微信开发者工具预览编译通过，主包 771.6 KB |
+| 2026-07-29 | 将全端登录受限入口统一为当前页登录弹层，登录成功后自动继续原操作；登录弹层替换为压缩后的职引品牌 Logo | 小程序 `components/c-login-popup`、`behaviors/login-gate.js`、进度/AI 专家/岗位/简历/面经/机构/薪资/会员/设置/面试页面及回归测试 | `check:release` 通过，101/101 tests、内容错误 0；微信开发者工具预览编译通过，主包约 770.6 KB |
+| 2026-07-20 | 按产品参考图重新制作资源中心：自定义导航、大标题、校招日历主视觉、横向双列工具卡和内容服务列表 | 小程序 `pages/resources`、回归测试与 V4 文档 | `check:release` 通过，91/91 tests、内容错误 0，主包约 0.96 MB |
+| 2026-07-20 | 首页校招从双列瀑布流调整为单列最新信息流，每个岗位独占一行并按更新时间倒序；资源中心按求职任务重新分组并全面优化视觉层级 | 小程序 `pages/index`、`pages/resources`、`components/home-campus-updates`、测试与 V4 文档 | `check:release` 通过，91/91 tests、内容错误 0，主包约 0.96 MB |
+| 2026-07-20 | 将“校招”一级 Tab 升级为资源中心，聚合题库、STAR、薪酬、公司、OA、AI 面试、技能路径、校招和资讯等入口；首页移除求职情报并改为最多 8 条校招日历双列瀑布流 | 小程序 `pages/resources`、`pages/index`、`components/home-campus-updates`、`custom-tab-bar`、导航调用、测试与 V4 文档 | `check:release` 通过，91/91 tests、内容错误 0，主包约 0.96 MB |
+| 2026-07-17 | 修复线上 V4 Agent 路由未部署导致的 404：关闭未部署路由探测、切换旧 AI 通道、本机保存兼容任务、禁用兼容写操作，并接受 HTTP 201 等全部 2xx 写请求 | 小程序 `pages/ai-career`、`utils/app-config.js`、`utils/agent-compat.js`、`utils/api-client.js` 与回归测试 | `check:release` 通过，90/90 tests、内容错误 0，主包约 0.95 MB；生产 V4 后端仍需独立发布 |
+| 2026-07-17 | 优化 V4 一级导航中文文案：`Today` 改为“首页”，承载校招日历的“岗位”改为“校招” | 小程序 `app.json`、`custom-tab-bar`、导航测试与 V4 文档 | `check:release` 通过，85/85 tests、内容错误 0，主包约 0.95 MB |
+| 2026-07-17 | 恢复全局 AI 悬浮助手，并在首页恢复紧凑会员权益横幅；会员关闭时明确提示真实微信支付未开放 | 小程序 `custom-tab-bar`、`pages/index`、导航防回归测试与首页文档 | `check:release` 通过，85/85 tests、内容错误 0，主包约 0.95 MB |
+| 2026-07-17 | 重构 AI Career 主页面 UI：紧凑顶部、2×2 Agent 网格、快捷提问、上下文编排、任务历史与结果弹层 | 小程序 `pages/ai-career`、`components/c-ai-disclosure` | `check:release` 通过，84/84 tests、内容错误 0，主包约 0.94 MB |
+| 2026-07-17 | 修复求职进度线上响应异常：兼容旧响应、登录失效、本机记录回退与离线新增保存 | 小程序 `pages/applications`、`utils/application-workbench.js` | `check:release` 通过，84/84 tests、内容错误 0 |
+| 2026-07-17 | 将“申请”升级为“求职进度”工作台：本周重点、申请漏斗、准备度、优先级排序、快捷入口与手动新增申请 | 小程序 `pages/applications`、`utils/application-workbench.js`、TabBar 与测试 | `check:release` 通过，82/82 tests、内容错误 0，主包约 0.92 MB |
+| 2026-07-17 | 将 V4“岗位”一级 Tab 调整为直接承载校招日历，并迁移旧 `switchTab` 入口 | 小程序 `app.json`、`custom-tab-bar`、导航工具及岗位返回入口 | `check:release` 通过，79/79 tests、导航测试 3/3、内容错误 0 |
 | 2026-05-09 | 提交并推送第一批安全修复记录和基础 smoke tests | `AI功能清单开发.md`、`tests/smoke.test.js` | `npm test` 通过，4/4 |
 | 2026-05-09 | 新增多 AI 协作规则 | `AGENTS.md` | 文档检查 |
 | 2026-05-09 | 新增开发状态跟踪 | `DEVELOPMENT_STATUS.md` | 文档检查 |
@@ -64,6 +115,45 @@
 
 | 负责人 | 文件 | 任务 | 状态 |
 |---|---|---|---|
+| Codex | `routes/notify.js`、`services/v4TodayTasks.js`、Sprint 8 schema/migration、收藏请求工具、专项测试和文档 | Sprint 8：提醒派发幂等与有界并发、Today 跨设备增量同步、收藏统一请求层与离线补传 | 已完成；全量 202/202 与发布检查通过；真实验收和生产 migration 待 Human，不推送、不部署 |
+| Codex | 商业套餐/权益/额度账本、退款审计、运营告警、会员小程序页、Sprint 7 migration/测试/文档 | Sprint 7：Free/Pro/场景包、统一商业账本、Mock 支付与退款一致性、可暂停灰度及异常告警 | 已完成；195/195 tests 与 `check:release` 通过，真实支付与外部退款保持关闭，不运行真实 E2E，不推送、不部署，生产 migration 待 Human |
+| Codex | OA/Project Builder/Job Trust V4 数据表、服务、路由、小程序页面、专项测试和文档 | Sprint 6：OA 计划/计时/错题/统计，证据导向项目里程碑/交付物/验收/真实成果确认，以及可追溯岗位可信度评分 | 已完成；190/190 tests 与 `check:release` 通过，不调用真实 AI，不运行真实 E2E，不推送、不部署，生产 migration 待 Human |
+| Codex | Networking V4 数据表/服务/路由、Today 关联、小程序 Networking 页面、专项测试和文档 | Sprint 5：联系人 CRM、五类可编辑草稿、跟进提醒、Referral 漏斗及岗位/简历/申请关联 | 已完成；182/182 tests 与发布检查通过，只生成/保存/复制草稿，不自动外发，不调用真实 AI，不运行真实 E2E，不推送、不部署 |
+| Codex | `miniprogram/package-career/pages/career-coach/*`、`tests/sprint4CareerCoach.test.js`、开发记录 | 修复竞争力陪跑将 401、网络错误和残缺响应误渲染为空白的问题 | 已完成；专项 6/6、全量 203/203 与发布检查通过；未运行真实 E2E，未部署 |
+| Codex | Job Match、V4 简历中心/材料、面试空间/报告、Today 回写、小程序对应页面、专项测试与文档 | Sprint 3：可行动岗位分层、JD 定制简历确认式新版本、Interview Brief 与弱项复练闭环 | 已完成；170/170 tests 与发布检查通过，不调用真实 AI，不运行真实 E2E |
+| Codex | `db/migrate.js`、`db/migrations/`、数据库迁移/备份演练脚本、相关测试与文档 | Sprint 2.5：建立 schema migration baseline，在隔离数据库验证备份、迁移、幂等、失败事务、恢复与回滚 | 已完成自动化与隔离演练；生产 baseline 登记待 Human，不运行真实 E2E |
+| Codex | `services/v4AiRuntime.js`、`services/v4Agents.js`、AI 路由、`utils/aiSafety.js`、匿名样本/门禁辅助程序、测试/脚本/文档 | Sprint 2.4：AI 异常矩阵、PII/真实性/确认写入/额度质量门禁 | 已完成自动化基线；真实供应商 staging 抽样待 Human，不运行真实 E2E |
+| Codex | `utils/funnelAnalytics.js`、Analytics/职位/简历/申请/面试路由与服务、运营漏斗、小程序埋点、相关测试/文档 | Sprint 2.3：统一求职漏斗事件与 `refs`，隔离 production/demo/test/system 数据 | 已完成；兼容式 Analytics 加列，不运行真实 E2E |
+| Codex | `utils/dataProvenance.js`、职位/校招路由与格式化器、小程序职位/校招适配与相关测试/文档 | Sprint 2.2：统一数据来源、更新时间、过期与失败降级口径，停止伪造本地职位新鲜度 | 已完成；发布检查通过，未运行真实 E2E，未推送、未部署 |
+| Codex | `utils/coreEntityRefs.js`、`utils/applicationStatus.js`、V4 核心数据路由/服务、相关测试和 Sprint 2 文档 | Sprint 2 第一批：统一核心对象关联 ID 与申请状态输出，修复岗位 ID 双轨造成的跨模块错链 | 已完成；默认不运行真实 E2E |
+| Codex | `scripts/run-campus-sync.sh`、`scripts/merge-campus-env.js`、`.env.example`、校招同步脚本与测试 | 将新校招表持续同步至职引官网生产共享数据库，隔离营销飞书配置并修复定时任务 Node/数据库路径 | 已完成；生产写入 11,467 条，131/131 tests、公网 API 和真实官网页面显示 8 月 10 日最新记录 |
+| Codex | 小程序 `components/c-ai-disclosure/*`、模拟面试设置/对话/报告页面、`tests/favoriteReminder.test.js`、`scripts/check-miniprogram.js` | 统一缩小所有 AI 提示条，增加左右安全留白并清理三处重复旧样式 | 已完成；130/130 tests、AI 提示专项 4/4、小程序检查通过 |
+| Codex | `.env.example`、`scripts/sync_feishu_server.js`、小程序校招首页/列表/详情与相关测试 | 使用“职引睿选”飞书应用持续同步新校招 Base 指定视图，移除客户端旧飞书代理数据优先级，并修正招聘年度推导 | 已完成；新表全量同步写入 11,439 条，129/129 tests、小程序检查和数据检查通过 |
+| Codex | `miniprogram/images/logo_google.png`、`scripts/check-miniprogram.js` | 按微信开发者工具实际规则压缩媒体总量，并增加一致的本地防回归检查 | 已完成；媒体总量 191.2 KB，`check:miniprogram` 通过 |
+| Codex | 小程序 `components/c-login-popup/*`、`tests/loginGate.test.js`、`scripts/check-miniprogram.js` | 增加清晰有效的关闭/暂不登录路径，并在拒绝手机号授权后返回当前页面，修复登录环节审核问题 | 已完成；128/128 tests、登录专项 4/4、小程序检查通过 |
+| Codex | 小程序 `pages/resources/resources.js`、`resources.wxml`、`resources.wxss` 与资源中心回归测试 | 移除四个模块副标题，统一主题色标题胶囊，并将“内容与服务”改为独立卡片布局、修复底部白块 | 已完成；资源中心回归 14/14、小程序检查通过 |
+| Codex | 校招数据表/接口/格式化器、小程序校招数据适配/首页/列表/详情、相关测试 | 修复首页仍显示 6 月 9 日旧校招：接入更新的飞书校招源，统一按同步更新时间排序并兼容飞书记录详情 | 已完成；127/127 tests、小程序检查、数据检查与线上飞书详情映射验证通过 |
+| Codex | 小程序 `utils/api-jobs.js`、`package-user/pages/search/search.js` 与搜索回归测试 | 修复职位搜索因飞书职位源超时而长期停留在加载态：正式职位 API 优先、飞书并行兜底，并防止实时搜索的旧请求覆盖新结果 | 已完成；125/125 tests、小程序检查、数据检查、生产同链路搜索与微信预览通过 |
+| Codex | 小程序职位展示适配工具、`components/c-job-card`、`pages/jobs/*`、`package-user/pages/search/*`、`package-user/pages/job-detail/*` 与回归测试 | 按产品说明重构职位列表卡片和职位详情信息架构，统一薪资、截止、标签、技能、匹配及缺省字段展示，同时保留收藏、详情跳转、投递看板和 AI 匹配链路 | 已完成；124/124 tests、小程序检查、数据检查与微信预览编译通过 |
+| Codex | 小程序 `package-user/pages/search/search.js` 与导航回归测试 | 保留搜索输入防抖实时匹配，但仅在用户主动提交搜索时写入历史，并清理历史中的连续输入前缀碎片 | 已完成；120/120 tests、小程序检查、数据检查与微信预览编译通过 |
+| Codex | 小程序 `package-career/pages/resume/resume.js`、`resume.wxml`、`resume.wxss` 与回归测试 | 修复在线简历手动编辑弹层中单行输入框高度压缩、无法稳定聚焦/回显及保存后列表不立即显示的问题，并统一工作、教育、项目和基本信息表单 UI | 已完成；119/119 tests、小程序检查、数据检查与微信预览编译通过 |
+| Codex | 小程序普通页面 AI 提示、`utils/favorites.js`、职位列表/详情与提醒回归测试 | 移除非 AI 专属页面的顶部 AI 说明；职位收藏不再弹设置对话框，并按岗位截止日或默认 30 天自动开启提前 3 天和 1 天提醒 | 已完成；118/118 tests、小程序检查、数据检查与微信预览编译通过 |
+| Codex | `routes/ai.js`、职业规划生成服务、小程序 `package-career/pages/career-planner/*`、测试与文档 | 将 AI 求职规划从关键词清单升级为包含技能标准、项目证据、阶段交付物、量化指标、每周节奏和风险应对的可执行方案 | 已完成；115/115 tests、小程序检查、微信预览、真实模型质量门禁与生产部署健康检查通过 |
+| Codex | 小程序 `package-user/pages/profile-edit/*`、导航回归测试 | 压缩编辑资料页多选项的继续搜索入口并移至卡片右上角；毕业年份改为宽范围年份选择器 | 已完成；导航回归、全量测试、小程序检查和微信预览编译通过 |
+| Codex | 小程序 `pages/resources/*`、`package-career/pages/career-planner/*`、导航回归测试 | 将隐藏的职业工具中心缺失功能并入资源中心，补充 AI 求职规划、Offer 对比和简历中心入口，并将规划页收口为单一功能页 | 已完成；导航回归、全量测试、小程序检查和微信预览编译通过 |
+| Codex | `miniprogram/package-career/pages/resume/resume.wxml`、`resume.wxss`、页面回归测试 | 隐藏“我的简历”页面滚动条，并合并基本信息与个人优势卡片 | 已完成；页面回归、小程序检查和微信预览编译通过 |
+| Codex | `services/v4AiRuntime.js`、`services/v4ResumeCenter.js`、`miniprogram/package-career/pages/resume-center/*`、`tests/`、`DEVELOPMENT_STATUS.md` | 修复 AI 简历润色误走 fallback、原文与建议相同及敏感/无意义字段被推荐的问题 | 已完成；109/109 tests、发布检查和生产 AI 实测通过 |
+| Codex | `miniprogram/custom-tab-bar/index.js`、`miniprogram/app.json`、两张灰色 Tab 图标与导航测试 | 区分“进度”“AI专家”的选中/未选中图标颜色，未选中统一灰色 | 已完成；导航测试与小程序检查通过 |
+| Codex | UGC 数据表、面经/评论/回复/机构评价接口、管理后台审核页、隐私政策及审核测试文档 | 建立发布前人工审核、公开内容过滤、统计联动和审核日志；同步虚拟支付与公司主体隐私披露 | 已完成；105/105 tests、发布检查与微信预览通过 |
+| Codex | `miniprogram/components/c-login-popup`、`miniprogram/behaviors/login-gate.js`、所有登录受限入口及登录回归测试 | 将未登录点击统一改为当前页登录弹层，登录成功后继续原操作；登录弹层替换职引品牌 Logo | 已完成；101/101 tests、发布检查与微信预览编译通过 |
+| Codex | `miniprogram/package-ai/pages/daily-brief/*`、导航回归测试 | 移除求职日报旧绿色问候头部，按首页蓝白求职计划卡片重构概览、统计与内容模块；移除 AI 返回的单字“伪图标” | 已完成；98/98 tests、发布检查与微信预览编译通过 |
+| Codex | `miniprogram/utils/resume-versions.js`、`miniprogram/package-ai/utils/resume-versions.js`、AI 助手/JD 匹配引用与导航测试 | 将仅供 AI 分包使用的简历版本工具迁出主包，修复微信代码质量“主包未使用 JS”提示 | 已完成；97/97 tests、发布检查与微信预览编译通过，主包减少约 3 KB |
+| Codex | `utils/featureFlags.js`、管理后台功能开关/Banner 页面、小程序首页与功能开关客户端、测试 | 增加“首页推荐岗位”独立审核开关并默认隐藏；校正 Banner 展示比例和上传尺寸提示 | 已完成；95/95 tests、生产开关关闭、公网验证通过、微信开发版 4.0.2 已上传 |
+| Codex | 生产服务器、`miniprogram/utils/app-config.js`、Agent 配置测试与运维文档 | 将正确 4.0 主项目部署到 4400，完成 V4 数据迁移、虚拟支付与 Nginx 收口，并启用小程序 V4 Agent | 已完成；公网 readiness/V4/职位/校招/支付/鉴权冒烟通过 |
+| Codex | `AGENTS.md`、`DEVELOPMENT_STATUS.md`、`docs/`、运行检查脚本、薪资可信度相关文件、首页与 TabBar、测试 | 收口误用副本，确认桌面仓库为唯一 4.0 主项目，迁移有效上线能力并完成发布验证 | 已完成；93/93 tests、发布检查与微信预览通过 |
+| Codex | 小程序 `pages/resources`、资源页测试与文档 | 按参考图重做自定义导航、校招主视觉和横向资源卡片 | 已完成；91/91 tests、发布检查通过 |
+| Codex | 小程序 `pages/index`、`pages/resources`、`components/home-campus-updates`、校招排序测试与文档 | 首页校招改为每个岗位独占一行并按每日最新更新时间排序；重构资源中心 UI | 已完成；91/91 tests、发布检查通过 |
+| Codex | 小程序 `pages/resources`、`pages/index`、`components/home-campus-updates`、`custom-tab-bar`、导航调用及相关测试/文档 | 将校招 Tab 改为资源中心，首页求职情报改为校招瀑布流 | 已完成；91/91 tests、发布检查通过 |
 | Codex | `README.md` | 补充开发说明 | 已完成 |
 | Codex | `AGENTS.md` | 建立协作规则 | 已完成 |
 | Codex | `DEVELOPMENT_STATUS.md` | 建立状态记录 | 已完成 |
@@ -81,6 +171,14 @@
 | Codex | 小程序 `app.wxss`、`pages/salary/salary.wxss`、`pages/jobs/jobs.wxss`、`pages/applications/applications.wxss` | 超长 WXSS 首批 token 化整理 | 已完成 |
 | Codex | 小程序 `pages/salary/salary.wxss`、`pages/applications/applications.wxss`、`pages/jobs/jobs.wxss`、`pages/index/index.wxss`、`pages/experiences/experiences.wxss`、`pages/resume/resume.wxss`、`pages/agencies/agencies.wxss`、`pages/project-builder/project-builder.wxss`、`pages/ai-assistant/ai-assistant.wxss`、`pages/profile/profile.wxss`、`pages/career-planner/career-planner.wxss` | 超长 WXSS 重复覆盖块清理 | 已完成首批 |
 | Codex | `utils/featureFlags.js`、`routes/features.js`、`server.js`、`.env.example`、`tests/smoke.test.js`、小程序全局配置/导航及职位相关页面 | 职位功能全局开关 | 已完成，40/40 smoke tests 与小程序检查通过 |
+| Codex | `db/v4Schema.js`、`services/v4JobMatch.js`、`services/v4Profile.js`、`routes/v4/`、`server.js`、`tests/smoke.test.js`、`docs/V4_SPRINT1_BACKEND.md` | V4 Sprint 1 后端基座：画像、岗位匹配、申请状态历史 | 已完成，58/58 tests 通过 |
+| Codex | `db/v4Schema.js`、`services/v4Sponsor.js`、`services/v4JobMatch.js`、`routes/v4/jobs.js`、`routes/v4/applications.js`、`tests/smoke.test.js`、`docs/V4_SPRINT1_BACKEND.md` | V4 第一优先级完善：Sponsor、资格匹配、CRM 看板与详情 | 已完成，60/60 tests 通过 |
+| Codex | `db/v4Schema.js`、`routes/v4-admin.js`、`routes/v4/jobs.js`、`services/v4JobMatchStore.js`、`scripts/migrate_v4.js`、`package.json`、`server.js`、`tests/smoke.test.js` | V4 第一优先级收尾：Sponsor 核验审计、批量匹配、V3 迁移 | 已完成；正式迁移及二次 dry-run 成功，pending=0；迁移后 63/63 tests 通过 |
+| Codex | 小程序 `utils/api-v4.js`、`package-user/pages/profile-edit`、`job-detail`、`applications` | V4 小程序首批接入：画像完整度、Sponsor 情报、三维匹配、云端 CRM 状态机 | 已完成；`check:miniprogram` 与 63/63 tests 通过 |
+| Codex | 小程序 `pages/jobs`、`package-user/pages/application-detail`、`applications`、`app.json`，后台 `admin/sponsor-profiles.html`、`admin/js/common.js` | V4 小程序第二批：Sponsor 筛选、云端匹配、申请详情协作、后台 Sponsor 审核 | 已完成；`check:miniprogram`、63/63 tests、迁移 dry-run 通过；`check:data` 仅命中既有 `api-feishu-content.js` 乱码问题 |
+| Codex | `routes/v4/jobs.js`、`routes/v4/applications.js`、`tests/smoke.test.js`、小程序 `pages/jobs`、`package-user/pages/application-detail`、`utils/api-feishu-content.js` | V4 第三批发布收尾：筛选一致性、详情状态流转、内容检查清零 | 已完成；`check:release` 通过、63/63 tests、内容错误 0、迁移 pending=0 |
+| Codex | 微信开发者工具与 `scripts/acceptance-bot.js` 验收链路 | V4 联调阶段：开发者工具 E2E 与无 GUI 验收 | E2E 预检 4/4；安全验收 29/29；真实 E2E 已完成 10/11 场景，面试空间 mock 路由问题已修复 |
+| Codex | `scripts/e2e-3.0-bot.js`、微信开发者工具自动化报告 | V4 真实 E2E 兼容修复 | 脚本语法已验证；按 Human 决定真实 E2E 暂停且非默认，用户已确认人工预览正常 |
 
 ## 待决策
 
@@ -117,3 +215,40 @@ npm test
 - `/api/payment/verify/:orderNo`
 - `/api/upload/avatar` 伪 MIME 拒绝
 - `/webhook/deploy` 缺签名拒绝
+
+## Sprint 2 开发占用（2026-07-14）
+
+| 负责人 | 文件范围 | 任务 | 状态 |
+|---|---|---|---|
+| Codex | `db/v4Schema.js`、`routes/v4/resumes.js`、`routes/v4/materials.js`、`services/v4ResumeCenter.js`、`utils/aiQuota.js`、`tests/smoke.test.js`、小程序简历与申请材料中心 | Sprint 2 申请材料中心：经历库、简历版本、AI 修改确认、AI 申请助手与额度控制 | 已完成，65/65 tests 与小程序检查通过 |
+
+## Sprint 2 完成记录（2026-07-14）
+
+| 事项 | 文件 | 验证 |
+|---|---|---|
+| 经历库、五类简历、复制/重命名/归档/默认、岗位与申请关联、版本对比恢复 | `db/v4Schema.js`、`services/v4ResumeCenter.js`、`routes/v4/resumes.js` | 自动化回归通过 |
+| AI 逐条确认、手动编辑、防直接覆盖、防虚构、模型/提示词留痕、额度统计 | `routes/v4/resumes.js`、`utils/aiQuota.js` | 自动化回归通过 |
+| JD 定制简历、Cover Letter、Recruiter 消息、Follow-up 邮件及确认保存 | `routes/v4/materials.js`、小程序 `application-materials` | 自动化回归与小程序检查通过 |
+| AI 简历中心页面与完整开发说明 | 小程序 `resume-center`、`docs/V4_SPRINT2_APPLICATION_MATERIALS.md` | 页面注册检查通过 |
+
+## Sprint 4 开发占用（2026-07-14）
+
+| 负责人 | 文件范围 | 任务 | 状态 |
+|---|---|---|---|
+| Codex | `db/v4Schema.js`、`routes/v4/interviews.js`、`routes/v4/agents.js`、`routes/v4/membership.js`、相关 services/scripts/admin/miniprogram/tests/docs | Sprint 4 面试闭环、统一 AI、埋点看板、会员商业化与上线工程 | 已完成，69/69 tests 与发布检查通过 |
+
+## Sprint 4 完成记录（2026-07-14）
+
+| 事项 | 验证 |
+|---|---|
+| 岗位面试空间自动创建、模拟/STAR 训练、四维评分、报告、趋势和 Today 任务 | 自动化闭环通过 |
+| 四 Agent、上下文读取、历史、超时降级、重试、取消、敏感信息脱敏、写操作确认 | 自动化状态机通过 |
+| 全链路标准事件、7 日留存、申请漏斗、AI 使用率和后台运营看板 | 管理接口测试通过 |
+| 会员方案、AI/简历/面试配额、高级匹配、订阅到期降级、订单退款状态 | 权益接口测试通过；真实支付双开关保持关闭 |
+| 正式迁移、回滚 dry-run、功能开关、API 文档、小程序检查、灰度与错误监控 | `pending=0`，回滚计划可生成，灰度 0%，错误 0 |
+| 性能采样 | 用户主链路未发现慢请求；测试中的内部提醒派发为 1.0–1.5 秒，已纳入看板持续观察 |
+## 首页信息架构优化占用（2026-07-16）
+
+| 负责人 | 文件范围 | 任务 | 状态 |
+|---|---|---|---|
+| Codex | `miniprogram/pages/index`、`miniprogram/pages/applications`、`miniprogram/pages/ai-career`、`miniprogram/custom-tab-bar`、`routes/v4/today.js` | 完成首页工作台、Today 同步与 V4 五项一级导航 | 已完成；79/79 tests、小程序检查通过；真实 E2E 待复验 |

@@ -26,14 +26,12 @@
       </view>
     </view>
 
-    <c-ai-disclosure text="会员权益中的 AI 内容仅供求职参考，关键信息请结合自身情况核验。" />
-
     <view class="pricing-panel">
       <view class="section-head">
         <view class="section-icon price-icon">¥</view>
         <view class="section-copy">
-          <text class="section-title">选择会员套餐</text>
-          <text class="section-subtitle">支付后自动开通，权益状态可在服务端校验。</text>
+          <text class="section-title">选择 Pro 或场景包</text>
+          <text class="section-subtitle">Pro 解锁完整工作台；场景包只叠加标注额度，不会升级为完整会员。</text>
         </view>
       </view>
 
@@ -48,7 +46,7 @@
         >
           <view class="price-card-head">
             <text class="price-name">{{item.name}}</text>
-            <text wx:if="{{item.badgeText}}" class="price-tag {{item.disabled ? 'muted' : ''}}">{{item.badgeText}}</text>
+            <text class="price-tag {{item.disabled ? 'muted' : ''}}">{{item.badgeText || item.kindLabel}}</text>
           </view>
           <view class="price-main">
             <text class="price-symbol">¥</text>
@@ -57,6 +55,63 @@
           <text class="price-unit">{{item.unit}}</text>
           <text class="price-desc">{{item.displayDesc}}</text>
         </view>
+      </view>
+    </view>
+
+    <view class="usage-panel">
+      <view class="section-head compact">
+        <view class="section-icon account-icon">账</view>
+        <view class="section-copy">
+          <text class="section-title">我的权益与订单</text>
+          <text class="section-subtitle">当前 {{currentPlanName}}{{currentPlanExpiresAt ? ' · 至 ' + currentPlanExpiresAt : ''}}</text>
+        </view>
+      </view>
+      <view wx:if="{{scenarioPacks.length}}" class="pack-list">
+        <view wx:for="{{scenarioPacks}}" wx:key="id" class="pack-row">
+          <text class="pack-name">{{item.name}}</text>
+          <text class="pack-expiry">有效至 {{item.expiresAt}}</text>
+        </view>
+      </view>
+      <view wx:if="{{commerceOrders.length}}" class="order-list">
+        <view wx:for="{{commerceOrders}}" wx:key="orderNo" class="order-row">
+          <view class="order-copy">
+            <text class="order-name">{{item.planName}} · ¥{{item.amountText}}</text>
+            <text class="order-meta">{{item.status}} · {{item.createdAt}}</text>
+          </view>
+          <button wx:if="{{item.canRefund}}" class="refund-button" size="mini" data-order-no="{{item.orderNo}}" bindtap="requestRefund">申请退款</button>
+        </view>
+      </view>
+      <view wx:if="{{commerceRefunds.length}}" class="refund-list">
+        <text class="refund-heading">退款进度</text>
+        <text wx:for="{{commerceRefunds}}" wx:key="refundNo" class="refund-item">{{item.refundNo}} · {{item.status}}</text>
+      </view>
+      <text class="commerce-note">退款提交后进入人工审核；真实支付、退款与放量必须完成资质及人工审批。</text>
+    </view>
+
+    <view class="usage-panel">
+      <view class="section-head">
+        <view class="section-icon usage-icon">AI</view>
+        <view class="section-copy">
+          <text class="section-title">今日 AI 额度</text>
+          <text class="section-subtitle">{{quotaIsVip ? '当前会员不限次数，仍会记录使用情况。' : '普通用户每日免费次数，会员可解锁不限次数。'}}</text>
+        </view>
+        <text class="quota-date" wx:if="{{quotaDate}}">{{quotaDate}}</text>
+      </view>
+
+      <view wx:if="{{quotaFeatures.length}}" class="quota-list">
+        <view wx:for="{{quotaFeatures}}" wx:key="feature" class="quota-row {{item.exhausted ? 'exhausted' : ''}}">
+          <view class="quota-line">
+            <text class="quota-name">{{item.label}}</text>
+            <text class="quota-count">{{item.usedText}}</text>
+          </view>
+          <view class="quota-track">
+            <view class="quota-fill {{item.exhausted ? 'warning' : ''}}" style="width:{{item.percent}}%;"></view>
+          </view>
+          <text class="quota-remain">{{item.remainText}}</text>
+        </view>
+      </view>
+      <view wx:else class="quota-empty">
+        <text>{{quotaLoading ? '正在同步今日额度...' : quotaMessage}}</text>
       </view>
     </view>
 
@@ -124,10 +179,10 @@
   <view class="member-footer">
     <view class="footer-main" bindtap="handlePay" hover-class="footer-press">
       <view class="vip-mark">
-        <text>VIP</text>
+        <text>{{selectedPlanKind === 'scenario' ? '包' : 'VIP'}}</text>
       </view>
       <view class="footer-copy">
-        <text class="footer-title">{{paying ? '正在开通...' : '解锁会员权益'}}</text>
+        <text class="footer-title">{{paying ? '正在开通...' : '开通所选权益'}}</text>
         <text class="footer-subtitle">{{paymentAvailable ? selectedPlanName + ' ¥' + selectedPlanPrice + ' · 支付后生效' : paymentReason}}</text>
       </view>
     </view>
@@ -138,3 +193,10 @@
     </view>
   </view>
 </view>
+
+<c-login-popup
+  show="{{authPromptVisible}}"
+  subtitle="{{authPromptSubtitle}}"
+  bindclose="closeAuthPrompt"
+  bindsuccess="onAuthPromptSuccess"
+/>

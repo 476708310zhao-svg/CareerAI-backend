@@ -1,4 +1,7 @@
 const STORAGE_KEY = 'localApplications';
+const apiClient = require('./api-client.js');
+
+let suppressRemoteSync = false;
 
 const STATUS_OPTIONS = [
   { code: 'collected', label: '已收藏', short: '收藏', tone: 'gray' },
@@ -61,6 +64,14 @@ function safeStorageSet(key, value) {
   } catch (e) {}
 }
 
+function hasToken() {
+  try {
+    return !!wx.getStorageSync('token');
+  } catch (e) {
+    return false;
+  }
+}
+
 function normalizeStatus(status) {
   const raw = String(status || '').trim();
   if (STATUS_LABEL_MAP[raw]) return raw;
@@ -109,6 +120,7 @@ function getInitial(name) {
 function normalizeRecord(item) {
   const source = item || {};
   const sourceJobId = source.sourceJobId || source.source_job_id || source.job_id || source.jobId || source.targetId || '';
+  const clientId = source.clientId || source.client_id || (/^local_|^progress_/.test(String(source.id || '')) ? String(source.id) : '');
   const status = normalizeStatus(source.progressStatus || source.currentStatus || source.status);
   const company = source.company || (source.jobSnapshot && source.jobSnapshot.company) || '';
   const jobTitle = source.jobTitle || source.job_title || source.title || (source.jobSnapshot && source.jobSnapshot.title) || '';
@@ -118,6 +130,7 @@ function normalizeRecord(item) {
   const cfg = getStatusConfig(status);
   const record = {
     id: String(source.id || ('progress_' + Date.now())),
+    clientId,
     sourceJobId: sourceJobId ? String(sourceJobId) : '',
     company,
     jobTitle,
@@ -136,7 +149,12 @@ function normalizeRecord(item) {
     notes: source.notes || source.remark || '',
     resumeVersionId: source.resumeVersionId || '',
     interviewQuestionIds: source.interviewQuestionIds || [],
-    aiReportId: source.aiReportId || '',
+    aiReportId: source.aiReportId || source.ai_report_id || (source.jobSnapshot && source.jobSnapshot.aiReportId) || '',
+    matchScore: Number(source.matchScore || source.match_score || (source.jobSnapshot && source.jobSnapshot.matchScore) || 0),
+    matchedKeywords: source.matchedKeywords || source.matched_keywords || (source.jobSnapshot && source.jobSnapshot.matchedKeywords) || [],
+    missingKeywords: source.missingKeywords || source.missing_keywords || (source.jobSnapshot && source.jobSnapshot.missingKeywords) || [],
+    aiSuggestion: source.aiSuggestion || source.ai_suggestion || (source.jobSnapshot && source.jobSnapshot.aiSuggestion) || '',
+    nextAction: source.nextAction || source.next_action || (source.jobSnapshot && source.jobSnapshot.nextAction) || '',
     reminderEnabled: !!source.reminderEnabled,
     reminderLeadDays: source.reminderLeadDays || [3, 1],
     projectId: source.projectId || '',
@@ -158,6 +176,7 @@ function toStorageShape(record) {
   const normalized = normalizeRecord(record);
   return Object.assign({}, record, {
     id: normalized.id,
+    clientId: normalized.clientId,
     sourceJobId: normalized.sourceJobId,
     job_id: normalized.sourceJobId,
     company: normalized.company,
@@ -179,6 +198,11 @@ function toStorageShape(record) {
     resumeVersionId: normalized.resumeVersionId,
     interviewQuestionIds: normalized.interviewQuestionIds,
     aiReportId: normalized.aiReportId,
+    matchScore: normalized.matchScore,
+    matchedKeywords: normalized.matchedKeywords,
+    missingKeywords: normalized.missingKeywords,
+    aiSuggestion: normalized.aiSuggestion,
+    nextAction: normalized.nextAction,
     projectId: normalized.projectId,
     offer: normalized.offer,
     updatedAt: normalized.updatedAt || new Date().toISOString()
@@ -216,13 +240,119 @@ function saveList(list) {
 
 function findIndexByIdOrJob(list, record) {
   const id = record && record.id ? String(record.id) : '';
+  const clientId = record && record.clientId ? String(record.clientId) : '';
   const sourceJobId = record && record.sourceJobId ? String(record.sourceJobId) : '';
   return (list || []).findIndex(item => {
     const normalized = normalizeRecord(item);
     if (id && String(normalized.id) === id) return true;
+    if (clientId && String(normalized.clientId) === clientId) return true;
     if (sourceJobId && String(normalized.sourceJobId) === sourceJobId) return true;
     return false;
   });
+}
+
+function mergeRemoteRecord(record) {
+  if (!record) return null;
+  const raw = getRawList();
+  const normalized = normalizeRecord(record);
+  const idx = findIndexByIdOrJob(raw, normalized);
+  const next = toStorageShape(Object.assign({}, idx >= 0 ? raw[idx] : {}, normalized, {
+    clientId: normalized.clientId || (idx >= 0 ? normalizeRecord(raw[idx]).clientId : ''),
+    updatedAt: normalized.updatedAt || new Date().toISOString()
+  }));
+  if (idx >= 0) raw[idx] = next;
+  else raw.unshift(next);
+  suppressRemoteSync = true;
+  saveList(raw);
+  suppressRemoteSync = false;
+  return normalizeRecord(next);
+}
+
+function mergeRemoteList(remoteList) {
+  (remoteList || []).forEach(mergeRemoteRecord);
+  return getList();
+}
+
+function remotePayload(record) {
+  const normalized = normalizeRecord(record);
+  return {
+    id: /^[0-9]+$/.test(String(normalized.id)) ? normalized.id : '',
+    clientId: normalized.clientId || (/^local_|^progress_/.test(String(normalized.id)) ? normalized.id : ''),
+    sourceJobId: normalized.sourceJobId,
+    jobId: normalized.sourceJobId || normalized.id,
+    company: normalized.company,
+    jobTitle: normalized.jobTitle,
+    title: normalized.jobTitle,
+    city: normalized.city,
+    salary: normalized.salary,
+    jobLink: normalized.jobLink,
+    appliedAt: normalized.appliedAt,
+    deadline: normalized.deadline,
+    interviewTime: normalized.interviewTime,
+    status: normalized.status,
+    progressStatus: normalized.status,
+    notes: normalized.notes,
+    resumeVersionId: normalized.resumeVersionId,
+    aiReportId: normalized.aiReportId,
+    matchScore: normalized.matchScore,
+    matchedKeywords: normalized.matchedKeywords,
+    missingKeywords: normalized.missingKeywords,
+    aiSuggestion: normalized.aiSuggestion,
+    nextAction: normalized.nextAction,
+    reminderEnabled: normalized.reminderEnabled,
+    reminderLeadDays: normalized.reminderLeadDays,
+    jobSnapshot: {
+      id: normalized.sourceJobId,
+      title: normalized.jobTitle,
+      company: normalized.company,
+      location: normalized.city,
+      salary: normalized.salary,
+      applyLink: normalized.jobLink,
+      aiReportId: normalized.aiReportId,
+      matchScore: normalized.matchScore,
+      matchedKeywords: normalized.matchedKeywords,
+      missingKeywords: normalized.missingKeywords,
+      aiSuggestion: normalized.aiSuggestion,
+      nextAction: normalized.nextAction
+    }
+  };
+}
+
+function syncRecordRemote(record) {
+  if (suppressRemoteSync || !hasToken() || !record) return Promise.resolve(null);
+  const normalized = normalizeRecord(record);
+  const body = remotePayload(normalized);
+  const numericId = /^[0-9]+$/.test(String(normalized.id)) ? normalized.id : '';
+  const request = numericId
+    ? apiClient.put({ path: '/api/applications/progress/' + encodeURIComponent(numericId), body, timeout: 15000 })
+    : apiClient.post({ path: '/api/applications/progress', body, timeout: 15000 });
+  return request.then(res => {
+    if (res && res.code === 0 && res.data) return mergeRemoteRecord(res.data);
+    return null;
+  }).catch(() => null);
+}
+
+function syncFromServer() {
+  if (!hasToken()) return Promise.resolve(getList());
+  return apiClient.request({
+    path: '/api/applications/progress',
+    noCache: true,
+    timeout: 15000
+  }).then(res => {
+    if (res && res.code === 0 && Array.isArray(res.data)) {
+      return mergeRemoteList(res.data);
+    }
+    return getList();
+  }).catch(() => getList());
+}
+
+function deleteRemote(id) {
+  if (!hasToken() || !id) return Promise.resolve(null);
+  return apiClient._write({
+    method: 'DELETE',
+    path: '/api/applications/progress/' + encodeURIComponent(id),
+    timeout: 15000
+  }).catch(() => null);
 }
 
 function upsert(record) {
@@ -240,7 +370,9 @@ function upsert(record) {
     raw.unshift(next);
   }
   saveList(raw);
-  return normalizeRecord(next);
+  const saved = normalizeRecord(next);
+  syncRecordRemote(saved);
+  return saved;
 }
 
 function upsertFromJob(job, patch) {
@@ -268,13 +400,20 @@ function update(id, patch) {
   const next = toStorageShape(Object.assign({}, raw[idx], patch || {}, { updatedAt: new Date().toISOString() }));
   raw[idx] = next;
   saveList(raw);
-  return normalizeRecord(next);
+  const saved = normalizeRecord(next);
+  syncRecordRemote(saved);
+  return saved;
 }
 
 function remove(id) {
   const raw = getRawList();
+  const target = raw.find(item => String(normalizeRecord(item).id) === String(id));
   const next = raw.filter(item => String(normalizeRecord(item).id) !== String(id));
   saveList(next);
+  if (target && !suppressRemoteSync) {
+    const normalized = normalizeRecord(target);
+    deleteRemote(normalized.id || normalized.clientId);
+  }
   return next.length !== raw.length;
 }
 
@@ -344,5 +483,8 @@ module.exports = {
   getUpcomingDeadlines,
   getTodayInterviews,
   buildDailyAdvice,
-  getToday
+  getToday,
+  syncFromServer,
+  syncRecordRemote,
+  mergeRemoteList
 };

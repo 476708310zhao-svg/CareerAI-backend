@@ -143,9 +143,9 @@ Page({
 
     // 根据类型跳转
     if (msg.type === 'application') {
-      wx.navigateTo({ url: '/package-user/pages/applications/applications' });
+      wx.switchTab({ url: '/pages/applications/applications' });
     } else if (msg.type === 'interaction') {
-      wx.switchTab({ url: '/pages/experiences/experiences' });
+      wx.navigateTo({ url: '/pages/experiences/experiences' });
     }
   },
 
@@ -184,7 +184,7 @@ Page({
   },
 
   goApplications() {
-    wx.navigateTo({ url: '/package-user/pages/applications/applications' });
+    wx.switchTab({ url: '/pages/applications/applications' });
   },
 
   goInterview() {

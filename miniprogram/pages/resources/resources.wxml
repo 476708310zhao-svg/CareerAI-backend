@@ -1,0 +1,96 @@
+<view class="page" style="padding-top: {{pageTop}}px;">
+  <view class="page-head">
+    <text class="page-title">资源中心</text>
+    <text class="page-subtitle">按求职阶段，快速找到下一步要看的内容和工具</text>
+  </view>
+
+  <view
+    class="campus-feature"
+    data-url="{{featuredResource.url}}"
+    bindtap="openResource"
+    hover-class="feature-hover"
+  >
+    <view class="campus-feature-copy">
+      <text class="campus-feature-eyebrow">{{featuredResource.eyebrow}}</text>
+      <text class="campus-feature-title">{{featuredResource.title}}</text>
+      <text class="campus-feature-desc">{{featuredResource.desc}}</text>
+      <view class="campus-feature-action">
+        <text>{{featuredResource.action}}</text>
+        <text class="action-arrow">›</text>
+      </view>
+    </view>
+
+    <view class="calendar-art" aria-hidden="true">
+      <view class="art-building art-building-left"></view>
+      <view class="art-building art-building-right"></view>
+      <view class="calendar-sheet">
+        <view class="calendar-ring ring-left"></view>
+        <view class="calendar-ring ring-right"></view>
+        <view class="calendar-head"></view>
+        <view class="calendar-grid">
+          <view wx:for="{{[1,2,3,4,5,6,7,8]}}" wx:key="*this"></view>
+        </view>
+        <view class="calendar-check">✓</view>
+      </view>
+      <view class="calendar-orbit"></view>
+      <view class="calendar-bell">●</view>
+      <view class="art-star star-one">✦</view>
+      <view class="art-star star-two">✦</view>
+    </view>
+  </view>
+
+  <view class="section section-{{item.id}}" wx:for="{{resourceSections}}" wx:key="id">
+    <view class="section-head">
+      <view class="section-title-chip title-chip-{{item.accent}}">
+        <view class="section-accent accent-{{item.accent}}"></view>
+        <text class="section-title">{{item.title}}</text>
+      </view>
+    </view>
+    <view class="tool-grid">
+      <view
+        class="tool-card"
+        wx:for="{{item.items}}"
+        wx:for-item="tool"
+        wx:key="id"
+        data-url="{{tool.url}}"
+        bindtap="openResource"
+        hover-class="card-hover"
+      >
+        <view class="resource-icon tone-{{tool.tone}}">{{tool.icon}}</view>
+        <view class="tool-copy">
+          <text class="tool-title">{{tool.title}}</text>
+          <text class="tool-desc">{{tool.desc}}</text>
+        </view>
+        <text class="tool-arrow">›</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section service-section">
+    <view class="section-head">
+      <view class="section-title-chip title-chip-violet">
+        <view class="section-accent accent-violet"></view>
+        <text class="section-title">内容与服务</text>
+      </view>
+    </view>
+    <view class="service-list">
+      <view
+        class="service-row"
+        wx:for="{{serviceResources}}"
+        wx:key="id"
+        data-url="{{item.url}}"
+        bindtap="openResource"
+        hover-class="row-hover"
+      >
+        <view class="resource-icon small tone-{{item.tone}}">{{item.icon}}</view>
+        <view class="service-copy">
+          <text class="service-title">{{item.title}}</text>
+          <text class="service-desc">{{item.desc}}</text>
+        </view>
+        <text class="service-arrow">›</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="bottom-spacer"></view>
+</view>

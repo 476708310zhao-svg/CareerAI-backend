@@ -16,17 +16,28 @@ const db      = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
 const { internalTaskAuth } = require('../middleware/internalAuth');
 const { scheduleReminderData } = require('../utils/wechatTemplates');
+const analytics = require('../services/v4Analytics');
 
 const WX_APP_ID     = process.env.WX_APP_ID     || '';
 const WX_APP_SECRET = process.env.WX_APP_SECRET  || '';
 
+const TEMPLATE_DEFAULTS = {
+  application_update: 'OOwg7dLeyp0t8DhGlEGtxF8cXyWQNaI-y-pM8oi4cdI',
+  interview_done: 'mVZpMFlo_SVeAHG9pTS9iVKJ4Ue5S_CbRnpIwcii-Do',
+  system_notice: '7565JoeBy5bcfgXjF8Bx0E_9bS5FL3ZqoyMi8KtHnjI',
+  payment_success: 'B2yF8p95728ity74KHZ8hD8l9eIFy_WHWEw0WeRY6zw',
+  payment_reminder: '1TuS2_yn-RY4CEQgaLNgpvorskvNtnsqRxE8A1lPmVY',
+  interview_report: '4m7xh9u3V6cq_sa6ne-oKk2VU_HCF1cOEAoBISTSB-g',
+};
+
 // 订阅消息模板 ID（在微信公众平台 → 订阅消息 → 我的模板 中获取）
 const TEMPLATES = {
-  application_update: process.env.WX_TPL_APPLICATION || '',  // 投递状态更新
-  interview_done:     process.env.WX_TPL_INTERVIEW   || '',  // 面试完成提醒
-  system_notice:      process.env.WX_TPL_SYSTEM      || '',  // 系统通知
-  payment_success:    process.env.WX_TPL_PAYMENT_SUCCESS || '',  // 订单支付成功通知
-  payment_reminder:   process.env.WX_TPL_PAYMENT_REMINDER || '', // 订单支付提醒
+  application_update: process.env.WX_TPL_APPLICATION || TEMPLATE_DEFAULTS.application_update,  // 投递状态更新
+  interview_done:     process.env.WX_TPL_INTERVIEW   || TEMPLATE_DEFAULTS.interview_done,      // 面试通知
+  system_notice:      process.env.WX_TPL_SYSTEM      || TEMPLATE_DEFAULTS.system_notice,       // 日程提醒
+  payment_success:    process.env.WX_TPL_PAYMENT_SUCCESS || TEMPLATE_DEFAULTS.payment_success, // 订单支付成功通知
+  payment_reminder:   process.env.WX_TPL_PAYMENT_REMINDER || TEMPLATE_DEFAULTS.payment_reminder, // 订单支付提醒
+  interview_report:   process.env.WX_TPL_INTERVIEW_REPORT || TEMPLATE_DEFAULTS.interview_report, // 模拟面试报告制作通知
 };
 
 // 启动时检查模板配置
@@ -60,25 +71,46 @@ async function getAccessToken() {
 }
 
 // ─── 核心：写站内消息 + 调用微信订阅消息接口 ─────────────────────────────────
-async function sendToUser(userId, { type = 'system', title, content, templateId, wxData }) {
+async function sendToUser(userId, { type = 'system', title, content, templateId, wxData }, options = {}) {
+  const result = {
+    inApp: { status: options.inAppMessageId ? 'existing' : 'skipped', messageId: Number(options.inAppMessageId) || null },
+    wechat: { status: 'skipped', reason: '' }
+  };
   // 1. 写入站内消息（SQLite）
-  try {
-    db.prepare('INSERT INTO messages (user_id, type, title, content) VALUES (?, ?, ?, ?)')
-      .run(userId, type, title, content);
-  } catch (e) {
-    console.error('[notify] 写站内消息失败:', e.message);
+  if (!options.inAppMessageId && options.skipInApp !== true) {
+    try {
+      const inserted = db.prepare('INSERT INTO messages (user_id, type, title, content) VALUES (?, ?, ?, ?)')
+        .run(userId, type, title, content);
+      result.inApp = { status: 'sent', messageId: Number(inserted.lastInsertRowid) };
+    } catch (e) {
+      console.error('[notify] 写站内消息失败:', e.message);
+      result.inApp = { status: 'failed', messageId: null, error: 'in_app_write_failed' };
+    }
   }
 
   // 2. 微信订阅消息（需要 templateId 且已有 openid）
-  if (!templateId || !WX_APP_ID) return;
+  if (process.env.NODE_ENV === 'test' || process.env.NOTIFY_EXTERNAL_DISABLED === '1') {
+    result.wechat = { status: 'skipped', reason: 'external_disabled' };
+    return result;
+  }
+  if (!templateId || !WX_APP_ID) {
+    result.wechat = { status: 'skipped', reason: !templateId ? 'template_missing' : 'app_not_configured' };
+    return result;
+  }
   const user = db.prepare('SELECT openid FROM users WHERE id = ?').get(userId);
-  if (!user || !user.openid || user.openid.startsWith('dev_')) return;
+  if (!user || !user.openid || user.openid.startsWith('dev_')) {
+    result.wechat = { status: 'skipped', reason: 'openid_unavailable' };
+    return result;
+  }
 
   const token = await getAccessToken();
-  if (!token) return;
+  if (!token) {
+    result.wechat = { status: 'failed', reason: 'access_token_unavailable' };
+    return result;
+  }
 
   try {
-    await axios.post(
+    const response = await axios.post(
       `https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=${token}`,
       {
         touser:           user.openid,
@@ -89,10 +121,17 @@ async function sendToUser(userId, { type = 'system', title, content, templateId,
       },
       { timeout: 8000 }
     );
+    if (response.data && Number(response.data.errcode) !== 0) {
+      result.wechat = { status: 'failed', reason: 'wechat_rejected' };
+      return result;
+    }
     console.log(`[notify] 微信订阅消息已发送 → userId=${userId}`);
+    result.wechat = { status: 'sent', reason: '' };
   } catch (e) {
     console.error('[notify] 微信推送失败:', e.message);
+    result.wechat = { status: 'failed', reason: 'wechat_request_failed' };
   }
+  return result;
 }
 
 module.exports.sendToUser = sendToUser;
@@ -123,8 +162,18 @@ function addDays(dateText, days) {
   return dateOnlyInShanghai(date);
 }
 
+function normalizeReminderDate(value) {
+  const text = String(value || '').trim();
+  const match = text.match(/(\d{4})[-/.年](\d{1,2})(?:[-/.月](\d{1,2}))?/);
+  if (!match || !match[3]) return '';
+  return `${match[1]}-${String(match[2]).padStart(2, '0')}-${String(match[3]).padStart(2, '0')}`;
+}
+
 function normalizeLeadDays(value, type) {
-  const source = Array.isArray(value) ? value : safeJson(value, type === 'daily_brief' ? [0] : [3, 1, 0]);
+  const fallback = type === 'daily_brief'
+    ? [0]
+    : (type === 'campus_deadline' || type === 'campus_open' ? [7, 3, 1, 0] : [3, 1, 0]);
+  const source = Array.isArray(value) ? value : safeJson(value, fallback);
   const seen = new Set();
   return source
     .map(item => Number(item))
@@ -236,6 +285,36 @@ function buildReminderMessage(row, leadDay) {
       })
     };
   }
+  if (row.reminder_type === 'campus_deadline') {
+    const status = leadDay === 0 ? '今日截止' : `${leadDay}天后`;
+    return {
+      type: 'campus_deadline',
+      title: `校招截止提醒：${subject}`,
+      content: `${subject} 网申将在 ${row.reminder_date} 截止，${leadDay === 0 ? '今天就是截止日' : `距离截止还有 ${leadDay} 天`}，建议尽快核验官网并完成投递材料。`,
+      templateId: TEMPLATES.system_notice || TEMPLATES.application_update,
+      wxData: scheduleReminderData({
+        topic: `${company} 校招截止提醒`,
+        description: role,
+        time: row.reminder_date,
+        status
+      })
+    };
+  }
+  if (row.reminder_type === 'campus_open') {
+    const status = leadDay === 0 ? '今日开放' : `${leadDay}天后`;
+    return {
+      type: 'campus_open',
+      title: `校招开放提醒：${subject}`,
+      content: `${subject} 网申将在 ${row.reminder_date} 开放，请提前准备简历、成绩单和测评材料。`,
+      templateId: TEMPLATES.system_notice || TEMPLATES.application_update,
+      wxData: scheduleReminderData({
+        topic: `${company} 校招开放提醒`,
+        description: role,
+        time: row.reminder_date,
+        status
+      })
+    };
+  }
   const relative = leadDay === 0 ? 'today is the deadline' : `${leadDay} day(s) left before the deadline`;
   return {
     type: 'job_deadline',
@@ -263,11 +342,12 @@ router.post('/subscribe', authMiddleware, (req, res) => {
 // ─── 通用求职提醒订阅 ───────────────────────────────────────────────────────
 // GET /api/notify/reminders
 router.get('/reminders', authMiddleware, (req, res) => {
-  const { sourceType, reminderType } = req.query;
+  const { sourceType, reminderType, targetId } = req.query;
   const where = ['user_id=?'];
   const params = [req.user.userId];
   if (sourceType) { where.push('source_type=?'); params.push(String(sourceType)); }
   if (reminderType) { where.push('reminder_type=?'); params.push(String(reminderType)); }
+  if (targetId) { where.push('target_id=?'); params.push(String(targetId)); }
   const rows = db.prepare(`
     SELECT * FROM job_reminders
     WHERE ${where.join(' AND ')}
@@ -282,10 +362,10 @@ router.put('/reminders', authMiddleware, (req, res) => {
   const sourceType = String(body.sourceType || 'job');
   const targetId = String(body.targetId || '').trim();
   const reminderType = String(body.reminderType || 'deadline');
-  const reminderDate = String(body.reminderDate || body.deadline || '').slice(0, 10);
+  const reminderDate = normalizeReminderDate(body.reminderDate || body.deadline);
   const reminderTime = String(body.reminderTime || body.interviewTime || '');
   if (!targetId) return res.status(400).json({ code: -1, message: '缺少 targetId' });
-  if (!['deadline', 'interview', 'daily_brief'].includes(reminderType)) {
+  if (!['deadline', 'interview', 'daily_brief', 'campus_deadline', 'campus_open'].includes(reminderType)) {
     return res.status(400).json({ code: -1, message: '提醒类型无效' });
   }
   if (reminderType !== 'daily_brief' && !reminderDate) {
@@ -342,42 +422,174 @@ router.delete('/reminders/:sourceType/:targetId/:reminderType', authMiddleware, 
 
 // POST /api/notify/reminders/dispatch
 // Header: X-Cron-Secret
-router.post('/reminders/dispatch', internalTaskAuth, async (req, res) => {
-  try {
-  const today = String((req.body && req.body.date) || req.query.date || dateOnlyInShanghai()).slice(0, 10);
-  const rows = db.prepare(`
-    SELECT * FROM job_reminders
-    WHERE enabled=1 AND reminder_date!=''
-    ORDER BY reminder_date ASC, id ASC
-    LIMIT 500
-  `).all();
-  const sent = [];
-  const skipped = [];
+const REMINDER_BATCH_DEFAULT = 100;
+const REMINDER_BATCH_MAX = 200;
+const REMINDER_CONCURRENCY_DEFAULT = 3;
+const REMINDER_CONCURRENCY_MAX = 5;
+const REMINDER_LEASE_SECONDS = 90;
+const REMINDER_MAX_ATTEMPTS = 5;
 
-  for (const row of rows) {
-    const leadDays = normalizeLeadDays(row.lead_days, row.reminder_type);
-    const sentKeys = safeJson(row.sent_keys, []);
-    const dueLeads = leadDays.filter(day => addDays(row.reminder_date, -day) === today);
-    if (!dueLeads.length) {
-      skipped.push({ id: row.id, reason: 'not_due' });
-      continue;
+function boundedInt(value, fallback, max) {
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0 ? Math.min(number, max) : fallback;
+}
+
+function claimReminderDelivery(row, key) {
+  return db.transaction(() => {
+    db.prepare(`INSERT OR IGNORE INTO reminder_deliveries_v4
+      (reminder_id,delivery_key,user_id,status,attempts,lease_until,updated_at)
+      VALUES (?,?,?,'pending',0,'',datetime('now'))`).run(row.id, key, row.user_id);
+    const current = db.prepare(`SELECT * FROM reminder_deliveries_v4
+      WHERE reminder_id=? AND delivery_key=?`).get(row.id, key);
+    if (current.status === 'sent') return { claimed: false, reason: 'already_sent', delivery: current };
+    if (current.attempts >= REMINDER_MAX_ATTEMPTS) {
+      return { claimed: false, reason: 'retry_exhausted', delivery: current };
     }
-    for (const leadDay of dueLeads) {
-      const key = `${row.reminder_type}:${row.source_type}:${row.target_id}:${row.reminder_date}:${leadDay}`;
-      if (sentKeys.includes(key)) {
-        skipped.push({ id: row.id, reason: 'already_sent', key });
-        continue;
-      }
-      const message = buildReminderMessage(row, leadDay);
-      await sendToUser(row.user_id, message);
-      sentKeys.push(key);
-      db.prepare("UPDATE job_reminders SET sent_keys=?, updated_at=datetime('now') WHERE id=?")
-        .run(JSON.stringify(sentKeys), row.id);
-      sent.push({ id: row.id, userId: row.user_id, key, type: message.type });
+    const result = db.prepare(`UPDATE reminder_deliveries_v4
+      SET status='sending', attempts=attempts+1,
+        lease_until=datetime('now', ?), last_error='', updated_at=datetime('now')
+      WHERE id=? AND (status IN ('pending','failed') OR (status='sending' AND lease_until<=datetime('now')))`)
+      .run(`+${REMINDER_LEASE_SECONDS} seconds`, current.id);
+    if (!result.changes) return { claimed: false, reason: 'in_progress', delivery: current };
+    return {
+      claimed: true,
+      delivery: db.prepare('SELECT * FROM reminder_deliveries_v4 WHERE id=?').get(current.id)
+    };
+  }).immediate();
+}
+
+function ensureDeliveryInAppMessage(deliveryId, userId, message) {
+  return db.transaction(() => {
+    const delivery = db.prepare('SELECT * FROM reminder_deliveries_v4 WHERE id=?').get(deliveryId);
+    if (!delivery) throw new Error('delivery_missing');
+    if (delivery.in_app_message_id) return Number(delivery.in_app_message_id);
+    const inserted = db.prepare('INSERT INTO messages (user_id,type,title,content) VALUES (?,?,?,?)')
+      .run(userId, message.type || 'system', message.title, message.content);
+    const messageId = Number(inserted.lastInsertRowid);
+    db.prepare(`UPDATE reminder_deliveries_v4 SET in_app_message_id=?, updated_at=datetime('now') WHERE id=?`)
+      .run(messageId, deliveryId);
+    return messageId;
+  }).immediate();
+}
+
+function finishReminderDelivery(deliveryId, row, key, result, error) {
+  const wxStatus = result && result.wechat ? result.wechat.status : 'failed';
+  const failure = error || (wxStatus === 'failed' ? (result.wechat.reason || 'wechat_failed') : '');
+  if (failure) {
+    db.prepare(`UPDATE reminder_deliveries_v4
+      SET status='failed', lease_until='', wx_status=?, last_error=?, updated_at=datetime('now') WHERE id=?`)
+      .run(wxStatus, String(failure).slice(0, 200), deliveryId);
+    return false;
+  }
+  db.transaction(() => {
+    db.prepare(`UPDATE reminder_deliveries_v4
+      SET status='sent', lease_until='', wx_status=?, last_error='', sent_at=datetime('now'), updated_at=datetime('now')
+      WHERE id=?`).run(wxStatus, deliveryId);
+    const current = db.prepare('SELECT sent_keys FROM job_reminders WHERE id=?').get(row.id);
+    const sentKeys = safeJson(current && current.sent_keys, []);
+    if (!sentKeys.includes(key)) sentKeys.push(key);
+    db.prepare("UPDATE job_reminders SET sent_keys=?, updated_at=datetime('now') WHERE id=?")
+      .run(JSON.stringify(sentKeys), row.id);
+  }).immediate();
+  return true;
+}
+
+async function runWithConcurrency(items, concurrency, worker) {
+  const results = new Array(items.length);
+  let cursor = 0;
+  async function run() {
+    while (cursor < items.length) {
+      const index = cursor++;
+      results[index] = await worker(items[index]);
     }
   }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, run));
+  return results;
+}
 
-  res.json({ code: 0, data: { date: today, checked: rows.length, sent, skipped } });
+router.post('/reminders/dispatch', internalTaskAuth, async (req, res) => {
+  try {
+    const startedAt = Date.now();
+    const body = req.body || {};
+    const today = String(body.date || req.query.date || dateOnlyInShanghai()).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) {
+      return res.status(400).json({ code: -1, message: 'date must be YYYY-MM-DD' });
+    }
+    const batchSize = boundedInt(body.batchSize || req.query.batchSize, REMINDER_BATCH_DEFAULT, REMINDER_BATCH_MAX);
+    const concurrency = boundedInt(body.concurrency || req.query.concurrency, REMINDER_CONCURRENCY_DEFAULT, REMINDER_CONCURRENCY_MAX);
+    const scanPageSize = Math.min(batchSize * 2, 400);
+    const maxReminderDate = addDays(today, 30);
+    let cursorId = Math.max(0, Number(body.cursorId || req.query.cursorId) || 0);
+    let checked = 0;
+    let hasMore = false;
+    const due = [];
+    const skipped = [];
+
+    for (let page = 0; page < 10 && due.length < batchSize; page += 1) {
+      const rows = db.prepare(`SELECT * FROM job_reminders
+        WHERE enabled=1 AND reminder_date BETWEEN ? AND ? AND id>?
+        ORDER BY id ASC LIMIT ?`).all(today, maxReminderDate, cursorId, scanPageSize);
+      if (!rows.length) { hasMore = false; break; }
+      let hitBatch = false;
+      for (const row of rows) {
+        checked += 1;
+        cursorId = row.id;
+        const sentKeys = safeJson(row.sent_keys, []);
+        const dueLeads = normalizeLeadDays(row.lead_days, row.reminder_type)
+          .filter(day => addDays(row.reminder_date, -day) === today);
+        for (const leadDay of dueLeads) {
+          const key = `${row.reminder_type}:${row.source_type}:${row.target_id}:${row.reminder_date}:${leadDay}`;
+          if (sentKeys.includes(key)) {
+            db.prepare(`INSERT OR IGNORE INTO reminder_deliveries_v4
+              (reminder_id,delivery_key,user_id,status,attempts,wx_status,sent_at,updated_at)
+              VALUES (?,?,?,'sent',1,'legacy',datetime('now'),datetime('now'))`).run(row.id, key, row.user_id);
+            skipped.push({ id: row.id, key, reason: 'already_sent' });
+            continue;
+          }
+          due.push({ row, leadDay });
+          if (due.length >= batchSize) { hitBatch = true; break; }
+        }
+        if (hitBatch) break;
+      }
+      hasMore = hitBatch || rows.length === scanPageSize;
+      if (!hasMore) break;
+    }
+
+    const outcomes = await runWithConcurrency(due, concurrency, async ({ row, leadDay }) => {
+      const key = `${row.reminder_type}:${row.source_type}:${row.target_id}:${row.reminder_date}:${leadDay}`;
+      if (safeJson(row.sent_keys, []).includes(key)) {
+        db.prepare(`INSERT OR IGNORE INTO reminder_deliveries_v4
+          (reminder_id,delivery_key,user_id,status,attempts,wx_status,sent_at,updated_at)
+          VALUES (?,?,?,'sent',1,'legacy',datetime('now'),datetime('now'))`).run(row.id, key, row.user_id);
+        return { status: 'skipped', id: row.id, key, reason: 'already_sent' };
+      }
+      const claim = claimReminderDelivery(row, key);
+      if (!claim.claimed) return { status: 'skipped', id: row.id, key, reason: claim.reason };
+      const message = buildReminderMessage(row, leadDay);
+      try {
+        const messageId = ensureDeliveryInAppMessage(claim.delivery.id, row.user_id, message);
+        const notifyResult = await sendToUser(row.user_id, message, { inAppMessageId: messageId });
+        const completed = finishReminderDelivery(claim.delivery.id, row, key, notifyResult, '');
+        return completed
+          ? { status: 'sent', id: row.id, userId: row.user_id, key, type: message.type, wxStatus: notifyResult.wechat.status }
+          : { status: 'failed', id: row.id, key, reason: notifyResult.wechat.reason || 'delivery_failed' };
+      } catch (error) {
+        finishReminderDelivery(claim.delivery.id, row, key, null, 'delivery_processing_failed');
+        return { status: 'failed', id: row.id, key, reason: 'delivery_processing_failed' };
+      }
+    });
+    const sent = outcomes.filter(item => item.status === 'sent');
+    const failed = outcomes.filter(item => item.status === 'failed');
+    skipped.push(...outcomes.filter(item => item.status === 'skipped'));
+    const durationMs = Date.now() - startedAt;
+    analytics.track(null, 'reminder_dispatch_completed', {
+      checked, due: due.length, sent: sent.length, failed: failed.length, skipped: skipped.length,
+      durationMs, concurrency, batchSize
+    }, '/api/notify/reminders/dispatch', 'server', { dataClass: 'system', scene: 'cron' });
+    res.json({ code: 0, data: {
+      date: today, checked, due: due.length, sent, failed, skipped, durationMs,
+      concurrency, batchSize, nextCursorId: hasMore ? cursorId : null
+    } });
   } catch (e) {
     console.error('[notify] reminders dispatch failed:', e.message);
     res.status(500).json({ code: -1, message: 'reminder dispatch failed' });
@@ -408,6 +620,37 @@ router.post('/campus-subscribe', authMiddleware, async (req, res) => {
     const content = `deadline:${deadlineDate || '待确认'},campusId:${campusId}`;
     db.prepare('INSERT INTO messages (user_id, type, title, content) VALUES (?, ?, ?, ?)')
       .run(userId, 'campus_reminder', title, content);
+
+    const reminderDate = normalizeReminderDate(deadlineDate);
+    if (reminderDate) {
+      const leadDays = normalizeLeadDays([7, 3, 1, 0], 'campus_deadline');
+      db.prepare(`
+        INSERT INTO job_reminders
+          (user_id, source_type, target_id, reminder_type, title, company, job_title,
+           reminder_date, reminder_time, lead_days, enabled, payload, updated_at)
+        VALUES
+          (@userId, 'campus_schedule', @targetId, 'campus_deadline', @title, @company, @jobTitle,
+           @reminderDate, '', @leadDays, 1, @payload, datetime('now'))
+        ON CONFLICT(user_id, source_type, target_id, reminder_type) DO UPDATE SET
+          title=excluded.title,
+          company=excluded.company,
+          job_title=excluded.job_title,
+          reminder_date=excluded.reminder_date,
+          lead_days=excluded.lead_days,
+          enabled=1,
+          payload=excluded.payload,
+          updated_at=datetime('now')
+      `).run({
+        userId,
+        targetId: String(campusId),
+        title: `${company} ${positionName || '校招岗位'}`.trim(),
+        company: String(company || ''),
+        jobTitle: String(positionName || '校招岗位'),
+        reminderDate,
+        leadDays: JSON.stringify(leadDays),
+        payload: JSON.stringify({ campusId, company, positionName, deadlineDate })
+      });
+    }
 
     // 如有微信模板，发送一条确认通知
     const tplId = TEMPLATES.system_notice;
@@ -443,6 +686,7 @@ router.get('/templates', (req, res) => {
   if (TEMPLATES.interview_done)     configured.interview_done     = TEMPLATES.interview_done;
   if (TEMPLATES.payment_success)    configured.payment_success    = TEMPLATES.payment_success;
   if (TEMPLATES.payment_reminder)   configured.payment_reminder   = TEMPLATES.payment_reminder;
+  if (TEMPLATES.interview_report)   configured.interview_report   = TEMPLATES.interview_report;
   res.json({ code: 0, data: configured });
 });
 
@@ -461,3 +705,10 @@ router.post('/test', authMiddleware, async (req, res) => {
 });
 
 module.exports.router = router;
+module.exports._test = {
+  claimReminderDelivery,
+  ensureDeliveryInAppMessage,
+  finishReminderDelivery,
+  runWithConcurrency,
+  boundedInt
+};

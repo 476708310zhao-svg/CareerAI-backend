@@ -4,7 +4,27 @@ const demoData = require('../../../utils/demo-data.js');
 const { formatSalaryRange } = require('../../../utils/util.js');
 const browseHistory = require('../../../utils/browse-history.js');
 const featureFlags = require('../../../utils/feature-flags.js');
+const favUtil = require('../../../utils/favorites.js');
+const progress = require('../../../utils/job-progress.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
+
+function normalizeSearchHistory(list) {
+  const unique = [];
+  (Array.isArray(list) ? list : []).forEach(item => {
+    const keyword = String(item || '').trim();
+    if (keyword && !unique.some(saved => saved.toLowerCase() === keyword.toLowerCase())) {
+      unique.push(keyword);
+    }
+  });
+
+  return unique.filter((keyword, index) => {
+    const lower = keyword.toLowerCase();
+    return !unique.slice(0, index).some(newerKeyword => {
+      const newerLower = newerKeyword.toLowerCase();
+      return newerLower.length > lower.length && newerLower.startsWith(lower);
+    });
+  }).slice(0, 10);
+}
 
 Page({
   data: {
@@ -25,8 +45,27 @@ Page({
 
   onLoad() {
     if (!featureFlags.guardRecruitmentPage()) return;
-    const history = wx.getStorageSync('searchHistory') || [];
+    const storedHistory = wx.getStorageSync('searchHistory') || [];
+    const history = normalizeSearchHistory(storedHistory);
     this.setData({ searchHistory: history });
+    if (JSON.stringify(history) !== JSON.stringify(storedHistory)) {
+      wx.setStorageSync('searchHistory', history);
+    }
+  },
+
+  onUnload() {
+    clearTimeout(this._searchTimer);
+    clearTimeout(this._jobSearchGuard);
+  },
+
+  onShow() {
+    if (!this.data.jobResults.length) return;
+    this.setData({
+      jobResults: this.data.jobResults.map(job => Object.assign({}, job, {
+        isSaved: favUtil.isFavorited('job', String(job.id)),
+        isApplied: !!progress.getByJobId(job.id)
+      }))
+    });
   },
 
   onInput(e) {
@@ -34,34 +73,55 @@ Page({
     // 防抖：输入停止 400ms 后自动触发搜索
     clearTimeout(this._searchTimer);
     this._searchTimer = setTimeout(() => {
-      if (this.data.keyword.trim()) this.doSearch();
+      if (this.data.keyword.trim()) this.executeSearch(false);
     }, 400);
   },
 
-  // 执行搜索
+  // 用户点击搜索按钮或键盘搜索时，才把完整关键词写入历史。
   doSearch() {
+    clearTimeout(this._searchTimer);
+    this.executeSearch(true);
+  },
+
+  // 实时匹配与历史提交分离，避免把输入过程中的半成品写入历史。
+  executeSearch(recordHistory) {
     const kw = this.data.keyword.trim();
     if (!kw) return;
+    const searchSeq = (this._searchSeq || 0) + 1;
+    this._searchSeq = searchSeq;
 
-    // 保存搜索历史
-    let history = this.data.searchHistory.filter(h => h !== kw);
-    history.unshift(kw);
-    if (history.length > 10) history = history.slice(0, 10);
-    this.setData({ searchHistory: history });
-    wx.setStorageSync('searchHistory', history);
+    if (recordHistory) this.saveSearchHistory(kw);
 
     this.setData({ loading: true, hasSearched: true, jobPage: 1, jobHasMore: false, jobResults: [] });
 
     // 并行：API 搜职位 + 本地搜公司/面经
-    this.searchJobsAPI(kw, 1, false);
+    this.searchJobsAPI(kw, 1, false, searchSeq);
     this.searchCompanies(kw);
     this.searchExperiences(kw);
+
+    clearTimeout(this._jobSearchGuard);
+    this._jobSearchGuard = setTimeout(() => {
+      if (searchSeq !== this._searchSeq || !this.data.loading) return;
+      this.setData({ loading: false, loadingMore: false, jobHasMore: false });
+    }, 12000);
+  },
+
+  saveSearchHistory(keyword) {
+    const history = normalizeSearchHistory([
+      keyword,
+      ...this.data.searchHistory.filter(item => item !== keyword)
+    ]);
+    this.setData({ searchHistory: history });
+    wx.setStorageSync('searchHistory', history);
   },
 
   // 职位搜索 — 接入真实 API
-  searchJobsAPI(kw, page, isLoadMore) {
-    getJobs({ keyword: kw, country: 'us', size: 10, page })
+  searchJobsAPI(kw, page, isLoadMore, searchSeq) {
+    const seq = searchSeq || this._searchSeq || 0;
+    getJobs({ keyword: kw, country: 'us', size: 10, page, timeout: 10000 })
       .then(res => {
+        if (seq !== this._searchSeq) return;
+        clearTimeout(this._jobSearchGuard);
         if (res.data && res.data.length > 0) {
           const newJobs = res.data.map(job => {
             const salary = formatSalaryRange(job.job_min_salary, job.job_max_salary);
@@ -72,11 +132,20 @@ Page({
               salary,
               city: job.job_city || 'Remote',
               state: job.job_state || '',
-              type: job.job_employment_type || 'Full-time',
+              type: job.job_employment_type || '',
               logo: job.employer_logo || '/images/default-company.png',
               postedAt: job.job_posted_at_datetime_utc || '',
+              deadline: job.job_offer_expiration_datetime_utc || job.job_offer_expiration_date || job.valid_through || '',
               rawDescription: job.job_description || '',
-              applyLink: job.job_apply_link || ''
+              applyLink: job.job_apply_link || '',
+              remoteType: job.job_is_remote ? '支持远程' : '',
+              requirements: job.job_highlights && (job.job_highlights.Qualifications || job.job_highlights.qualifications) || [],
+              jobHighlights: job.job_highlights || {},
+              isSaved: favUtil.isFavorited('job', String(job.job_id)),
+              isApplied: !!progress.getByJobId(job.job_id),
+              dataMeta: job.dataMeta,
+              source: job._source || '',
+              postedAtRaw: job.job_posted_at_datetime_utc || ''
             };
           });
           const jobs = isLoadMore ? this.data.jobResults.concat(newJobs) : newJobs;
@@ -93,6 +162,8 @@ Page({
         }
       })
       .catch(() => {
+        if (seq !== this._searchSeq) return;
+        clearTimeout(this._jobSearchGuard);
         if (!isLoadMore && ALLOW_DEMO_FALLBACK) this.searchJobsLocal(kw);
         this.setData({ loading: false, loadingMore: false, jobHasMore: false });
       });
@@ -104,7 +175,7 @@ Page({
     const kw = this.data.keyword.trim();
     if (!kw) return;
     this.setData({ loadingMore: true });
-    this.searchJobsAPI(kw, this.data.jobPage + 1, true);
+    this.searchJobsAPI(kw, this.data.jobPage + 1, true, this._searchSeq || 0);
   },
 
   onReachBottom() {
@@ -121,7 +192,12 @@ Page({
     }
     const lower = kw.toLowerCase();
     const MOCK_JOBS = demoData.getList('JOBS');
-    const results = MOCK_JOBS.filter(j => j.title.toLowerCase().includes(lower) || j.company.toLowerCase().includes(lower));
+    const results = MOCK_JOBS
+      .filter(j => j.title.toLowerCase().includes(lower) || j.company.toLowerCase().includes(lower))
+      .map(job => Object.assign({}, job, {
+        isSaved: favUtil.isFavorited('job', String(job.id)),
+        isApplied: !!progress.getByJobId(job.id)
+      }));
     this.setData({ jobResults: results, loading: false });
   },
 
@@ -182,13 +258,13 @@ Page({
 
   // 快捷/历史搜索
   quickSearch(e) {
-    this.setData({ keyword: e.currentTarget.dataset.keyword });
-    this.doSearch();
+    clearTimeout(this._searchTimer);
+    this.setData({ keyword: e.currentTarget.dataset.keyword }, () => this.doSearch());
   },
 
   historySearch(e) {
-    this.setData({ keyword: e.currentTarget.dataset.keyword });
-    this.doSearch();
+    clearTimeout(this._searchTimer);
+    this.setData({ keyword: e.currentTarget.dataset.keyword }, () => this.doSearch());
   },
 
   clearHistory() {
@@ -202,7 +278,7 @@ Page({
 
   // 跳转
   goToJobDetail(e) {
-    const id = e.currentTarget.dataset.id;
+    const id = e.detail && e.detail.id !== undefined ? e.detail.id : e.currentTarget.dataset.id;
     const job = (this.data.jobResults || []).find(item => String(item.id) === String(id));
     if (job) {
       const snapshot = {
@@ -221,10 +297,30 @@ Page({
       wx.setStorageSync('tempJobDetail', snapshot);
       wx.setStorageSync('jobDetailSnapshot_' + String(id), snapshot);
     }
-    const title = e.currentTarget.dataset.title || '';
+    const title = (job && job.title) || e.currentTarget.dataset.title || '';
     // 记录浏览历史
     if (title) browseHistory.add({ id, title });
     wx.navigateTo({ url: '/package-user/pages/job-detail/job-detail?id=' + encodeURIComponent(id) });
+  },
+
+  toggleJobFavorite(e) {
+    const index = e.detail && Number.isInteger(e.detail.index) ? e.detail.index : -1;
+    const job = this.data.jobResults[index];
+    if (!job) return;
+    const isSaved = favUtil.toggle('job', {
+      targetId: String(job.id),
+      title: job.title,
+      subtitle: job.company,
+      logo: job.logo,
+      salary: job.salary,
+      type: job.type,
+      deadline: job.deadline || ''
+    });
+    const jobResults = this.data.jobResults.map((item, itemIndex) => itemIndex === index
+      ? Object.assign({}, item, { isSaved })
+      : item);
+    this.setData({ jobResults });
+    wx.showToast({ title: isSaved ? '已收藏' : '已取消', icon: 'none' });
   },
 
   goToCompanyDetail(e) {

@@ -23,6 +23,30 @@
       <view class="switcher-btn" bindtap="createResume">+ 新建</view>
     </view>
 
+    <view class="resume-version-card" wx:if="{{isLoggedIn}}">
+      <view class="version-actions" style="margin-bottom: 18rpx;">
+        <view class="version-action" bindtap="openV4ResumeCenter">进入 AI 简历中心</view>
+      </view>
+      <view class="version-head">
+        <view class="version-copy">
+          <view class="version-title-row">
+            <text class="version-title">{{currentResumeName}}</text>
+            <text class="version-default" wx:if="{{currentResumeIsDefault}}">默认简历</text>
+          </view>
+          <text class="version-desc">{{targetJobInput || currentResumeTargetRole || '未设置目标岗位'}}</text>
+        </view>
+        <view class="version-score">{{onlineResume.score}}%</view>
+      </view>
+      <view class="version-meta">
+        <text>{{currentResumeUpdatedAt || '刚刚更新'}}</text>
+        <text>{{optimizationHistory.length}} 条优化记录</text>
+      </view>
+      <view class="version-actions">
+        <view class="version-action" bindtap="openResumeMetaEditor">编辑版本信息</view>
+        <view class="version-action ghost" bindtap="setCurrentResumeDefault" wx:if="{{!currentResumeIsDefault}}">设为默认</view>
+      </view>
+    </view>
+
     <!-- 简历管理面板 -->
     <view class="resume-manager-mask" wx:if="{{showResumeManager}}" bindtap="hideResumeManager"></view>
     <view class="resume-manager-panel {{showResumeManager ? 'show' : ''}}">
@@ -30,14 +54,19 @@
         <text class="rmp-title">我的简历</text>
         <text class="rmp-close" bindtap="hideResumeManager">✕</text>
       </view>
-      <scroll-view class="rmp-list" scroll-y>
+      <scroll-view class="rmp-list" scroll-y enhanced show-scrollbar="{{false}}">
         <view wx:for="{{serverResumes}}" wx:key="id"
               class="rmp-item {{item.id === currentResumeId ? 'active' : ''}}"
               bindtap="selectResume" data-id="{{item.id}}" data-name="{{item.name}}">
           <view class="rmp-item-info">
-            <text class="rmp-item-name">{{item.name}}</text>
-            <text class="rmp-item-time">{{item.updated_at}}</text>
+            <view class="rmp-name-row">
+              <text class="rmp-item-name">{{item.name}}</text>
+              <text wx:if="{{item.isDefault}}" class="rmp-default-badge">默认</text>
+            </view>
+            <text class="rmp-target">目标：{{item._targetText}}</text>
+            <text class="rmp-item-time">{{item._updatedText}}</text>
           </view>
+          <view wx:if="{{!item.isDefault}}" class="rmp-item-default" catchtap="setDefaultServerResume" data-id="{{item.id}}">设默认</view>
           <view class="rmp-item-del" catchtap="deleteServerResume" data-id="{{item.id}}">删除</view>
         </view>
         <view wx:if="{{!serverResumes.length}}" class="rmp-empty">暂无简历，点击"新建"创建一份</view>
@@ -69,8 +98,8 @@
     <!-- 隐藏画布（用于导出为图片） -->
     <canvas type="2d" id="resumeExportCanvas" style="position:fixed;left:-9999rpx;top:-9999rpx;width:750rpx;height:1rpx;"></canvas>
 
-    <!-- 基本信息 -->
-    <view class="section-card">
+    <!-- 基本信息与个人优势 -->
+    <view class="section-card profile-summary-card">
       <view class="card-header">
         <view class="left-border">基本信息</view>
         <view class="edit-icon" bindtap="editBasicInfo">编辑</view>
@@ -94,11 +123,10 @@
         </view>
       </view>
       <view wx:else class="empty-hint" bindtap="editBasicInfo">点击填写基本信息</view>
-    </view>
 
-    <!-- 个人优势 -->
-    <view class="section-card">
-      <view class="card-header">
+      <view class="profile-card-divider"></view>
+
+      <view class="card-header profile-summary-header">
         <view class="left-border">个人优势</view>
         <view class="ai-group">
           <view class="ai-btn review" bindtap="handleAiReview">AI审核</view>
@@ -118,7 +146,7 @@
         <view class="left-border">岗位匹配分析</view>
       </view>
       <view class="match-box">
-        <input class="match-input" placeholder="输入目标岗位（如 Software Engineer）" bindinput="onTargetJobInput" value="{{targetJobInput}}" />
+        <input class="match-input" placeholder="输入目标岗位（如 Software Engineer）" bindinput="onTargetJobInput" bindblur="saveTargetJobRole" value="{{targetJobInput}}" />
         <view class="ai-btn match" bindtap="handleAiMatch">AI匹配</view>
       </view>
       <view class="nlp-row">
@@ -129,6 +157,23 @@
           <text wx:else class="nlp-btn-sub">ATS关键词 · 动词升级 · 优先改进</text>
         </view>
       </view>
+    </view>
+
+    <view class="section-card version-history-card" wx:if="{{formattedOptimizationHistory.length}}">
+      <view class="card-header">
+        <view class="left-border">优化历史</view>
+        <view class="history-count">近 {{formattedOptimizationHistory.length}} 条</view>
+      </view>
+      <block wx:for="{{formattedOptimizationHistory}}" wx:key="id">
+        <view class="history-item">
+          <view class="history-top">
+            <text class="history-type">{{item.typeText}}</text>
+            <text class="history-time">{{item.timeText}}</text>
+          </view>
+          <text class="history-target" wx:if="{{item.targetRole}}">目标：{{item.targetRole}}</text>
+          <text class="history-after">{{item.afterPreview}}</text>
+        </view>
+      </block>
     </view>
 
     <!-- 工作经历 -->
@@ -284,7 +329,7 @@
       </view>
       <text class="nlp-panel-close" bindtap="closeNlpPanel">✕</text>
     </view>
-    <scroll-view class="nlp-panel-body" scroll-y>
+    <scroll-view class="nlp-panel-body" scroll-y enhanced show-scrollbar="{{false}}">
       <text class="nlp-result-text" user-select>{{nlpResult}}</text>
     </scroll-view>
     <view class="nlp-panel-footer">
@@ -294,10 +339,29 @@
 
   <!-- ======================== 统一弹窗容器（微信每页只允许一个 page-container）======================== -->
   <page-container
-    show="{{showEditBasic || showEditSummary || showEditWork || showEditEdu || showEditSkills || showEditProject || showAiResult}}"
+    show="{{showEditBasic || showEditSummary || showEditWork || showEditEdu || showEditSkills || showEditProject || showAiResult || showResumeMetaEditor}}"
     round position="bottom"
     custom-style="{{_modalStyle}}"
     bind:clickoverlay="_closeActiveModal">
+
+    <!-- 编辑版本信息 -->
+    <view wx:if="{{showResumeMetaEditor}}" class="edit-modal">
+      <view class="edit-modal-header">
+        <text class="edit-modal-title">编辑版本信息</text>
+        <view class="close-btn" bindtap="closeResumeMetaEditor">×</view>
+      </view>
+      <view class="edit-form">
+        <view class="form-item">
+          <text class="form-label">版本名称</text>
+          <input class="form-input" value="{{editResumeMetaForm.name}}" bindinput="onResumeMetaInput" data-field="name" placeholder="如：产品经理投递版" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">目标岗位</text>
+          <input class="form-input" value="{{editResumeMetaForm.targetRole}}" bindinput="onResumeMetaInput" data-field="targetRole" placeholder="如 Data Analyst / 产品经理" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
+        </view>
+      </view>
+      <c-button class="save-btn" bindtap="saveResumeMeta">保存版本信息</c-button>
+    </view>
 
     <!-- 编辑基本信息 -->
     <view wx:if="{{showEditBasic}}" class="edit-modal">
@@ -308,19 +372,19 @@
       <view class="edit-form">
         <view class="form-item">
           <text class="form-label">姓名</text>
-          <input class="form-input" value="{{editBasicForm.name}}" bindinput="onBasicInput" data-field="name" placeholder="请输入姓名" />
+          <input class="form-input" value="{{editBasicForm.name}}" bindinput="onBasicInput" data-field="name" placeholder="请输入姓名" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">求职意向</text>
-          <input class="form-input" value="{{editBasicForm.title}}" bindinput="onBasicInput" data-field="title" placeholder="如 Frontend Developer" />
+          <input class="form-input" value="{{editBasicForm.title}}" bindinput="onBasicInput" data-field="title" placeholder="如 Frontend Developer" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">电话</text>
-          <input class="form-input" value="{{editBasicForm.phone}}" bindinput="onBasicInput" data-field="phone" placeholder="请输入手机号" type="number" />
+          <input class="form-input" value="{{editBasicForm.phone}}" bindinput="onBasicInput" data-field="phone" placeholder="请输入手机号" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" type="number" />
         </view>
         <view class="form-item">
           <text class="form-label">邮箱</text>
-          <input class="form-input" value="{{editBasicForm.email}}" bindinput="onBasicInput" data-field="email" placeholder="请输入邮箱" />
+          <input class="form-input" value="{{editBasicForm.email}}" bindinput="onBasicInput" data-field="email" placeholder="请输入邮箱" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
       </view>
       <c-button class="save-btn" bindtap="saveBasicInfo">保存</c-button>
@@ -332,7 +396,7 @@
         <text class="edit-modal-title">编辑个人优势</text>
         <view class="close-btn" bindtap="cancelEditSummary">X</view>
       </view>
-      <textarea class="edit-textarea" value="{{editSummaryText}}" bindinput="onSummaryInput" placeholder="描述你的核心竞争力、专业技能和职业亮点..." maxlength="500" auto-height></textarea>
+      <textarea class="edit-textarea" value="{{editSummaryText}}" bindinput="onSummaryInput" placeholder="描述你的核心竞争力、专业技能和职业亮点..." placeholder-class="form-placeholder" maxlength="500" cursor-spacing="24"></textarea>
       <c-button class="save-btn" bindtap="saveSummary">保存</c-button>
     </view>
 
@@ -345,19 +409,19 @@
       <view class="edit-form">
         <view class="form-item">
           <text class="form-label">公司名称</text>
-          <input class="form-input" value="{{editWorkForm.company}}" bindinput="onWorkInput" data-field="company" placeholder="请输入公司名称" />
+          <input class="form-input" value="{{editWorkForm.company}}" bindinput="onWorkInput" data-field="company" placeholder="请输入公司名称" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">职位</text>
-          <input class="form-input" value="{{editWorkForm.role}}" bindinput="onWorkInput" data-field="role" placeholder="请输入职位名称" />
+          <input class="form-input" value="{{editWorkForm.role}}" bindinput="onWorkInput" data-field="role" placeholder="请输入职位名称" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">时间</text>
-          <input class="form-input" value="{{editWorkForm.time}}" bindinput="onWorkInput" data-field="time" placeholder="如 2022.06 - 至今" />
+          <input class="form-input" value="{{editWorkForm.time}}" bindinput="onWorkInput" data-field="time" placeholder="如 2022.06 - 至今" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">工作描述</text>
-          <textarea class="form-textarea" value="{{editWorkForm.desc}}" bindinput="onWorkInput" data-field="desc" placeholder="描述你的工作职责和成果..." maxlength="500" auto-height></textarea>
+          <textarea class="form-textarea" value="{{editWorkForm.desc}}" bindinput="onWorkInput" data-field="desc" placeholder="描述你的工作职责和成果..." placeholder-class="form-placeholder" maxlength="500" cursor-spacing="24"></textarea>
         </view>
       </view>
       <view class="edit-modal-footer">
@@ -375,19 +439,19 @@
       <view class="edit-form">
         <view class="form-item">
           <text class="form-label">学校名称</text>
-          <input class="form-input" value="{{editEduForm.school}}" bindinput="onEduInput" data-field="school" placeholder="请输入学校名称" />
+          <input class="form-input" value="{{editEduForm.school}}" bindinput="onEduInput" data-field="school" placeholder="请输入学校名称" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">学历</text>
-          <input class="form-input" value="{{editEduForm.degree}}" bindinput="onEduInput" data-field="degree" placeholder="如：本科 / 硕士 / 博士" />
+          <input class="form-input" value="{{editEduForm.degree}}" bindinput="onEduInput" data-field="degree" placeholder="如：本科 / 硕士 / 博士" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">专业</text>
-          <input class="form-input" value="{{editEduForm.major}}" bindinput="onEduInput" data-field="major" placeholder="请输入专业名称" />
+          <input class="form-input" value="{{editEduForm.major}}" bindinput="onEduInput" data-field="major" placeholder="请输入专业名称" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">时间</text>
-          <input class="form-input" value="{{editEduForm.time}}" bindinput="onEduInput" data-field="time" placeholder="如 2020.09 - 2024.06" />
+          <input class="form-input" value="{{editEduForm.time}}" bindinput="onEduInput" data-field="time" placeholder="如 2020.09 - 2024.06" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
       </view>
       <view class="edit-modal-footer">
@@ -411,7 +475,7 @@
         </block>
       </view>
       <view class="skill-input-row">
-        <input class="skill-input" value="{{skillInput}}" bindinput="onSkillInput" bindconfirm="addSkill" placeholder="输入技能后按回车添加" />
+        <input class="skill-input" value="{{skillInput}}" bindinput="onSkillInput" bindconfirm="addSkill" placeholder="输入技能后按回车添加" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         <view class="add-skill-btn" bindtap="addSkill">添加</view>
       </view>
       <c-button class="save-btn" style="margin-top: 20rpx;" bindtap="closeSkillsEdit">完成</c-button>
@@ -426,19 +490,19 @@
       <view class="edit-form">
         <view class="form-item">
           <text class="form-label">项目名称</text>
-          <input class="form-input" value="{{editProjectForm.name}}" bindinput="onProjectInput" data-field="name" placeholder="请输入项目名称" />
+          <input class="form-input" value="{{editProjectForm.name}}" bindinput="onProjectInput" data-field="name" placeholder="请输入项目名称" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">担任角色</text>
-          <input class="form-input" value="{{editProjectForm.role}}" bindinput="onProjectInput" data-field="role" placeholder="如：前端开发 / 项目负责人" />
+          <input class="form-input" value="{{editProjectForm.role}}" bindinput="onProjectInput" data-field="role" placeholder="如：前端开发 / 项目负责人" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">时间</text>
-          <input class="form-input" value="{{editProjectForm.time}}" bindinput="onProjectInput" data-field="time" placeholder="如 2023.01 - 2023.06" />
+          <input class="form-input" value="{{editProjectForm.time}}" bindinput="onProjectInput" data-field="time" placeholder="如 2023.01 - 2023.06" placeholder-class="form-placeholder" cursor-spacing="24" always-embed="{{true}}" />
         </view>
         <view class="form-item">
           <text class="form-label">项目描述</text>
-          <textarea class="form-textarea" value="{{editProjectForm.desc}}" bindinput="onProjectInput" data-field="desc" placeholder="描述项目背景、你的贡献和成果..." maxlength="500" auto-height></textarea>
+          <textarea class="form-textarea" value="{{editProjectForm.desc}}" bindinput="onProjectInput" data-field="desc" placeholder="描述项目背景、你的贡献和成果..." placeholder-class="form-placeholder" maxlength="500" cursor-spacing="24"></textarea>
         </view>
       </view>
       <view class="edit-modal-footer">
@@ -453,7 +517,7 @@
         <text class="ai-title">{{aiResultTitle}}</text>
         <view class="close-btn" bindtap="closeAiResult">×</view>
       </view>
-      <scroll-view scroll-y enhanced show-scrollbar class="ai-content-scroll">
+      <scroll-view scroll-y enhanced show-scrollbar="{{false}}" class="ai-content-scroll">
         <text class="ai-text" user-select>{{aiResultContent}}</text>
       </scroll-view>
       <view class="ai-footer">
@@ -470,3 +534,10 @@
   </page-container>
 
 </view>
+
+<c-login-popup
+  show="{{authPromptVisible}}"
+  subtitle="{{authPromptSubtitle}}"
+  bindclose="closeAuthPrompt"
+  bindsuccess="onAuthPromptSuccess"
+/>

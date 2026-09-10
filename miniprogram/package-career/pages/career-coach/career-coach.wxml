@@ -1,0 +1,63 @@
+<view class="page">
+  <c-ai-disclosure text="分数只衡量当前可核验的求职准备证据，不是个人能力、录用概率或成功率。" />
+
+  <view wx:if="{{loading}}" class="state-card">正在整理你的真实求职数据…</view>
+  <view wx:elif="{{loginRequired}}" class="state-card">
+    <text class="state-title">登录后开启竞争力陪跑</text>
+    <text class="state-copy">诊断、任务和周复盘会通过账号跨设备同步。</text>
+    <view class="primary-btn" bindtap="promptLogin">登录并开始</view>
+  </view>
+  <view wx:elif="{{error}}" class="state-card">
+    <text class="state-title">暂时无法加载</text><text class="state-copy">{{error}}</text>
+    <view class="secondary-btn" bindtap="retry">重新加载</view>
+  </view>
+
+  <block wx:else>
+    <view class="hero-card">
+      <view class="hero-copy">
+        <text class="eyebrow">CAREER COMPETITIVENESS</text>
+        <text class="hero-title">求职竞争力</text>
+        <text class="hero-sub">{{diagnostic.scoreLabel}} · 基于画像、经历、简历、面试和真实求职进度</text>
+      </view>
+      <view class="score-ring"><text class="score">{{diagnostic.overallScore}}</text><text class="score-unit">/100</text></view>
+    </view>
+
+    <view class="section-card">
+      <view class="section-head"><view><text class="section-title">七维诊断</text><text class="section-sub">低分项必须有证据、差距和行动入口</text></view><view class="mini-btn" bindtap="createPriorityTasks">生成补强任务</view></view>
+      <view class="dimension" wx:for="{{dimensions}}" wx:key="key">
+        <view class="dimension-head"><text class="dimension-title">{{item.label}}</text><text class="dimension-score status-{{item.status.code}}">{{item.score}} · {{item.status.label}}</text></view>
+        <view class="progress"><view class="progress-value status-bg-{{item.status.code}}" style="width: {{item.score}}%;"></view></view>
+        <text class="evidence" wx:for="{{item.evidence}}" wx:for-item="evidence" wx:key="*this">依据：{{evidence}}</text>
+        <text class="gap">差距：{{item.gap}}</text>
+        <view class="dimension-action"><text>{{item.action.title}}</text><view class="text-btn" data-key="{{item.key}}" bindtap="createDimensionTask">加入 Today</view></view>
+      </view>
+    </view>
+
+    <view class="section-card">
+      <view class="section-head"><view><text class="section-title">今日关键任务</text><text class="section-sub">每天自动生成 3～5 项，可完成或延期</text></view></view>
+      <view wx:if="{{!todayTasks.length}}" class="empty">今日关键任务已完成</view>
+      <view class="task" wx:for="{{todayTasks}}" wx:key="id">
+        <view class="task-main" data-url="{{item.url}}" bindtap="openTask"><text class="task-title">{{item.title}}</text><text class="task-detail">{{item.detail}}</text></view>
+        <view class="task-actions"><view class="task-btn" data-id="{{item.id}}" bindtap="deferTask">明天</view><view class="task-btn done" data-id="{{item.id}}" bindtap="completeTask">完成</view></view>
+      </view>
+      <view wx:if="{{scheduledTasks.length}}" class="scheduled">已延期 {{scheduledTasks.length}} 项，届时会重新出现在 Today</view>
+    </view>
+
+    <view class="section-card" wx:if="{{weekly}}">
+      <view class="section-head"><view><text class="section-title">本周求职报告</text><text class="section-sub">{{weekly.period.start}} 至 {{weekly.period.end}}</text></view></view>
+      <view class="input-grid"><view class="input-item" wx:for="{{weeklyInput}}" wx:key="key"><text class="input-value">{{item.value}}</text><text class="input-label">{{item.label}}</text></view></view>
+      <view class="bottleneck"><text class="bottleneck-label">当前瓶颈</text><text class="bottleneck-title">{{weekly.bottleneck.label}}</text><text class="bottleneck-copy">{{weekly.bottleneck.evidence}}</text></view>
+      <view class="conversion" wx:for="{{conversions}}" wx:key="label"><text>{{item.label}}</text><text>{{item.displayText}}</text></view>
+      <text class="notice">{{weekly.evidenceNotice}}</text>
+      <text class="focus-title">下周重点</text><text class="focus" wx:for="{{weekly.nextWeekFocus}}" wx:key="*this">• {{item}}</text>
+    </view>
+
+    <view class="section-card" wx:if="{{plan}}">
+      <view class="section-head"><view><text class="section-title">动态 3 / 6 / 12 月计划</text><text class="section-sub">随申请状态、简历和面试反馈自动刷新</text></view></view>
+      <view class="basis"><text>当前依据：{{plan.basis.bottleneck}}</text><text>{{plan.basis.evidence}}</text></view>
+      <view class="horizon" wx:for="{{horizons}}" wx:key="months">
+        <view class="month-badge">{{item.months}}个月</view><view class="horizon-copy"><text class="horizon-title">{{item.title}}</text><text class="horizon-objective">{{item.objective}}</text><text class="horizon-action" wx:for="{{item.actions}}" wx:for-item="action" wx:key="*this">• {{action}}</text><text class="metric">验收：{{item.metric}}</text></view>
+      </view>
+    </view>
+  </block>
+</view>

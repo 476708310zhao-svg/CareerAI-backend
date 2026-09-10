@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "AI Career",
+  "enablePullDownRefresh": true,
+  "backgroundColor": "#F5F7FB",
+  "usingComponents": {
+    "c-ai-disclosure": "/components/c-ai-disclosure/c-ai-disclosure"
+  }
+}

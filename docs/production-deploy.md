@@ -27,18 +27,18 @@ sudo npm install -g pm2
 代码目录和业务数据分离：
 
 ```bash
-sudo mkdir -p /www/wwwroot/jobapp-server
+sudo mkdir -p /www/wwwroot/zhiyincareer-main/releases
 sudo mkdir -p /var/lib/jobapp-server/db
 sudo mkdir -p /var/lib/jobapp-server/uploads
 sudo mkdir -p /var/lib/jobapp-server/data
 sudo mkdir -p /var/log/jobapp-server
-sudo mkdir -p /var/backups/jobapp-server
+sudo mkdir -p /www/backups/zhiyincareer
 ```
 
-把代码部署到：
+每次把代码部署到新的不可变版本目录：
 
 ```bash
-/www/wwwroot/jobapp-server
+/www/wwwroot/zhiyincareer-main/releases/<run-id>-<commit>
 ```
 
 把数据库、上传文件、后台职位数据放到：
@@ -47,35 +47,38 @@ sudo mkdir -p /var/backups/jobapp-server
 /var/lib/jobapp-server
 ```
 
-## 3. 部署代码
+当前线上版本统一由以下软链接指向：
 
 ```bash
-cd /www/wwwroot
-git clone <你的仓库地址> jobapp-server
-cd /www/wwwroot/jobapp-server
-npm ci --omit=dev
+/www/wwwroot/zhiyincareer-main/current
 ```
 
-如果是已有目录：
+## 3. 部署代码
+
+推荐在 GitHub Actions 中手动触发 `Deploy Backend`。工作流会上传独立版本、备份共享数据、运行发布检查和严格预检，再切换 `current`。推送 `main` 不会自动发布。
+
+服务器上手动执行时，先把完整代码上传到一个新版本目录，再运行：
 
 ```bash
-cd /www/wwwroot/jobapp-server
-git pull origin main
-npm ci --omit=dev
+cd /www/wwwroot/zhiyincareer-main/releases/<release>
+chmod +x deploy.sh scripts/*.sh
+APP_DATA_DIR=/var/lib/jobapp-server BACKUP_DIR=/www/backups/zhiyincareer bash scripts/backup-production.sh
+bash deploy.sh
 ```
 
 ## 4. 配置生产 .env
 
 ```bash
-cp .env.example .env
-nano .env
+cp .env.example /var/lib/jobapp-server/.env
+chmod 600 /var/lib/jobapp-server/.env
+nano /var/lib/jobapp-server/.env
 ```
 
 生产环境关键配置：
 
 ```bash
 NODE_ENV=production
-PORT=3001
+PORT=4400
 
 DATA_DIR=/var/lib/jobapp-server/data
 UPLOAD_DIR=/var/lib/jobapp-server/uploads
@@ -115,7 +118,7 @@ VIRTUAL_PAY_NOTIFY_TOKEN=<微信消息推送 Token>
 首次部署如果需要导入种子数据：
 
 ```bash
-cd /www/wwwroot/jobapp-server
+cd /www/wwwroot/zhiyincareer-main/current
 NODE_ENV=production node db/seed.js
 ```
 
@@ -130,7 +133,7 @@ scp data/jobs.json root@your-server:/var/lib/jobapp-server/data/jobs.json
 ## 6. PM2 启动
 
 ```bash
-cd /www/wwwroot/jobapp-server
+cd /www/wwwroot/zhiyincareer-main/current
 sudo mkdir -p /var/log/jobapp-server
 pm2 start ecosystem.config.cjs
 pm2 save
@@ -142,7 +145,7 @@ pm2 startup
 ```bash
 pm2 status
 pm2 logs jobapp-server
-curl http://127.0.0.1:3001/api/health
+curl http://127.0.0.1:4400/api/health/ready
 ```
 
 ## 7. Nginx HTTPS 反向代理
@@ -172,7 +175,7 @@ curl https://api.zhiyincareer.com/api/health
 手动备份：
 
 ```bash
-bash /www/wwwroot/jobapp-server/scripts/backup-production.sh
+bash /www/wwwroot/zhiyincareer-main/current/scripts/backup-production.sh
 ```
 
 每日 03:20 自动备份：
@@ -184,7 +187,7 @@ crontab -e
 加入：
 
 ```cron
-20 3 * * * APP_DATA_DIR=/var/lib/jobapp-server BACKUP_DIR=/var/backups/jobapp-server bash /www/wwwroot/jobapp-server/scripts/backup-production.sh >> /var/log/jobapp-server/backup.log 2>&1
+20 3 * * * APP_DATA_DIR=/var/lib/jobapp-server BACKUP_DIR=/www/backups/zhiyincareer bash /www/wwwroot/zhiyincareer-main/current/scripts/backup-production.sh >> /var/log/jobapp-server/backup.log 2>&1
 ```
 
 ## 9. 发布流程
@@ -192,19 +195,17 @@ crontab -e
 每次上线：
 
 ```bash
-cd /www/wwwroot/jobapp-server
-bash scripts/backup-production.sh
-git pull origin main
-npm ci --omit=dev
-npm test
-pm2 reload ecosystem.config.cjs --update-env
-curl https://api.zhiyincareer.com/api/health
+cd /www/wwwroot/zhiyincareer-main/releases/<release>
+APP_DATA_DIR=/var/lib/jobapp-server BACKUP_DIR=/www/backups/zhiyincareer bash scripts/backup-production.sh
+bash deploy.sh
+curl -fsS https://api.zhiyincareer.com/api/health/ready
 ```
 
 ## 10. 上线前核对
 
 - `.env` 中没有示例值和占位符
 - `NODE_ENV=production`
+- `PORT=4400`
 - `DB_PATH` 指向 `/var/lib/jobapp-server/db/jobapp.db`
 - `UPLOAD_DIR` 指向 `/var/lib/jobapp-server/uploads`
 - `DATA_DIR` 指向 `/var/lib/jobapp-server/data`
@@ -215,3 +216,4 @@ curl https://api.zhiyincareer.com/api/health
 - 微信小程序后台合法域名已配置
 - PM2 已设置开机自启
 - 备份 cron 已配置
+- `current` 指向本次发布版本，上一版本目录仍保留

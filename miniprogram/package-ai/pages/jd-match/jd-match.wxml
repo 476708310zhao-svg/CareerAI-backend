@@ -1,0 +1,185 @@
+<view class="page">
+  <c-ai-disclosure text="JD 快速匹配为轻量分析结果，适合投递前快速判断，完整优化请继续使用 ATS 简历优化。" />
+
+  <block wx:if="{{step === 'input'}}">
+    <view class="hero">
+      <text class="hero-kicker">JD 快速匹配</text>
+      <text class="hero-title">1 分钟判断这个岗位值不值得投</text>
+      <text class="hero-sub">粘贴岗位描述，选择已有简历或粘贴简历，立即查看匹配分、关键词缺口和下一步建议。</text>
+    </view>
+
+    <view class="panel history-panel" wx:if="{{recentReports.length || historyLoading}}">
+      <view class="panel-head">
+        <text class="panel-title">最近报告</text>
+        <text class="panel-note">{{historyLoading ? '同步中' : recentReports.length + ' 份'}}</text>
+      </view>
+      <block wx:for="{{recentReports}}" wx:key="id">
+        <view class="history-item" bindtap="openHistoryReport" data-id="{{item.id}}">
+          <view class="history-score {{item.scoreTone}}">
+            <text>{{item.score}}</text>
+          </view>
+          <view class="history-main">
+            <text class="history-title">{{item.jobTitle || '目标岗位'}}</text>
+            <text class="history-sub">{{item.company || '目标公司'}} · {{item.resumeName}}</text>
+            <text class="history-missing" wx:if="{{item.missingPreviewText}}">缺口：{{item.missingPreviewText}}</text>
+          </view>
+          <text class="history-date">{{item.createdDate}}</text>
+        </view>
+      </block>
+    </view>
+
+    <view class="panel">
+      <view class="panel-head">
+        <text class="panel-title">岗位信息</text>
+        <text class="panel-note">粘贴 JD 后可自动回填</text>
+      </view>
+      <input class="input" placeholder="岗位名称，如 Data Analyst" value="{{form.jobTitle}}" data-field="jobTitle" bindinput="onFieldInput" maxlength="80" />
+      <input class="input" placeholder="公司名称，如 TikTok" value="{{form.company}}" data-field="company" bindinput="onFieldInput" maxlength="80" />
+      <input class="input" placeholder="岗位链接，可选" value="{{form.jobLink}}" data-field="jobLink" bindinput="onFieldInput" maxlength="300" />
+    </view>
+
+    <view class="panel">
+      <view class="panel-head">
+        <text class="panel-title">粘贴 JD</text>
+        <view class="panel-tools">
+          <view class="mini-action" bindtap="pasteJdFromClipboard">粘贴识别</view>
+          <text class="counter {{jdLen < 40 ? 'warn' : ''}}">{{jdLen}}/5000</text>
+        </view>
+      </view>
+      <textarea
+        class="textarea jd"
+        placeholder="粘贴完整岗位描述，建议包含岗位职责、要求、技能关键词和加分项。"
+        value="{{form.jdText}}"
+        data-field="jdText"
+        bindinput="onFieldInput"
+        maxlength="5000"
+        show-confirm-bar="{{false}}"
+      />
+      <view class="jd-parse-row">
+        <view class="jd-parse-copy">
+          <text class="jd-parse-tip">{{jdParseTip || '粘贴 JD 后将自动识别岗位、公司和链接'}}</text>
+          <view class="jd-parse-chips" wx:if="{{jdParsedFields.length}}">
+            <text wx:for="{{jdParsedFields}}" wx:key="*this" class="jd-parse-chip">{{item}}</text>
+          </view>
+        </view>
+        <view class="jd-parse-btn" bindtap="recognizeJdInfo">重新识别</view>
+      </view>
+    </view>
+
+    <view class="panel">
+      <view class="panel-head">
+        <text class="panel-title">选择简历</text>
+        <text class="panel-note">{{onlineResumeLoading ? '加载中' : (hasOnlineResume ? onlineResumeName : '暂无历史简历')}}</text>
+      </view>
+      <view class="source-tabs">
+        <view class="source-tab {{useOnlineResume ? 'active' : ''}} {{!hasOnlineResume ? 'disabled' : ''}}" data-source="online" bindtap="switchResumeSource">
+          <text>历史简历</text>
+        </view>
+        <view class="source-tab {{!useOnlineResume ? 'active' : ''}}" data-source="paste" bindtap="switchResumeSource">
+          <text>粘贴简历</text>
+        </view>
+      </view>
+      <view wx:if="{{useOnlineResume && hasOnlineResume}}" class="resume-picked">
+        <picker mode="selector" range="{{resumeVersionLabels}}" value="{{selectedResumeIndex}}" bindchange="onResumeVersionChange" disabled="{{onlineResumeLoading || resumeVersionList.length <= 1}}">
+          <view class="resume-picker-row">
+            <view class="resume-picked-copy">
+              <text class="resume-picked-title">已选择：{{onlineResumeName}}</text>
+              <text class="resume-picked-sub">{{onlineResumeTargetRole || '将使用该简历生成匹配分。'}}</text>
+            </view>
+            <text class="resume-picker-action">{{resumeVersionList.length > 1 ? '切换 ›' : '默认'}}</text>
+          </view>
+        </picker>
+      </view>
+      <textarea
+        wx:if="{{!useOnlineResume}}"
+        class="textarea resume"
+        placeholder="粘贴简历文本，至少 40 字。完整简历可在官网端维护。"
+        value="{{form.resumeText}}"
+        data-field="resumeText"
+        bindinput="onFieldInput"
+        maxlength="5000"
+        show-confirm-bar="{{false}}"
+      />
+      <view wx:if="{{!useOnlineResume}}" class="counter resume-counter">{{resumeLen}}/5000</view>
+    </view>
+
+    <view class="sticky-actions">
+      <view class="primary-btn" bindtap="startMatch">生成匹配分</view>
+      <view class="secondary-btn" bindtap="goResume">完善简历</view>
+    </view>
+  </block>
+
+  <block wx:if="{{step === 'result' && report}}">
+    <view class="result-hero {{report.scoreTone}}">
+      <view class="score-box">
+        <text class="score">{{report.score}}</text>
+        <text class="score-label">匹配分</text>
+      </view>
+      <view class="result-copy">
+        <text class="result-title">{{report.jobTitle || '目标岗位'}}</text>
+        <text class="result-company">{{report.company || '目标公司'}} · {{report.resumeName}}</text>
+        <text class="result-advice">{{report.recommendText}}</text>
+      </view>
+    </view>
+
+    <view class="summary-grid">
+      <view class="summary-cell">
+        <text class="summary-value">{{report.matchedKeywords.length}}</text>
+        <text class="summary-label">命中关键词</text>
+      </view>
+      <view class="summary-cell">
+        <text class="summary-value">{{report.missingKeywords.length}}</text>
+        <text class="summary-label">缺失关键词</text>
+      </view>
+      <view class="summary-cell">
+        <text class="summary-value">{{report.atsRisk}}</text>
+        <text class="summary-label">ATS 风险</text>
+      </view>
+    </view>
+
+    <view class="panel">
+      <view class="panel-head">
+        <text class="panel-title">岗位关键词</text>
+      </view>
+      <view class="chips">
+        <text wx:for="{{report.matchedKeywords}}" wx:key="*this" class="chip matched">{{item}}</text>
+        <text wx:if="{{!report.matchedKeywords.length}}" class="empty-text">暂未命中明显关键词</text>
+      </view>
+    </view>
+
+    <view class="panel">
+      <view class="panel-head">
+        <text class="panel-title">缺失关键词</text>
+      </view>
+      <view class="chips">
+        <text wx:for="{{report.missingKeywords}}" wx:key="*this" class="chip missing">{{item}}</text>
+        <text wx:if="{{!report.missingKeywords.length}}" class="empty-text">关键词覆盖较好</text>
+      </view>
+    </view>
+
+    <view class="panel">
+      <view class="panel-head">
+        <text class="panel-title">简历优化建议</text>
+      </view>
+      <view wx:for="{{report.suggestions}}" wx:key="*this" class="suggestion-item">
+        <text>{{item}}</text>
+      </view>
+    </view>
+
+    <view class="panel">
+      <view class="panel-head">
+        <text class="panel-title">面试准备建议</text>
+      </view>
+      <view wx:for="{{report.interviewPrep}}" wx:key="*this" class="suggestion-item interview">
+        <text>{{item}}</text>
+      </view>
+    </view>
+
+    <view class="result-actions">
+      <view class="primary-btn" bindtap="saveToProgress">{{savedProgress ? '已加入投递追踪' : '加入投递追踪'}}</view>
+      <view class="secondary-btn" bindtap="goAtsOptimize">生成优化简历</view>
+      <view class="secondary-btn" bindtap="goProgress">查看进度</view>
+      <view class="ghost-btn" bindtap="resetMatch">重新匹配</view>
+    </view>
+  </block>
+</view>

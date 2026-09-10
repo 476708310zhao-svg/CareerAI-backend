@@ -27,10 +27,24 @@ Component({
 
   methods: {
     onBackdropTap() {
-      this.triggerEvent('close');
+      this._dismissLogin('backdrop');
     },
 
     onSheetTap() {},
+
+    onCloseTap() {
+      this._dismissLogin('close-button');
+    },
+
+    onSkipLogin() {
+      this._dismissLogin('skip-login');
+    },
+
+    _dismissLogin(reason) {
+      this.setData({ loadingWechat: false, loadingPhone: false });
+      this.triggerEvent('cancel', { reason });
+      this.triggerEvent('close', { reason });
+    },
 
     toggleAgree() {
       this.setData({ agreed: !this.data.agreed });
@@ -101,6 +115,7 @@ Component({
       }
       if (!e.detail.code) {
         wx.showToast({ title: '已取消手机号授权', icon: 'none' });
+        this._dismissLogin('phone-denied');
         return;
       }
 

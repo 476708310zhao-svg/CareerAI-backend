@@ -1,315 +1,109 @@
-// pages/project-builder/project-builder.js
-const { generateProject } = require('../../../utils/api.js');
+// Sprint 6 证据型 Project Builder：计划、完成证据、简历素材三阶段严格分离。
+const v4Api = require('../../../utils/api-v4.js');
 const safePage = require('../../behaviors/safe-page');
-const vip = require('../../../utils/vip.js');
 
-const HISTORY_KEY = 'savedProjects';
-const MAX_HISTORY  = 10;
+const EMPTY_CREATE = { track: '', targetRole: '', title: '', gapsText: '' };
+const EMPTY_COMPLETE = { outcomesText: '', artifactsText: '', limitationsText: '' };
 
-const TRACKS = [
-  { id: 'data',       label: 'Data',       icon: '📊', color: '#3B82F6', bg: '#EFF6FF', desc: '数据分析 / BI / ML' },
-  { id: 'pm',         label: 'PM',         icon: '🎯', color: '#8B5CF6', bg: '#F5F3FF', desc: '产品经理 / 产品运营' },
-  { id: 'tech',       label: 'Tech',       icon: '💻', color: '#059669', bg: '#ECFDF5', desc: '前端 / 后端 / 全栈' },
-  { id: 'consulting', label: 'Consulting', icon: '📋', color: '#D97706', bg: '#FFFBEB', desc: '战略 / 管理咨询' },
-  { id: 'marketing',  label: 'Marketing',  icon: '📣', color: '#DB2777', bg: '#FDF2F8', desc: '市场营销 / 增长运营' },
-  { id: 'ops',        label: 'Ops',        icon: '⚙️', color: '#6366F1', bg: '#EEF2FF', desc: '运营 / 项目管理' },
-];
-
-const SENIORITIES = ['实习', '应届', '工作1-3年'];
+function lines(value) { return String(value || '').split(/\n|；/).map(item => item.trim()).filter(Boolean); }
+function modal(options) { return new Promise(resolve => wx.showModal(Object.assign({}, options, { success: resolve, fail: () => resolve({ confirm: false }) }))); }
 
 Page({
   behaviors: [safePage],
   data: {
-    step: 'input',   // 'input' | 'loading' | 'result'
-
-    // 表单
-    tracks: TRACKS,
-    seniorities: SENIORITIES,
-    selectedTrack:    '',
-    selectedSeniority: '应届',
-    role:       '',
-    background: '',
-
-    // 是否来自画像预填
-    profileFilled: false,
-
-    // 加载提示
-    loadingTip:  '正在理解岗位需求...',
-    loadingStep: 0,
-    _loadingTimer: null,
-
-    // 结果
-    project: null,
-    currentTrackIcon:  '',
-    currentTrackColor: '#6D28D9',
-    currentTrackLabel: '',
-
-    // 历史
-    savedProjects: [],
-    showHistory:   false,
+    loading: false, dashboard: null, projects: [], applications: [], tracks: [], selectedProject: null,
+    showCreate: false, createForm: Object.assign({}, EMPTY_CREATE),
+    showMilestone: false, milestoneId: '', evidenceNote: '',
+    showComplete: false, completeForm: Object.assign({}, EMPTY_COMPLETE),
+    showExport: false, resumeBullet: '', saving: false
   },
 
   onLoad(options) {
-    // URL 参数（来自其他页面预填方向）
-    const trackParam = options.track || '';
-    const profile = wx.getStorageSync('userProfile') || {};
-
-    // 自动选择方向：URL > 画像推断
-    let selectedTrack = TRACKS.find(t => t.id === trackParam) ? trackParam : '';
-    if (!selectedTrack && profile.targetRoles && profile.targetRoles[0]) {
-      selectedTrack = this._inferTrack(profile.targetRoles[0]);
-    }
-
-    // 预填岗位
-    let role = options.role ? decodeURIComponent(options.role) : '';
-    if (!role && profile.targetRoles && profile.targetRoles[0]) {
-      role = profile.targetRoles[0];
-    }
-
-    // 预填背景
-    let background = '';
-    const parts = [];
-    if (profile.school)   parts.push(profile.school);
-    if (profile.major)    parts.push(profile.major + '专业');
-    if (profile.gradYear) parts.push(profile.gradYear + '年毕业');
-    if ((profile.skills || []).length) parts.push('技能：' + profile.skills.slice(0, 4).join('、'));
-    if (parts.length) background = parts.join('，');
-
-    // 预填级别
-    const statusMap = { student: '实习', fresh: '应届', working: '工作1-3年', switching: '工作1-3年' };
-    const selectedSeniority = statusMap[profile.status] || '应届';
-
-    const profileFilled = !!(selectedTrack || role || background);
-    const savedProjects = wx.getStorageSync(HISTORY_KEY) || [];
-
-    this._safeSetData({
-      selectedTrack, role, background, selectedSeniority, profileFilled, savedProjects
-    });
+    const role = options.role ? decodeURIComponent(options.role) : '';
+    this.setData({ createForm: Object.assign({}, EMPTY_CREATE, { track: options.track || '', targetRole: role }) });
+    this.loadDashboard();
   },
+  onPullDownRefresh() { this.loadDashboard().finally(() => wx.stopPullDownRefresh()); },
 
-  onUnload() {
-    this._clearLoadingTimer();
-  },
-
-  _clearLoadingTimer() {
-    if (this.data._loadingTimer) {
-      clearInterval(this.data._loadingTimer);
-      this.setData({ _loadingTimer: null });
-    }
-  },
-
-  // 根据目标岗位关键词推断方向
-  _inferTrack(role) {
-    const r = role.toLowerCase();
-    if (/data|analyst|数据|bi|machine|ml|ai/.test(r))             return 'data';
-    if (/pm|product|产品/.test(r))                                 return 'pm';
-    if (/engineer|developer|swe|backend|frontend|全栈|开发/.test(r)) return 'tech';
-    if (/consult|咨询|strategy|战略/.test(r))                      return 'consulting';
-    if (/market|营销|growth|品牌/.test(r))                         return 'marketing';
-    if (/ops|运营|operation|supply|供应/.test(r))                  return 'ops';
-    return '';
-  },
-
-  // ── 表单交互 ─────────────────────────────────────────────────────────────
-  selectTrack(e) {
-    const id = e.currentTarget.dataset.id;
-    this.setData({ selectedTrack: this.data.selectedTrack === id ? '' : id });
-  },
-
-  selectSeniority(e) {
-    this.setData({ selectedSeniority: e.currentTarget.dataset.val });
-  },
-
-  onRoleInput(e)       { this.setData({ role: e.detail.value }); },
-  onBackgroundInput(e) { this.setData({ background: e.detail.value }); },
-
-  // ── 生成 ─────────────────────────────────────────────────────────────────
-  onGenerate() {
-    if (!vip.check('AI 项目生成器')) return;
-    if (!this.data.selectedTrack) {
-      wx.showToast({ title: '请选择项目方向', icon: 'none' }); return;
-    }
-    this._startGenerate();
-  },
-
-  _startGenerate() {
-    const tips = [
-      '正在理解岗位需求...',
-      '构思项目场景中...',
-      '设计项目方法论...',
-      '生成量化成果中...',
-      '润色项目描述...',
-      '即将完成...',
-    ];
-    let idx = 0;
-    this._safeSetData({ step: 'loading', loadingTip: tips[0], loadingStep: 0 });
-
-    const timer = setInterval(() => {
-      idx = Math.min(idx + 1, tips.length - 1);
-      this._safeSetData({ loadingTip: tips[idx], loadingStep: idx });
-    }, 3000);
-    this._safeSetData({ _loadingTimer: timer });
-
-    const { selectedTrack, role, background, selectedSeniority } = this.data;
-    generateProject(selectedTrack, role.trim(), background.trim(), selectedSeniority)
-      .then(res => {
-        this._clearLoadingTimer();
-        if (res && res.project) {
-          this._saveToHistory(res.project);
-          const track = TRACKS.find(t => t.id === selectedTrack) || {};
-          this._safeSetData({
-            step: 'result',
-            project: res.project,
-            currentTrackIcon:  track.icon  || '🚀',
-            currentTrackColor: track.color || '#6D28D9',
-            currentTrackLabel: track.label || '',
-          });
-        } else {
-          if (!this._unmounted) wx.showToast({ title: res.error || 'AI返回异常，请重试', icon: 'none' });
-          this._safeSetData({ step: 'input' });
-        }
-      })
-      .catch(err => {
-        this._clearLoadingTimer();
-        if (!this._unmounted) {
-          const msg = err.message || '网络错误，请重试';
-          wx.showToast({ title: msg.includes('timeout') ? 'AI响应超时，请重试' : msg, icon: 'none' });
-        }
-        this._safeSetData({ step: 'input' });
-      });
-  },
-
-  // ── 结果操作 ──────────────────────────────────────────────────────────────
-  copyAll() {
-    const p = this.data.project;
-    if (!p) return;
-    const lines = [
-      '【' + p.title + '】',
-      '',
-      '📌 项目背景',
-      p.background,
-      '',
-      '🔍 研究方法',
-      p.methodology,
-      '',
-      '📊 数据来源',
-      (p.data_sources || []).join(' / '),
-      '',
-      '🛠 技术栈',
-      (p.tech_stack || []).join(' · '),
-      '',
-      '🎯 关键成果',
-      ...(p.key_results || []).map(r => '· ' + r),
-      '',
-      '📝 简历一行版',
-      p.resume_bullet,
-    ];
-    wx.setClipboardData({
-      data: lines.join('\n'),
-      success: () => wx.showToast({ title: '已复制全文', icon: 'success' })
-    });
-  },
-
-  copyBullet() {
-    const p = this.data.project;
-    if (!p || !p.resume_bullet) return;
-    wx.setClipboardData({
-      data: p.resume_bullet,
-      success: () => wx.showToast({ title: '已复制简历版', icon: 'success' })
-    });
-  },
-
-  addToResume() {
-    const p = this.data.project;
-    if (!p) return;
-    const resume = wx.getStorageSync('onlineResume') || {};
-    const projects = (resume.projects || []).slice();
-
-    // 检查是否已存在同名项目
-    if (projects.some(proj => proj.name === p.title)) {
-      wx.showToast({ title: '该项目已在简历中', icon: 'none' }); return;
-    }
-
-    // 拼装描述
-    const descParts = [];
-    if (p.background)   descParts.push('背景：' + p.background);
-    if (p.methodology)  descParts.push('方法：' + p.methodology);
-    if ((p.key_results || []).length) {
-      descParts.push('成果：' + p.key_results.join('；'));
-    }
-
-    projects.unshift({
-      id:   Date.now(),
-      name: p.title,
-      role: this._getTrackRole(),
-      time: p.duration || '',
-      desc: descParts.join('\n')
-    });
-
-    resume.projects = projects;
-    wx.setStorageSync('onlineResume', resume);
-    wx.showToast({ title: '已加入简历', icon: 'success' });
-  },
-
-  _getTrackRole() {
-    const track = TRACKS.find(t => t.id === this.data.selectedTrack);
-    return track ? track.label + ' 项目' : '项目成员';
-  },
-
-  onRegenerate() {
-    this.setData({ step: 'input', project: null });
-  },
-
-  // ── 历史记录 ──────────────────────────────────────────────────────────────
-  _saveToHistory(project) {
+  async loadDashboard(selectId) {
+    this.setData({ loading: true });
     try {
-      const track = TRACKS.find(t => t.id === this.data.selectedTrack);
-      const list = wx.getStorageSync(HISTORY_KEY) || [];
-      list.unshift({
-        id:        Date.now(),
-        title:     project.title,
-        track:     this.data.selectedTrack,
-        trackLabel: track ? track.label : '',
-        trackIcon:  track ? track.icon  : '',
-        seniority: this.data.selectedSeniority,
-        createdAt: new Date().toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }),
-        project
-      });
-      if (list.length > MAX_HISTORY) list.splice(MAX_HISTORY);
-      wx.setStorageSync(HISTORY_KEY, list);
-      this._safeSetData({ savedProjects: list });
-    } catch (e) {}
+      const res = await v4Api.getProjectDashboard();
+      if (!res || res.code !== 0) throw new Error((res && res.message) || '加载失败');
+      const data = res.data || {}; const projects = data.projects || [];
+      const wanted = selectId || (this.data.selectedProject && this.data.selectedProject.id);
+      this.setData({ dashboard: data, projects, applications: data.applications || [], tracks: data.tracks || [],
+        selectedProject: projects.find(item => String(item.id) === String(wanted)) || projects[0] || null });
+    } catch (error) { wx.showToast({ title: error.message || '加载失败', icon: 'none' }); }
+    finally { this.setData({ loading: false }); }
   },
 
-  toggleHistory() {
-    this.setData({ showHistory: !this.data.showHistory });
+  openCreate() { this.setData({ showCreate: true }); },
+  closeCreate() { this.setData({ showCreate: false }); },
+  onCreateInput(e) { this.setData({ ['createForm.' + e.currentTarget.dataset.key]: e.detail.value }); },
+  selectTrack(e) { this.setData({ 'createForm.track': e.currentTarget.dataset.value }); },
+  selectProject(e) {
+    const project = this.data.projects.find(item => String(item.id) === String(e.currentTarget.dataset.id));
+    if (project) this.setData({ selectedProject: project });
   },
 
-  onHistoryTap(e) {
-    const record = this.data.savedProjects[e.currentTarget.dataset.idx];
-    if (!record || !record.project) return;
-    const track = TRACKS.find(t => t.id === record.track) || {};
-    this.setData({
-      step: 'result',
-      project: record.project,
-      selectedTrack:     record.track,
-      selectedSeniority: record.seniority || '应届',
-      currentTrackIcon:  track.icon  || '🚀',
-      currentTrackColor: track.color || '#6D28D9',
-      currentTrackLabel: track.label || '',
-    });
+  async createProject() {
+    const form = this.data.createForm;
+    if (!form.track || !form.targetRole.trim()) { wx.showToast({ title: '请选择方向并填写目标岗位', icon: 'none' }); return; }
+    this.setData({ saving: true });
+    try {
+      const res = await v4Api.createEvidenceProject({ track: form.track, targetRole: form.targetRole.trim(),
+        title: form.title.trim(), gaps: lines(form.gapsText) });
+      this.setData({ showCreate: false, createForm: Object.assign({}, EMPTY_CREATE) });
+      await this.loadDashboard(res && res.data && res.data.id); wx.showToast({ title: '计划已创建', icon: 'success' });
+    } catch (error) { wx.showToast({ title: error.message || '创建失败', icon: 'none' }); }
+    finally { this.setData({ saving: false }); }
   },
 
-  clearHistory() {
-    wx.showModal({
-      title: '清空历史',
-      content: '确定清空所有生成记录？',
-      success: res => {
-        if (res.confirm) {
-          wx.removeStorageSync(HISTORY_KEY);
-          this.setData({ savedProjects: [], showHistory: false });
-        }
-      }
-    });
+  openMilestone(e) {
+    const milestone = this.data.selectedProject.milestones.find(item => String(item.id) === String(e.currentTarget.dataset.id));
+    if (!milestone) return;
+    this.setData({ showMilestone: true, milestoneId: milestone.id, evidenceNote: milestone.evidenceNote || '' });
   },
+  closeMilestone() { this.setData({ showMilestone: false }); },
+  onEvidenceInput(e) { this.setData({ evidenceNote: e.detail.value }); },
+  async saveMilestone() {
+    if (!this.data.evidenceNote.trim()) { wx.showToast({ title: '请填写真实证据', icon: 'none' }); return; }
+    const result = await modal({ title: '确认里程碑证据', content: '请确认这项工作已真实完成，填写内容可由链接、截图、代码或运行记录核验。', confirmText: '确认完成' });
+    if (!result.confirm) return;
+    try {
+      await v4Api.updateProjectMilestone(this.data.selectedProject.id, this.data.milestoneId,
+        { status: 'completed', evidenceNote: this.data.evidenceNote.trim(), confirmEvidence: true });
+      this.setData({ showMilestone: false }); await this.loadDashboard(this.data.selectedProject.id);
+    } catch (error) { wx.showToast({ title: error.message || '保存失败', icon: 'none' }); }
+  },
+
+  openComplete() { this.setData({ showComplete: true, completeForm: Object.assign({}, EMPTY_COMPLETE) }); },
+  closeComplete() { this.setData({ showComplete: false }); },
+  onCompleteInput(e) { this.setData({ ['completeForm.' + e.currentTarget.dataset.key]: e.detail.value }); },
+  async completeProject() {
+    const form = this.data.completeForm;
+    if (!lines(form.outcomesText).length || !lines(form.artifactsText).length) { wx.showToast({ title: '请填写真实成果和可核验交付物', icon: 'none' }); return; }
+    const result = await modal({ title: '确认项目真实完成', content: '计划本身不是经历。请确认项目已真实完成，成果、交付物与限制均按事实填写。', confirmText: '本人确认' });
+    if (!result.confirm) return;
+    try {
+      await v4Api.completeEvidenceProject(this.data.selectedProject.id, { confirmRealCompletion: true,
+        evidence: { outcomes: lines(form.outcomesText), artifacts: lines(form.artifactsText), limitations: lines(form.limitationsText) } });
+      this.setData({ showComplete: false }); await this.loadDashboard(this.data.selectedProject.id);
+    } catch (error) { wx.showToast({ title: error.message || '确认失败', icon: 'none' }); }
+  },
+
+  openExport() { this.setData({ showExport: true, resumeBullet: '' }); },
+  closeExport() { this.setData({ showExport: false }); },
+  onResumeBulletInput(e) { this.setData({ resumeBullet: e.detail.value }); },
+  async exportExperience() {
+    if (!this.data.resumeBullet.trim()) { wx.showToast({ title: '请填写真实简历描述', icon: 'none' }); return; }
+    const result = await modal({ title: '写入经历库', content: '数字必须已经出现在完成证据中。请确认只写入本人真实完成的成果。', confirmText: '确认写入' });
+    if (!result.confirm) return;
+    try {
+      await v4Api.exportProjectExperience(this.data.selectedProject.id,
+        { resumeBullet: this.data.resumeBullet.trim(), confirmResumeWriteback: true });
+      this.setData({ showExport: false }); await this.loadDashboard(this.data.selectedProject.id); wx.showToast({ title: '已写入经历库', icon: 'success' });
+    } catch (error) { wx.showToast({ title: error.message || '写入失败', icon: 'none', duration: 3000 }); }
+  }
 });

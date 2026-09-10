@@ -1,0 +1,42 @@
+page { background: #F5F7FB; color: #101828; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif; }
+.page { padding: 24rpx 24rpx 80rpx; }
+.loading, .empty { padding: 100rpx 20rpx; color: #667085; text-align: center; font-size: 26rpx; }
+.hero { position: relative; padding: 32rpx; border-radius: 28rpx; color: #fff; background: linear-gradient(135deg, #1D4ED8, #4F46E5); box-shadow: 0 18rpx 44rpx rgba(37, 99, 235, .22); }
+.hero-main { display: flex; flex-direction: column; padding-right: 150rpx; }
+.hero-kicker { color: #BFDBFE; font-size: 20rpx; font-weight: 800; letter-spacing: 2rpx; }
+.hero-title { margin-top: 12rpx; font-size: 36rpx; font-weight: 900; line-height: 1.3; }
+.hero-company { margin-top: 10rpx; color: #DBEAFE; font-size: 25rpx; }
+.status-pill { position: absolute; top: 30rpx; right: 28rpx; padding: 9rpx 18rpx; border-radius: 999rpx; color: #172554; background: #fff; font-size: 22rpx; font-weight: 800; }
+.hero-action { margin-top: 28rpx; font-size: 24rpx; font-weight: 700; }
+.section-card, .match-card { margin-top: 22rpx; padding: 28rpx; border: 1rpx solid #EAECF0; border-radius: 24rpx; background: #fff; box-shadow: 0 8rpx 28rpx rgba(16, 24, 40, .05); }
+.match-card { display: flex; align-items: center; gap: 24rpx; }
+.match-score { display: flex; align-items: baseline; justify-content: center; width: 112rpx; height: 112rpx; border-radius: 50%; color: #1D4ED8; background: #EFF6FF; font-size: 22rpx; font-weight: 800; }
+.match-num { margin-top: 27rpx; font-size: 42rpx; font-weight: 900; }
+.match-copy, .task-copy, .contact-copy, .timeline-copy { display: flex; flex: 1; flex-direction: column; gap: 7rpx; min-width: 0; }
+.match-gap { color: #B54708; font-size: 22rpx; }
+.section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20rpx; }
+.card-title { font-size: 29rpx; font-weight: 850; }
+.section-note, .muted { color: #667085; font-size: 22rpx; line-height: 1.45; }
+.field, .textarea { width: 100%; box-sizing: border-box; margin-top: 14rpx; padding: 0 20rpx; border: 1rpx solid #D0D5DD; border-radius: 16rpx; color: #101828; background: #F9FAFB; font-size: 25rpx; }
+.field { height: 76rpx; line-height: 76rpx; }
+.textarea { min-height: 150rpx; padding-top: 18rpx; line-height: 1.6; }
+.date-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14rpx; }
+.picker { color: #475467; }
+.primary-btn, .secondary-btn { margin-top: 20rpx; border: 0; border-radius: 16rpx; font-size: 27rpx; font-weight: 800; }
+.primary-btn { color: #fff; background: #2563EB; }
+.secondary-btn { color: #1D4ED8; background: #EFF6FF; }
+.task-item, .contact-item, .timeline-item, .material-item { display: flex; align-items: flex-start; gap: 16rpx; padding: 18rpx 0; border-bottom: 1rpx solid #F2F4F7; font-size: 25rpx; }
+.task-item.completed { opacity: .58; }
+.task-check { width: 36rpx; height: 36rpx; border: 2rpx solid #2563EB; border-radius: 50%; color: #fff; background: #2563EB; text-align: center; line-height: 34rpx; }
+.completed .task-copy > text:first-child { text-decoration: line-through; }
+.inline-row { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.compact { width: 220rpx; }
+.priority-row { display: flex; gap: 10rpx; }
+.priority { padding: 10rpx 18rpx; border-radius: 999rpx; color: #475467; background: #F2F4F7; font-size: 22rpx; }
+.priority.active { color: #fff; background: #2563EB; }
+.contact-avatar { width: 64rpx; height: 64rpx; border-radius: 18rpx; color: #1D4ED8; background: #DBEAFE; text-align: center; line-height: 64rpx; font-weight: 900; }
+.timeline-item { position: relative; padding-left: 6rpx; }
+.timeline-dot { width: 18rpx; height: 18rpx; margin-top: 8rpx; border: 6rpx solid #DBEAFE; border-radius: 50%; background: #2563EB; }
+.material-item { justify-content: space-between; }
+.transition-row { display: flex; flex-wrap: wrap; gap: 14rpx; }
+.transition-btn { padding: 16rpx 24rpx; border: 1rpx solid #BFDBFE; border-radius: 999rpx; color: #1D4ED8; background: #EFF6FF; font-size: 24rpx; font-weight: 800; }

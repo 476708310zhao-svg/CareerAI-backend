@@ -1,4 +1,4 @@
-const featureFlags = require('../utils/feature-flags.js');
+const navigation = require('../utils/navigation.js');
 
 const FULL_TAB_LIST = [
   {
@@ -8,23 +8,22 @@ const FULL_TAB_LIST = [
     selectedIconPath: '/images/home-active.png'
   },
   {
-    pagePath: 'pages/jobs/jobs',
-    text: '职位',
-    iconPath: '/images/jobs.png',
-    selectedIconPath: '/images/jobs-active.png',
-    feature: 'recruitment'
-  },
-  {
-    pagePath: 'pages/experiences/experiences',
-    text: '题库',
+    pagePath: 'pages/resources/resources',
+    text: '资源',
     iconPath: '/images/experience.png',
     selectedIconPath: '/images/experience-active.png'
   },
   {
-    pagePath: 'pages/campus/campus',
-    text: '校招',
-    iconPath: '/images/icon-calendar.png',
-    selectedIconPath: '/images/icon-calendar.png'
+    pagePath: 'pages/applications/applications',
+    text: '进度',
+    iconPath: '/images/icon-apply-muted.png',
+    selectedIconPath: '/images/icon-apply.png'
+  },
+  {
+    pagePath: 'pages/ai-career/ai-career',
+    text: 'AI专家',
+    iconPath: '/images/icon-ai-assistant-muted.png',
+    selectedIconPath: '/images/icon-ai-assistant.png'
   },
   {
     pagePath: 'pages/profile/profile',
@@ -63,8 +62,7 @@ Component({
     syncState() {
       const pages = getCurrentPages();
       const current = pages[pages.length - 1] || {};
-      const recruitmentEnabled = featureFlags.isRecruitmentEnabled();
-      const list = FULL_TAB_LIST.filter(item => item.feature !== 'recruitment' || recruitmentEnabled);
+      const list = FULL_TAB_LIST;
       const selected = this.routeToIndex(current.route, list);
       const app = getApp();
       const storedCount = Number(wx.getStorageSync('unreadMessages')) || 0;
@@ -111,11 +109,15 @@ Component({
       if (!item || index === this.data.selected) return;
 
       this.setData({ selected: index });
-      wx.switchTab({
-        url: `/${item.pagePath}`,
+      const started = navigation.safeSwitchTab(`/${item.pagePath}`, {
         success: () => this.syncState(),
         fail: () => this.syncState()
       });
+      if (!started) this.syncState();
+    },
+
+    goAiAssistant() {
+      navigation.safeNavigateTo('/package-ai/pages/ai-assistant/ai-assistant');
     }
   }
 });

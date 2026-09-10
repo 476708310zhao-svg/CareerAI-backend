@@ -21,11 +21,17 @@
       </div>
       <div class="toolbar">
         <input type="text" id="kw" placeholder="搜索评论内容、用户名..." onkeydown="if(event.key==='Enter')load(1)">
+        <select id="status" onchange="load(1)">
+          <option value="pending">待审核</option>
+          <option value="">全部状态</option>
+          <option value="approved">已通过</option>
+          <option value="rejected">已驳回</option>
+        </select>
         <button class="btn btn-outline" onclick="load(1)"><i class="fa-solid fa-search"></i> 搜索</button>
       </div>
       <div class="table-card">
         <div class="table-wrap"><table>
-          <thead><tr><th>ID</th><th>评论内容</th><th>用户</th><th>所属面经</th><th>点赞</th><th>时间</th><th>操作</th></tr></thead>
+          <thead><tr><th>ID</th><th>类型</th><th>内容</th><th>用户</th><th>所属面经</th><th>状态</th><th>时间</th><th>操作</th></tr></thead>
           <tbody id="tbody"></tbody>
         </table></div>
         <div class="pagination" id="pagi"></div>
@@ -42,26 +48,46 @@ load(1);
 async function load(p) {
   page = p;
   const kw = document.getElementById('kw').value.trim();
-  const res = await GET(`/admin/api/comments?page=${p}&pageSize=20&keyword=${encodeURIComponent(kw)}`);
+  const status = document.getElementById('status').value;
+  const res = await GET(`/admin/api/comments?page=${p}&pageSize=20&keyword=${encodeURIComponent(kw)}&status=${encodeURIComponent(status)}`);
   if (!res || res.code !== 0) return;
   total = res.data.total;
   const list = res.data.list;
   document.getElementById('tbody').innerHTML = list.length ? list.map(c => `
     <tr>
       <td>${c.id}</td>
+      <td>${c.content_type==='reply'?'<span class="badge badge-purple">回复</span>':'<span class="badge badge-blue">评论</span>'}</td>
       <td style="max-width:280px;word-break:break-all;font-size:13px">${esc(c.content)}</td>
       <td>${esc(c.user_name||'匿名')}</td>
       <td class="text-clamp" title="${esc(c.exp_title||'')}"><a href="#" style="color:#2563eb;text-decoration:none">${esc(truncate(c.exp_title||'未知面经',20))}</a></td>
-      <td>${c.likes_count||0}</td>
+      <td>${statusBadge(c.moderation_status)}</td>
       <td>${fmtDate(c.created_at)}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="del(${c.id})"><i class="fa-solid fa-trash"></i> 删除</button></td>
-    </tr>`).join('') : '<tr class="empty-row"><td colspan="7">暂无评论</td></tr>';
+      <td><div class="td-actions">
+        ${c.moderation_status!=='approved'?`<button class="btn btn-primary btn-sm" onclick="moderate('${c.content_type}',${c.id},'approved')"><i class="fa-solid fa-check"></i> 通过</button>`:''}
+        ${c.moderation_status!=='rejected'?`<button class="btn btn-outline btn-sm" onclick="moderate('${c.content_type}',${c.id},'rejected')"><i class="fa-solid fa-ban"></i> 驳回</button>`:''}
+        <button class="btn btn-danger btn-sm" onclick="del('${c.content_type}',${c.id})"><i class="fa-solid fa-trash"></i> 删除</button>
+      </div></td>
+    </tr>`).join('') : '<tr class="empty-row"><td colspan="8">暂无评论或回复</td></tr>';
   renderPagination('pagi', page, total, 20, 'load');
 }
 
-function del(id) {
+function statusBadge(status) {
+  if (status === 'approved') return '<span class="badge badge-green">已通过</span>';
+  if (status === 'rejected') return '<span class="badge badge-red">已驳回</span>';
+  return '<span class="badge badge-amber">待审核</span>';
+}
+
+async function moderate(kind, id, status) {
+  const note = status === 'rejected' ? (window.prompt('请输入驳回原因（可选）', '') || '') : '';
+  const res = await PUT(`/admin/api/comments/${kind}/${id}/moderation`, { status, note });
+  if (res && res.code === 0) { toast(res.message || '审核完成'); load(page); }
+  else toast(res?.message || '审核失败', 'error');
+}
+
+function del(kind, id) {
   confirm('确定删除该评论吗？', async () => {
-    const res = await DELETE(`/admin/api/comments/${id}`);
+    const endpoint = kind === 'reply' ? `/admin/api/comment-replies/${id}` : `/admin/api/comments/${id}`;
+    const res = await DELETE(endpoint);
     if (res && res.code === 0) { toast('删除成功'); load(page); }
     else toast(res?.message || '删除失败', 'error');
   });

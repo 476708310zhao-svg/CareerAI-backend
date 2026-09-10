@@ -4,6 +4,7 @@
 
 const { j, ja } = require('./utils');
 const { buildUserProfile } = require('../utils/userProfileStandard');
+const { buildDataMeta } = require('../utils/dataProvenance');
 
 // ── 用户 ─────────────────────────────────────────────────────────────────────
 function formatUser(row) {
@@ -30,7 +31,10 @@ function formatExperience(e) {
     company: e.company, position: e.position, type: e.type, round: e.round,
     title: e.title, content: e.content, tags: ja(e.tags),
     likesCount: e.likes_count, commentsCount: e.comments_count,
-    isAnonymous: !!e.is_anonymous, createdAt: e.created_at
+    isAnonymous: !!e.is_anonymous,
+    moderationStatus: e.moderation_status || 'approved',
+    moderationNote: e.moderation_note || '',
+    createdAt: e.created_at
   };
 }
 
@@ -44,12 +48,16 @@ function formatComment(c, replies) {
     userAvatar: c.user_avatar,
     content: c.content,
     likesCount: c.likes_count,
+    moderationStatus: c.moderation_status || 'approved',
+    moderationNote: c.moderation_note || '',
     createdAt: c.created_at,
     replies: (replies || []).map(r => ({
       id: r.id,
       userId: r.user_id,
       userName: r.user_name,
       content: r.content,
+      moderationStatus: r.moderation_status || 'approved',
+      moderationNote: r.moderation_note || '',
       createdAt: r.created_at
     }))
   };
@@ -61,7 +69,20 @@ function formatApp(a) {
     id: a.id, userId: a.user_id, jobId: a.job_id,
     jobSnapshot: j(a.job_snapshot), resumeId: a.resume_id,
     status: a.status, statusText: a.status_text,
-    appliedAt: a.applied_at, viewedAt: a.viewed_at
+    progressStatus: a.progress_status || a.status,
+    clientId: a.client_id || '',
+    sourceJobId: a.source_job_id || '',
+    company: a.company || '',
+    jobTitle: a.job_title || '',
+    city: a.city || '',
+    salary: a.salary || '',
+    jobLink: a.job_link || '',
+    deadline: a.deadline || '',
+    interviewTime: a.interview_time || '',
+    notes: a.notes || '',
+    resumeVersionId: a.resume_version_id || '',
+    appliedAt: a.applied_at, viewedAt: a.viewed_at,
+    updatedAt: a.updated_at || ''
   };
 }
 
@@ -77,7 +98,128 @@ function formatSalary(s) {
 }
 
 // ── 校招日历 ─────────────────────────────────────────────────────────────────
+function campusSearchText(s) {
+  return [
+    s.company,
+    s.industry,
+    s.recruit_type,
+    s.position_name,
+    s.position_type,
+    s.region,
+    s.notes,
+    s.source
+  ].filter(Boolean).join(' ');
+}
+
+function hasAny(text, keywords) {
+  const value = String(text || '').toLowerCase();
+  return keywords.some(item => value.includes(String(item).toLowerCase()));
+}
+
+function inferEducationLevel(s) {
+  const explicit = String(s.education_level || '').trim();
+  const text = campusSearchText(s);
+  if (explicit) return explicit;
+  if (hasAny(text, ['博士', 'phd', 'research scientist', 'quant research', '科研'])) return '博士/科研';
+  if (hasAny(text, ['硕士', 'master', '研究生', '算法', 'ai', 'ml', 'machine learning', 'quant', '投研'])) return '硕士友好';
+  return '本科及以上';
+}
+
+function educationTagsFor(level) {
+  if (level === '博士/科研') return ['博士/科研', '硕士友好', '本科及以上'];
+  if (level === '硕士友好') return ['硕士友好', '本科及以上'];
+  return ['本科及以上'];
+}
+
+function inferOverseasFriendly(s) {
+  if (s.overseas_friendly === 0 || s.overseas_friendly === 1) return s.overseas_friendly === 1;
+  const region = String(s.region || '');
+  const text = campusSearchText(s);
+  if (region && region !== '中国内地') return true;
+  return hasAny(text, ['留学生', '海外', 'international', 'global', 'opt', 'h1b', 'h-1b', 'visa', 'sponsor', '海外hc']);
+}
+
+function inferVisaStatus(s) {
+  const explicit = String(s.visa_status || '').trim();
+  if (explicit) return explicit;
+  const text = campusSearchText(s);
+  const region = String(s.region || '');
+  if (hasAny(text, ['不支持 sponsor', 'no sponsor', 'without sponsorship', 'cannot sponsor'])) return '需核实';
+  if (hasAny(text, ['sponsor', 'h1b', 'h-1b', 'opt友好', 'cpt', 'visa support', '签证支持'])) return 'Sponsor友好';
+  if (region && region !== '中国内地') return '需核实签证';
+  return '国内岗位';
+}
+
+function visaStatusKey(label) {
+  if (label === 'Sponsor友好') return 'support';
+  if (label === '需核实' || label === '需核实签证') return 'verify';
+  if (label === '国内岗位') return 'domestic';
+  return 'info';
+}
+
+function parseDateOnly(value, context = {}) {
+  const raw = String(value || '').trim();
+  const validDate = (year, month, day) => {
+    const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+    return Number.isFinite(date.getTime())
+      && date.getUTCFullYear() === Number(year)
+      && date.getUTCMonth() + 1 === Number(month)
+      && date.getUTCDate() === Number(day);
+  };
+  let match = raw.match(/\b(\d{4})[./-](\d{1,2})[./-](\d{1,2})\b/);
+  if (match) return validDate(match[1], match[2], match[3])
+    ? `${match[1]}-${String(Number(match[2])).padStart(2, '0')}-${String(Number(match[3])).padStart(2, '0')}`
+    : '';
+  match = raw.match(/\b(\d{2})[./-](\d{1,2})[./-](\d{1,2})\b/);
+  if (match) return validDate(`20${match[1]}`, match[2], match[3])
+    ? `20${match[1]}-${String(Number(match[2])).padStart(2, '0')}-${String(Number(match[3])).padStart(2, '0')}`
+    : '';
+  match = raw.match(/^\s*(\d{1,2})[./-](\d{1,2})\s*$/);
+  if (!match) return '';
+  const month = Number(match[1]);
+  const day = Number(match[2]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return '';
+  const start = String(context.startDate || '').match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  let year = start ? Number(start[1]) : Number(context.recruitYear) || Number(todayShanghai().slice(0, 4));
+  if (start && month < Number(start[2]) && Number(start[2]) - month >= 6) year += 1;
+  if (!validDate(year, month, day)) return '';
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function todayShanghai() {
+  const parts = new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(new Date()).reduce((acc, item) => {
+    acc[item.type] = item.value;
+    return acc;
+  }, {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function deadlineMeta(deadlineDate, context = {}) {
+  const raw = String(deadlineDate || '').trim();
+  if (!raw || raw === '尽快投递') {
+    return { deadlineDays: null, deadlineStatus: '尽快投递', deadlineWindow: 'urgent' };
+  }
+  const dateText = parseDateOnly(raw, context);
+  if (!dateText) return { deadlineDays: null, deadlineStatus: raw, deadlineWindow: 'unknown', normalizedDate: '' };
+  const target = new Date(dateText + 'T00:00:00+08:00').getTime();
+  const today = new Date(todayShanghai() + 'T00:00:00+08:00').getTime();
+  const days = Math.round((target - today) / 86400000);
+  if (days < 0) return { deadlineDays: days, deadlineStatus: '已截止', deadlineWindow: 'expired', normalizedDate: dateText };
+  if (days === 0) return { deadlineDays: days, deadlineStatus: '今日截止', deadlineWindow: '7d', normalizedDate: dateText };
+  if (days <= 7) return { deadlineDays: days, deadlineStatus: `${days}天内截止`, deadlineWindow: '7d', normalizedDate: dateText };
+  if (days <= 30) return { deadlineDays: days, deadlineStatus: '30天内截止', deadlineWindow: '30d', normalizedDate: dateText };
+  return { deadlineDays: days, deadlineStatus: '可持续关注', deadlineWindow: 'later', normalizedDate: dateText };
+}
+
 function formatCampus(s) {
+  const educationLevel = inferEducationLevel(s);
+  const visaTag = inferVisaStatus(s);
+  const deadline = deadlineMeta(s.deadline_date, { startDate: s.start_date, recruitYear: s.recruit_year });
   return {
     id:           s.id,
     company:      s.company,
@@ -88,6 +230,7 @@ function formatCampus(s) {
     positionName: s.position_name || '',
     startDate:    s.start_date || '',
     deadlineDate: s.deadline_date || '',
+    deadlineDateNormalized: deadline.normalizedDate || '',
     writtenTest:  s.written_test || '需要笔试',
     applyUrl:     s.apply_url || '',
     announceUrl:  s.announce_url || '',
@@ -97,9 +240,27 @@ function formatCampus(s) {
     recruitYear:  s.recruit_year,
     isHot:        s.is_hot === 1,
     notes:        s.notes || '',
+    source:       s.source || '',
     isVerified:   s.is_verified === 1,
     viewCount:    s.view_count,
-    createdAt:    s.created_at
+    createdAt:    s.created_at,
+    updatedAt:    s.updated_at || s.created_at,
+    educationLevel,
+    educationTags: educationTagsFor(educationLevel),
+    overseasFriendly: inferOverseasFriendly(s),
+    overseasLabel: inferOverseasFriendly(s) ? '留学生友好' : '普通校招',
+    visaTag,
+    visaStatus: visaStatusKey(visaTag),
+    deadlineDays: deadline.deadlineDays,
+    deadlineStatus: deadline.deadlineStatus,
+    deadlineWindow: deadline.deadlineWindow,
+    dataMeta: buildDataMeta({
+      domain: 'campus',
+      source: s.source,
+      publishedAt: s.start_date,
+      updatedAt: s.updated_at || s.created_at,
+      isExpired: deadline.deadlineWindow === 'expired'
+    })
   };
 }
 
@@ -153,6 +314,8 @@ function formatAgencyReview(r) {
     cons:          r.cons,
     isAnonymous:   !!r.is_anonymous,
     likesCount:    r.likes_count,
+    moderationStatus: r.moderation_status || 'approved',
+    moderationNote: r.moderation_note || '',
     createdAt:     r.created_at
   };
 }

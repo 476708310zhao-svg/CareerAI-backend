@@ -1,8 +1,9 @@
 // pages/privacy/privacy.js
 Page({
   data: {
-    updateDate: '2026-06-02',
+    updateDate: '2026-07-29',
     appName: '职引',
+    companyName: '成都职引睿选科技有限公司',
     contactEmail: '476708310@qq.com'
   },
 

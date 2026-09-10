@@ -371,7 +371,6 @@ async function fetchJson(url) {
   }
   throw lastErr;
 }
-
 async function fetchCompanyItems(options = {}) {
   const pageSize = Math.min(Math.max(Number(options.pageSize || 100), 1), 100);
   const maxRecords = Math.max(Number(options.maxRecords || process.env.FEISHU_COMPANY_IMPORT_MAX || 1000), 1);

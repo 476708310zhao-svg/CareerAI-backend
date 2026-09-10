@@ -1,222 +1,214 @@
-// utils/favorites.js - 收藏管理工具（跨页面统一）
-const STORAGE_KEY = 'userFavorites';
-const API_BASE = require('./app-config.js').API_BASE_URL;
+// 收藏管理：本地即时响应 + 幂等 outbox + 服务端 tombstone 合并。
+const apiFavorites = require('./api-favorites.js');
 const reminders = require('./reminders.js');
+const favoriteReminder = require('./favorite-reminder.js');
+
+const STORAGE_KEY = 'userFavorites';
+const OUTBOX_KEY = 'favoriteSyncOutboxV4';
+const TYPES = ['job', 'experience', 'company', 'agency', 'campus'];
 const SYNC_TTL = 2 * 60 * 1000;
 let _syncPending = null;
+let _flushPending = null;
 let _lastSyncAt = 0;
 
+function _ensureShape(data) {
+  const result = {};
+  TYPES.forEach(type => { result[type] = Array.isArray(data && data[type]) ? data[type] : []; });
+  return result;
+}
+
 function _getAll() {
-  return _ensureShape(wx.getStorageSync(STORAGE_KEY) || {
-    job: [],
-    experience: [],
-    company: [],
-    agency: [],
-    campus: []
-  });
+  return _ensureShape(wx.getStorageSync(STORAGE_KEY) || {});
 }
 
 function _saveAll(data) {
-  wx.setStorageSync(STORAGE_KEY, data);
+  wx.setStorageSync(STORAGE_KEY, _ensureShape(data));
 }
 
-function _ensureShape(data) {
-  return Object.assign({
-    job: [],
-    experience: [],
-    company: [],
-    agency: [],
-    campus: []
-  }, data || {});
+function _readOutbox() {
+  try { return wx.getStorageSync(OUTBOX_KEY) || {}; } catch (error) { return {}; }
 }
 
-function _mergeLists(localList, remoteList) {
-  const merged = [];
-  const seen = new Set();
-  (localList || []).forEach(item => {
-    if (!item || item.targetId === undefined || item.targetId === null) return;
-    const normalized = Object.assign({}, item, { targetId: String(item.targetId) });
-    seen.add(normalized.targetId);
-    merged.push(normalized);
-  });
-  (remoteList || []).forEach(item => {
-    if (!item || item.targetId === undefined || item.targetId === null) return;
-    const targetId = String(item.targetId);
-    if (seen.has(targetId)) return;
-    seen.add(targetId);
-    merged.push(Object.assign({}, item, { targetId }));
-  });
-  return merged.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+function _saveOutbox(outbox) {
+  try { wx.setStorageSync(OUTBOX_KEY, outbox || {}); } catch (error) {}
 }
 
-function _syncToServer(method, payload) {
-  const token = wx.getStorageSync('token');
-  if (!token) return;
-  wx.request({
-    url: API_BASE + '/api/favorites',
-    method,
-    data: payload,
-    header: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + token
-    },
-    fail: () => {}
-  });
+function _key(type, targetId) {
+  return String(type) + ':' + String(targetId);
 }
 
-function _pushLocalMissingToServer(localAll, remoteAll) {
-  const remoteKeys = new Set();
-  Object.keys(remoteAll).forEach(type => {
-    (remoteAll[type] || []).forEach(item => remoteKeys.add(type + ':' + String(item.targetId)));
-  });
-  Object.keys(localAll).forEach(type => {
-    (localAll[type] || []).forEach(item => {
-      const key = type + ':' + String(item.targetId);
-      if (remoteKeys.has(key)) return;
-      _syncToServer('POST', {
-        type,
-        targetId: item.targetId,
-        title: item.title || '',
-        subtitle: item.subtitle || item.company || item.type || ''
-      });
-    });
-  });
+function _operationId(type, targetId) {
+  return 'fav_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10) + '_' + _key(type, targetId);
 }
 
-function syncFromServer() {
-  const token = wx.getStorageSync('token');
-  if (!token) return Promise.resolve(_getAll());
-  if (_syncPending) return _syncPending;
-  if (Date.now() - _lastSyncAt < SYNC_TTL) return Promise.resolve(_getAll());
+function _queue(action, type, targetId, item) {
+  const outbox = _readOutbox();
+  const key = _key(type, targetId);
+  const updatedAt = new Date().toISOString();
+  outbox[key] = {
+    operationId: _operationId(type, targetId), action, type, targetId: String(targetId), updatedAt,
+    title: item && item.title || '',
+    subtitle: item && (item.subtitle || item.company || item.type) || '',
+    payload: item || {}
+  };
+  _saveOutbox(outbox);
+  return outbox[key];
+}
 
-  _syncPending = new Promise(resolve => {
-    wx.request({
-      url: API_BASE + '/api/favorites',
-      method: 'GET',
-      header: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token
-      },
-      success: (res) => {
-        const remoteRows = res.statusCode === 200 && res.data && Array.isArray(res.data.data)
-          ? res.data.data
-          : [];
-        const localAll = _ensureShape(_getAll());
-        const remoteAll = _ensureShape({});
-        remoteRows.forEach(row => {
-          const type = row.type || 'job';
-          if (!remoteAll[type]) remoteAll[type] = [];
-          remoteAll[type].push({
-            targetId: String(row.targetId),
-            title: row.title || '',
-            subtitle: row.subtitle || '',
-            createdAt: row.createdAt || ''
-          });
-        });
+function _hasToken() {
+  try { return !!wx.getStorageSync('token'); } catch (error) { return false; }
+}
 
-        const merged = _ensureShape({});
-        Object.keys(merged).forEach(type => {
-          merged[type] = _mergeLists(localAll[type], remoteAll[type]);
-        });
-        _saveAll(merged);
-        _pushLocalMissingToServer(localAll, remoteAll);
-        _lastSyncAt = Date.now();
-        resolve(merged);
-      },
-      fail: () => resolve(_getAll()),
-      complete: () => {
-        _syncPending = null;
+function _flushOutbox() {
+  if (!_hasToken()) return Promise.resolve(false);
+  if (_flushPending) return _flushPending;
+  const operations = Object.keys(_readOutbox()).map(key => ({ key, operation: _readOutbox()[key] }));
+  _flushPending = operations.reduce((promise, entry) => promise.then(() => {
+    const operation = entry.operation;
+    const request = operation.action === 'delete' ? apiFavorites.remove : apiFavorites.upsert;
+    return request(operation).then(() => {
+      const latest = _readOutbox();
+      if (latest[entry.key] && latest[entry.key].operationId === operation.operationId) {
+        delete latest[entry.key];
+        _saveOutbox(latest);
       }
-    });
+    }).catch(() => {});
+  }), Promise.resolve()).then(() => true).finally(() => { _flushPending = null; });
+  return _flushPending;
+}
+
+function _timestamp(value) {
+  const result = new Date(value || 0).getTime();
+  return Number.isFinite(result) ? result : 0;
+}
+
+function _find(list, targetId) {
+  return (list || []).find(item => String(item.targetId) === String(targetId));
+}
+
+function _removeFromList(list, targetId) {
+  return (list || []).filter(item => String(item.targetId) !== String(targetId));
+}
+
+function _remoteItem(row) {
+  return Object.assign({}, row.payload || {}, {
+    targetId: String(row.targetId),
+    title: row.title || row.payload && row.payload.title || '',
+    subtitle: row.subtitle || row.payload && row.payload.subtitle || '',
+    createdAt: row.createdAt || '',
+    updatedAt: row.clientUpdatedAt || row.updatedAt || ''
   });
+}
+
+function _syncJobReminders(all) {
+  ((all && all.job) || [])
+    .filter(item => item && item.reminderEnabled !== false && item.deadline)
+    .forEach(item => reminders.upsertReminder(favoriteReminder.buildJobReminderPayload(item)));
+}
+
+function _mergeRemote(localAll, remoteRows) {
+  const merged = _ensureShape(localAll);
+  const pending = _readOutbox();
+  const remoteKeys = {};
+  (remoteRows || []).forEach(row => {
+    const type = TYPES.includes(row.type) ? row.type : 'job';
+    const key = _key(type, row.targetId);
+    remoteKeys[key] = true;
+    if (pending[key]) return;
+    if (row.deleted || row.status === 'deleted') {
+      merged[type] = _removeFromList(merged[type], row.targetId);
+      return;
+    }
+    const local = _find(merged[type], row.targetId);
+    const remote = _remoteItem(row);
+    if (!local) merged[type].push(remote);
+    else if (_timestamp(remote.updatedAt) >= _timestamp(local.updatedAt || local.createdAt)) {
+      merged[type] = merged[type].map(item => String(item.targetId) === String(row.targetId) ? remote : item);
+    }
+  });
+
+  TYPES.forEach(type => {
+    merged[type].forEach(item => {
+      const key = _key(type, item.targetId);
+      if (!remoteKeys[key] && !pending[key]) _queue('upsert', type, item.targetId, item);
+    });
+    merged[type].sort((left, right) => _timestamp(right.createdAt) - _timestamp(left.createdAt));
+  });
+  return merged;
+}
+
+function syncFromServer(options) {
+  if (!_hasToken()) return Promise.resolve(_getAll());
+  if (_syncPending) return _syncPending;
+  if (!(options && options.force) && Date.now() - _lastSyncAt < SYNC_TTL) return Promise.resolve(_getAll());
+
+  _syncPending = _flushOutbox().then(() => apiFavorites.list({ includeDeleted: true })).then(response => {
+    const rows = response && response.code === 0 && Array.isArray(response.data) ? response.data : [];
+    const merged = _mergeRemote(_getAll(), rows);
+    _saveAll(merged);
+    _syncJobReminders(merged);
+    _lastSyncAt = Date.now();
+    return _flushOutbox().then(() => merged);
+  }).catch(() => _getAll()).finally(() => { _syncPending = null; });
   return _syncPending;
 }
 
-// 添加收藏
 function add(type, item) {
   const all = _getAll();
   if (!all[type]) all[type] = [];
-  // 去重
-  const exists = all[type].some(f => String(f.targetId) === String(item.targetId));
-  if (exists) return false;
-  item.createdAt = new Date().toISOString().slice(0, 10);
-  all[type].unshift(item);
+  if (_find(all[type], item.targetId)) return false;
+  const favorite = type === 'job' ? favoriteReminder.withJobReminderDefaults(item) : Object.assign({}, item);
+  favorite.createdAt = favorite.createdAt || new Date().toISOString();
+  favorite.updatedAt = new Date().toISOString();
+  all[type].unshift(favorite);
   _saveAll(all);
+  _queue('upsert', type, favorite.targetId, favorite);
   _lastSyncAt = 0;
-  _syncToServer('POST', {
-    type,
-    targetId: item.targetId,
-    title: item.title || '',
-    subtitle: item.subtitle || item.company || item.type || ''
-  });
+  _flushOutbox();
+  if (type === 'job') reminders.upsertReminder(favoriteReminder.buildJobReminderPayload(favorite));
   return true;
 }
 
-// 移除收藏
 function remove(type, targetId) {
   const all = _getAll();
-  if (!all[type]) return false;
-  const idx = all[type].findIndex(f => String(f.targetId) === String(targetId));
-  if (idx === -1) return false;
-  all[type].splice(idx, 1);
+  if (!all[type] || !_find(all[type], targetId)) return false;
+  all[type] = _removeFromList(all[type], targetId);
   _saveAll(all);
+  _queue('delete', type, targetId, null);
   _lastSyncAt = 0;
-  _syncToServer('DELETE', { type, targetId });
-  if (type === 'job') {
-    reminders.disableReminder('favorite_job', targetId, 'deadline');
-  }
+  _flushOutbox();
+  if (type === 'job') reminders.disableReminder('favorite_job', targetId, 'deadline');
   return true;
 }
 
 function update(type, targetId, patch) {
   const all = _getAll();
-  if (!all[type]) return false;
-  const idx = all[type].findIndex(f => String(f.targetId) === String(targetId));
-  if (idx === -1) return false;
-  all[type][idx] = Object.assign({}, all[type][idx], patch || {}, {
-    updatedAt: new Date().toISOString()
-  });
+  const current = all[type] && _find(all[type], targetId);
+  if (!current) return false;
+  const updated = Object.assign({}, current, patch || {}, { updatedAt: new Date().toISOString() });
+  all[type] = all[type].map(item => String(item.targetId) === String(targetId) ? updated : item);
   _saveAll(all);
+  _queue('upsert', type, targetId, updated);
+  _lastSyncAt = 0;
+  _flushOutbox();
   return true;
 }
 
-// 检查是否已收藏
-function isFavorited(type, targetId) {
-  const all = _getAll();
-  if (!all[type]) return false;
-  return all[type].some(f => String(f.targetId) === String(targetId));
-}
-
-// 获取某类收藏列表
-function getList(type) {
-  const all = _getAll();
-  return all[type] || [];
-}
-
-// 获取全部收藏（带分类）
-function getAll() {
-  return _getAll();
-}
-
-// 获取收藏总数
+function isFavorited(type, targetId) { return !!_find(_getAll()[type], targetId); }
+function getList(type) { return _getAll()[type] || []; }
+function getAll() { return _getAll(); }
 function getCount(type) {
   if (type) return getList(type).length;
   const all = _getAll();
-  return Object.keys(_ensureShape(all)).reduce((sum, key) => sum + ((all[key] || []).length), 0);
+  return TYPES.reduce((sum, key) => sum + all[key].length, 0);
 }
-
-// 切换收藏状态
 function toggle(type, item, title, subtitle) {
-  if (typeof item === 'string') {
-    item = { targetId: item, title: title || '', subtitle: subtitle || '' };
-  }
-  if (isFavorited(type, item.targetId)) {
-    remove(type, item.targetId);
-    return false;
-  } else {
-    add(type, item);
-    return true;
-  }
+  const value = typeof item === 'string' ? { targetId: item, title: title || '', subtitle: subtitle || '' } : item;
+  if (isFavorited(type, value.targetId)) { remove(type, value.targetId); return false; }
+  add(type, value); return true;
 }
 
-module.exports = { add, remove, update, isFavorited, getList, getAll, getCount, toggle, syncFromServer };
+module.exports = {
+  add, remove, update, isFavorited, getList, getAll, getCount, toggle, syncFromServer,
+  flushPending: _flushOutbox, mergeRemote: _mergeRemote, OUTBOX_KEY
+};

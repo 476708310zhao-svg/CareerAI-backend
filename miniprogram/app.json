@@ -2,7 +2,10 @@
   "pages": [
     "pages/index/index",
     "pages/jobs/jobs",
+    "pages/applications/applications",
+    "pages/ai-career/ai-career",
     "pages/experiences/experiences",
+    "pages/resources/resources",
     "pages/campus/campus",
     "pages/agencies/agencies",
     "pages/profile/profile",
@@ -10,7 +13,8 @@
   ],
   "lazyCodeLoading": "requiredComponents",
   "usingComponents": {
-    "c-ai-disclosure": "/components/c-ai-disclosure/c-ai-disclosure"
+    "c-ai-disclosure": "/components/c-ai-disclosure/c-ai-disclosure",
+    "c-login-popup": "/components/c-login-popup/c-login-popup"
   },
   "subPackages": [
     {
@@ -24,14 +28,18 @@
         "pages/audio-review/audio-review",
         "pages/project-review/project-review",
         "pages/daily-brief/daily-brief",
+        "pages/jd-match/jd-match",
         "pages/application-materials/application-materials",
         "pages/interview-notebook/interview-notebook"
+        ,"pages/ai-career/ai-career"
+        ,"pages/interview-space/interview-space"
       ]
     },
     {
       "root": "package-career",
       "pages": [
         "pages/resume/resume",
+        "pages/resume-center/resume-center",
         "pages/career-planner/career-planner",
         "pages/project-builder/project-builder",
         "pages/offer-compare/offer-compare",
@@ -41,6 +49,7 @@
         "pages/ats-optimize/ats-optimize",
         "pages/networking/networking",
         "pages/oa-bank/oa-bank"
+        ,"pages/career-coach/career-coach"
       ]
     },
     {
@@ -67,6 +76,7 @@
       "root": "package-user",
       "pages": [
         "pages/applications/applications",
+        "pages/application-detail/application-detail",
         "pages/apply-form/apply-form",
         "pages/profile-edit/profile-edit",
         "pages/favorites/favorites",
@@ -76,6 +86,7 @@
         "pages/settings/settings",
         "pages/feedback/feedback",
         "pages/about/about",
+        "pages/usage-guide/usage-guide",
         "pages/vip/vip",
         "pages/companies/companies",
         "pages/company-detail/company-detail",
@@ -107,22 +118,22 @@
         "selectedIconPath": "images/home-active.png"
       },
       {
-        "pagePath": "pages/jobs/jobs",
-        "text": "职位",
-        "iconPath": "images/jobs.png",
-        "selectedIconPath": "images/jobs-active.png"
-      },
-      {
-        "pagePath": "pages/experiences/experiences",
-        "text": "题库",
+        "pagePath": "pages/resources/resources",
+        "text": "资源",
         "iconPath": "images/experience.png",
         "selectedIconPath": "images/experience-active.png"
       },
       {
-        "pagePath": "pages/campus/campus",
-        "text": "校招",
-        "iconPath": "images/icon-calendar.png",
-        "selectedIconPath": "images/icon-calendar.png"
+        "pagePath": "pages/applications/applications",
+        "text": "进度",
+        "iconPath": "images/icon-apply-muted.png",
+        "selectedIconPath": "images/icon-apply.png"
+      },
+      {
+        "pagePath": "pages/ai-career/ai-career",
+        "text": "AI专家",
+        "iconPath": "images/icon-ai-assistant-muted.png",
+        "selectedIconPath": "images/icon-ai-assistant.png"
       },
       {
         "pagePath": "pages/profile/profile",

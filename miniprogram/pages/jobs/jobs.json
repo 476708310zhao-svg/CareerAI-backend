@@ -5,6 +5,7 @@
   "backgroundTextStyle": "dark",
   "usingComponents": {
     "empty-state": "/components/empty-state/empty-state",
-    "loading-spinner": "/components/loading-spinner/loading-spinner"
+    "loading-spinner": "/components/loading-spinner/loading-spinner",
+    "c-job-card": "/components/c-job-card/c-job-card"
   }
 }

@@ -18,11 +18,6 @@
     <view class="done-badge" wx:if="{{isDone}}">✓ 已完成</view>
   </view>
 
-  <c-ai-disclosure
-    wx:if="{{q.isAI}}"
-    text="本题及参考答案由人工智能生成，仅供练习参考，请自行核验。"
-  />
-
   <!-- LeetCode 统计信息 -->
   <view class="lc-stats-card" wx:if="{{q.source === 'leetcode'}}">
     <view class="lc-stat-item">
@@ -56,6 +51,39 @@
     <view class="lc-hint-body">
       <text class="lc-hint-title">LeetCode 在线题目</text>
       <text class="lc-hint-desc">本题来自 LeetCode，可前往官网查看完整题目描述和测试用例</text>
+    </view>
+  </view>
+
+  <view class="ai-train-card">
+    <view class="ai-train-head">
+      <view class="ai-train-icon">AI</view>
+      <view class="ai-train-copy">
+        <text class="ai-train-title">AI 面试训练</text>
+        <text class="ai-train-sub">生成标准回答、STAR 版本或模拟追问，直接用于开口练习。</text>
+      </view>
+    </view>
+    <view class="ai-train-actions">
+      <view class="ai-train-action {{aiTraining.mode === 'answer' ? 'active' : ''}}" bindtap="generateAiTraining" data-mode="answer">标准回答</view>
+      <view class="ai-train-action {{aiTraining.mode === 'star' ? 'active' : ''}}" bindtap="generateAiTraining" data-mode="star">STAR</view>
+      <view class="ai-train-action {{aiTraining.mode === 'followup' ? 'active' : ''}}" bindtap="generateAiTraining" data-mode="followup">模拟追问</view>
+    </view>
+    <view class="ai-result-box" wx:if="{{aiTraining.loading || aiTraining.result}}">
+      <view class="ai-result-head">
+        <view class="ai-result-copy">
+          <text class="ai-result-title">{{aiTraining.title}}</text>
+          <text class="ai-result-desc">{{aiTraining.loading ? '生成中，请稍候...' : aiTraining.desc}}</text>
+        </view>
+        <text class="ai-result-time" wx:if="{{aiTraining.updatedAt && !aiTraining.loading}}">{{aiTraining.updatedAt}}</text>
+      </view>
+      <view class="ai-loading-row" wx:if="{{aiTraining.loading}}">
+        <view class="ai-loading-dot"></view>
+        <text>正在拆解题目和候选人背景</text>
+      </view>
+      <text wx:else class="ai-result-text" user-select>{{aiTraining.result}}</text>
+      <view class="ai-result-actions" wx:if="{{!aiTraining.loading && aiTraining.result}}">
+        <view class="ai-result-action ghost" bindtap="copyAiTraining">复制</view>
+        <view class="ai-result-action" bindtap="saveAiTrainingToNotebook">存入错题本</view>
+      </view>
     </view>
   </view>
 

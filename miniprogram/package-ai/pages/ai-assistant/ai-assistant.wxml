@@ -12,11 +12,11 @@
         <view class="menu-line short"></view>
       </view>
     </view>
-    <view class="top-title">
+    <view class="top-title" bindtap="openAiCareer">
       <text class="top-icon">AI</text>
       <view class="top-copy">
         <text class="top-name">AI 求职助手</text>
-        <text class="top-sub">AI生成内容 · 仅供参考</text>
+        <text class="top-sub">点击进入四 Agent 统一入口</text>
       </view>
     </view>
     <view class="new-chat-btn" bindtap="onNewChat" hover-class="btn-hover">
@@ -83,7 +83,8 @@
     scroll-y
     scroll-into-view="{{scrollId}}"
     scroll-with-animation
-    style="margin-bottom: {{keyboardHeight > 0 ? keyboardHeight + 'px' : '0'}};"
+    enhanced
+    show-scrollbar="{{false}}"
   >
     <view class="msg-list">
       <c-ai-disclosure text="本页 AI 问答回复由人工智能生成，仅供求职参考，请核验后使用。" />
@@ -229,12 +230,12 @@
       </block>
 
       <!-- Perf fix: 底部固定锚点，scroll-into-view 永远定位到此 -->
-      <view id="scroll-anchor" style="height: 24rpx;"></view>
+      <view id="scroll-anchor" style="height: {{keyboardHeight > 0 ? 180 : 220}}rpx;"></view>
     </view>
   </scroll-view>
 
   <!-- 输入栏 -->
-  <view class="input-bar" style="padding-bottom: calc(24rpx + {{safeBottom}}px);">
+  <view class="input-bar {{keyboardHeight > 0 ? 'keyboard-open' : ''}}" style="bottom: {{keyboardHeight}}px; padding-bottom: {{keyboardHeight > 0 ? 18 : safeBottom + 18}}px;">
     <view class="input-wrap">
       <text class="input-leading">AI</text>
       <input
@@ -243,11 +244,16 @@
         placeholder-class="input-ph"
         value="{{inputText}}"
         bindinput="onInputChange"
+        bindfocus="onInputFocus"
+        bindblur="onInputBlur"
         bindconfirm="onSend"
         bindkeyboardheightchange="onKeyboardHeight"
         confirm-type="send"
+        confirm-hold="{{true}}"
         maxlength="300"
         adjust-position="{{false}}"
+        cursor-spacing="24"
+        hold-keyboard="{{true}}"
       />
     </view>
     <view class="input-right">
@@ -299,7 +305,41 @@
       </view>
 
       <view class="application-section">
+        <text class="application-label">选择简历</text>
+        <picker
+          wx:if="{{hasApplicationResume}}"
+          mode="selector"
+          range="{{applicationResumeVersionLabels}}"
+          value="{{selectedApplicationResumeIndex}}"
+          disabled="{{applicationResumeLoading || applicationResumeVersions.length <= 1}}"
+          bindchange="onApplicationResumeChange"
+        >
+          <view class="application-resume-picker">
+            <view class="application-resume-copy">
+              <text class="application-resume-title">{{selectedApplicationResumeName}}</text>
+              <text class="application-resume-sub">{{selectedApplicationResumeTargetRole || '将结合这份简历生成回答'}}</text>
+            </view>
+            <text class="application-resume-action">{{applicationResumeVersions.length > 1 ? '切换 ›' : '默认'}}</text>
+          </view>
+        </picker>
+        <view wx:else class="application-empty" bindtap="goApplicationResume">
+          <text>{{applicationResumeLoading ? '正在读取简历...' : '先完善在线简历，再生成更贴合的网申草稿。'}}</text>
+        </view>
+      </view>
+
+      <view class="application-section">
         <text class="application-label">问题类型</text>
+        <view class="application-jd-block">
+          <text class="application-label small">JD / 网申题干</text>
+          <textarea
+            class="application-jd-input"
+            value="{{applicationJdText}}"
+            maxlength="5000"
+            auto-height
+            placeholder="粘贴岗位 JD 或网申题干，AI 会结合简历与岗位生成更贴合的回答"
+            bindinput="onApplicationJdInput"
+          />
+        </view>
         <view class="question-type-grid">
           <view
             wx:for="{{applicationQuestionTypes}}"
@@ -311,13 +351,14 @@
         </view>
       </view>
 
-      <view class="application-generate {{applicationJobs.length ? '' : 'disabled'}}" bindtap="generateApplicationDraft">
-        生成回答草稿
+      <view class="application-generate {{applicationJobs.length && hasApplicationResume && !applicationGenerating ? '' : 'disabled'}}" bindtap="generateApplicationDraft">
+        {{applicationGenerating ? '生成中...' : '生成回答草稿'}}
       </view>
 
       <view class="application-draft" wx:if="{{applicationDraft}}">
         <text class="application-draft-title">{{applicationDraft.questionLabel}}</text>
         <text class="application-draft-meta">{{applicationDraft.company}} · {{applicationDraft.jobTitle}}</text>
+        <text class="application-draft-resume" wx:if="{{applicationDraft.resumeName}}">基于：{{applicationDraft.resumeName}}</text>
         <text class="application-draft-content" user-select>{{applicationDraft.content}}</text>
         <view class="application-draft-actions">
           <view class="application-draft-btn" bindtap="copyApplicationDraft">复制</view>

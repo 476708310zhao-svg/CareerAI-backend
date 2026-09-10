@@ -8,7 +8,7 @@
   <style>
     /* Banner 预览卡片 */
     .banner-preview-card {
-      width: 100%; aspect-ratio: 686 / 300; height: auto;
+      width: 100%; aspect-ratio: 686 / 214; height: auto;
       border-radius: 12px; overflow: hidden; position: relative;
       display: flex; flex-direction: column; justify-content: flex-end;
       padding: 12px 16px; box-sizing: border-box;
@@ -69,7 +69,7 @@
     <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span style="font-size:13px;color:#6b7280" id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
     <div class="content">
       <div class="page-header">
-        <div><h1>Banner 管理</h1><div class="sub">配置小程序首页轮播图 · 推荐尺寸 1372×600px（2倍图）</div></div>
+        <div><h1>Banner 管理</h1><div class="sub">展示比例 686:214 · 推荐尺寸 1372×428px（2倍图）</div></div>
         <button class="btn btn-primary" onclick="openAdd()"><i class="fa-solid fa-plus"></i> 新增 Banner</button>
       </div>
       <div class="table-card">
@@ -117,7 +117,7 @@
             <div id="uploadPlaceholder">
               <i class="fa-solid fa-cloud-arrow-up" style="font-size:28px;color:#d1d5db"></i>
               <div class="upload-hint">点击选择图片 <span>或拖拽到此处</span></div>
-              <div class="upload-hint" style="margin-top:4px">JPG / PNG / WebP · 最大 5MB · 推荐 1372×600px</div>
+              <div class="upload-hint" style="margin-top:4px">JPG / PNG / WebP · 最大 5MB · 推荐 1372×428px（约 3.21:1）</div>
               <div class="upload-hint" style="margin-top:4px">上传后会自动压缩为前端轻量图，提升小程序首屏加载速度</div>
             </div>
           </div>

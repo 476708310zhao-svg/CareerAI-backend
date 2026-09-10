@@ -2,8 +2,9 @@
  * resume-ai.js — AI 相关方法（从 resume.js 拆分）
  * 用法：Object.assign 混入 Page 配置
  */
-const { sendChatToDeepSeek } = require('../../../utils/api.js');
-const jdMatch = require('../../../utils/jd-match.js');
+const api = require('../../../utils/api.js');
+const { sendChatToDeepSeek } = api;
+const jdMatch = require('../../utils/jd-match.js');
 
 function extractAiContent(res) {
   return res && res.choices && res.choices[0] && res.choices[0].message
@@ -17,6 +18,33 @@ function formatLocalMatchReport(report) {
     : '暂无明显缺失关键词';
   const suggestions = (report.suggestions || []).map((item, index) => `${index + 1}. ${item}`).join('\n');
   return `【匹配度】${report.score}%\n【ATS风险】${report.atsRisk}\n【目标岗位】${report.jobTitle}\n【缺失关键词】${missing}\n【建议强化项目】${report.projectSuggestion}\n【提升建议】\n${suggestions}`;
+}
+
+function formatDateText(value) {
+  const text = String(value || '');
+  const match = text.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return '刚刚更新';
+  return `${match[2]}-${match[3]}更新`;
+}
+
+function historyTypeText(type) {
+  if (type === 'work') return '工作经历';
+  if (type === 'summary') return '个人优势';
+  if (type === 'match') return '岗位匹配';
+  return '简历优化';
+}
+
+function previewText(value) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  return text.length > 72 ? text.slice(0, 72) + '...' : (text || '暂无内容');
+}
+
+function decorateOptimizationHistory(list) {
+  return (Array.isArray(list) ? list : []).slice(0, 5).map(item => Object.assign({}, item, {
+    typeText: historyTypeText(item.type),
+    timeText: formatDateText(item.createdAt || item.created_at),
+    afterPreview: previewText(item.after || item.content)
+  }));
 }
 
 module.exports = {
@@ -133,25 +161,55 @@ module.exports = {
   applyPolish() {
     const pending = this._pendingPolish || {};
     if (pending.target === 'work' && pending.workIndex !== undefined) {
+      const before = (this.data.onlineResume.workExp[pending.workIndex] || {}).desc || '';
+      const after = this.data.aiResultContent || '';
       this.setData({
-        ['onlineResume.workExp[' + pending.workIndex + '].desc']: this.data.aiResultContent,
+        ['onlineResume.workExp[' + pending.workIndex + '].desc']: after,
         showAiResult: false
       });
       this._saveResume();
+      this._recordOptimizationHistory('work', before, after);
       wx.showToast({ title: '已更新工作经历', icon: 'success' });
     } else {
+      const before = this.data.onlineResume.summary || '';
+      const after = this.data.aiResultContent || '';
       this.setData({
-        'onlineResume.summary': this.data.aiResultContent,
+        'onlineResume.summary': after,
         showAiResult: false
       });
       this._saveResume();
+      this._recordOptimizationHistory('summary', before, after);
       wx.showToast({ title: '已更新个人优势', icon: 'success' });
     }
     this._pendingPolish = null;
   },
 
+  _recordOptimizationHistory(type, before, after) {
+    if (!this.data.currentResumeId || !after) return;
+    const entry = {
+      id: 'opt_' + Date.now(),
+      type,
+      targetRole: this.data.targetJobInput || '',
+      before: before || '',
+      after,
+      source: 'ai',
+      createdAt: new Date().toISOString()
+    };
+    const next = [entry].concat(this.data.optimizationHistory || []).slice(0, 50);
+    this.setData({
+      optimizationHistory: next,
+      formattedOptimizationHistory: decorateOptimizationHistory(next)
+    });
+    api.addResumeOptimizationHistory(this.data.currentResumeId, entry).catch(() => {});
+  },
+
   onTargetJobInput(e) {
     this.setData({ targetJobInput: e.detail.value });
+  },
+
+  saveTargetJobRole() {
+    this.setData({ currentResumeTargetRole: this.data.targetJobInput || '' });
+    if (this.data.currentResumeId) this._saveResume();
   },
 
   // ── NLP 智能优化建议 ───────────────────────────────────────

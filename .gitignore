@@ -7,9 +7,11 @@ uploads/
 db/*.db
 db/*.db-shm
 db/*.db-wal
+db/backups/
 *.log
 *.bak
 reports/acceptance/
+reports/e2e-3.0/
 
 miniprogram/node_modules/
 miniprogram/project.private.config.json

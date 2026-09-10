@@ -10,6 +10,44 @@ function asArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function asText(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function stringList(value, objectFields) {
+  return asArray(value).map(item => {
+    if (typeof item === 'string') return item.trim();
+    if (!item || typeof item !== 'object') return '';
+    return (objectFields || []).map(field => asText(item[field])).filter(Boolean).join('｜');
+  }).filter(Boolean);
+}
+
+function normalizePhase(phase, index) {
+  const source = phase && typeof phase === 'object' ? phase : {};
+  return Object.assign({}, source, {
+    duration: asText(source.duration) || ['3个月', '6个月', '12个月'][index] || `阶段${index + 1}`,
+    goal: asText(source.goal),
+    skills: stringList(source.skills, ['name', 'skill']),
+    skill_actions: asArray(source.skill_actions).map(item => ({
+      skill: asText(item && (item.skill || item.name)),
+      target: asText(item && item.target),
+      practice: asText(item && item.practice),
+      evidence: asText(item && item.evidence)
+    })).filter(item => item.skill || item.target || item.practice || item.evidence),
+    projects: stringList(source.projects, ['name', 'deliverable']),
+    project_blueprints: asArray(source.project_blueprints).map(item => ({
+      name: asText(item && item.name),
+      deliverable: asText(item && item.deliverable),
+      proof: asText(item && item.proof)
+    })).filter(item => item.name || item.deliverable || item.proof),
+    resume: asText(source.resume),
+    interview: asText(source.interview),
+    job_search: asText(source.job_search),
+    deliverables: stringList(source.deliverables, ['name', 'detail']),
+    success_metrics: stringList(source.success_metrics, ['name', 'target'])
+  });
+}
+
 function normalizeCareerPlan(plan) {
   if (!plan) return null;
 
@@ -27,15 +65,45 @@ function normalizeCareerPlan(plan) {
 
   if (!plan || typeof plan !== 'object') return null;
 
+  const gapAnalysis = plan.gap_analysis || {};
+
   return Object.assign({}, plan, {
-    gap_analysis: Object.assign({
-      core_skills: [],
-      gaps: [],
-      strengths: []
-    }, plan.gap_analysis || {}),
-    phases: asArray(plan.phases),
-    resources: asArray(plan.resources),
-    milestones: asArray(plan.milestones)
+    strategy_summary: asText(plan.strategy_summary),
+    assumptions: stringList(plan.assumptions, ['text', 'assumption']),
+    gap_analysis: {
+      core_skills: stringList(gapAnalysis.core_skills, ['name', 'skill']),
+      gaps: stringList(gapAnalysis.gaps, ['area', 'evidence', 'action', 'next_action']),
+      strengths: stringList(gapAnalysis.strengths, ['strength', 'evidence', 'usage'])
+    },
+    phases: asArray(plan.phases).map(normalizePhase),
+    resources: asArray(plan.resources).map(item => ({
+      category: asText(item && item.category) || '推荐资源',
+      items: stringList(item && item.items, ['name', 'purpose', 'usage'])
+    })).filter(item => item.items.length),
+    milestones: asArray(plan.milestones).map(item => {
+      const deliverables = stringList(item && item.deliverables, ['name', 'detail']);
+      const metrics = stringList(item && item.metrics, ['name', 'target']);
+      return {
+        month: Number(item && item.month) || '',
+        focus: asText(item && item.focus),
+        actions: stringList(item && item.actions, ['action', 'deliverable', 'metric']),
+        deliverables,
+        deliverables_text: deliverables.join('；'),
+        metrics,
+        metrics_text: metrics.join('；')
+      };
+    }),
+    weekly_routine: asArray(plan.weekly_routine).map(item => ({
+      category: asText(item && item.category),
+      cadence: asText(item && item.cadence),
+      action: asText(item && item.action),
+      metric: asText(item && item.metric)
+    })).filter(item => item.action || item.metric),
+    risk_alerts: asArray(plan.risk_alerts).map(item => ({
+      risk: asText(item && item.risk),
+      signal: asText(item && item.signal),
+      response: asText(item && item.response)
+    })).filter(item => item.risk || item.response)
   });
 }
 
@@ -73,14 +141,7 @@ Page({
     showHistory: false,
 
     // 加载提示轮换（非响应式，放 data 里方便 _clearLoadingTimer 读取）
-    _loadingTimer: null,
-
-    careerTools: [
-      { title: '简历中心', desc: '诊断简历、补亮点、优化表达', icon: 'CV', tone: 'blue', url: '/package-career/pages/resume/resume' },
-      { title: '薪资查询', desc: '查看岗位和公司薪酬参考', icon: 'PAY', tone: 'green', url: '/package-career/pages/salary/salary' },
-      { title: 'Offer 对比', desc: '拆解现金、股票和成长性', icon: 'OFF', tone: 'orange', url: '/package-career/pages/offer-compare/offer-compare' },
-      { title: '岗位洞察', desc: '分析职责、技能和求职策略', icon: 'INS', tone: 'purple', url: '/package-career/pages/job-insights/job-insights' }
-    ],
+    _loadingTimer: null
   },
 
   onLoad(options) {
@@ -283,12 +344,6 @@ Page({
     wx.nextTick(() => {
       wx.pageScrollTo({ scrollTop: 0, duration: 180 });
     });
-  },
-
-  openCareerTool(e) {
-    const url = e.currentTarget.dataset.url;
-    if (!url) return;
-    wx.navigateTo({ url });
   },
 
   clearHistory() {

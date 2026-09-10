@@ -1,7 +1,7 @@
 // utils/api-ai.js
 // AI 功能模块：面试对话、题库生成、面经生成、求职规划
 
-const { post } = require('./api-client.js');
+const { post, request } = require('./api-client.js');
 
 /**
  * 发送消息给 AI（走自有服务器代理，失败自动重试一次）
@@ -13,12 +13,21 @@ function sendChatToDeepSeek(messages, retries) {
     body: { messages, temperature: 0.7 },
     timeout: 65000
   }).catch(err => {
-    if (retries > 0) {
+    const canRetry = !err || (!err.statusCode && err.code !== 'UNAUTHORIZED');
+    if (retries > 0 && canRetry) {
       console.warn('AI 请求失败，1秒后重试...', err.message || err);
       return new Promise(res => setTimeout(res, 1000))
         .then(() => sendChatToDeepSeek(messages, retries - 1));
     }
     return Promise.reject(err);
+  });
+}
+
+function getAiUsageStatus() {
+  return request({
+    path: '/api/ai/usage',
+    noCache: true,
+    timeout: 10000
   });
 }
 
@@ -143,6 +152,7 @@ function generateProject(track, role, background, seniority) {
 }
 
 module.exports = {
+  getAiUsageStatus,
   sendChatToDeepSeek,
   generateQuestions,
   generateExperience,

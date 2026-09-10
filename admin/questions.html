@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>题库管理 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="admin-shell">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer"><div class="admin-name" id="adminUsername"></div><button class="nav-item" style="margin-top:6px" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i><span>退出登录</span></button></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span style="font-size:13px;color:#6b7280" id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
+    <div class="content">
+      <div class="page-header">
+        <div><h1>题库管理</h1><div class="sub">维护小程序面试题库，发布后会展示到面试题库页面</div></div>
+        <button class="btn btn-primary" onclick="openAdd()"><i class="fa-solid fa-plus"></i> 新增题目</button>
+      </div>
+
+      <div class="toolbar">
+        <input type="text" id="kw" placeholder="搜索题目、答案、标签" onkeydown="if(event.key==='Enter')load(1)">
+        <select id="category" onchange="load(1)">
+          <option value="">全部分类</option>
+          <option value="java">Java</option>
+          <option value="frontend">前端</option>
+          <option value="algorithm">算法</option>
+          <option value="system">系统设计</option>
+          <option value="behavior">行为面试</option>
+          <option value="python">Python</option>
+          <option value="database">数据库</option>
+        </select>
+        <select id="status" onchange="load(1)">
+          <option value="">全部状态</option>
+          <option value="published">已发布</option>
+          <option value="draft">草稿</option>
+        </select>
+        <button class="btn btn-outline" onclick="load(1)"><i class="fa-solid fa-search"></i> 搜索</button>
+      </div>
+
+      <div class="table-card">
+        <div class="table-wrap"><table>
+          <thead><tr><th>ID</th><th>题目</th><th>分类</th><th>难度</th><th>标签</th><th>精选</th><th>状态</th><th>更新时间</th><th>操作</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table></div>
+        <div class="pagination" id="pagi"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal('modal')">
+  <div class="modal-box" style="max-width:760px">
+    <div class="modal-header"><h3 id="modalTitle">新增题目</h3><button class="modal-close" onclick="closeModal('modal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>题目 *</label><input type="text" id="f_title" placeholder="请输入面试题标题"></div>
+      <div class="form-row">
+        <div class="form-group"><label>分类</label>
+          <select id="f_category">
+            <option value="java">Java</option>
+            <option value="frontend">前端</option>
+            <option value="algorithm">算法</option>
+            <option value="system">系统设计</option>
+            <option value="behavior">行为面试</option>
+            <option value="python">Python</option>
+            <option value="database">数据库</option>
+          </select>
+        </div>
+        <div class="form-group"><label>难度</label>
+          <select id="f_difficulty">
+            <option value="简单">简单</option>
+            <option value="中等">中等</option>
+            <option value="困难">困难</option>
+          </select>
+        </div>
+        <div class="form-group"><label>排序</label><input type="number" id="f_sort" value="0"></div>
+      </div>
+      <div class="form-group"><label>参考答案</label><textarea id="f_answer" rows="8" placeholder="请输入参考答案、答题要点或 STAR 提示"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>标签</label><input type="text" id="f_tags" placeholder="用逗号分隔，如 JVM,并发,项目"></div>
+        <div class="form-group"><label>浏览量</label><input type="number" id="f_views" value="0"></div>
+      </div>
+      <div style="display:flex;gap:20px;margin-top:4px">
+        <div class="form-check"><input type="checkbox" id="f_featured"><label for="f_featured">精选</label></div>
+        <div class="form-check"><input type="checkbox" id="f_published" checked><label for="f_published">发布</label></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal')">取消</button>
+      <button class="btn btn-primary" onclick="save()"><i class="fa-solid fa-floppy-disk"></i> 保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script><script src="js/common.js"></script>
+<script>
+let page = 1, total = 0, editId = null, cache = [];
+const categoryNames = { java:'Java', frontend:'前端', algorithm:'算法', system:'系统设计', behavior:'行为面试', python:'Python', database:'数据库' };
+
+initPage('questions', '题库管理');
+load(1);
+
+function buildQuery(p) {
+  const params = new URLSearchParams({
+    page: String(p),
+    pageSize: '20',
+    keyword: document.getElementById('kw').value.trim(),
+    category: document.getElementById('category').value,
+    status: document.getElementById('status').value
+  });
+  return params.toString();
+}
+
+async function load(p) {
+  page = p;
+  const res = await GET(`/admin/api/interview-questions?${buildQuery(p)}`);
+  if (!res || res.code !== 0) return;
+  total = res.data.total;
+  cache = res.data.list || [];
+  document.getElementById('tbody').innerHTML = cache.length ? cache.map(q => `
+    <tr>
+      <td>${q.id}</td>
+      <td style="max-width:320px"><strong>${esc(q.title)}</strong><div style="color:#6b7280;font-size:12px">${esc(truncate(q.answer, 54))}</div></td>
+      <td><span class="badge badge-blue">${esc(categoryNames[q.category] || q.category || '-')}</span></td>
+      <td>${difficultyBadge(q.difficulty)}</td>
+      <td>${tagHtml(q.tags)}</td>
+      <td>${q.isFeatured ? '<span class="badge badge-amber">精选</span>' : '-'}</td>
+      <td>${q.isPublished ? '<span class="badge badge-green">已发布</span>' : '<span class="badge badge-gray">草稿</span>'}</td>
+      <td>${fmtDate(q.updated_at || q.created_at)}</td>
+      <td><div class="td-actions">
+        <button class="btn btn-outline btn-sm" onclick="openEdit(${q.id})"><i class="fa-solid fa-pen"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="del(${q.id})"><i class="fa-solid fa-trash"></i></button>
+      </div></td>
+    </tr>`).join('') : '<tr class="empty-row"><td colspan="9">暂无题目，点击右上角新增第一道题</td></tr>';
+  renderPagination('pagi', page, total, 20, 'load');
+}
+
+function tagHtml(tags) {
+  const list = Array.isArray(tags) ? tags : [];
+  if (!list.length) return '-';
+  return list.slice(0, 3).map(t => `<span class="badge badge-gray">${esc(t)}</span>`).join(' ');
+}
+
+function difficultyBadge(text) {
+  const cls = text === '困难' ? 'badge-red' : text === '简单' ? 'badge-green' : 'badge-amber';
+  return `<span class="badge ${cls}">${esc(text || '中等')}</span>`;
+}
+
+function openAdd() {
+  editId = null;
+  document.getElementById('modalTitle').textContent = '新增题目';
+  document.getElementById('f_title').value = '';
+  document.getElementById('f_category').value = 'behavior';
+  document.getElementById('f_difficulty').value = '中等';
+  document.getElementById('f_answer').value = '';
+  document.getElementById('f_tags').value = '';
+  document.getElementById('f_views').value = 0;
+  document.getElementById('f_sort').value = 0;
+  document.getElementById('f_featured').checked = false;
+  document.getElementById('f_published').checked = true;
+  openModal('modal');
+}
+
+function openEdit(id) {
+  const q = cache.find(item => item.id === id);
+  if (!q) return;
+  editId = id;
+  document.getElementById('modalTitle').textContent = '编辑题目';
+  document.getElementById('f_title').value = q.title || '';
+  document.getElementById('f_category').value = q.category || 'behavior';
+  document.getElementById('f_difficulty').value = q.difficulty || '中等';
+  document.getElementById('f_answer').value = q.answer || '';
+  document.getElementById('f_tags').value = Array.isArray(q.tags) ? q.tags.join(',') : '';
+  document.getElementById('f_views').value = q.views || 0;
+  document.getElementById('f_sort').value = q.sort_order || 0;
+  document.getElementById('f_featured').checked = !!q.isFeatured;
+  document.getElementById('f_published').checked = !!q.isPublished;
+  openModal('modal');
+}
+
+function readForm() {
+  return {
+    title: document.getElementById('f_title').value.trim(),
+    category: document.getElementById('f_category').value,
+    difficulty: document.getElementById('f_difficulty').value,
+    answer: document.getElementById('f_answer').value.trim(),
+    tags: document.getElementById('f_tags').value.trim(),
+    views: Number(document.getElementById('f_views').value) || 0,
+    sortOrder: Number(document.getElementById('f_sort').value) || 0,
+    isFeatured: document.getElementById('f_featured').checked,
+    isPublished: document.getElementById('f_published').checked
+  };
+}
+
+async function save() {
+  const body = readForm();
+  if (!body.title) { toast('题目不能为空', 'error'); return; }
+  const res = editId
+    ? await PUT(`/admin/api/interview-questions/${editId}`, body)
+    : await POST('/admin/api/interview-questions', body);
+  if (res && res.code === 0) {
+    toast(editId ? '更新成功' : '新增成功');
+    closeModal('modal');
+    load(page);
+  } else {
+    toast(res?.message || '保存失败', 'error');
+  }
+}
+
+function del(id) {
+  confirm('确定删除这道题吗？', async () => {
+    const res = await DELETE(`/admin/api/interview-questions/${id}`);
+    if (res && res.code === 0) { toast('删除成功'); load(page); }
+    else toast(res?.message || '删除失败', 'error');
+  });
+}
+</script>
+</body>
+</html>

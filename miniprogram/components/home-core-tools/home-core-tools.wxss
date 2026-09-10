@@ -1,0 +1,108 @@
+:host {
+  display: block;
+}
+
+.section {
+  margin-top: 28rpx;
+}
+
+.section-title,
+.section-subtitle,
+.tool-title,
+.tool-desc {
+  display: block;
+}
+
+.section-title {
+  color: #101b2e;
+  font-size: 31rpx;
+  font-weight: 850;
+}
+
+.section-subtitle {
+  display: none;
+}
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14rpx;
+  margin-top: 15rpx;
+}
+
+.tool-card {
+  position: relative;
+  min-width: 0;
+  min-height: 108rpx;
+  display: flex;
+  align-items: center;
+  padding: 17rpx 18rpx;
+  box-sizing: border-box;
+  border: 1.5rpx solid #dfe7f1;
+  border-radius: 22rpx;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 10rpx 25rpx rgba(31, 55, 89, 0.045);
+}
+
+.tool-icon-wrap {
+  width: 52rpx;
+  height: 52rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 15rpx;
+  background: #e8f2ff;
+  box-shadow: 0 6rpx 14rpx rgba(45, 113, 218, 0.1);
+}
+
+.tool-card.green .tool-icon-wrap {
+  background: #e3f7ed;
+}
+
+.tool-card.amber .tool-icon-wrap {
+  background: #fff1df;
+}
+
+.tool-card.indigo .tool-icon-wrap {
+  background: #eee9ff;
+}
+
+.tool-icon {
+  width: 32rpx;
+  height: 32rpx;
+}
+
+.tool-copy {
+  min-width: 0;
+  flex: 1;
+  margin-left: 14rpx;
+}
+
+.tool-title {
+  overflow: hidden;
+  color: #182338;
+  font-size: 23rpx;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-desc {
+  margin-top: 6rpx;
+  overflow: hidden;
+  color: #7e8ca1;
+  font-size: 18rpx;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-arrow {
+  display: none;
+}
+
+.tool-hover {
+  opacity: 0.82;
+  transform: scale(0.988);
+}

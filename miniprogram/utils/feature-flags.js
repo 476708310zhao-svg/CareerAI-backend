@@ -18,7 +18,11 @@ let lastRefreshAt = 0;
 let redirecting = false;
 
 function defaultFlags() {
-  return Object.assign({ recruitment: false, membership: false }, config.DEFAULT_FEATURE_FLAGS || {});
+  return Object.assign({
+    recruitment: false,
+    home_recommendations: false,
+    membership: false
+  }, config.DEFAULT_FEATURE_FLAGS || {});
 }
 
 function normalizeFlags(value) {
@@ -28,6 +32,9 @@ function normalizeFlags(value) {
     recruitment: typeof source.recruitment === 'boolean'
       ? source.recruitment
       : defaults.recruitment,
+    home_recommendations: typeof source.home_recommendations === 'boolean'
+      ? source.home_recommendations
+      : defaults.home_recommendations,
     membership: typeof source.membership === 'boolean'
       ? source.membership
       : defaults.membership
@@ -58,6 +65,11 @@ function isRecruitmentEnabled() {
 
 function isMembershipEnabled() {
   return getCurrentFlags().membership;
+}
+
+function isHomeRecommendationsEnabled() {
+  const flags = getCurrentFlags();
+  return flags.recruitment && flags.home_recommendations;
 }
 
 function isRecruitmentUrl(url) {
@@ -174,6 +186,7 @@ module.exports = {
   getCurrentFlags,
   guardMembershipPage,
   guardRecruitmentPage,
+  isHomeRecommendationsEnabled,
   isMembershipEnabled,
   isMembershipUrl,
   isRecruitmentEnabled,

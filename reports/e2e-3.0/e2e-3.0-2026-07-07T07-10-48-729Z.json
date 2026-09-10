@@ -1,0 +1,29 @@
+{
+  "summary": {
+    "passed": 0,
+    "failed": 1,
+    "total": 1
+  },
+  "options": {
+    "cliPath": "C:/Program Files (x86)/Tencent/微信web开发者工具/cli.bat",
+    "projectPath": "C:\\Users\\admin\\Desktop\\求职小程序\\jobapp-server\\miniprogram",
+    "reportDir": "C:\\Users\\admin\\Desktop\\求职小程序\\jobapp-server\\reports\\e2e-3.0",
+    "screenshots": true,
+    "keepOpen": false,
+    "dryRun": false,
+    "timeoutMs": 15000,
+    "trustProject": true,
+    "port": 0,
+    "verbose": true
+  },
+  "steps": [
+    {
+      "group": "launch-devtools",
+      "name": "Launch WeChat DevTools automation session",
+      "status": "FAIL",
+      "durationMs": 813,
+      "detail": "spawn EINVAL",
+      "screenshot": ""
+    }
+  ]
+}

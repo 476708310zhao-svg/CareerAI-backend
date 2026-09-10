@@ -9,10 +9,7 @@
     <text class="progress-pos">{{position || '综合面试'}}</text>
     <text wx:if="{{company && company !== '未指定公司'}}" class="progress-company"> @ {{company}}</text>
   </view>
-  <view class="ai-disclosure">
-    <text class="ai-disclosure-badge">AI生成</text>
-    <text class="ai-disclosure-text">问题、点评与报告由人工智能生成，仅供练习参考</text>
-  </view>
+  <c-ai-disclosure compact="{{true}}" text="问题、点评与报告由人工智能生成，仅供练习参考。" />
   <view class="progress-info">
     <text class="progress-label">答题进度</text>
     <text class="progress-count">{{questionCount}} / {{maxQDisplay}}</text>
@@ -131,10 +128,17 @@
   </block>
   <block wx:else>
     <view class="error-action-btn" bindtap="retryInterview">
-      {{errorRequiresLogin ? '返回并登录' : '重新尝试'}}
+      {{errorRequiresLogin ? '立即登录' : '重新尝试'}}
     </view>
   </block>
 </view>
+
+<c-login-popup
+  show="{{authPromptVisible}}"
+  subtitle="{{authPromptSubtitle}}"
+  bindclose="closeAuthPrompt"
+  bindsuccess="onAuthPromptSuccess"
+/>
 
 <!-- 面试报告弹窗 -->
 <view class="modal-mask" wx:if="{{showReport}}">

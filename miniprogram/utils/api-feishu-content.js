@@ -59,8 +59,7 @@ function isAllValue(value) {
   return !text
     || text === 'all'
     || text.indexOf('全部') !== -1
-    || text.indexOf('不限') !== -1
-    || text.indexOf('鍏ㄩ儴') !== -1;
+    || text.indexOf('不限') !== -1;
 }
 
 function firstMeaningful(values) {

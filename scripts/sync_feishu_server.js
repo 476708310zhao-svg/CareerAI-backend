@@ -9,6 +9,7 @@ const APP_ID = process.env.FEISHU_CAMPUS_APP_ID || process.env.FEISHU_APP_ID;
 const APP_SECRET = process.env.FEISHU_CAMPUS_APP_SECRET || process.env.FEISHU_APP_SECRET;
 const BASE_TOKEN = process.env.FEISHU_CAMPUS_BASE_TOKEN || process.env.FEISHU_BASE_TOKEN;
 const TABLE_ID = process.env.FEISHU_CAMPUS_TABLE_ID || process.env.FEISHU_TABLE_ID;
+const VIEW_ID = process.env.FEISHU_CAMPUS_VIEW_ID || process.env.FEISHU_VIEW_ID || 'vewh2m8QIt';
 const SOURCE = '飞书校招日历';
 const SHANGHAI_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
   timeZone: 'Asia/Shanghai',
@@ -67,7 +68,7 @@ async function fetchAllRecords(token) {
 
   while (true) {
     console.log(`  拉取第 ${page} 页...`);
-    const qs = `page_size=500${pageToken ? `&page_token=${encodeURIComponent(pageToken)}` : ''}`;
+    const qs = buildRecordQuery(pageToken);
     const res = await request({
       hostname: 'open.feishu.cn',
       path: `/open-apis/bitable/v1/apps/${BASE_TOKEN}/tables/${TABLE_ID}/records?${qs}`,
@@ -87,6 +88,11 @@ async function fetchAllRecords(token) {
   }
 
   return all;
+}
+
+function buildRecordQuery(pageToken) {
+  return `page_size=500&view_id=${encodeURIComponent(VIEW_ID)}` +
+    `${pageToken ? `&page_token=${encodeURIComponent(pageToken)}` : ''}`;
 }
 
 function pick(fields, names) {
@@ -196,6 +202,8 @@ function transform(item) {
   const industryValue = pick(f, ['公司行业', '行业']);
   const deadline = pick(f, ['截止日期', '截止时间', '网申截止']);
   const start = pick(f, ['开始时间', '开始日期', '发布日期']);
+  const startDate = dateValue(start);
+  const deadlineDate = dateValue(deadline);
   const salary = text(pick(f, ['薪资', '薪酬']));
   const note = text(pick(f, ['备注', '说明']));
   const degree = text(pick(f, ['学历要求', '学历']));
@@ -210,12 +218,12 @@ function transform(item) {
     company,
     region: '中国内地',
     position_type: positionType(positionName),
-    recruit_year: 2025,
+    recruit_year: Number(startDate.slice(0, 4)) || new Date().getFullYear(),
     grad_year: gradYear(pick(f, ['届次', '毕业届次', '毕业年份'])),
     recruit_type: recruitType(recruit),
     industry: industry(industryValue),
-    start_date: dateValue(start),
-    deadline_date: dateValue(deadline),
+    start_date: startDate,
+    deadline_date: deadlineDate,
     locations: JSON.stringify(locations),
     position_name: positionName.slice(0, 500),
     apply_url: applyUrl,
@@ -284,7 +292,11 @@ async function main() {
   console.log(`   数据库总计:     ${total} 条`);
 }
 
-main().catch((err) => {
-  console.error('❌ 同步失败:', err.message);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('❌ 同步失败:', err.message);
+    process.exit(1);
+  });
+}
+
+module.exports = { buildRecordQuery, transform };

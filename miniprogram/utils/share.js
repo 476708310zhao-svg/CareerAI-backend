@@ -4,7 +4,7 @@ const localShareConfig = require('./shareConfig.js');
 const APP_NAME = '\u804c\u5f15';
 const DEFAULT_TITLE = localShareConfig.DEFAULT_SHARE.title;
 const DEFAULT_IMAGE = localShareConfig.DEFAULT_SHARE.imageUrl;
-const SHARE_CACHE_KEY = 'share_config_cache';
+const SHARE_CACHE_KEY = 'share_config_cache_v2';
 const SHARE_CACHE_TTL = 30 * 60 * 1000;
 const API_BASE = config.API_BASE_URL;
 const ASSET_BASE = config.ASSET_BASE_URL || API_BASE;
@@ -279,7 +279,7 @@ function applyShareConfig(page, share) {
     ...base,
     title: configured.title || cleanTitle(base.title) || resolveDataTitle(page) || resolveRouteTitle(page) || configured.defaultTitle,
     path: base.path || ('/' + route + (query ? '?' + query : '')),
-    imageUrl: configured.imageUrl || resolveImageUrl(base.imageUrl) || configured.defaultImageUrl
+    imageUrl: configured.imageUrl || configured.defaultImageUrl || resolveImageUrl(base.imageUrl) || DEFAULT_IMAGE
   };
 }
 
@@ -290,7 +290,7 @@ function buildTimelineShare(page, originalShareAppMessage) {
   const title = configured.title || cleanTitle(appShare && appShare.title) || resolveDataTitle(page) || resolveRouteTitle(page) || configured.defaultTitle;
   const storedQuery = page && page.__shareQuery ? page.__shareQuery : '';
   const appShareQuery = appShare && appShare.path ? parsePathQuery(appShare.path) : '';
-  const imageUrl = configured.imageUrl || resolveImageUrl(appShare && appShare.imageUrl) || configured.defaultImageUrl;
+  const imageUrl = configured.imageUrl || configured.defaultImageUrl || resolveImageUrl(appShare && appShare.imageUrl) || DEFAULT_IMAGE;
 
   return {
     title,
@@ -365,7 +365,7 @@ function installPageShare() {
         return {
           ...base,
           title: configured.title || cleanTitle(base.title) || resolveDataTitle(this) || resolveRouteTitle(this) || configured.defaultTitle,
-          imageUrl: configured.imageUrl || resolveImageUrl(base.imageUrl) || configured.defaultImageUrl
+          imageUrl: configured.imageUrl || configured.defaultImageUrl || resolveImageUrl(base.imageUrl) || DEFAULT_IMAGE
         };
       }
       return buildTimelineShare(this, originalShareAppMessage);

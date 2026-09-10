@@ -25,19 +25,28 @@ function hasToken() {
 }
 
 function normalizeRemoteReport(item) {
+  const suggestions = item.suggestions || [];
+  const recommendText = item.recommendText || suggestions[0] || '';
   return {
     id: item.clientId || item.id || ('match_' + Date.now()),
     serverId: item.id || '',
     jobId: item.jobId || '',
     jobTitle: item.jobTitle || '',
     company: item.company || '',
+    jobLink: item.jobLink || '',
     resumeName: item.resumeName || '当前在线简历',
+    resumeVersionId: item.resumeVersionId || '',
     score: item.score || 0,
     matchedKeywords: item.matchedKeywords || [],
     missingKeywords: item.missingKeywords || [],
     projectSuggestion: item.projectSuggestion || '',
     atsRisk: item.atsRisk || '',
-    suggestions: item.suggestions || [],
+    suggestions,
+    recommendText,
+    interviewPrep: item.interviewPrep || [],
+    jdText: item.jdText || '',
+    resumeText: item.resumeText || '',
+    useOnlineResume: item.useOnlineResume !== false,
     createdAt: item.createdAt || ''
   };
 }
@@ -46,6 +55,53 @@ function saveList(list) {
   try {
     wx.setStorageSync(STORAGE_KEY, list || []);
   } catch (e) {}
+}
+
+function normalizeLocalReport(report) {
+  const item = report || {};
+  const suggestions = item.suggestions || [];
+  return Object.assign({}, item, {
+    id: item.id || item.clientId || ('match_' + Date.now()),
+    serverId: item.serverId || '',
+    jobId: item.jobId || '',
+    jobTitle: item.jobTitle || '',
+    company: item.company || '',
+    jobLink: item.jobLink || '',
+    resumeName: item.resumeName || '当前在线简历',
+    resumeVersionId: item.resumeVersionId || '',
+    score: Number(item.score || 0),
+    matchedKeywords: Array.isArray(item.matchedKeywords) ? item.matchedKeywords : [],
+    missingKeywords: Array.isArray(item.missingKeywords) ? item.missingKeywords : [],
+    projectSuggestion: item.projectSuggestion || '',
+    atsRisk: item.atsRisk || '',
+    suggestions,
+    recommendText: item.recommendText || suggestions[0] || '',
+    interviewPrep: Array.isArray(item.interviewPrep) ? item.interviewPrep : [],
+    jdText: item.jdText || '',
+    resumeText: item.resumeText || '',
+    useOnlineResume: item.useOnlineResume !== false,
+    createdAt: item.createdAt || new Date().toISOString()
+  });
+}
+
+function reportKey(report) {
+  const item = report || {};
+  return String(item.id || item.clientId || item.serverId || '');
+}
+
+function mergeReports(local, remote) {
+  const merged = [];
+  const seen = {};
+  (remote || []).concat(local || []).forEach(item => {
+    const normalized = normalizeLocalReport(item);
+    const key = reportKey(normalized);
+    if (!key || seen[key]) return;
+    seen[key] = true;
+    merged.push(normalized);
+  });
+  return merged
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+    .slice(0, 50);
 }
 
 function textOfResume(resume) {
@@ -126,28 +182,48 @@ function buildReport(resume, job) {
 }
 
 function saveReport(report) {
-  const list = readList();
-  const next = [report].concat(list).slice(0, 50);
+  const normalized = normalizeLocalReport(report);
+  const list = readList().filter(item => reportKey(item) !== reportKey(normalized));
+  const next = [normalized].concat(list).slice(0, 50);
   saveList(next);
-  syncReport(report).catch(() => {});
-  return report;
+  syncReport(normalized).then(remote => {
+    const remoteId = reportKey(remote);
+    if (!remoteId) return;
+    const current = readList().map(item => {
+      if (reportKey(item) !== reportKey(normalized)) return item;
+      return Object.assign({}, item, remote, {
+        id: normalized.id || remote.id,
+        serverId: remote.serverId || item.serverId || ''
+      });
+    });
+    saveList(current);
+  }).catch(() => {});
+  return normalized;
 }
 
 function getReports() {
   return readList();
 }
 
+function getReportById(id) {
+  const key = String(id || '');
+  if (!key) return null;
+  return readList().find(item => String(item.id) === key || String(item.serverId) === key) || null;
+}
+
 function fetchRemoteReports() {
   if (!hasToken()) return Promise.resolve(readList());
+  const local = readList();
   return apiClient.request({
     path: '/api/career-assets/jd-match-reports',
     noCache: true,
     timeout: 12000
   }).then(res => {
-    if (!res || res.code !== 0 || !Array.isArray(res.data)) return readList();
+    if (!res || res.code !== 0 || !Array.isArray(res.data)) return local;
     const remote = res.data.map(normalizeRemoteReport);
-    saveList(remote);
-    return remote;
+    const merged = mergeReports(local, remote);
+    saveList(merged);
+    return merged;
   }).catch(() => readList());
 }
 
@@ -167,6 +243,7 @@ module.exports = {
   buildReport,
   saveReport,
   getReports,
+  getReportById,
   fetchRemoteReports,
   syncReport
 };

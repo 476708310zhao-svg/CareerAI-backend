@@ -2,7 +2,7 @@ require('dotenv').config();
 
 const http = require('http');
 
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 4400;
 const cronSecret = process.env.CRON_SECRET || '';
 
 function postRefresh() {

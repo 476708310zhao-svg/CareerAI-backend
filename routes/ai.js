@@ -1,23 +1,28 @@
 const router = require('express').Router();
 const { aiLimiter } = require('../middleware/rateLimit');
 const { authMiddleware } = require('../middleware/auth');
-const { consumeDailyLimit, requireVip } = require('../utils/aiQuota');
+const { consumeDailyLimit, requireVip, getQuotaStatus } = require('../utils/aiQuota');
 const { createChatCompletion, streamChatCompletion } = require('../utils/aiClient');
-const db     = require('../db/database');
-
-function todayKey() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function isVipActive(user) {
-  if (!user || user.vip_level <= 0) return false;
-  if (!user.vip_expires_at) return true;
-  return String(user.vip_expires_at).slice(0, 10) >= todayKey();
-}
+const {
+  PROMPT_VERSION: CAREER_PLAN_PROMPT_VERSION,
+  buildCareerPlanMessages,
+  buildCareerPlanExecutionMessages,
+  buildRepairMessage,
+  validateCareerPlanCore,
+  validateCareerPlanExecution,
+  validateCareerPlan,
+  coreIsDetailed,
+  executionIsDetailed,
+  assessCareerPlanQuality
+} = require('../services/careerPlanGenerator');
 
 function aiFail(res, status, message, data) {
   return res.status(status).json({ code: -1, message, data });
 }
+
+router.get('/usage', authMiddleware, (req, res) => {
+  res.json({ code: 0, message: 'success', data: getQuotaStatus(req.user.userId) });
+});
 
 function aiErrorResponse(res, err, scope) {
   const status = err.response?.status || 500;
@@ -47,18 +52,6 @@ function extractJsonObject(content) {
 
 function isStringArray(value) {
   return Array.isArray(value) && value.every(item => typeof item === 'string');
-}
-
-function validateCareerPlan(plan) {
-  return !!(
-    plan &&
-    typeof plan === 'object' &&
-    plan.gap_analysis &&
-    Array.isArray(plan.phases) &&
-    plan.phases.length > 0 &&
-    Array.isArray(plan.resources) &&
-    Array.isArray(plan.milestones)
-  );
 }
 
 function validateProject(project) {
@@ -226,6 +219,7 @@ router.post('/chat', authMiddleware, aiLimiter, async (req, res) => {
       return aiFail(res, 400, '单条消息不能超过 4000 字符');
     }
   }
+  if (!consumeDailyLimit(req, res, 'chat')) return;
 
   try {
     const result = await createChatCompletion(
@@ -257,33 +251,72 @@ router.post('/career-plan', authMiddleware, aiLimiter, async (req, res) => {
   }
   if (!consumeDailyLimit(req, res, 'career_plan')) return;
 
-  const prompt = `你是留学生求职顾问。根据以下信息，用JSON返回求职路线规划，不要有任何JSON以外的内容。
+  const input = { location, position, background };
+  const coreMessages = buildCareerPlanMessages(input);
+  const executionMessages = buildCareerPlanExecutionMessages(input);
 
-用户：地区=${location || '不限'}，岗位=${position}，背景=${background}
-
-JSON结构（每个字符串字段控制在20字以内，数组最多3项）：
-{"gap_analysis":{"core_skills":["技能1","技能2","技能3"],"gaps":["差距1","差距2"],"strengths":["优势1","优势2"]},"phases":[{"duration":"3个月","goal":"目标一句话","skills":["技能1","技能2"],"projects":["项目1"],"resume":"简历要点","interview":"面试策略","job_search":"求职策略"},{"duration":"6个月","goal":"","skills":[],"projects":[],"resume":"","interview":"","job_search":""},{"duration":"12个月","goal":"","skills":[],"projects":[],"resume":"","interview":"","job_search":""}],"resources":[{"category":"技术提升","items":["资源1","资源2"]},{"category":"求职平台","items":["平台1","平台2"]}],"milestones":[{"month":1,"focus":"启动重心一句话","actions":["具体行动1","具体行动2"]},{"month":2,"focus":"重心","actions":["行动1","行动2"]},{"month":3,"focus":"重心","actions":["行动1","行动2"]},{"month":6,"focus":"重心","actions":["行动1","行动2"]},{"month":9,"focus":"重心","actions":["行动1","行动2"]},{"month":12,"focus":"重心","actions":["行动1","行动2"]}]}`;
-
-  try {
+  async function requestCareerPlan(requestMessages, maxTokens) {
     const result = await createChatCompletion(
       {
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.5,
-        max_tokens: 2000,
+        messages: requestMessages,
+        temperature: 0.35,
+        max_tokens: maxTokens,
+        thinking: { type: 'disabled' },
+        response_format: { type: 'json_object' },
         stream: false
       },
       {
         timeout: 120000
       }
     );
-
     const content = result.data?.choices?.[0]?.message?.content || '';
-    const plan = extractJsonObject(content);
+    return { content, plan: extractJsonObject(content) };
+  }
+
+  async function generatePart(messages, maxTokens, validate, isDetailed, label) {
+    let generated = await requestCareerPlan(messages, maxTokens);
+    if (!validate(generated.plan) || !isDetailed(generated.plan)) {
+      generated = await requestCareerPlan([
+        ...messages,
+        { role: 'assistant', content: generated.content || '{}' },
+        { role: 'user', content: buildRepairMessage([label]) }
+      ], maxTokens);
+    }
+    return generated;
+  }
+
+  try {
+    const [coreGenerated, executionGenerated] = await Promise.all([
+      generatePart(coreMessages, 3000, validateCareerPlanCore, coreIsDetailed, '三阶段路线缺少技能标准、项目证据、交付物或验收指标'),
+      generatePart(executionMessages, 2200, validateCareerPlanExecution, executionIsDetailed, '执行日历缺少月度动作、每周节奏或风险应对')
+    ]);
+    const plan = Object.assign({}, coreGenerated.plan || {}, executionGenerated.plan || {}, {
+      prompt_version: CAREER_PLAN_PROMPT_VERSION
+    });
+    const quality = assessCareerPlanQuality(plan);
 
     if (!validateCareerPlan(plan)) {
-      return aiFail(res, 502, 'AI返回格式异常，请重试', { reason: 'schema_invalid' });
+      return aiFail(res, 502, 'AI返回格式异常，请重试', {
+        reason: 'schema_invalid',
+        promptVersion: CAREER_PLAN_PROMPT_VERSION
+      });
     }
-    res.json({ plan, raw: content });
+    if (quality.score < quality.minimum) {
+      return aiFail(res, 502, 'AI规划内容不够完整，请重新生成', {
+        reason: 'quality_insufficient',
+        promptVersion: CAREER_PLAN_PROMPT_VERSION,
+        missing: quality.missing
+      });
+    }
+    res.json({
+      plan,
+      raw: JSON.stringify({ core: coreGenerated.content, execution: executionGenerated.content }),
+      generation: {
+        promptVersion: CAREER_PLAN_PROMPT_VERSION,
+        qualityScore: quality.score,
+        qualityMaximum: quality.maximum
+      }
+    });
   } catch (err) {
     aiErrorResponse(res, err, 'career-plan');
   }
@@ -297,6 +330,7 @@ router.post('/project-builder', authMiddleware, aiLimiter, async (req, res) => {
   if (!track) {
     return aiFail(res, 400, '请选择项目方向');
   }
+  if (!consumeDailyLimit(req, res, 'project_builder')) return;
 
   const trackMap = {
     data: 'Data（数据分析/BI/机器学习）',
@@ -429,8 +463,6 @@ router.post('/workflow', authMiddleware, aiLimiter, requireVip('AI 工作流'), 
 // POST /api/ai/ats
 // Body: { resumeData: object, jobDescription: string, jobTitle?: string }
 // Returns: { atsScore, matchedKeywords, missingKeywords, sectionSuggestions, formatIssues, overallAdvice }
-const ATS_DAILY_LIMIT = 3;
-
 router.post('/ats', authMiddleware, aiLimiter, async (req, res) => {
   const { resumeData, jobDescription, jobTitle } = req.body;
 
@@ -444,29 +476,7 @@ router.post('/ats', authMiddleware, aiLimiter, async (req, res) => {
     return aiFail(res, 400, '岗位描述不能超过5000字');
   }
 
-  // 配额检查（免费3次/天，VIP无限）
-  const userId = req.user && req.user.userId;
-  const user   = db.prepare('SELECT vip_level, vip_expires_at FROM users WHERE id = ?').get(userId);
-  const vipOk  = isVipActive(user);
-  if (!vipOk) {
-    const day  = new Date().toISOString().slice(0, 10);
-    const used = db.prepare(
-      `SELECT COALESCE(SUM(count),0) AS n FROM ai_usage WHERE user_id=? AND feature='ats' AND usage_date=?`
-    ).get(userId, day).n;
-    if (used >= ATS_DAILY_LIMIT) {
-      return res.status(429).json({
-        code: -1,
-        message: `ATS优化今日免费次数(${ATS_DAILY_LIMIT}次)已用完，开通VIP可无限使用`,
-        data: { feature: 'ats', limit: ATS_DAILY_LIMIT, used, vipRequired: true }
-      });
-    }
-    db.prepare(`
-      INSERT INTO ai_usage (user_id, feature, usage_date, count, updated_at)
-      VALUES (?, 'ats', ?, 1, datetime('now'))
-      ON CONFLICT(user_id, feature, usage_date)
-      DO UPDATE SET count = count + 1, updated_at = datetime('now')
-    `).run(userId, day);
-  }
+  if (!consumeDailyLimit(req, res, 'ats')) return;
 
   // 精简简历数据，控制 token 量
   const r = resumeData;
@@ -552,8 +562,6 @@ ${JSON.stringify(slim)}
 // Body: { targetCompany, targetRole, senderBackground, recipientBackground,
 //         platform: 'linkedin'|'email', tone: 'formal'|'casual', lang: 'zh'|'en' }
 // Returns: { code:0, data: { linkedin, email, subject, tips } }
-const NET_DAILY_LIMIT = 5;
-
 router.post('/networking', authMiddleware, aiLimiter, async (req, res) => {
   const {
     targetCompany, targetRole, senderBackground,
@@ -573,29 +581,7 @@ router.post('/networking', authMiddleware, aiLimiter, async (req, res) => {
     return aiFail(res, 400, '背景描述过长');
   }
 
-  // 配额：免费5次/天，VIP无限
-  const userId = req.user && req.user.userId;
-  const user   = db.prepare('SELECT vip_level, vip_expires_at FROM users WHERE id = ?').get(userId);
-  const vipOk  = isVipActive(user);
-  if (!vipOk) {
-    const day  = new Date().toISOString().slice(0, 10);
-    const used = db.prepare(
-      `SELECT COALESCE(SUM(count),0) AS n FROM ai_usage WHERE user_id=? AND feature='networking' AND usage_date=?`
-    ).get(userId, day).n;
-    if (used >= NET_DAILY_LIMIT) {
-      return res.status(429).json({
-        code: -1,
-        message: `Networking消息今日免费次数(${NET_DAILY_LIMIT}次)已用完，开通VIP可无限使用`,
-        data: { feature: 'networking', limit: NET_DAILY_LIMIT, used, vipRequired: true }
-      });
-    }
-    db.prepare(`
-      INSERT INTO ai_usage (user_id, feature, usage_date, count, updated_at)
-      VALUES (?, 'networking', ?, 1, datetime('now'))
-      ON CONFLICT(user_id, feature, usage_date)
-      DO UPDATE SET count = count + 1, updated_at = datetime('now')
-    `).run(userId, day);
-  }
+  if (!consumeDailyLimit(req, res, 'networking')) return;
 
   const toneDesc = tone === 'casual' ? '轻松友好、亲切' : '专业得体、简洁有力';
   const langDesc = lang === 'en' ? '英文' : '中文';

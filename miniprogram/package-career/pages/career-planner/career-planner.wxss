@@ -1057,3 +1057,284 @@ page {
   font-size: 22rpx;
   font-weight: 850;
 }
+
+.compact-header {
+  margin-bottom: 18rpx;
+}
+
+.strategy-card {
+  background: linear-gradient(145deg, #ffffff 0%, #f2f7ff 100%);
+  border-color: rgba(37, 99, 235, 0.14);
+}
+
+.strategy-summary {
+  display: block;
+  color: #344054;
+  font-size: 27rpx;
+  line-height: 1.78;
+}
+
+.assumption-block {
+  margin-top: 22rpx;
+  padding: 20rpx 22rpx;
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1rpx solid rgba(37, 99, 235, 0.09);
+}
+
+.assumption-title {
+  display: block;
+  margin-bottom: 8rpx;
+  color: #175cd3;
+  font-size: 23rpx;
+  font-weight: 900;
+}
+
+.assumption-row {
+  display: flex;
+  gap: 10rpx;
+  margin-top: 7rpx;
+  color: #667085;
+  font-size: 24rpx;
+  line-height: 1.58;
+}
+
+.assumption-dot {
+  color: var(--brand);
+  flex-shrink: 0;
+}
+
+.skill-action-list,
+.project-blueprint-list,
+.routine-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+}
+
+.skill-action-card,
+.project-blueprint {
+  padding: 18rpx 20rpx;
+  border-radius: 20rpx;
+  background: #f8fafc;
+  border: 1rpx solid #eaecf0;
+}
+
+.action-card-title {
+  display: block;
+  margin-bottom: 10rpx;
+  color: #1d2939;
+  font-size: 26rpx;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.evidence-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  margin-top: 9rpx;
+  color: #475467;
+  font-size: 24rpx;
+  line-height: 1.62;
+}
+
+.evidence-row > text:last-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.evidence-label {
+  flex-shrink: 0;
+  padding: 4rpx 9rpx;
+  border-radius: 8rpx;
+  color: #175cd3;
+  background: #eef4ff;
+  font-size: 20rpx;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.outcome-columns {
+  display: flex;
+  gap: 14rpx;
+}
+
+.outcome-column {
+  min-width: 0;
+  flex: 1;
+  padding: 18rpx;
+  border-radius: 19rpx;
+  background: #f8fafc;
+}
+
+.metric-column {
+  background: #f0fdf4;
+}
+
+.outcome-title {
+  display: block;
+  margin-bottom: 10rpx;
+  color: #344054;
+  font-size: 23rpx;
+  font-weight: 900;
+}
+
+.outcome-row {
+  display: flex;
+  gap: 9rpx;
+  margin-top: 9rpx;
+  color: #475467;
+  font-size: 23rpx;
+  line-height: 1.55;
+}
+
+.outcome-row > text:first-child {
+  color: var(--brand);
+  flex-shrink: 0;
+}
+
+.metric-column .outcome-row > text:first-child {
+  color: var(--green);
+}
+
+.ms-proof {
+  margin-top: 14rpx;
+  padding: 15rpx 16rpx;
+  border-radius: 16rpx;
+  background: #f5f8ff;
+}
+
+.ms-proof-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10rpx;
+  margin-top: 8rpx;
+  color: #475467;
+  font-size: 23rpx;
+  line-height: 1.55;
+}
+
+.ms-proof-row:first-child {
+  margin-top: 0;
+}
+
+.ms-proof-row > text:last-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.ms-proof-label {
+  flex-shrink: 0;
+  color: #175cd3;
+  font-weight: 900;
+}
+
+.ms-proof-label.metric {
+  color: #027a48;
+}
+
+.routine-card {
+  padding: 21rpx 22rpx;
+  border-radius: 22rpx;
+  background: #f8fafc;
+  border: 1rpx solid #eaecf0;
+}
+
+.routine-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14rpx;
+}
+
+.routine-category {
+  color: #1d2939;
+  font-size: 27rpx;
+  font-weight: 900;
+}
+
+.routine-cadence {
+  flex-shrink: 0;
+  padding: 6rpx 12rpx;
+  border-radius: 999rpx;
+  color: #175cd3;
+  background: #eef4ff;
+  font-size: 21rpx;
+  font-weight: 850;
+}
+
+.routine-action {
+  display: block;
+  margin-top: 12rpx;
+  color: #475467;
+  font-size: 25rpx;
+  line-height: 1.65;
+}
+
+.routine-metric {
+  display: flex;
+  align-items: flex-start;
+  gap: 10rpx;
+  margin-top: 13rpx;
+  padding-top: 13rpx;
+  border-top: 1rpx solid #eaecf0;
+  color: #475467;
+  font-size: 23rpx;
+  line-height: 1.55;
+}
+
+.routine-metric > text:first-child {
+  flex-shrink: 0;
+  color: #027a48;
+  font-weight: 900;
+}
+
+.risk-icon {
+  background: #fff7ed;
+}
+
+.risk-card {
+  margin-top: 14rpx;
+  padding: 21rpx 22rpx;
+  border-radius: 22rpx;
+  background: #fffaf5;
+  border: 1rpx solid rgba(249, 115, 22, 0.15);
+}
+
+.risk-card:first-of-type {
+  margin-top: 0;
+}
+
+.risk-title {
+  display: block;
+  color: #9a3412;
+  font-size: 27rpx;
+  font-weight: 900;
+  line-height: 1.42;
+}
+
+.risk-detail {
+  display: flex;
+  align-items: flex-start;
+  gap: 10rpx;
+  margin-top: 12rpx;
+  color: #475467;
+  font-size: 24rpx;
+  line-height: 1.58;
+}
+
+.risk-detail > text:last-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.risk-label {
+  flex-shrink: 0;
+  color: #b54708;
+  font-weight: 900;
+}
+
+.risk-label.response {
+  color: #027a48;
+}

@@ -230,6 +230,72 @@ page {
   padding: 0 2rpx;
 }
 
+.selection-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 14rpx;
+  margin-bottom: 8rpx;
+}
+
+.selection-summary .selected-tags {
+  min-width: 0;
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.compact-select-trigger {
+  min-height: 50rpx;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 0 16rpx;
+  border: 1rpx solid #B2CCFF;
+  border-radius: 999rpx;
+  color: #1D4ED8;
+  background: #F5F8FF;
+  font-size: 22rpx;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.compact-select-trigger:active {
+  opacity: 0.72;
+}
+
+.compact-select-icon {
+  font-size: 20rpx;
+  font-weight: 900;
+}
+
+.year-picker {
+  min-height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 22rpx;
+  box-sizing: border-box;
+  border: 1rpx solid #D0D5DD;
+  border-radius: var(--r-md);
+  color: #98A2B3;
+  background: #FFFFFF;
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.year-picker.has-value {
+  color: #1D4ED8;
+  border-color: #B2CCFF;
+  background: #F5F8FF;
+}
+
+.year-picker-arrow {
+  color: #2563EB;
+  font-size: 34rpx;
+  font-weight: 600;
+  line-height: 1;
+}
+
 /* ── 自定义输入行 ── */
 .custom-input-row {
   display: flex;
@@ -423,6 +489,13 @@ page {
 
 /* ── 保存按钮 ── */
 .save-btn { margin-top: 48rpx; }
+.progress-missing { display: block; margin-top: 10rpx; color: #475467; font-size: 22rpx; }
+.sponsor-row { display: flex; align-items: center; justify-content: space-between; gap: 24rpx; margin-top: 28rpx; padding: 22rpx; border-radius: 18rpx; background: #F5F8FF; }
+.sponsor-title { display: block; color: #1D2939; font-size: 28rpx; font-weight: 700; }
+.sponsor-note { display: block; margin-top: 5rpx; color: #667085; font-size: 22rpx; }
+.location-inputs { display: flex; gap: 16rpx; margin-top: 20rpx; }
+.location-inputs .custom-input { flex: 1; min-width: 0; }
+.projects-textarea { width: 100%; min-height: 190rpx; box-sizing: border-box; color: #1D2939; font-size: 27rpx; line-height: 1.7; }
 /* Unified homepage background */
 page,
 .page,

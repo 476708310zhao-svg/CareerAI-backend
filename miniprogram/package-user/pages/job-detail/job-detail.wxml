@@ -1,247 +1,241 @@
 <!-- pages/job-detail/job-detail.wxml -->
 <view class="page">
-
-<!-- Loading -->
-<view wx:if="{{loading}}" class="loading-wrap">
-  <view class="spinner"></view>
-  <text class="loading-txt">正在加载...</text>
-</view>
-
-<!-- 内容 -->
-<block wx:elif="{{job}}">
-
-  <!-- 头部卡片 -->
-  <view class="head-card">
-    <view class="head-top">
-      <c-company-logo
-        logo="{{job.logoFailed ? '' : job.logo}}"
-        name="{{job.company}}"
-        fallback="{{job.companyInitial || 'C'}}"
-        size="lg"
-        custom-class="head-logo-wrap"
-        bind:error="onLogoError"
-      ></c-company-logo>
-      <view class="head-info">
-        <text class="head-kicker">Recommended Role</text>
-        <text class="head-company">{{job.company}}</text>
-        <text class="head-title">{{job.title}}</text>
-      </view>
+  <view wx:if="{{loading && !job}}" class="detail-skeleton">
+    <view class="skeleton-card skeleton-core">
+      <view class="skeleton-line skeleton-title shimmer"></view>
+      <view class="skeleton-line skeleton-salary shimmer"></view>
+      <view class="skeleton-line skeleton-meta shimmer"></view>
+      <view class="skeleton-tags"><view class="skeleton-chip shimmer"></view><view class="skeleton-chip shimmer"></view><view class="skeleton-chip shimmer"></view></view>
     </view>
-
-    <!-- 薪资 -->
-    <view class="salary-row">
-      <text class="salary-val">{{job.salary}}</text>
-      <text class="salary-unit" wx:if="{{job.salary !== 'Negotiable'}}"> / year</text>
-    </view>
-
-    <!-- 标签 -->
-    <view class="info-tags">
-      <c-tag type="primary">{{job.city}}{{job.state ? ', '+job.state : ''}}</c-tag>
-      <c-tag>{{job.type}}</c-tag>
-      <c-tag type="info">{{job.postedAt}}</c-tag>
-      <c-tag type="success" wx:if="{{job.visaSponsored}}">Visa Sponsor</c-tag>
-    </view>
-
-    <!-- 技能图标 -->
-    <view class="skill-tags" wx:if="{{job.skillTags && job.skillTags.length > 0}}">
-      <view wx:for="{{job.skillTags}}" wx:key="label" class="skill-chip">
-        <image class="skill-icon" src="{{item.iconUrl}}" mode="aspectFit" lazy-load></image>
-        <text class="skill-name">{{item.label}}</text>
-      </view>
-    </view>
-
-    <view class="head-conversion-row">
-      <view class="conversion-pill">
-        <text class="conversion-num">AI</text>
-        <text class="conversion-label">面试准备</text>
-      </view>
-      <view class="conversion-pill">
-        <text class="conversion-num">3/6/12</text>
-        <text class="conversion-label">月路线</text>
-      </view>
-      <view class="conversion-pill">
-        <text class="conversion-num">1-click</text>
-        <text class="conversion-label">投递看板</text>
-      </view>
+    <view class="skeleton-card skeleton-section" wx:for="{{[1,2,3]}}" wx:key="*this">
+      <view class="skeleton-line skeleton-heading shimmer"></view>
+      <view class="skeleton-line skeleton-body shimmer"></view>
+      <view class="skeleton-line skeleton-body short shimmer"></view>
     </view>
   </view>
 
-  <c-ai-disclosure text="本页模拟面试追问与求职路线规划由人工智能生成，仅供求职准备参考，请核验后使用。" />
-
-  <!-- 职位描述 -->
-  <view class="desc-card">
-    <view class="desc-title">职位描述</view>
-    <text class="desc-body" user-select>{{job.description}}</text>
-  </view>
-
-  <view class="action-lab">
-    <view class="action-lab-head">
-      <text class="action-lab-kicker">Next Best Action</text>
-      <text class="action-lab-title">读完职位后，马上进入准备流</text>
-    </view>
-    <view class="action-grid">
-      <view class="action-card" bindtap="startAiInterview">
-        <text class="action-icon">AI</text>
-        <view class="action-copy">
-          <text class="action-title">模拟面试</text>
-          <text class="action-sub">围绕该岗位生成追问</text>
+  <block wx:elif="{{job && jobView}}">
+    <view class="core-card">
+      <view class="core-title-row">
+        <text class="core-title">{{jobView.title}}</text>
+        <view class="core-favorite {{isSaved ? 'active' : ''}}" catchtap="toggleSave" hover-class="tap-muted">
+          <text>{{isSaved ? '♥' : '♡'}}</text>
         </view>
       </view>
-      <view class="action-card" bindtap="applyJob">
-        <text class="action-icon doc">↗</text>
-        <view class="action-copy">
-          <text class="action-title">保存投递</text>
-          <text class="action-sub">复制投递链接并加入看板</text>
+      <text class="core-salary">{{jobView.salary}}</text>
+      <text class="core-company-line">{{jobView.company}}{{jobView.location ? '｜' + jobView.location : ''}}{{jobView.employmentType ? '｜' + jobView.employmentType : ''}}</text>
+
+      <view class="core-tags" wx:if="{{jobView.attributeTags.length}}">
+        <text class="core-tag" wx:for="{{jobView.attributeTags}}" wx:key="*this">{{item}}</text>
+        <text class="core-tag core-tag-more" wx:if="{{jobView.extraAttributeCount}}">+{{jobView.extraAttributeCount}}</text>
+      </view>
+
+      <view class="core-status-row">
+        <view class="core-aux">
+          <text>{{jobView.postedText}}</text>
+          <text wx:if="{{jobView.applyCountText}}">{{jobView.applyCountText}}</text>
+          <text wx:if="{{isApplied}}" class="core-applied">{{progressStatusText || '已投递'}}</text>
+        </view>
+        <text class="core-deadline core-deadline--{{jobView.deadlineTone}}">{{jobView.deadlineText}}</text>
+      </view>
+    </view>
+
+    <view class="section-card company-summary-card" wx:if="{{companyView}}">
+      <view class="company-summary-main">
+        <c-company-logo
+          logo="{{job.logoFailed ? '' : companyView.logo}}"
+          name="{{companyView.name}}"
+          fallback="{{job.companyInitial || 'C'}}"
+          size="md"
+          custom-class="company-summary-logo"
+          bind:error="onLogoError"
+        ></c-company-logo>
+        <view class="company-summary-copy">
+          <text class="company-summary-name">{{companyView.name}}</text>
+          <text class="company-summary-meta">
+            {{companyView.industry}}{{companyView.industry && companyView.size ? '｜' : ''}}{{companyView.size}}{{(companyView.industry || companyView.size) && companyView.stage ? '｜' : ''}}{{companyView.stage || companyView.location}}
+          </text>
         </view>
       </view>
-      <view class="action-card primary" bindtap="runJdMatch">
-        <text class="action-icon match">测</text>
-        <view class="action-copy">
-          <text class="action-title">测匹配度</text>
-          <text class="action-sub">简历 × JD 匹配报告</text>
+      <view class="company-link" wx:if="{{companyView.id}}" bindtap="goToCompanyDetail" hover-class="tap-muted">查看公司 ›</view>
+    </view>
+
+    <view class="section-card trust-card" wx:if="{{jobTrust}}">
+      <view class="trust-head">
+        <view><text class="section-kicker">JOB TRUST</text><text class="section-title">岗位可信度辅助判断</text></view>
+        <view class="trust-score trust-score--{{jobTrust.level}}"><text>{{jobTrust.score}}</text><text class="trust-score-unit">/100</text></view>
+      </view>
+      <text class="trust-label">{{jobTrust.label}} · {{jobTrust.confidenceLabel}}</text>
+      <view class="trust-evidence" wx:for="{{jobTrust.evidence}}" wx:key="key">
+        <view class="trust-evidence-head"><text>{{item.label}}</text><text>{{item.score}}/{{item.maximum}}</text></view>
+        <text class="trust-explanation">{{item.explanation}}</text>
+      </view>
+      <view class="trust-risks" wx:if="{{jobTrust.risks.length}}"><text class="trust-risk" wx:for="{{jobTrust.risks}}" wx:key="*this">提醒：{{item}}</text></view>
+      <text class="trust-recommendation">建议：{{jobTrust.recommendation}}</text>
+      <text class="trust-notice">{{jobTrust.notice}}</text>
+      <view class="trust-actions"><view class="trust-button secondary" bindtap="openOfficialForTrust">打开官网核对</view><view class="trust-button" bindtap="recordTrustObservation">{{trustObserving ? '记录中...' : '记录核验结果'}}</view></view>
+    </view>
+
+    <view class="section-card match-summary-card" wx:if="{{inlineMatch}}">
+      <view class="section-heading-row">
+        <view>
+          <text class="section-kicker">AI MATCH</text>
+          <text class="section-title">AI匹配分析</text>
+        </view>
+        <view class="match-score-box">
+          <text class="match-score-number">{{inlineMatch.score}}</text><text class="match-score-unit">%</text>
         </view>
       </view>
-      <view class="action-card" bindtap="addToProgress">
-        <text class="action-icon progress">进</text>
-        <view class="action-copy">
-          <text class="action-title">{{inProgress ? progressStatusText : '加入进度'}}</text>
-          <text class="action-sub">{{inProgress ? '查看并继续跟进' : '记录截止、面试和备注'}}</text>
+      <text class="match-status">{{inlineMatch.statusText}}</text>
+      <view class="match-columns">
+        <view class="match-column" wx:if="{{inlineMatch.strengths.length}}">
+          <text class="match-column-title">匹配优势</text>
+          <view class="match-line" wx:for="{{inlineMatch.strengths}}" wx:key="*this"><text class="match-dot good"></text><text>{{item}}</text></view>
+        </view>
+        <view class="match-column" wx:if="{{inlineMatch.gaps.length}}">
+          <text class="match-column-title">简历暂未体现</text>
+          <view class="match-line" wx:for="{{inlineMatch.gaps}}" wx:key="*this"><text class="match-dot gap"></text><text>{{item}}</text></view>
+        </view>
+      </view>
+      <view class="inline-match-action" bindtap="runJdMatch" hover-class="tap-muted">查看完整分析 ›</view>
+    </view>
+
+    <view class="section-card" wx:if="{{jobView.basicInfo.length}}">
+      <view class="section-heading-row">
+        <text class="section-title">职位基础条件</text>
+      </view>
+      <view class="basic-grid">
+        <view class="basic-item" wx:for="{{jobView.basicInfo}}" wx:key="label">
+          <text class="basic-label">{{item.label}}</text>
+          <text class="basic-value">{{item.value}}</text>
         </view>
       </view>
     </view>
-  </view>
 
-  <!-- 求职路线规划入口 -->
-  <view class="roadmap-cta" bindtap="viewCareerPath">
-    <view class="roadmap-cta-left">
-      <text class="roadmap-cta-icon">🗺️</text>
-      <view class="roadmap-cta-info">
-        <text class="roadmap-cta-title">为该岗位定制求职路线</text>
-        <text class="roadmap-cta-sub">AI 生成 3/6/12 个月专属规划 · 含技能/项目/面试路线</text>
+    <view class="section-card" wx:if="{{jobView.descriptionBlocks.length}}">
+      <view class="section-heading-row"><text class="section-title">职位描述</text></view>
+      <view class="content-block {{item.bullet ? 'content-block--bullet' : ''}}" wx:for="{{jobView.descriptionBlocks}}" wx:key="text">
+        <text class="content-dot" wx:if="{{item.bullet}}"></text>
+        <text class="content-text" user-select>{{item.text}}</text>
       </view>
     </view>
-    <text class="roadmap-cta-arrow">›</text>
-  </view>
 
-  <view class="detail-safe-tail ux-detail-tail"></view>
-</block>
-
-<view wx:else class="detail-empty">
-  <text class="detail-empty-title">职位信息暂不可用</text>
-  <text class="detail-empty-sub">该职位可能已下线，或当前网络暂时无法获取详情。</text>
-  <view class="detail-empty-btn" bindtap="goBack">返回职位列表</view>
-</view>
-
-<!-- 底部操作栏 -->
-<view class="footer ux-bottom-bar" wx:if="{{job}}">
-  <view class="footer-icons ux-bottom-icons">
-    <view class="f-icon ux-icon-action {{isSaved ? 'active' : ''}}" bindtap="toggleSave">
-      <text class="f-icon-txt">{{isSaved ? '★' : '☆'}}</text>
+    <view class="section-card" wx:if="{{jobView.requirementBlocks.length}}">
+      <view class="section-heading-row"><text class="section-title">任职要求</text></view>
+      <view class="content-block content-block--bullet" wx:for="{{jobView.requirementBlocks}}" wx:key="text">
+        <text class="content-dot"></text>
+        <text class="content-text" user-select>{{item.text}}</text>
+      </view>
     </view>
-    <button class="f-icon share-btn ux-icon-action" open-type="share">
-      <text class="f-icon-txt">↗</text>
-    </button>
-  </view>
 
-  <view class="f-btn f-btn-ai ux-sub-cta" bindtap="startAiInterview">
-    <text class="ai-badge">AI</text>
-    <text>面试</text>
-  </view>
+    <view class="section-card timeline-card">
+      <view class="section-heading-row"><text class="section-title">招聘时间</text></view>
+      <view class="timeline-row">
+        <view class="timeline-marker timeline-marker--{{jobView.deadlineTone}}"></view>
+        <view class="timeline-copy">
+          <text class="timeline-label">网申截止</text>
+          <text class="timeline-date" wx:if="{{jobView.deadlineDate}}">{{jobView.deadlineDate}}</text>
+        </view>
+        <text class="timeline-status timeline-status--{{jobView.deadlineTone}}">{{jobView.deadlineText}}</text>
+      </view>
+    </view>
 
-  <view class="f-btn f-btn-apply ux-main-cta" bindtap="applyJob">保存投递</view>
-</view>
+    <view class="section-card sponsor-card" wx:if="{{sponsorProfile}}">
+      <view class="section-heading-row">
+        <text class="section-title">留学生与签证信息</text>
+        <text class="sponsor-confidence" wx:if="{{sponsorProfile.confidence}}">置信度 {{sponsorProfile.confidence * 100}}%</text>
+      </view>
+      <view class="sponsor-tags">
+        <text class="sponsor-tag" wx:if="{{sponsorProfile.optFriendly}}">OPT友好</text>
+        <text class="sponsor-tag" wx:if="{{sponsorProfile.stemFriendly}}">STEM OPT</text>
+        <text class="sponsor-tag" wx:if="{{sponsorProfile.h1bSponsor}}">Visa Sponsorship</text>
+        <text class="sponsor-tag sponsor-tag--risk" wx:if="{{sponsorProfile.citizenRequired}}">要求公民身份</text>
+        <text class="sponsor-tag sponsor-tag--unknown" wx:if="{{!sponsorProfile.optFriendly && !sponsorProfile.h1bSponsor && !sponsorProfile.citizenRequired}}">信息待核实</text>
+      </view>
+      <text class="sponsor-evidence" wx:if="{{sponsorProfile.evidence && sponsorProfile.evidence.length}}">依据：{{sponsorProfile.evidence[0]}}</text>
+    </view>
 
-<!-- JD 匹配报告 -->
-<view class="match-mask" wx:if="{{showMatchPanel}}" bindtap="closeMatchPanel"></view>
-<view class="match-panel {{showMatchPanel ? 'show' : ''}}" wx:if="{{matchReport}}">
-  <view class="match-header">
-    <view>
-      <text class="match-kicker">JD MATCH</text>
-      <text class="match-title">简历匹配报告</text>
+    <view class="section-card" wx:if="{{companyView.description}}">
+      <view class="section-heading-row"><text class="section-title">公司介绍</text></view>
+      <text class="company-description {{companyExpanded ? 'expanded' : ''}}" user-select>{{companyView.description}}</text>
+      <view class="company-expand" wx:if="{{companyView.canExpand}}" bindtap="toggleCompanyDescription">{{companyExpanded ? '收起' : '展开更多'}} ›</view>
     </view>
-    <text class="match-close" bindtap="closeMatchPanel">✕</text>
-  </view>
-  <view class="match-score-row">
-    <view class="score-ring">
-      <text class="score-num">{{matchReport.score}}</text>
-      <text class="score-label">分</text>
-    </view>
-    <view class="match-score-copy">
-      <text class="score-job">{{matchReport.company}} · {{matchReport.jobTitle}}</text>
-      <text class="score-risk">ATS 风险：{{matchReport.atsRisk}}</text>
-    </view>
-  </view>
-  <view class="match-section">
-    <text class="match-section-title">缺失关键词</text>
-    <view class="match-chip-row" wx:if="{{matchReport.missingKeywords.length}}">
-      <text wx:for="{{matchReport.missingKeywords}}" wx:key="*this" class="match-chip missing">{{item}}</text>
-    </view>
-    <text wx:else class="match-empty">关键词覆盖不错，继续强化成果表达。</text>
-  </view>
-  <view class="match-section">
-    <text class="match-section-title">建议强化项目</text>
-    <text class="match-body">{{matchReport.projectSuggestion}}</text>
-  </view>
-  <view class="match-section">
-    <text class="match-section-title">优化建议</text>
-    <view wx:for="{{matchReport.suggestions}}" wx:key="*this" class="match-suggestion">
-      <text class="suggestion-dot"></text>
-      <text class="suggestion-text">{{item}}</text>
-    </view>
-  </view>
-  <view class="match-actions">
-    <view class="match-action secondary" bindtap="closeMatchPanel">稍后处理</view>
-    <view class="match-action primary" bindtap="goResumeOptimize">去优化简历</view>
-  </view>
-</view>
 
-<!-- 保存投递弹窗 -->
-<view class="apply-mask" wx:if="{{showApplyModal}}" bindtap="hideApplyModal"></view>
-<view class="apply-panel {{showApplyModal ? 'show' : ''}}">
-  <view class="ap-header">
-    <text class="ap-title">保存投递</text>
-    <text class="ap-close" bindtap="hideApplyModal">✕</text>
-  </view>
+    <view class="section-card prepare-card">
+      <view class="section-heading-row"><text class="section-title">下一步准备</text></view>
+      <view class="prepare-row" bindtap="startAiInterview" hover-class="tap-muted"><view><text class="prepare-title">AI模拟面试</text><text class="prepare-sub">围绕该岗位生成针对性追问</text></view><text class="prepare-arrow">›</text></view>
+      <view class="prepare-row" bindtap="viewCareerPath" hover-class="tap-muted"><view><text class="prepare-title">定制求职路线</text><text class="prepare-sub">生成技能、项目和面试行动计划</text></view><text class="prepare-arrow">›</text></view>
+      <view class="prepare-row" bindtap="addToProgress" hover-class="tap-muted"><view><text class="prepare-title">{{inProgress ? progressStatusText : '加入求职进度'}}</text><text class="prepare-sub">记录截止时间、面试和跟进备注</text></view><text class="prepare-arrow">›</text></view>
+    </view>
 
-  <!-- 职位信息 -->
-  <view class="ap-job-row">
-    <c-company-logo
-      logo="{{job.logoFailed ? '' : job.logo}}"
-      name="{{job.company}}"
-      fallback="{{job.companyInitial || 'C'}}"
-      size="sm"
-      custom-class="ap-job-logo-wrap"
-      bind:error="onLogoError"
-    ></c-company-logo>
-    <view class="ap-job-info">
-      <text class="ap-job-title">{{job.title}}</text>
-      <text class="ap-job-company">{{job.company}} · {{job.city}}</text>
+    <view class="similar-section" wx:if="{{similarJobs.length}}">
+      <view class="similar-heading"><text class="section-title">相似职位</text><text class="similar-count">{{similarJobs.length}}个相关机会</text></view>
+      <c-job-card
+        wx:for="{{similarJobs}}"
+        wx:key="id"
+        job="{{item}}"
+        item-index="{{index}}"
+        compact="{{true}}"
+        show-match="{{false}}"
+        bind:open="openSimilarJob"
+        bind:favorite="toggleSimilarFavorite"
+      ></c-job-card>
+    </view>
+
+    <view class="detail-safe-tail"></view>
+  </block>
+
+  <view wx:else class="detail-empty">
+    <text class="detail-empty-title">职位信息暂不可用</text>
+    <text class="detail-empty-sub">{{loadError ? '网络或职位源暂时不可用，可以重新加载。' : '该职位可能已下线。'}}</text>
+    <view class="detail-empty-actions">
+      <view class="detail-empty-btn secondary" bindtap="goBack">返回列表</view>
+      <view class="detail-empty-btn" bindtap="retryLoad">重新加载</view>
     </view>
   </view>
 
-  <!-- 简历快照 -->
-  <view class="ap-resume-card">
-    <text class="ap-resume-label">您的简历摘要（将复制到剪贴板）</text>
-    <view wx:if="{{resumeSnap.hasData}}">
-      <text class="ap-rname">{{resumeSnap.name}}</text>
-      <text class="ap-rsub" wx:if="{{resumeSnap.title}}">{{resumeSnap.title}}</text>
-      <text class="ap-rcontact" wx:if="{{resumeSnap.phone || resumeSnap.email}}">
-        {{resumeSnap.phone}}{{resumeSnap.phone && resumeSnap.email ? '  ·  ' : ''}}{{resumeSnap.email}}</text>
-      <text class="ap-rskills" wx:if="{{resumeSnap.skills}}">🔧 {{resumeSnap.skills}}</text>
+  <view class="footer" wx:if="{{job && jobView}}">
+    <view class="footer-favorite {{isSaved ? 'active' : ''}}" bindtap="toggleSave" hover-class="tap-muted">
+      <text class="footer-favorite-icon">{{isSaved ? '♥' : '♡'}}</text>
+      <text>{{isSaved ? '已收藏' : '收藏'}}</text>
     </view>
-    <view wx:else class="ap-resume-empty">
-      <text>简历信息未完善，建议先填写再投递</text>
-      <text class="ap-resume-link" bindtap="hideApplyModal">→ 前往完善</text>
-    </view>
+    <view class="footer-match" bindtap="runJdMatch" hover-class="tap-muted"><text class="footer-ai">AI</text><text>匹配分析</text></view>
+    <view class="footer-apply {{jobView.deadlineClosed || isApplied ? 'disabled' : ''}}" bindtap="applyJob" hover-class="footer-apply--pressed">{{jobView.applyButtonText}}</view>
   </view>
 
-  <view class="ap-btns">
-    <view class="ap-btn-cancel" bindtap="hideApplyModal">取消</view>
-    <view class="ap-btn-submit" bindtap="doOneClickApply">
-      <text>保存并复制</text>
+  <view class="match-mask" wx:if="{{showMatchPanel}}" bindtap="closeMatchPanel"></view>
+  <view class="match-panel {{showMatchPanel ? 'show' : ''}}" wx:if="{{matchReport}}">
+    <view class="match-header"><view><text class="match-kicker">JD MATCH</text><text class="match-title">简历匹配报告</text></view><text class="match-close" bindtap="closeMatchPanel">✕</text></view>
+    <view class="match-score-row">
+      <view class="score-ring"><text class="score-num">{{matchReport.score}}</text><text class="score-label">分</text></view>
+      <view class="match-score-copy"><text class="score-job">{{matchReport.company}} · {{matchReport.jobTitle}}</text><text class="score-risk">ATS 风险：{{matchReport.atsRisk}}</text><text class="score-risk" wx:if="{{matchReport.dimensions}}">资格 {{matchReport.dimensions.qualification}} · 技能 {{matchReport.dimensions.skills}} · 岗位/项目 {{matchReport.dimensions.roleAndProjects}}</text></view>
     </view>
+    <view class="match-verdict" wx:if="{{matchReport.decision}}">
+      <text class="match-tier">{{matchReport.tierLabel}}</text>
+      <text class="match-decision">{{matchReport.decision.label}}</text>
+      <text class="match-body">{{matchReport.decision.summary}}</text>
+      <text class="score-risk" wx:if="{{matchReport.tierNote}}">{{matchReport.tierNote}}</text>
+    </view>
+    <view class="match-section" wx:if="{{matchReport.sponsorAssessment}}"><text class="match-section-title">身份 / Sponsor 判断</text><text class="match-body">{{matchReport.sponsorAssessment.label}}：{{matchReport.sponsorAssessment.reason}}</text></view>
+    <view class="match-section"><text class="match-section-title">简历暂未体现</text><view class="match-chip-row" wx:if="{{matchReport.missingKeywords.length}}"><text wx:for="{{matchReport.missingKeywords}}" wx:key="*this" class="match-chip missing">{{item}}</text></view><text wx:else class="match-empty">关键词覆盖不错，继续强化成果表达。</text></view>
+    <view class="match-section"><text class="match-section-title">建议强化项目</text><text class="match-body">{{matchReport.projectSuggestion}}</text></view>
+    <view class="match-section"><text class="match-section-title">优化建议</text><view wx:for="{{matchReport.suggestions}}" wx:key="*this" class="match-suggestion"><text class="suggestion-dot"></text><text class="suggestion-text">{{item}}</text></view></view>
+    <view class="match-actions"><view class="match-action secondary" bindtap="closeMatchPanel">稍后处理</view><view class="match-action primary" bindtap="goResumeOptimize">去优化简历</view></view>
   </view>
-  <text class="ap-tip">保存后：投递信息已复制 · 记录到看板 · 请在浏览器完成官方投递</text>
-</view>
 
+  <view class="apply-mask" wx:if="{{showApplyModal}}" bindtap="hideApplyModal"></view>
+  <view class="apply-panel {{showApplyModal ? 'show' : ''}}">
+    <view class="ap-header"><text class="ap-title">{{jobView.hasApplyLink ? '前往投递' : '保存投递'}}</text><text class="ap-close" bindtap="hideApplyModal">✕</text></view>
+    <view class="ap-job-row">
+      <c-company-logo logo="{{job.logoFailed ? '' : job.logo}}" name="{{job.company}}" fallback="{{job.companyInitial || 'C'}}" size="sm" custom-class="ap-job-logo-wrap" bind:error="onLogoError"></c-company-logo>
+      <view class="ap-job-info"><text class="ap-job-title">{{job.title}}</text><text class="ap-job-company">{{job.company}}{{jobView.location ? ' · ' + jobView.location : ''}}</text></view>
+    </view>
+    <view class="ap-resume-card">
+      <text class="ap-resume-label">简历摘要（将复制到剪贴板）</text>
+      <view wx:if="{{resumeSnap.hasData}}"><text class="ap-rname">{{resumeSnap.name}}</text><text class="ap-rsub" wx:if="{{resumeSnap.title}}">{{resumeSnap.title}}</text><text class="ap-rcontact" wx:if="{{resumeSnap.phone || resumeSnap.email}}">{{resumeSnap.phone}}{{resumeSnap.phone && resumeSnap.email ? '  ·  ' : ''}}{{resumeSnap.email}}</text><text class="ap-rskills" wx:if="{{resumeSnap.skills}}">技能：{{resumeSnap.skills}}</text></view>
+      <view wx:else class="ap-resume-empty"><text>简历信息未完善，建议先填写再投递</text><text class="ap-resume-link" bindtap="hideApplyModal">前往完善 ›</text></view>
+    </view>
+    <view class="ap-btns"><view class="ap-btn-cancel" bindtap="hideApplyModal">取消</view><view class="ap-btn-submit {{isApplying ? 'disabled' : ''}}" bindtap="doOneClickApply">{{isApplying ? '处理中...' : '保存并复制'}}</view></view>
+    <text class="ap-tip">保存后会加入求职进度；外部岗位请前往官方招聘页完成申请。</text>
+  </view>
 </view>

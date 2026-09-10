@@ -2,7 +2,7 @@
 const favUtil = require('../../../utils/favorites.js');
 const featureFlags = require('../../../utils/feature-flags.js');
 const reminders = require('../../../utils/reminders.js');
-const config = require('../../../utils/app-config.js');
+const navigation = require('../../../utils/navigation.js');
 const TAB_KEYS = ['job', 'experience', 'company', 'agency', 'campus'];
 
 Page({
@@ -231,7 +231,7 @@ Page({
     favUtil.update('job', targetId, {
       deadline,
       reminderEnabled: true,
-      reminderLeadDays: [3, 1, 0]
+      reminderLeadDays: [3, 1]
     });
     const item = favUtil.getList('job').find(row => String(row.targetId) === String(targetId)) || {};
     reminders.upsertReminder({
@@ -242,7 +242,7 @@ Page({
       title: item.title || '',
       company: item.company || item.subtitle || '',
       jobTitle: item.title || '',
-      leadDays: [3, 1, 0],
+      leadDays: [3, 1],
       enabled: true,
       payload: item
     }, { withSubscribe: true });
@@ -263,27 +263,7 @@ Page({
   },
 
   requestDeadlineSubscribe() {
-    const tmplId = config.WX_TPL_APPLICATION || config.WX_TPL_SYSTEM || '';
-    if (!tmplId || typeof wx.requestSubscribeMessage !== 'function') return;
-    wx.requestSubscribeMessage({
-      tmplIds: [tmplId],
-      success: (subRes) => {
-        if (subRes[tmplId] !== 'accept') return;
-        const token = wx.getStorageSync('token');
-        if (!token) return;
-        wx.request({
-          url: config.API_BASE_URL + '/api/notify/subscribe',
-          method: 'POST',
-          header: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
-          },
-          data: { templateIds: [tmplId] },
-          fail: () => {}
-        });
-      },
-      fail: () => {}
-    });
+    reminders.requestSubscribe('deadline');
   },
 
   // ── 跳转详情 ──
@@ -318,12 +298,12 @@ Page({
 
   // ── 空状态 CTA ──
   goToJobs() {
-    if (!featureFlags.allowNavigation('/pages/jobs/jobs')) return;
-    wx.switchTab({ url: '/pages/jobs/jobs' });
+    if (!featureFlags.allowNavigation('/pages/campus/campus')) return;
+    navigation.safeNavigateTo('/pages/campus/campus');
   },
 
   goToExperiences() {
-    wx.switchTab({ url: '/pages/experiences/experiences' });
+    wx.navigateTo({ url: '/pages/experiences/experiences' });
   },
 
   browseCurrent() {
@@ -343,7 +323,7 @@ Page({
     }
     if (action === 'campus') {
       if (!featureFlags.allowNavigation('/pages/campus/campus')) return;
-      wx.switchTab({ url: '/pages/campus/campus' });
+      wx.navigateTo({ url: '/pages/campus/campus' });
       return;
     }
     this.goToJobs();

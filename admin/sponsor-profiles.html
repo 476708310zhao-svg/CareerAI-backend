@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sponsor 核验 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="admin-shell">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">🎯 求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer"><div class="admin-name" id="adminUsername"></div><button class="nav-item" style="margin-top:6px" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i><span>退出登录</span></button></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
+    <div class="content">
+      <div class="page-header"><div><h1>Sponsor 资料核验</h1><div class="sub">核实 OPT、STEM OPT、H-1B 与公民身份限制，所有修改保留审计历史</div></div></div>
+      <div class="toolbar">
+        <input id="kw" type="text" placeholder="搜索职位、公司、地点" onkeydown="if(event.key==='Enter')load(1)">
+        <select id="review"><option value="true">优先待核验</option><option value="">全部资料</option></select>
+        <select id="source"><option value="">全部来源</option><option value="manual_review">人工核验</option><option value="inferred">自动推断</option></select>
+        <button class="btn btn-primary" onclick="load(1)"><i class="fa-solid fa-search"></i> 查询</button>
+      </div>
+      <div class="table-card">
+        <div class="table-wrap"><table>
+          <thead><tr><th>岗位</th><th>OPT</th><th>STEM</th><th>H-1B</th><th>国际生</th><th>公民限定</th><th>置信度</th><th>来源/核验</th><th>操作</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table></div>
+        <div class="pagination" id="pagi"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editModal" onclick="if(event.target===this)closeModal('editModal')">
+  <div class="modal-box" style="max-width:680px">
+    <div class="modal-header"><h3 id="editTitle">核验 Sponsor 资料</h3><button class="modal-close" onclick="closeModal('editModal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-check"><input type="checkbox" id="f_opt"> OPT 友好</label>
+        <label class="form-check"><input type="checkbox" id="f_stem"> STEM OPT 友好</label>
+        <label class="form-check"><input type="checkbox" id="f_h1b"> H-1B Sponsor</label>
+      </div>
+      <div class="form-row">
+        <label class="form-check"><input type="checkbox" id="f_international"> 国际学生友好</label>
+        <label class="form-check"><input type="checkbox" id="f_citizen"> 要求公民身份</label>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>置信度（0-1）</label><input id="f_confidence" type="number" min="0" max="1" step="0.05"></div>
+        <div class="form-group"><label>来源链接</label><input id="f_sourceUrl" type="url" placeholder="官方招聘页或权威来源"></div>
+      </div>
+      <div class="form-group"><label>证据（每行一条）</label><textarea id="f_evidence" rows="5" placeholder="JD 明确写明 sponsorship available"></textarea></div>
+      <div class="form-group"><label>本次核验备注</label><textarea id="f_note" rows="3" placeholder="说明核验依据或例外情况"></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('editModal')">取消</button><button class="btn btn-primary" onclick="saveProfile()">保存并留痕</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="historyModal" onclick="if(event.target===this)closeModal('historyModal')">
+  <div class="modal-box" style="max-width:760px">
+    <div class="modal-header"><h3>核验历史</h3><button class="modal-close" onclick="closeModal('historyModal')">×</button></div>
+    <div class="modal-body" id="historyBody"></div>
+  </div>
+</div>
+
+<script src="js/config.js"></script><script src="js/common.js"></script>
+<script>
+let page = 1, total = 0, current = null, rows = [];
+initPage('sponsorProfiles', 'Sponsor 核验');
+load(1);
+
+function yes(value, positive = '是', negative = '-') {
+  return value === true ? `<span class="badge badge-green">${positive}</span>` : (value === false ? `<span class="badge badge-red">${negative}</span>` : '<span class="badge badge-amber">待确认</span>');
+}
+
+async function load(p) {
+  page = p;
+  const keyword = encodeURIComponent(document.getElementById('kw').value.trim());
+  const needsReview = document.getElementById('review').value;
+  const source = encodeURIComponent(document.getElementById('source').value);
+  const res = await GET(`/admin/api/v4/sponsor-profiles?page=${p}&pageSize=20&keyword=${keyword}&needsReview=${needsReview}&source=${source}`);
+  if (!res || res.code !== 0) return;
+  rows = res.data.list || []; total = res.data.total || 0;
+  document.getElementById('tbody').innerHTML = rows.length ? rows.map((item, index) => {
+    const j = item.job, s = item.sponsor;
+    return `<tr>
+      <td><strong>${esc(j.title)}</strong><div class="sub">${esc(j.company)} · ${esc(j.location || '')}</div></td>
+      <td>${yes(s.optFriendly)}</td><td>${yes(s.stemFriendly)}</td><td>${yes(s.h1bSponsor)}</td>
+      <td>${yes(s.internationalStudentFriendly)}</td><td>${yes(s.citizenRequired, '限定', '否')}</td>
+      <td>${Math.round(Number(s.confidence || 0) * 100)}%</td>
+      <td>${esc(s.source || '-')}<div class="sub">${s.verifiedAt ? fmtDate(s.verifiedAt) : '未人工核验'}</div></td>
+      <td><div class="td-actions"><button class="btn btn-primary btn-sm" onclick="edit(${index})">核验</button><button class="btn btn-outline btn-sm" onclick="historyFor('${String(j.id).replace(/'/g, '')}')">历史</button></div></td>
+    </tr>`;
+  }).join('') : '<tr class="empty-row"><td colspan="9">暂无待核验岗位</td></tr>';
+  renderPagination('pagi', page, total, 20, 'load');
+}
+
+function edit(index) {
+  current = rows[index]; if (!current) return;
+  const s = current.sponsor;
+  document.getElementById('editTitle').textContent = `${current.job.company} · ${current.job.title}`;
+  document.getElementById('f_opt').checked = s.optFriendly === true;
+  document.getElementById('f_stem').checked = s.stemFriendly === true;
+  document.getElementById('f_h1b').checked = s.h1bSponsor === true;
+  document.getElementById('f_international').checked = s.internationalStudentFriendly === true;
+  document.getElementById('f_citizen').checked = s.citizenRequired === true;
+  document.getElementById('f_confidence').value = s.confidence == null ? 1 : s.confidence;
+  document.getElementById('f_sourceUrl').value = s.sourceUrl || '';
+  document.getElementById('f_evidence').value = (s.evidence || []).join('\n');
+  document.getElementById('f_note').value = '';
+  openModal('editModal');
+}
+
+async function saveProfile() {
+  if (!current) return;
+  const body = {
+    optFriendly: document.getElementById('f_opt').checked,
+    stemFriendly: document.getElementById('f_stem').checked,
+    h1bSponsor: document.getElementById('f_h1b').checked,
+    internationalStudentFriendly: document.getElementById('f_international').checked,
+    citizenRequired: document.getElementById('f_citizen').checked,
+    confidence: Number(document.getElementById('f_confidence').value || 1),
+    sourceUrl: document.getElementById('f_sourceUrl').value.trim(),
+    evidence: document.getElementById('f_evidence').value.split(/\n+/).map(v => v.trim()).filter(Boolean),
+    note: document.getElementById('f_note').value.trim()
+  };
+  const res = await PUT(`/admin/api/v4/sponsor-profiles/${encodeURIComponent(current.job.id)}`, body);
+  if (res && res.code === 0) { closeModal('editModal'); toast('Sponsor 资料已核验', 'success'); load(page); }
+}
+
+async function historyFor(jobId) {
+  const res = await GET(`/admin/api/v4/sponsor-profiles/${encodeURIComponent(jobId)}/history`);
+  if (!res || res.code !== 0) return;
+  const list = res.data.list || [];
+  document.getElementById('historyBody').innerHTML = list.length ? list.map(item => `<div style="padding:14px 0;border-bottom:1px solid #e5e7eb"><strong>${esc(item.actor || '管理员')}</strong><span class="sub" style="margin-left:12px">${fmtDate(item.createdAt)}</span><div style="margin-top:6px">${esc(item.note || '更新 Sponsor 资料')}</div></div>`).join('') : '<div class="empty-row">暂无核验历史</div>';
+  openModal('historyModal');
+}
+</script>
+</body>
+</html>

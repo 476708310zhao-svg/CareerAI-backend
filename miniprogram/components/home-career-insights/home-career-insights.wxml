@@ -1,0 +1,46 @@
+<view class="section">
+  <view class="section-head">
+    <text class="section-title">求职情报</text>
+    <text class="section-more" bindtap="onMore">查看更多 ›</text>
+  </view>
+
+  <view class="insight-list" wx:if="{{loading && !insights.length}}">
+    <view class="insight-row skeleton" wx:for="{{skeletonRows}}" wx:key="*this">
+      <view class="skeleton-icon"></view>
+      <view class="skeleton-copy">
+        <view class="skeleton-line long"></view>
+        <view class="skeleton-line medium"></view>
+      </view>
+    </view>
+  </view>
+
+  <view class="state-card error" wx:elif="{{error && !insights.length}}">
+    <text class="state-title">求职情报加载失败</text>
+    <text class="state-desc">点击重试，不影响其他首页功能。</text>
+    <view class="retry" bindtap="onRetry">重新加载</view>
+  </view>
+
+  <view class="insight-list" wx:elif="{{insights.length}}">
+    <view
+      class="insight-row"
+      wx:for="{{insights}}"
+      wx:key="id"
+      data-index="{{index}}"
+      bindtap="onSelect"
+      hover-class="row-hover"
+    >
+      <view class="insight-icon {{item.type}}">{{index === 0 ? '▤' : '↗'}}</view>
+      <view class="insight-copy">
+        <text class="insight-title">{{item.title}}</text>
+        <text class="insight-meta">{{item.categoryLabel}} · {{item.sourceText}}</text>
+      </view>
+      <text class="insight-time">{{item.time}}</text>
+    </view>
+  </view>
+
+  <view class="state-card" wx:else>
+    <text class="state-title">暂无新的求职情报</text>
+    <text class="state-desc">稍后再来，或前往情报列表查看历史内容。</text>
+    <view class="retry secondary" bindtap="onMore">查看历史情报</view>
+  </view>
+</view>

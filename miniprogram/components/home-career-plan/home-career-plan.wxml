@@ -1,0 +1,34 @@
+<view class="plan-card">
+  <view class="plan-heading">
+    <text class="plan-kicker">今日求职计划</text>
+    <text class="plan-title">{{plan.title}}</text>
+    <text class="plan-subtitle" wx:if="{{plan.subtitle}}">{{plan.subtitle}}</text>
+  </view>
+
+  <view class="metric-grid">
+    <view class="metric {{item.tone}}" wx:for="{{plan.metrics}}" wx:key="label">
+      <view class="metric-head">
+        <view class="metric-icon-wrap">
+          <image class="metric-icon" src="{{item.icon}}" mode="aspectFit"></image>
+        </view>
+        <text class="metric-label">{{item.label}}</text>
+      </view>
+      <text class="metric-value">{{item.value}}<text class="metric-suffix" wx:if="{{item.suffix}}">{{item.suffix}}</text></text>
+    </view>
+  </view>
+
+  <view class="suggestion" wx:if="{{plan.suggestionTitle}}" bindtap="onSuggestion" hover-class="card-hover">
+    <view class="suggestion-mark">✓</view>
+    <view class="suggestion-copy">
+      <view class="suggestion-title-row">
+        <text class="suggestion-label">今日建议</text>
+        <text class="suggestion-title">{{plan.suggestionTitle}}</text>
+      </view>
+      <text class="suggestion-desc" wx:if="{{plan.suggestionDesc}}">{{plan.suggestionDesc}}</text>
+    </view>
+    <view class="suggestion-action" wx:if="{{plan.primaryText}}" catchtap="onPrimary">
+      <text>{{plan.primaryText}}</text>
+      <text class="suggestion-action-arrow">›</text>
+    </view>
+  </view>
+</view>

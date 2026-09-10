@@ -1,0 +1,73 @@
+<view class="section" wx:if="{{items.length || loading || ready}}">
+  <view class="section-head">
+    <view class="section-copy">
+      <view class="section-title-line">
+        <text class="section-title">每日最新校招</text>
+        <text class="section-pill">持续更新</text>
+      </view>
+      <text class="section-subtitle">{{dateLabel}} · 按更新时间由新到旧</text>
+    </view>
+    <view class="section-more" bindtap="onMore" hover-class="more-hover">
+      <text>全部{{total ? ' ' + total : ''}}</text>
+      <text class="more-arrow">›</text>
+    </view>
+  </view>
+
+  <view class="campus-list" wx:if="{{loading && !items.length}}">
+    <view class="campus-row skeleton-row" wx:for="{{skeletonRows}}" wx:key="*this">
+      <view class="skeleton-logo"></view>
+      <view class="skeleton-main">
+        <view class="skeleton-line short"></view>
+        <view class="skeleton-line long"></view>
+        <view class="skeleton-line"></view>
+      </view>
+    </view>
+  </view>
+
+  <view class="campus-list" wx:elif="{{items.length}}">
+    <view
+      class="campus-row {{item.isUrgent ? 'is-urgent' : ''}}"
+      wx:for="{{items}}"
+      wx:key="id"
+      data-id="{{item.id}}"
+      bindtap="onSelect"
+      hover-class="row-hover"
+    >
+      <c-company-logo
+        logo="{{item.companyLogo}}"
+        name="{{item.company}}"
+        fallback="{{item.companyInitial}}"
+        size="sm"
+        lazy-load="{{true}}"
+        custom-class="campus-logo"
+        data-id="{{item.id}}"
+        bind:error="onLogoError"
+      ></c-company-logo>
+      <view class="campus-main">
+        <view class="campus-topline">
+          <text class="campus-badge {{item.isUrgent ? 'urgent' : ''}}">{{item.badgeText}}</text>
+          <text class="campus-updated">{{item.updatedText}}</text>
+        </view>
+        <text class="campus-title">{{item.title}}</text>
+        <text class="campus-sub">{{item.subtitle}}</text>
+        <text class="campus-source">{{item._sourceSummary}}</text>
+        <view class="campus-footer">
+          <view class="campus-tags">
+            <text wx:if="{{item.tagText}}">{{item.tagText}}</text>
+          </view>
+          <text class="campus-deadline {{item.isUrgent ? 'urgent' : ''}}">{{item.deadlineText}}</text>
+          <text class="row-arrow">›</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty" wx:else bindtap="onMore" hover-class="empty-hover">
+    <view class="empty-icon">校</view>
+    <view class="empty-copy">
+      <text class="empty-title">今日暂无新的校招更新</text>
+      <text class="empty-sub">进入校招日历查看全部企业、岗位与截止日期</text>
+    </view>
+    <text class="empty-arrow">›</text>
+  </view>
+</view>

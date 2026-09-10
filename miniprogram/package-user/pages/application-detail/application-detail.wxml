@@ -1,0 +1,85 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">正在加载申请详情...</view>
+  <block wx:elif="{{application}}">
+    <view class="hero">
+      <view class="hero-main">
+        <text class="hero-kicker">APPLICATION CRM</text>
+        <text class="hero-title">{{application.jobTitle}}</text>
+        <text class="hero-company">{{application.company}} · {{application.city || '地点待确认'}}</text>
+      </view>
+      <view class="status-pill">{{application.statusText}}</view>
+      <view class="hero-action" bindtap="viewJob">查看岗位详情 ›</view>
+      <view class="hero-action" wx:if="{{application.status === 'phone_screen' || application.status === 'interview_1' || application.status === 'interview_2' || application.status === 'final'}}" bindtap="openInterviewSpace">进入岗位面试空间 ›</view>
+    </view>
+
+    <view class="section-card" wx:if="{{allowedTransitions.length}}">
+      <view class="section-head"><text class="card-title">推进申请阶段</text><text class="section-note">仅展示可用下一步</text></view>
+      <view class="transition-row">
+        <view wx:for="{{allowedTransitions}}" wx:key="value" class="transition-btn" bindtap="changeStatus" data-status="{{item.value}}" data-label="{{item.label}}">{{item.label}}</view>
+      </view>
+    </view>
+
+    <view class="match-card" wx:if="{{match}}">
+      <view class="match-score"><text class="match-num">{{match.score}}</text><text>分</text></view>
+      <view class="match-copy">
+        <text class="card-title">岗位匹配</text>
+        <text class="muted">{{match.qualificationStatus === 'eligible' ? '资格符合' : (match.qualificationStatus === 'partial' ? '部分符合' : '存在资格限制')}}</text>
+        <text class="match-gap" wx:if="{{match.gaps.length}}">注意：{{match.gaps[0]}}</text>
+      </view>
+    </view>
+
+    <view class="section-card">
+      <view class="section-head"><text class="card-title">下一步跟进</text><text class="section-note">同步到云端</text></view>
+      <input class="field" value="{{planForm.nextAction}}" placeholder="下一步行动，例如联系 Recruiter" data-field="nextAction" bindinput="onPlanInput" />
+      <view class="date-grid">
+        <picker mode="date" value="{{planForm.deadline}}" data-field="deadline" bindchange="onPlanDate"><view class="field picker">截止：{{planForm.deadline || '未设置'}}</view></picker>
+        <picker mode="date" value="{{planForm.interviewTime}}" data-field="interviewTime" bindchange="onPlanDate"><view class="field picker">面试：{{planForm.interviewTime || '未设置'}}</view></picker>
+      </view>
+      <textarea class="textarea" value="{{planForm.notes}}" placeholder="记录准备重点、沟通结果和注意事项" data-field="notes" bindinput="onPlanInput"></textarea>
+      <button class="primary-btn" bindtap="savePlan">保存跟进计划</button>
+    </view>
+
+    <view class="section-card">
+      <view class="section-head"><text class="card-title">任务清单</text><text class="section-note">{{tasks.length}} 项</text></view>
+      <view class="task-item {{item.completed ? 'completed' : ''}}" wx:for="{{tasks}}" wx:key="id" bindtap="toggleTask" data-id="{{item.id}}" data-completed="{{item.completed}}">
+        <view class="task-check">{{item.completed ? '✓' : ''}}</view>
+        <view class="task-copy"><text>{{item.title}}</text><text class="muted">{{item.dueAt || '无截止日期'}} · {{item.priority === 'high' ? '高优先级' : (item.priority === 'low' ? '低优先级' : '中优先级')}}</text></view>
+      </view>
+      <input class="field" value="{{taskForm.title}}" placeholder="新增任务，例如准备行为面试故事" data-field="title" bindinput="onTaskInput" />
+      <view class="inline-row">
+        <picker mode="date" value="{{taskForm.dueAt}}" bindchange="onTaskDate"><view class="field compact">{{taskForm.dueAt || '选择日期'}}</view></picker>
+        <view class="priority-row"><text wx:for="{{priorityOptions}}" wx:key="value" class="priority {{taskForm.priority === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="selectPriority">{{item.label}}</text></view>
+      </view>
+      <button class="secondary-btn" bindtap="addTask">添加任务</button>
+    </view>
+
+    <view class="section-card">
+      <view class="section-head"><text class="card-title">关键联系人</text><text class="section-note">{{contacts.length}} 人</text></view>
+      <view class="contact-item" wx:for="{{contacts}}" wx:key="id">
+        <view class="contact-avatar">{{item.name[0]}}</view>
+        <view class="contact-copy"><text>{{item.name}} · {{item.role || '角色待补充'}}</text><text class="muted">{{item.email || item.linkedin || item.notes || '暂无联系方式'}}</text></view>
+      </view>
+      <view class="date-grid">
+        <input class="field" value="{{contactForm.name}}" placeholder="姓名" data-field="name" bindinput="onContactInput" />
+        <input class="field" value="{{contactForm.role}}" placeholder="职位/关系" data-field="role" bindinput="onContactInput" />
+      </view>
+      <input class="field" value="{{contactForm.email}}" placeholder="邮箱" data-field="email" bindinput="onContactInput" />
+      <input class="field" value="{{contactForm.linkedin}}" placeholder="LinkedIn 链接" data-field="linkedin" bindinput="onContactInput" />
+      <button class="secondary-btn" bindtap="addContact">添加联系人</button>
+    </view>
+
+    <view class="section-card">
+      <view class="section-head"><text class="card-title">状态历史</text><text class="section-note">全程留痕</text></view>
+      <view class="timeline-item" wx:for="{{history}}" wx:key="id">
+        <view class="timeline-dot"></view>
+        <view class="timeline-copy"><text>{{item.fromStatus ? item.fromStatus + ' → ' : ''}}{{item.toStatus}}</text><text class="muted">{{item.note || '状态更新'}} · {{item.createdAt}}</text></view>
+      </view>
+      <view wx:if="{{!history.length}}" class="empty">暂无状态历史</view>
+    </view>
+
+    <view class="section-card" wx:if="{{materials.length}}">
+      <view class="section-head"><text class="card-title">申请材料</text><text class="section-note">{{materials.length}} 份</text></view>
+      <view class="material-item" wx:for="{{materials}}" wx:key="id"><text>{{item.label || item.type}}</text><text class="muted">{{item.resumeName || item.updatedAt}}</text></view>
+    </view>
+  </block>
+</view>

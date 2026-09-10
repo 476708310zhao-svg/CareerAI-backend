@@ -2,8 +2,11 @@
 const api = require('../../../utils/api.js');
 const favUtil = require('../../../utils/favorites.js');
 const demoData = require('../../../utils/demo-data.js');
+const loginGate = require('../../../behaviors/login-gate.js');
 
 Page({
+  behaviors: [loginGate],
+
   data: {
     expId: null,
     experience: {},
@@ -333,50 +336,51 @@ Page({
       wx.showToast({ title: '请输入评论内容', icon: 'none' });
       return;
     }
+    if (!wx.getStorageSync('token')) {
+      this.ensureAuthenticated(
+        '登录后参与面经评论与交流',
+        () => this.sendComment()
+      );
+      return;
+    }
 
     if (this.data.replyTo) {
       api.replyExperienceComment(this.data.replyTo.id, text).then((res) => {
-        const comments = this.data.comments;
-        const target = comments.find(c => c.id === this.data.replyTo.id);
-        if (target) {
-          target.replies = target.replies || [];
-          target.replies.push({
-            id: res.data.id,
-            userName: res.data.userName,
-            content: res.data.content,
-            createdAt: res.data.createdAt
-          });
-        }
-        this.setData({ comments, commentText: '', replyTo: null });
-        wx.showToast({ title: '回复成功', icon: 'success' });
+        this.setData({ commentText: '', replyTo: null });
+        wx.showModal({
+          title: '已提交审核',
+          content: (res && res.message) || '回复审核通过后将公开展示。',
+          showCancel: false
+        });
       }).catch(() => {
-        wx.showToast({ title: '回复失败，请先登录', icon: 'none' });
+        wx.showToast({ title: '回复提交失败，请稍后重试', icon: 'none' });
       });
     } else {
       api.createExperienceComment({
         experienceId: this.data.expId,
         content: text
       }).then((res) => {
-        const newComment = {
-          ...res.data,
-          isLiked: false,
-          replies: []
-        };
-        const comments = [newComment, ...this.data.comments];
-        this.setData({
-          comments,
-          commentText: '',
-          'experience.commentsCount': this.data.experience.commentsCount + 1
+        this.setData({ commentText: '' });
+        wx.showModal({
+          title: '已提交审核',
+          content: (res && res.message) || '评论审核通过后将公开展示。',
+          showCancel: false
         });
-        wx.showToast({ title: '评论成功', icon: 'success' });
       }).catch((err) => {
-        wx.showToast({ title: err.message || '评论失败，请先登录', icon: 'none' });
+        wx.showToast({ title: err.message || '评论提交失败，请稍后重试', icon: 'none' });
       });
     }
   },
 
   // 评论点赞（切换，后端防重复）
   likeComment(e) {
+    if (!wx.getStorageSync('token')) {
+      this.ensureAuthenticated(
+        '登录后点赞优质评论',
+        () => this.likeComment(e)
+      );
+      return;
+    }
     const index = e.currentTarget.dataset.index;
     const comments = this.data.comments;
     const comment = comments[index];
@@ -423,6 +427,13 @@ Page({
     if (!numId) {
       // Mock/本地面经：仅本地切换
       this.setData({ isLiked: !this.data.isLiked });
+      return;
+    }
+    if (!wx.getStorageSync('token')) {
+      this.ensureAuthenticated(
+        '登录后点赞并同步你的面经互动',
+        () => this.likeExperience()
+      );
       return;
     }
     api.likeExperience(numId).then((res) => {

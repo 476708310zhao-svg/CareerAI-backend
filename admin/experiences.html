@@ -21,11 +21,17 @@
       </div>
       <div class="toolbar">
         <input type="text" id="kw" placeholder="搜索标题、公司、作者..." onkeydown="if(event.key==='Enter')load(1)">
+        <select id="status" onchange="load(1)">
+          <option value="pending">待审核</option>
+          <option value="">全部状态</option>
+          <option value="approved">已通过</option>
+          <option value="rejected">已驳回</option>
+        </select>
         <button class="btn btn-outline" onclick="load(1)"><i class="fa-solid fa-search"></i> 搜索</button>
       </div>
       <div class="table-card">
         <div class="table-wrap"><table>
-          <thead><tr><th>ID</th><th>标题</th><th>公司</th><th>类型</th><th>作者</th><th>点赞</th><th>评论</th><th>发布时间</th><th>操作</th></tr></thead>
+          <thead><tr><th>ID</th><th>标题/内容</th><th>公司</th><th>类型</th><th>作者</th><th>状态</th><th>发布时间</th><th>操作</th></tr></thead>
           <tbody id="tbody"></tbody>
         </table></div>
         <div class="pagination" id="pagi"></div>
@@ -42,25 +48,43 @@ load(1);
 async function load(p) {
   page = p;
   const kw = document.getElementById('kw').value.trim();
-  const res = await GET(`/admin/api/experiences?page=${p}&pageSize=15&keyword=${encodeURIComponent(kw)}`);
+  const status = document.getElementById('status').value;
+  const res = await GET(`/admin/api/experiences?page=${p}&pageSize=15&keyword=${encodeURIComponent(kw)}&status=${encodeURIComponent(status)}`);
   if (!res || res.code !== 0) return;
   total = res.data.total;
   const list = res.data.list;
   document.getElementById('tbody').innerHTML = list.length ? list.map(e => `
     <tr>
       <td>${e.id}</td>
-      <td class="text-clamp text-clamp2" title="${esc(e.title)}">${esc(e.title)}</td>
+      <td style="max-width:320px">
+        <strong>${esc(e.title)}</strong>
+        <div class="text-clamp text-clamp2" style="font-size:12px;color:#6b7280;margin-top:4px" title="${esc(e.content||'')}">${esc(e.content||'')}</div>
+      </td>
       <td>${esc(e.company||'-')}</td>
       <td><span class="badge ${e.type==='面试'?'badge-blue':'badge-amber'}">${esc(e.type||'面试')}</span></td>
       <td>${esc(e.user_name||'匿名')}</td>
-      <td>${e.likes_count||0}</td>
-      <td>${e.comments_count||0}</td>
+      <td>${statusBadge(e.moderation_status)}</td>
       <td>${fmtDate(e.created_at)}</td>
       <td><div class="td-actions">
+        ${e.moderation_status!=='approved'?`<button class="btn btn-primary btn-sm" onclick="moderate(${e.id},'approved')"><i class="fa-solid fa-check"></i> 通过</button>`:''}
+        ${e.moderation_status!=='rejected'?`<button class="btn btn-outline btn-sm" onclick="moderate(${e.id},'rejected')"><i class="fa-solid fa-ban"></i> 驳回</button>`:''}
         <button class="btn btn-danger btn-sm" onclick="del(${e.id})"><i class="fa-solid fa-trash"></i> 删除</button>
       </div></td>
-    </tr>`).join('') : '<tr class="empty-row"><td colspan="9">暂无数据</td></tr>';
+    </tr>`).join('') : '<tr class="empty-row"><td colspan="8">暂无数据</td></tr>';
   renderPagination('pagi', page, total, 15, 'load');
+}
+
+function statusBadge(status) {
+  if (status === 'approved') return '<span class="badge badge-green">已通过</span>';
+  if (status === 'rejected') return '<span class="badge badge-red">已驳回</span>';
+  return '<span class="badge badge-amber">待审核</span>';
+}
+
+async function moderate(id, status) {
+  const note = status === 'rejected' ? (window.prompt('请输入驳回原因（可选）', '') || '') : '';
+  const res = await PUT(`/admin/api/experiences/${id}/moderation`, { status, note });
+  if (res && res.code === 0) { toast(res.message || '审核完成'); load(page); }
+  else toast(res?.message || '审核失败', 'error');
 }
 
 function del(id) {

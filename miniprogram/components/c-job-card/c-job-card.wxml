@@ -1,0 +1,51 @@
+<view class="job-card {{compact ? 'job-card--compact' : ''}} {{view.deadlineClosed ? 'job-card--closed' : ''}}" bindtap="openJob" hover-class="job-card--pressed">
+  <view class="job-card__headline">
+    <text class="job-card__title">{{view.title}}</text>
+    <text class="job-card__salary">{{view.salary}}</text>
+  </view>
+
+  <view class="job-card__company-row">
+    <c-company-logo
+      logo="{{view.logo}}"
+      name="{{view.company}}"
+      fallback="{{view.companyInitial}}"
+      size="sm"
+      lazy-load="{{true}}"
+      custom-class="job-card__logo"
+    ></c-company-logo>
+    <view class="job-card__company-copy">
+      <text class="job-card__company">{{view.company}}</text>
+      <text class="job-card__company-meta" wx:if="{{view.location || view.industry}}">{{view.location}}{{view.location && view.industry ? '｜' : ''}}{{view.industry}}</text>
+    </view>
+    <text class="job-card__applied" wx:if="{{view.isApplied}}">已投递</text>
+  </view>
+
+  <view class="job-card__tags" wx:if="{{view.attributeTags.length}}">
+    <text class="job-card__tag" wx:for="{{view.attributeTags}}" wx:key="*this">{{item}}</text>
+    <text class="job-card__tag job-card__tag--more" wx:if="{{view.extraAttributeCount}}">+{{view.extraAttributeCount}}</text>
+  </view>
+
+  <view class="job-card__skills" wx:if="{{!compact && view.skills.length}}">
+    <text class="job-card__skill" wx:for="{{view.skills}}" wx:key="*this">{{item}}</text>
+  </view>
+
+  <view class="job-card__decision" wx:if="{{!compact && ((showMatch && view.hasMatch) || view.deadlineText)}}">
+    <view class="job-card__match" wx:if="{{showMatch && view.hasMatch}}">
+      <text class="job-card__match-score">{{view.matchScore ? '匹配度 ' + view.matchScore + '%' : 'AI推荐'}}</text>
+      <text class="job-card__match-reason" wx:if="{{view.matchReason}}">{{view.matchReason}}</text>
+    </view>
+    <text class="job-card__deadline job-card__deadline--{{view.deadlineTone}}">{{view.deadlineText}}</text>
+  </view>
+
+  <view class="job-card__footer" wx:if="{{!compact}}">
+    <view class="job-card__aux">
+      <text>{{view.postedText}}</text>
+      <text wx:if="{{view.applyCountText}}">{{view.applyCountText}}</text>
+      <text class="job-card__provenance job-card__provenance--{{view.freshnessTone}}">{{view.sourceSummary}}</text>
+    </view>
+    <view class="job-card__favorite {{view.isSaved ? 'job-card__favorite--saved' : ''}}" catchtap="toggleFavorite" hover-class="job-card__favorite--pressed">
+      <text class="job-card__favorite-icon">{{view.isSaved ? '♥' : '♡'}}</text>
+      <text>{{view.isSaved ? '已收藏' : '收藏'}}</text>
+    </view>
+  </view>
+</view>

@@ -1953,3 +1953,5 @@ page {
   border-color: rgba(210, 221, 232, 0.76);
   box-shadow: 0 12rpx 28rpx rgba(31, 45, 61, 0.048);
 }
+.ctag.sponsor-risk { color: #B42318; background: #FEF3F2; }
+.match-score-v4 { flex-shrink: 0; margin-right: 12rpx; color: #1D4ED8; font-size: 24rpx; font-weight: 900; }

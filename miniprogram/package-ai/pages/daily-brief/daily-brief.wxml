@@ -3,14 +3,45 @@
 
   <c-ai-disclosure text="求职总结与行动建议由人工智能生成，仅供规划参考。" />
 
-  <!-- 顶部日期 Header -->
-  <view class="date-header">
-    <view class="date-left">
-      <text class="greeting">{{greeting}}！</text>
-      <text class="today-date">{{todayStr}}</text>
+  <!-- 今日概览：与首页求职计划统一视觉 -->
+  <view class="brief-hero">
+    <view class="hero-heading">
+      <view class="hero-copy">
+        <text class="hero-kicker">今日求职计划</text>
+        <text class="hero-title">求职日报</text>
+        <text class="hero-subtitle">{{todayStr}} · 根据你的求职进度动态整理</text>
+      </view>
+      <view class="hero-mark">
+        <text class="hero-mark-icon">✓</text>
+      </view>
     </view>
-    <view class="header-icon-box">
-      <text class="header-icon">☀️</text>
+
+    <view class="hero-metrics" wx:if="{{phase === 'done' && stats}}">
+      <view class="hero-metric blue">
+        <text class="hero-metric-label">全部记录</text>
+        <text class="hero-metric-value">{{stats.totalApps}}</text>
+      </view>
+      <view class="hero-metric amber">
+        <text class="hero-metric-label">网申/OA</text>
+        <text class="hero-metric-value">{{stats.pendingApps}}</text>
+      </view>
+      <view class="hero-metric purple">
+        <text class="hero-metric-label">面试中</text>
+        <text class="hero-metric-value">{{stats.interviewApps}}</text>
+      </view>
+      <view class="hero-metric green">
+        <text class="hero-metric-label">Offer</text>
+        <text class="hero-metric-value">{{stats.offerApps}}</text>
+      </view>
+    </view>
+
+    <view class="hero-tip" wx:if="{{phase === 'done' && brief && brief.tasks && brief.tasks.length}}">
+      <view class="hero-tip-mark">✓</view>
+      <view class="hero-tip-copy">
+        <text class="hero-tip-label">今日行动</text>
+        <text class="hero-tip-text">已为你整理 {{brief.tasks.length}} 项优先任务</text>
+      </view>
+      <text class="hero-tip-action">按顺序完成 ›</text>
     </view>
   </view>
 
@@ -34,6 +65,18 @@
 
   <!-- 结果 -->
   <view wx:if="{{phase === 'done' && result}}">
+
+    <view class="brief-module" wx:if="{{brief && brief.tasks && brief.tasks.length}}">
+      <view class="module-head">
+        <text class="module-title">今日任务队列</text>
+      </view>
+      <block wx:for="{{brief.tasks}}" wx:key="id">
+        <view wx:if="{{index < 4}}" class="task-card {{item.done ? 'done' : ''}}" bindtap="goDailyTask" data-url="{{item.url}}" hover-class="card-press">
+          <text class="task-title">{{item.done ? '已完成 · ' : ''}}{{item.title}}</text>
+          <text class="task-sub">{{item.desc}}</text>
+        </view>
+      </block>
+    </view>
 
     <view class="brief-module" wx:if="{{brief && brief.recommendedJobs.length}}">
       <view class="module-head">
@@ -66,31 +109,6 @@
         </view>
       </block>
       <view wx:else class="soft-empty">暂无 7 天内截止岗位，今天可以补充目标岗位的截止时间。</view>
-    </view>
-
-    <view class="brief-module">
-      <view class="module-head">
-        <text class="module-title">我的投递进度</text>
-        <text class="module-link" bindtap="goProgress">查看 ›</text>
-      </view>
-      <view class="mini-stat-grid">
-        <view class="mini-stat">
-          <text class="mini-num">{{stats.totalApps}}</text>
-          <text class="mini-label">全部记录</text>
-        </view>
-        <view class="mini-stat">
-          <text class="mini-num">{{stats.pendingApps}}</text>
-          <text class="mini-label">网申/OA</text>
-        </view>
-        <view class="mini-stat">
-          <text class="mini-num">{{stats.interviewApps}}</text>
-          <text class="mini-label">面试中</text>
-        </view>
-        <view class="mini-stat">
-          <text class="mini-num offer">{{stats.offerApps}}</text>
-          <text class="mini-label">Offer</text>
-        </view>
-      </view>
     </view>
 
     <view class="brief-module">
@@ -147,7 +165,6 @@
       <view class="highlights-row">
         <block wx:for="{{result.highlights}}" wx:key="label">
           <view class="highlight-card">
-            <text class="hl-icon">{{item.icon}}</text>
             <text class="hl-value">{{item.value}}</text>
             <text class="hl-label">{{item.label}}</text>
           </view>
@@ -198,29 +215,6 @@
     <!-- 激励语 -->
     <view class="motivation-card" wx:if="{{result.motivation}}">
       <text class="motivation-txt">💬 {{result.motivation}}</text>
-    </view>
-
-    <!-- 统计摘要 -->
-    <view class="stats-summary" wx:if="{{stats}}">
-      <view class="stats-title">求职状态总览</view>
-      <view class="stats-grid">
-        <view class="stat-item">
-          <text class="stat-num">{{stats.totalApps}}</text>
-          <text class="stat-label">总投递</text>
-        </view>
-        <view class="stat-item">
-          <text class="stat-num">{{stats.pendingApps}}</text>
-          <text class="stat-label">待回复</text>
-        </view>
-        <view class="stat-item">
-          <text class="stat-num">{{stats.interviewApps}}</text>
-          <text class="stat-label">面试中</text>
-        </view>
-        <view class="stat-item">
-          <text class="stat-num {{stats.offerApps > 0 ? 'offer' : ''}}">{{stats.offerApps}}</text>
-          <text class="stat-label">Offer</text>
-        </view>
-      </view>
     </view>
 
   </view>

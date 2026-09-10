@@ -46,9 +46,17 @@
         <div class="page-header">
           <div><h1>用户评价</h1><div class="sub">审核并管理机构评价内容</div></div>
         </div>
+        <div class="toolbar">
+          <select id="statusR" onchange="loadReviews(1)">
+            <option value="pending">待审核</option>
+            <option value="">全部状态</option>
+            <option value="approved">已通过</option>
+            <option value="rejected">已驳回</option>
+          </select>
+        </div>
         <div class="table-card">
           <div class="table-wrap"><table>
-            <thead><tr><th>ID</th><th>机构</th><th>标题</th><th>内容</th><th>评分</th><th>匿名</th><th>时间</th><th>操作</th></tr></thead>
+            <thead><tr><th>ID</th><th>机构</th><th>标题</th><th>内容</th><th>评分</th><th>状态</th><th>时间</th><th>操作</th></tr></thead>
             <tbody id="tbodyR"></tbody>
           </table></div>
           <div class="pagination" id="pagiR"></div>
@@ -124,7 +132,8 @@ async function loadAgencies(p) {
 
 async function loadReviews(p) {
   pageR = p;
-  const res = await GET(`/admin/api/agency-reviews?page=${p}&pageSize=20`);
+  const status = document.getElementById('statusR').value;
+  const res = await GET(`/admin/api/agency-reviews?page=${p}&pageSize=20&status=${encodeURIComponent(status)}`);
   if (!res || res.code !== 0) return;
   totalR = res.data.total;
   document.getElementById('tbodyR').innerHTML = res.data.list.length ? res.data.list.map(r => `
@@ -134,9 +143,13 @@ async function loadReviews(p) {
       <td class="text-clamp">${esc(r.title||'-')}</td>
       <td style="max-width:240px;word-break:break-all;font-size:12px">${esc(truncate(r.content,60))}</td>
       <td><span style="color:#f59e0b;font-weight:600">${(r.rating_overall||0).toFixed(1)} ★</span></td>
-      <td>${r.is_anonymous?'<span class="badge badge-gray">匿名</span>':'否'}</td>
+      <td>${statusBadge(r.moderation_status)}</td>
       <td>${fmtDate(r.created_at)}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="delReview(${r.id})"><i class="fa-solid fa-trash"></i></button></td>
+      <td><div class="td-actions">
+        ${r.moderation_status!=='approved'?`<button class="btn btn-primary btn-sm" onclick="moderateReview(${r.id},'approved')"><i class="fa-solid fa-check"></i> 通过</button>`:''}
+        ${r.moderation_status!=='rejected'?`<button class="btn btn-outline btn-sm" onclick="moderateReview(${r.id},'rejected')"><i class="fa-solid fa-ban"></i> 驳回</button>`:''}
+        <button class="btn btn-danger btn-sm" onclick="delReview(${r.id})"><i class="fa-solid fa-trash"></i></button>
+      </div></td>
     </tr>`).join('') : '<tr class="empty-row"><td colspan="8">暂无评价</td></tr>';
   renderPagination('pagiR', pageR, totalR, 20, 'loadReviews');
 }
@@ -195,6 +208,19 @@ function delReview(id) {
     if (res && res.code === 0) { toast('删除成功'); loadReviews(pageR); }
     else toast(res?.message||'删除失败', 'error');
   });
+}
+
+function statusBadge(status) {
+  if (status === 'approved') return '<span class="badge badge-green">已通过</span>';
+  if (status === 'rejected') return '<span class="badge badge-red">已驳回</span>';
+  return '<span class="badge badge-amber">待审核</span>';
+}
+
+async function moderateReview(id, status) {
+  const note = status === 'rejected' ? (window.prompt('请输入驳回原因（可选）', '') || '') : '';
+  const res = await PUT(`/admin/api/agency-reviews/${id}/moderation`, { status, note });
+  if (res && res.code === 0) { toast(res.message || '审核完成'); loadReviews(pageR); loadAgencies(pageA); }
+  else toast(res?.message || '审核失败', 'error');
 }
 </script>
 </body>

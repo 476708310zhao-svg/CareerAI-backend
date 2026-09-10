@@ -1,0 +1,825 @@
+{
+  "version": "jobapp-3.0-ops-content-2026-07-09",
+  "interviewQuestions": [
+    {
+      "questionId": "ops_q_alg_001",
+      "title": "Two Sum 类问题为什么优先考虑哈希表？",
+      "answer": "答题要点：暴力解法需要 O(n^2) 枚举两数；哈希表可以在一次遍历中记录已访问元素，并用 target - current 查询补数，将时间复杂度降到 O(n)。需要说明 key、value 存什么，如何处理重复元素，以及为什么不能先把所有值放进 set 后忽略下标。",
+      "category": "algorithm",
+      "difficulty": "简单",
+      "tags": [
+        "哈希表",
+        "数组",
+        "复杂度"
+      ],
+      "views": 1680,
+      "source": "ops-seed",
+      "isFeatured": true,
+      "sortOrder": 10
+    },
+    {
+      "questionId": "ops_q_alg_002",
+      "title": "滑动窗口适合解决哪类题？核心模板是什么？",
+      "answer": "答题要点：滑动窗口适合连续子数组或子串问题，尤其是最长、最短、固定长度统计。核心是 right 扩张窗口，更新计数或状态；当窗口不满足条件时 left 收缩；每一步根据题意更新答案。面试时要讲清楚窗口内维护了什么状态，以及收缩条件为什么正确。",
+      "category": "algorithm",
+      "difficulty": "中等",
+      "tags": [
+        "双指针",
+        "字符串",
+        "窗口"
+      ],
+      "views": 1510,
+      "source": "ops-seed",
+      "isFeatured": true,
+      "sortOrder": 20
+    },
+    {
+      "questionId": "ops_q_alg_003",
+      "title": "动态规划题如何判断状态和转移方程？",
+      "answer": "答题要点：先判断是否具备最优子结构和重叠子问题；再定义 dp[i] 或 dp[i][j] 表示一个可复用的子问题答案；从最后一步倒推转移来源；补齐初始状态、遍历顺序和边界。可以用爬楼梯、背包或最长公共子序列举例。",
+      "category": "algorithm",
+      "difficulty": "困难",
+      "tags": [
+        "动态规划",
+        "状态转移",
+        "边界"
+      ],
+      "views": 1320,
+      "source": "ops-seed",
+      "isFeatured": true,
+      "sortOrder": 30
+    },
+    {
+      "questionId": "ops_q_alg_004",
+      "title": "BFS 和 DFS 的典型应用场景有什么区别？",
+      "answer": "答题要点：BFS 按层扩展，常用于无权最短路径、层序遍历和状态步数最少问题；DFS 更适合连通性、回溯、路径枚举和拓扑相关问题。需要说明时间复杂度通常是 O(V+E)，并比较队列与递归栈的空间开销。",
+      "category": "algorithm",
+      "difficulty": "中等",
+      "tags": [
+        "图",
+        "BFS",
+        "DFS"
+      ],
+      "views": 1180,
+      "source": "ops-seed",
+      "isFeatured": false,
+      "sortOrder": 40
+    },
+    {
+      "questionId": "ops_q_alg_005",
+      "title": "如何实现 LRU Cache？",
+      "answer": "答题要点：用哈希表保证 O(1) 定位节点，用双向链表维护访问顺序。get 命中后移动到头部；put 已存在则更新并移动；put 新 key 时容量满则淘汰尾部。面试时要强调为什么单纯数组或 Map 不够，以及边界如容量为 1、重复更新如何处理。",
+      "category": "algorithm",
+      "difficulty": "中等",
+      "tags": [
+        "LRU",
+        "哈希表",
+        "链表"
+      ],
+      "views": 1460,
+      "source": "ops-seed",
+      "isFeatured": true,
+      "sortOrder": 50
+    },
+    {
+      "questionId": "ops_q_sys_001",
+      "title": "如何设计一个短链接系统？",
+      "answer": "答题要点：先明确 QPS、读写比例和短码长度；核心表保存 short_code 与 long_url 映射；短码可用自增 ID 转 base62 或随机码加冲突重试；读路径通过缓存加速，写路径保证唯一索引。扩展点包括过期时间、访问统计、风控和防恶意跳转。",
+      "category": "system",
+      "difficulty": "困难",
+      "tags": [
+        "系统设计",
+        "缓存",
+        "唯一ID"
+      ],
+      "views": 2140,
+      "source": "ops-seed",
+      "isFeatured": true,
+      "sortOrder": 60
+    },
+    {
+      "questionId": "ops_q_sys_002",
+      "title": "如何设计一个通知推送系统？",
+      "answer": "答题要点：区分站内信、订阅消息、邮件或短信等渠道；消息生产后进入队列，消费者按渠道发送并记录状态；需要支持幂等、重试、频控、失败降级和用户退订。数据模型通常包括 message、delivery、template 和 user_channel。",
+      "category": "system",
+      "difficulty": "困难",
+      "tags": [
+        "消息队列",
+        "幂等",
+        "推送"
+      ],
+      "views": 1390,
+      "source": "ops-seed",
+      "isFeatured": true,
+      "sortOrder": 70
+    },
+    {
+      "questionId": "ops_q_sys_003",
+      "title": "接口幂等性应该如何设计？",
+      "answer": "答题要点：幂等性是同一请求重复执行不会造成重复副作用。常见方案包括客户端 requestId、数据库唯一约束、状态机校验、乐观锁和 Redis token。支付、投递、报名等场景必须防重复提交，并保留可追踪的操作记录。",
+      "category": "system",
+      "difficulty": "中等",
+      "tags": [
+        "幂等",
+        "后端",
+        "支付"
+      ],
+      "views": 1260,
+      "source": "ops-seed",
+      "isFeatured": false,
+      "sortOrder": 80
+    },
+    {
+      "questionId": "ops_q_sys_004",
+      "title": "Redis 常见数据结构分别适合什么场景？",
+      "answer": "答题要点：String 适合缓存和计数；Hash 适合对象字段；List 可做简单队列；Set 用于去重和标签；ZSet 用于排行榜和按分数排序；Bitmap 用于签到；Stream 适合消息流。需要结合过期策略、内存淘汰和持久化说明风险。",
+      "category": "system",
+      "difficulty": "中等",
+      "tags": [
+        "Redis",
+        "缓存",
+        "数据结构"
+      ],
+      "views": 1750,
+      "source": "ops-seed",
+      "isFeatured": false,
+      "sortOrder": 90
+    },
+    {
+      "questionId": "ops_q_sys_005",
+      "title": "CAP 理论在实际系统中怎么理解？",
+      "answer": "答题要点：分布式系统出现网络分区时，必须在一致性和可用性之间做取舍。CP 系统优先保证一致性，可能拒绝请求；AP 系统优先可用，接受短暂不一致并通过最终一致性修复。回答时要结合具体业务，如支付更偏 CP，内容推荐可偏 AP。",
+      "category": "system",
+      "difficulty": "困难",
+      "tags": [
+        "分布式",
+        "CAP",
+        "一致性"
+      ],
+      "views": 980,
+      "source": "ops-seed",
+      "isFeatured": false,
+      "sortOrder": 100
+    },
+    {
+      "questionId": "ops_q_fe_001",
+      "title": "从输入 URL 到页面展示，浏览器经历了哪些阶段？",
+      "answer": "答题要点：DNS 解析、建立 TCP/TLS 连接、发送 HTTP 请求、服务器响应、解析 HTML 生成 DOM、解析 CSS 生成 CSSOM、合成渲染树、布局、绘制和合成。可补充缓存、重定向、HTTP/2 多路复用和静态资源加载优化。",
+      "category": "frontend",
+      "difficulty": "困难",
+      "tags": [
+        "浏览器",
+        "网络",
+        "渲染"
+      ],
+      "views": 2320,
+      "source": "ops-seed",
+      "isFeatured": true,
+      "sortOrder": 110
+    },
+    {
+      "questionId": "ops_q_fe_002",
+      "title": "JavaScript 事件循环如何区分宏任务和微任务？",
+      "answer": "答题要点：同步代码先进入调用栈执行；每轮宏任务结束后会清空微任务队列，再进入渲染或下一轮宏任务。Promise.then、queueMicrotask 属于微任务；setTimeout、setInterval、I/O 回调属于宏任务。可用一段输出顺序题解释。",
+      "category": "frontend",
+      "difficulty": "中等",
+      "tags": [
+        "JavaScript",
+        "事件循环",
+        "Promise"
+      ],
+      "views": 1860,
+      "source": "ops-seed",
+      "isFeatured": true,
+      "sortOrder": 120
+    },
+    {
+      "questionId": "ops_q_fe_003",
+      "title": "React Hooks 为什么不能写在条件语句里？",
+      "answer": "答题要点：React 依赖 Hooks 的调用顺序来关联状态，如果在条件、循环或嵌套函数中调用，会导致前后渲染顺序不一致，状态错位。规则是只在函数组件或自定义 Hook 顶层调用。可以说明 useEffect 依赖数组和闭包陷阱。",
+      "category": "frontend",
+      "difficulty": "中等",
+      "tags": [
+        "React",
+        "Hooks",
+        "状态"
+      ],
+      "views": 1410,
+      "source": "ops-seed",
+      "isFeatured": false,
+      "sortOrder": 130
+    },
+    {
+      "questionId": "ops_q_fe_004",
+      "title": "前端性能优化可以从哪些方向入手？",
+      "answer": "答题要点：加载阶段可做代码分割、压缩、缓存、CDN 和懒加载；运行阶段减少重排重绘、防抖节流、虚拟列表和 Web Worker；监控指标包括 LCP、INP、CLS。回答时最好结合一个真实页面优化案例。",
+      "category": "frontend",
+      "difficulty": "困难",
+      "tags": [
+        "性能优化",
+        "Web Vitals",
+        "工程化"
+      ],
+      "views": 1640,
+      "source": "ops-seed",
+      "isFeatured": false,
+      "sortOrder": 140
+    },
+    {
+      "questionId": "ops_q_fe_005",
+      "title": "Vue 3 响应式原理和 Vue 2 有什么差别？",
+      "answer": "答题要点：Vue 2 使用 Object.defineProperty 劫持 getter/setter，新增属性和数组部分操作需要额外处理；Vue 3 使用 Proxy，可以拦截更多操作并更好支持 Map、Set 等结构。共同点是依赖收集和触发更新。",
+      "category": "frontend",
+      "difficulty": "中等",
+      "tags": [
+        "Vue",
+        "响应式",
+        "Proxy"
+      ],
+      "views": 1210,
+      "source": "ops-seed",
+      "isFeatured": false,
+      "sortOrder": 150
+    },
+    {
+      "questionId": "ops_q_java_001",
+      "title": "HashMap 的底层结构和扩容机制是什么？",
+      "answer": "答题要点：JDK 8 HashMap 使用数组、链表和红黑树；默认容量 16，负载因子 0.75，扩容为 2 倍；链表长度达到阈值且数组足够大时树化。需要说明 hash 扰动、索引计算、put 流程和并发下为什么不用 HashMap。",
+      "category": "java",
+      "difficulty": "中等",
+      "tags": [
+        "Java",
+        "集合",
+        "HashMap"
+      ],
+      "views": 1930,
+      "source": "ops-seed",
+      "isFeatured": true,
+      "sortOrder": 160
+    },
+    {
+      "questionId": "ops_q_java_002",
+      "title": "synchronized 和 ReentrantLock 有什么区别？",
+      "answer": "答题要点：synchronized 是 JVM 层面的内置锁，语法简单，自动释放；ReentrantLock 是 JUC 显式锁，支持公平锁、可中断、tryLock 超时和多个 Condition。回答要提醒 finally 中释放锁，并说明优先选择简单可靠的同步方式。",
+      "category": "java",
+      "difficulty": "中等",
+      "tags": [
+        "Java",
+        "并发",
+        "锁"
+      ],
+      "views": 1490,
+      "source": "ops-seed",
+      "isFeatured": false,
+      "sortOrder": 170
+    },
+    {
+      "questionId": "ops_q_java_003",
+      "title": "JVM 垃圾回收为什么要分代？",
+      "answer": "答题要点：大多数对象朝生夕死，少数对象存活较久，因此新生代适合复制算法，老年代适合标记清除或标记整理。可说明 Eden、Survivor、Minor GC、Full GC，以及 G1/ZGC 的基本目标和调优指标。",
+      "category": "java",
+      "difficulty": "困难",
+      "tags": [
+        "JVM",
+        "GC",
+        "内存"
+      ],
+      "views": 1370,
+      "source": "ops-seed",
+      "isFeatured": false,
+      "sortOrder": 180
+    },
+    {
+      "questionId": "ops_q_java_004",
+      "title": "Spring Boot 自动装配的核心机制是什么？",
+      "answer": "答题要点：自动装配通过约定的配置类加载机制和条件注解完成，根据 classpath、配置项和 Bean 是否存在决定是否生效。回答时要讲清楚 starter、AutoConfiguration、ConditionalOnClass、ConditionalOnMissingBean 的关系。",
+      "category": "java",
+      "difficulty": "困难",
+      "tags": [
+        "Spring Boot",
+        "自动装配",
+        "后端"
+      ],
+      "views": 1110,
+      "source": "ops-seed",
+      "isFeatured": false,
+      "sortOrder": 190
+    },
+    {
+      "questionId": "ops_q_java_005",
+      "title": "线程池的核心参数有哪些？如何设置？",
+      "answer": "答题要点：核心参数包括 corePoolSize、maximumPoolSize、keepAliveTime、workQueue、threadFactory 和拒绝策略。设置时要区分 CPU 密集和 I/O 密集，结合任务耗时、并发量、队列长度和降级策略。不要用无界队列掩盖容量问题。",
+      "category": "java",
+      "difficulty": "中等",
+      "tags": [
+        "线程池",
+        "并发",
+        "容量规划"
+      ],
+      "views": 1540,
+      "source": "ops-seed",
+      "isFeatured": false,
+      "sortOrder": 200
+    },
+    {
+      "questionId": "ops_q_py_001",
+      "title": "Python GIL 是什么？它对多线程有什么影响？",
+      "answer": "答题要点：GIL 是 CPython 解释器全局解释器锁，同一时刻只有一个线程执行 Python 字节码。I/O 密集任务可以用多线程提升等待效率；CPU 密集任务通常用 multiprocessing、C 扩展释放 GIL 或异步架构。不要把 GIL 误解为线程不安全。",
+      "category": "python",
+      "difficulty": "中等",
+      "tags": [
+        "Python",
+        "GIL",
+        "并发"
+      ],
+      "views": 1260,
+      "source": "ops-seed",
+      "isFeatured": true,
+      "sortOrder": 210
+    },
+    {
+      "questionId": "ops_q_py_002",
+      "title": "装饰器的实现原理是什么？",
+      "answer": "答题要点：装饰器本质是接收函数并返回新函数的高阶函数，@decorator 是语法糖。常见用途包括日志、鉴权、缓存、重试和耗时统计。需要注意 functools.wraps 保留原函数元信息，以及带参数装饰器会多一层闭包。",
+      "category": "python",
+      "difficulty": "中等",
+      "tags": [
+        "Python",
+        "装饰器",
+        "闭包"
+      ],
+      "views": 980,
+      "source": "ops-seed",
+      "isFeatured": false,
+      "sortOrder": 220
+    },
+    {
+      "questionId": "ops_q_py_003",
+      "title": "列表推导式和生成器表达式有什么区别？",
+      "answer": "答题要点：列表推导式一次性生成完整列表，占用内存但可重复遍历；生成器表达式惰性求值，适合大数据流和管道处理，但只能按需迭代。回答时可以补充 yield、迭代器协议和内存场景选择。",
+      "category": "python",
+      "difficulty": "简单",
+      "tags": [
+        "Python",
+        "生成器",
+        "内存"
+      ],
+      "views": 840,
+      "source": "ops-seed",
+      "isFeatured": false,
+      "sortOrder": 230
+    },
+    {
+      "questionId": "ops_q_db_001",
+      "title": "MySQL 索引为什么通常使用 B+ 树？",
+      "answer": "答题要点：B+ 树高度低、磁盘 IO 少，叶子节点有序链表适合范围查询；非叶子节点只存索引信息，提高扇出。回答时要区分聚簇索引和二级索引，解释回表、覆盖索引、最左前缀和索引失效场景。",
+      "category": "database",
+      "difficulty": "中等",
+      "tags": [
+        "MySQL",
+        "索引",
+        "B+树"
+      ],
+      "views": 1830,
+      "source": "ops-seed",
+      "isFeatured": true,
+      "sortOrder": 240
+    },
+    {
+      "questionId": "ops_q_db_002",
+      "title": "事务的 ACID 和隔离级别如何理解？",
+      "answer": "答题要点：ACID 分别是原子性、一致性、隔离性和持久性；隔离级别从读未提交、读已提交、可重复读到串行化，解决脏读、不可重复读和幻读问题。MySQL InnoDB 常通过锁和 MVCC 实现。",
+      "category": "database",
+      "difficulty": "中等",
+      "tags": [
+        "事务",
+        "ACID",
+        "MVCC"
+      ],
+      "views": 1420,
+      "source": "ops-seed",
+      "isFeatured": false,
+      "sortOrder": 250
+    },
+    {
+      "questionId": "ops_q_db_003",
+      "title": "SQL 慢查询应该如何定位和优化？",
+      "answer": "答题要点：先开启慢查询日志定位 SQL，再用 EXPLAIN 看 type、key、rows、Extra；常见优化包括补索引、避免 SELECT *、减少函数包裹索引列、改写分页、拆分复杂查询和缓存热点结果。优化前后要用数据对比。",
+      "category": "database",
+      "difficulty": "中等",
+      "tags": [
+        "SQL",
+        "慢查询",
+        "优化"
+      ],
+      "views": 1190,
+      "source": "ops-seed",
+      "isFeatured": false,
+      "sortOrder": 260
+    },
+    {
+      "questionId": "ops_q_bq_001",
+      "title": "Tell me about a time you had a conflict with a teammate.",
+      "answer": "STAR 思路：Situation 说明冲突发生的项目背景；Task 说明你需要保证交付和协作；Action 突出你如何先听取对方观点、用事实对齐目标、提出折中方案并复盘流程；Result 用交付结果、关系修复或流程改进量化结论。避免把责任完全推给对方。",
+      "category": "behavior",
+      "difficulty": "中等",
+      "tags": [
+        "STAR",
+        "冲突处理",
+        "团队协作"
+      ],
+      "views": 2260,
+      "source": "ops-seed",
+      "isFeatured": true,
+      "sortOrder": 270
+    },
+    {
+      "questionId": "ops_q_bq_002",
+      "title": "Describe a time you failed and what you learned.",
+      "answer": "STAR 思路：选择真实但不会伤害岗位信任的失败；讲清楚当时判断、失败原因和影响；重点放在复盘、改进机制和下一次如何验证效果。优秀答案不是没有失败，而是能展示 ownership、learning agility 和可迁移的方法论。",
+      "category": "behavior",
+      "difficulty": "中等",
+      "tags": [
+        "STAR",
+        "失败复盘",
+        "成长"
+      ],
+      "views": 2010,
+      "source": "ops-seed",
+      "isFeatured": true,
+      "sortOrder": 280
+    },
+    {
+      "questionId": "ops_q_bq_003",
+      "title": "Why do you want to join this company?",
+      "answer": "答题要点：从公司业务、岗位职责、团队机会和个人经历四层回答。避免只说平台大或福利好；要引用具体产品、技术栈、行业趋势或公司近期动作，并说明自己过去的经历如何与岗位产生匹配。",
+      "category": "behavior",
+      "difficulty": "简单",
+      "tags": [
+        "动机题",
+        "公司调研",
+        "英文面试"
+      ],
+      "views": 2410,
+      "source": "ops-seed",
+      "isFeatured": true,
+      "sortOrder": 290
+    },
+    {
+      "questionId": "ops_q_bq_004",
+      "title": "请介绍一个你最有代表性的项目经历。",
+      "answer": "STAR 思路：Situation 交代项目背景和业务目标；Task 明确你负责的模块或指标；Action 用 2 到 3 个关键动作展示技术深度、协作和决策；Result 给出量化结果，如性能提升、用户增长、成本下降或交付提前。结尾补一句复盘收获。",
+      "category": "behavior",
+      "difficulty": "中等",
+      "tags": [
+        "项目经历",
+        "STAR",
+        "简历深挖"
+      ],
+      "views": 2180,
+      "source": "ops-seed",
+      "isFeatured": true,
+      "sortOrder": 300
+    },
+    {
+      "questionId": "ops_q_bq_005",
+      "title": "你如何在 deadline 压力下做优先级排序？",
+      "answer": "答题要点：说明你如何识别关键路径、按影响和紧急程度排序、和利益相关方同步取舍、提前暴露风险并保留兜底方案。最好给出一个具体案例，体现你不是硬扛，而是主动管理范围、质量和时间。",
+      "category": "behavior",
+      "difficulty": "中等",
+      "tags": [
+        "优先级",
+        "压力管理",
+        "沟通"
+      ],
+      "views": 1340,
+      "source": "ops-seed",
+      "isFeatured": false,
+      "sortOrder": 310
+    }
+  ],
+  "starTemplates": [
+    {
+      "templateId": "ops_star_general_001",
+      "role": "general",
+      "roleLabel": "通用",
+      "roleColor": "#6B7280",
+      "title": "跨团队协作推动项目按期上线",
+      "tags": [
+        "团队协作",
+        "沟通",
+        "交付"
+      ],
+      "situation": "在一次课程项目或实习项目中，前端、后端和数据同学对需求理解不一致，导致关键功能连续两周延期。",
+      "task": "你需要在不增加人力的情况下重新对齐范围，保证核心功能在截止日前交付。",
+      "action": "你主动梳理需求文档，把功能拆成必须交付、可以降级和后续优化三类；组织 30 分钟对齐会确认接口、验收标准和负责人；之后每天同步风险并及时清理阻塞。",
+      "result": "项目最终按期上线，核心功能通过验收，返工次数明显减少。你也沉淀了需求确认清单，被后续项目继续复用。",
+      "sortOrder": 10
+    },
+    {
+      "templateId": "ops_star_general_002",
+      "role": "general",
+      "roleLabel": "通用",
+      "roleColor": "#6B7280",
+      "title": "失败项目复盘并建立改进机制",
+      "tags": [
+        "失败复盘",
+        "Ownership",
+        "成长"
+      ],
+      "situation": "你负责的一个活动、项目或功能因为前期风险识别不足，没有达到预期效果。",
+      "task": "你需要承认问题、找到根因，并让下一次执行明显变好。",
+      "action": "你收集数据和反馈，区分计划假设、执行过程和外部因素；把根因归纳为优先级判断、资源协调或验证不足；随后制定检查点、提前评审和风险清单。",
+      "result": "下一次类似任务中，延期或返工显著减少，团队也开始在启动阶段使用你的风险清单。",
+      "sortOrder": 20
+    },
+    {
+      "templateId": "ops_star_tech_001",
+      "role": "tech",
+      "roleLabel": "技术",
+      "roleColor": "#10B981",
+      "title": "定位线上性能瓶颈并完成优化",
+      "tags": [
+        "性能优化",
+        "问题排查",
+        "数据驱动"
+      ],
+      "situation": "某个接口或页面在高峰期响应变慢，影响用户体验或业务转化。",
+      "task": "你需要在短时间内定位瓶颈，并给出不会引入明显风险的优化方案。",
+      "action": "你先用日志、监控或 profiler 找到耗时集中点；确认瓶颈来自数据库查询、重复请求或渲染阻塞；随后补索引、加缓存或拆分计算，并通过灰度验证指标。",
+      "result": "接口响应时间或页面加载时间下降，错误率保持稳定，优化方案被写入团队性能排查文档。",
+      "sortOrder": 30
+    },
+    {
+      "templateId": "ops_star_tech_002",
+      "role": "tech",
+      "roleLabel": "技术",
+      "roleColor": "#10B981",
+      "title": "在技术选型分歧中推动决策",
+      "tags": [
+        "技术决策",
+        "系统设计",
+        "影响力"
+      ],
+      "situation": "团队在框架、数据库或消息队列选型上存在分歧，讨论持续较久但没有结论。",
+      "task": "你需要帮助团队在约束条件下做出可执行的选择。",
+      "action": "你列出评估维度，包括性能、维护成本、学习成本、生态成熟度和业务适配；搭建小型验证样例；用数据和风险说明推荐方案，并保留回滚策略。",
+      "result": "团队达成一致，方案顺利落地，后续维护成本和故障风险低于预期。",
+      "sortOrder": 40
+    },
+    {
+      "templateId": "ops_star_pm_001",
+      "role": "pm",
+      "roleLabel": "PM",
+      "roleColor": "#3B82F6",
+      "title": "通过用户研究提升关键转化",
+      "tags": [
+        "用户研究",
+        "转化率",
+        "A/B测试"
+      ],
+      "situation": "某个核心转化环节表现不佳，用户大量流失，但团队对原因判断不一致。",
+      "task": "你需要找出主要阻塞点，并推动可验证的产品改进。",
+      "action": "你结合漏斗数据、用户访谈和竞品拆解提出假设；设计低成本实验验证文案、流程或功能改动；与设计和研发明确实验口径、样本量和上线节奏。",
+      "result": "实验组关键转化率提升，团队获得明确决策依据，后续版本采用该方案。",
+      "sortOrder": 50
+    },
+    {
+      "templateId": "ops_star_pm_002",
+      "role": "pm",
+      "roleLabel": "PM",
+      "roleColor": "#3B82F6",
+      "title": "资源有限时完成版本优先级取舍",
+      "tags": [
+        "优先级",
+        "需求管理",
+        "利益相关方"
+      ],
+      "situation": "版本周期缩短或研发资源减少，但业务方仍希望保留原有需求范围。",
+      "task": "你需要在有限资源下保证最重要的业务目标达成。",
+      "action": "你用 RICE、影响范围或收入贡献重新评估需求；把需求拆成 P0、P1 和延后项；和业务方同步取舍原因，并给出后续补偿计划。",
+      "result": "核心版本按期发布，关键指标达成，团队对需求优先级的争议明显减少。",
+      "sortOrder": 60
+    },
+    {
+      "templateId": "ops_star_ops_001",
+      "role": "ops",
+      "roleLabel": "运营",
+      "roleColor": "#F59E0B",
+      "title": "低预算完成活动冷启动",
+      "tags": [
+        "冷启动",
+        "增长",
+        "资源整合"
+      ],
+      "situation": "你负责一个新活动或新产品的早期推广，但预算和渠道资源都有限。",
+      "task": "你需要在短周期内获取第一批有效用户，并验证活动吸引力。",
+      "action": "你定位种子用户画像，设计可分享的内容或邀请机制；联系社群、校园组织或垂直账号合作；每日跟踪报名、转化和反馈并快速调整话术。",
+      "result": "活动获得超出预期的报名或留存，沉淀出可复用的渠道清单和转化话术。",
+      "sortOrder": 70
+    },
+    {
+      "templateId": "ops_star_consulting_001",
+      "role": "consulting",
+      "roleLabel": "咨询",
+      "roleColor": "#8B5CF6",
+      "title": "结构化拆解模糊业务问题",
+      "tags": [
+        "结构化思维",
+        "数据分析",
+        "客户沟通"
+      ],
+      "situation": "客户只提出一个宽泛目标，例如增长放缓、成本偏高或进入新市场，但缺少清晰问题定义。",
+      "task": "你需要快速澄清问题边界，形成可执行分析框架。",
+      "action": "你先把问题拆成市场、用户、产品、渠道和财务等模块；识别关键假设和所需数据；用访谈、公开资料和内部数据验证假设，并定期同步中间结论。",
+      "result": "最终建议被客户采纳，团队从模糊讨论转向明确行动计划。",
+      "sortOrder": 80
+    },
+    {
+      "templateId": "ops_star_finance_001",
+      "role": "finance",
+      "roleLabel": "金融",
+      "roleColor": "#EF4444",
+      "title": "用数据发现投资或风控异常",
+      "tags": [
+        "数据分析",
+        "风控",
+        "量化"
+      ],
+      "situation": "你在实习或项目中发现某项收益、成本或风险指标出现异常波动。",
+      "task": "你需要判断异常是否真实存在，解释原因，并提出处理建议。",
+      "action": "你先检查数据口径和缺失值，再按时间、行业、产品或客户分层；用可视化和统计检验定位异常来源；最后给出调整策略或监控规则。",
+      "result": "团队及时识别风险或机会，相关规则被纳入后续监控流程。",
+      "sortOrder": 90
+    }
+  ],
+  "announcements": [
+    {
+      "title": "职引 3.0 使用指南：每天先从求职工作台开始",
+      "category": "资讯",
+      "content": "职引 3.0 已把首页升级为每日求职工作台。建议每天先查看今日建议，再按顺序处理 JD 匹配、投递追踪、校招提醒和面试练习。\n\n推荐使用顺序：\n1. 在首页查看最近 ATS 分、待处理投递和今日校招提醒。\n2. 粘贴目标岗位 JD，生成匹配分和缺失关键词。\n3. 将值得投递的岗位保存到投递追踪，并写清下一步动作。\n4. 对即将面试或笔试的岗位，进入面经题库做 AI 训练。\n\n这样使用的目标不是一次做很多事，而是每天完成一个可追踪的求职动作。",
+      "isPinned": true,
+      "isPublished": true,
+      "createdAt": "2026-07-08 09:00:00",
+      "summary": "用每日求职工作台串起 JD 匹配、投递追踪、校招提醒和面试练习。",
+      "tags": [
+        "职引3.0",
+        "求职工作台",
+        "每日任务"
+      ],
+      "targetRoles": [
+        "留学生",
+        "New Grad",
+        "Intern"
+      ],
+      "targetRegions": [
+        "全球"
+      ],
+      "actionType": "jd_match",
+      "actionLabel": "去做 JD 匹配",
+      "actionUrl": "/package-ai/pages/jd-match/jd-match",
+      "sourceUrl": "",
+      "sortOrder": 100
+    },
+    {
+      "title": "2026 秋招提前准备清单：留学生先完成这 5 件事",
+      "category": "攻略",
+      "content": "秋招节奏越来越早，留学生建议在集中开放前完成基础准备。\n\n优先级清单：\n1. 确认目标地区、身份限制和可接受入职时间。\n2. 准备一份通用简历，再为 2 到 3 类岗位拆分版本。\n3. 用真实 JD 检查关键词覆盖，不要只凭模板修改。\n4. 建立目标公司表，记录开放时间、投递链接和内推联系人。\n5. 每周复盘投递状态，把无反馈岗位和面试岗位分开处理。\n\n如果时间有限，先保证简历、岗位清单和投递追踪三件事不断档。",
+      "isPinned": false,
+      "isPublished": true,
+      "createdAt": "2026-07-08 08:40:00",
+      "summary": "留学生秋招前优先完成身份确认、简历版本、岗位清单和投递追踪。",
+      "tags": [
+        "秋招",
+        "校招",
+        "准备清单"
+      ],
+      "targetRoles": [
+        "New Grad",
+        "Intern"
+      ],
+      "targetRegions": [
+        "北美",
+        "国内",
+        "新加坡"
+      ],
+      "actionType": "resume",
+      "actionLabel": "整理简历版本",
+      "actionUrl": "/package-career/pages/resume/resume",
+      "sourceUrl": "",
+      "sortOrder": 90
+    },
+    {
+      "title": "JD 匹配报告怎么看：分数不是唯一答案",
+      "category": "攻略",
+      "content": "JD 匹配报告的价值不只是一个分数，更重要的是帮你判断岗位是否值得投，以及下一版简历应该改哪里。\n\n建议重点看四项：\n1. 命中关键词：说明你当前简历已经覆盖的能力。\n2. 缺失关键词：优先补到技能区、项目描述或经历 bullet 中。\n3. AI 建议：关注能直接改写到简历里的动作，而不是泛泛结论。\n4. 下一步事项：如果岗位匹配度较高，就保存到投递追踪；如果匹配度偏低，先补经历表达再投。\n\n分数较低不一定不能投，但需要知道低在哪里，以及是否能在短时间内补齐。",
+      "isPinned": false,
+      "isPublished": true,
+      "createdAt": "2026-07-08 08:20:00",
+      "summary": "JD 匹配分要结合缺失关键词、项目证据和投递策略一起判断。",
+      "tags": [
+        "JD匹配",
+        "ATS",
+        "关键词"
+      ],
+      "targetRoles": [
+        "SDE",
+        "Data Analyst",
+        "PM"
+      ],
+      "targetRegions": [
+        "北美",
+        "英国",
+        "新加坡"
+      ],
+      "actionType": "jd_match",
+      "actionLabel": "生成匹配报告",
+      "actionUrl": "/package-ai/pages/jd-match/jd-match",
+      "sourceUrl": "",
+      "sortOrder": 80
+    },
+    {
+      "title": "一岗一版简历：如何管理不同岗位方向",
+      "category": "攻略",
+      "content": "同一份简历很难同时服务算法、数据、产品和咨询岗位。职引 3.0 的简历版本管理适合按目标岗位拆分版本。\n\n建议拆分方式：\n1. 技术岗版本突出项目复杂度、代码能力和系统设计。\n2. 数据岗版本突出 SQL、Python、指标分析和业务结论。\n3. 产品岗版本突出用户研究、需求拆解、实验和跨团队协作。\n4. 咨询或运营版本突出结构化分析、沟通推动和结果复盘。\n\n每次 JD 匹配后，把报告关联到对应简历版本，后续复盘会更清楚。",
+      "isPinned": false,
+      "isPublished": true,
+      "createdAt": "2026-07-08 08:00:00",
+      "summary": "用岗位方向管理不同简历版本，避免一份简历投所有岗位。",
+      "tags": [
+        "简历优化",
+        "一岗一版",
+        "投递管理"
+      ],
+      "targetRoles": [
+        "SDE",
+        "Data Analyst",
+        "产品经理"
+      ],
+      "targetRegions": [
+        "全球"
+      ],
+      "actionType": "resume",
+      "actionLabel": "优化简历版本",
+      "actionUrl": "/package-career/pages/resume/resume",
+      "sourceUrl": "",
+      "sortOrder": 70
+    },
+    {
+      "title": "OPT / CPT / H-1B 投递前风险排查清单",
+      "category": "政策",
+      "content": "身份相关问题建议在投递前就做初筛，避免到 offer 阶段才发现风险。\n\n排查清单：\n1. 岗位描述是否明确接受 OPT、CPT 或需要 work authorization。\n2. 公司是否有 sponsor 历史，是否愿意支持 H-1B 或其他工签路径。\n3. 岗位是否为 full-time、contract、intern 或远程外包，不同类型对身份要求不同。\n4. 入职时间是否与毕业、OPT 开始日期和 EAD 时间匹配。\n5. HR 是否能给出书面或邮件确认。\n\n重要身份决策请以学校 DSO、雇主 HR 和官方政策说明为准。",
+      "isPinned": false,
+      "isPublished": true,
+      "createdAt": "2026-07-08 07:40:00",
+      "summary": "投递前先检查 sponsor、E-Verify、岗位类型、入职时间和材料风险。",
+      "tags": [
+        "OPT",
+        "CPT",
+        "H-1B",
+        "身份风险"
+      ],
+      "targetRoles": [
+        "留学生",
+        "New Grad",
+        "Intern"
+      ],
+      "targetRegions": [
+        "美国"
+      ],
+      "actionType": "link",
+      "actionLabel": "查看身份清单",
+      "actionUrl": "",
+      "sourceUrl": "",
+      "sortOrder": 60
+    },
+    {
+      "title": "面试前 24 小时：用 STAR 和模拟追问做最后复盘",
+      "category": "攻略",
+      "content": "面试前最后一天不建议再大范围刷资料，应该把准备收敛到岗位相关问题和个人案例。\n\n推荐流程：\n1. 重新读一遍 JD，标记 5 个最核心能力。\n2. 为每个能力准备 1 个 STAR 案例，控制在 2 分钟内讲完。\n3. 在题库详情页生成标准回答、STAR 答案和模拟追问。\n4. 把回答薄弱的问题保存到错题本，面试前再复习一次。\n5. 准备 3 个反问问题，围绕团队目标、岗位挑战和成长路径。\n\n最后复盘的重点是表达清楚，而不是把每个问题背得一字不差。",
+      "isPinned": false,
+      "isPublished": true,
+      "createdAt": "2026-07-08 07:20:00",
+      "summary": "面试前 24 小时用 STAR 框架、项目追问和风险问题做最后复盘。",
+      "tags": [
+        "面试准备",
+        "STAR",
+        "复盘"
+      ],
+      "targetRoles": [
+        "SDE",
+        "Data Analyst",
+        "PM",
+        "运营"
+      ],
+      "targetRegions": [
+        "全球"
+      ],
+      "actionType": "interview",
+      "actionLabel": "开始面试训练",
+      "actionUrl": "/package-ai/pages/interview-setup/interview-setup",
+      "sourceUrl": "",
+      "sortOrder": 50
+    }
+  ]
+}

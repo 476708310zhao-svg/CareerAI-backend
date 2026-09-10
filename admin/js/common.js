@@ -280,12 +280,16 @@ const NAV_ITEMS = [
   { id: 'banners', icon: 'fa-images', label: 'Banner管理', href: 'banners.html' },
   { id: 'share', icon: 'fa-share-nodes', label: '分享配置', href: 'share.html' },
   { id: 'jobs', icon: 'fa-briefcase', label: '岗位管理', href: 'jobs.html' },
+  { id: 'sponsorProfiles', permission: 'jobs', icon: 'fa-passport', label: 'Sponsor 核验', href: 'sponsor-profiles.html' },
   { id: 'companies', icon: 'fa-building-user', label: '公司管理', href: 'companies.html' },
   { id: 'experiences', icon: 'fa-file-lines', label: '面经管理', href: 'experiences.html' },
+  { id: 'questions', icon: 'fa-circle-question', label: '题库管理', href: 'questions.html' },
+  { id: 'starTemplates', icon: 'fa-star', label: 'STAR模板', href: 'star-templates.html' },
   { id: 'comments', icon: 'fa-comments', label: '评论管理', href: 'comments.html' },
   { id: 'campus', icon: 'fa-calendar-days', label: '校招日历', href: 'campus.html' },
   { id: 'agencies', icon: 'fa-building', label: '机构管理', href: 'agencies.html' },
   { id: 'announcements', icon: 'fa-newspaper', label: '资讯公告', href: 'announcements.html' },
+  { id: 'feedback', icon: 'fa-inbox', label: '反馈管理', href: 'feedback.html' },
   { id: 'users', icon: 'fa-users', label: '用户管理', href: 'users.html' },
   { id: 'memberships', icon: 'fa-crown', label: '会员权益', href: 'memberships.html' },
   { id: 'resumes', icon: 'fa-id-card', label: '简历管理', href: 'resumes.html' },
@@ -293,7 +297,7 @@ const NAV_ITEMS = [
 ];
 
 function renderNav(activeId) {
-  return NAV_ITEMS.filter(item => canAccess(item.id)).map(item => `
+  return NAV_ITEMS.filter(item => canAccess(item.permission || item.id)).map(item => `
     <a class="nav-item ${item.id === activeId ? 'active' : ''}" href="${item.href}">
       <i class="fa-solid ${item.icon}"></i>
       <span>${item.label}</span>
@@ -377,7 +381,8 @@ function renderLayout(activeId, pageTitle) {
 
 function initPage(activeId, pageTitle, renderFn) {
   if (!requireAuth()) return;
-  if (!canAccess(activeId)) {
+  const activeItem = NAV_ITEMS.find(item => item.id === activeId);
+  if (!canAccess(activeItem && activeItem.permission ? activeItem.permission : activeId)) {
     document.body.innerHTML = '<div style="padding:40px;font-family:Arial,sans-serif;color:#111827"><h2>没有访问权限</h2><p style="color:#6b7280">当前后台账号没有该模块权限，请联系超级管理员开通。</p><button onclick="history.back()" style="padding:10px 16px;border:0;border-radius:8px;background:#2563eb;color:#fff">返回</button></div>';
     markAdminReady();
     return;

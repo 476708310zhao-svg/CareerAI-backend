@@ -7,12 +7,18 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const { optionalAuth } = require('./middleware/auth');
 const { requireFeature } = require('./utils/featureFlags');
+const { buildRuntimeReadiness } = require('./utils/runtimeReadiness');
+const db = require('./db/database');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 4400;
+
+// Production traffic reaches Express through the local Nginx reverse proxy.
+// Trust only the loopback proxy so req.ip and login rate limits use the real client IP.
+app.set('trust proxy', 'loopback');
 
 // 中间件
-// ALLOWED_ORIGIN 必须在 .env 中显式配置；本地开发设为 http://localhost:3001
+// ALLOWED_ORIGIN 必须在 .env 中显式配置；本地开发设为 http://localhost:4400
 // 小程序请求不受 CORS 限制，此配置仅影响浏览器客户端（如管理后台）
 // 支持多个来源，用逗号分隔，e.g. http://localhost:5173,https://yoursite.com
 const rawOrigins = process.env.ALLOWED_ORIGIN || '';
@@ -45,12 +51,28 @@ app.use(express.json({
 app.use(bodyParser.urlencoded({ extended: true }));
 // 全局挂载可选鉴权（有 token 则解析 req.user，无 token 也不拦截）
 app.use(optionalAuth);
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/api/') && !req.path.startsWith('/admin/api/')) return next();
+  const started = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - started;
+    try {
+      db.prepare('INSERT INTO api_performance_v4 (route,method,duration_ms,status_code,slow) VALUES (?,?,?,?,?)')
+        .run(String(req.route && req.route.path || req.path).slice(0, 200), req.method, duration, res.statusCode, duration >= 800 ? 1 : 0);
+    } catch (e) {}
+  });
+  next();
+});
 
 // 静态文件服务（头像、Banner、Logo 等上传文件）。文件名带时间戳/随机串，适合长期缓存。
 const path = require('path');
 const { UPLOAD_DIR } = require('./utils/paths');
 app.use(express.static(path.join(__dirname, 'public'), {
   maxAge: '5m'
+}));
+// 分享配置默认封面使用小程序内置 /images 路径；后台预览也应能访问同一份资源。
+app.use('/images', express.static(path.join(__dirname, 'miniprogram', 'images'), {
+  maxAge: '7d'
 }));
 app.use('/uploads', express.static(UPLOAD_DIR, {
   maxAge: '7d',
@@ -90,6 +112,9 @@ const applyRoutes       = require('./routes/apply');
 const featureRoutes     = require('./routes/features');
 const shareRoutes       = require('./routes/share');
 const careerAssetRoutes = require('./routes/career-assets');
+const analyticsRoutes   = require('./routes/analytics');
+const v4Routes          = require('./routes/v4');
+const v4AdminRoutes     = require('./routes/v4-admin');
 
 // 注册路由
 const requireRecruitment = requireFeature('recruitment');
@@ -97,6 +122,8 @@ const requireRecruitment = requireFeature('recruitment');
 app.use('/api/features',     featureRoutes);
 app.use('/api/share',        shareRoutes);
 app.use('/api/career-assets', careerAssetRoutes);
+app.use('/api/analytics',    analyticsRoutes);
+app.use('/api/v4',           v4Routes);
 app.use('/api/jobs',         requireRecruitment, jobRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/experiences',  experienceRoutes);
@@ -125,6 +152,7 @@ app.use('/api/glassdoor',     glassdoorRoutes);
 app.use('/api/aggregate',    requireRecruitment, aggregateRoutes);
 app.use('/api/oa',           oaRoutes);
 app.use('/api/apply',        requireRecruitment, applyRoutes);
+app.use('/admin/api/v4',    v4AdminRoutes);
 app.use('/admin',           adminRoutes);
 
 // 管理后台静态文件（需放在 adminRoutes 之后，避免 /admin/api/* 被静态文件拦截）
@@ -137,13 +165,25 @@ app.use('/webhook', require('./routes/webhook'));
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', message: '留学生求职小程序后端服务运行正常', time: new Date().toISOString() });
 });
+app.get('/api/health/live', (_req, res) => {
+  res.json({ status: 'alive', time: new Date().toISOString() });
+});
+app.get('/api/health/ready', (_req, res) => {
+  const readiness = buildRuntimeReadiness();
+  res.status(readiness.ready ? 200 : 503).json(readiness);
+});
 
 // 404
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 
 // 全局错误兜底
-app.use((err, _req, res, _next) => {
+app.use((err, req, res, _next) => {
   console.error('[Server Error]', err);
+  try {
+    db.prepare('INSERT INTO error_events_v4 (source,severity,code,message,route,user_id,context) VALUES (?,?,?,?,?,?,?)')
+      .run('server', 'error', String(err.code || 'UNHANDLED').slice(0, 80), String(err.message || err).slice(0, 1000),
+        String(req.path || '').slice(0, 200), req.user && req.user.userId || null, JSON.stringify({ method: req.method }));
+  } catch (e) {}
   res.status(500).json({ error: 'Internal server error' });
 });
 
@@ -154,9 +194,16 @@ function configureServer(server) {
   return server;
 }
 
+function normalizeListenPort(port) {
+  const value = port === undefined || port === null ? PORT : port;
+  if (typeof value === 'string' && /^\d+$/.test(value.trim())) return Number(value);
+  return value;
+}
+
 function startServer(port = PORT) {
-  const server = app.listen(port, () => {
-    console.log('Server running at http://localhost:' + port);
+  const listenPort = normalizeListenPort(port);
+  const server = app.listen(listenPort, () => {
+    console.log('Server running at http://localhost:' + listenPort);
   });
   return configureServer(server);
 }

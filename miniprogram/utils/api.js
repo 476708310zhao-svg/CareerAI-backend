@@ -16,6 +16,7 @@ const payment     = require('./api-payment.js');
 const messages    = require('./api-messages.js');
 const feedback    = require('./api-feedback.js');
 const news        = require('./api-news.js');
+const opsContent  = require('./api-ops-content.js');
 const feishuContent = require('./api-feishu-content.js');
 
-module.exports = Object.assign({}, jobs, leetcode, ai, user, agencies, campus, comments, companies, experiences, resumes, payment, messages, feedback, news, feishuContent);
+module.exports = Object.assign({}, jobs, leetcode, ai, user, agencies, campus, comments, companies, experiences, resumes, payment, messages, feedback, news, opsContent, feishuContent);

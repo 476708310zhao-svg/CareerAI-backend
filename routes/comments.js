@@ -14,7 +14,7 @@ router.get('/:experienceId', optionalAuth, (req, res) => {
   const userId = req.user ? req.user.userId : null;
 
   const comments = db.prepare(
-    'SELECT * FROM comments WHERE experience_id = ? ORDER BY created_at DESC'
+    "SELECT * FROM comments WHERE experience_id = ? AND moderation_status = 'approved' ORDER BY created_at DESC"
   ).all(expId);
 
   // 批量查询当前用户已点赞的评论 id
@@ -28,7 +28,7 @@ router.get('/:experienceId', optionalAuth, (req, res) => {
 
   const result = comments.map(c => {
     const replies = db.prepare(
-      'SELECT * FROM comment_replies WHERE comment_id = ? ORDER BY created_at ASC'
+      "SELECT * FROM comment_replies WHERE comment_id = ? AND moderation_status = 'approved' ORDER BY created_at ASC"
     ).all(c.id);
     return {
       ...formatComment(c, replies),
@@ -57,15 +57,13 @@ router.post('/', writeLimiter, authMiddleware, (req, res) => {
   const userAvatar = user ? user.avatar : '';
 
   const result = db.prepare(
-    'INSERT INTO comments (experience_id, user_id, user_name, user_avatar, content) VALUES (?, ?, ?, ?, ?)'
+    "INSERT INTO comments (experience_id, user_id, user_name, user_avatar, content, moderation_status) VALUES (?, ?, ?, ?, ?, 'pending')"
   ).run(expId, req.user.userId, userName, userAvatar, content.trim());
 
-  db.prepare('UPDATE experiences SET comments_count = comments_count + 1 WHERE id = ?').run(expId);
-
   const comment = db.prepare('SELECT * FROM comments WHERE id = ?').get(result.lastInsertRowid);
-  res.json({
+  res.status(201).json({
     code: 0,
-    message: '评论成功',
+    message: '评论已提交审核，审核通过后将公开展示',
     data: { ...formatComment(comment, []), isLiked: false }
   });
 });
@@ -78,26 +76,29 @@ router.post('/:commentId/reply', writeLimiter, authMiddleware, (req, res) => {
   const { content } = req.body;
   if (!content || !content.trim()) return res.status(400).json({ code: -1, message: '回复内容不能为空' });
 
-  const comment = db.prepare('SELECT id FROM comments WHERE id = ?').get(commentId);
+  const comment = db.prepare(
+    "SELECT id FROM comments WHERE id = ? AND moderation_status = 'approved'"
+  ).get(commentId);
   if (!comment) return res.status(404).json({ code: -1, message: '评论不存在' });
 
   const user = db.prepare('SELECT nickname FROM users WHERE id = ?').get(req.user.userId);
   const userName = user ? user.nickname : '匿名用户';
 
   const result = db.prepare(
-    'INSERT INTO comment_replies (comment_id, user_id, user_name, content) VALUES (?, ?, ?, ?)'
+    "INSERT INTO comment_replies (comment_id, user_id, user_name, content, moderation_status) VALUES (?, ?, ?, ?, 'pending')"
   ).run(commentId, req.user.userId, userName, content.trim());
 
   const reply = db.prepare('SELECT * FROM comment_replies WHERE id = ?').get(result.lastInsertRowid);
   // 返回 camelCase，与前端解构一致
-  res.json({
+  res.status(201).json({
     code: 0,
-    message: '回复成功',
+    message: '回复已提交审核，审核通过后将公开展示',
     data: {
       id: reply.id,
       userName: reply.user_name,
       content: reply.content,
-      createdAt: reply.created_at
+      createdAt: reply.created_at,
+      moderationStatus: reply.moderation_status || 'pending'
     }
   });
 });
@@ -106,6 +107,11 @@ router.post('/:commentId/reply', writeLimiter, authMiddleware, (req, res) => {
 router.post('/:commentId/like', authMiddleware, (req, res) => {
   const commentId = parseId(req.params.commentId);
   if (!commentId) return res.status(400).json({ code: -1, message: '参数无效' });
+
+  const comment = db.prepare(
+    "SELECT id FROM comments WHERE id = ? AND moderation_status = 'approved'"
+  ).get(commentId);
+  if (!comment) return res.status(404).json({ code: -1, message: '评论不存在或尚未通过审核' });
 
   const existing = db.prepare(
     'SELECT id FROM comment_likes WHERE comment_id = ? AND user_id = ?'
@@ -141,7 +147,9 @@ router.delete('/:id', authMiddleware, (req, res) => {
   if (!c) return res.status(404).json({ code: -1, message: '评论不存在或无权限删除' });
 
   db.prepare('DELETE FROM comments WHERE id = ?').run(id);
-  db.prepare('UPDATE experiences SET comments_count = MAX(0, comments_count - 1) WHERE id = ?').run(c.experience_id);
+  if ((c.moderation_status || 'approved') === 'approved') {
+    db.prepare('UPDATE experiences SET comments_count = MAX(0, comments_count - 1) WHERE id = ?').run(c.experience_id);
+  }
   res.json({ code: 0, message: '删除成功' });
 });
 

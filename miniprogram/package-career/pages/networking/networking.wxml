@@ -1,148 +1,84 @@
-<!-- pages/networking/networking.wxml -->
 <view class="page">
+  <c-ai-disclosure text="系统只生成、保存和复制可编辑草稿，不会代替你发送消息；发送前请核对所有关系与经历均真实。" />
 
-  <c-ai-disclosure text="LinkedIn 私信与邮件文案由人工智能生成，请确认内容真实准确后发送。" />
-
-  <!-- 输入区 -->
-  <view wx:if="{{!result}}">
-    <view class="hero">
-      <view class="hero-title">Networking 消息生成</view>
-      <view class="hero-sub">AI 生成 LinkedIn 私信 + 邮件，帮你打开人脉大门</view>
-    </view>
-
-    <!-- 基本信息 -->
-    <view class="card">
-      <view class="field">
-        <text class="label required">目标公司</text>
-        <input class="input" placeholder="如：Google、字节跳动" data-key="targetCompany" bindinput="onInput" value="{{targetCompany}}" maxlength="100" />
-      </view>
-      <view class="field">
-        <text class="label required">目标职位</text>
-        <input class="input" placeholder="如：Software Engineer、数据分析师" data-key="targetRole" bindinput="onInput" value="{{targetRole}}" maxlength="100" />
-      </view>
-      <view class="field">
-        <text class="label">对方背景（选填）</text>
-        <input class="input" placeholder="如：前Google工程师，现在Meta工作" data-key="recipientBackground" bindinput="onInput" value="{{recipientBackground}}" maxlength="200" />
-      </view>
-    </view>
-
-    <!-- 我的背景 -->
-    <view class="card">
-      <view class="label-row">
-        <text class="label required">我的背景</text>
-        <text class="label-hint">简要描述学历、经验、目标</text>
-      </view>
-      <textarea
-        class="textarea"
-        placeholder="如：计算机硕士在读，有Python/ML实习经验，正在找SDE全职机会"
-        data-key="senderBackground"
-        bindinput="onInput"
-        value="{{senderBackground}}"
-        maxlength="800"
-        auto-height
-        show-confirm-bar="{{false}}"
-      />
-      <!-- 快速预设 -->
-      <view class="preset-row">
-        <view
-          wx:for="{{bgPresetChips}}" wx:key="index"
-          class="preset-chip"
-          data-text="{{item.text}}"
-          bindtap="applyPreset"
-        >{{item.shortText}}…</view>
-      </view>
-    </view>
-
-    <!-- 风格设置 -->
-    <view class="card">
-      <view class="setting-row">
-        <text class="label">语气风格</text>
-        <view class="toggle-group">
-          <view class="toggle-item {{tone==='formal'?'active':''}}" data-val="formal" bindtap="setTone">正式专业</view>
-          <view class="toggle-item {{tone==='casual'?'active':''}}" data-val="casual" bindtap="setTone">轻松友好</view>
-        </view>
-      </view>
-      <view class="setting-row mt12">
-        <text class="label">输出语言</text>
-        <view class="toggle-group">
-          <view class="toggle-item {{lang==='zh'?'active':''}}" data-val="zh" bindtap="setLang">中文</view>
-          <view class="toggle-item {{lang==='en'?'active':''}}" data-val="en" bindtap="setLang">英文</view>
-        </view>
-      </view>
-    </view>
-
-    <view class="btn-generate {{loading?'loading':''}}" bindtap="generate">
-      <text wx:if="{{loading}}" class="btn-spinner">⏳</text>
-      <text>{{loading ? 'AI 生成中…' : '✨ 生成 Networking 消息'}}</text>
-    </view>
-    <view class="hint">免费用户每天 5 次 · 会员不限次数</view>
+  <view wx:if="{{loading}}" class="state-card">正在同步联系人和跟进计划…</view>
+  <view wx:elif="{{loginRequired}}" class="state-card">
+    <text class="state-title">登录后开启 Networking Copilot</text>
+    <text class="state-copy">联系人、草稿、跟进和 Referral 记录会通过账号同步。</text>
+    <view class="primary-btn" bindtap="promptLogin">登录并开始</view>
+  </view>
+  <view wx:elif="{{error}}" class="state-card">
+    <text class="state-title">暂时无法加载</text><text class="state-copy">{{error}}</text>
+    <view class="secondary-btn" bindtap="retry">重新加载</view>
   </view>
 
-
-  <!-- 结果区 -->
-  <view wx:if="{{result}}">
-    <view class="result-header">
-      <view class="result-title">✨ 消息已生成</view>
-      <view class="result-meta">
-        <text class="meta-tag">{{targetCompany}}</text>
-        <text class="meta-tag">{{targetRole}}</text>
-      </view>
+  <block wx:else>
+    <view class="hero-card">
+      <text class="eyebrow">NETWORKING COPILOT</text>
+      <text class="hero-title">把联系人经营成真实进展</text>
+      <text class="hero-sub">从建立联系、回复、Coffee Chat 到 Referral，每一步由你确认。</text>
     </view>
 
-    <!-- Tab 切换 -->
-    <view class="tab-bar">
-      <view class="tab-item {{activeTab==='linkedin'?'active':''}}" data-tab="linkedin" bindtap="setTab">
-        <text>LinkedIn 私信</text>
+    <view class="section-card">
+      <view class="section-head"><view><text class="section-title">真实漏斗</text><text class="section-sub">不是回复率或成功率预测</text></view></view>
+      <view class="funnel-row">
+        <view class="funnel-item" wx:for="{{funnelStages}}" wx:key="stage"><text class="funnel-value">{{item.count}}</text><text class="funnel-label">{{item.label}}</text><text class="funnel-rate">{{item.display}}</text></view>
       </view>
-      <view class="tab-item {{activeTab==='email'?'active':''}}" data-tab="email" bindtap="setTab">
-        <text>邮件</text>
-      </view>
+      <view wx:if="{{dueFollowUps.length}}" class="due-banner">今天及逾期需跟进 {{dueFollowUps.length}} 人，已同步到 Today</view>
     </view>
 
-    <!-- LinkedIn 内容 -->
-    <view wx:if="{{activeTab==='linkedin'}}" class="content-card">
-      <view class="content-label">LinkedIn 私信正文</view>
-      <view class="content-text selectable">{{result.linkedin_message}}</view>
-      <view class="copy-btn {{copiedLinkedin?'copied':''}}" data-type="linkedin" bindtap="copyText">
-        {{copiedLinkedin ? '✓ 已复制' : '复制消息'}}
-      </view>
-    </view>
-
-    <!-- 邮件内容 -->
-    <view wx:if="{{activeTab==='email'}}" class="content-card">
-      <view class="email-subject-row">
-        <text class="content-label">邮件主题</text>
-        <text class="subject-text selectable">{{result.email_subject}}</text>
-      </view>
-      <view class="divider"></view>
-      <view class="content-label">邮件正文</view>
-      <view class="content-text selectable">{{result.email_body}}</view>
-      <view class="copy-btn {{copiedEmail?'copied':''}}" data-type="email" bindtap="copyText">
-        {{copiedEmail ? '✓ 已复制' : '复制邮件（含主题）'}}
-      </view>
-    </view>
-
-    <!-- 亮点 & 发送技巧 -->
-    <view class="tips-card">
-      <view wx:if="{{result.key_hooks && result.key_hooks.length}}">
-        <view class="tips-title">💡 消息亮点</view>
-        <view class="hooks-row">
-          <text wx:for="{{result.key_hooks}}" wx:key="*this" class="hook-chip">{{item}}</text>
-        </view>
-      </view>
-      <view wx:if="{{result.cold_tips && result.cold_tips.length}}" class="mt16">
-        <view class="tips-title">📋 发送建议</view>
-        <view wx:for="{{result.cold_tips}}" wx:key="*this" class="tip-item">
-          <text class="tip-dot">›</text>
-          <text class="tip-text">{{item}}</text>
+    <view class="section-card">
+      <view class="section-head"><view><text class="section-title">联系人 CRM</text><text class="section-sub">{{contacts.length}} 位联系人</text></view><view class="mini-btn" bindtap="showNewContact">新增联系人</view></view>
+      <view wx:if="{{!contacts.length}}" class="empty">先添加一位真实联系人，再生成针对性草稿。</view>
+      <view class="contact" wx:for="{{contacts}}" wx:key="id">
+        <view class="contact-main"><view><text class="contact-name">{{item.name}}</text><text class="contact-meta">{{item.meta}}</text></view><text class="stage-tag">{{item.statusLabel}}</text></view>
+        <text class="contact-line">{{item.followUpText}} · {{item.linkText}}</text>
+        <text wx:if="{{item.contextText}}" class="contact-line">{{item.contextText}}</text>
+        <view class="contact-actions">
+          <view class="text-btn" data-id="{{item.id}}" bindtap="editContact">编辑</view>
+          <picker mode="selector" range="{{stages}}" range-key="label" data-id="{{item.id}}" bindchange="onStageChange"><view class="text-btn">更新阶段</view></picker>
+          <picker mode="selector" range="{{referralOptions}}" range-key="label" data-id="{{item.id}}" bindchange="onReferralChange"><view class="text-btn">Referral 结果</view></picker>
         </view>
       </view>
     </view>
 
-    <!-- 底部操作 -->
-    <view class="bottom-row">
-      <view class="btn-reset" bindtap="reset">重新生成</view>
+    <view class="section-card form-card" wx:if="{{showContactForm}}">
+      <view class="section-head"><view><text class="section-title">{{editingContactId ? '编辑联系人' : '新增联系人'}}</text><text class="section-sub">共同背景只有确认真实后才会用于草稿</text></view></view>
+      <text class="field-label required">姓名</text><input class="input" data-key="name" value="{{contactForm.name}}" bindinput="onContactInput" maxlength="120" placeholder="联系人姓名" />
+      <text class="field-label">关联正式申请</text><picker mode="selector" range="{{applications}}" range-key="label" value="{{applicationIndex}}" bindchange="onApplicationChange"><view class="picker">{{applicationIndex >= 0 ? applications[applicationIndex].label : '选择申请（选填）'}}</view></picker><view wx:if="{{applicationIndex >= 0}}" class="clear-link" bindtap="clearApplication">清除申请关联</view>
+      <text class="field-label">关联简历</text><picker mode="selector" range="{{resumes}}" range-key="label" value="{{resumeIndex}}" bindchange="onResumeChange"><view class="picker">{{resumeIndex >= 0 ? resumes[resumeIndex].label : '选择简历（选填）'}}</view></picker>
+      <view class="two-col"><view><text class="field-label">公司</text><input class="input" data-key="company" value="{{contactForm.company}}" bindinput="onContactInput" maxlength="160" placeholder="公司" /></view><view><text class="field-label">职位</text><input class="input" data-key="role" value="{{contactForm.role}}" bindinput="onContactInput" maxlength="160" placeholder="职位" /></view></view>
+      <text class="field-label">渠道</text><picker mode="selector" range="{{channelLabels}}" bindchange="onChannelChange"><view class="picker">{{contactForm.channel}}</view></picker>
+      <text class="field-label">联系方式或主页</text><input class="input" data-key="contactValue" value="{{contactForm.contactValue}}" bindinput="onContactInput" maxlength="500" placeholder="LinkedIn 主页、邮箱或活动来源（选填）" />
+      <text class="field-label">真实联系背景</text><textarea class="textarea" data-key="relationshipContext" value="{{contactForm.relationshipContext}}" bindinput="onContactInput" maxlength="500" placeholder="例如：确实参加过同一场公开活动。不要填写未经核实的校友或共同经历。" />
+      <view class="switch-row"><text>我已确认上述联系背景真实</text><switch checked="{{contactForm.contextVerified}}" bindchange="onContextVerified" color="#2b5ce6" /></view>
+      <text class="field-label">下次跟进</text><picker mode="date" value="{{contactForm.nextFollowUpAt}}" bindchange="onFollowUpChange"><view class="picker">{{contactForm.nextFollowUpAt || '选择日期（选填）'}}</view></picker><view wx:if="{{contactForm.nextFollowUpAt}}" class="clear-link" bindtap="clearFollowUp">清除跟进日期</view>
+      <text class="field-label">备注</text><textarea class="textarea small" data-key="notes" value="{{contactForm.notes}}" bindinput="onContactInput" maxlength="1500" placeholder="只记录真实沟通信息" />
+      <view class="form-actions"><view class="secondary-btn" bindtap="cancelContactForm">取消</view><view class="primary-btn" bindtap="saveContact">保存联系人</view></view>
     </view>
-  </view>
 
+    <view class="section-card">
+      <view class="section-head"><view><text class="section-title">可编辑话术草稿</text><text class="section-sub">五类话术，仅保存与复制</text></view></view>
+      <text class="field-label">联系人</text><picker mode="selector" range="{{contacts}}" range-key="name" value="{{selectedContactIndex}}" bindchange="onContactPicker"><view class="picker">{{selectedContactIndex >= 0 ? contacts[selectedContactIndex].name : '选择联系人'}}</view></picker>
+      <text class="field-label">话术类型</text><picker mode="selector" range="{{draftTypes}}" range-key="label" value="{{selectedDraftTypeIndex}}" bindchange="onDraftTypePicker"><view class="picker">{{draftTypes.length ? draftTypes[selectedDraftTypeIndex].label : '选择类型'}}</view></picker>
+      <view class="toggle-row"><view class="toggle {{draftLanguage === 'zh' ? 'active' : ''}}" data-value="zh" bindtap="setDraftLanguage">中文</view><view class="toggle {{draftLanguage === 'en' ? 'active' : ''}}" data-value="en" bindtap="setDraftLanguage">English</view><view class="toggle {{draftTone === 'formal' ? 'active' : ''}}" data-value="formal" bindtap="setDraftTone">正式</view><view class="toggle {{draftTone === 'casual' ? 'active' : ''}}" data-value="casual" bindtap="setDraftTone">友好</view></view>
+      <text class="field-label">具体请求（选填）</text><textarea class="textarea small" value="{{requestDetail}}" bindinput="onRequestInput" maxlength="240" placeholder="例如：想了解团队对 New Grad 的项目经验要求" />
+      <view class="generate-btn" bindtap="generateDraft">{{operating ? '处理中…' : '生成可编辑草稿'}}</view>
+
+      <view wx:if="{{activeDraft}}" class="draft-editor">
+        <text class="draft-notice">来源：规则草稿 · 未调用外部 AI · 尚未发送</text>
+        <text class="field-label">主题</text><input class="input" value="{{draftSubject}}" bindinput="onDraftSubjectInput" maxlength="240" />
+        <text class="field-label">正文</text><textarea class="textarea draft" value="{{draftContent}}" bindinput="onDraftContentInput" maxlength="5000" />
+        <text class="field-label">发送后的下次跟进</text><picker mode="date" value="{{followUpDate}}" bindchange="onDraftFollowUpChange"><view class="picker">{{followUpDate || '选择日期（选填）'}}</view></picker>
+        <view class="draft-actions"><view class="secondary-btn" bindtap="saveDraft">保存</view><view class="secondary-btn" bindtap="copyDraft">复制</view><view class="primary-btn" bindtap="markSent">我已外部发送</view></view>
+      </view>
+    </view>
+
+    <view class="section-card" wx:if="{{drafts.length}}">
+      <view class="section-head"><view><text class="section-title">最近草稿</text><text class="section-sub">已发送版本不可覆盖</text></view></view>
+      <view class="draft-row" wx:for="{{drafts}}" wx:key="id" data-id="{{item.id}}" bindtap="openDraft"><view><text class="draft-title">{{item.typeLabel}} · {{item.contactName}}</text><text class="draft-preview">{{item.content}}</text></view><text class="draft-status">{{item.status}}</text></view>
+    </view>
+  </block>
+
+  <c-login-popup show="{{authPromptVisible}}" subtitle="{{authPromptSubtitle}}" bind:close="closeAuthPrompt" bind:success="onAuthPromptSuccess" />
 </view>

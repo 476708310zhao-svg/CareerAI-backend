@@ -70,35 +70,15 @@
 
     <!-- 职位结果 -->
     <view wx:if="{{currentTab === 0 && !loading}}" class="result-list">
-      <block wx:for="{{jobResults}}" wx:key="id">
-        <view class="job-card" bindtap="goToJobDetail" data-id="{{item.id}}" data-title="{{item.title}}">
-          <view class="job-card-main">
-            <c-company-logo
-              logo="{{item.logo}}"
-              name="{{item.company}}"
-              fallback="{{item.company}}"
-              size="md"
-              lazy-load="{{true}}"
-              custom-class="job-logo"
-            ></c-company-logo>
-            <view class="job-info">
-              <view class="job-title-row">
-                <text class="job-title">{{item.title}}</text>
-                <text class="job-arrow">›</text>
-              </view>
-              <text class="job-company">{{item.company}}</text>
-              <view class="job-meta">
-                <text class="meta-tag">{{item.city}}{{item.state ? ', ' + item.state : ''}}</text>
-                <text class="meta-tag">{{item.type || 'Full-time'}}</text>
-              </view>
-            </view>
-          </view>
-          <view class="job-card-foot">
-            <text class="salary-label">薪资范围</text>
-            <text class="job-salary">{{item.salary || 'Negotiable'}}</text>
-          </view>
-        </view>
-      </block>
+      <c-job-card
+        wx:for="{{jobResults}}"
+        wx:key="id"
+        job="{{item}}"
+        item-index="{{index}}"
+        show-match="{{false}}"
+        bind:open="goToJobDetail"
+        bind:favorite="toggleJobFavorite"
+      ></c-job-card>
       <view wx:if="{{jobResults.length === 0}}" class="empty">未找到相关职位</view>
 
       <!-- 加载更多 -->

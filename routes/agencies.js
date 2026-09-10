@@ -30,7 +30,7 @@ function refreshRating(agencyId) {
   const stats = db.prepare(`
     SELECT COUNT(*) as cnt,
            AVG(rating_overall) as avg_overall
-    FROM agency_reviews WHERE agency_id = ?
+    FROM agency_reviews WHERE agency_id = ? AND moderation_status = 'approved'
   `).get(agencyId);
   db.prepare(`
     UPDATE agencies SET rating_avg = ?, review_count = ? WHERE id = ?
@@ -60,7 +60,7 @@ router.get('/compare', (req, res) => {
     const dims = db.prepare(`
       SELECT AVG(rating_effect) as effect, AVG(rating_value) as value,
              AVG(rating_service) as service
-      FROM agency_reviews WHERE agency_id = ?
+      FROM agency_reviews WHERE agency_id = ? AND moderation_status = 'approved'
     `).get(agency.id);
     return {
       ...formatAgency(agency),
@@ -146,7 +146,7 @@ router.get('/:id', (req, res) => {
   const dims = db.prepare(`
     SELECT AVG(rating_effect) as effect, AVG(rating_value) as value,
            AVG(rating_service) as service
-    FROM agency_reviews WHERE agency_id = ?
+    FROM agency_reviews WHERE agency_id = ? AND moderation_status = 'approved'
   `).get(id);
 
   const detail = {
@@ -172,7 +172,7 @@ router.get('/:id/reviews', (req, res) => {
   const limit  = Math.min(50, Math.max(1, parseInt(pageSize)));
 
   const total = db.prepare(
-    'SELECT COUNT(*) as n FROM agency_reviews WHERE agency_id = ?'
+    "SELECT COUNT(*) as n FROM agency_reviews WHERE agency_id = ? AND moderation_status = 'approved'"
   ).get(id).n;
 
   // JOIN users 获取昵称/头像（匿名时隐藏）
@@ -180,7 +180,7 @@ router.get('/:id/reviews', (req, res) => {
     SELECT r.*, u.nickname as user_name, u.avatar as user_avatar
     FROM agency_reviews r
     LEFT JOIN users u ON r.user_id = u.id
-    WHERE r.agency_id = ?
+    WHERE r.agency_id = ? AND r.moderation_status = 'approved'
     ORDER BY r.created_at DESC
     LIMIT ? OFFSET ?
   `).all(id, limit, offset);
@@ -220,8 +220,8 @@ router.post('/:id/reviews', writeLimiter, authMiddleware, (req, res) => {
     const result = db.prepare(`
       INSERT INTO agency_reviews
         (agency_id, user_id, rating_overall, rating_effect, rating_value, rating_service,
-         title, content, pros, cons, is_anonymous)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         title, content, pros, cons, is_anonymous, moderation_status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
     `).run(
       id, req.user.userId,
       ratingOverall, ratingEffect, ratingValue, ratingService,
@@ -229,15 +229,17 @@ router.post('/:id/reviews', writeLimiter, authMiddleware, (req, res) => {
       isAnonymous ? 1 : 0
     );
 
-    refreshRating(id);
-
     const review = db.prepare(`
       SELECT r.*, u.nickname as user_name, u.avatar as user_avatar
       FROM agency_reviews r LEFT JOIN users u ON r.user_id = u.id
       WHERE r.id = ?
     `).get(result.lastInsertRowid);
 
-    res.json({ code: 0, message: '评测提交成功', data: formatReview(review) });
+    res.status(201).json({
+      code: 0,
+      message: '评价已提交审核，审核通过后将计入机构评分',
+      data: formatReview(review)
+    });
   } catch (err) {
     if (err.message.includes('UNIQUE')) {
       return res.status(400).json({ code: -1, message: '您已经评测过该机构' });
@@ -253,7 +255,7 @@ router.post('/:id/reviews/:reviewId/like', authMiddleware, (req, res) => {
   if (!reviewId) return res.status(400).json({ code: -1, message: '参数无效' });
 
   const result = db.prepare(
-    'UPDATE agency_reviews SET likes_count = likes_count + 1 WHERE id = ?'
+    "UPDATE agency_reviews SET likes_count = likes_count + 1 WHERE id = ? AND moderation_status = 'approved'"
   ).run(reviewId);
 
   if (result.changes === 0) return res.status(404).json({ code: -1, message: '评测不存在' });
@@ -278,7 +280,9 @@ router.delete('/reviews/:reviewId', authMiddleware, (req, res) => {
   if (!review) return res.status(404).json({ code: -1, message: '评测不存在或无权限删除' });
 
   db.prepare('DELETE FROM agency_reviews WHERE id = ?').run(reviewId);
-  refreshRating(review.agency_id);
+  if ((review.moderation_status || 'approved') === 'approved') {
+    refreshRating(review.agency_id);
+  }
 
   res.json({ code: 0, message: '删除成功' });
 });

@@ -9,6 +9,7 @@ const { aiLimiter } = require('../middleware/rateLimit');
 const { createChatCompletion } = require('../utils/aiClient');
 
 const RAPID_BASE   = process.env.RAPID_API_URL    || 'https://jsearch.p.rapidapi.com';
+const MIN_PERCENTILE_SAMPLE_SIZE = 5;
 const RAPID_HEADERS = {
   'X-RapidAPI-Key':  process.env.RAPID_API_KEY  || '',
   'X-RapidAPI-Host': process.env.RAPID_API_HOST || 'jsearch.p.rapidapi.com'
@@ -35,7 +36,7 @@ router.get('/market', aiLimiter, async (req, res) => {
        WHERE position LIKE ? AND currency = ? ORDER BY created_at DESC LIMIT 100`
     ).all(`%${job_title}%`, currency);
 
-    if (dbRows.length >= 5) {
+    if (dbRows.length >= MIN_PERCENTILE_SAMPLE_SIZE) {
       const vals = dbRows.map(r => r.total_compensation).sort((a, b) => a - b);
       const pct  = (p) => vals[Math.min(vals.length - 1, Math.floor(vals.length * p / 100))];
       const avg  = vals.reduce((s, v) => s + v, 0) / vals.length;
@@ -44,6 +45,9 @@ router.get('/market', aiLimiter, async (req, res) => {
         min_salary: pct(10), max_salary: pct(90),
         median_salary: pct(50), p25_salary: pct(25), p75_salary: pct(75),
         currency, data_source: 'community', sample_size: vals.length,
+        percentiles_reliable: true,
+        minimum_percentile_sample_size: MIN_PERCENTILE_SAMPLE_SIZE,
+        disclaimer: '数据来自用户匿名投稿，仅供求职决策参考。',
         trend: null, breakdown: null
       }]});
     }
@@ -66,7 +70,11 @@ router.get('/market', aiLimiter, async (req, res) => {
           max_salary:    d.max_salary    || d.job_max_salary,
           median_salary: d.median_salary || (d.min_salary + d.max_salary) / 2,
           p25_salary: null, p75_salary: null,
-          currency, data_source: 'rapidapi', trend: null, breakdown: null
+          currency, data_source: 'rapidapi',
+          percentiles_reliable: false,
+          minimum_percentile_sample_size: MIN_PERCENTILE_SAMPLE_SIZE,
+          disclaimer: '数据来自第三方市场接口，可能存在时间和样本偏差。',
+          trend: null, breakdown: null
         }]});
       }
     } catch (e) { console.warn('[market/rapid]', e.message); }
@@ -110,6 +118,9 @@ Output JSON only, no other content:
       p75_salary:    parsed.p75_salary,
       currency:      parsed.currency || currency,
       data_source:   'ai',
+      percentiles_reliable: false,
+      minimum_percentile_sample_size: MIN_PERCENTILE_SAMPLE_SIZE,
+      disclaimer:    '本结果由 AI 基于公开市场信息估算，不代表真实录用薪酬。',
       trend:         parsed.trend    || null,
       breakdown:     parsed.breakdown || null,
       market_note:   parsed.market_note || ''
@@ -174,6 +185,7 @@ router.get('/statistics', (req, res) => {
       return Math.round(arr[idx]);
     };
 
+    const percentilesReliable = stats.count >= MIN_PERCENTILE_SAMPLE_SIZE;
     res.json({ code: 0, message: 'success', data: {
       count:    stats.count,
       avgTotal: Math.round(stats.avg  || 0),
@@ -182,9 +194,15 @@ router.get('/statistics', (req, res) => {
       avgBase:  Math.round(stats.avgBase  || 0),
       avgBonus: Math.round(stats.avgBonus || 0),
       avgStock: Math.round(stats.avgStock || 0),
-      p25: percentile(allVals, 25),
-      p50: percentile(allVals, 50),
-      p75: percentile(allVals, 75)
+      p25: percentilesReliable ? percentile(allVals, 25) : null,
+      p50: percentilesReliable ? percentile(allVals, 50) : null,
+      p75: percentilesReliable ? percentile(allVals, 75) : null,
+      percentilesReliable,
+      minimumPercentileSampleSize: MIN_PERCENTILE_SAMPLE_SIZE,
+      sampleQuality: stats.count >= 20 ? 'high' : percentilesReliable ? 'limited' : 'insufficient',
+      disclaimer: percentilesReliable
+        ? '数据来自用户匿名投稿，仅供参考。'
+        : `样本少于 ${MIN_PERCENTILE_SAMPLE_SIZE} 条，不展示 P25/P50/P75。`
     }});
   } catch (error) {
     console.error(error); res.status(500).json({ code: -1, message: '服务器内部错误' });

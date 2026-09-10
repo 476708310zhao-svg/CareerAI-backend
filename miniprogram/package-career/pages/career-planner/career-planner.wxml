@@ -5,45 +5,6 @@
 
   <!-- ══ 输入步骤 ══ -->
   <view wx:if="{{step === 'input'}}" class="input-page">
-
-    <view class="hub-hero">
-      <view class="hub-copy">
-        <text class="hub-kicker">CAREER WORKSPACE</text>
-        <text class="hub-title">职业工具中心</text>
-        <text class="hub-sub">简历、ATS、薪资、Offer 和求职路线统一管理</text>
-      </view>
-      <view class="hub-count">
-        <text class="hub-count-num">{{careerTools.length}}</text>
-        <text class="hub-count-label">工具</text>
-      </view>
-    </view>
-
-    <view class="section-head">
-      <view>
-        <text class="section-title">常用工具</text>
-        <text class="section-sub">覆盖准备、投递、面试和 Offer 决策</text>
-      </view>
-      <text class="section-chip">快捷入口</text>
-    </view>
-
-    <view class="tool-grid">
-      <view
-        wx:for="{{careerTools}}"
-        wx:key="title"
-        class="tool-card {{item.tone}}"
-        bindtap="openCareerTool"
-        data-url="{{item.url}}"
-        hover-class="card-hover"
-      >
-        <view class="tool-card-top">
-          <view class="tool-icon">{{item.icon}}</view>
-          <text class="tool-arrow">›</text>
-        </view>
-        <text class="tool-title">{{item.title}}</text>
-        <text class="tool-desc">{{item.desc}}</text>
-      </view>
-    </view>
-
     <view class="planner-panel">
       <view class="planner-head">
         <view class="planner-head-copy">
@@ -168,6 +129,21 @@
       </view>
     </view>
 
+    <view class="sec-card strategy-card" wx:if="{{plan.strategy_summary}}">
+      <view class="sec-header compact-header">
+        <text class="sec-icon">🧭</text>
+        <text class="sec-title">规划结论</text>
+      </view>
+      <text class="strategy-summary">{{plan.strategy_summary}}</text>
+      <view class="assumption-block" wx:if="{{plan.assumptions.length}}">
+        <text class="assumption-title">规划采用的前提</text>
+        <view wx:for="{{plan.assumptions}}" wx:key="*this" class="assumption-row">
+          <text class="assumption-dot">·</text>
+          <text>{{item}}</text>
+        </view>
+      </view>
+    </view>
+
     <!-- 能力差距 -->
     <view class="sec-card">
       <view class="sec-header">
@@ -229,13 +205,32 @@
           <view class="pill-wrap">
             <view wx:for="{{plan.phases[activePhaseIdx].skills}}" wx:key="*this" class="pill">{{item}}</view>
           </view>
+          <view class="skill-action-list" wx:if="{{plan.phases[activePhaseIdx].skill_actions.length}}">
+            <view wx:for="{{plan.phases[activePhaseIdx].skill_actions}}" wx:key="skill" class="skill-action-card">
+              <text class="action-card-title">{{item.skill || '能力训练'}}</text>
+              <view class="evidence-row" wx:if="{{item.target}}"><text class="evidence-label">掌握标准</text><text>{{item.target}}</text></view>
+              <view class="evidence-row" wx:if="{{item.practice}}"><text class="evidence-label">练习方式</text><text>{{item.practice}}</text></view>
+              <view class="evidence-row" wx:if="{{item.evidence}}"><text class="evidence-label">证明材料</text><text>{{item.evidence}}</text></view>
+            </view>
+          </view>
         </view>
 
         <view class="detail-block">
           <text class="db-title">💻 项目建议</text>
-          <view wx:for="{{plan.phases[activePhaseIdx].projects}}" wx:key="*this" class="arrow-item">
-            <text class="arrow">→</text><text class="arrow-txt">{{item}}</text>
-          </view>
+          <block wx:if="{{plan.phases[activePhaseIdx].project_blueprints.length}}">
+            <view class="project-blueprint-list">
+              <view wx:for="{{plan.phases[activePhaseIdx].project_blueprints}}" wx:key="name" class="project-blueprint">
+                <text class="action-card-title">{{item.name || '实战项目'}}</text>
+                <view class="evidence-row" wx:if="{{item.deliverable}}"><text class="evidence-label">交付物</text><text>{{item.deliverable}}</text></view>
+                <view class="evidence-row" wx:if="{{item.proof}}"><text class="evidence-label">验证证据</text><text>{{item.proof}}</text></view>
+              </view>
+            </view>
+          </block>
+          <block wx:else>
+            <view wx:for="{{plan.phases[activePhaseIdx].projects}}" wx:key="*this" class="arrow-item">
+              <text class="arrow">→</text><text class="arrow-txt">{{item}}</text>
+            </view>
+          </block>
         </view>
 
         <view class="detail-block">
@@ -251,6 +246,20 @@
         <view class="detail-block">
           <text class="db-title">🔍 求职策略</text>
           <text class="db-text">{{plan.phases[activePhaseIdx].job_search}}</text>
+        </view>
+
+        <view class="detail-block outcome-block" wx:if="{{plan.phases[activePhaseIdx].deliverables.length || plan.phases[activePhaseIdx].success_metrics.length}}">
+          <text class="db-title">✅ 本阶段产出与验收</text>
+          <view class="outcome-columns">
+            <view class="outcome-column" wx:if="{{plan.phases[activePhaseIdx].deliverables.length}}">
+              <text class="outcome-title">必须完成</text>
+              <view wx:for="{{plan.phases[activePhaseIdx].deliverables}}" wx:key="*this" class="outcome-row"><text>□</text><text>{{item}}</text></view>
+            </view>
+            <view class="outcome-column metric-column" wx:if="{{plan.phases[activePhaseIdx].success_metrics.length}}">
+              <text class="outcome-title">验收指标</text>
+              <view wx:for="{{plan.phases[activePhaseIdx].success_metrics}}" wx:key="*this" class="outcome-row"><text>✓</text><text>{{item}}</text></view>
+            </view>
+          </view>
         </view>
       </view>
 
@@ -274,8 +283,38 @@
                 <text class="ms-action-txt">{{action}}</text>
               </view>
             </view>
+            <view class="ms-proof" wx:if="{{item.deliverables.length || item.metrics.length}}">
+              <view wx:if="{{item.deliverables.length}}" class="ms-proof-row"><text class="ms-proof-label">交付物</text><text>{{item.deliverables_text}}</text></view>
+              <view wx:if="{{item.metrics.length}}" class="ms-proof-row"><text class="ms-proof-label metric">指标</text><text>{{item.metrics_text}}</text></view>
+            </view>
           </view>
         </view>
+      </view>
+    </view>
+
+    <view class="sec-card" wx:if="{{plan.weekly_routine.length}}">
+      <view class="sec-header">
+        <text class="sec-icon">🗓️</text>
+        <text class="sec-title">每周执行节奏</text>
+      </view>
+      <view class="routine-list">
+        <view wx:for="{{plan.weekly_routine}}" wx:key="category" class="routine-card">
+          <view class="routine-head"><text class="routine-category">{{item.category || '固定动作'}}</text><text class="routine-cadence">{{item.cadence}}</text></view>
+          <text class="routine-action">{{item.action}}</text>
+          <view class="routine-metric" wx:if="{{item.metric}}"><text>周验收</text><text>{{item.metric}}</text></view>
+        </view>
+      </view>
+    </view>
+
+    <view class="sec-card" wx:if="{{plan.risk_alerts.length}}">
+      <view class="sec-header">
+        <text class="sec-icon risk-icon">⚠️</text>
+        <text class="sec-title">风险预警与应对</text>
+      </view>
+      <view wx:for="{{plan.risk_alerts}}" wx:key="risk" class="risk-card">
+        <text class="risk-title">{{item.risk}}</text>
+        <view class="risk-detail" wx:if="{{item.signal}}"><text class="risk-label">预警信号</text><text>{{item.signal}}</text></view>
+        <view class="risk-detail" wx:if="{{item.response}}"><text class="risk-label response">应对动作</text><text>{{item.response}}</text></view>
       </view>
     </view>
 

@@ -26,6 +26,19 @@ function _createNetworkError(err) {
   return error;
 }
 
+function _createHttpError(res) {
+  const message = res.data && (res.data.message || res.data.error);
+  const error = new Error(message || ('HTTP ' + res.statusCode));
+  error.statusCode = res.statusCode;
+  error.body = res.data;
+  return error;
+}
+
+function _isSuccessStatus(statusCode) {
+  const status = Number(statusCode);
+  return status >= 200 && status < 300;
+}
+
 function _cacheKey(url, data) {
   const s = url + (data ? JSON.stringify(data) : '');
   let h = 0;
@@ -63,6 +76,8 @@ function request(options) {
   const key = _cacheKey(baseUrl + options.path, requestData);
   const ttl = typeof options.cacheTTL === 'number' ? options.cacheTTL : CACHE_TTL;
   const noCache = !!options.noCache || ttl <= 0;
+  const softTimeout = options.timeout || 10000;
+  const wxTimeout = options.wxTimeout || Math.max(softTimeout + 5000, 15000);
 
   // 层1：内存缓存
   if (!noCache && _memCache[key] && (now - _memCache[key].t) < ttl) {
@@ -91,26 +106,33 @@ function request(options) {
 
   const promise = new Promise((resolve) => {
     let done = false;
+    let timer = null;
+    let task = null;
     const finish = (result) => {
       if (done) return;
       done = true;
+      if (timer) clearTimeout(timer);
       delete _pending[key];
       resolve(result);
     };
 
-    const timer = setTimeout(() => {
-      finish({ data: [], _source: 'timeout' });
-    }, options.timeout || 10000);
+    timer = setTimeout(() => {
+      const stale = _getStaleCache(key);
+      finish(stale || { data: [], _source: 'timeout' });
+      if (task && typeof task.abort === 'function') {
+        try { task.abort(); } catch (e) {}
+      }
+    }, softTimeout);
 
-    wx.request({
+    task = wx.request({
       url: baseUrl + options.path,
       method: 'GET',
       data: requestData,
       header: Object.assign({ 'Content-Type': 'application/json' }, _getAuthHeader()),
-      timeout: options.timeout || 10000,
+      timeout: wxTimeout,
       success: (res) => {
-        clearTimeout(timer);
-        if (res.statusCode === 200 && res.data) {
+        if (done) return;
+        if (res.statusCode >= 200 && res.statusCode < 300 && res.data) {
           if (!noCache) {
             const entry = { d: res.data, t: Date.now() };
             _memCache[key] = entry;
@@ -140,7 +162,7 @@ function request(options) {
         }
       },
       fail: (err) => {
-        clearTimeout(timer);
+        if (done) return;
         console.warn('[API] fail:', err.errMsg || err.message || err);
         const stale = _getStaleCache(key);
         finish(stale || { data: [], _source: 'networkError' });
@@ -170,15 +192,14 @@ function _write(options, _retried) {
       header,
       timeout: options.timeout || 60000,
       success: (res) => {
-        if (res.statusCode === 200 && res.data) {
-          resolve(res.data);
+        if (_isSuccessStatus(res.statusCode)) {
+          resolve(res.data === undefined ? { code: 0 } : res.data);
         } else if (res.statusCode === 401) {
           wx.removeStorageSync('token');
           wx.removeStorageSync('userProfile');
           reject(new Error('unauthorized'));
         } else {
-          const message = res.data && (res.data.message || res.data.error);
-          reject(new Error(message || ('HTTP ' + res.statusCode)));
+          reject(_createHttpError(res));
         }
       },
       fail: (err) => {
@@ -198,4 +219,4 @@ function _write(options, _retried) {
 function post(options) { return _write(Object.assign({}, options, { method: 'POST' })); }
 function put(options)  { return _write(Object.assign({}, options, { method: 'PUT', timeout: options.timeout || 15000 })); }
 
-module.exports = { request, _write, post, put, DETAIL_CACHE_TTL };
+module.exports = { request, _write, post, put, DETAIL_CACHE_TTL, _isSuccessStatus };
