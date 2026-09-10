@@ -15,6 +15,7 @@ const todayTasks = require('../services/v4TodayTasks');
 ensureV4Schema();
 const notifyTest = require('../routes/notify')._test;
 const favoriteRoute = require('../routes/favorites');
+const { timestamp } = require('../miniprogram/utils/date-time');
 
 test('Sprint 8 migration is additive and defines delivery and sync ledgers', () => {
   const migration = fs.readFileSync(path.join(__dirname, '..', 'db', 'migrations', '0006_sprint8_reliability.sql'), 'utf8');
@@ -150,4 +151,12 @@ test('favorites use the shared request client and no longer call wx.request dire
   assert.doesNotMatch(page, /wx\.request\s*\(/);
   assert.match(utility, /require\('\.\/api-favorites\.js'\)/);
   assert.match(api, /require\('\.\/api-client\.js'\)/);
+});
+
+test('favorite timestamps parse SQLite UTC safely on iOS-compatible paths', () => {
+  assert.equal(timestamp('2026-08-03 08:50:12'), Date.UTC(2026, 7, 3, 8, 50, 12));
+  assert.equal(timestamp('2026-08-03 08:50:12.25'), Date.UTC(2026, 7, 3, 8, 50, 12, 250));
+  assert.equal(timestamp('2026-08-03T08:50:12.000Z'), Date.UTC(2026, 7, 3, 8, 50, 12));
+  assert.equal(timestamp('2026-08-03'), Date.UTC(2026, 7, 3));
+  assert.equal(timestamp('not-a-date'), 0);
 });

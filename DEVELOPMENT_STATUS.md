@@ -1,6 +1,6 @@
 # DEVELOPMENT_STATUS
 
-更新时间：2026-09-09
+更新时间：2026-09-10
 
 主项目目录：`D:\ChatGPT-Projects\求职小程序\jobapp-server`
 
@@ -10,12 +10,13 @@
 
 ## 当前批次
 
-Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成代码和自动化验证。提醒使用唯一投递键、租约、失败重试、有界并发和结构化耗时；Today 改为跨设备增量合并并拒绝旧状态覆盖；收藏增加幂等 outbox、删除 tombstone，并统一进入小程序请求层。竞争力陪跑已补充响应完整性校验，登录失效、网络错误和后端未就绪不会再显示伪空白仪表盘。真实双设备/微信订阅消息 staging、生产 migration 和上线仍待 Human；未运行真实 E2E、未调用真实 AI、未部署。
+Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成代码和自动化验证。提醒使用唯一投递键、租约、失败重试、有界并发和结构化耗时；Today 改为跨设备增量合并并拒绝旧状态覆盖；收藏增加幂等 outbox、删除 tombstone，并统一进入小程序请求层。竞争力陪跑已补充响应完整性校验；收藏同步已兼容 iOS 对 SQLite 空格日期格式的限制。真实双设备/微信订阅消息 staging、生产 migration 和上线仍待 Human；未运行真实 E2E、未调用真实 AI、未部署。
 
 ## 已完成
 
 | 日期 | 事项 | 文件 | 验证 |
 |---|---|---|---|
+| 2026-09-10 | 修复收藏同步将 SQLite UTC 时间直接传入 `new Date()` 导致部分 iOS 无法解析的警告；改为逐字段 UTC 解析，并兼容 ISO、日期和数字时间戳 | `miniprogram/utils/date-time.js`、`miniprogram/utils/favorites.js`、`tests/sprint8Reliability.test.js` | Sprint 8 专项 7/7、全量 204/204、`check:release` 通过；未运行真实 E2E |
 | 2026-09-09 | 修复竞争力陪跑在 401、超时、网络错误、HTTP 错误或残缺响应下仍进入成功视图，造成分数、七维诊断、周报和计划全部空白的问题；登录失效改为重新登录，其余异常展示可重试错误 | `career-coach.js`、`career-coach-state.js`、`tests/sprint4CareerCoach.test.js` | Sprint 4 专项 6/6、全量 203/203、`check:release` 通过；未运行真实 E2E，生产后端仍需独立发布 |
 | 2026-09-09 | Sprint 8：提醒派发增加唯一投递账本、租约、失败重试、有界并发、游标续跑和耗时埋点；Today 改为跨设备增量合并与更新时间冲突控制；收藏增加 outbox、操作回执、删除 tombstone 并迁入统一 API 客户端 | `routes/notify.js`、`scripts/dispatch_reminders.js`、Today 服务/首页、收藏路由与工具、`0006_sprint8_reliability.sql`、`tests/sprint8Reliability.test.js`、Sprint 8 文档 | 专项 6/6、Smoke 72/72、全量 202/202、小程序检查与 `git diff --check` 通过；真实微信请求 0，未运行真实 E2E，生产 migration 待 Human |
 | 2026-09-08 | Sprint 7：定义 Free/Pro 与 JD 简历包、7 天面试冲刺包、秋招季度包；保持历史 planId 0～3 兼容；建立订单/支付/权益/额度/退款统一账本、权益 Grant、退款审批状态机、六类告警和 0% 商业灰度审批门禁；会员页增加场景包边界、权益/订单/退款入口 | `services/v4Commerce*.js`、支付/会员/管理路由、商业化 migration、小程序会员页、`tests/sprint7Commerce.test.js`、`docs/V4_SPRINT7_COMMERCE_GOVERNANCE.md` | Sprint 7 专项 4/4、migration 5/5、Smoke 71/71、全量 195/195、`check:release` 通过；AI 故障矩阵 7/7、外部请求 0、媒体 191.2 KB、Errors 0/Warnings 4；未运行真实 E2E |
@@ -115,6 +116,7 @@ Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成
 
 | 负责人 | 文件 | 任务 | 状态 |
 |---|---|---|---|
+| Codex | `miniprogram/utils/date-time.js`、`miniprogram/utils/favorites.js`、`tests/sprint8Reliability.test.js`、开发记录 | 修复收藏同步解析 SQLite 日期时的 iOS 兼容警告，并保持 UTC 排序语义 | 已完成；专项 7/7、全量 204/204 与发布检查通过；未运行真实 E2E，未部署 |
 | Codex | `routes/notify.js`、`services/v4TodayTasks.js`、Sprint 8 schema/migration、收藏请求工具、专项测试和文档 | Sprint 8：提醒派发幂等与有界并发、Today 跨设备增量同步、收藏统一请求层与离线补传 | 已完成；全量 202/202 与发布检查通过；真实验收和生产 migration 待 Human，不推送、不部署 |
 | Codex | 商业套餐/权益/额度账本、退款审计、运营告警、会员小程序页、Sprint 7 migration/测试/文档 | Sprint 7：Free/Pro/场景包、统一商业账本、Mock 支付与退款一致性、可暂停灰度及异常告警 | 已完成；195/195 tests 与 `check:release` 通过，真实支付与外部退款保持关闭，不运行真实 E2E，不推送、不部署，生产 migration 待 Human |
 | Codex | OA/Project Builder/Job Trust V4 数据表、服务、路由、小程序页面、专项测试和文档 | Sprint 6：OA 计划/计时/错题/统计，证据导向项目里程碑/交付物/验收/真实成果确认，以及可追溯岗位可信度评分 | 已完成；190/190 tests 与 `check:release` 通过，不调用真实 AI，不运行真实 E2E，不推送、不部署，生产 migration 待 Human |

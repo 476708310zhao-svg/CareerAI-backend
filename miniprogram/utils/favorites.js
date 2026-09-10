@@ -2,6 +2,7 @@
 const apiFavorites = require('./api-favorites.js');
 const reminders = require('./reminders.js');
 const favoriteReminder = require('./favorite-reminder.js');
+const dateTime = require('./date-time.js');
 
 const STORAGE_KEY = 'userFavorites';
 const OUTBOX_KEY = 'favoriteSyncOutboxV4';
@@ -78,8 +79,7 @@ function _flushOutbox() {
 }
 
 function _timestamp(value) {
-  const result = new Date(value || 0).getTime();
-  return Number.isFinite(result) ? result : 0;
+  return dateTime.timestamp(value);
 }
 
 function _find(list, targetId) {
