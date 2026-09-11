@@ -92,9 +92,14 @@ test('Sprint 4 mini program exposes the coach page, task completion and deferral
   const careerPackage = appConfig.subPackages.find(item => item.root === 'package-career');
   const pageConfig = JSON.parse(fs.readFileSync(path.join(root, 'package-career', 'pages', 'career-coach', 'career-coach.json'), 'utf8'));
   const page = fs.readFileSync(path.join(root, 'package-career', 'pages', 'career-coach', 'career-coach.js'), 'utf8');
+  const pageView = fs.readFileSync(path.join(root, 'package-career', 'pages', 'career-coach', 'career-coach.wxml'), 'utf8');
   const resource = fs.readFileSync(path.join(root, 'pages', 'resources', 'resources.js'), 'utf8');
   assert.ok(careerPackage.pages.includes('pages/career-coach/career-coach'));
   assert.equal(pageConfig.usingComponents['c-ai-disclosure'], '/components/c-ai-disclosure/c-ai-disclosure');
+  assert.equal(pageConfig.usingComponents['c-login-popup'], '/components/c-login-popup/c-login-popup');
+  assert.match(pageView, /<c-login-popup\b/);
+  assert.match(pageView, /show="\{\{authPromptVisible\}\}"/);
+  assert.match(pageView, /bindsuccess="onAuthPromptSuccess"/);
   assert.match(page, /getCareerCoachDashboard/);
   assert.match(page, /deferTodayTask/);
   assert.match(page, /updateTodayTask/);

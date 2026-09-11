@@ -60,4 +60,11 @@
       </view>
     </view>
   </block>
+
+  <c-login-popup
+    show="{{authPromptVisible}}"
+    subtitle="{{authPromptSubtitle}}"
+    bindclose="closeAuthPrompt"
+    bindsuccess="onAuthPromptSuccess"
+  />
 </view>
