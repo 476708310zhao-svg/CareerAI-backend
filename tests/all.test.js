@@ -18,6 +18,7 @@ require('./favoriteReminder.test');
 require('./agentCompat.test');
 require('./dailyTasks.test');
 require('./applicationWorkbench.test');
+require('./applicationWorkflow.test');
 require('./navigationConfig.test');
 require('./shareConfig.test');
 require('./jobPresentation.test');

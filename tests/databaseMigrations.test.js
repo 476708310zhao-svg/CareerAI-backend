@@ -54,22 +54,32 @@ test('database migration baseline is recorded once and exposes status', () => wi
     const second = applyPendingMigrations(db);
     const status = getMigrationStatus(db);
 
-    assert.equal(first.appliedNow.length, 7);
+    assert.equal(first.appliedNow.length, 8);
     assert.equal(second.appliedNow.length, 0);
-    assert.equal(status.applied.length, 7);
+    assert.equal(status.applied.length, 8);
     assert.equal(status.pending.length, 0);
     assert.match(status.applied[0].checksum, /^[a-f0-9]{64}$/);
-    assert.equal(status.applied.at(-1).version, '0007');
+    assert.equal(status.applied.at(-1).version, '0008');
     assert.equal(
       db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('ai_conversations','ai_conversation_turns')").pluck().get(),
       2
+    );
+    assert.deepEqual(
+      db.prepare('PRAGMA table_info(application_history)').all()
+        .filter(column => ['batch_id', 'batch_size'].includes(column.name))
+        .map(column => ({ name: column.name, notnull: column.notnull })),
+      [{ name: 'batch_id', notnull: 0 }, { name: 'batch_size', notnull: 0 }]
+    );
+    assert.deepEqual(
+      db.prepare('PRAGMA index_info(idx_application_history_owner_batch)').all().map(column => column.name),
+      ['user_id', 'batch_id', 'id']
     );
   } finally {
     db.close();
   }
 }));
 
-test('database migration upgrades an existing 0001-0006 database through 0007 exactly once', () => withTempDir(directory => {
+test('database migration upgrades an existing 0001-0006 database through 0008 exactly once', () => withTempDir(directory => {
   const legacyMigrationsDir = path.join(directory, 'migrations-through-0006');
   copyMigrationsThrough(legacyMigrationsDir, '0006');
 
@@ -82,14 +92,41 @@ test('database migration upgrades an existing 0001-0006 database through 0007 ex
     ]);
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0007']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0007', '0008']);
     assert.equal(
       db.prepare('SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1').pluck().get(),
-      '0007'
+      '0008'
     );
     assert.equal(
       db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('ai_conversations','ai_conversation_turns')").pluck().get(),
       2
+    );
+    assert.equal(applyPendingMigrations(db).appliedNow.length, 0);
+  } finally {
+    db.close();
+  }
+}));
+
+test('database migration upgrades an existing 0001-0007 database with nullable batch metadata', () => withTempDir(directory => {
+  const previousMigrationsDir = path.join(directory, 'migrations-through-0007');
+  copyMigrationsThrough(previousMigrationsDir, '0007');
+
+  const db = new Database(path.join(directory, 'batch-upgrade.db'));
+  try {
+    createRequiredBaselineTables(db);
+    const previous = applyPendingMigrations(db, { migrationsDir: previousMigrationsDir });
+    assert.equal(previous.appliedNow.at(-1).version, '0007');
+    db.prepare('INSERT INTO application_history (id, application_id, user_id) VALUES (?, ?, ?)').run('1', '11', '21');
+
+    const upgrade = applyPendingMigrations(db);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0008']);
+    assert.deepEqual(
+      db.prepare('SELECT batch_id AS batchId, batch_size AS batchSize FROM application_history WHERE id=?').get('1'),
+      { batchId: null, batchSize: null }
+    );
+    assert.deepEqual(
+      db.prepare('PRAGMA index_info(idx_application_history_owner_batch)').all().map(column => column.name),
+      ['user_id', 'batch_id', 'id']
     );
     assert.equal(applyPendingMigrations(db).appliedNow.length, 0);
   } finally {

@@ -5,6 +5,7 @@ const { applicationRefs, mergeCoreRefs } = require('../utils/coreEntityRefs');
 
 function parseJson(value, fallback) { try { return JSON.parse(value); } catch (e) { return fallback; } }
 function text(value, max = 1000) { return String(value || '').replace(/\s+/g, ' ').trim().slice(0, max); }
+function escapeLikeLiteral(value) { return value.replace(/[!%_]/g, match => `!${match}`); }
 
 const CAPABILITY_KEYWORDS = [
   ['数据分析', /data analysis|analytics|数据分析/i],
@@ -89,10 +90,15 @@ function ensureSpace(userId, applicationId) {
   const application = db.prepare('SELECT * FROM applications WHERE id=? AND user_id=?').get(applicationId, userId);
   if (!application) return null;
   const snapshot = parseJson(application.job_snapshot, {});
-  const company = application.company || snapshot.company || '';
+  const company = text(application.company || snapshot.company || '', 200);
   const jobTitle = application.job_title || snapshot.title || '';
   const groups = questionGroups(jobTitle);
-  const histories = db.prepare('SELECT id, title, content, round, created_at AS createdAt FROM experiences WHERE company LIKE ? ORDER BY id DESC LIMIT 8').all(`%${company}%`);
+  const histories = company
+    ? db.prepare(`SELECT id, title, content, round, created_at AS createdAt
+      FROM experiences
+      WHERE moderation_status='approved' AND company LIKE ? ESCAPE '!'
+      ORDER BY id DESC LIMIT 8`).all(`%${escapeLikeLiteral(company)}%`)
+    : [];
   db.prepare(`INSERT INTO interview_spaces_v4
     (user_id, application_id, company, job_title, interview_time, round, company_experiences, frequent_questions, algorithm_questions, behavior_questions, role_questions)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
