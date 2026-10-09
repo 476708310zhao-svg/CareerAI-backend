@@ -41,22 +41,32 @@ function normalizeFlags(value) {
   };
 }
 
-function getCachedFlags() {
+function readCachedFlags() {
   try {
-    return normalizeFlags(wx.getStorageSync(CACHE_KEY));
-  } catch (e) {
-    return defaultFlags();
-  }
+    const value = wx.getStorageSync(CACHE_KEY);
+    return value && typeof value === 'object' ? value : null;
+  } catch (e) { return null; }
+}
+
+function getCachedFlags() {
+  const cached = readCachedFlags();
+  return cached ? normalizeFlags(cached) : defaultFlags();
 }
 
 function getCurrentFlags() {
+  // A persisted response is authoritative, including explicit false values.
+  // Do not let an optimistic in-memory cold-start fallback overwrite it.
+  const cached = readCachedFlags();
+  if (cached) return normalizeFlags(cached);
   try {
     const app = getApp();
-    if (app && app.globalData && app.globalData.featureFlags) {
+    const flags = app && app.globalData && app.globalData.featureFlags;
+    if (flags && ['recruitment', 'home_recommendations', 'membership']
+      .some(key => typeof flags[key] === 'boolean')) {
       return normalizeFlags(app.globalData.featureFlags);
     }
   } catch (e) {}
-  return getCachedFlags();
+  return defaultFlags();
 }
 
 function isRecruitmentEnabled() {
@@ -76,6 +86,11 @@ function isRecruitmentUrl(url) {
   const raw = String(url || '').split('?')[0];
   const normalized = raw.startsWith('/') ? raw : '/' + raw;
   return RECRUITMENT_PATHS.some(path => normalized.indexOf(path) === 0);
+}
+
+function isJobsTab(url) {
+  const raw = String(url || '').split('?')[0].replace(/^\/+/, '');
+  return raw === 'pages/jobs/jobs';
 }
 
 function isMembershipUrl(url) {
@@ -147,7 +162,11 @@ function redirectToAvailablePage(message) {
   }, 300);
 }
 
-function guardRecruitmentPage() {
+function guardRecruitmentPage(options) {
+  if (options && options.stayOnJobsTab) {
+    refreshFeatureFlags();
+    return true;
+  }
   if (!isRecruitmentEnabled()) {
     redirectToAvailablePage('职位功能暂未开放');
     return false;
@@ -175,6 +194,7 @@ function allowNavigation(url) {
     wx.showToast({ title: '功能暂未开放', icon: 'none' });
     return false;
   }
+  if (isJobsTab(url)) return true;
   if (!isRecruitmentUrl(url) || isRecruitmentEnabled()) return true;
   wx.showToast({ title: '职位功能暂未开放', icon: 'none' });
   return false;

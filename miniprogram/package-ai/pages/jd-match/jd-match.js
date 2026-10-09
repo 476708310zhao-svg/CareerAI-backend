@@ -544,7 +544,7 @@ Page({
   },
 
   goResume() {
-    navigation.safeNavigateTo('/package-career/pages/resume/resume');
+    navigation.safeNavigateTo('/package-career/pages/resume-center/resume-center');
   },
 
   resetMatch() {

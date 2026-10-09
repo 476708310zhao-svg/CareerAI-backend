@@ -65,6 +65,9 @@ App({
       query: options && options.query || {}
     });
     analytics.flush();
+    // 从后台返回时重新拉取公开开关，确保管理后台开启/关闭职位功能后，
+    // 自定义 TabBar 能在当前会话内同步显示状态。
+    featureFlags.refreshFeatureFlags();
   },
 
   // 全局 JS 运行时错误捕获
@@ -274,6 +277,8 @@ App({
     unreadCount: 0,      // 未读消息数（驱动 TabBar 角标）
     favorites:   null,   // { job:[], experience:[], company:[] }
     theme:       'auto', // 'dark' | 'light' | 'auto'
-    featureFlags: { recruitment: false, home_recommendations: false, membership: true }
+    // Empty means the public feature state is still unknown. The feature
+    // client distinguishes this from an explicit server-provided false.
+    featureFlags: {}
   }
 });

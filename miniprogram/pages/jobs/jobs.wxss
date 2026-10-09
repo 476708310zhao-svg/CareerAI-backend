@@ -2011,3 +2011,69 @@ page {
 }
 .ctag.sponsor-risk { color: #B42318; background: #FEF3F2; }
 .match-score-v4 { flex-shrink: 0; margin-right: 12rpx; color: #1D4ED8; font-size: 24rpx; font-weight: 900; }
+/* Honest in-place fallback for the fixed Jobs tab when recruitment is disabled. */
+.recruitment-closed {
+  display: flex;
+  min-height: 72vh;
+  padding: 120rpx 56rpx 180rpx;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+}
+
+.recruitment-closed-mark {
+  display: flex;
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 28rpx;
+  background: #eaf2ff;
+  align-items: center;
+  justify-content: center;
+  color: #1769e8;
+  font-size: 34rpx;
+  font-weight: 900;
+}
+
+.recruitment-closed-title {
+  margin-top: 28rpx;
+  color: #172033;
+  font-size: 34rpx;
+  font-weight: 900;
+}
+
+.recruitment-closed-desc {
+  max-width: 560rpx;
+  margin-top: 14rpx;
+  color: #667085;
+  font-size: 24rpx;
+  line-height: 1.65;
+}
+
+.recruitment-closed-actions {
+  display: flex;
+  width: 100%;
+  max-width: 560rpx;
+  margin-top: 38rpx;
+  gap: 18rpx;
+}
+
+.recruitment-closed-primary,
+.recruitment-closed-secondary {
+  flex: 1;
+  margin: 0;
+  border-radius: 18rpx;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.recruitment-closed-primary {
+  background: #1769e8;
+  color: #fff;
+}
+
+.recruitment-closed-secondary {
+  border: 1rpx solid #dce4ef;
+  background: #fff;
+  color: #344054;
+}

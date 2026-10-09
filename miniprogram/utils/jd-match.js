@@ -1,5 +1,7 @@
 const STORAGE_KEY = 'jdMatchReports';
 const apiClient = require('./api-client.js');
+const ownerStorage = require('./owner-storage.js');
+const { timestamp } = require('./date-time.js');
 
 const DEFAULT_KEYWORDS = [
   'Python', 'JavaScript', 'TypeScript', 'React', 'Node.js', 'SQL', 'A/B Testing',
@@ -7,13 +9,12 @@ const DEFAULT_KEYWORDS = [
   'GCP', 'Docker', 'Kubernetes', 'Communication', 'Leadership'
 ];
 
-function readList() {
+function readList(owner) {
+  const scope = owner || ownerStorage.capture();
   try {
-    const list = wx.getStorageSync(STORAGE_KEY);
+    const list = wx.getStorageSync(ownerStorage.keyFor(scope, STORAGE_KEY));
     return Array.isArray(list) ? list : [];
-  } catch (e) {
-    return [];
-  }
+  } catch (e) { return []; }
 }
 
 function hasToken() {
@@ -51,10 +52,13 @@ function normalizeRemoteReport(item) {
   };
 }
 
-function saveList(list) {
+function saveList(list, owner) {
+  const scope = owner || ownerStorage.capture();
+  if (!ownerStorage.isCurrent(scope)) return false;
   try {
-    wx.setStorageSync(STORAGE_KEY, list || []);
-  } catch (e) {}
+    wx.setStorageSync(ownerStorage.keyFor(scope, STORAGE_KEY), list || []);
+    return true;
+  } catch (e) { return false; }
 }
 
 function normalizeLocalReport(report) {
@@ -100,7 +104,7 @@ function mergeReports(local, remote) {
     merged.push(normalized);
   });
   return merged
-    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+    .sort((a, b) => timestamp(b.createdAt) - timestamp(a.createdAt))
     .slice(0, 50);
 }
 
@@ -182,21 +186,23 @@ function buildReport(resume, job) {
 }
 
 function saveReport(report) {
+  const owner = ownerStorage.capture();
   const normalized = normalizeLocalReport(report);
-  const list = readList().filter(item => reportKey(item) !== reportKey(normalized));
+  const list = readList(owner).filter(item => reportKey(item) !== reportKey(normalized));
   const next = [normalized].concat(list).slice(0, 50);
-  saveList(next);
+  saveList(next, owner);
   syncReport(normalized).then(remote => {
+    if (!ownerStorage.isCurrent(owner)) return;
     const remoteId = reportKey(remote);
     if (!remoteId) return;
-    const current = readList().map(item => {
+    const current = readList(owner).map(item => {
       if (reportKey(item) !== reportKey(normalized)) return item;
       return Object.assign({}, item, remote, {
         id: normalized.id || remote.id,
         serverId: remote.serverId || item.serverId || ''
       });
     });
-    saveList(current);
+    saveList(current, owner);
   }).catch(() => {});
   return normalized;
 }
@@ -212,28 +218,32 @@ function getReportById(id) {
 }
 
 function fetchRemoteReports() {
-  if (!hasToken()) return Promise.resolve(readList());
-  const local = readList();
+  const owner = ownerStorage.capture();
+  if (!hasToken()) return Promise.resolve(readList(owner));
+  const local = readList(owner);
   return apiClient.request({
     path: '/api/career-assets/jd-match-reports',
     noCache: true,
     timeout: 12000
   }).then(res => {
+    if (!ownerStorage.isCurrent(owner)) return [];
     if (!res || res.code !== 0 || !Array.isArray(res.data)) return local;
     const remote = res.data.map(normalizeRemoteReport);
     const merged = mergeReports(local, remote);
-    saveList(merged);
+    saveList(merged, owner);
     return merged;
-  }).catch(() => readList());
+  }).catch(() => ownerStorage.isCurrent(owner) ? readList(owner) : []);
 }
 
 function syncReport(report) {
+  const owner = ownerStorage.capture();
   if (!hasToken() || !report) return Promise.resolve(report);
   return apiClient.post({
     path: '/api/career-assets/jd-match-reports',
     body: report,
     timeout: 15000
   }).then(res => {
+    if (!ownerStorage.isCurrent(owner)) return report;
     if (res && res.code === 0 && res.data) return normalizeRemoteReport(res.data);
     return report;
   });

@@ -1,8 +1,5 @@
 {
   "navigationBarTitleText": "我的简历",
   "navigationBarBackgroundColor": "#ffffff",
-  "navigationBarTextStyle": "black",
-  "usingComponents": {
-    "c-button": "/components/c-button/c-button"
-  }
+  "navigationBarTextStyle": "black"
 }

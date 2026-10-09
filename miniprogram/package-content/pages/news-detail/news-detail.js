@@ -1,6 +1,6 @@
 // pages/news-detail/news-detail.js
 const ACTION_DEFAULTS = {
-  resume: { label: '优化简历', url: '/package-career/pages/resume/resume' },
+  resume: { label: '优化简历', url: '/package-career/pages/resume-center/resume-center' },
   jd_match: { label: '做 JD 匹配', url: '/package-ai/pages/jd-match/jd-match' },
   interview: { label: '开始面试训练', url: '/package-ai/pages/interview-setup/interview-setup' },
   application: { label: '准备投递材料', url: '/package-ai/pages/ai-assistant/ai-assistant?action=application' },

@@ -13,6 +13,7 @@ const loginGate = require('../../behaviors/login-gate.js');
 const { queueJob } = require('../../utils/application-queue.js');
 const navigation = require('../../utils/navigation.js');
 const analytics = require('../../utils/analytics.js');
+const ownerStorage = require('../../utils/owner-storage.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 const JOB_LIST_CACHE_TTL = 30 * 60 * 1000;
 
@@ -111,6 +112,7 @@ Page({
   behaviors: [loginGate],
 
   data: {
+    recruitmentEnabled: true,
     jobs: [],
     isMockData: false,
     skeletonRows: [1, 2, 3, 4, 5],
@@ -209,11 +211,17 @@ Page({
   },
 
   onShow: function() {
-    if (!featureFlags.guardRecruitmentPage()) return;
+    this._visible = true;
+    featureFlags.guardRecruitmentPage({ stayOnJobsTab: true });
+    const recruitmentEnabled = typeof featureFlags.isRecruitmentEnabled === 'function'
+      ? featureFlags.isRecruitmentEnabled()
+      : true;
+    this.setData({ recruitmentEnabled });
     const token = String(wx.getStorageSync('token') || '');
     const ownerScope = progress.currentOwnerScope ? progress.currentOwnerScope() : '';
     if (this._ownerScope !== undefined && this._ownerScope !== ownerScope) {
       this._handleOwnerChange(ownerScope, token);
+      if (!recruitmentEnabled) this._disableRecruitmentContent();
       return;
     }
     this._ownerScope = ownerScope;
@@ -223,6 +231,14 @@ Page({
     clearTimeout(this._onShowSyncTimer);
     this._onShowSyncTimer = setTimeout(() => this._syncVisibleJobState(), 80);
     this._syncFavoriteOwner(ownerScope, token);
+    if (!recruitmentEnabled) {
+      this._disableRecruitmentContent();
+      return;
+    }
+    if (this._needsReload) {
+      this._needsReload = false;
+      this._resumeJobsLoading();
+    }
   },
 
   _syncVisibleJobState: function() {
@@ -234,7 +250,7 @@ Page({
       }));
       this.setData({ jobs });
     }
-    const searchHistory = wx.getStorageSync('jobSearchHistory') || [];
+    const searchHistory = this._readSearchHistory();
     this.setData({ searchHistory });
     if (this.data.matchMode) {
       this._refreshMatchProfile();
@@ -242,32 +258,109 @@ Page({
   },
 
   onLoad: function(options) {
-    if (!featureFlags.guardRecruitmentPage()) return;
+    this._visible = true;
+    featureFlags.guardRecruitmentPage({ stayOnJobsTab: true });
+    const recruitmentEnabled = typeof featureFlags.isRecruitmentEnabled === 'function'
+      ? featureFlags.isRecruitmentEnabled()
+      : true;
+    this.setData({ recruitmentEnabled });
     this._ownerToken = String(wx.getStorageSync('token') || '');
     const ownerScope = progress.currentOwnerScope ? progress.currentOwnerScope() : '';
     this._ownerScope = ownerScope;
     if (favUtil.prepareOwner) favUtil.prepareOwner();
     const favoriteOwner = wx.getStorageSync('jobFavoritesVisibleOwner') || '';
     this._favoritesBlocked = !ownerScope || favoriteOwner !== ownerScope;
-    const searchHistory = wx.getStorageSync('jobSearchHistory') || [];
+    const searchHistory = this._readSearchHistory();
     this.setData({ searchHistory });
     this._syncFavoriteOwner(ownerScope, this._ownerToken);
+
+    if (!recruitmentEnabled) {
+      this._disableRecruitmentContent();
+      return;
+    }
 
     if (options.keyword) {
       this.setData({ searchKeyword: options.keyword, activeTag: options.keyword });
     }
     const hasFreshCache = this.loadCachedOrMock();
+    this._initialLoadNeedsJobs = !hasFreshCache || !!options.keyword;
     clearTimeout(this._initialLoadTimer);
     this._initialLoadTimer = setTimeout(() => {
-      if (!hasFreshCache || options.keyword) this.loadJobs(true);
+      this._initialLoadTimer = null;
+      const needsJobs = this._initialLoadNeedsJobs;
+      this._initialLoadNeedsJobs = false;
+      if (needsJobs) this.loadJobs(true);
       this._loadCountries();
     }, hasFreshCache ? 180 : 80);
   },
 
   onUnload: function() {
+    this._visible = false;
+    this._needsReload = false;
+    this._initialLoadNeedsJobs = false;
     this._jobRequestSeq += 1;
     clearTimeout(this._onShowSyncTimer);
     clearTimeout(this._initialLoadTimer);
+    this._initialLoadTimer = null;
+  },
+
+  onHide: function() {
+    this._visible = false;
+    const shouldResume = !!(this.data.recruitmentEnabled
+      && (this.data.loading || this.data.isRefreshing || this._initialLoadNeedsJobs));
+    this._needsReload = shouldResume;
+    this._jobRequestSeq += 1;
+    clearTimeout(this._initialLoadTimer);
+    this._initialLoadTimer = null;
+    this._initialLoadNeedsJobs = false;
+    if (this.data.loading || this.data.isRefreshing) {
+      this.setData({ loading: false, isRefreshing: false });
+      try { wx.stopPullDownRefresh(); } catch (error) {}
+    }
+  },
+
+  _resumeJobsLoading: function() {
+    if (!this._visible || !this.data.recruitmentEnabled) return;
+    // Restore a safe public cache for immediate rendering, then issue exactly
+    // one fresh request because the hidden request was deliberately discarded.
+    this.loadCachedOrMock();
+    this.loadJobs(true, { preserveRows: true });
+    if (!(this.data.countryList || []).length) this._loadCountries();
+  },
+
+  _onFeatureFlagsChange: function(flags) {
+    const enabled = !!(flags && flags.recruitment);
+    const wasEnabled = this.data.recruitmentEnabled;
+    this.setData({ recruitmentEnabled: enabled });
+    if (!enabled) {
+      this._disableRecruitmentContent();
+      return;
+    }
+    if (!wasEnabled && this._visible) {
+      this._needsReload = false;
+      this._resumeJobsLoading();
+    }
+  },
+
+  _disableRecruitmentContent: function() {
+    this._needsReload = false;
+    this._initialLoadNeedsJobs = false;
+    this._jobRequestSeq += 1;
+    clearTimeout(this._initialLoadTimer);
+    this._initialLoadTimer = null;
+    this.setData({
+      jobs: [], loading: false, isRefreshing: false, loadError: '',
+      totalJobs: 0, hasMore: false, filterVisible: false, mapShowPanel: false
+    });
+    try { wx.stopPullDownRefresh(); } catch (error) {}
+  },
+
+  openResources: function() {
+    navigation.safeSwitchTab('/pages/resources/resources');
+  },
+
+  openCampusWhileClosed: function() {
+    navigation.safeNavigateTo('/pages/campus/campus');
   },
 
   _syncFavoriteOwner: function(ownerScope, token) {
@@ -304,6 +397,7 @@ Page({
     }));
     this.setData({
       jobs,
+      searchHistory: this._readSearchHistory(nextScope),
       matchMode: false,
       filterSponsor: '',
       matchKeywords: [],
@@ -315,7 +409,18 @@ Page({
     });
     if (favUtil.prepareOwner) favUtil.prepareOwner();
     this._syncFavoriteOwner(nextScope, nextToken);
-    if (nextToken) this.loadJobs(true);
+    this._needsReload = false;
+    if (this.data.recruitmentEnabled && this._visible) this._resumeJobsLoading();
+  },
+
+  _readSearchHistory: function(scope) {
+    const currentOwner = scope === undefined
+      ? (progress.currentOwnerScope ? progress.currentOwnerScope() : '')
+      : String(scope || '');
+    if (!currentOwner) return [];
+    let list = [];
+    try { list = wx.getStorageSync(ownerStorage.keyFor(currentOwner, 'jobSearchHistory')) || []; } catch (error) {}
+    return Array.isArray(list) ? list : [];
   },
 
   _loadCountries: function() {
@@ -362,6 +467,10 @@ Page({
   },
 
   onPullDownRefresh: function() {
+    if (!this.data.recruitmentEnabled) {
+      try { wx.stopPullDownRefresh(); } catch (error) {}
+      return;
+    }
     this.setData({ isRefreshing: true });
     this.loadJobs(true);
   },
@@ -416,16 +525,17 @@ Page({
 
   // 清空搜索历史
   clearHistory: function() {
-    wx.removeStorageSync('jobSearchHistory');
+    if (progress.currentOwnerScope && progress.currentOwnerScope()) ownerStorage.remove('jobSearchHistory');
     this.setData({ searchHistory: [] });
   },
 
   _saveSearchHistory: function(kw) {
-    let history = wx.getStorageSync('jobSearchHistory') || [];
+    if (!progress.currentOwnerScope || !progress.currentOwnerScope()) return;
+    let history = this._readSearchHistory();
     history = history.filter(h => h !== kw);
     history.unshift(kw);
     if (history.length > 5) history = history.slice(0, 5);
-    wx.setStorageSync('jobSearchHistory', history);
+    ownerStorage.set('jobSearchHistory', '', history);
     this.setData({ searchHistory: history });
   },
 
@@ -477,7 +587,10 @@ Page({
   },
 
   // 核心：加载职位
-  loadJobs: function(reset) {
+  loadJobs: function(reset, options) {
+    if (!this.data.recruitmentEnabled) return;
+    this._needsReload = false;
+    const preserveRows = !!(options && options.preserveRows);
     const ownerToken = String(wx.getStorageSync('token') || '');
     const ownerScope = progress.currentOwnerScope ? progress.currentOwnerScope() : '';
     const query = this.data.searchKeyword || 'Software Engineer jobs';
@@ -500,7 +613,7 @@ Page({
     const cacheKey = this._jobsCacheKey();
     const patch = { loading: true, loadError: '' };
     if (reset) {
-      patch.jobs = [];
+      if (!preserveRows) patch.jobs = [];
       patch.currentPage = 1;
       patch.hasMore = true;
     }

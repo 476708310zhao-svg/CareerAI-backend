@@ -7,6 +7,8 @@ const notebook = require('../../../utils/interview-notebook.js');
 const navigation = require('../../../utils/navigation.js');
 const apiClient = require('../../../utils/api-client.js');
 const dailyTasks = require('../../../utils/daily-tasks.js');
+const ownerStorage = require('../../../utils/owner-storage.js');
+const browseHistory = require('../../../utils/browse-history.js');
 
 const LOADING_TIPS = [
   '正在整理今日求职数据...',
@@ -152,6 +154,34 @@ Page({
   _tipTimer: null,
 
   onLoad() {
+    this._unloaded = false;
+    this._visible = true;
+    this._ownerScope = ownerStorage.capture();
+    this._requestGeneration = 0;
+    this._loadForOwner();
+  },
+
+  onShow() {
+    this._unloaded = false;
+    this._visible = true;
+    const owner = ownerStorage.capture();
+    if (owner === this._ownerScope) {
+      if (this._needsReload) {
+        this._needsReload = false;
+        this._loadForOwner();
+      }
+      return;
+    }
+    this._ownerScope = owner;
+    this._requestGeneration += 1;
+    this._clearTipTimer();
+    this.setData({ phase: 'idle', result: null, stats: null, brief: null });
+    this._loadForOwner();
+  },
+
+  _loadForOwner() {
+    const owner = this._ownerScope;
+    const generation = this._requestGeneration;
     const now = new Date();
     const month = now.getMonth() + 1;
     const day = now.getDate();
@@ -161,7 +191,7 @@ Page({
     this.setData({ todayStr });
 
     // Check if today's brief already exists
-    const cached = wx.getStorageSync('dailyBriefCache');
+    const cached = ownerStorage.get('dailyBriefCache', '', null);
     if (cached) {
       const cacheDate = new Date(cached.ts);
       const isToday = cacheDate.getFullYear() === now.getFullYear() &&
@@ -169,18 +199,35 @@ Page({
                       cacheDate.getDate() === now.getDate();
       if (isToday && cached.brief) {
         this.setData({ result: cached.result, stats: cached.stats, brief: cached.brief, phase: 'done' });
-        this._fetchRemoteBrief(true);
+        this._fetchRemoteBrief(true, owner, generation);
         return;
       }
     }
-    this._fetchRemoteBrief(true).then(found => {
-      if (found) return;
-      notebook.fetchRemoteDailyPractice().finally(() => this._collectStats());
+    this._fetchRemoteBrief(true, owner, generation).then(found => {
+      if (found || !this._isRequestCurrent(owner, generation)) return;
+      notebook.fetchRemoteDailyPractice().finally(() => {
+        if (this._isRequestCurrent(owner, generation)) this._collectStats(owner, generation);
+      });
     });
   },
 
   onUnload() {
+    this._unloaded = true;
+    this._visible = false;
+    this._requestGeneration += 1;
     this._clearTipTimer();
+  },
+
+  onHide() {
+    this._visible = false;
+    this._needsReload = true;
+    this._requestGeneration += 1;
+    this._clearTipTimer();
+  },
+
+  _isRequestCurrent(owner, generation) {
+    return !this._unloaded && this._visible && ownerStorage.isCurrent(owner)
+      && owner === this._ownerScope && generation === this._requestGeneration;
   },
 
   _clearTipTimer() {
@@ -191,7 +238,10 @@ Page({
   },
 
   // Collect activity data from localStorage
-  _collectStats() {
+  _collectStats(ownerScope, requestGeneration) {
+    const owner = ownerScope || ownerStorage.capture();
+    const generation = requestGeneration === undefined ? this._requestGeneration : requestGeneration;
+    if (!this._isRequestCurrent(owner, generation)) return;
     const progressStats = progress.getStats();
     const apps = progress.getList();
     const totalApps = progressStats.total;
@@ -200,13 +250,13 @@ Page({
     const offerApps = progressStats.offer;
 
     // Recent jobs viewed (from job view history)
-    let jobHistory = wx.getStorageSync('jobViewHistory') || [];
+    let jobHistory = browseHistory.getList();
     if (!Array.isArray(jobHistory)) jobHistory = [];
     const todayTs = new Date().setHours(0, 0, 0, 0);
     const todayJobs = jobHistory.filter(j => j.ts && j.ts >= todayTs);
 
     // Recent interview sessions
-    let interviewHistory = wx.getStorageSync('interviewHistory') || [];
+    let interviewHistory = ownerStorage.get('interviewHistory', '', []);
     if (!Array.isArray(interviewHistory)) interviewHistory = [];
     const recentInterviews = interviewHistory.slice(0, 3).map(h => ({
       company: h.company || '练习',
@@ -233,13 +283,13 @@ Page({
     };
     const brief = this._buildBrief(stats, apps);
     const fallbackResult = this._buildFallbackResult(stats, brief);
-    wx.setStorageSync('dailyBriefCache', { result: fallbackResult, stats, brief, ts: Date.now() });
+    ownerStorage.set('dailyBriefCache', '', { result: fallbackResult, stats, brief, ts: Date.now() });
     this.setData({ stats, brief, result: fallbackResult, phase: 'done' });
-    this._generate(stats, brief, true);
+    this._generate(stats, brief, true, owner, generation);
   },
 
   _buildBrief(stats, apps) {
-    const cachedJobs = wx.getStorageSync('cachedRecommendJobs') || [];
+    const cachedJobs = ownerStorage.get('cachedRecommendJobs', '', []);
     const demoJobs = demoData.enabled() ? demoData.getList('RECOMMEND_JOBS') : [];
     const recommendedJobs = (Array.isArray(cachedJobs) && cachedJobs.length ? cachedJobs : demoJobs)
       .slice(0, 3)
@@ -308,22 +358,28 @@ Page({
     };
   },
 
-  _saveDailyBriefResult(result, stats, brief) {
-    wx.setStorageSync('dailyBriefCache', { result, stats, brief, ts: Date.now() });
+  _saveDailyBriefResult(result, stats, brief, ownerScope, requestGeneration) {
+    const owner = ownerScope || ownerStorage.capture();
+    const generation = requestGeneration === undefined ? this._requestGeneration : requestGeneration;
+    if (!this._isRequestCurrent(owner, generation)) return;
+    ownerStorage.set('dailyBriefCache', '', { result, stats, brief, ts: Date.now() });
     this.setData({ result, stats, brief, phase: 'done' });
-    this._syncRemoteBrief(result, stats, brief).catch(() => {});
+    this._syncRemoteBrief(result, stats, brief, owner).catch(() => {});
   },
 
-  _fetchRemoteBrief(silent) {
+  _fetchRemoteBrief(silent, ownerScope, requestGeneration) {
+    const owner = ownerScope || ownerStorage.capture();
+    const generation = requestGeneration === undefined ? this._requestGeneration : requestGeneration;
     return apiClient.request({
       path: '/api/career-assets/daily-brief',
       params: { date: dailyTasks.todayKey() },
       noCache: true,
       timeout: 12000
     }).then(res => {
+      if (!this._isRequestCurrent(owner, generation)) return false;
       if (!res || res.code !== 0 || !res.data || !res.data.result) return false;
       const payload = res.data;
-      wx.setStorageSync('dailyBriefCache', {
+      ownerStorage.set('dailyBriefCache', '', {
         result: payload.result,
         stats: payload.stats,
         brief: payload.brief,
@@ -337,12 +393,14 @@ Page({
       });
       return true;
     }).catch(err => {
-      if (!silent) console.warn('daily brief remote fetch failed:', err);
+      if (!silent && this._isRequestCurrent(owner, generation)) console.warn('daily brief remote fetch failed:', err);
       return false;
     });
   },
 
-  _syncRemoteBrief(result, stats, brief) {
+  _syncRemoteBrief(result, stats, brief, ownerScope) {
+    const owner = ownerScope || ownerStorage.capture();
+    if (!ownerStorage.isCurrent(owner)) return Promise.resolve(null);
     return apiClient.post({
       path: '/api/career-assets/daily-brief',
       body: {
@@ -356,15 +414,21 @@ Page({
     });
   },
 
-  _useFallbackResult(stats, brief, silent, toastTitle) {
+  _useFallbackResult(stats, brief, silent, toastTitle, ownerScope, requestGeneration) {
+    const owner = ownerScope || ownerStorage.capture();
+    const generation = requestGeneration === undefined ? this._requestGeneration : requestGeneration;
+    if (!this._isRequestCurrent(owner, generation)) return;
     const result = this.data.result || this._buildFallbackResult(stats, brief);
-    this._saveDailyBriefResult(result, stats, brief);
+    this._saveDailyBriefResult(result, stats, brief, owner, generation);
     if (!silent && toastTitle) {
       wx.showToast({ title: toastTitle, icon: 'none' });
     }
   },
 
-  _generate(stats, brief, silent) {
+  _generate(stats, brief, silent, ownerScope, requestGeneration) {
+    const owner = ownerScope || ownerStorage.capture();
+    const generation = requestGeneration === undefined ? this._requestGeneration : requestGeneration;
+    if (!this._isRequestCurrent(owner, generation)) return;
     if (!silent) this.setData({ phase: 'loading', loadingTip: LOADING_TIPS[0] });
 
     let idx = 0;
@@ -411,31 +475,39 @@ ${profileDesc}
 
     sendChatToDeepSeek([{ role: 'user', content: prompt }])
       .then(response => {
+        if (!this._isRequestCurrent(owner, generation)) return;
         this._clearTipTimer();
         const fallback = this._buildFallbackResult(stats, brief);
         const result = normalizeDailyBriefResult(parseDailyBriefResult(response), fallback);
         if (!result) {
           console.warn('每日简报 AI 内容不可用，已保留基础日报');
-          this._useFallbackResult(stats, brief, silent, '已生成基础日报');
+          this._useFallbackResult(stats, brief, silent, '已生成基础日报', owner, generation);
           return;
         }
-        this._saveDailyBriefResult(result, stats, brief);
+        this._saveDailyBriefResult(result, stats, brief, owner, generation);
       })
       .catch(err => {
+        if (!this._isRequestCurrent(owner, generation)) return;
         this._clearTipTimer();
         console.warn('每日简报 AI 请求失败，已保留基础日报:', err);
-        this._useFallbackResult(stats, brief, silent, '已生成基础日报');
+        this._useFallbackResult(stats, brief, silent, '已生成基础日报', owner, generation);
       });
   },
 
   refresh() {
+    const owner = ownerStorage.capture();
+    this._ownerScope = owner;
+    this._requestGeneration += 1;
+    const generation = this._requestGeneration;
     this.setData({ phase: 'idle', result: null });
-    wx.removeStorageSync('dailyBriefCache');
-    setTimeout(() => this._collectStats(), 100);
+    ownerStorage.remove('dailyBriefCache');
+    setTimeout(() => {
+      if (this._isRequestCurrent(owner, generation)) this._collectStats(owner, generation);
+    }, 100);
   },
 
   retryGenerate() {
-    this._collectStats();
+    this._collectStats(this._ownerScope, this._requestGeneration);
   },
 
   goProgress() {

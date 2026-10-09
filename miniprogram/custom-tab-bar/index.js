@@ -1,4 +1,5 @@
 const navigation = require('../utils/navigation.js');
+const unreadMessages = require('../utils/unread-messages.js');
 
 const FULL_TAB_LIST = [
   {
@@ -8,10 +9,10 @@ const FULL_TAB_LIST = [
     selectedIconPath: '/images/home-active.png'
   },
   {
-    pagePath: 'pages/resources/resources',
-    text: '资源',
-    iconPath: '/images/experience.png',
-    selectedIconPath: '/images/experience-active.png'
+    pagePath: 'pages/jobs/jobs',
+    text: '找岗位',
+    iconPath: '/images/jobs.png',
+    selectedIconPath: '/images/jobs-active.png'
   },
   {
     pagePath: 'pages/applications/applications',
@@ -20,10 +21,10 @@ const FULL_TAB_LIST = [
     selectedIconPath: '/images/icon-apply.png'
   },
   {
-    pagePath: 'pages/ai-career/ai-career',
-    text: 'AI专家',
-    iconPath: '/images/icon-ai-assistant-muted.png',
-    selectedIconPath: '/images/icon-ai-assistant.png'
+    pagePath: 'pages/resources/resources',
+    text: '资源中心',
+    iconPath: '/images/assess.png',
+    selectedIconPath: '/images/assess-active.png'
   },
   {
     pagePath: 'pages/profile/profile',
@@ -62,14 +63,11 @@ Component({
     syncState() {
       const pages = getCurrentPages();
       const current = pages[pages.length - 1] || {};
+      // app.json and the custom TabBar must expose the same five stable tabs.
+      // Feature flags gate page content/actions, not the native tab topology.
       const list = FULL_TAB_LIST;
       const selected = this.routeToIndex(current.route, list);
-      const app = getApp();
-      const storedCount = Number(wx.getStorageSync('unreadMessages')) || 0;
-      const appCount = app && app.globalData && typeof app.globalData.unreadCount === 'number'
-        ? app.globalData.unreadCount
-        : null;
-      const unreadCount = appCount === null ? storedCount : appCount;
+      const unreadCount = unreadMessages.get();
 
       const nextSelected = selected >= 0 ? selected : this.data.selected;
       const nextBadgeText = unreadCount > 99 ? '99+' : String(unreadCount);
@@ -114,10 +112,6 @@ Component({
         fail: () => this.syncState()
       });
       if (!started) this.syncState();
-    },
-
-    goAiAssistant() {
-      navigation.safeNavigateTo('/package-ai/pages/ai-assistant/ai-assistant');
     }
   }
 });

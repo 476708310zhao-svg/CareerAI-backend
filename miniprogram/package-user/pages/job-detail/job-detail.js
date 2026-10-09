@@ -768,7 +768,7 @@ Requirements:
         cancelText: '稍后',
         confirmText: '去完善',
         success: (res) => {
-          if (res.confirm) wx.navigateTo({ url: '/package-career/pages/resume/resume' });
+          if (res.confirm) wx.navigateTo({ url: '/package-career/pages/resume-center/resume-center' });
         }
       });
       return;

@@ -11,12 +11,10 @@ function read(relativePath) {
 
 const GATED_PAGES = [
   'pages/applications/applications',
-  'pages/ai-career/ai-career',
   'pages/jobs/jobs',
   'package-agency/pages/agency-detail/agency-detail',
   'package-content/pages/experience-detail/experience-detail',
   'package-career/pages/salary/salary',
-  'package-career/pages/resume/resume',
   'package-user/pages/settings/settings',
   'package-user/pages/vip/vip',
   'package-ai/pages/interview-dialog/interview-dialog'
@@ -39,16 +37,35 @@ test('login-required actions use the shared in-page login gate', () => {
   });
 });
 
-test('progress and AI expert login cards no longer redirect to Profile', () => {
+test('progress login card no longer redirects to Profile', () => {
   const progressJs = read('pages/applications/applications.js');
   const progressWxml = read('pages/applications/applications.wxml');
-  const careerJs = read('pages/ai-career/ai-career.js');
-  const careerWxml = read('pages/ai-career/ai-career.wxml');
 
   assert.doesNotMatch(progressJs, /safeSwitchTab\(['"]\/pages\/profile\/profile/);
-  assert.doesNotMatch(careerJs, /safeSwitchTab\(['"]\/pages\/profile\/profile/);
   assert.match(progressWxml, /bindtap="promptLogin">立即登录/);
-  assert.match(careerWxml, /bindtap="promptLogin">立即登录/);
+});
+
+test('AI Career compatibility routes safely redirect to the login-gated unified assistant', () => {
+  const assistantJs = read('package-ai/pages/ai-assistant/ai-assistant.js');
+  const assistantWxml = read('package-ai/pages/ai-assistant/ai-assistant.wxml');
+
+  ['pages/ai-career/ai-career', 'package-ai/pages/ai-career/ai-career'].forEach(page => {
+    const js = read(page + '.js');
+    const wxml = read(page + '.wxml');
+    assert.match(js, /ALLOWED_QUERY_KEYS\s*=\s*new Set\(\['action', 'applicationId', 'prompt'\]\)/);
+    assert.match(js, /\.filter\(key => ALLOWED_QUERY_KEYS\.has\(key\)\)/);
+    assert.match(js, /wx\.redirectTo\(\{ url: '\/package-ai\/pages\/ai-assistant\/ai-assistant'/);
+    assert.match(js, /fail:\s*\(\) => wx\.showToast/);
+    assert.doesNotMatch(js, /aiCareerCompatTasks|createAgentTask|loadTasks\(|getStorageSync\(/);
+    assert.match(wxml, /正在打开 AI 助手/);
+  });
+
+  assert.match(assistantJs, /_getToken\(\)/);
+  assert.match(assistantJs, /sendMessage\(\)[\s\S]*?if \(!this\._getToken\(\)\) \{[\s\S]*?this\._showLoginRequired\(/);
+  assert.match(assistantJs, /_handleAuthExpired\(\)[\s\S]*?this\._showLoginRequired\(/);
+  assert.match(assistantWxml, /<c-login-popup/);
+  assert.match(assistantWxml, /show="\{\{showLoginPopup\}\}"/);
+  assert.match(assistantWxml, /bind:success="onLoginSuccess"/);
 });
 
 test('login popup uses the optimized Zhiyin brand logo', () => {

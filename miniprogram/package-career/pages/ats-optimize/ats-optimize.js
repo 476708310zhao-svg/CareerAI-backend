@@ -164,6 +164,6 @@ Page({
 
   // 跳转简历页
   goToResume() {
-    wx.navigateTo({ url: '/package-career/pages/resume/resume' });
+    wx.navigateTo({ url: '/package-career/pages/resume-center/resume-center' });
   },
 });

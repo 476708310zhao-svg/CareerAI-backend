@@ -39,7 +39,9 @@ module.exports = {
   // and authenticated-route smoke checks.
   V4_AGENT_API_ENABLED: true,
 
-  // Used only until the public feature endpoint responds for the first time.
+  // Used only while the public feature state is unknown. This optimistic
+  // client fallback keeps the fixed Jobs tab usable during a cold-start
+  // network failure; a cached or server-provided false remains authoritative.
   DEFAULT_FEATURE_FLAGS: {
     recruitment: true,
     home_recommendations: false,

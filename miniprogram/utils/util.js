@@ -6,9 +6,9 @@ const { timestamp } = require('./date-time.js');
 
 const TAB_URLS = [
   '/pages/index/index',
-  '/pages/resources/resources',
+  '/pages/jobs/jobs',
   '/pages/applications/applications',
-  '/pages/ai-career/ai-career',
+  '/pages/resources/resources',
   '/pages/profile/profile'
 ];
 

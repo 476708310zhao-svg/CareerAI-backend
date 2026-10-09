@@ -3,7 +3,7 @@ const navigation = require('../../../utils/navigation.js');
 Page({
   data: {
     quickActions: [
-      { id: 'resume', label: '简历中心', url: '/package-career/pages/resume/resume' },
+      { id: 'resume', label: '简历中心', url: '/package-career/pages/resume-center/resume-center' },
       { id: 'progress', label: '申请管线', url: '/pages/applications/applications' },
       { id: 'ai', label: 'AI 助手', url: '/package-ai/pages/ai-assistant/ai-assistant' },
       { id: 'favorites', label: '收藏夹', url: '/package-user/pages/favorites/favorites' }

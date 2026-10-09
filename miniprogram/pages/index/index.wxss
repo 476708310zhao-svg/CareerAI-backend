@@ -49,7 +49,6 @@
 .banner-wrap {
   margin-top: 28rpx;
 }
-
 .membership-benefit-banner {
   position: relative;
   min-height: 108rpx;

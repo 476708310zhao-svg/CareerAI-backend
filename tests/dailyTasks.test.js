@@ -8,9 +8,12 @@ global.wx = {
 };
 
 const dailyTasks = require('../miniprogram/utils/daily-tasks');
+const progress = require('../miniprogram/utils/job-progress');
+const notebook = require('../miniprogram/utils/interview-notebook');
+const DONE_KEY = 'dailyTaskDoneMap:guest';
 
 test('daily task state records offline changes and clears pending state after sync', () => {
-  storage.dailyTaskDoneMap = {};
+  storage[DONE_KEY] = {};
   dailyTasks.setTaskDone('remote_12', true, { pending: true, serverId: 12 });
   const pending = dailyTasks.readTaskState('remote_12');
   assert.equal(pending.done, true);
@@ -26,7 +29,7 @@ test('daily task state records offline changes and clears pending state after sy
 });
 
 test('daily task state migrates legacy boolean completion values', () => {
-  storage.dailyTaskDoneMap = {
+  storage[DONE_KEY] = {
     [dailyTasks.todayKey()]: { legacy_task: true }
   };
   const state = dailyTasks.readTaskState('legacy_task');
@@ -44,10 +47,10 @@ test('SQLite server timestamps reconcile completion without iOS-only date parsin
       super(...args);
     }
   }
-  storage.dailyTaskDoneMap = {};
+  storage[DONE_KEY] = {};
   global.Date = IOSDate;
   try {
-    wx.setStorageSync('dailyTaskDoneMap', {
+    wx.setStorageSync(DONE_KEY, {
       [dailyTasks.todayKey()]: {
         sqlite_task: { done: false, pending: true, updatedAt: '2026-07-14T08:00:00.000Z' }
       }
@@ -60,4 +63,35 @@ test('SQLite server timestamps reconcile completion without iOS-only date parsin
     assert.equal(util.formatDate('2026-07-14 09:03:56'), util.formatDate('2026-07-14T09:03:56Z'));
     assert.equal(util.formatTimeAgo('not-a-date'), '--');
   } finally { global.Date = NativeDate; }
+});
+
+test('Today preview keeps high before medium before low and takes only the first three', () => {
+  const originals = {
+    getStats: progress.getStats,
+    getList: progress.getList,
+    getUpcomingDeadlines: progress.getUpcomingDeadlines,
+    getTodayInterviews: progress.getTodayInterviews,
+    getDailyPractice: notebook.getDailyPractice
+  };
+  storage[DONE_KEY] = {};
+  storage['onlineResume:guest'] = { score: 95 };
+  storage['cachedRecommendJobs:guest'] = [];
+  progress.getStats = () => ({ active: 1 });
+  progress.getList = () => [];
+  progress.getUpcomingDeadlines = () => [{ id: 11 }];
+  progress.getTodayInterviews = () => [];
+  notebook.getDailyPractice = () => [];
+  try {
+    const preview = dailyTasks.buildTasks().slice(0, 3);
+    assert.deepEqual(preview.map(item => item.priority), ['high', 'medium', 'low']);
+    assert.equal(preview.length, 3);
+  } finally {
+    Object.assign(progress, {
+      getStats: originals.getStats,
+      getList: originals.getList,
+      getUpcomingDeadlines: originals.getUpcomingDeadlines,
+      getTodayInterviews: originals.getTodayInterviews
+    });
+    notebook.getDailyPractice = originals.getDailyPractice;
+  }
 });

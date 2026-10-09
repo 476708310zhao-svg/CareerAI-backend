@@ -1,6 +1,7 @@
 const PRIMARY_KEY = 'jobBrowseHistory';
 const LEGACY_KEY = 'viewHistory';
 const MAX_ITEMS = 20;
+const ownerStorage = require('./owner-storage.js');
 
 function normalize(item) {
   if (!item) return null;
@@ -17,17 +18,14 @@ function normalize(item) {
 }
 
 function readRaw(key) {
-  try {
-    return wx.getStorageSync(key) || [];
-  } catch (e) {
-    return [];
-  }
+  const value = ownerStorage.get(key, '', []);
+  return Array.isArray(value) ? value : [];
 }
 
 function save(list) {
   const normalized = (list || []).map(normalize).filter(Boolean).slice(0, MAX_ITEMS);
-  wx.setStorageSync(PRIMARY_KEY, normalized);
-  wx.setStorageSync(LEGACY_KEY, normalized);
+  ownerStorage.set(PRIMARY_KEY, '', normalized);
+  ownerStorage.set(LEGACY_KEY, '', normalized);
   return normalized;
 }
 
@@ -53,8 +51,8 @@ function add(item) {
 }
 
 function clear() {
-  wx.removeStorageSync(PRIMARY_KEY);
-  wx.removeStorageSync(LEGACY_KEY);
+  ownerStorage.remove(PRIMARY_KEY);
+  ownerStorage.remove(LEGACY_KEY);
 }
 
 module.exports = { add, getList, clear };

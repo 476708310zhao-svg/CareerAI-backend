@@ -1,5 +1,6 @@
 const progress = require('./job-progress.js');
 const notebook = require('./interview-notebook.js');
+const ownerStorage = require('./owner-storage.js');
 const { timestamp } = require('./date-time.js');
 
 const DONE_KEY = 'dailyTaskDoneMap';
@@ -13,20 +14,15 @@ function todayKey() {
 }
 
 function readDoneMap() {
-  try {
-    const all = wx.getStorageSync(DONE_KEY) || {};
-    return all[todayKey()] || {};
-  } catch (e) {
-    return {};
-  }
+  const all = ownerStorage.get(DONE_KEY, '', {});
+  return all && typeof all === 'object' ? (all[todayKey()] || {}) : {};
 }
 
 function writeDoneMap(map) {
-  try {
-    const all = wx.getStorageSync(DONE_KEY) || {};
-    all[todayKey()] = map || {};
-    wx.setStorageSync(DONE_KEY, all);
-  } catch (e) {}
+  const all = ownerStorage.get(DONE_KEY, '', {});
+  const next = all && typeof all === 'object' ? Object.assign({}, all) : {};
+  next[todayKey()] = map || {};
+  try { ownerStorage.set(DONE_KEY, '', next); } catch (e) {}
 }
 
 function readTaskState(id, map) {
@@ -113,21 +109,13 @@ function isSameDay(ts) {
 }
 
 function getResumeScore() {
-  try {
-    const resume = wx.getStorageSync('onlineResume') || {};
-    return Number(resume.score || 0);
-  } catch (e) {
-    return 0;
-  }
+  const resume = ownerStorage.get('onlineResume', '', {});
+  return Number(resume && resume.score || 0);
 }
 
 function getRecommendedJobCount() {
-  try {
-    const cached = wx.getStorageSync('cachedRecommendJobs') || [];
-    return Array.isArray(cached) ? cached.length : 0;
-  } catch (e) {
-    return 0;
-  }
+  const cached = ownerStorage.get('cachedRecommendJobs', '', []);
+  return Array.isArray(cached) ? cached.length : 0;
 }
 
 function normalizeTask(task, doneMap) {
@@ -170,12 +158,16 @@ function buildTasks() {
   }
 
   if (todayInterviews.length) {
+    const interview = todayInterviews[0] || {};
+    const applicationId = /^\d+$/.test(String(interview.id || '')) ? String(interview.id) : '';
     tasks.push({
-      id: 'interview_' + (todayInterviews[0].id || 'today'),
+      id: 'interview_' + (interview.id || 'today'),
       type: 'interview',
       title: '完成今日面试准备',
       desc: `${todayInterviews.length} 场面试待准备，先复盘 JD 和常见问题`,
-      url: '/package-ai/pages/interview-setup/interview-setup',
+      url: applicationId
+        ? '/package-ai/pages/interview-space/interview-space?applicationId=' + encodeURIComponent(applicationId)
+        : '/package-ai/pages/interview-setup/interview-setup',
       priority: 'high'
     });
   }
@@ -217,7 +209,7 @@ function buildTasks() {
       type: 'resume',
       title: '优化默认简历',
       desc: resumeScore ? `当前完整度约 ${resumeScore}%，补齐项目亮点` : '先完善基础信息、项目和技能关键词',
-      url: '/package-career/pages/resume/resume',
+      url: '/package-career/pages/resume-center/resume-center',
       priority: 'medium'
     });
   }
@@ -245,7 +237,8 @@ function buildTasks() {
   const priorityRank = { high: 0, medium: 1, low: 2 };
   return tasks
     .map(task => normalizeTask(task, doneMap))
-    .sort((a, b) => (a.done - b.done) || ((priorityRank[a.priority] || 9) - (priorityRank[b.priority] || 9)))
+    .sort((a, b) => (a.done - b.done)
+      || ((priorityRank[a.priority] ?? 9) - (priorityRank[b.priority] ?? 9)))
     .slice(0, 6);
 }
 

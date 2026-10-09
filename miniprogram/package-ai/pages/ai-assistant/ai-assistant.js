@@ -14,7 +14,7 @@ const savedKey = () => ownerStorage.key(SAVED_KEY);
 const MAX_CACHE   = 30;
 const TIME_GAP_MS = 5 * 60 * 1000;
 const CURSOR      = '▋';
-const TAB_PAGES   = new Set(['/pages/index/index', '/pages/resources/resources', '/pages/applications/applications', '/pages/ai-career/ai-career', '/pages/profile/profile']);
+const TAB_PAGES   = new Set(['/pages/index/index', '/pages/jobs/jobs', '/pages/applications/applications', '/pages/resources/resources', '/pages/profile/profile']);
 const FALLBACK_SYSTEM = '你是「职引」平台的 AI 求职助手，专注留学生求职。请用中文给出简洁、具体、可执行的建议，控制在 300 字以内，必要时用列表拆解步骤。';
 
 // ─── Markdown → HTML（用于 rich-text，仅处理 AI 输出）─────────
@@ -283,7 +283,7 @@ Page({
       { icon: 'MI', title: '模拟面试', desc: '设定岗位开始训练', url: '/package-ai/pages/interview-setup/interview-setup' },
       { icon: 'AR', title: '语音复盘', desc: '上传录音生成建议', url: '/package-ai/pages/audio-review/audio-review' },
       { icon: 'PR', title: '项目复盘', desc: '用 STAR 打磨亮点', url: '/package-ai/pages/project-review/project-review' },
-      { icon: 'CV', title: '简历优化', desc: '经历、关键词、ATS', url: '/package-career/pages/resume/resume' }
+      { icon: 'CV', title: '简历优化', desc: '经历、关键词、ATS', url: '/package-career/pages/resume-center/resume-center' }
     ],
     assistantTools: [
       { icon: 'AI', title: '求职问答', desc: '简历、岗位、面试都可以直接问', prompt: '我现在想做一次求职路径梳理，请先问我 3 个关键信息。' },
@@ -291,7 +291,7 @@ Page({
       { icon: 'MI', title: '模拟面试', desc: '生成问题、追问和复盘', url: '/package-ai/pages/interview-setup/interview-setup' },
       { icon: 'AR', title: '语音复盘', desc: '分析回答结构和表达清晰度', url: '/package-ai/pages/audio-review/audio-review' },
       { icon: 'PR', title: '项目复盘', desc: '把项目经历打磨成面试素材', url: '/package-ai/pages/project-review/project-review' },
-      { icon: 'CV', title: '简历优化', desc: '润色经历与匹配 ATS', url: '/package-career/pages/resume/resume' },
+      { icon: 'CV', title: '简历优化', desc: '润色经历与匹配 ATS', url: '/package-career/pages/resume-center/resume-center' },
       { icon: '路', title: '求职规划', desc: '生成阶段路线图', url: '/package-career/pages/career-planner/career-planner' },
       { icon: '历', title: 'AI 历史', desc: '查看历史对话和报告', url: '/package-ai/pages/ai-history/ai-history' }
     ],
@@ -603,7 +603,7 @@ Page({
 
   goApplicationResume() {
     this.setData({ showApplicationPanel: false });
-    wx.navigateTo({ url: '/package-career/pages/resume/resume' });
+    wx.navigateTo({ url: '/package-career/pages/resume-center/resume-center' });
   },
 
   generateApplicationDraft() {

@@ -6,12 +6,12 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..', 'miniprogram');
 const EXPECTED_TABS = [
   'pages/index/index',
-  'pages/resources/resources',
+  'pages/jobs/jobs',
   'pages/applications/applications',
-  'pages/ai-career/ai-career',
+  'pages/resources/resources',
   'pages/profile/profile'
 ];
-const EXPECTED_TAB_LABELS = ['首页', '资源', '进度', 'AI专家', '我的'];
+const EXPECTED_TAB_LABELS = ['首页', '找岗位', '进度', '资源中心', '我的'];
 
 function read(relativePath) {
   return fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
@@ -40,7 +40,7 @@ function literalSwitchTargets(source) {
   return targets;
 }
 
-test('V4 TabBar uses Home, Resources, Progress, AI Expert and Profile main-package pages', () => {
+test('V5 TabBar restores Resources fourth between Progress and Profile', () => {
   const app = JSON.parse(read('app.json'));
   const tabPaths = app.tabBar.list.map(item => item.pagePath);
   assert.deepEqual(tabPaths, EXPECTED_TABS);
@@ -72,6 +72,15 @@ test('custom TabBar and navigation helper stay aligned with app.json', () => {
   });
 });
 
+test('feature flags never change the five-tab topology', () => {
+  const customSource = read('custom-tab-bar/index.js');
+
+  assert.doesNotMatch(customSource, /getVisibleTabList|isRecruitmentEnabled|filter\(item => item\.pagePath/);
+  assert.match(customSource, /const list = FULL_TAB_LIST/);
+  assert.match(read('app.json'), /"pagePath":\s*"pages\/jobs\/jobs"/);
+  assert.match(read('utils/navigation.js'), /'\/pages\/jobs\/jobs'/);
+});
+
 test('literal switchTab calls only target configured TabBar pages', () => {
   const allowed = new Set(EXPECTED_TABS);
   const invalid = [];
@@ -83,19 +92,47 @@ test('literal switchTab calls only target configured TabBar pages', () => {
   assert.deepEqual(invalid, []);
 });
 
-test('global AI floating entry and home membership banner remain available', () => {
+test('application pipeline entry points use the main progress Tab', () => {
+  const entrySources = [
+    read('pages/index/index.js'),
+    read('utils/daily-tasks.js'),
+    read('package-user/pages/usage-guide/usage-guide.js')
+  ];
+  entrySources.forEach(source => {
+    assert.match(source, /\/pages\/applications\/applications/);
+    assert.doesNotMatch(source, /package-user\/pages\/job-progress\/job-progress/);
+  });
+  // The legacy page remains referenced only by the local-record compatibility path and share config.
+  assert.match(read('pages/applications/applications.js'), /package-user\/pages\/job-progress\/job-progress/);
+  const legacyProgress = read('package-user/pages/job-progress/job-progress.js');
+  assert.match(legacyProgress, /options\.legacy !== '1'/);
+  assert.match(legacyProgress, /safeSwitchTab\('\/pages\/applications\/applications'\)/);
+});
+
+
+
+
+test('home keeps one highest-priority action without a global floating AI entry', () => {
   const customWxml = read('custom-tab-bar/index.wxml');
   const customJs = read('custom-tab-bar/index.js');
+  const customWxss = read('custom-tab-bar/index.wxss');
   const homeWxml = read('pages/index/index.wxml');
   const homeJs = read('pages/index/index.js');
 
-  assert.match(customWxml, /class="ai-float"/);
-  assert.match(customWxml, /catchtap="goAiAssistant"/);
-  assert.match(customJs, /goAiAssistant\(\)/);
-  assert.match(customJs, /package-ai\/pages\/ai-assistant\/ai-assistant/);
+  assert.doesNotMatch(customWxml, /ai-float|goAiAssistant/);
+  assert.doesNotMatch(customJs, /goAiAssistant|package-ai\/pages\/ai-assistant\/ai-assistant/);
+  assert.doesNotMatch(customWxss, /ai-float|ai-orbit|ai-glow/);
+  assert.equal((homeWxml.match(/<home-career-plan\b/g) || []).length, 1);
+  assert.ok(homeWxml.indexOf('<home-career-plan') < homeWxml.indexOf('class="banner-wrap"'));
+  assert.doesNotMatch(homeWxml, /\sautoplay(?:\s|>)/);
+  assert.doesNotMatch(homeWxml, /today-task-card|todayTaskPreview/);
   assert.match(homeWxml, /class="membership-benefit-banner/);
   assert.match(homeWxml, /真实微信支付暂未开放/);
   assert.match(homeJs, /openMembershipBenefits\(\)/);
+  assert.match(homeJs, /title: '2027 Summer Internship 求职季'/);
+  assert.match(homeJs, /title: '今日校招机会更新'/);
+  assert.match(homeJs, /title: 'AI 模拟面试'/);
+  assert.match(homeJs, /slice\(0, 3\)/);
 });
 
 test('home recommendations are controlled by an independent public feature flag', () => {
@@ -109,15 +146,21 @@ test('home recommendations are controlled by an independent public feature flag'
   assert.match(featureClient, /home_recommendations/);
 });
 
-test('home workbench always uses the Today tasks headline across local login states', () => {
+test('home workbench distinguishes no application, next task and honest empty states', () => {
   const homeJs = read('pages/index/index.js');
 
-  assert.match(homeJs, /const title = `今天有 \$\{pendingTaskCount\} 项求职任务`/);
-  assert.match(homeJs, /primaryText = stats\.todayInterviews \? '准备今日面试' : '查看今日任务'/);
-  assert.match(homeJs, /package-ai\/pages\/daily-brief\/daily-brief/);
+  assert.match(homeJs, /const pendingTaskCount = Number\(taskStats\.pending \|\| 0\)/);
+  assert.match(homeJs, /if \(!hasApplications\)/);
+  assert.match(homeJs, /'找到第一个目标岗位'/);
+  assert.match(homeJs, /'暂时没有待处理事项'/);
+  assert.match(homeJs, /primaryUrl = '\/pages\/jobs\/jobs'/);
+  assert.doesNotMatch(homeJs, /'今日任务已完成'/);
+  assert.doesNotMatch(homeJs, /Math\.max\(1, Number\(taskStats\.pending/);
   assert.doesNotMatch(homeJs, /let title = '完成你的求职档案'/);
   assert.doesNotMatch(homeJs, /title = '先完善简历，再开始精准匹配'/);
 });
+
+
 
 test('resume version helper stays inside the AI subpackage instead of bloating the main package', () => {
   const mainHelper = path.join(ROOT, 'utils', 'resume-versions.js');
@@ -131,37 +174,15 @@ test('resume version helper stays inside the AI subpackage instead of bloating t
   assert.match(jdMatchJs, /require\('\.\.\/\.\.\/utils\/resume-versions\.js'\)/);
 });
 
-test('resume page hides scroll indicators and keeps profile details in one card', () => {
-  const resumeWxml = read('package-career/pages/resume/resume.wxml');
-  const resumeWxss = read('package-career/pages/resume/resume.wxss');
-
-  assert.match(
-    resumeWxml,
-    /class="section-card profile-summary-card"[\s\S]*基本信息[\s\S]*profile-card-divider[\s\S]*个人优势/
-  );
-  assert.doesNotMatch(
-    resumeWxml,
-    /<scroll-view(?=[^>]*scroll-y)(?![^>]*show-scrollbar="\{\{false\}\}")/
-  );
-  assert.match(resumeWxss, /page::-webkit-scrollbar/);
-  assert.match(resumeWxss, /\.profile-card-divider/);
-});
-
-test('resume manual editors keep native input text visible and persist controlled values', () => {
+test('legacy resume route is a lightweight compatibility redirect to resume center', () => {
   const resumeWxml = read('package-career/pages/resume/resume.wxml');
   const resumeJs = read('package-career/pages/resume/resume.js');
-  const resumeWxss = read('package-career/pages/resume/resume.wxss');
-
-  assert.match(resumeWxml, /class="form-input"[^>]*placeholder-class="form-placeholder"[^>]*always-embed="\{\{true\}\}"/);
-  assert.match(resumeWxml, /class="form-textarea"[^>]*placeholder-class="form-placeholder"/);
-  assert.doesNotMatch(resumeWxml, /class="(?:form-textarea|edit-textarea)"[^>]*auto-height/);
-  assert.match(resumeWxss, /\.form-input\s*\{[\s\S]*?height:\s*88rpx;[\s\S]*?padding:\s*0 24rpx;/);
-  assert.match(resumeWxss, /\.skill-input\s*\{[\s\S]*?height:\s*80rpx;[\s\S]*?padding:\s*0 20rpx;/);
-  assert.match(resumeWxss, /\.form-placeholder\s*\{[\s\S]*?color:\s*#98a2b3;/);
-  assert.match(resumeJs, /function updateFormField\(page, formKey, event\)/);
-  assert.match(resumeJs, /saveWorkExp\(\)[\s\S]*?onlineResume:\s*nextResume[\s\S]*?_saveResume\(nextResume\)/);
-  assert.match(resumeJs, /saveEdu\(\)[\s\S]*?onlineResume:\s*nextResume[\s\S]*?_saveResume\(nextResume\)/);
-  assert.match(resumeJs, /saveProject\(\)[\s\S]*?onlineResume:\s*nextResume[\s\S]*?_saveResume\(nextResume\)/);
+  assert.match(resumeJs, /ALLOWED_QUERY_KEYS/);
+  assert.match(resumeJs, /resume-center\/resume-center/);
+  assert.match(resumeJs, /redirectTo/);
+  assert.match(resumeJs, /fail:[\s\S]*showToast/);
+  assert.doesNotMatch(resumeJs, /_saveResume|saveWorkExp|dailyBriefCache/);
+  assert.match(resumeWxml, /正在打开简历中心/);
 });
 
 test('search keeps live matching but records history only after an explicit submit', () => {

@@ -17,16 +17,16 @@
     </view>
   </view>
 
-  <view class="suggestion" wx:if="{{plan.suggestionTitle}}" bindtap="onSuggestion" hover-class="card-hover">
+  <view class="suggestion" wx:if="{{plan.suggestionTitle}}" bindtap="onPrimary" hover-class="card-hover" aria-role="button" aria-label="{{plan.primaryText}}">
     <view class="suggestion-mark">✓</view>
     <view class="suggestion-copy">
       <view class="suggestion-title-row">
-        <text class="suggestion-label">今日建议</text>
+        <text class="suggestion-label">为什么现在做</text>
         <text class="suggestion-title">{{plan.suggestionTitle}}</text>
       </view>
       <text class="suggestion-desc" wx:if="{{plan.suggestionDesc}}">{{plan.suggestionDesc}}</text>
     </view>
-    <view class="suggestion-action" wx:if="{{plan.primaryText}}" catchtap="onPrimary">
+    <view class="suggestion-action" wx:if="{{plan.primaryText}}">
       <text>{{plan.primaryText}}</text>
       <text class="suggestion-action-arrow">›</text>
     </view>

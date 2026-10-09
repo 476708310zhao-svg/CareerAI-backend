@@ -6,12 +6,10 @@
   position: relative;
   overflow: hidden;
   padding: 26rpx;
-  border: 1.5rpx solid #d9e5f4;
-  border-radius: 26rpx;
-  background:
-    radial-gradient(circle at 100% 0%, rgba(73, 139, 255, 0.08), transparent 34%),
-    linear-gradient(145deg, #ffffff 0%, #f6faff 100%);
-  box-shadow: 0 14rpx 34rpx rgba(38, 77, 132, 0.07);
+  border: 1rpx solid var(--color-line-soft);
+  border-radius: var(--card-radius);
+  background: var(--color-bg);
+  box-shadow: var(--shadow-card);
 }
 
 .plan-kicker,
@@ -211,8 +209,8 @@
   padding: 0 17rpx;
   border-radius: 999rpx;
   color: #ffffff;
-  background: linear-gradient(135deg, #1766ec 0%, #3d8cff 100%);
-  box-shadow: 0 8rpx 18rpx rgba(30, 105, 232, 0.2);
+  background: var(--color-brand);
+  box-shadow: var(--shadow-action);
   font-size: 19rpx;
   font-weight: 800;
 }

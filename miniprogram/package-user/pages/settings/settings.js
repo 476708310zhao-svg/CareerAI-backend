@@ -30,6 +30,8 @@ function clearLocalCareerData() {
     'audioReviewHistory',
     'projectReviewHistory',
     'dailyBriefCache',
+    'cachedRecommendJobs',
+    'jobSearchHistory',
     'interviewMistakeNotebook',
     'dailyPracticeQuestions'
   ].forEach(key => {
@@ -42,11 +44,14 @@ function clearLocalCareerData() {
   });
   ['aiReport:', 'lastAiReport:', 'interviewHistory:', 'interviewContext:', 'pendingResumeOptimization:',
     'applicationMaterials:', 'interviewMistakeNotebook:', 'dailyPracticeQuestions:'].forEach(removeStorageByPrefix);
+  ['jdMatchReports', 'dailyTaskDoneMap', 'cachedRecommendJobs', 'dailyBriefCache', 'jobSearchHistory']
+    .forEach(removeOwnerStorage);
 }
 
 function clearLocalResumeData() {
   ['onlineResume', 'resumeFiles'].forEach(key => {
     try { wx.removeStorageSync(key); } catch (e) {}
+    removeOwnerStorage(key);
   });
 }
 
@@ -151,6 +156,9 @@ Page({
         if (!res.confirm) return;
         wx.removeStorageSync('searchHistory');
         wx.removeStorageSync('jobSearchHistory');
+        removeOwnerStorage('jobSearchHistory');
+        // Remove the pre-owner-scoping key as a one-time privacy cleanup.
+        wx.removeStorageSync('dailyBriefCache');
         browseHistory.clear();
         wx.removeStorageSync('recentSearches');
         this.calcCacheSize();

@@ -1,5 +1,16 @@
 <!-- pages/jobs/jobs.wxml -->
 <view class="page">
+  <view wx:if="{{!recruitmentEnabled}}" class="recruitment-closed">
+    <view class="recruitment-closed-mark">岗</view>
+    <text class="recruitment-closed-title">岗位服务暂未开放</text>
+    <text class="recruitment-closed-desc">岗位列表当前由运营开关暂停。你仍可使用资源中心，或查看校招日历中的公开信息。</text>
+    <view class="recruitment-closed-actions">
+      <button class="recruitment-closed-primary" bindtap="openResources">打开资源中心</button>
+      <button class="recruitment-closed-secondary" bindtap="openCampusWhileClosed">查看校招日历</button>
+    </view>
+  </view>
+
+  <block wx:else>
   <view wx:if="{{isMockData}}" class="mock-tip">
     网络暂时不可用，当前展示本地备用职位
   </view>
@@ -271,6 +282,8 @@
     <view wx:if="{{!hasMore && !loadError && jobs.length > 0}}" class="tip">已显示全部结果</view>
     <view class="safe-tail"></view>
   </view>
+
+  </block>
 
   <c-login-popup
     show="{{authPromptVisible}}"
