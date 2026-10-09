@@ -10,6 +10,9 @@ const { fromNow, formatSalaryRange } = require('../../utils/util.js');
 const matcher = require('../../utils/matcher.js');
 const { markCachedDataMeta } = require('../../utils/data-provenance.js');
 const loginGate = require('../../behaviors/login-gate.js');
+const { queueJob } = require('../../utils/application-queue.js');
+const navigation = require('../../utils/navigation.js');
+const analytics = require('../../utils/analytics.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 const JOB_LIST_CACHE_TTL = 30 * 60 * 1000;
 
@@ -117,6 +120,8 @@ Page({
     totalJobs: 0,
     hasMore: true,
     loading: false,
+    loadError: '',
+    queueingJobId: '',
     isRefreshing: false,
 
     hotPositions: [
@@ -156,6 +161,38 @@ Page({
     profileMissing: []
   },
 
+  goCampusCalendar() {
+    wx.navigateTo({ url: '/pages/campus/campus' });
+  },
+
+  async addToQueue(e) {
+    const id = e.detail && e.detail.id;
+    const job = this.data.jobs.find(item => String(item.id) === String(id));
+    if (!job || this.data.queueingJobId) return;
+    if (!wx.getStorageSync('token')) {
+      this.ensureAuthenticated('登录后将岗位加入待投递并同步求职进度', () => this.addToQueue(e));
+      return;
+    }
+    const state = progress.getJobState(id);
+    if (state.inProgress && state.applicationStatus !== 'interested') {
+      navigation.safeSwitchTab('/pages/applications/applications');
+      return;
+    }
+    this.setData({ queueingJobId: String(id) });
+    try {
+      const app = await queueJob(job);
+      this._syncVisibleJobState();
+      analytics.track('mobile_application_queued', { jobId: String(id), applicationId: app.id, source: 'jobs_list' });
+      wx.showToast({ title: app.status === 'preparing' ? '已加入待投递' : '已在求职进度中', icon: 'success' });
+    } catch (error) {
+      wx.showToast({ title: error.message || '保存失败，请重试', icon: 'none' });
+    } finally {
+      this.setData({ queueingJobId: '' });
+    }
+  },
+
+  retryJobs() { this.loadJobs(this.data.jobs.length === 0); },
+
   _jobRequestSeq: 0,
   _lastJobRequestKey: '',
 
@@ -173,18 +210,27 @@ Page({
 
   onShow: function() {
     if (!featureFlags.guardRecruitmentPage()) return;
+    const token = String(wx.getStorageSync('token') || '');
+    const ownerScope = progress.currentOwnerScope ? progress.currentOwnerScope() : '';
+    if (this._ownerScope !== undefined && this._ownerScope !== ownerScope) {
+      this._handleOwnerChange(ownerScope, token);
+      return;
+    }
+    this._ownerScope = ownerScope;
+    this._ownerToken = token;
     const app = getApp();
     if (app && typeof app.syncCustomTabBar === 'function') app.syncCustomTabBar();
     clearTimeout(this._onShowSyncTimer);
     this._onShowSyncTimer = setTimeout(() => this._syncVisibleJobState(), 80);
+    this._syncFavoriteOwner(ownerScope, token);
   },
 
   _syncVisibleJobState: function() {
     if (this.data.jobs.length > 0) {
       const jobs = this.data.jobs.map(j => ({
         ...j,
-        isSaved: favUtil.isFavorited('job', String(j.id)),
-        isApplied: !!progress.getByJobId(j.id)
+        isSaved: this._favoritesBlocked ? false : favUtil.isFavorited('job', String(j.id)),
+        ...progress.getJobState(j.id)
       }));
       this.setData({ jobs });
     }
@@ -197,8 +243,15 @@ Page({
 
   onLoad: function(options) {
     if (!featureFlags.guardRecruitmentPage()) return;
+    this._ownerToken = String(wx.getStorageSync('token') || '');
+    const ownerScope = progress.currentOwnerScope ? progress.currentOwnerScope() : '';
+    this._ownerScope = ownerScope;
+    if (favUtil.prepareOwner) favUtil.prepareOwner();
+    const favoriteOwner = wx.getStorageSync('jobFavoritesVisibleOwner') || '';
+    this._favoritesBlocked = !ownerScope || favoriteOwner !== ownerScope;
     const searchHistory = wx.getStorageSync('jobSearchHistory') || [];
     this.setData({ searchHistory });
+    this._syncFavoriteOwner(ownerScope, this._ownerToken);
 
     if (options.keyword) {
       this.setData({ searchKeyword: options.keyword, activeTag: options.keyword });
@@ -212,8 +265,57 @@ Page({
   },
 
   onUnload: function() {
+    this._jobRequestSeq += 1;
     clearTimeout(this._onShowSyncTimer);
     clearTimeout(this._initialLoadTimer);
+  },
+
+  _syncFavoriteOwner: function(ownerScope, token) {
+    if (!ownerScope || !token || !favUtil.syncFromServer) return;
+    favUtil.syncFromServer().then(() => {
+      if (this._ownerScope !== ownerScope || String(wx.getStorageSync('token') || '') !== token) return;
+      this._favoritesBlocked = wx.getStorageSync('jobFavoritesVisibleOwner') !== ownerScope;
+      this._syncVisibleJobState();
+    });
+  },
+
+  _handleOwnerChange: function(ownerScope, token) {
+    const nextScope = String(ownerScope || '');
+    const nextToken = String(token || '');
+    if (this._ownerScope === nextScope) {
+      this._ownerToken = nextToken;
+      return;
+    }
+    this._ownerScope = nextScope;
+    this._ownerToken = nextToken;
+    this._jobRequestSeq += 1;
+    this._favoritesBlocked = true;
+    const jobs = (this.data.jobs || []).map(item => Object.assign({}, item, {
+      isSaved: false,
+      isApplied: false,
+      inProgress: false,
+      isQueued: false,
+      applicationStatus: '',
+      progressStatusText: '',
+      matchScore: 0,
+      matchScore100: 0,
+      isMatch: false,
+      matchReason: ''
+    }));
+    this.setData({
+      jobs,
+      matchMode: false,
+      filterSponsor: '',
+      matchKeywords: [],
+      profileComplete: 0,
+      profileMissing: [],
+      queueingJobId: '',
+      loading: false,
+      loadError: ''
+    });
+    if (favUtil.prepareOwner) favUtil.prepareOwner();
+    this._syncFavoriteOwner(nextScope, nextToken);
+    if (nextToken) this.loadJobs(true);
   },
 
   _loadCountries: function() {
@@ -236,9 +338,20 @@ Page({
       const cachedJobs = cachedItems.map(item => Object.assign({}, item, {
         dataMeta: markCachedDataMeta(item.dataMeta, {
           domain: 'job', source: item.source || item._source, publishedAt: item.postedAtRaw
-        })
+        }),
+        // This cache is public and may outlive the account that wrote it.
+        // Rebuild every account-specific field before rendering it.
+        isSaved: this._favoritesBlocked ? false : favUtil.isFavorited('job', String(item.id)),
+        matchScore: 0,
+        matchScore100: 0,
+        isMatch: false,
+        matchReason: '',
+        // Public job results may be shared between sessions, but application
+        // progress is account-scoped and must be refreshed for this account.
+        ...progress.getJobState(item.id)
       }));
-      this.setData({ jobs: this.enrichJobLogos(cachedJobs), loading: false });
+      this.setData({ jobs: this.enrichJobLogos(cachedJobs), loading: false, currentPage: 1,
+        totalJobs: Number(cached.total || cachedJobs.length), hasMore: cached.hasMore !== false });
       return true;
     } else if (ALLOW_DEMO_FALLBACK) {
       this.loadMockJobs(true);
@@ -254,7 +367,7 @@ Page({
   },
 
   onReachBottom: function() {
-    if (this.data.hasMore && !this.data.loading) {
+    if (this.data.hasMore && !this.data.loading && !this.data.loadError) {
       this.loadJobs(false);
     }
   },
@@ -365,6 +478,8 @@ Page({
 
   // 核心：加载职位
   loadJobs: function(reset) {
+    const ownerToken = String(wx.getStorageSync('token') || '');
+    const ownerScope = progress.currentOwnerScope ? progress.currentOwnerScope() : '';
     const query = this.data.searchKeyword || 'Software Engineer jobs';
     const dateMap = { today: 'today', week: '3days', month: 'month' };
     const datePosted = dateMap[this.data.filterDate] || '';
@@ -375,22 +490,24 @@ Page({
       this.data.pageSize,
       this.data.filterCountry || 'us',
       this.data.filterDate || 'all',
-      this.data.filterType || 'any'
+      this.data.filterType || 'any', this.data.filterSponsor || '', this.data.matchMode
     ].join('|');
 
     if (this.data.loading && this._lastJobRequestKey === requestKey) return;
 
     this._lastJobRequestKey = requestKey;
     const seq = ++this._jobRequestSeq;
-    const patch = { loading: this.data.jobs.length === 0 || !reset };
+    const cacheKey = this._jobsCacheKey();
+    const patch = { loading: true, loadError: '' };
     if (reset) {
+      patch.jobs = [];
       patch.currentPage = 1;
       patch.hasMore = true;
     }
     this.setData(patch);
 
     if (wx.getStorageSync('token') && (this.data.matchMode || this.data.filterSponsor)) {
-      this._loadV4Jobs({ query, page, reset, seq });
+      this._loadV4Jobs({ query, page, reset, seq, ownerToken, ownerScope });
       return;
     }
 
@@ -404,9 +521,7 @@ Page({
       noCache: reset
     }).then(res => {
       if (seq !== this._jobRequestSeq) return;
-      if (!res.data || res.data.length === 0) {
-        throw new Error('No data / Quota exceeded');
-      }
+      if (!res || !Array.isArray(res.data)) throw new Error('岗位返回格式异常');
 
       let processedJobs = this.formatJobData(res.data);
       if (this.data.matchMode) {
@@ -432,9 +547,9 @@ Page({
       // 缓存首页结果，下次秒开
       if (reset) {
         wx.setStorageSync('cachedJobsList', {
-          key: this._jobsCacheKey(),
+          key: cacheKey,
           t: Date.now(),
-          items: processedJobs
+          items: processedJobs, total: this.data.totalJobs, hasMore: this.data.hasMore
         });
       }
 
@@ -445,14 +560,14 @@ Page({
       if (ALLOW_DEMO_FALLBACK && this.data.jobs.length === 0) {
         this.loadMockJobs(reset);
       } else {
-        this.setData({ loading: false, isRefreshing: false, hasMore: false, isMockData: false });
+        this.setData({ loading: false, isRefreshing: false, loadError: '岗位加载失败，请重试', isMockData: false });
       }
     }).finally(() => {
       if (seq === this._jobRequestSeq) wx.stopPullDownRefresh();
     });
   },
 
-  _loadV4Jobs: function({ query, page, reset, seq }) {
+  _loadV4Jobs: function({ query, page, reset, seq, ownerToken, ownerScope }) {
     const sponsorParams = {
       opt: { optFriendly: true },
       stem: { stemFriendly: true },
@@ -470,6 +585,12 @@ Page({
       ...(sponsorParams[this.data.filterSponsor] || {}),
     };
     v4Api.getJobs(params).then(res => {
+      const currentToken = String(wx.getStorageSync('token') || '');
+      if (ownerToken !== currentToken) {
+        const currentScope = progress.currentOwnerScope ? progress.currentOwnerScope() : '';
+        if (ownerScope !== currentScope) this._handleOwnerChange(currentScope, currentToken);
+        return;
+      }
       if (seq !== this._jobRequestSeq) return;
       const data = res && res.code === 0 ? res.data : null;
       if (!data || !Array.isArray(data.list)) throw new Error('V4 jobs unavailable');
@@ -494,7 +615,7 @@ Page({
           postedAt: item.postedAt ? fromNow(item.postedAt) : 'Recently posted',
           postedAtRaw: item.postedAt || '',
           deadline: item.deadline || '',
-          isSaved: favUtil.isFavorited('job', String(item.id)),
+          isSaved: this._favoritesBlocked ? false : favUtil.isFavorited('job', String(item.id)),
           optFriendly: sponsor.optFriendly === true,
           stemFriendly: sponsor.stemFriendly === true,
           h1bSponsor: sponsor.h1bSponsor === true,
@@ -515,7 +636,7 @@ Page({
           remoteType: item.remoteType || '',
           conversionOpportunity: !!item.conversionOpportunity,
           applyCount: Number(item.applyCount || 0),
-          isApplied: !!progress.getByJobId(item.id),
+          ...progress.getJobState(item.id),
           dataMeta: item.dataMeta,
         };
       });
@@ -530,9 +651,15 @@ Page({
       });
       if (this.data.viewMode === 'map') this._buildMapMarkers();
     }).catch(err => {
+      const currentToken = String(wx.getStorageSync('token') || '');
+      if (ownerToken !== currentToken) {
+        const currentScope = progress.currentOwnerScope ? progress.currentOwnerScope() : '';
+        if (ownerScope !== currentScope) this._handleOwnerChange(currentScope, currentToken);
+        return;
+      }
       if (seq !== this._jobRequestSeq) return;
       console.warn('[jobs] V4 list failed:', err && err.message);
-      this.setData({ loading: false, isRefreshing: false, hasMore: false });
+      this.setData({ loading: false, isRefreshing: false, loadError: '精准岗位加载失败，请重试' });
       wx.showToast({ title: '精准岗位暂不可用，请稍后重试', icon: 'none' });
     }).finally(() => {
       if (seq === this._jobRequestSeq) wx.stopPullDownRefresh();
@@ -565,8 +692,8 @@ Page({
         postedAt: job.job_posted_at_datetime_utc ? fromNow(job.job_posted_at_datetime_utc) : 'Recently posted',
         postedAtRaw: job.job_posted_at_datetime_utc || '',
         deadline: job.job_offer_expiration_datetime_utc || job.job_offer_expiration_date || job.valid_through || '',
-        isSaved: favUtil.isFavorited('job', String(job.job_id)),
-        isApplied: !!progress.getByJobId(job.job_id),
+        isSaved: this._favoritesBlocked ? false : favUtil.isFavorited('job', String(job.job_id)),
+        ...progress.getJobState(job.job_id),
         optFriendly,
         remoteType: job.job_is_remote ? '支持远程' : '',
         requirements: job.job_highlights && (job.job_highlights.Qualifications || job.job_highlights.qualifications) || [],
@@ -597,8 +724,8 @@ Page({
         logo: this.buildCompanyLogo(company) || job.logo || '',
         logoFailed: false,
         companyInitial: this.getCompanyInitial(company),
-        isSaved: favUtil.isFavorited('job', String(job.id)),
-        isApplied: !!progress.getByJobId(job.id)
+        isSaved: this._favoritesBlocked ? false : favUtil.isFavorited('job', String(job.id)),
+        ...progress.getJobState(job.id)
       });
     });
   },
@@ -626,6 +753,10 @@ Page({
 
   // 快捷收藏切换
   toggleSave: function(e) {
+    if (this._favoritesBlocked) {
+      wx.showToast({ title: '账号已变化，请在收藏页刷新后操作', icon: 'none' });
+      return;
+    }
     const index = e.detail && Number.isInteger(e.detail.index)
       ? e.detail.index
       : Number(e.currentTarget.dataset.index);
@@ -696,6 +827,7 @@ Page({
   },
 
   _refreshMatchProfile: function() {
+    const ownerToken = String(wx.getStorageSync('token') || '');
     const profile = wx.getStorageSync('userProfile') || {};
     const keywords = matcher.getJobKeywords(profile);
     const completeness = matcher.getProfileCompleteness(profile);
@@ -707,6 +839,7 @@ Page({
     });
     if (wx.getStorageSync('token')) {
       v4Api.getProfileCompletion().then(res => {
+        if (ownerToken !== String(wx.getStorageSync('token') || '')) return;
         if (res && res.code === 0 && res.data) {
           this.setData({ profileComplete: Number(res.data.completion) || 0, profileMissing: res.data.missing || [] });
         }
@@ -757,6 +890,7 @@ Page({
         matchScore100: Number(job.matchScore100 || 0),
         matchReason: job.matchReason || '',
         isApplied: !!job.isApplied,
+        applicationStatus: job.applicationStatus || '',
         applyLink: job.applyLink,
         description: job.rawDescription || job.description || ''
       };

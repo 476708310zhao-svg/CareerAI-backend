@@ -14,9 +14,13 @@ const reminders = require('../../../utils/reminders.js');
 const analytics = require('../../../utils/analytics.js');
 const { presentJob, clean } = require('../../../utils/job-presenter.js');
 const { markCachedDataMeta } = require('../../../utils/data-provenance.js');
+const loginGate = require('../../../behaviors/login-gate.js');
+const { applicationState } = require('../../../utils/application-state.js');
+const { queueJob } = require('../../../utils/application-queue.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
 Page({
+  behaviors: [loginGate],
   data: {
     jobId: '',
     job: null,
@@ -40,19 +44,28 @@ Page({
     jobTrust: null,
     trustObserving: false,
     // 一键投递弹窗
-    showApplyModal: false,
-    resumeSnap: null
+    showApplyModal: false
   },
 
   onLoad: function(options) {
     if (!featureFlags.guardRecruitmentPage()) return;
     const jobId = options.id;
-    const isSaved = jobId ? favUtil.isFavorited('job', jobId) : false;
+    this._ownerToken = String(wx.getStorageSync('token') || '');
+    const ownerScope = progress.currentOwnerScope ? progress.currentOwnerScope() : '';
+    this._ownerScope = ownerScope;
+    if (favUtil.prepareOwner) favUtil.prepareOwner();
+    const favoriteOwner = wx.getStorageSync('jobFavoritesVisibleOwner') || '';
+    this._favoritesBlocked = !ownerScope || favoriteOwner !== ownerScope;
+    const isSaved = !this._favoritesBlocked && jobId ? favUtil.isFavorited('job', jobId) : false;
     this.setData({ jobId, isSaved });
     analytics.track('job_detail_click', { jobId: jobId || '' });
     this.refreshProgressState(jobId);
-    if (jobId && wx.getStorageSync('token')) {
+    if (jobId && this._ownerToken) {
+      const ownerToken = this._ownerToken;
       favUtil.syncFromServer().then(() => {
+        if (this._unloaded || ownerToken !== String(wx.getStorageSync('token') || '')
+          || ownerScope !== (progress.currentOwnerScope ? progress.currentOwnerScope() : '')) return;
+        this._favoritesBlocked = wx.getStorageSync('jobFavoritesVisibleOwner') !== ownerScope;
         this.setData({ isSaved: favUtil.isFavorited('job', jobId) });
       });
     }
@@ -62,6 +75,69 @@ Page({
     } else {
       this.setData({ loading: false });
       wx.showToast({ title: '职位信息不存在', icon: 'none' });
+    }
+  },
+
+  onShow() {
+    this._unloaded = false;
+    const token = String(wx.getStorageSync('token') || '');
+    const ownerScope = progress.currentOwnerScope ? progress.currentOwnerScope() : '';
+    if (this._ownerScope !== ownerScope) return this._handleOwnerChange(ownerScope, token);
+    this._ownerToken = token;
+    if (this._hasShown && this.data.jobId) {
+      this.refreshProgressState(this.data.jobId);
+      this.loadV4Detail(this.data.jobId);
+    }
+    this._hasShown = true;
+  },
+
+  onUnload() {
+    this._unloaded = true;
+    this._v4DetailSeq = (this._v4DetailSeq || 0) + 1;
+    this._matchRequestSeq = (this._matchRequestSeq || 0) + 1;
+  },
+
+  _handleOwnerChange(ownerScope, token) {
+    const nextScope = String(ownerScope || '');
+    const nextToken = String(token || '');
+    if (this._ownerScope === nextScope) {
+      this._ownerToken = nextToken;
+      return;
+    }
+    this._ownerScope = nextScope;
+    this._ownerToken = nextToken;
+    this._v4DetailSeq = (this._v4DetailSeq || 0) + 1;
+    this._matchRequestSeq = (this._matchRequestSeq || 0) + 1;
+    this._favoritesBlocked = true;
+    wx.hideLoading();
+    this.setData({
+      isSaved: false,
+      isApplied: false,
+      inProgress: false,
+      progressStatusText: '',
+      v4Application: null,
+      matchReport: null,
+      inlineMatch: null,
+      showMatchPanel: false,
+      'jobView.isSaved': false,
+      'jobView.isApplied': false,
+      'jobView.inProgress': false,
+      'jobView.applicationStatus': '',
+      'jobView.progressStatusText': '',
+      'jobView.matchScore': 0,
+      'jobView.hasMatch': false,
+      'job.matchScore100': 0,
+      'job.matchReason': ''
+    });
+    if (favUtil.prepareOwner) favUtil.prepareOwner();
+    this.refreshProgressState(this.data.jobId);
+    if (nextToken && this.data.jobId) {
+      favUtil.syncFromServer().then(() => {
+        if (this._unloaded || this._ownerScope !== nextScope) return;
+        this._favoritesBlocked = wx.getStorageSync('jobFavoritesVisibleOwner') !== nextScope;
+        this.setData({ isSaved: !this._favoritesBlocked && favUtil.isFavorited('job', this.data.jobId) });
+      });
+      this.loadV4Detail(this.data.jobId);
     }
   },
 
@@ -114,8 +190,11 @@ Page({
       remoteType: snapshot.remoteType || '',
       conversionOpportunity: !!snapshot.conversionOpportunity,
       applyCount: Number(snapshot.applyCount || 0),
-      matchScore100: Number(snapshot.matchScore100 || 0),
-      matchReason: snapshot.matchReason || '',
+      // List/detail snapshots are public cache entries and have no proven
+      // account owner. Personalized match output must be fetched again for the
+      // current stable owner instead of being restored across sessions.
+      matchScore100: 0,
+      matchReason: '',
       postedAtRaw: snapshot.postedAtRaw || '',
       source: 'cache',
       dataMeta: markCachedDataMeta(snapshot.dataMeta, {
@@ -175,8 +254,8 @@ Page({
         if (titleWords.some(word => candidateTitle.includes(word))) score += 4;
         return Object.assign({}, item, {
           _similarScore: score,
-          isSaved: favUtil.isFavorited('job', String(item.id)),
-          isApplied: !!progress.getByJobId(item.id)
+          isSaved: this._favoritesBlocked ? false : favUtil.isFavorited('job', String(item.id)),
+          ...progress.getJobState(item.id)
         });
       })
       .filter(item => item._similarScore > 0)
@@ -190,11 +269,13 @@ Page({
     const application = patch && Object.prototype.hasOwnProperty.call(patch, 'v4Application')
       ? patch.v4Application
       : this.data.v4Application;
-    const isApplied = !!(record && record.status !== 'collected') || !!application;
+    const state = applicationState(application || record || job);
+    const isApplied = state.isApplied;
     const displaySource = Object.assign({}, job, {
       isSaved: this.data.isSaved,
       isApplied,
-      applyStatus: record ? record.statusText : (application && application.statusText) || ''
+      applicationStatus: state.applicationStatus,
+      applyStatus: ''
     });
     const companyProfile = patch && Object.prototype.hasOwnProperty.call(patch, 'companyProfile')
       ? patch.companyProfile
@@ -206,7 +287,7 @@ Page({
       similarJobs: this.buildSimilarJobs(job),
       isApplied,
       inProgress: !!record || !!application,
-      progressStatusText: record ? record.statusText : (application && application.statusText) || '',
+      progressStatusText: state.progressStatusText,
       loading: false,
       loadError: false
     }, patch || {}));
@@ -356,8 +437,18 @@ Requirements:
   },
 
   loadV4Detail: function(id) {
-    if (!wx.getStorageSync('token')) return;
+    const token = String(wx.getStorageSync('token') || '');
+    const ownerScope = progress.currentOwnerScope ? progress.currentOwnerScope() : '';
+    if (!token) return;
+    const seq = this._v4DetailSeq = (this._v4DetailSeq || 0) + 1;
     v4Api.getJobDetail(id).then(res => {
+      const currentToken = String(wx.getStorageSync('token') || '');
+      if (token !== currentToken) {
+        const currentScope = progress.currentOwnerScope ? progress.currentOwnerScope() : '';
+        if (ownerScope !== currentScope) this._handleOwnerChange(currentScope, currentToken);
+        return;
+      }
+      if (this._unloaded || seq !== this._v4DetailSeq) return;
       const data = res && res.code === 0 ? res.data : null;
       if (!data || !data.job) return;
       const raw = data.job;
@@ -405,7 +496,13 @@ Requirements:
         jobTrust: data.trust || null
       });
       this._saveBrowseHistory(job);
-    }).catch(() => {});
+    }).catch(() => {
+      const currentToken = String(wx.getStorageSync('token') || '');
+      if (!this._unloaded && token !== currentToken) {
+        const currentScope = progress.currentOwnerScope ? progress.currentOwnerScope() : '';
+        if (ownerScope !== currentScope) this._handleOwnerChange(currentScope, currentToken);
+      }
+    });
   },
 
   openOfficialForTrust: function() {
@@ -477,6 +574,10 @@ Requirements:
 
   // 收藏切换
   toggleSave: function() {
+    if (this._favoritesBlocked) {
+      wx.showToast({ title: '账号已变化，请在收藏页刷新后操作', icon: 'none' });
+      return;
+    }
     if (!this.data.job) return;
     const jobData = {
       targetId: String(this.data.job.id),
@@ -495,10 +596,7 @@ Requirements:
       company: jobData.company,
       title: jobData.title
     });
-    if (isSaved) {
-      const savedProgress = progress.upsertFromJob(this.data.job, { status: 'collected' });
-      this.setData({ inProgress: true, progressStatusText: savedProgress.statusText });
-    }
+    // 收藏独立同步；只有明确加入待投递才写申请，避免收藏回写覆盖已有进度。
     wx.showToast({
       title: isSaved ? '已收藏' : '已取消收藏',
       icon: 'none'
@@ -507,17 +605,21 @@ Requirements:
 
   refreshProgressState: function(jobId) {
     const record = progress.getByJobId(jobId || this.data.jobId);
+    const state = applicationState(this.data.v4Application || record);
     const patch = {
-      inProgress: !!record,
-      isApplied: !!(record && record.status !== 'collected'),
-      progressStatusText: record ? record.statusText : ''
+      inProgress: state.inProgress,
+      isApplied: state.isApplied,
+      progressStatusText: state.progressStatusText
     };
     if (this.data.jobView) {
-      patch['jobView.isApplied'] = !!(record && record.status !== 'collected');
-      patch['jobView.appliedText'] = record && record.status !== 'collected' ? record.statusText : '';
-      patch['jobView.applyButtonText'] = record && record.status !== 'collected'
-        ? '已投递'
-        : (this.data.jobView.deadlineClosed ? '已截止' : (this.data.jobView.hasApplyLink ? '前往投递' : '保存投递'));
+      patch['jobView.isApplied'] = state.isApplied;
+      patch['jobView.inProgress'] = state.inProgress;
+      patch['jobView.applicationStatus'] = state.applicationStatus;
+      patch['jobView.progressStatusText'] = state.progressStatusText;
+      patch['jobView.appliedText'] = state.progressStatusText;
+      if (state.inProgress) patch['jobView.applyButtonText'] = '查看进度';
+      else patch['jobView.applyButtonText'] = this.data.jobView.deadlineClosed
+        ? '已截止' : (this.data.jobView.hasApplyLink ? '前往投递' : '保存投递');
     }
     this.setData(patch);
   },
@@ -563,47 +665,45 @@ Requirements:
     });
   },
 
-  addToProgress: function() {
+  addToProgress: async function() {
     const job = this.data.job;
-    if (!job) return;
-    const existing = progress.getByJobId(job.id);
-    if (existing) {
-      this.setData({ inProgress: true, progressStatusText: existing.statusText });
-      navigation.safeNavigateTo('/package-user/pages/job-progress/job-progress');
+    if (!job || this.data.isApplying) return;
+    if (!wx.getStorageSync('token')) {
+      this.ensureAuthenticated('登录后将岗位加入待投递', () => this.addToProgress());
       return;
     }
-    const record = progress.upsertFromJob(job, {
-      status: 'collected',
-      jobLink: job.applyLink || '',
-      salary: job.salary || '',
-      city: job.city || ''
-    });
-    analytics.track('job_progress_add_from_detail', {
-      jobId: job.id,
-      company: job.company,
-      title: job.title
-    });
-    this.setData({ inProgress: true, progressStatusText: record.statusText });
-    wx.showModal({
-      title: '已加入求职进度',
-      content: '后续可以补充截止时间、面试时间和备注。',
-      cancelText: '继续看',
-      confirmText: '去编辑',
-      success: (res) => {
-        if (res.confirm) {
-          navigation.safeNavigateTo('/package-user/pages/job-progress/job-progress');
-        }
-      }
-    });
+    if (this.data.inProgress && this.data.progressStatusText !== '已收藏') {
+      navigation.safeSwitchTab('/pages/applications/applications');
+      return;
+    }
+    this.setData({ isApplying: true });
+    try {
+      await this.addToBoard();
+      wx.showToast({ title: '已加入求职进度', icon: 'success' });
+    } catch (error) {
+      wx.showToast({ title: error.message || '保存失败，请重试', icon: 'none' });
+    } finally { this.setData({ isApplying: false }); }
   },
 
   runJdMatch: async function() {
     const job = this.data.job;
     if (!job) return;
-    if (wx.getStorageSync('token')) {
+    const token = String(wx.getStorageSync('token') || '');
+    const ownerScope = progress.currentOwnerScope ? progress.currentOwnerScope() : '';
+    const requestSeq = this._matchRequestSeq = (this._matchRequestSeq || 0) + 1;
+    const isCurrent = () => !this._unloaded && requestSeq === this._matchRequestSeq
+      && token === String(wx.getStorageSync('token') || '');
+    if (token) {
       wx.showLoading({ title: '计算匹配度...', mask: true });
       try {
         const res = await v4Api.calculateJobMatch(job.id);
+        const currentToken = String(wx.getStorageSync('token') || '');
+        if (token !== currentToken) {
+          const currentScope = progress.currentOwnerScope ? progress.currentOwnerScope() : '';
+          if (ownerScope !== currentScope) this._handleOwnerChange(currentScope, currentToken);
+          return;
+        }
+        if (!isCurrent()) return;
         const match = res && res.code === 0 ? res.data : null;
         if (match) {
           const report = {
@@ -634,6 +734,13 @@ Requirements:
           return;
         }
       } catch (err) {
+        const currentToken = String(wx.getStorageSync('token') || '');
+        if (token !== currentToken) {
+          const currentScope = progress.currentOwnerScope ? progress.currentOwnerScope() : '';
+          if (ownerScope !== currentScope) this._handleOwnerChange(currentScope, currentToken);
+          return;
+        }
+        if (!isCurrent()) return;
         wx.hideLoading();
         if (err && err.statusCode === 422) {
           wx.showModal({
@@ -647,6 +754,7 @@ Requirements:
         }
       }
     }
+    if (!isCurrent()) return;
     const resume = wx.getStorageSync('onlineResume') || {};
     const hasResume = !!(resume.basicInfo && (resume.basicInfo.name || resume.basicInfo.email)) ||
       (resume.skills && resume.skills.length) ||
@@ -671,7 +779,7 @@ Requirements:
       title: job.title,
       score: report.score
     });
-    this.setData({ matchReport: report, showMatchPanel: true });
+    if (isCurrent()) this.setData({ matchReport: report, showMatchPanel: true });
   },
 
   closeMatchPanel: function() {
@@ -704,80 +812,57 @@ Requirements:
   applyJob: function() {
     const job = this.data.job;
     if (!job) return;
+    if (this.data.inProgress) {
+      navigation.safeSwitchTab('/pages/applications/applications');
+      return;
+    }
     if (this.data.jobView && this.data.jobView.deadlineClosed) {
       wx.showToast({ title: '该职位已截止，可先收藏关注', icon: 'none' });
       return;
     }
-    if (this.data.isApplied) {
-      wx.showToast({ title: '该职位已在投递看板中', icon: 'none' });
-      return;
-    }
     if (this.data.isApplying) return;
-    const resume = wx.getStorageSync('onlineResume') || {};
-    const b = resume.basicInfo || {};
-    const snap = {
-      name:  b.name  || '',
-      title: b.title || '',
-      phone: b.phone || '',
-      email: b.email || '',
-      skills: (resume.skills || []).slice(0, 5).join(' · '),
-      hasData: !!(b.name || b.email)
-    };
-    this.setData({ showApplyModal: true, resumeSnap: snap });
+    this.setData({ showApplyModal: true });
   },
 
   hideApplyModal: function() {
     this.setData({ showApplyModal: false });
   },
 
-  // 一键投递：复制简历摘要 + 加入看板 + 打开外链
-  doOneClickApply: function() {
+  // 保存待投递并复制官方链接，由用户在招聘网站完成申请。
+  doOneClickApply: async function() {
     const job  = this.data.job;
-    const snap = this.data.resumeSnap;
     if (!job || this.data.isApplying) return;
+    if (!wx.getStorageSync('token')) {
+      this.ensureAuthenticated('登录后保存待投递并继续申请', () => this.doOneClickApply());
+      return;
+    }
     this.setData({ isApplying: true });
-
-    // 1. 构建简历摘要文本
-    const lines = [];
-    if (snap.name)  lines.push('姓名：' + snap.name);
-    if (snap.title) lines.push('求职意向：' + snap.title);
-    if (snap.phone) lines.push('电话：' + snap.phone);
-    if (snap.email) lines.push('邮箱：' + snap.email);
-    if (snap.skills) lines.push('技能：' + snap.skills);
-    const text = lines.length ? lines.join('\n') : '（请先完善简历信息）';
-
-    // 2. 复制到剪贴板
-    wx.setClipboardData({
-      data: job.applyLink ? ('投递链接：' + job.applyLink + '\n\n' + text) : text
-    });
-
-    // 3. 加入投递看板
-    this.addToBoard();
-
-    // 4. 关闭弹窗并提示用户到浏览器完成官方投递
-    this.hideApplyModal();
-    wx.showModal({
-      title: job.applyLink ? '投递链接已复制' : '投递记录已保存',
-      content: job.applyLink
-        ? '岗位已加入投递看板。请在浏览器中粘贴链接，进入官方招聘页完成申请。'
-        : '岗位已加入投递看板。当前职位暂无官方投递链接，可在看板中继续跟进。',
-      showCancel: false,
-      complete: () => this.setData({ isApplying: false })
-    });
+    try {
+      await this.addToBoard();
+      if (job.applyLink) {
+        await new Promise((resolve, reject) => wx.setClipboardData({ data: job.applyLink, success: resolve,
+          fail: () => reject(new Error('申请已保存，链接复制失败，请重试')) }));
+      }
+      this.hideApplyModal();
+      wx.showModal({
+        title: job.applyLink ? '申请链接已复制' : '已加入求职进度',
+        content: job.applyLink
+          ? '请在浏览器粘贴链接完成官方申请，完成后在求职进度中标记“已投递”。'
+          : '当前暂无官方申请链接，可在求职进度中继续跟进。',
+        showCancel: false
+      });
+    } catch (error) {
+      wx.showToast({ title: error.message || '保存失败，请重试', icon: 'none' });
+    } finally { this.setData({ isApplying: false }); }
   },
 
-  // 加入投递看板（同时请求订阅授权 + 同步后端）
-  addToBoard: function() {
+  // 保存待投递；复制链接不表示已完成官方投递。
+  addToBoard: async function() {
     const job = this.data.job;
     if (!job) return;
     const jobIdStr = String(job.id);
-    progress.upsertFromJob(job, {
-      status: 'applied',
-      appliedAt: progress.getToday(),
-      jobLink: job.applyLink || '',
-      salary: job.salary || 'Negotiable',
-      city: job.city || ''
-    });
+    const app = await queueJob(job);
+    this.setData({ v4Application: app });
     analytics.track('application_save', {
       jobId: jobIdStr,
       company: job.company,
@@ -785,33 +870,7 @@ Requirements:
       source: 'job_detail'
     });
     this.refreshProgressState(jobIdStr);
-    wx.showToast({ title: '已加入投递看板', icon: 'success' });
-
-    if (wx.getStorageSync('token')) {
-      v4Api.createApplication({
-        jobId: jobIdStr,
-        status: 'preparing',
-        sourceType: 'job_detail',
-        jobSnapshot: {
-          id: jobIdStr,
-          title: job.title,
-          company: job.company,
-          location: job.city,
-          salary: job.salary,
-          applyUrl: job.applyLink || '',
-        },
-        nextAction: '前往官方招聘页完成申请并更新状态',
-      }).then(res => {
-        if (res && res.code === 0) this.setData({ v4Application: res.data });
-      }).catch(err => {
-        if (err && err.statusCode === 409 && err.body && err.body.data) {
-          this.setData({ v4Application: { id: err.body.data.applicationId } });
-        }
-      });
-    }
-
-    // 2. 请求订阅消息授权（模板 ID 由后端配置优先返回）
-    reminders.requestSubscribe('application');
+    return app;
   },
 
 

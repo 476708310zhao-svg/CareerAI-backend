@@ -26,6 +26,7 @@ require('./applicationWorkbench.test');
 require('./applicationWorkflow.test');
 require('./aiConversations.test');
 require('./testRuntimeIsolation.test');
+require('./mobileWorkflow.test');
 require('./webWorkbench.test');
 require('./navigationConfig.test');
 require('./shareConfig.test');

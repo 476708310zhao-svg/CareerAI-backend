@@ -1,7 +1,6 @@
 <view class="page">
   <view class="page-heading">
     <view>
-      <text class="eyebrow">APPLICATION HUB</text>
       <text class="page-title">求职进度</text>
       <text class="date-label">{{todayLabel}}</text>
     </view>
@@ -11,7 +10,6 @@
   <view class="overview-card">
     <view class="overview-top">
       <view class="overview-copy">
-        <text class="overview-kicker">APPLICATION PIPELINE</text>
         <view class="overview-title-row">
           <text class="overview-number">{{activeCount}}</text>
           <text class="overview-unit">{{activeCount ? '个申请进行中' : '暂无进行中申请'}}</text>
@@ -20,17 +18,11 @@
       <view class="overview-status"><text class="status-dot"></text><text>持续推进</text></view>
     </view>
     <view class="overview-stats">
-      <view class="overview-stat"><text class="stat-value">{{total}}</text><text class="stat-label">全部</text></view>
+      <view class="overview-stat"><text class="stat-value">{{statistics.preparing || 0}}</text><text class="stat-label">待投递</text></view>
+      <view class="overview-stat"><text class="stat-value">{{statistics.applied || 0}}</text><text class="stat-label">已投递</text></view>
       <view class="overview-stat"><text class="stat-value orange">{{statistics.interview || 0}}</text><text class="stat-label">面试</text></view>
       <view class="overview-stat"><text class="stat-value green">{{statistics.offer || 0}}</text><text class="stat-label">Offer</text></view>
     </view>
-  </view>
-
-  <view class="quick-grid">
-    <view class="quick-card" bindtap="openCreate"><view class="quick-icon blue">＋</view><text>快速新增</text></view>
-    <view class="quick-card" bindtap="goJobs"><view class="quick-icon mint">校</view><text>浏览校招</text></view>
-    <view class="quick-card" bindtap="goResumeCenter"><view class="quick-icon violet">简</view><text>简历中心</text></view>
-    <view class="quick-card" bindtap="goAiCareer"><view class="quick-icon amber">AI</view><text>申请助手</text></view>
   </view>
 
   <view wx:if="{{syncNotice && !loading}}" class="sync-notice"><text class="sync-dot"></text><text>{{syncNotice}}</text></view>
@@ -66,17 +58,6 @@
       </view>
     </view>
 
-    <view wx:if="{{total}}" class="section pipeline-section">
-      <view class="section-head"><view><text class="section-title">申请漏斗</text><text class="section-sub">快速发现停滞阶段</text></view></view>
-      <view class="pipeline-card">
-        <view wx:for="{{funnel}}" wx:key="key" class="pipeline-row">
-          <text class="pipeline-label">{{item.label}}</text>
-          <view class="pipeline-track"><view class="pipeline-fill fill-{{item.key}}" style="width:{{item.width}}%"></view></view>
-          <text class="pipeline-count">{{item.count}}</text>
-        </view>
-      </view>
-    </view>
-
     <view class="section list-section">
       <view class="section-head"><view><text class="section-title">全部申请</text><text class="section-sub">按优先级自动排序</text></view></view>
       <scroll-view class="filter-scroll" scroll-x enhanced show-scrollbar="{{false}}">
@@ -91,7 +72,7 @@
         <view class="state-symbol add">＋</view>
         <text class="state-title">{{activeGroup==='all'?'还没有申请记录':'该阶段暂无申请'}}</text>
         <text class="state-desc">手动新增一条申请，或从校招日历找到目标岗位。</text>
-        <view class="empty-actions"><view class="primary-button small" bindtap="openCreate">新增申请</view><view class="secondary-button" bindtap="goJobs">浏览校招</view></view>
+        <view class="empty-actions"><view class="primary-button small" bindtap="goJobs">去找岗位</view><view class="secondary-button" bindtap="openCreate">手动记录</view></view>
       </view>
 
       <view wx:else class="application-list">
@@ -105,11 +86,6 @@
             <text class="status status-{{item.statusTone}}">{{item.statusText || item.groupLabel}}</text>
           </view>
 
-          <view class="progress-row">
-            <view class="progress-copy"><text class="progress-label">申请准备度</text><text class="progress-value">{{item.materialText}}</text></view>
-            <view class="material-track"><view class="material-fill" style="width:{{item.materialPercent}}%"></view></view>
-          </view>
-
           <view class="next-action">
             <view class="next-dot"></view>
             <view class="next-copy"><text class="next-label">下一步行动</text><text class="next-text">{{item.nextAction || '补充跟进计划'}}</text></view>
@@ -119,6 +95,9 @@
             <text wx:if="{{item.interviewLabel}}" class="meta-pill interview">{{item.interviewLabel}}</text>
             <text class="meta-pill {{item.deadlineTone}}">{{item.deadlineLabel}}</text>
             <text class="detail-link">查看详情 ›</text>
+          </view>
+          <view class="status-actions">
+            <button size="mini" data-id="{{item.id}}" catchtap="quickStatus" loading="{{updatingId === '' + item.id}}" disabled="{{!!updatingId}}">{{item.localOnly ? '编辑本机记录' : '改状态'}}</button>
           </view>
         </view>
       </view>
@@ -138,7 +117,7 @@
         <view class="field"><text class="field-label">申请截止</text><picker mode="date" value="{{createForm.deadline}}" bindchange="onDeadlineChange"><view class="field-input picker-value {{createForm.deadline?'':'placeholder'}}">{{createForm.deadline || '选择日期'}}</view></picker></view>
       </view>
       <view class="field"><text class="field-label">下一步行动</text><input class="field-input" value="{{createForm.nextAction}}" data-field="nextAction" bindinput="onCreateInput" placeholder="例如：周五前完成定制简历" maxlength="300" /></view>
-      <view class="sheet-tip">新增后默认进入“准备中”，可在申请详情继续关联简历、材料和联系人。</view>
+      <view class="sheet-tip">新增后进入“待投递”。完成正式申请后，再将状态改为“已投递”。</view>
       <view class="sheet-actions"><view class="cancel-button" bindtap="closeCreate">取消</view><view class="submit-button {{creating?'disabled':''}}" bindtap="submitCreate">{{creating?'正在保存…':'加入求职进度'}}</view></view>
     </view>
   </view>

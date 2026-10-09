@@ -1,5 +1,6 @@
 const progress = require('./job-progress.js');
 const notebook = require('./interview-notebook.js');
+const { timestamp } = require('./date-time.js');
 
 const DONE_KEY = 'dailyTaskDoneMap';
 
@@ -80,8 +81,7 @@ function markTaskSynced(id, done, serverId, updatedAt) {
 }
 
 function timestampValue(value) {
-  const timestamp = new Date(value || 0).getTime();
-  return Number.isFinite(timestamp) ? timestamp : 0;
+  return timestamp(value);
 }
 
 function reconcileServerTask(id, serverTask, expectedUpdatedAt) {
@@ -104,7 +104,7 @@ function getPendingRemoteUpdates() {
 
 function isSameDay(ts) {
   if (!ts) return false;
-  const target = new Date(ts);
+  const target = new Date(timestamp(ts));
   if (Number.isNaN(target.getTime())) return false;
   const now = new Date();
   return target.getFullYear() === now.getFullYear()
@@ -164,7 +164,7 @@ function buildTasks() {
       type: 'deadline',
       title: '处理即将截止岗位',
       desc: `${dueSoon.length} 个机会 3 天内截止，优先补材料和投递`,
-      url: '/package-user/pages/job-progress/job-progress',
+      url: '/pages/applications/applications',
       priority: 'high'
     });
   }
@@ -186,7 +186,7 @@ function buildTasks() {
       type: 'progress',
       title: '更新求职进度',
       desc: `还有 ${stats.active} 个活跃机会，补充状态、备注或下一步`,
-      url: '/package-user/pages/job-progress/job-progress',
+      url: '/pages/applications/applications',
       priority: 'medium'
     });
   }

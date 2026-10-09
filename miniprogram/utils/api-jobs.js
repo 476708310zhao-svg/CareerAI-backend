@@ -10,6 +10,14 @@ function usableJobResult(result) {
   return result;
 }
 
+function usableJobPage(result) {
+  const failed = ['error', 'timeout', 'networkError', 'rateLimit', 'unauthorized'].includes(result && result._source);
+  if (!result || failed || (result.code !== undefined && result.code !== 0) || !Array.isArray(result.data)) {
+    throw new Error('job source unavailable');
+  }
+  return result; // 正常的空分页是搜索结果，不应伪装成网络失败。
+}
+
 function markFallbackResult(result, reason) {
   const data = (result && Array.isArray(result.data) ? result.data : []).map(job => Object.assign({}, job, {
     dataMeta: normalizeDataMeta(job.dataMeta, {
@@ -169,7 +177,7 @@ function getAggregatedJobs(data) {
     params,
     timeout: 15000,
     noCache: !!data.noCache
-  }).then(usableJobResult)
+  }).then(usableJobPage)
     .catch(() => fallback.then(usableJobResult).then(result => markFallbackResult(result, '多源聚合接口暂不可用')));
 }
 

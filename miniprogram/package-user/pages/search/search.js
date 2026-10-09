@@ -63,7 +63,7 @@ Page({
     this.setData({
       jobResults: this.data.jobResults.map(job => Object.assign({}, job, {
         isSaved: favUtil.isFavorited('job', String(job.id)),
-        isApplied: !!progress.getByJobId(job.id)
+        ...progress.getJobState(job.id)
       }))
     });
   },
@@ -142,7 +142,7 @@ Page({
               requirements: job.job_highlights && (job.job_highlights.Qualifications || job.job_highlights.qualifications) || [],
               jobHighlights: job.job_highlights || {},
               isSaved: favUtil.isFavorited('job', String(job.job_id)),
-              isApplied: !!progress.getByJobId(job.job_id),
+              ...progress.getJobState(job.job_id),
               dataMeta: job.dataMeta,
               source: job._source || '',
               postedAtRaw: job.job_posted_at_datetime_utc || ''
@@ -196,7 +196,7 @@ Page({
       .filter(j => j.title.toLowerCase().includes(lower) || j.company.toLowerCase().includes(lower))
       .map(job => Object.assign({}, job, {
         isSaved: favUtil.isFavorited('job', String(job.id)),
-        isApplied: !!progress.getByJobId(job.id)
+        ...progress.getJobState(job.id)
       }));
     this.setData({ jobResults: results, loading: false });
   },

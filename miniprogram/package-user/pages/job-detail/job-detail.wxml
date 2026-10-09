@@ -161,13 +161,6 @@
       <view class="company-expand" wx:if="{{companyView.canExpand}}" bindtap="toggleCompanyDescription">{{companyExpanded ? '收起' : '展开更多'}} ›</view>
     </view>
 
-    <view class="section-card prepare-card">
-      <view class="section-heading-row"><text class="section-title">下一步准备</text></view>
-      <view class="prepare-row" bindtap="startAiInterview" hover-class="tap-muted"><view><text class="prepare-title">AI模拟面试</text><text class="prepare-sub">围绕该岗位生成针对性追问</text></view><text class="prepare-arrow">›</text></view>
-      <view class="prepare-row" bindtap="viewCareerPath" hover-class="tap-muted"><view><text class="prepare-title">定制求职路线</text><text class="prepare-sub">生成技能、项目和面试行动计划</text></view><text class="prepare-arrow">›</text></view>
-      <view class="prepare-row" bindtap="addToProgress" hover-class="tap-muted"><view><text class="prepare-title">{{inProgress ? progressStatusText : '加入求职进度'}}</text><text class="prepare-sub">记录截止时间、面试和跟进备注</text></view><text class="prepare-arrow">›</text></view>
-    </view>
-
     <view class="similar-section" wx:if="{{similarJobs.length}}">
       <view class="similar-heading"><text class="section-title">相似职位</text><text class="similar-count">{{similarJobs.length}}个相关机会</text></view>
       <c-job-card
@@ -200,7 +193,8 @@
       <text>{{isSaved ? '已收藏' : '收藏'}}</text>
     </view>
     <view class="footer-match" bindtap="runJdMatch" hover-class="tap-muted"><text class="footer-ai">AI</text><text>匹配分析</text></view>
-    <view class="footer-apply {{jobView.deadlineClosed || isApplied ? 'disabled' : ''}}" bindtap="applyJob" hover-class="footer-apply--pressed">{{jobView.applyButtonText}}</view>
+    <view class="footer-queue" bindtap="addToProgress" hover-class="tap-muted">{{isApplying ? '保存中…' : (inProgress && progressStatusText !== '已收藏' ? '查看进度' : '待投递')}}</view>
+    <view class="footer-apply {{jobView.deadlineClosed && !inProgress ? 'disabled' : ''}}" bindtap="applyJob" hover-class="footer-apply--pressed">{{jobView.applyButtonText}}</view>
   </view>
 
   <view class="match-mask" wx:if="{{showMatchPanel}}" bindtap="closeMatchPanel"></view>
@@ -230,12 +224,8 @@
       <c-company-logo logo="{{job.logoFailed ? '' : job.logo}}" name="{{job.company}}" fallback="{{job.companyInitial || 'C'}}" size="sm" custom-class="ap-job-logo-wrap" bind:error="onLogoError"></c-company-logo>
       <view class="ap-job-info"><text class="ap-job-title">{{job.title}}</text><text class="ap-job-company">{{job.company}}{{jobView.location ? ' · ' + jobView.location : ''}}</text></view>
     </view>
-    <view class="ap-resume-card">
-      <text class="ap-resume-label">简历摘要（将复制到剪贴板）</text>
-      <view wx:if="{{resumeSnap.hasData}}"><text class="ap-rname">{{resumeSnap.name}}</text><text class="ap-rsub" wx:if="{{resumeSnap.title}}">{{resumeSnap.title}}</text><text class="ap-rcontact" wx:if="{{resumeSnap.phone || resumeSnap.email}}">{{resumeSnap.phone}}{{resumeSnap.phone && resumeSnap.email ? '  ·  ' : ''}}{{resumeSnap.email}}</text><text class="ap-rskills" wx:if="{{resumeSnap.skills}}">技能：{{resumeSnap.skills}}</text></view>
-      <view wx:else class="ap-resume-empty"><text>简历信息未完善，建议先填写再投递</text><text class="ap-resume-link" bindtap="hideApplyModal">前往完善 ›</text></view>
-    </view>
-    <view class="ap-btns"><view class="ap-btn-cancel" bindtap="hideApplyModal">取消</view><view class="ap-btn-submit {{isApplying ? 'disabled' : ''}}" bindtap="doOneClickApply">{{isApplying ? '处理中...' : '保存并复制'}}</view></view>
+    <view class="ap-btns"><view class="ap-btn-cancel" bindtap="hideApplyModal">取消</view><view class="ap-btn-submit {{isApplying ? 'disabled' : ''}}" bindtap="doOneClickApply">{{isApplying ? '处理中...' : (jobView.hasApplyLink ? '保存并复制链接' : '加入待投递')}}</view></view>
     <text class="ap-tip">保存后会加入求职进度；外部岗位请前往官方招聘页完成申请。</text>
   </view>
 </view>
+<c-login-popup show="{{authPromptVisible}}" subtitle="{{authPromptSubtitle}}" bindclose="closeAuthPrompt" bindsuccess="onAuthPromptSuccess" />

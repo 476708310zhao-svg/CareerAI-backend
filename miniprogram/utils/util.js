@@ -2,6 +2,7 @@
 
 // ─── TabBar 页面路径列表（用于判断 switchTab vs navigateTo）─────────
 const navigation = require('./navigation.js');
+const { timestamp } = require('./date-time.js');
 
 const TAB_URLS = [
   '/pages/index/index',
@@ -36,7 +37,9 @@ const navigateTo = (url) => {
 const formatDate = (input, withTime) => {
   if (withTime === undefined) withTime = true;
   if (!input) return '';
-  const d = input instanceof Date ? input : new Date(input);
+  const parsed = timestamp(input);
+  if (!parsed) return '--';
+  const d = new Date(parsed);
   if (isNaN(d.getTime())) return '--';
   const y  = d.getFullYear();
   const mo = String(d.getMonth() + 1).padStart(2, '0');
@@ -54,7 +57,9 @@ const formatDate = (input, withTime) => {
  */
 const fromNow = (input) => {
   if (!input) return '';
-  const d = input instanceof Date ? input : new Date(input);
+  const parsed = timestamp(input);
+  if (!parsed) return '--';
+  const d = new Date(parsed);
   if (isNaN(d.getTime())) return '--';
   const diff = Math.floor((Date.now() - d.getTime()) / 86400000);
   if (diff === 0) return '今天';
@@ -71,7 +76,9 @@ const fromNow = (input) => {
  */
 const formatTimeAgo = (input) => {
   if (!input) return '';
-  const d    = input instanceof Date ? input : new Date(input);
+  const parsed = timestamp(input);
+  if (!parsed) return '--';
+  const d = new Date(parsed);
   const diff = Date.now() - d.getTime();
   const minutes = Math.floor(diff / 60000);
   const hours   = Math.floor(diff / 3600000);

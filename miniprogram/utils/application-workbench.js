@@ -1,43 +1,26 @@
+const { LABELS, normalizeStatus, mobileGroup } = require('./application-state.js');
+const { calendarDayParts, shanghaiDayDistance } = require('./date-time.js');
 const GROUP_META = {
-  preparing: { label: '准备中', tone: 'blue', order: 1 },
+  preparing: { label: '待投递', tone: 'blue', order: 1 },
   applied: { label: '已投递', tone: 'indigo', order: 2 },
+  oa: { label: 'OA', tone: 'orange', order: 2 },
   interview: { label: '面试中', tone: 'orange', order: 3 },
   offer: { label: 'Offer', tone: 'green', order: 4 },
   closed: { label: '已结束', tone: 'gray', order: 5 }
 };
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-function startOfDay(value) {
-  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-
 function parseDate(value) {
-  if (!value) return null;
-  if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? null : new Date(value.getTime());
-  }
-  const raw = String(value).trim();
-  if (!raw) return null;
-  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw + 'T00:00:00' : raw.replace(' ', 'T');
-  const date = new Date(normalized);
-  return Number.isNaN(date.getTime()) ? null : date;
+  return value ? calendarDayParts(value) : null;
 }
 
 function dayDistance(value, now) {
-  const target = startOfDay(value);
-  const today = startOfDay(now || new Date());
-  if (!target || !today) return null;
-  return Math.round((target.getTime() - today.getTime()) / DAY_MS);
+  return shanghaiDayDistance(value, now === undefined ? Date.now() : now);
 }
 
 function shortDate(value) {
-  const date = parseDate(value);
-  if (!date) return '';
-  return `${date.getMonth() + 1}月${date.getDate()}日`;
+  const parts = parseDate(value);
+  if (!parts) return '';
+  return `${parts.month}月${parts.day}日`;
 }
 
 function deadlineMeta(value, now) {
@@ -53,9 +36,9 @@ function deadlineMeta(value, now) {
 function interviewMeta(value, now) {
   const date = parseDate(value);
   if (!date) return null;
-  const days = dayDistance(date, now);
+  const days = dayDistance(value, now);
   const time = String(value).match(/(?:T|\s)(\d{2}:\d{2})/);
-  const dayText = days === 0 ? '今天' : days === 1 ? '明天' : shortDate(date);
+  const dayText = days === 0 ? '今天' : days === 1 ? '明天' : shortDate(value);
   return {
     days,
     label: `${dayText}${time ? ' ' + time[1] : ''}面试`,
@@ -64,7 +47,8 @@ function interviewMeta(value, now) {
 }
 
 function enrichApplication(item, now) {
-  const group = item.group || 'preparing';
+  const status = normalizeStatus(item.status);
+  const group = status ? mobileGroup(status) : (item.group || 'preparing');
   const groupMeta = GROUP_META[group] || GROUP_META.preparing;
   const deadline = deadlineMeta(item.deadline, now);
   const interview = interviewMeta(item.interviewTime, now);
@@ -75,6 +59,8 @@ function enrichApplication(item, now) {
   else if (deadline.days !== null && deadline.days <= 7 && group !== 'closed') priority = 40 + Math.max(deadline.days, -3);
 
   return Object.assign({}, item, {
+    group,
+    statusText: LABELS[status] || item.statusText || groupMeta.label,
     companyInitial: String(item.company || '职').slice(0, 1),
     groupLabel: groupMeta.label,
     statusTone: groupMeta.tone,
@@ -140,7 +126,7 @@ function buildApplicationWorkbench(source, now) {
   const applications = (Array.isArray(source) ? source : [])
     .map(item => enrichApplication(item, now || new Date()))
     .sort((a, b) => a._priority - b._priority);
-  const counts = { preparing: 0, applied: 0, interview: 0, offer: 0, closed: 0 };
+  const counts = { preparing: 0, applied: 0, oa: 0, interview: 0, offer: 0, closed: 0 };
   applications.forEach(item => { counts[item.group] = (counts[item.group] || 0) + 1; });
   const funnelKeys = ['preparing', 'applied', 'interview', 'offer'];
   const funnelMax = Math.max(1, ...funnelKeys.map(key => counts[key] || 0));
@@ -155,7 +141,7 @@ function buildApplicationWorkbench(source, now) {
     applications,
     counts,
     total: applications.length,
-    activeCount: counts.preparing + counts.applied + counts.interview,
+    activeCount: counts.preparing + counts.applied + counts.oa + counts.interview,
     highlights: buildHighlights(applications, now || new Date()),
     funnel
   };
@@ -169,12 +155,7 @@ function extractBoardData(response) {
 }
 
 function groupForLocalStatus(status) {
-  const value = String(status || '').trim();
-  if (['first_interview', 'second_interview', 'hr_interview', 'phone_screen', 'interview_1', 'interview_2', 'final', 'interview'].includes(value)) return 'interview';
-  if (value === 'offer') return 'offer';
-  if (['rejected', 'closed', 'withdrawn'].includes(value)) return 'closed';
-  if (['applied', 'oa'].includes(value)) return 'applied';
-  return 'preparing';
+  return mobileGroup(status);
 }
 
 function normalizeLocalApplication(item) {

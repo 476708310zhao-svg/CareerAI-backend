@@ -4,7 +4,7 @@ Page({
   data: {
     quickActions: [
       { id: 'resume', label: '简历中心', url: '/package-career/pages/resume/resume' },
-      { id: 'progress', label: '求职进度', url: '/package-user/pages/job-progress/job-progress' },
+      { id: 'progress', label: '申请管线', url: '/pages/applications/applications' },
       { id: 'ai', label: 'AI 助手', url: '/package-ai/pages/ai-assistant/ai-assistant' },
       { id: 'favorites', label: '收藏夹', url: '/package-user/pages/favorites/favorites' }
     ],

@@ -587,6 +587,7 @@ page {
 }
 
 .footer-favorite,
+.footer-queue,
 .footer-match,
 .footer-apply {
   height: 82rpx;
@@ -1129,6 +1130,8 @@ page {
     flex-basis: 148rpx;
   }
 }
+
+.footer-queue { flex: 0 0 138rpx; color: var(--detail-brand); background: #eef4ff; font-size: 24rpx; }
 
 .match-verdict {
   display: flex;

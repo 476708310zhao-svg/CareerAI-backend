@@ -33,3 +33,31 @@ test('daily task state migrates legacy boolean completion values', () => {
   assert.equal(state.done, true);
   assert.equal(state.pending, true);
 });
+
+test('SQLite server timestamps reconcile completion without iOS-only date parsing', () => {
+  const NativeDate = global.Date;
+  class IOSDate extends NativeDate {
+    constructor(...args) {
+      if (typeof args[0] === 'string' && /^\d{4}-\d{2}-\d{2} /.test(args[0])) {
+        throw new Error('Unsupported iOS date string');
+      }
+      super(...args);
+    }
+  }
+  storage.dailyTaskDoneMap = {};
+  global.Date = IOSDate;
+  try {
+    wx.setStorageSync('dailyTaskDoneMap', {
+      [dailyTasks.todayKey()]: {
+        sqlite_task: { done: false, pending: true, updatedAt: '2026-07-14T08:00:00.000Z' }
+      }
+    });
+    dailyTasks.reconcileServerTask('sqlite_task', {
+      id: 13, completed: true, updatedAt: '2026-07-14 09:03:56'
+    });
+    assert.equal(dailyTasks.readTaskState('sqlite_task').done, true);
+    const util = require('../miniprogram/utils/util');
+    assert.equal(util.formatDate('2026-07-14 09:03:56'), util.formatDate('2026-07-14T09:03:56Z'));
+    assert.equal(util.formatTimeAgo('not-a-date'), '--');
+  } finally { global.Date = NativeDate; }
+});

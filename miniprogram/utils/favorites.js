@@ -3,6 +3,7 @@ const apiFavorites = require('./api-favorites.js');
 const reminders = require('./reminders.js');
 const favoriteReminder = require('./favorite-reminder.js');
 const dateTime = require('./date-time.js');
+const progress = require('./job-progress.js');
 
 const STORAGE_KEY = 'userFavorites';
 const OUTBOX_KEY = 'favoriteSyncOutboxV4';
@@ -11,6 +12,51 @@ const SYNC_TTL = 2 * 60 * 1000;
 let _syncPending = null;
 let _flushPending = null;
 let _lastSyncAt = 0;
+const OWNER_KEY = 'jobFavoritesVisibleOwner';
+let _preparedOwner = '';
+let _ownerGeneration = 0;
+
+function _ownerScope() {
+  try { return progress.currentOwnerScope ? String(progress.currentOwnerScope() || '') : ''; } catch (error) { return ''; }
+}
+
+function _resetOwnerData() {
+  _saveAll({});
+  _saveOutbox({});
+  _lastSyncAt = 0;
+  _syncPending = null;
+  _flushPending = null;
+  _ownerGeneration += 1;
+}
+
+// Establish the stable account partition before any local read, upload or fetch.
+// Unlabelled legacy data is intentionally discarded: its owner cannot be proven.
+function prepareOwner() {
+  const scope = _ownerScope();
+  let visible = '';
+  try { visible = String(wx.getStorageSync(OWNER_KEY) || ''); } catch (error) {}
+  if (!scope) {
+    if (_preparedOwner || visible || Object.keys(_readOutbox()).length) _resetOwnerData();
+    _preparedOwner = '';
+    try { wx.setStorageSync(OWNER_KEY, ''); } catch (error) {}
+    return { scope: '', visible: false, generation: _ownerGeneration };
+  }
+  if ((_preparedOwner && _preparedOwner !== scope) || (visible && visible !== scope)) {
+    _resetOwnerData();
+    visible = '';
+    try { wx.setStorageSync(OWNER_KEY, ''); } catch (error) {}
+  } else if (!visible && !_preparedOwner) {
+    // The persisted favorites/outbox predate ownership metadata and must not be
+    // attributed to whichever account happens to sign in first.
+    _resetOwnerData();
+  }
+  _preparedOwner = scope;
+  return { scope, visible: visible === scope, generation: _ownerGeneration };
+}
+
+function _sameOwner(owner) {
+  return !!owner && owner.scope === _ownerScope() && owner.generation === _ownerGeneration;
+}
 
 function _ensureShape(data) {
   const result = {};
@@ -43,6 +89,8 @@ function _operationId(type, targetId) {
 }
 
 function _queue(action, type, targetId, item) {
+  const owner = prepareOwner();
+  if (!owner.scope) return null;
   const outbox = _readOutbox();
   const key = _key(type, targetId);
   const updatedAt = new Date().toISOString();
@@ -50,7 +98,7 @@ function _queue(action, type, targetId, item) {
     operationId: _operationId(type, targetId), action, type, targetId: String(targetId), updatedAt,
     title: item && item.title || '',
     subtitle: item && (item.subtitle || item.company || item.type) || '',
-    payload: item || {}
+    payload: item || {}, ownerScope: owner.scope
   };
   _saveOutbox(outbox);
   return outbox[key];
@@ -61,20 +109,29 @@ function _hasToken() {
 }
 
 function _flushOutbox() {
-  if (!_hasToken()) return Promise.resolve(false);
+  const owner = prepareOwner();
+  if (!_hasToken() || !owner.scope) return Promise.resolve(false);
   if (_flushPending) return _flushPending;
-  const operations = Object.keys(_readOutbox()).map(key => ({ key, operation: _readOutbox()[key] }));
-  _flushPending = operations.reduce((promise, entry) => promise.then(() => {
+  const snapshot = _readOutbox();
+  const operations = Object.keys(snapshot)
+    .map(key => ({ key, operation: snapshot[key] }))
+    .filter(entry => entry.operation && entry.operation.ownerScope === owner.scope);
+  const pending = operations.reduce((promise, entry) => promise.then(() => {
+    if (!_sameOwner(owner)) return;
     const operation = entry.operation;
     const request = operation.action === 'delete' ? apiFavorites.remove : apiFavorites.upsert;
     return request(operation).then(() => {
+      if (!_sameOwner(owner)) return;
       const latest = _readOutbox();
       if (latest[entry.key] && latest[entry.key].operationId === operation.operationId) {
         delete latest[entry.key];
         _saveOutbox(latest);
       }
     }).catch(() => {});
-  }), Promise.resolve()).then(() => true).finally(() => { _flushPending = null; });
+  }), Promise.resolve()).then(() => true).finally(() => {
+    if (_flushPending === pending) _flushPending = null;
+  });
+  _flushPending = pending;
   return _flushPending;
 }
 
@@ -138,22 +195,37 @@ function _mergeRemote(localAll, remoteRows) {
 }
 
 function syncFromServer(options) {
-  if (!_hasToken()) return Promise.resolve(_getAll());
+  const owner = prepareOwner();
+  if (!_hasToken() || !owner.scope) return Promise.resolve(_ensureShape({}));
   if (_syncPending) return _syncPending;
-  if (!(options && options.force) && Date.now() - _lastSyncAt < SYNC_TTL) return Promise.resolve(_getAll());
+  if (owner.visible && !(options && options.force) && Date.now() - _lastSyncAt < SYNC_TTL) return Promise.resolve(_getAll());
 
-  _syncPending = _flushOutbox().then(() => apiFavorites.list({ includeDeleted: true })).then(response => {
-    const rows = response && response.code === 0 && Array.isArray(response.data) ? response.data : [];
+  const pending = _flushOutbox().then(() => {
+    if (!_sameOwner(owner)) return null;
+    return apiFavorites.list({ includeDeleted: true });
+  }).then(response => {
+    if (!_sameOwner(owner)) return _ensureShape({});
+    if (!response || response.code !== 0 || !Array.isArray(response.data)) throw new Error('收藏同步失败');
+    const rows = response.data;
     const merged = _mergeRemote(_getAll(), rows);
     _saveAll(merged);
     _syncJobReminders(merged);
     _lastSyncAt = Date.now();
-    return _flushOutbox().then(() => merged);
-  }).catch(() => _getAll()).finally(() => { _syncPending = null; });
+    return _flushOutbox().then(() => {
+      if (!_sameOwner(owner)) return _ensureShape({});
+      wx.setStorageSync(OWNER_KEY, owner.scope);
+      return merged;
+    });
+  }).catch(() => _sameOwner(owner) && owner.visible ? _getAll() : _ensureShape({})).finally(() => {
+    if (_syncPending === pending) _syncPending = null;
+  });
+  _syncPending = pending;
   return _syncPending;
 }
 
 function add(type, item) {
+  const owner = prepareOwner();
+  if (!owner.scope) return false;
   const all = _getAll();
   if (!all[type]) all[type] = [];
   if (_find(all[type], item.targetId)) return false;
@@ -170,6 +242,8 @@ function add(type, item) {
 }
 
 function remove(type, targetId) {
+  const owner = prepareOwner();
+  if (!owner.scope) return false;
   const all = _getAll();
   if (!all[type] || !_find(all[type], targetId)) return false;
   all[type] = _removeFromList(all[type], targetId);
@@ -182,6 +256,8 @@ function remove(type, targetId) {
 }
 
 function update(type, targetId, patch) {
+  const owner = prepareOwner();
+  if (!owner.scope) return false;
   const all = _getAll();
   const current = all[type] && _find(all[type], targetId);
   if (!current) return false;
@@ -194,12 +270,23 @@ function update(type, targetId, patch) {
   return true;
 }
 
-function isFavorited(type, targetId) { return !!_find(_getAll()[type], targetId); }
-function getList(type) { return _getAll()[type] || []; }
-function getAll() { return _getAll(); }
+function isFavorited(type, targetId) {
+  const owner = prepareOwner();
+  return !!owner.scope && !!_find(_getAll()[type], targetId);
+}
+function getList(type) {
+  const owner = prepareOwner();
+  return owner.scope ? (_getAll()[type] || []) : [];
+}
+function getAll() {
+  const owner = prepareOwner();
+  return owner.scope ? _getAll() : _ensureShape({});
+}
 function getCount(type) {
-  if (type) return getList(type).length;
+  const owner = prepareOwner();
+  if (!owner.scope) return 0;
   const all = _getAll();
+  if (type) return (all[type] || []).length;
   return TYPES.reduce((sum, key) => sum + all[key].length, 0);
 }
 function toggle(type, item, title, subtitle) {
@@ -210,5 +297,5 @@ function toggle(type, item, title, subtitle) {
 
 module.exports = {
   add, remove, update, isFavorited, getList, getAll, getCount, toggle, syncFromServer,
-  flushPending: _flushOutbox, mergeRemote: _mergeRemote, OUTBOX_KEY
+  prepareOwner, flushPending: _flushOutbox, mergeRemote: _mergeRemote, OUTBOX_KEY, OWNER_KEY
 };

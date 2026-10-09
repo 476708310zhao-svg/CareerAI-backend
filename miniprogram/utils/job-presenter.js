@@ -1,4 +1,5 @@
 const EMPTY_VALUES = new Set(['', 'null', 'undefined', 'n/a', 'na', 'none', '--']);
+const { applicationState } = require('./application-state.js');
 const { normalizeDataMeta, freshnessTone, summaryText } = require('./data-provenance.js');
 
 const SKILL_DICTIONARY = [
@@ -245,7 +246,8 @@ function presentJob(source) {
   const percentageScore = first(job, ['matchScore100', 'matchScore', 'score']);
   const score = Math.round(Number(percentageScore) || 0);
   const progressStatus = clean(first(job, ['applyStatus', 'applicationStatus', 'progressStatus']));
-  const applied = job.isApplied === true || /applied|投递|网申|interview|面试|offer/i.test(progressStatus);
+  const state = applicationState(job);
+  const applied = state.isApplied;
   const employmentType = employmentText(first(job, ['type', 'jobType', 'employmentType', 'job_employment_type']));
   const presentation = {
     id: first(job, ['id', 'jobId', 'job_id']),
@@ -272,6 +274,10 @@ function presentJob(source) {
     applyCountText: Number(first(job, ['applyCount', 'applicationCount'])) > 0 ? `${Number(first(job, ['applyCount', 'applicationCount']))}人已投` : '',
     isSaved: job.isSaved === true || job.favoriteStatus === true,
     isApplied: applied,
+    inProgress: state.inProgress,
+    isQueued: state.isQueued,
+    applicationStatus: state.applicationStatus,
+    progressStatusText: state.progressStatusText,
     appliedText: applied ? (progressStatus || '已投递') : '',
     hasApplyLink: !!clean(first(job, ['applyLink', 'applyUrl', 'officialApplyUrl', 'sourceUrl'])),
     descriptionBlocks: contentBlocks(first(job, ['description', 'rawDescription', 'jobDescription', 'job_description'])),
@@ -285,9 +291,9 @@ function presentJob(source) {
     isFallback: dataMeta.isFallback
   };
   presentation.basicInfo = basicInfo(job, presentation);
-  presentation.applyButtonText = presentation.deadlineClosed
-    ? '已截止'
-    : (presentation.isApplied ? '已投递' : (presentation.hasApplyLink ? '前往投递' : '保存投递'));
+  presentation.applyButtonText = presentation.inProgress
+    ? '查看进度'
+    : (presentation.deadlineClosed ? '已截止' : (presentation.hasApplyLink ? '前往投递' : '保存投递'));
   return presentation;
 }
 

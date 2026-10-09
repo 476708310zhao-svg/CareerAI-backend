@@ -60,7 +60,7 @@ test('job presenter marks past deadlines and applied jobs as unavailable to appl
   assert.equal(deadlineMeta('2000-01-01').closed, true);
   assert.equal(expired.applyButtonText, '已截止');
   assert.equal(applied.isApplied, true);
-  assert.equal(applied.applyButtonText, '已投递');
+  assert.equal(applied.applyButtonText, '查看进度');
   assert.equal(missing.location, '');
   assert.equal(singleSalary.salary, '$76k');
   assert.equal(hourlySalary.salary, '$35–$50/小时');
@@ -106,7 +106,7 @@ test('job lists share one card component and detail follows the decision order',
     assert.ok(current > previous, marker + ' must appear after the prior detail module');
     previous = current;
   });
-  assert.match(detailWxml, /deadlineClosed \|\| isApplied/);
+  assert.match(detailWxml, /deadlineClosed && !inProgress/);
   assert.match(detailWxml, /loading && !job/);
   assert.match(detailWxml, /bindtap="retryLoad"/);
 });

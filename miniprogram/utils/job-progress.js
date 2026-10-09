@@ -1,12 +1,14 @@
 const STORAGE_KEY = 'localApplications';
 const apiClient = require('./api-client.js');
+const { applicationState } = require('./application-state.js');
+const { shanghaiDayKey, shanghaiDayDistance } = require('./date-time.js');
 
 let suppressRemoteSync = false;
 
 const STATUS_OPTIONS = [
   { code: 'collected', label: '已收藏', short: '收藏', tone: 'gray' },
   { code: 'applied', label: '已投递', short: '投递', tone: 'blue' },
-  { code: 'online_apply', label: '网申中', short: '网申', tone: 'indigo' },
+  { code: 'online_apply', label: '待投递', short: '待投', tone: 'indigo' },
   { code: 'oa', label: 'OA 阶段', short: 'OA', tone: 'amber' },
   { code: 'first_interview', label: '一面', short: '一面', tone: 'teal' },
   { code: 'second_interview', label: '二面', short: '二面', tone: 'teal' },
@@ -22,6 +24,8 @@ const STATUS_LABEL_MAP = STATUS_OPTIONS.reduce((map, item, index) => {
 }, {});
 
 const LEGACY_STATUS_MAP = {
+  interested: 'collected', preparing: 'online_apply', phone_screen: 'first_interview',
+  interview_1: 'first_interview', interview_2: 'second_interview', final: 'hr_interview', withdrawn: 'closed',
   pending: 'collected',
   viewed: 'collected',
   saved: 'collected',
@@ -38,7 +42,7 @@ const TERMINAL_STATUSES = {
 };
 
 function getToday() {
-  return new Date().toISOString().slice(0, 10);
+  return shanghaiDayKey();
 }
 
 function safeStorageGet(key, fallback) {
@@ -62,6 +66,70 @@ function safeStorageSet(key, value) {
   try {
     wx.setStorageSync(key, value);
   } catch (e) {}
+}
+
+function hashScope(prefix, value) {
+  const text = String(value || '');
+  if (!text) return '';
+  let first = 2166136261;
+  let second = 5381;
+  for (let index = 0; index < text.length; index += 1) {
+    const code = text.charCodeAt(index);
+    first ^= code;
+    first = Math.imul(first, 16777619);
+    second = ((second << 5) + second) ^ code;
+  }
+  return prefix + '_' + (first >>> 0).toString(36) + '_' + (second >>> 0).toString(36) + '_' + text.length;
+}
+
+function readToken() {
+  try { return String(wx.getStorageSync('token') || ''); } catch (e) { return ''; }
+}
+
+function decodeJwtIdentity(token) {
+  const part = String(token || '').split('.')[1];
+  if (!part) return '';
+  try {
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    const input = part.replace(/-/g, '+').replace(/_/g, '/');
+    let bits = 0;
+    let bitCount = 0;
+    const bytes = [];
+    for (const char of input) {
+      const value = alphabet.indexOf(char);
+      if (value < 0) continue;
+      bits = (bits << 6) | value;
+      bitCount += 6;
+      if (bitCount >= 8) {
+        bitCount -= 8;
+        bytes.push((bits >>> bitCount) & 255);
+      }
+    }
+    const encoded = bytes.map(value => '%' + value.toString(16).padStart(2, '0')).join('');
+    const payload = JSON.parse(decodeURIComponent(encoded));
+    return String(payload.userId || payload.user_id || payload.openid || payload.sub || '');
+  } catch (error) { return ''; }
+}
+
+function storedIdentity() {
+  try {
+    const info = wx.getStorageSync('userInfo') || {};
+    const profile = wx.getStorageSync('userProfile') || {};
+    return String(info.userId || info.id || info.openid || profile.userId || profile.id || profile.openid || '');
+  } catch (error) { return ''; }
+}
+
+function legacyTokenScope() {
+  return hashScope('u', readToken());
+}
+
+function currentOwnerScope() {
+  const token = readToken();
+  if (!token) return '';
+  // A verified JWT is stable across token rotation. Stored identity is the
+  // fallback for opaque-token deployments; raw identifiers are never stored.
+  const identity = decodeJwtIdentity(token) || storedIdentity();
+  return identity ? hashScope('id', identity) : legacyTokenScope();
 }
 
 function hasToken() {
@@ -94,11 +162,7 @@ function getStatusConfig(status) {
 }
 
 function daysUntil(dateText) {
-  if (!dateText) return null;
-  const target = new Date(String(dateText).slice(0, 10) + 'T00:00:00').getTime();
-  if (Number.isNaN(target)) return null;
-  const today = new Date(getToday() + 'T00:00:00').getTime();
-  return Math.round((target - today) / 86400000);
+  return dateText ? shanghaiDayDistance(String(dateText).slice(0, 10)) : null;
 }
 
 function getDeadlineMeta(record) {
@@ -136,7 +200,7 @@ function normalizeRecord(item) {
     jobTitle,
     city: source.city || source.location || (source.jobSnapshot && (source.jobSnapshot.city || source.jobSnapshot.location)) || '',
     salary: source.salary || (source.jobSnapshot && source.jobSnapshot.salary) || '',
-    jobLink: source.jobLink || source.applyLink || source.apply_url || '',
+    jobLink: source.jobLink || source.officialApplyUrl || source.applyLink || source.apply_url || '',
     logo: source.logo || '',
     appliedAt,
     deadline,
@@ -160,7 +224,8 @@ function normalizeRecord(item) {
     projectId: source.projectId || '',
     offer: source.offer || null,
     createdAt: source.createdAt || appliedAt || getToday(),
-    updatedAt: source.updatedAt || ''
+    updatedAt: source.updatedAt || '',
+    cacheOwnerScope: String(source.cacheOwnerScope || '')
   };
   const deadlineMeta = getDeadlineMeta(record);
   return Object.assign(record, {
@@ -205,13 +270,32 @@ function toStorageShape(record) {
     nextAction: normalized.nextAction,
     projectId: normalized.projectId,
     offer: normalized.offer,
-    updatedAt: normalized.updatedAt || new Date().toISOString()
+    updatedAt: normalized.updatedAt || new Date().toISOString(),
+    cacheOwnerScope: normalized.cacheOwnerScope || currentOwnerScope()
   });
 }
 
-function getRawList() {
+function getAllRawList() {
   const list = safeStorageGet(STORAGE_KEY, []);
   return Array.isArray(list) ? list : [];
+}
+
+function getRawList() {
+  const scope = currentOwnerScope();
+  if (!scope) return [];
+  const legacyScope = legacyTokenScope();
+  const all = getAllRawList();
+  const legacy = legacyScope !== scope
+    ? all.filter(item => String(item && item.cacheOwnerScope || '') === legacyScope)
+    : [];
+  if (legacy.length) {
+    safeStorageSet(STORAGE_KEY, all.map(item => String(item && item.cacheOwnerScope || '') === legacyScope
+      ? Object.assign({}, item, { cacheOwnerScope: scope }) : item));
+  }
+  return all.filter(item => {
+    const owner = String(item && item.cacheOwnerScope || '');
+    return owner === scope || owner === legacyScope;
+  }).map(item => Object.assign({}, item, { cacheOwnerScope: scope }));
 }
 
 function getList(options) {
@@ -235,7 +319,15 @@ function getList(options) {
 }
 
 function saveList(list) {
-  safeStorageSet(STORAGE_KEY, (list || []).map(toStorageShape));
+  const scope = currentOwnerScope();
+  if (!scope) return;
+  const legacyScope = legacyTokenScope();
+  const otherOwners = getAllRawList().filter(item => {
+    const owner = String(item && item.cacheOwnerScope || '');
+    return owner !== scope && owner !== legacyScope;
+  });
+  const owned = (list || []).map(item => toStorageShape(Object.assign({}, item, { cacheOwnerScope: scope })));
+  safeStorageSet(STORAGE_KEY, otherOwners.concat(owned));
 }
 
 function findIndexByIdOrJob(list, record) {
@@ -320,6 +412,9 @@ function remotePayload(record) {
 
 function syncRecordRemote(record) {
   if (suppressRemoteSync || !hasToken() || !record) return Promise.resolve(null);
+  const requestToken = readToken();
+  const requestOwnerScope = currentOwnerScope();
+  if (!requestToken || !requestOwnerScope) return Promise.resolve(null);
   const normalized = normalizeRecord(record);
   const body = remotePayload(normalized);
   const numericId = /^[0-9]+$/.test(String(normalized.id)) ? normalized.id : '';
@@ -327,6 +422,9 @@ function syncRecordRemote(record) {
     ? apiClient.put({ path: '/api/applications/progress/' + encodeURIComponent(numericId), body, timeout: 15000 })
     : apiClient.post({ path: '/api/applications/progress', body, timeout: 15000 });
   return request.then(res => {
+    // Token rotation is allowed when the stable owner is unchanged. A real
+    // account switch must discard the old response before it reaches storage.
+    if (currentOwnerScope() !== requestOwnerScope) return null;
     if (res && res.code === 0 && res.data) return mergeRemoteRecord(res.data);
     return null;
   }).catch(() => null);
@@ -334,16 +432,20 @@ function syncRecordRemote(record) {
 
 function syncFromServer() {
   if (!hasToken()) return Promise.resolve(getList());
+  const requestToken = readToken();
+  const requestOwnerScope = currentOwnerScope();
+  if (!requestToken || !requestOwnerScope) return Promise.resolve([]);
   return apiClient.request({
     path: '/api/applications/progress',
     noCache: true,
     timeout: 15000
   }).then(res => {
+    if (currentOwnerScope() !== requestOwnerScope) return [];
     if (res && res.code === 0 && Array.isArray(res.data)) {
       return mergeRemoteList(res.data);
     }
     return getList();
-  }).catch(() => getList());
+  }).catch(() => currentOwnerScope() === requestOwnerScope ? getList() : []);
 }
 
 function deleteRemote(id) {
@@ -423,6 +525,10 @@ function getByJobId(jobId) {
   return getList().find(item => String(item.sourceJobId) === target) || null;
 }
 
+function getJobState(jobId) {
+  return applicationState(getByJobId(jobId));
+}
+
 function getStats() {
   const list = getList();
   const byStatus = {};
@@ -479,6 +585,7 @@ module.exports = {
   update,
   remove,
   getByJobId,
+  getJobState,
   getStats,
   getUpcomingDeadlines,
   getTodayInterviews,
@@ -486,5 +593,6 @@ module.exports = {
   getToday,
   syncFromServer,
   syncRecordRemote,
-  mergeRemoteList
+  mergeRemoteList,
+  currentOwnerScope
 };

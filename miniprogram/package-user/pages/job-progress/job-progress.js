@@ -76,16 +76,24 @@ Page({
     dailyAdvice: progress.buildDailyAdvice()
   },
 
-  onLoad() {
+  onLoad(options) {
+    if (!options || options.legacy !== '1') {
+      this._compatRedirect = true;
+      navigation.safeSwitchTab('/pages/applications/applications');
+      return;
+    }
+    this._pendingRecordId = options.id ? String(options.id) : '';
     this.buildStatusTabs();
     this.loadRecords({ remote: true });
   },
 
   onShow() {
+    if (this._compatRedirect) return;
     this.loadRecords({ remote: true });
   },
 
   onPullDownRefresh() {
+    if (this._compatRedirect) return wx.stopPullDownRefresh();
     this.loadRecords({ remote: true }).then(() => wx.stopPullDownRefresh());
   },
 
@@ -107,7 +115,10 @@ Page({
       records,
       stats,
       dailyAdvice: progress.buildDailyAdvice()
-    }, () => this.applyFilter());
+    }, () => {
+      this.applyFilter();
+      this.openPendingRecord();
+    });
     };
     render();
     if (options && options.remote) {
@@ -121,6 +132,15 @@ Page({
     return Promise.resolve();
   },
 
+  openPendingRecord() {
+    const id = String(this._pendingRecordId || '');
+    if (!id) return;
+    const record = this.data.records.find(item => String(item.id) === id);
+    if (!record) return;
+    this._pendingRecordId = '';
+    this.openRecordDetail({ currentTarget: { dataset: { id } } });
+  },
+
   enrichRecords(records) {
     const reportMap = buildReportMap();
     return (records || []).map(record => {
@@ -131,6 +151,7 @@ Page({
       const aiSuggestion = record.aiSuggestion || (report && (report.recommendText || (report.suggestions || [])[0])) || '';
       const nextAction = record.nextAction || this.buildNextAction(record, matchScore, missingKeywords);
       return Object.assign({}, record, {
+        remoteManaged: /^[1-9]\d*$/.test(String(record.id || '')) && !record.clientId,
         matchReport: report || null,
         matchScore,
         matchScoreTone: scoreTone(matchScore),
@@ -189,6 +210,7 @@ Page({
     const id = e.currentTarget.dataset.id;
     const record = this.data.records.find(item => String(item.id) === String(id));
     if (!record) return;
+    if (record.remoteManaged) return this.openManagedApplication(record);
     this.setData({
       showForm: true,
       editId: String(id),
@@ -298,6 +320,10 @@ Page({
       resumeVersionId: (form.resumeVersionId || '').trim()
     };
     const wasEdit = !!this.data.editId;
+    if (wasEdit && /^[1-9]\d*$/.test(String(this.data.editId))) {
+      wx.showToast({ title: '云端申请请在新进度页修改', icon: 'none' });
+      return;
+    }
     let savedRecord;
     if (wasEdit) {
       savedRecord = progress.update(this.data.editId, payload);
@@ -306,6 +332,10 @@ Page({
         id: 'local_' + Date.now(),
         createdAt: progress.getToday()
       }, payload));
+    }
+    if (!savedRecord) {
+      wx.showToast({ title: '保存失败，请重试', icon: 'none' });
+      return;
     }
     this.syncRecordReminders(savedRecord);
     analytics.track(wasEdit ? 'job_progress_update' : 'job_progress_create', {
@@ -324,6 +354,7 @@ Page({
     const id = e.currentTarget.dataset.id;
     const record = this.data.records.find(item => String(item.id) === String(id));
     if (!record) return;
+    if (record.remoteManaged) return this.openManagedApplication(record);
     const actions = ['查看详情', '编辑记录', '更新状态'];
     if (record.hasMatchReport) actions.push('查看 JD 匹配');
     if (record.sourceJobId) actions.push('查看职位详情');
@@ -369,6 +400,7 @@ Page({
     const id = e.currentTarget.dataset.id;
     const record = this.data.records.find(item => String(item.id) === String(id));
     if (!record) return;
+    if (record.remoteManaged) return this.openManagedApplication(record);
     this.setData({
       selectedRecord: record,
       showDetail: true
@@ -414,6 +446,9 @@ Page({
   },
 
   updateStatus(id) {
+    const record = this.data.records.find(item => String(item.id) === String(id));
+    if (!record) return;
+    if (record.remoteManaged) return this.openManagedApplication(record);
     wx.showActionSheet({
       itemList: progress.STATUS_OPTIONS.map(item => item.label),
       success: (res) => {
@@ -424,6 +459,10 @@ Page({
           patch.appliedAt = progress.getToday();
         }
         const saved = progress.update(id, patch);
+        if (!saved) {
+          wx.showToast({ title: '更新失败，请重试', icon: 'none' });
+          return;
+        }
         analytics.track('job_progress_status_update', {
           id,
           status: selected.code,
@@ -436,6 +475,9 @@ Page({
   },
 
   deleteRecord(id) {
+    const record = this.data.records.find(item => String(item.id) === String(id));
+    if (!record) return;
+    if (record.remoteManaged) return this.openManagedApplication(record);
     wx.showModal({
       title: '删除进度记录',
       content: '删除后无法恢复，确定删除这条求职进度吗？',
@@ -443,7 +485,10 @@ Page({
       confirmColor: '#DC2626',
       success: (res) => {
         if (!res.confirm) return;
-        progress.remove(id);
+        if (!progress.remove(id)) {
+          wx.showToast({ title: '删除失败，请重试', icon: 'none' });
+          return;
+        }
         analytics.track('job_progress_delete', { id });
         reminders.disableReminder('job_progress', id, 'deadline');
         reminders.disableReminder('job_progress', id, 'interview');
@@ -465,6 +510,12 @@ Page({
     };
     wx.setStorageSync('tempJobDetail', snapshot);
     wx.setStorageSync('jobDetailSnapshot_' + String(record.sourceJobId), snapshot);
+  },
+
+  openManagedApplication(record) {
+    const id = record && record.id;
+    if (!id) return;
+    wx.navigateTo({ url: '/package-user/pages/application-detail/application-detail?id=' + encodeURIComponent(id) });
   },
 
   goToJobs() {
