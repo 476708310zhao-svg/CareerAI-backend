@@ -1,3 +1,8 @@
+const isolatedRuntime = require('./helpers/isolatedTestRuntime.cjs');
+isolatedRuntime.install();
+isolatedRuntime.prepare();
+isolatedRuntime.registerCleanup(require('node:test'));
+
 require('./envValidation.test');
 require('./aiClient.test');
 require('./v4AiRuntime.test');
@@ -19,6 +24,7 @@ require('./agentCompat.test');
 require('./dailyTasks.test');
 require('./applicationWorkbench.test');
 require('./applicationWorkflow.test');
+require('./testRuntimeIsolation.test');
 require('./navigationConfig.test');
 require('./shareConfig.test');
 require('./jobPresentation.test');

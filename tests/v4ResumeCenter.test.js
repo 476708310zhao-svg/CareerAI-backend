@@ -1,5 +1,10 @@
+const isolatedRuntime = require('./helpers/isolatedTestRuntime.cjs');
+isolatedRuntime.install();
+isolatedRuntime.prepare();
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
+isolatedRuntime.registerCleanup(test);
 
 const { defaultSuggestions, validateSuggestions } = require('../services/v4ResumeCenter');
 

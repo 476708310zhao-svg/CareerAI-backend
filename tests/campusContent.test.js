@@ -1,5 +1,10 @@
+const isolatedRuntime = require('./helpers/isolatedTestRuntime.cjs');
+isolatedRuntime.install();
+isolatedRuntime.prepare();
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
+isolatedRuntime.registerCleanup(test);
 const fs = require('node:fs');
 const path = require('node:path');
 const { buildRecordQuery, transform } = require('../scripts/sync_feishu_server');

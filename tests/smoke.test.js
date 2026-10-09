@@ -1,9 +1,9 @@
+const isolatedRuntime = require('./helpers/isolatedTestRuntime.cjs');
+isolatedRuntime.install();
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const db = require('../db/database');
-const featureFlags = require('../utils/featureFlags');
+isolatedRuntime.registerCleanup(test);
 const { shanghaiDayKey, addCalendarDays } = require('../utils/shanghaiDate');
 
 const HOST = '127.0.0.1';
@@ -16,11 +16,12 @@ const testAccount = {
 };
 
 let server;
+let db;
+let featureFlags;
 let authToken;
 let adminToken;
 let createdOrderNo;
 let v4ApplicationId;
-const uploadedFiles = [];
 
 function startServer() {
   Object.assign(process.env, {
@@ -53,11 +54,13 @@ function startServer() {
     MEMBERSHIP_FEATURE_ENABLED: 'false'
   });
 
+  db = isolatedRuntime.prepare();
+  featureFlags = require('../utils/featureFlags');
   featureFlags.updateFeatureFlag('recruitment', true);
   featureFlags.updateFeatureFlag('membership', false);
 
   const { startServer: listen } = require('../server');
-  server = listen(0);
+  server = isolatedRuntime.trackServer(listen(0));
   const address = server.address();
   BASE_URL = `http://${HOST}:${address.port}`;
 }
@@ -116,65 +119,9 @@ function pdfBlob(type = 'application/pdf', text = 'Smoke Test User\nsmoke@exampl
   return new Blob([`%PDF-1.4\n${pdfText}\n%%EOF`], { type });
 }
 
-function trackUploadedUrl(url) {
-  if (!url || !url.startsWith('/uploads/')) return;
-  uploadedFiles.push(path.join(process.cwd(), url.replace(/^\//, '')));
-}
-
 test.before(async () => {
   startServer();
   await waitForServer();
-});
-
-test.after(async () => {
-  if (server) {
-    await new Promise(resolve => server.close(resolve));
-  }
-  const user = db.prepare('SELECT id FROM users WHERE email = ?').get(testAccount.email);
-  if (user) {
-    db.prepare('DELETE FROM oa_mistakes_v4 WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM oa_practice_sessions_v4 WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM oa_training_plans_v4 WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM career_project_milestones_v4 WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM career_projects_v4 WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM job_trust_observations_v4 WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM interview_answers_v4 WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM interview_reports_v4 WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM interview_sessions_v4 WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM interview_spaces_v4 WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM today_tasks_v4 WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM career_diagnostics_v4 WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM career_weekly_reports_v4 WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM ai_agent_tasks_v4 WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM quota_usage_v4 WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM user_subscriptions_v4 WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM payment_refunds_v4 WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM entitlement_grants_v4 WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM commerce_ledger_v4 WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM analytics_events WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM ai_application_material_drafts WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM resume_ai_change_sets WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM resume_job_links WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM resume_versions_v4 WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM career_experience_library WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM resumes WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM ai_usage WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM application_history WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM job_matches WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM user_profiles WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM applications WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM orders WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM messages WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM job_reminders WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM application_materials WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM jd_match_reports WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM interview_daily_practice WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM interview_notebook WHERE user_id = ?').run(user.id);
-    db.prepare('DELETE FROM users WHERE id = ?').run(user.id);
-  }
-  uploadedFiles.forEach(file => {
-    try { fs.unlinkSync(file); } catch (e) {}
-  });
 });
 
 test('health endpoint is available', async () => {
@@ -2763,7 +2710,6 @@ test('avatar upload accepts a valid png image', async () => {
   const body = await readJson(res);
   assert.equal(body.code, 0);
   assert.match(body.data.url, /^\/uploads\/\d{4}-\d{2}-\d{2}\//);
-  trackUploadedUrl(body.data.url);
 });
 
 test('resume pdf upload accepts valid pdf and preserves original name', async () => {
@@ -2782,7 +2728,6 @@ test('resume pdf upload accepts valid pdf and preserves original name', async ()
   assert.equal(body.code, 0);
   assert.equal(body.data.filename, '新简历_2026-05-18.pdf');
   assert.match(body.data.url, /^\/uploads\/resumes\/resume_/);
-  trackUploadedUrl(body.data.url);
 
   const listRes = await fetch(`${BASE_URL}/api/upload/resume-pdfs`, {
     headers: authHeaders()
@@ -2841,7 +2786,6 @@ test('resume pdf extract returns an online resume draft', async () => {
   });
   assert.equal(uploadRes.status, 200);
   const uploadBody = await readJson(uploadRes);
-  trackUploadedUrl(uploadBody.data.url);
 
   const extractRes = await fetch(`${BASE_URL}/api/upload/resume-pdf/${uploadBody.data.id}/extract`, {
     method: 'POST',

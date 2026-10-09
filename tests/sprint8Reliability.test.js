@@ -1,9 +1,14 @@
 'use strict';
 
+const isolatedRuntime = require('./helpers/isolatedTestRuntime.cjs');
+isolatedRuntime.install();
+isolatedRuntime.prepare();
+
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+isolatedRuntime.registerCleanup(test);
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'sprint8_test_secret_1234567890abcdef';
 process.env.CRON_SECRET = process.env.CRON_SECRET || 'sprint8_cron_secret_1234567890abcdef';
 process.env.JWT_SECRET = 'test_secret_please_do_not_use_in_production_1234567890';

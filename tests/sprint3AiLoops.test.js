@@ -1,9 +1,14 @@
 'use strict';
 
+const isolatedRuntime = require('./helpers/isolatedTestRuntime.cjs');
+isolatedRuntime.install();
+isolatedRuntime.prepare();
+
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+isolatedRuntime.registerCleanup(test);
 const { buildJobMatch } = require('../services/v4JobMatch');
 const { buildInterviewBrief } = require('../services/v4Interview');
 

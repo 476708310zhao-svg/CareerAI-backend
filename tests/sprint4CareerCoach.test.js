@@ -1,10 +1,15 @@
 'use strict';
 
+const isolatedRuntime = require('./helpers/isolatedTestRuntime.cjs');
+isolatedRuntime.install();
+isolatedRuntime.prepare();
+
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+isolatedRuntime.registerCleanup(test);
 const {
   dateKey,
   buildDiagnostic,
