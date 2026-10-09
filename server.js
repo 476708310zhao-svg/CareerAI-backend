@@ -41,6 +41,9 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  if (req.path === '/' || req.path === '/web' || req.path.startsWith('/web/')) {
+    res.setHeader('Content-Security-Policy', "default-src 'self'; base-uri 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'");
+  }
   next();
 });
 
@@ -130,6 +133,7 @@ app.use('/api/applications', applicationRoutes);
 app.use('/api/experiences',  experienceRoutes);
 app.use('/api/salaries',     salaryRoutes);
 app.use('/api/users',        userRoutes);
+app.use('/api/web-session', require('./routes/web-session'));
 app.use('/api/companies',    companyRoutes);
 app.use('/api/comments',     commentRoutes);
 app.use('/api/favorites',    favoriteRoutes);
@@ -173,6 +177,11 @@ app.get('/api/health/live', (_req, res) => {
 app.get('/api/health/ready', (_req, res) => {
   const readiness = buildRuntimeReadiness();
   res.status(readiness.ready ? 200 : 503).json(readiness);
+});
+
+// 用户侧 Web 工作台入口。管理后台仍使用 /admin，API 仍使用 /api/*。
+app.get(['/', '/web', '/web/'], (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'web', 'index.html'));
 });
 
 // 404

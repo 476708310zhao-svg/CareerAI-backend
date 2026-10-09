@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="职引求职管理工作台">
+  <title>职引 · 求职工作台</title>
+  <link rel="stylesheet" href="/web/styles.css">
+  <link rel="stylesheet" href="/web/applications.css">
+</head>
+<body>
+  <div id="auth-view" class="auth-view">
+    <div class="auth-card">
+      <div class="brand-mark">职引</div>
+      <p class="eyebrow">CAREERAI WORKSPACE</p>
+      <h1>把每一份申请，推进到下一步</h1>
+      <p class="muted">电脑端整理申请、准备材料，也可以随时问 AI 专家。</p>
+      <p class="muted">已有小程序账号？在小程序「我的 → 设置 → 登录电脑工作台」生成登录码，继续使用原账号。</p>
+      <form id="code-login-form" class="stack-form"><label>小程序一次性登录码<input id="web-login-code" required maxlength="32" autocomplete="off" placeholder="粘贴 32 位登录码"></label><button class="mini-button" type="submit">使用小程序账号登录</button></form>
+      <p id="auth-message" class="form-message" role="alert"></p>
+    </div>
+  </div>
+
+  <div id="app-view" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="sidebar-brand"><span class="brand-mark small">职引</span><span>求职工作台</span></div>
+      <nav class="side-nav" aria-label="主导航">
+        <button class="nav-item active" data-view="dashboard">工作台</button>
+        <button class="nav-item" data-view="applications">申请管线</button>
+        <button class="nav-item" data-view="jobs">职位</button>
+        <button class="nav-item" data-view="resources">资源中心</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <button id="global-ai" class="ai-entry">✦ 问 AI 专家</button>
+        <button id="logout-button" class="nav-item">退出登录</button>
+      </div>
+    </aside>
+    <main class="main-content">
+      <header class="topbar">
+        <div><p class="eyebrow">CAREERAI</p><h2 id="page-title">今天，先处理最重要的一项</h2></div>
+        <div class="user-chip"><span id="user-name">求职者</span><span class="status-dot"></span></div>
+      </header>
+      <div id="toast" class="toast" role="status"></div>
+      <section id="dashboard-view" class="page-view"></section>
+      <section id="applications-view" class="page-view hidden"></section>
+      <section id="jobs-view" class="page-view hidden"></section>
+      <section id="resources-view" class="page-view hidden"></section>
+    </main>
+  </div>
+
+  <div id="detail-drawer" class="drawer hidden" aria-hidden="true">
+    <div class="drawer-panel">
+      <button id="close-drawer" class="icon-button" aria-label="关闭">×</button>
+      <div id="detail-content"></div>
+    </div>
+  </div>
+
+  <div id="ai-drawer" class="drawer hidden" aria-hidden="true">
+    <div class="drawer-panel ai-panel">
+      <button id="close-ai" class="icon-button" aria-label="关闭">×</button>
+      <div class="eyebrow">AI EXPERT</div><h2>职引导师</h2>
+      <p id="ai-context" class="context-chip">当前上下文：通用求职</p>
+      <div class="ai-toolbar"><select id="ai-history" aria-label="历史会话"></select><button id="ai-new" class="mini-button">新会话</button><button id="ai-refresh" class="mini-button">刷新会话</button><button id="ai-more-sessions" class="mini-button" hidden>更多会话</button><button id="ai-older" class="link-button">更早消息</button></div>
+      <div id="ai-messages" class="ai-messages"><div class="ai-bubble assistant">你好，我可以结合你的岗位、申请和简历，帮你推进下一步。</div></div>
+      <form id="ai-form" class="ai-form"><textarea id="ai-input" rows="3" maxlength="4000" placeholder="例如：这个岗位的面试前，我最应该准备什么？" required></textarea><button class="primary-button" type="submit">发送</button></form>
+      <p id="ai-message" class="form-message" role="alert"></p>
+    </div>
+  </div>
+  <dialog id="ai-save-dialog" aria-labelledby="ai-save-title">
+    <h3 id="ai-save-title">确认 AI 写入动作</h3>
+    <form id="ai-save-form" class="stack-form">
+      <section class="ai-confirmation-card" aria-label="写入动作确认详情">
+        <p class="eyebrow">申请对象</p>
+        <p><strong id="ai-save-company">目标公司</strong> · <span id="ai-save-job">目标岗位</span></p>
+        <dl class="ai-change-list">
+          <div><dt>动作</dt><dd id="ai-save-action-name">新增申请备注</dd></div>
+          <div><dt>变更前</dt><dd id="ai-save-before">保留现有申请备注</dd></div>
+          <div><dt>变更后</dt><dd id="ai-save-after">新增一条备注</dd></div>
+          <div><dt>影响范围</dt><dd id="ai-save-impact">仅追加这条申请的备注；不会投递职位、发送消息或联系雇主。</dd></div>
+        </dl>
+      </section>
+      <label>目标申请<select id="ai-save-application" required><option value="">请选择本人的申请</option></select></label>
+      <label>保存到<select id="ai-save-target"><option value="note">申请备注</option><option value="task">下一步任务</option></select></label>
+      <label>可编辑内容<textarea id="ai-save-content" rows="7" maxlength="2000" required></textarea></label>
+      <label>任务日期（可选）<input id="ai-save-date" type="date"></label>
+      <p id="ai-save-message" class="form-message" role="alert"></p>
+      <div class="dialog-actions"><button id="ai-save-cancel" class="mini-button" type="button">取消</button><button id="ai-save-submit" class="primary-button" type="submit">确认新增备注</button></div>
+    </form>
+    <section id="ai-save-success" class="ai-save-success hidden" role="status">
+      <h4>已安全写入申请记录</h4>
+      <p id="ai-save-success-message" class="muted"></p>
+      <button id="ai-save-view-application" class="primary-button" type="button">查看申请工作台</button>
+    </section>
+  </dialog>
+  <script src="/web/ai-save-model.js" defer></script>
+  <script src="/web/application-model.js" defer></script>
+  <script src="/web/applications.js" defer></script>
+  <dialog id="manual-dialog"><h3>手动新增申请</h3><form id="manual-form" class="stack-form">
+    <label>公司<input name="company" required maxlength="120"></label><label>岗位<input name="title" required maxlength="160"></label><label>地点<input name="location" maxlength="120"></label>
+    <label>官网申请链接<input type="url" name="url" maxlength="1000" placeholder="https://"></label><label>岗位 JD<textarea name="jd" rows="5" maxlength="12000"></textarea></label><label>截止日期<input type="date" name="deadline"></label>
+    <p id="manual-message" role="alert"></p><div class="dialog-actions"><button id="manual-cancel" type="button" class="mini-button">取消</button><button type="submit" class="primary-button">加入准备中</button></div></form></dialog>
+  <script src="/web/ai-expert.js" defer></script>
+  <script src="/web/p0-workspace.js" defer></script>
+  <script src="/web/app.js" defer></script>
+</body>
+</html>

@@ -14,6 +14,7 @@ const { buildDataMeta, summarizeDataMeta } = require('../../utils/dataProvenance
 const jobTrust = require('../../services/v4JobTrust');
 
 const router = express.Router();
+router.use((req, res, next) => { if (req.method === 'GET') res.set('Cache-Control', 'no-store'); next(); });
 const analytics = require('../../services/v4Analytics');
 const membership = require('../../services/v4Membership');
 

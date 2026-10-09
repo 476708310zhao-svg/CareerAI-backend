@@ -38,7 +38,7 @@ router.get('/', (req, res) => {
   try {
     return res.json({
       code: 0,
-      data: conversations.list(req.user.userId, req.query.before, req.query.applicationId),
+      data: conversations.list(req.user.userId, req.query.before, req.query.applicationId, req.query.scope),
     });
   } catch (error) {
     return sendError(res, error);

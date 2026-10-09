@@ -7,6 +7,7 @@ const path = require('node:path');
 const test = require('node:test');
 const Database = require('better-sqlite3');
 const { backupDatabase, restoreDatabase } = require('../db/backup');
+const { assertSchema: assertAssistantConfirmationSchema } = require('../services/aiAssistantConfirmations');
 const {
   DEFAULT_MIGRATIONS_DIR,
   applyPendingMigrations,
@@ -42,9 +43,14 @@ function createRequiredBaselineTables(db) {
   }));
   requirements.forEach((columns, table) => {
     db.exec(`CREATE TABLE "${table}" (${Array.from(columns).map(column => (
-      `"${column}" TEXT${column === 'id' ? ' PRIMARY KEY' : ''}`
+      column === 'id' ? '"id" INTEGER PRIMARY KEY' : `"${column}" TEXT`
     )).join(', ')})`);
   });
+  // These legacy V4 parents predate the versioned runner but are referenced by
+  // later additive migrations. Include them so foreign-key cascade tests model
+  // the real startup baseline instead of an intentionally minimal stub.
+  db.exec('CREATE TABLE IF NOT EXISTS career_experience_library (id INTEGER PRIMARY KEY)');
+  db.exec('CREATE TABLE IF NOT EXISTS job_reminders (id INTEGER PRIMARY KEY)');
 }
 
 test('database migration baseline is recorded once and exposes status', () => withTempDir(directory => {
@@ -56,12 +62,12 @@ test('database migration baseline is recorded once and exposes status', () => wi
     const second = applyPendingMigrations(db);
     const status = getMigrationStatus(db);
 
-    assert.equal(first.appliedNow.length, 9);
+    assert.equal(first.appliedNow.length, 10);
     assert.equal(second.appliedNow.length, 0);
-    assert.equal(status.applied.length, 9);
+    assert.equal(status.applied.length, 10);
     assert.equal(status.pending.length, 0);
     assert.match(status.applied[0].checksum, /^[a-f0-9]{64}$/);
-    assert.equal(status.applied.at(-1).version, '0009');
+    assert.equal(status.applied.at(-1).version, '0010');
     assert.equal(
       db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('ai_conversations','ai_conversation_turns')").pluck().get(),
       2
@@ -97,12 +103,21 @@ test('database migration baseline is recorded once and exposes status', () => wi
       db.prepare('PRAGMA index_info(idx_ai_turns_conversation_status)').all().map(column => column.name),
       ['conversation_id', 'status', 'id']
     );
+    assert.equal(
+      db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ai_assistant_confirmations'").pluck().get(),
+      1
+    );
+    assert.deepEqual(
+      db.prepare('PRAGMA index_info(idx_ai_assistant_confirmations_application)').all().map(column => column.name),
+      ['user_id', 'application_id', 'id']
+    );
+    assert.doesNotThrow(() => assertAssistantConfirmationSchema(db));
   } finally {
     db.close();
   }
 }));
 
-test('database migration upgrades an existing 0001-0006 database through 0009 exactly once', () => withTempDir(directory => {
+test('database migration upgrades an existing 0001-0006 database through 0010 exactly once', () => withTempDir(directory => {
   const legacyMigrationsDir = path.join(directory, 'migrations-through-0006');
   copyMigrationsThrough(legacyMigrationsDir, '0006');
 
@@ -115,10 +130,10 @@ test('database migration upgrades an existing 0001-0006 database through 0009 ex
     ]);
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0007', '0008', '0009']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0007', '0008', '0009', '0010']);
     assert.equal(
       db.prepare('SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1').pluck().get(),
-      '0009'
+      '0010'
     );
     assert.equal(
       db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('ai_conversations','ai_conversation_turns')").pluck().get(),
@@ -142,7 +157,7 @@ test('database migration upgrades an existing 0001-0007 database with nullable b
     db.prepare('INSERT INTO application_history (id, application_id, user_id) VALUES (?, ?, ?)').run('1', '11', '21');
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0008', '0009']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0008', '0009', '0010']);
     assert.deepEqual(
       db.prepare('SELECT batch_id AS batchId, batch_size AS batchSize FROM application_history WHERE id=?').get('1'),
       { batchId: null, batchSize: null }
@@ -157,7 +172,7 @@ test('database migration upgrades an existing 0001-0007 database with nullable b
   }
 }));
 
-test('database migration upgrades an existing 0001-0008 AI conversation schema through 0009 exactly once', () => withTempDir(directory => {
+test('database migration upgrades an existing 0001-0008 AI conversation schema through 0010 exactly once', () => withTempDir(directory => {
   const previousMigrationsDir = path.join(directory, 'migrations-through-0008');
   copyMigrationsThrough(previousMigrationsDir, '0008');
 
@@ -180,7 +195,7 @@ test('database migration upgrades an existing 0001-0008 AI conversation schema t
     `).run(conversationId, 'legacy-request', 'Legacy question', 'Legacy answer', 'completed').lastInsertRowid;
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0009']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0009', '0010']);
     assert.deepEqual(
       db.prepare(`
         SELECT request_fingerprint AS requestFingerprint,
@@ -211,6 +226,68 @@ test('database migration upgrades an existing 0001-0008 AI conversation schema t
       db.prepare('PRAGMA index_info(idx_ai_turns_conversation_status)').all().map(column => column.name),
       ['conversation_id', 'status', 'id']
     );
+    assert.equal(applyPendingMigrations(db).appliedNow.length, 0);
+  } finally {
+    db.close();
+  }
+}));
+
+test('database migration upgrades an existing 0001-0009 database with an idempotency uniqueness ledger', () => withTempDir(directory => {
+  const previousMigrationsDir = path.join(directory, 'migrations-through-0009');
+  copyMigrationsThrough(previousMigrationsDir, '0009');
+
+  const db = new Database(path.join(directory, 'assistant-confirmation-upgrade.db'));
+  try {
+    db.pragma('foreign_keys = ON');
+    assert.equal(db.pragma('foreign_keys', { simple:true }), 1);
+    createRequiredBaselineTables(db);
+    const previous = applyPendingMigrations(db, { migrationsDir: previousMigrationsDir });
+    assert.equal(previous.appliedNow.at(-1).version, '0009');
+    assert.throws(() => assertAssistantConfirmationSchema(db), /migration 0010 is required/);
+
+    const upgrade = applyPendingMigrations(db);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0010']);
+    assert.doesNotThrow(() => assertAssistantConfirmationSchema(db));
+    assert.deepEqual(
+      db.prepare('PRAGMA foreign_key_list(ai_assistant_confirmations)').all()
+        .map(key => ({from:key.from,to:`${key.table}.${key.to}`,onDelete:key.on_delete}))
+        .sort((left,right)=>left.from.localeCompare(right.from)),
+      [
+        {from:'application_id',to:'applications.id',onDelete:'CASCADE'},
+        {from:'conversation_id',to:'ai_conversations.id',onDelete:'CASCADE'},
+        {from:'turn_id',to:'ai_conversation_turns.id',onDelete:'CASCADE'},
+        {from:'user_id',to:'users.id',onDelete:'CASCADE'},
+      ]
+    );
+    const insert = db.prepare(`
+      INSERT INTO ai_assistant_confirmations
+        (user_id,action_id,request_fingerprint,application_id,conversation_id,turn_id,source_scope,action_target,response_json)
+      VALUES (?,?,?,?,?,?,?,?,?)
+    `);
+    const createGraph = seed => {
+      const userId=100+seed,applicationId=200+seed;
+      db.prepare('INSERT INTO users (id,openid) VALUES (?,?)').run(userId,`migration-owner-${seed}`);
+      db.prepare('INSERT INTO applications (id,user_id) VALUES (?,?)').run(applicationId,userId);
+      const conversationId=Number(db.prepare("INSERT INTO ai_conversations(user_id,application_id,title) VALUES (?,?,?)").run(userId,applicationId,`Conversation ${seed}`).lastInsertRowid);
+      const turnId=Number(db.prepare("INSERT INTO ai_conversation_turns(conversation_id,request_id,question,answer,status) VALUES (?,?,?,'Answer','completed')").run(conversationId,`request-${seed}`,`Question ${seed}`).lastInsertRowid);
+      const actionId=`ai-save:${conversationId}:${turnId}`;
+      insert.run(userId,actionId,`fingerprint-${seed}`,applicationId,conversationId,turnId,'application','note','{"target":"note"}');
+      return {userId,applicationId,conversationId,turnId,actionId};
+    };
+    const unique=createGraph(1);
+    assert.throws(
+      () => insert.run(unique.userId,unique.actionId,'other-fingerprint',unique.applicationId,unique.conversationId,unique.turnId,'application','task','{"target":"task"}'),
+      /UNIQUE constraint failed/
+    );
+    assert.equal(db.prepare('SELECT COUNT(*) FROM ai_assistant_confirmations').pluck().get(), 1);
+
+    const byUser=createGraph(2);db.prepare('DELETE FROM users WHERE id=?').run(byUser.userId);
+    const byApplication=createGraph(3);db.prepare('DELETE FROM applications WHERE id=?').run(byApplication.applicationId);
+    const byConversation=createGraph(4);db.prepare('DELETE FROM ai_conversations WHERE id=?').run(byConversation.conversationId);
+    const byTurn=createGraph(5);db.prepare('DELETE FROM ai_conversation_turns WHERE id=?').run(byTurn.turnId);
+    for(const graph of [byUser,byApplication,byConversation,byTurn]) {
+      assert.equal(db.prepare('SELECT COUNT(*) FROM ai_assistant_confirmations WHERE action_id=?').pluck().get(graph.actionId),0);
+    }
     assert.equal(applyPendingMigrations(db).appliedNow.length, 0);
   } finally {
     db.close();

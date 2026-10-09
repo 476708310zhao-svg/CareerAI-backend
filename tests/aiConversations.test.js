@@ -85,6 +85,18 @@ test('AI conversation schema and ownership boundaries fail closed', () => {
     () => conversations.list(OWNER_ID, undefined, otherApplicationId),
     error => error.status === 404
   );
+  assert.throws(
+    () => conversations.create(OWNER_ID, { scope: 'general', applicationId: ownerApplicationId }),
+    error => error.status === 400
+  );
+  assert.throws(
+    () => conversations.list(OWNER_ID, undefined, undefined, 'application'),
+    error => error.status === 400
+  );
+  assert.throws(
+    () => conversations.list(OWNER_ID, undefined, ownerApplicationId, 'general'),
+    error => error.status === 400
+  );
   const own = conversations.create(OWNER_ID, { applicationId: ownerApplicationId });
   assert.throws(
     () => conversations.begin(OWNER_ID, own.id, {
@@ -102,6 +114,16 @@ test('conversation create, resume, pagination and cap are deterministic', () => 
   const resumed = conversations.create(OWNER_ID, { resume: true });
   assert.equal(resumed.id, first.id);
   assert.equal(resumed.resumed, true);
+  const applicationConversation = conversations.create(OWNER_ID, { scope: 'application', applicationId: ownerApplicationId });
+  const unfilteredIds = conversations.list(OWNER_ID).list.map(item => item.id);
+  assert.ok(unfilteredIds.includes(first.id));
+  assert.ok(unfilteredIds.includes(applicationConversation.id));
+  assert.ok(conversations.list(OWNER_ID, undefined, undefined, 'general').list.every(item => item.applicationId === null));
+  const applicationList = conversations.list(OWNER_ID, undefined, ownerApplicationId, 'application').list;
+  assert.ok(applicationList.some(item => item.id === applicationConversation.id));
+  assert.ok(applicationList.every(item => item.applicationId === ownerApplicationId));
+  const legacyApplicationList = conversations.list(OWNER_ID, undefined, ownerApplicationId).list;
+  assert.deepEqual(legacyApplicationList.map(item => item.id), applicationList.map(item => item.id));
 
   for (let index = 0; index < 52; index += 1) {
     db.prepare('INSERT INTO ai_conversations(user_id,title) VALUES (?,?)')
@@ -244,6 +266,11 @@ test('HTTP API authenticates, disables caching, replays safely and does not leak
   assert.equal(created.response.status, 201);
   assert.equal(created.response.headers.get('cache-control'), 'no-store');
   const conversationId = created.payload.data.id;
+  const scoped = await request('/?scope=general', { userId: OWNER_ID });
+  assert.equal(scoped.response.status, 200);
+  assert.ok(scoped.payload.data.list.every(item => item.applicationId === null));
+  const conflict = await request(`/?scope=general&applicationId=${ownerApplicationId}`, { userId: OWNER_ID });
+  assert.equal(conflict.response.status, 400);
 
   const originalGenerate = aiRuntime.generate;
   aiRuntime.generate = async () => ({

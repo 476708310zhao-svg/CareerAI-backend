@@ -15,6 +15,10 @@ const {
 } = require('../../utils/applicationStatus');
 
 const router = express.Router();
+router.use((req, res, next) => {
+  if (req.method === 'GET') res.set('Cache-Control', 'no-store');
+  next();
+});
 
 function parseJson(value, fallback) {
   try { return JSON.parse(value); } catch (error) { return fallback; }

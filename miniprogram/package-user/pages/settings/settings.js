@@ -52,6 +52,22 @@ Page({
     this.loadSettings();
   },
 
+  loginOnComputer() {
+    if (!wx.getStorageSync('token')) return this.ensureAuthenticated('登录后生成电脑登录码', () => this.loginOnComputer());
+    wx.showModal({title:'登录电脑工作台',content:'生成后请仅在自己的官网工作台输入登录码。登录后可访问当前账号的申请和简历。登录码 5 分钟有效，使用一次即失效。',confirmText:'生成登录码',success: async result => {
+      if (!result.confirm || this._webCodeBusy) return;
+      this._webCodeBusy = true;
+      const token = wx.getStorageSync('token');
+      try {
+        const response = await apiClient.post({path:'/api/web-session/code'});
+        if (token !== wx.getStorageSync('token')) return;
+        const data = response.data || response;
+        wx.showModal({title:'电脑登录码（5 分钟有效）',content:data.code,confirmText:'复制登录码',success: choice => { if (choice.confirm && token === wx.getStorageSync('token')) wx.setClipboardData({data:data.code}); }});
+      } catch (error) { wx.showToast({title:error.message || '生成失败，请重试',icon:'none'}); }
+      finally { this._webCodeBusy = false; }
+    }});
+  },
+
   onShow() {
     this.calcCacheSize();
   },

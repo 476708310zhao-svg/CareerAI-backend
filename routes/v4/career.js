@@ -7,6 +7,7 @@ const todayTasks = require('../../services/v4TodayTasks');
 const analytics = require('../../services/v4Analytics');
 
 const router = express.Router();
+router.use((req, res, next) => { if (req.method === 'GET') res.set('Cache-Control', 'no-store'); next(); });
 router.use(authMiddleware);
 
 function dashboard(userId) {

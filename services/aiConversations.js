@@ -50,6 +50,7 @@ function owned(userId, id) {
 function view(row, extra = {}) {
   return {
     id: row.id,
+    scope: row.application_id ? 'application' : 'general',
     applicationId: row.application_id,
     title: row.title,
     createdAt: row.created_at,
@@ -81,10 +82,20 @@ function application(userId, id) {
   return row;
 }
 
+function conversationScope(scope, applicationId) {
+  const value = scope === undefined || scope === null || scope === '' ? '' : String(scope);
+  if (value && !['general', 'application'].includes(value)) fail(400, '会话范围无效');
+  const hasApplication = applicationId !== undefined && applicationId !== null && applicationId !== '';
+  if (value === 'general' && hasApplication) fail(400, '通用会话不能指定申请记录');
+  if (value === 'application' && !hasApplication) fail(400, '申请会话必须指定申请记录');
+  return value || (hasApplication ? 'application' : 'general');
+}
+
 function create(userId, body = {}) {
   if (body.resume !== undefined && typeof body.resume !== 'boolean') fail(400, '恢复参数无效');
+  const scope = conversationScope(body.scope, body.applicationId);
   let app = null;
-  if (body.applicationId !== undefined && body.applicationId !== null && body.applicationId !== '') {
+  if (scope === 'application') {
     app = application(userId, body.applicationId);
   }
   return db.transaction(() => {
@@ -107,17 +118,24 @@ function create(userId, body = {}) {
   }).immediate();
 }
 
-function list(userId, before, applicationId) {
+function list(userId, before, applicationId, scope) {
   const cursor = positiveInteger(before, '分页标识', { optional: true }) || Number.MAX_SAFE_INTEGER;
-  const filtered = applicationId !== undefined;
+  const hasScope = scope !== undefined && scope !== null && scope !== '';
+  const hasApplication = applicationId !== undefined && applicationId !== null && applicationId !== '';
+  // Keep the CP3 contract: an unfiltered list contains every conversation owned by
+  // the caller. Web clients opt into the narrower general/application scopes.
+  const mode = !hasScope && !hasApplication ? 'all' : conversationScope(scope, applicationId);
+  const filtered = mode === 'application';
   let filterId = null;
   if (filtered) {
     filterId = positiveInteger(applicationId, '申请标识');
     application(userId, filterId);
   }
+  const scopeSql = mode === 'general' ? ' AND application_id IS NULL'
+    : filtered ? ' AND application_id=?' : '';
   const rows = db.prepare(`
     SELECT * FROM ai_conversations
-    WHERE user_id=? AND id<?${filtered ? ' AND application_id=?' : ''}
+    WHERE user_id=? AND id<?${scopeSql}
     ORDER BY id DESC LIMIT 51
   `).all(userId, cursor, ...(filtered ? [filterId] : []));
   return { list: rows.slice(0, 50).map(view), nextBefore: rows.length > 50 ? rows[49].id : null };
@@ -152,6 +170,8 @@ function context(userId, conversation) {
     summary: {
       applicationId: app.id,
       label: text(`${app.company} · ${app.jobTitle}`, 180),
+      company: text(app.company, 120),
+      jobTitle: text(app.jobTitle, 160),
       resumeVersionId: version?.id || null,
       sources: [
         '岗位与申请',
@@ -385,6 +405,7 @@ module.exports = {
   finish,
   cancel,
   context,
+  conversationScope,
   buildMessages,
   assertSchema,
 };

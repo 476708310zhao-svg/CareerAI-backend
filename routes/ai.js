@@ -1,4 +1,7 @@
 const router = require('express').Router();
+const crypto = require('node:crypto');
+const db = require('../db/database');
+const assistantConfirmations = require('../services/aiAssistantConfirmations');
 const { aiLimiter } = require('../middleware/rateLimit');
 const { authMiddleware } = require('../middleware/auth');
 const { consumeDailyLimit, requireVip, getQuotaStatus } = require('../utils/aiQuota');
@@ -16,12 +19,105 @@ const {
   assessCareerPlanQuality
 } = require('../services/careerPlanGenerator');
 
+// Confirmation writes must never run against a database that skipped migration 0010.
+// This assertion is read-only and deliberately fails server composition at load time.
+assistantConfirmations.assertSchema(db);
+
 function aiFail(res, status, message, data) {
   return res.status(status).json({ code: -1, message, data });
 }
 
+function isCalendarDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  if (year < 1 || month < 1 || month > 12 || day < 1) return false;
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return day <= days[month - 1];
+}
+
+function assistantActionFingerprint(value) {
+  return crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
+}
+
 router.get('/usage', authMiddleware, (req, res) => {
   res.json({ code: 0, message: 'success', data: getQuotaStatus(req.user.userId) });
+});
+
+router.post('/assistant/save', authMiddleware, aiLimiter, (req, res) => {
+  const body = req.body || {};
+  if (body.confirm !== true) return aiFail(res, 400, '请先确认要保存的内容');
+  const action = assistantConfirmations.parseActionId(body.actionId);
+  if (!action) return aiFail(res, 400, '确认动作标识无效');
+  const applicationId = assistantConfirmations.positiveCanonicalId(body.applicationId);
+  if (!applicationId) return aiFail(res, 400, '申请标识无效');
+  if (!['note', 'task'].includes(body.target)) return aiFail(res, 400, '保存目标无效');
+  if (typeof body.content !== 'string') return aiFail(res, 400, '保存内容格式无效');
+  const content = body.content.trim();
+  if (!content) return aiFail(res, 400, '保存内容不能为空');
+  if (body.dueAt !== undefined && body.dueAt !== null && typeof body.dueAt !== 'string') return aiFail(res, 400, '任务日期格式无效');
+  const dueAt = body.target === 'task' ? String(body.dueAt || '').trim() : '';
+  if (dueAt && !isCalendarDate(dueAt)) return aiFail(res, 400, '任务日期无效');
+  const fingerprint = assistantActionFingerprint({
+    applicationId, conversationId:action.conversationId, turnId:action.turnId,
+    target:body.target, content, dueAt
+  });
+  try {
+    const saved = db.transaction(() => {
+      const source = db.prepare(`
+        SELECT c.application_id AS applicationId, t.status
+        FROM ai_conversation_turns t
+        JOIN ai_conversations c ON c.id=t.conversation_id
+        WHERE c.id=? AND t.id=? AND c.user_id=?
+      `).get(action.conversationId, action.turnId, req.user.userId);
+      if (!source) throw Object.assign(new Error('已完成的 AI 回答不存在'), {status:404});
+      if (source.status !== 'completed') throw Object.assign(new Error('只能保存已完成的 AI 回答'), {status:409});
+      const sourceApplicationId = source.applicationId === null ? null : Number(source.applicationId);
+      if (sourceApplicationId !== null && sourceApplicationId !== applicationId) {
+        throw Object.assign(new Error('确认动作与申请记录不匹配'), {status:409});
+      }
+      const sourceScope = sourceApplicationId === null ? 'general' : 'application';
+      const application = db.prepare('SELECT id,notes FROM applications WHERE id=? AND user_id=?').get(applicationId, req.user.userId);
+      if (!application) throw Object.assign(new Error('申请记录不存在'), {status:404});
+      const existing = db.prepare(`
+        SELECT request_fingerprint AS requestFingerprint, response_json AS responseJson
+        FROM ai_assistant_confirmations WHERE user_id=? AND action_id=?
+      `).get(req.user.userId, action.actionId);
+      if (existing) {
+        if (existing.requestFingerprint !== fingerprint) {
+          throw Object.assign(new Error('该确认动作已用于其他内容，请重新生成确认卡'), {status:409});
+        }
+        return { created:false, result:JSON.parse(existing.responseJson) };
+      }
+      let result;
+      if (body.target === 'note') {
+        const notes = [application.notes || '', content].filter(Boolean).join('\n\n');
+        if (notes.length > 2000) throw Object.assign(new Error('备注合计不能超过 2000 字，请缩短后保存'), {status:422});
+        const update = db.prepare("UPDATE applications SET notes=?,updated_at=datetime('now') WHERE id=? AND user_id=?").run(notes, applicationId, req.user.userId);
+        if (update.changes !== 1) throw Object.assign(new Error('申请记录不存在'), {status:404});
+        result = { actionId:action.actionId, applicationId, conversationId:action.conversationId, turnId:action.turnId, sourceScope, target:'note' };
+      } else {
+        if (content.length > 200) throw Object.assign(new Error('任务标题不能超过 200 字，请编辑后保存'), {status:422});
+        const task = db.prepare('INSERT INTO application_tasks(application_id,user_id,title,due_at,priority) VALUES (?,?,?,?,?)')
+          .run(applicationId, req.user.userId, content, dueAt, 'medium');
+        result = { actionId:action.actionId, applicationId, conversationId:action.conversationId, turnId:action.turnId, sourceScope, taskId:task.lastInsertRowid, target:'task' };
+      }
+      db.prepare(`
+        INSERT INTO ai_assistant_confirmations
+          (user_id,action_id,request_fingerprint,application_id,conversation_id,turn_id,source_scope,action_target,response_json)
+        VALUES (?,?,?,?,?,?,?,?,?)
+      `).run(req.user.userId, action.actionId, fingerprint, applicationId, action.conversationId, action.turnId, sourceScope, body.target, JSON.stringify(result));
+      return { created:true, result };
+    }).immediate();
+    return res.status(saved.created ? 201 : 200).json({
+      code: 0,
+      data: { ...saved.result, created:saved.created, replay:!saved.created },
+      message:saved.result.target === 'note' ? '已添加到申请备注' : '已创建申请任务'
+    });
+  } catch (error) {
+    if (Number.isInteger(error.status) && error.status >= 400 && error.status < 500) return aiFail(res, error.status, error.message);
+    throw error;
+  }
 });
 
 function aiErrorResponse(res, err, scope) {

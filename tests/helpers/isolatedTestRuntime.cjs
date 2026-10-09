@@ -190,7 +190,7 @@ function prepare() {
   current.preparing = true;
   try {
     // database.js and v4Schema establish the legacy baseline. Every versioned
-    // change, including 0007 through 0009, is applied only by the formal runner.
+    // change, including 0007 through 0010, is applied only by the formal runner.
     const db = require('../../db/database');
     current.db = db;
     // These legacy route modules still own baseline tables required by 0001.
@@ -203,8 +203,8 @@ function prepare() {
     const { applyPendingMigrations, getMigrationStatus } = require('../../db/migrate');
     applyPendingMigrations(db);
     const migrationStatus = getMigrationStatus(db);
-    if (migrationStatus.pending.length !== 0 || !migrationStatus.applied.some(item => item.version === '0009')) {
-      throw new Error('Isolated test database did not reach migration 0009');
+    if (migrationStatus.pending.length !== 0 || !migrationStatus.applied.some(item => item.version === '0010')) {
+      throw new Error('Isolated test database did not reach migration 0010');
     }
 
     // Reuse the product's idempotent seed path so HTTP smoke tests see the
