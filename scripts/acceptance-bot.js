@@ -184,10 +184,17 @@ class AcceptanceBot {
       MEMBERSHIP_FEATURE_ENABLED: 'false',
     });
 
-    const { startServer } = require(path.join(ROOT, 'server'));
     this.db = require(path.join(ROOT, 'db', 'database'));
+    // Legacy modules still establish baseline tables required by migration
+    // 0001. Load only those table owners before the versioned runner.
+    require(path.join(ROOT, 'routes', 'payment'));
+    require(path.join(ROOT, 'routes', 'aggregate'));
+    require(path.join(ROOT, 'routes', 'oa'));
     require(path.join(ROOT, 'db', 'v4Schema')).ensureV4Schema();
     require(path.join(ROOT, 'db', 'migrate')).applyPendingMigrations(this.db);
+    // The server imports schema-dependent routes, so formal migrations must
+    // finish before loading server.js and its route graph.
+    const { startServer } = require(path.join(ROOT, 'server'));
     this.featureFlags = require(path.join(ROOT, 'utils', 'featureFlags'));
     this.previousFlags.recruitment = this.featureFlags.isFeatureEnabled('recruitment');
     this.previousFlags.membership = this.featureFlags.isFeatureEnabled('membership');

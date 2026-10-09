@@ -24,6 +24,7 @@ require('./agentCompat.test');
 require('./dailyTasks.test');
 require('./applicationWorkbench.test');
 require('./applicationWorkflow.test');
+require('./aiConversations.test');
 require('./testRuntimeIsolation.test');
 require('./navigationConfig.test');
 require('./shareConfig.test');
