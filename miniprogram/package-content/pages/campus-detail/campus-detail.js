@@ -69,14 +69,58 @@ Page({
   },
 
   onLoad(options) {
-    const id = parseInt(options.id, 10);
-    if (!id || id < 1) {
+    const rawId = String(options && options.id || '');
+    const id = /^\d+$/.test(rawId) ? Number(rawId) : 0;
+    if (!Number.isSafeInteger(id) || id < 1) {
       this.setData({ loadFailed: true, loadErrorText: '缺少有效的校招信息 ID' });
       wx.showToast({ title: '参数错误', icon: 'none' });
       return;
     }
     this._campusId = id;
     this.loadDetail(id);
+  },
+
+  onShow() {
+    this._pageVisible = true;
+  },
+
+  onHide() {
+    this._pageVisible = false;
+    this._actionGeneration = (this._actionGeneration || 0) + 1;
+  },
+
+  onUnload() {
+    this.onHide();
+  },
+
+  _captureAction() {
+    return {
+      generation: (this._actionGeneration || 0) + 1,
+      reminderOperation: reminders.captureOperation()
+    };
+  },
+
+  _startAction() {
+    const operation = this._captureAction();
+    this._actionGeneration = operation.generation;
+    return operation;
+  },
+
+  _isActionCurrent(operation) {
+    return !!operation && this._pageVisible !== false &&
+      operation.generation === this._actionGeneration &&
+      reminders.isOperationCurrent(operation.reminderOperation);
+  },
+
+  _requireLogin() {
+    if (wx.getStorageSync('token')) return true;
+    wx.showModal({
+      title: '请先登录',
+      content: '登录后才能保存校招收藏和截止提醒，游客数据不会写入本机。',
+      showCancel: false,
+      confirmText: '知道了'
+    });
+    return false;
   },
 
   loadDetail(id) {
@@ -316,14 +360,16 @@ Page({
   },
 
   refreshServerReminderState(id) {
+    const operation = this._startAction();
     reminders.fetchReminders({
       sourceType: reminders.CAMPUS_SOURCE_TYPE,
       reminderType: reminders.CAMPUS_DEADLINE_TYPE,
       targetId: String(id)
     }).then(rows => {
+      if (!this._isActionCurrent(operation)) return;
       const row = (rows || []).find(item => item && item.enabled && String(item.targetId) === String(id));
       if (!row || !this.data.detail) return;
-      reminders.saveCampusReminderLocal(this.data.detail, row);
+      reminders.saveCampusReminderLocal(this.data.detail, row, operation.reminderOperation);
       this.setData({ isSubscribed: true }, () => this.refreshReminderCopy());
     });
   },
@@ -384,7 +430,7 @@ Page({
 
   toggleFavorite() {
     const detail = this.data.detail;
-    if (!detail) return;
+    if (!detail || !this._requireLogin()) return;
     const isFavorited = favUtil.toggle('campus', {
       targetId: String(detail.id),
       title: detail.company,
@@ -396,7 +442,7 @@ Page({
 
   subscribeReminder() {
     const detail = this.data.detail;
-    if (!detail || this.data.subscribing) return;
+    if (!detail || this.data.subscribing || !this._requireLogin()) return;
     if (this.data.isSubscribed) {
       wx.showActionSheet({
         itemList: ['取消截止提醒'],
@@ -409,29 +455,42 @@ Page({
     }
     const payload = reminders.buildCampusDeadlineReminder(detail);
 
+    const operation = this._startAction();
     const saveLocalReminder = (message, record) => {
+      if (!this._isActionCurrent(operation)) return;
       const saved = record && (record.data || record);
-      reminders.saveCampusReminderLocal(detail, saved || payload);
-      this.setData({ isSubscribed: true, subscribing: false }, () => this.refreshReminderCopy());
+      reminders.saveCampusReminderLocal(detail, saved || payload, operation.reminderOperation);
+      favUtil.followCampus(detail);
+      this.setData({ isSubscribed: true, isFavorited: true, subscribing: false }, () => this.refreshReminderCopy());
       wx.showToast({ title: message || '已保存关注', icon: 'success' });
     };
 
     this.setData({ subscribing: true }, () => this.refreshReminderCopy());
-    reminders.upsertCampusDeadlineReminder(detail, { withSubscribe: true })
+    return reminders.upsertCampusDeadlineReminder(detail, { withSubscribe: true, operation: operation.reminderOperation })
       .then(record => saveLocalReminder(payload.reminderDate ? '已设置截止提醒' : '已关注校招', record))
-      .catch(() => saveLocalReminder('已保存到本地'));
+      .catch(error => {
+        if (!this._isActionCurrent(operation)) return;
+        this.setData({ subscribing: false }, () => this.refreshReminderCopy());
+        wx.showToast({ title: error && error.code === 'LOGIN_REQUIRED' ? '请先登录' : '保存失败，请重试', icon: 'none' });
+      });
   },
 
   cancelReminder() {
     const detail = this.data.detail;
-    if (!detail || this.data.subscribing) return;
+    if (!detail || this.data.subscribing || !this._requireLogin()) return;
+    const operation = this._startAction();
     this.setData({ subscribing: true }, () => this.refreshReminderCopy());
     const done = () => {
-      reminders.removeCampusReminderLocal(detail.id);
+      if (!this._isActionCurrent(operation)) return;
+      reminders.removeCampusReminderLocal(detail.id, operation.reminderOperation);
       this.setData({ isSubscribed: false, subscribing: false }, () => this.refreshReminderCopy());
       wx.showToast({ title: '已取消提醒', icon: 'none' });
     };
-    reminders.disableCampusDeadlineReminder(detail.id).then(done).catch(done);
+    reminders.disableCampusDeadlineReminder(detail.id, operation.reminderOperation).then(done).catch(error => {
+      if (!this._isActionCurrent(operation)) return;
+      this.setData({ subscribing: false }, () => this.refreshReminderCopy());
+      wx.showToast({ title: '取消失败，请重试', icon: 'none' });
+    });
   },
 
   goRelated(e) {

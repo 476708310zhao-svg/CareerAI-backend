@@ -72,6 +72,255 @@ function detailHarness(api) {
   return { ...f, page, input };
 }
 
+function campusFavoritesHarness(options = {}) {
+  const f = fixture(), links = [], writes = [];
+  let reminderGeneration = 0;
+  f.wx.getStorageInfoSync = () => ({ keys: Object.keys(f.storage) });
+  f.wx.removeStorageSync = key => { delete f.storage[key]; };
+  f.wx.navigateTo = value => links.push(value.url);
+  f.wx.showModal = value => value.success({ confirm: true });
+  const reminders = {
+    captureOperation: () => ({ owner: String(f.storage.ownerScope || f.storage.token || 'guest'), token: String(f.storage.token || ''), generation: reminderGeneration }),
+    isOperationCurrent: operation => !!operation && operation.token && operation.generation === reminderGeneration &&
+      operation.owner === String(f.storage.ownerScope || f.storage.token || 'guest') && operation.token === String(f.storage.token || ''),
+    invalidateOperations: () => { reminderGeneration += 1; },
+    fetchReminders: async () => options.reminders || [],
+    isCampusReminderLocalEnabled: id => !!f.storage[`campusReminder:${f.storage.ownerScope || f.storage.token || 'guest'}:${id}`],
+    listCampusReminderLocals: () => {
+      const prefix = `campusReminder:${f.storage.ownerScope || f.storage.token || 'guest'}:`;
+      return Object.keys(f.storage).filter(key => key.indexOf(prefix) === 0).map(key => ({
+        targetId: key.slice(prefix.length), reminder: f.storage[key]
+      }));
+    },
+    buildCampusDeadlineReminder: () => ({ reminderDate: '2026-10-25' }),
+    upsertCampusDeadlineReminder: options.upsert || (async () => ({ localOnly: true })),
+    saveCampusReminderLocal: (item, _row, operation) => {
+      if (!reminders.isOperationCurrent(operation)) return false;
+      f.storage[`campusReminder:${operation.owner}:${item.id}`] = { enabled: true };
+      return true;
+    },
+    removeCampusReminderLocal: (id, operation) => {
+      if (!reminders.isOperationCurrent(operation)) return false;
+      delete f.storage[`campusReminder:${operation.owner}:${id}`];
+      return true;
+    },
+    disableCampusDeadlineReminder: async () => null,
+    upsertReminder() {}, disableReminder() {}
+  };
+  const favorites = load('utils/favorites.js', {
+    './api-favorites.js': {
+      list: options.list || (async () => ok([])),
+      upsert: async value => { writes.push(value); return ok({}); },
+      remove: async value => { writes.push(value); return ok({}); }
+    },
+    './reminders.js': reminders,
+    './job-progress.js': { currentOwnerScope: () => String(f.storage.ownerScope || f.storage.token || '') },
+    './api-campus.js': { getCampusDetail: async id => ok({ id, company: '历史校招公司', positionName: '校招工程师' }) }
+  }, f.wx);
+  const page = load('package-user/pages/favorites/favorites.js', {
+    '../../../utils/favorites.js': favorites,
+    '../../../utils/reminders.js': reminders,
+    '../../../utils/feature-flags.js': {
+      getCurrentFlags: () => ({ recruitment: false }), refreshFeatureFlags() {}, allowNavigation: () => true
+    }
+  }, f.wx, true);
+  const detail = load('package-content/pages/campus-detail/campus-detail.js', {
+    '../../../utils/favorites.js': favorites, '../../../utils/reminders.js': reminders
+  }, f.wx, true);
+  detail.refreshReminderCopy = () => {};
+  return { ...f, favorites, page, detail, links, writes };
+}
+
+test('joining a campus follow also appears in favorites and cancelling reminders preserves it', async () => {
+  const h = campusFavoritesHarness();
+  h.detail.data.detail = { id: 42, company: '校招企业', positionName: '数据分析', createdAt: '2020-01-01' };
+  await h.detail.subscribeReminder();
+  assert.equal(h.detail.data.isFavorited, true);
+  assert.equal(h.favorites.getList('campus').length, 1);
+  assert.notEqual(h.favorites.getList('campus')[0].createdAt, '2020-01-01');
+  await h.page.onShow();
+  assert.equal(h.page.data.currentTab, 4);
+  assert.equal(h.page.data.currentList[0].title, '校招企业');
+  assert.equal(h.page.data.totalFavorites, 1);
+  h.page.goToDetail({ currentTarget: { dataset: { item: h.page.data.currentList[0] } } });
+  assert.equal(h.links[0], '/package-content/pages/campus-detail/campus-detail?id=42');
+  h.detail.cancelReminder();
+  await Promise.resolve();
+  assert.equal(h.favorites.getList('campus').length, 1);
+  assert.equal(h.detail.data.isSubscribed, false);
+  h.favorites.followCampus(h.detail.data.detail);
+  assert.equal(h.favorites.getList('campus').length, 1);
+});
+
+test('failed campus reminder requests do not claim that a follow was saved', async () => {
+  const h = campusFavoritesHarness({ upsert: async () => { throw new Error('offline'); } });
+  h.detail.data.detail = { id: 43, company: '离线校招企业' };
+  await h.detail.subscribeReminder();
+  assert.equal(h.favorites.isFavorited('campus', 43), false);
+  assert.equal(h.detail.data.isSubscribed, false);
+  assert.equal(h.storage['campusReminder:test-user:43'], undefined);
+  assert.equal(h.toasts.at(-1).title, '保存失败，请重试');
+});
+
+test('delayed campus reminder completion is discarded after account switch and guests cannot save private follows', async () => {
+  const wait = deferred();
+  const h = campusFavoritesHarness({ upsert: () => wait.promise });
+  h.detail.data.detail = { id: 44, company: '账号 A 校招' };
+  const pending = h.detail.subscribeReminder();
+  h.storage.ownerScope = 'owner-b';
+  h.storage.token = 'owner-b-token';
+  wait.resolve({ localOnly: true });
+  await pending;
+  assert.equal(h.storage['campusReminder:test-user:44'], undefined);
+  assert.equal(h.storage['campusReminder:owner-b:44'], undefined);
+  assert.equal(h.favorites.isFavorited('campus', 44), false);
+
+  h.storage.ownerScope = '';
+  h.storage.token = '';
+  h.detail.data.detail = { id: 45, company: '游客校招' };
+  await h.detail.subscribeReminder();
+  assert.equal(h.storage['campusReminder:guest:45'], undefined);
+  assert.equal(h.favorites.isFavorited('campus', 45), false);
+});
+
+test('owner-scoped campus follows import once from local and remote reminders without reviving removed favorites', async () => {
+  const h = campusFavoritesHarness({ reminders: [
+    { sourceType: 'campus_schedule', reminderType: 'campus_deadline', targetId: '12', enabled: true, company: '云端校招', createdAt: '2026-09-20 09:00:00' },
+    { sourceType: 'campus_schedule', reminderType: 'campus_deadline', targetId: '13', enabled: false },
+    { sourceType: 'campus_schedule', reminderType: 'campus_deadline', targetId: '14', enabled: true }
+  ], list: async () => ok([{ type: 'campus', targetId: '14', deleted: true }]) });
+  h.storage['campusReminder:test-user:11'] = { enabled: true };
+  h.storage['campusReminder:test-user:13'] = { enabled: true };
+  await h.page.onShow();
+  assert.deepEqual(Array.from(h.favorites.getList('campus'), item => item.targetId).sort(), ['11', '12']);
+  assert.equal(h.favorites.getList('campus').find(item => item.targetId === '11').title, '历史校招公司');
+  h.page.removeFavorite({ currentTarget: { dataset: { type: 'campus', targetid: '11' } } });
+  await h.favorites.syncCampusFollows();
+  assert.equal(h.favorites.isFavorited('campus', '11'), false);
+  assert.equal(h.favorites.isFavorited('campus', '14'), false);
+  assert.equal(h.favorites.getList('campus').length, 1);
+});
+
+test('campus reminder imports and linked markers never cross account owners', async () => {
+  const h = campusFavoritesHarness();
+  h.storage['campusReminder:test-user:21'] = { enabled: true, updatedAt: 1 };
+  await h.page.onShow();
+  assert.equal(h.favorites.isFavorited('campus', '21'), true);
+  assert.ok(h.storage['campusFollowFavoriteLinkedV1:test-user']['21']);
+
+  h.storage.ownerScope = 'other-user';
+  h.storage.token = 'other-token';
+  await h.page.onShow();
+  assert.equal(h.favorites.isFavorited('campus', '21'), false);
+  assert.equal(h.storage['campusFollowFavoriteLinkedV1:other-user'], undefined);
+
+  h.storage['campusReminder:other-user:21'] = { enabled: true, updatedAt: 2 };
+  await h.page.onShow();
+  assert.equal(h.favorites.isFavorited('campus', '21'), true);
+  assert.ok(h.storage['campusFollowFavoriteLinkedV1:other-user']['21']);
+});
+
+test('profile ignores user and favorite refreshes that finish after account change or page hide', async () => {
+  const f = fixture();
+  const firstUserWait = deferred();
+  const hiddenUserWait = deferred();
+  const userWaits = [firstUserWait, hiddenUserWait];
+  const favoriteWait = deferred();
+  const persisted = [];
+  f.storage.ownerScope = 'owner-a';
+  const page = load('pages/profile/profile.js', {
+    '../../utils/api.js': {
+      getUserProfile: () => userWaits.shift().promise,
+      persistUserSession: user => persisted.push(user)
+    },
+    '../../utils/favorites.js': {
+      syncFromServer: () => favoriteWait.promise,
+      getAll: () => ({ job: [] }), getCount: () => 0
+    },
+    '../../utils/feature-flags.js': { getCurrentFlags: () => ({}), refreshFeatureFlags() {}, allowNavigation: () => true },
+    '../../utils/vip.js': { getInfo: () => ({ isVip: false }) },
+    '../../utils/owner-storage.js': {
+      capture: () => f.storage.ownerScope || 'guest',
+      isCurrent: scope => scope === (f.storage.ownerScope || 'guest')
+    }
+  }, f.wx, true);
+  page._profileVisible = true;
+  const userRequest = page.refreshUserSession();
+  const statsRequest = page._refreshRemoteStats();
+  f.storage.ownerScope = 'owner-b';
+  f.storage.token = 'owner-b-token';
+  firstUserWait.resolve(ok({ id: 7, nickName: '旧账号' }));
+  favoriteWait.resolve({});
+  await Promise.all([userRequest, statsRequest]);
+  assert.deepEqual(persisted, []);
+
+  page._profileVisible = true;
+  const hiddenRequest = page.refreshUserSession();
+  page.onHide();
+  hiddenUserWait.resolve(ok({ id: 8, nickName: '已离开页面' }));
+  await hiddenRequest;
+  assert.equal(page._profileVisible, false);
+  assert.deepEqual(persisted, []);
+});
+
+test('favorites default to a populated category but background sync preserves an explicit tab selection', async () => {
+  const response = deferred();
+  const h = campusFavoritesHarness({ list: () => response.promise });
+  h.storage.jobFavoritesVisibleOwner = 'test-user';
+  h.storage.userFavorites = { campus: [{ targetId: '1', title: '已收藏校招', createdAt: '2026-09-20 09:00:00' }] };
+  const showing = h.page.onShow();
+  assert.equal(h.page.data.currentTab, 4);
+  assert.equal(h.page.data.currentList.length, 1);
+  h.page.switchTab({ currentTarget: { dataset: { index: '1' } } });
+  response.resolve(ok([]));
+  await showing;
+  assert.equal(h.page.data.currentTab, 1);
+  assert.equal(h.page.data.currentList.length, 0);
+  h.page.switchTab({ currentTarget: { dataset: { index: '4' } } });
+  assert.equal(h.page.data.currentList[0].targetId, '1');
+});
+
+test('resource hub is a content asset center instead of a multi-tool hall', () => {
+  const h = fixture();
+  const page = load('pages/resources/resources.js', {
+    '../../utils/navigation.js': { safeNavigateTo() {} }, '../../utils/feature-flags.js': { allowNavigation: () => true }
+  }, h.wx, true);
+  page.onLoad({});
+  assert.deepEqual(Array.from(page.data.categories, row => row.id),
+    ['assessment', 'written', 'interview', 'company', 'favorites', 'purchased']);
+  const source = fs.readFileSync(path.join(__dirname, '../miniprogram/pages/resources/resources.js'), 'utf8');
+  assert.doesNotMatch(source, /AI 求职规划|Offer 对比|薪酬查询|Networking Copilot/);
+  assert.match(source, /资料商品、订单和权益/);
+});
+
+test('resource filters pass company, role and question type into real content destinations', () => {
+  const h = fixture(), routes = [];
+  const page = load('pages/resources/resources.js', {
+    '../../utils/navigation.js': { safeNavigateTo: url => routes.push(url) },
+    '../../utils/feature-flags.js': { allowNavigation: url => url !== '/blocked' }
+  }, h.wx, true);
+  page.onLoad({ category: 'interview', company: 'Amazon', role: 'Data', type: 'behavior' });
+  assert.equal(page.data.activeCategory, 'interview');
+  assert.ok(page.data.assets.some(item => item.id === 'experience'));
+  page.openAsset({ currentTarget: { dataset: { id: 'experience' } } });
+  assert.match(routes[0], /^\/pages\/experiences\/experiences\?/);
+  assert.match(routes[0], /company=Amazon/);
+  assert.match(routes[0], /role=Data/);
+  assert.match(routes[0], /type=behavior/);
+  page.selectCategory({ currentTarget: { dataset: { id: 'purchased' } } });
+  assert.equal(page.data.assets.length, 0);
+  assert.match(page.data.emptyDesc, /不会展示虚构/);
+});
+
+test('restored resources route uses switchTab through shared navigation', () => {
+  const calls = [], h = fixture();
+  h.wx.switchTab = options => calls.push(['switchTab', options.url]);
+  h.wx.navigateTo = options => calls.push(['navigateTo', options.url]);
+  const navigation = load('utils/navigation.js', {}, h.wx);
+  navigation.safeNavigateTo('/pages/resources/resources');
+  assert.deepEqual(calls, [['switchTab', '/pages/resources/resources']]);
+});
+
 test('detail request finishing after an account change clears old user data and exits loading', async () => {
   const wait = deferred();
   const h = detailHarness({ getApplicationDetail: () => wait.promise });
@@ -445,6 +694,28 @@ test('favorites clear A local outbox before B sync, preserve same-owner rotation
   delete f.storage.token;
   assert.equal(favorites.getCount(), 0);
   assert.equal(favorites.getCount('job'), 0);
+});
+
+test('privacy cleanup invalidates an in-flight favorite sync before it can restore deleted data', async () => {
+  const f = fixture();
+  const wait = deferred();
+  f.storage.ownerScope = 'owner-private';
+  f.storage.token = 'token-private';
+  const favorites = load('utils/favorites.js', {
+    './job-progress.js': { currentOwnerScope: () => String(f.storage.ownerScope || '') },
+    './api-favorites.js': {
+      list: () => wait.promise,
+      upsert: async () => ok({}), remove: async () => ok({})
+    },
+    './reminders.js': { upsertReminder() {}, disableReminder() {} }
+  }, f.wx);
+  const pending = favorites.syncFromServer({ force: true });
+  favorites.clearCurrentOwner();
+  wait.resolve(ok([{ type: 'company', targetId: 'private-company', title: '不应复活' }]));
+  await pending;
+  assert.equal(favorites.getCount(), 0);
+  assert.equal(f.storage.jobFavoritesVisibleOwner, '');
+  assert.equal(f.storage.userFavorites.company.length, 0);
 });
 
 function boardPage(api) {

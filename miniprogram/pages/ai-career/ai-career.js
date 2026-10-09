@@ -5,8 +5,10 @@ const config = require('../../utils/app-config.js');
 const navigation = require('../../utils/navigation.js');
 const { extractBoardData } = require('../../utils/application-workbench.js');
 const loginGate = require('../../behaviors/login-gate.js');
+const ownerStorage = require('../../utils/owner-storage.js');
 
 const LOCAL_COMPAT_TASKS_KEY = 'aiCareerCompatTasks_v1';
+const localCompatKey = () => ownerStorage.key(LOCAL_COMPAT_TASKS_KEY);
 const LOCAL_COMPAT_TASK_LIMIT = 20;
 
 const FALLBACK_AGENTS = [
@@ -61,7 +63,14 @@ Page({
     error: ''
   },
 
+  onLoad(options = {}) {
+    this._redirecting = true;
+    const query = Object.keys(options).map(key => `${encodeURIComponent(key)}=${encodeURIComponent(options[key])}`).join('&');
+    wx.redirectTo({ url: '/package-ai/pages/ai-assistant/ai-assistant' + (query ? `?${query}` : '') });
+  },
+
   onShow() {
+    if (this._redirecting) return;
     const app = getApp();
     if (app && typeof app.syncCustomTabBar === 'function') app.syncCustomTabBar();
     this.refresh();
@@ -85,7 +94,7 @@ Page({
 
   readLocalCompatTasks() {
     try {
-      const tasks = wx.getStorageSync(LOCAL_COMPAT_TASKS_KEY);
+      const tasks = wx.getStorageSync(localCompatKey());
       return Array.isArray(tasks) ? tasks : [];
     } catch (error) {
       return [];
@@ -94,7 +103,7 @@ Page({
 
   saveLocalCompatTask(task) {
     const tasks = agentCompat.mergeTasks([task], this.readLocalCompatTasks()).slice(0, LOCAL_COMPAT_TASK_LIMIT);
-    try { wx.setStorageSync(LOCAL_COMPAT_TASKS_KEY, tasks); } catch (error) {}
+    try { wx.setStorageSync(localCompatKey(), tasks); } catch (error) {}
     return tasks;
   },
 

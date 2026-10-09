@@ -60,14 +60,19 @@ test('Sprint 5 migration is additive and records CRM, drafts and stage events', 
 
 test('Sprint 5 mini program exposes CRM, editable drafts and explicit external-send confirmation', () => {
   const root = path.join(__dirname, '..', 'miniprogram');
+  const appConfig = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
+  const careerPackage = appConfig.subPackages.find(item => item.root === 'package-career');
   const page = fs.readFileSync(path.join(root, 'package-career', 'pages', 'networking', 'networking.js'), 'utf8');
   const template = fs.readFileSync(path.join(root, 'package-career', 'pages', 'networking', 'networking.wxml'), 'utf8');
   const resources = fs.readFileSync(path.join(root, 'pages', 'resources', 'resources.js'), 'utf8');
+  assert.ok(careerPackage.pages.includes('pages/networking/networking'));
   assert.match(page, /getNetworkingDashboard/);
   assert.match(page, /createNetworkingContact/);
   assert.match(page, /markNetworkingDraftSent/);
   assert.match(page, /confirmExternalSend:\s*true/);
   assert.doesNotMatch(page, /\/api\/ai\/networking/);
   assert.match(template, /系统不会执行外发|不会代替你发送消息/);
-  assert.match(resources, /Networking Copilot/);
+  assert.match(resources, /面试经验/);
+  assert.match(resources, /公司 \/ 行业/);
+  assert.doesNotMatch(resources, /pages\/networking\/networking|Networking Copilot/);
 });

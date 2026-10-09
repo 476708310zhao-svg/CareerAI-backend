@@ -12,11 +12,11 @@
         <view class="menu-line short"></view>
       </view>
     </view>
-    <view class="top-title" bindtap="openAiCareer">
+    <view class="top-title">
       <text class="top-icon">AI</text>
       <view class="top-copy">
         <text class="top-name">AI 求职助手</text>
-        <text class="top-sub">点击进入四 Agent 统一入口</text>
+        <text class="top-sub">围绕岗位、申请、简历与面试连续协作</text>
       </view>
     </view>
     <view class="new-chat-btn" bindtap="onNewChat" hover-class="btn-hover">

@@ -342,22 +342,28 @@ router.post('/subscribe', authMiddleware, (req, res) => {
 // ─── 通用求职提醒订阅 ───────────────────────────────────────────────────────
 // GET /api/notify/reminders
 router.get('/reminders', authMiddleware, (req, res) => {
-  const { sourceType, reminderType, targetId } = req.query;
-  const where = ['user_id=?'];
-  const params = [req.user.userId];
-  if (sourceType) { where.push('source_type=?'); params.push(String(sourceType)); }
-  if (reminderType) { where.push('reminder_type=?'); params.push(String(reminderType)); }
-  if (targetId) { where.push('target_id=?'); params.push(String(targetId)); }
-  const rows = db.prepare(`
-    SELECT * FROM job_reminders
-    WHERE ${where.join(' AND ')}
-    ORDER BY enabled DESC, reminder_date ASC, updated_at DESC
-  `).all(...params);
-  res.json({ code: 0, data: rows.map(reminderRow) });
+  try {
+    const { sourceType, reminderType, targetId } = req.query;
+    const where = ['user_id=?'];
+    const params = [req.user.userId];
+    if (sourceType) { where.push('source_type=?'); params.push(String(sourceType)); }
+    if (reminderType) { where.push('reminder_type=?'); params.push(String(reminderType)); }
+    if (targetId) { where.push('target_id=?'); params.push(String(targetId)); }
+    const rows = db.prepare(`
+      SELECT * FROM job_reminders
+      WHERE ${where.join(' AND ')}
+      ORDER BY enabled DESC, reminder_date ASC, updated_at DESC
+    `).all(...params);
+    res.set('Cache-Control', 'no-store');
+    res.json({ code: 0, data: rows.map(reminderRow) });
+  } catch (error) {
+    res.status(500).json({ code: -1, message: '读取提醒失败' });
+  }
 });
 
 // PUT /api/notify/reminders
 router.put('/reminders', authMiddleware, (req, res) => {
+  try {
   const body = req.body || {};
   const sourceType = String(body.sourceType || 'job');
   const targetId = String(body.targetId || '').trim();
@@ -408,16 +414,23 @@ router.put('/reminders', authMiddleware, (req, res) => {
     WHERE user_id=? AND source_type=? AND target_id=? AND reminder_type=?
   `).get(req.user.userId, sourceType, targetId, reminderType);
   res.json({ code: 0, data: reminderRow(row), message: row.enabled ? '提醒已开启' : '提醒已关闭' });
+  } catch (error) {
+    res.status(500).json({ code: -1, message: '保存提醒失败' });
+  }
 });
 
 // DELETE /api/notify/reminders/:sourceType/:targetId/:reminderType
 router.delete('/reminders/:sourceType/:targetId/:reminderType', authMiddleware, (req, res) => {
-  const result = db.prepare(`
-    UPDATE job_reminders
-    SET enabled=0, updated_at=datetime('now')
-    WHERE user_id=? AND source_type=? AND target_id=? AND reminder_type=?
-  `).run(req.user.userId, req.params.sourceType, req.params.targetId, req.params.reminderType);
-  res.json({ code: 0, message: result.changes ? '提醒已关闭' : '提醒不存在' });
+  try {
+    const result = db.prepare(`
+      UPDATE job_reminders
+      SET enabled=0, updated_at=datetime('now')
+      WHERE user_id=? AND source_type=? AND target_id=? AND reminder_type=?
+    `).run(req.user.userId, req.params.sourceType, req.params.targetId, req.params.reminderType);
+    res.json({ code: 0, message: result.changes ? '提醒已关闭' : '提醒不存在' });
+  } catch (error) {
+    res.status(500).json({ code: -1, message: '关闭提醒失败' });
+  }
 });
 
 // POST /api/notify/reminders/dispatch

@@ -4,10 +4,13 @@ const { post } = require('../../../utils/api-client.js');
 const progress = require('../../../utils/job-progress.js');
 const appMaterials = require('../../utils/application-materials.js');
 const resumeVersions = require('../../utils/resume-versions.js');
+const ownerStorage = require('../../../utils/owner-storage.js');
 
 const API_BASE    = config.API_BASE_URL;
 const CACHE_KEY   = 'ai_assistant_messages';
 const SAVED_KEY   = 'ai_assistant_saved_results';
+const cacheKey = () => ownerStorage.key(CACHE_KEY);
+const savedKey = () => ownerStorage.key(SAVED_KEY);
 const MAX_CACHE   = 30;
 const TIME_GAP_MS = 5 * 60 * 1000;
 const CURSOR      = '▋';
@@ -292,11 +295,7 @@ Page({
       { icon: '路', title: '求职规划', desc: '生成阶段路线图', url: '/package-career/pages/career-planner/career-planner' },
       { icon: '历', title: 'AI 历史', desc: '查看历史对话和报告', url: '/package-ai/pages/ai-history/ai-history' }
     ],
-    recentChats: [
-      { id: 1, title: '新的求职咨询', preview: '你好！我是你的 AI 求职助手...', time: '刚刚' },
-      { id: 2, title: '简历优化思路', preview: '项目经历需要突出影响力', time: '昨天' },
-      { id: 3, title: '岗位匹配建议', preview: '优先申请 SWE / Data 方向', time: '本周' }
-    ],
+    recentChats: [],
     showApplicationPanel: false,
     applicationJobs: [],
     applicationQuestionTypes: appMaterials.QUESTION_TYPES,
@@ -460,7 +459,7 @@ Page({
     this._history = [];
     this._streamingIdx = -1;
     this._lastRawText = '';
-    try { wx.removeStorageSync(CACHE_KEY); } catch (e) {}
+    try { wx.removeStorageSync(cacheKey()); } catch (e) {}
     const welcome = makeWelcome();
     this.setData({
       messages: [welcome],
@@ -693,7 +692,7 @@ Page({
     this._history = [];
     this._streamingIdx = -1;
     this._lastRawText = '';
-    try { wx.removeStorageSync(CACHE_KEY); } catch (e) {}
+    try { wx.removeStorageSync(cacheKey()); } catch (e) {}
     const welcome = makeWelcome();
     this.setData({
       sidebarOpen: false,
@@ -727,14 +726,14 @@ Page({
     const msg = this.data.messages[e.currentTarget.dataset.index];
     const content = msg && (msg.content || msg.displayText);
     if (!content) return;
-    const saved = wx.getStorageSync(SAVED_KEY) || [];
+    const saved = wx.getStorageSync(savedKey()) || [];
     const item = {
       id: Date.now(),
       title: this._buildSavedTitle(content),
       content,
       createdAt: fmtTime(Date.now())
     };
-    wx.setStorageSync(SAVED_KEY, [item].concat(saved).slice(0, 30));
+    wx.setStorageSync(savedKey(), [item].concat(saved).slice(0, 30));
     wx.showToast({ title: '已保存', icon: 'success' });
   },
 
@@ -1015,7 +1014,7 @@ Page({
         this._history = [];
         this._streamingIdx = -1;
         this._lastRawText  = '';
-        try { wx.removeStorageSync(CACHE_KEY); } catch (e) {}
+        try { wx.removeStorageSync(cacheKey()); } catch (e) {}
         const welcome = makeWelcome();
         this.setData({
           messages: [welcome], latestAiIdx: 0,
@@ -1055,7 +1054,7 @@ Page({
   },
 
   openAiCareer() {
-    wx.switchTab({ url: '/pages/ai-career/ai-career' });
+    this.toggleSidebar();
   },
 
   // Perf + Bug5 fix: 永远滚到底部锚点，不依赖 msg-${idx}
@@ -1076,7 +1075,7 @@ Page({
       const toSave = msgs
         .filter(m => !m.isStreaming)
         .map(m => ({ ...m, displayText: m.content, isStreaming: false }));
-      wx.setStorageSync(CACHE_KEY, toSave.slice(-MAX_CACHE));
+      wx.setStorageSync(cacheKey(), toSave.slice(-MAX_CACHE));
     } catch (e) {}
   }
 });

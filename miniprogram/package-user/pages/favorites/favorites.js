@@ -3,6 +3,7 @@ const favUtil = require('../../../utils/favorites.js');
 const featureFlags = require('../../../utils/feature-flags.js');
 const reminders = require('../../../utils/reminders.js');
 const navigation = require('../../../utils/navigation.js');
+const { timestamp } = require('../../../utils/date-time.js');
 const TAB_KEYS = ['job', 'experience', 'company', 'agency', 'campus'];
 
 Page({
@@ -28,19 +29,36 @@ Page({
   },
 
   onShow() {
+    this._favoritesVisible = true;
+    const generation = (this._syncGeneration || 0) + 1;
+    this._syncGeneration = generation;
     this._applyFeatureFlags(featureFlags.getCurrentFlags());
     featureFlags.refreshFeatureFlags();
     this.loadFavorites();
-    favUtil.syncFromServer().then(() => {
-      this.loadFavorites();
+    return favUtil.syncFromServer({ force: true }).then(() => favUtil.syncCampusFollows()).then(() => {
+      if (this._favoritesVisible && generation === this._syncGeneration) this.loadFavorites();
+    }).catch(() => {
+      if (this._favoritesVisible && generation === this._syncGeneration) this.loadFavorites();
     });
+  },
+
+  onHide() {
+    this._favoritesVisible = false;
+    this._syncGeneration = (this._syncGeneration || 0) + 1;
+  },
+
+  onUnload() {
+    this.onHide();
   },
 
   _applyFeatureFlags(flags) {
     const recruitmentEnabled = !!(flags && flags.recruitment);
+    const hiddenSelection = !recruitmentEnabled && this.data.currentTab === 0;
+    if (hiddenSelection) this._tabChosenByUser = false;
     this.setData({
       recruitmentEnabled,
-      currentTab: !recruitmentEnabled && this.data.currentTab === 0 ? 1 : this.data.currentTab
+      currentTab: hiddenSelection ? 4 : this.data.currentTab,
+      ...(hiddenSelection ? { batchMode: false, selectedIds: [], allSelected: false } : {})
     });
   },
 
@@ -53,7 +71,22 @@ Page({
     const favorites = favUtil.getAll();
     const visibleKeys = this.data.recruitmentEnabled ? TAB_KEYS : TAB_KEYS.filter(key => key !== 'job');
     const totalFavorites = visibleKeys.reduce((sum, key) => sum + (favorites[key] || []).length, 0);
-    this.setData({ favorites, totalFavorites }, () => {
+    let currentTab = this.data.currentTab;
+    // 初次进入直接展示最近收藏，避免默认空分类让用户误以为收藏丢失。
+    // 用户手动切换或批量整理后，异步同步不再改变分类。
+    if (!this._tabChosenByUser && !this.data.batchMode) {
+      let latest = -Infinity;
+      visibleKeys.forEach(key => {
+        (favorites[key] || []).forEach(item => {
+          const createdAt = timestamp(item.createdAt);
+          if (createdAt > latest) {
+            latest = createdAt;
+            currentTab = TAB_KEYS.indexOf(key);
+          }
+        });
+      });
+    }
+    this.setData({ favorites, totalFavorites, currentTab }, () => {
       this._refreshList();
     });
   },
@@ -95,8 +128,8 @@ Page({
 
     // 按收藏时间排序
     list.sort((a, b) => {
-      const ta = new Date(a.createdAt || 0).getTime();
-      const tb = new Date(b.createdAt || 0).getTime();
+      const ta = timestamp(a.createdAt);
+      const tb = timestamp(b.createdAt);
       return this.data.sortOrder === 'desc' ? tb - ta : ta - tb;
     });
 
@@ -110,8 +143,11 @@ Page({
   },
 
   switchTab(e) {
+    const index = Number(e.currentTarget.dataset.index);
+    if (!Number.isInteger(index) || !TAB_KEYS[index] || (!this.data.recruitmentEnabled && index === 0)) return;
+    this._tabChosenByUser = true;
     this.setData({
-      currentTab: e.currentTarget.dataset.index,
+      currentTab: index,
       batchMode: false,
       selectedIds: []
     }, () => {
@@ -298,8 +334,8 @@ Page({
 
   // ── 空状态 CTA ──
   goToJobs() {
-    if (!featureFlags.allowNavigation('/pages/campus/campus')) return;
-    navigation.safeNavigateTo('/pages/campus/campus');
+    if (!featureFlags.allowNavigation('/pages/jobs/jobs')) return;
+    navigation.safeNavigateTo('/pages/jobs/jobs');
   },
 
   goToExperiences() {

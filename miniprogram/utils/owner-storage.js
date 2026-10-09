@@ -7,7 +7,11 @@ function ownerScope() {
 }
 
 function key(base, suffix) {
-  return `${base}:${ownerScope()}${suffix === undefined || suffix === null || suffix === '' ? '' : `:${String(suffix)}`}`;
+  return keyFor(ownerScope(), base, suffix);
+}
+
+function keyFor(scope, base, suffix) {
+  return `${base}:${String(scope || 'guest')}${suffix === undefined || suffix === null || suffix === '' ? '' : `:${String(suffix)}`}`;
 }
 
 function get(base, suffix, fallback) {
@@ -29,4 +33,4 @@ function remove(base, suffix) {
 function capture() { return ownerScope(); }
 function isCurrent(scope) { return String(scope || '') === ownerScope(); }
 
-module.exports = { ownerScope, key, get, set, remove, capture, isCurrent };
+module.exports = { ownerScope, key, keyFor, get, set, remove, capture, isCurrent };

@@ -14,6 +14,7 @@ const featureFlags = require('../../utils/feature-flags.js');
 const navigation = require('../../utils/navigation.js');
 const { normalizeDataMeta, markCachedDataMeta, summaryText } = require('../../utils/data-provenance.js');
 const apiV4 = require('../../utils/api-v4.js');
+const unreadMessages = require('../../utils/unread-messages.js');
 const BANNER_CACHE_KEY = 'cachedBanners_v2';
 const HOT_COMPANIES_CACHE_KEY = 'cachedHotCompanies_v3';
 const HOME_CAMPUS_CACHE_KEY = 'cachedHomeCampusUpdates_v1';
@@ -480,9 +481,7 @@ Page({
   },
 
   updateMessageBadge() {
-    const msgs = wx.getStorageSync('unreadMessages');
-    const count = typeof msgs === 'number' ? msgs : 3;
-    getApp().setUnreadCount(count);
+    getApp().setUnreadCount(unreadMessages.get());
   },
 
   // ======== 职位数据 ========

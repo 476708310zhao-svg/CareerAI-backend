@@ -2016,9 +2016,10 @@ test('favorite sync API applies operation ids and cross-device tombstones', asyn
   const targetId = `favorite_sync_smoke_${Date.now()}`;
   const user = db.prepare('SELECT id FROM users WHERE email=?').get(testAccount.email);
   try {
+    const operationNow = Date.now();
     const addPayload = {
       type: 'job', targetId, title: 'Favorite sync role', operationId: `add_${targetId}`,
-      updatedAt: '2031-01-01T00:00:00.000Z', payload: { deadline: '2031-02-01' }
+      updatedAt: new Date(operationNow - 2000).toISOString(), payload: { deadline: '2031-02-01' }
     };
     for (let index = 0; index < 2; index += 1) {
       const addRes = await fetch(`${BASE_URL}/api/favorites`, {
@@ -2031,12 +2032,12 @@ test('favorite sync API applies operation ids and cross-device tombstones', asyn
 
     const deleteRes = await fetch(`${BASE_URL}/api/favorites`, {
       method: 'DELETE', headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ type: 'job', targetId, operationId: `delete_${targetId}`, updatedAt: '2031-01-02T00:00:00.000Z' })
+      body: JSON.stringify({ type: 'job', targetId, operationId: `delete_${targetId}`, updatedAt: new Date(operationNow - 1000).toISOString() })
     });
     assert.equal(deleteRes.status, 200);
     const staleRes = await fetch(`${BASE_URL}/api/favorites`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ type: 'job', targetId, title: 'Stale', operationId: `stale_${targetId}`, updatedAt: '2031-01-01T12:00:00.000Z' })
+      body: JSON.stringify({ type: 'job', targetId, title: 'Stale', operationId: `stale_${targetId}`, updatedAt: new Date(operationNow - 1500).toISOString() })
     });
     assert.equal(staleRes.status, 200);
     const listRes = await fetch(`${BASE_URL}/api/favorites?includeDeleted=1`, { headers: authHeaders() });

@@ -6,6 +6,7 @@ const navigation = require('./utils/navigation.js');
 const featureFlags = require('./utils/feature-flags.js');
 const share = require('./utils/share.js');
 const analytics = require('./utils/analytics.js');
+const unreadMessages = require('./utils/unread-messages.js');
 
 navigation.installRouteGuard();
 share.installPageShare();
@@ -155,7 +156,7 @@ App({
     const gd = this.globalData;
     gd.userProfile    = wx.getStorageSync('userProfile')  || null;
     gd.vipInfo        = vipUtil.getInfo();
-    gd.unreadCount    = wx.getStorageSync('unreadMessages') || 0;
+    gd.unreadCount    = unreadMessages.get();
     gd.favorites      = favUtil.getAll();
     gd.featureFlags   = featureFlags.getCachedFlags();
   },
@@ -185,7 +186,7 @@ App({
    */
   setUnreadCount: function(count) {
     this.globalData.unreadCount = count;
-    wx.setStorageSync('unreadMessages', count);
+    unreadMessages.set(count);
     if (this.syncCustomTabBar()) return;
 
     if (count > 0) {

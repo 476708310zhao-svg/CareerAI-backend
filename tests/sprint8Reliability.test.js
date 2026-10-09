@@ -128,17 +128,18 @@ test('favorite operations are idempotent and a newer tombstone wins across devic
     .run(`s8_fav_${stamp}`, 'Sprint 8 Favorite').lastInsertRowid);
   const targetId = `favorite_${stamp}`;
   try {
-    const add = { type: 'job', targetId, title: 'Role', operationId: `add_${stamp}`, updatedAt: '2030-01-01T00:00:00.000Z' };
+    const now = Date.now();
+    const add = { type: 'job', targetId, title: 'Role', operationId: `add_${stamp}`, updatedAt: new Date(now - 2000).toISOString() };
     favoriteRoute.applyFavoriteOperation(userId, add, 'upsert');
     const duplicate = favoriteRoute.applyFavoriteOperation(userId, add, 'upsert');
     assert.equal(duplicate.duplicate, true);
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM favorites WHERE user_id=? AND target_id=?').get(userId, targetId).count, 1);
 
     favoriteRoute.applyFavoriteOperation(userId, {
-      type: 'job', targetId, operationId: `delete_${stamp}`, updatedAt: '2030-01-02T00:00:00.000Z'
+      type: 'job', targetId, operationId: `delete_${stamp}`, updatedAt: new Date(now - 1000).toISOString()
     }, 'delete');
     const stale = favoriteRoute.applyFavoriteOperation(userId, {
-      type: 'job', targetId, title: 'Stale role', operationId: `stale_${stamp}`, updatedAt: '2030-01-01T12:00:00.000Z'
+      type: 'job', targetId, title: 'Stale role', operationId: `stale_${stamp}`, updatedAt: new Date(now - 1500).toISOString()
     }, 'upsert');
     assert.equal(stale.stale, true);
     assert.equal(stale.row.status, 'deleted');

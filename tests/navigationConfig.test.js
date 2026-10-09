@@ -226,45 +226,40 @@ test('daily brief follows the home workbench visual language without the legacy 
   assert.doesNotMatch(dailyWxss, /#064E3B|#065F46/);
 });
 
-test('resource hub groups tools by task while home uses a latest campus list', () => {
+test('resource hub presents content assets and gated purchased state instead of a tool hall', () => {
   const resourceWxml = read('pages/resources/resources.wxml');
   const resourceJs = read('pages/resources/resources.js');
   const resourceWxss = read('pages/resources/resources.wxss');
   const resourceJson = JSON.parse(read('pages/resources/resources.json'));
+
+  assert.match(resourceWxml, /资源中心/);
+  assert.match(resourceJs, /测评资料/);
+  assert.match(resourceJs, /笔试题库/);
+  assert.match(resourceJs, /面试经验/);
+  assert.match(resourceJs, /公司 \/ 行业/);
+  assert.match(resourceJs, /我的收藏/);
+  assert.match(resourceJs, /我的已购/);
+  assert.match(resourceJs, /资料商品、订单和权益/);
+  assert.equal(resourceJson.navigationStyle, 'custom');
+  assert.match(resourceWxml, /class="category-scroll"/);
+  assert.match(resourceWxml, /placeholder="公司，如 Amazon"/);
+  assert.match(resourceWxml, /placeholder="岗位，如 Data"/);
+  assert.match(resourceWxml, /关于资料权益/);
+  assert.doesNotMatch(resourceJs, /AI 求职规划|Offer 对比|Networking Copilot|薪酬查询/);
+  assert.doesNotMatch(resourceWxml, /expert-card|AI 求职助手|workflow-nav/);
+  assert.match(resourceWxss, /\.asset-list\s*\{/);
+  assert.match(resourceJs, /\/pages\/campus\/campus/);
+  assert.match(resourceJs, /\/pages\/experiences\/experiences/);
+  assert.match(resourceJs, /\/package-career\/pages\/oa-bank\/oa-bank/);
+});
+
+test('home uses a latest campus list from the unified campus API', () => {
   const homeWxml = read('pages/index/index.wxml');
   const homeJs = read('pages/index/index.js');
   const campusJs = read('pages/campus/campus.js');
   const campusDetailJs = read('package-content/pages/campus-detail/campus-detail.js');
   const campusWxml = read('components/home-campus-updates/home-campus-updates.wxml');
 
-  assert.match(resourceWxml, /资源中心/);
-  assert.match(resourceJs, /面试与笔试/);
-  assert.match(resourceJs, /AI 求职规划/);
-  assert.match(resourceJs, /package-career\/pages\/career-planner\/career-planner/);
-  assert.match(resourceJs, /Offer 对比/);
-  assert.match(resourceJs, /package-career\/pages\/offer-compare\/offer-compare/);
-  assert.match(resourceJs, /简历中心/);
-  assert.match(resourceJs, /package-career\/pages\/resume\/resume/);
-  assert.match(resourceJs, /职业决策/);
-  assert.match(resourceWxml, /内容与服务/);
-  assert.equal(resourceJson.navigationStyle, 'custom');
-  assert.match(resourceWxml, /class="calendar-art"/);
-  assert.match(resourceWxml, /class="tool-copy"/);
-  assert.match(resourceWxml, /section-title-chip title-chip-\{\{item\.accent\}\}/);
-  assert.doesNotMatch(resourceWxml, /section-subtitle|item\.subtitle|资讯、测评与产品帮助/);
-  assert.doesNotMatch(resourceJs, /subtitle:\s*['"](?:完善简历|从真题|查公司)/);
-  assert.doesNotMatch(resourceWxml, /intro-mark/);
-  assert.match(resourceWxss, /\.service-section\s+\.section-head\s*\{/);
-  assert.match(resourceWxss, /\.service-list\s*\{[\s\S]*?flex-direction:\s*column[\s\S]*?gap:\s*16rpx/);
-  assert.match(resourceWxss, /\.service-row\s*\{[\s\S]*?min-height:\s*128rpx[\s\S]*?border-radius:\s*24rpx/);
-  assert.match(resourceWxss, /\.service-section\s+\.service-title\s*\{[\s\S]*?font-size:\s*26rpx/);
-  assert.match(resourceWxss, /\.service-section\s+\.service-desc\s*\{[\s\S]*?color:\s*#667085[\s\S]*?font-size:\s*21rpx/);
-  assert.match(resourceWxss, /\.service-section\s+\.service-arrow\s*\{[\s\S]*?width:\s*44rpx[\s\S]*?border-radius:\s*50%/);
-  assert.match(resourceWxss, /\.bottom-spacer\s*\{[\s\S]*?background:\s*#eef4fb/);
-  assert.match(resourceWxss, /height:\s*calc\(190rpx\s*\+\s*env\(safe-area-inset-bottom\)\)/);
-  assert.match(resourceJs, /\/pages\/campus\/campus/);
-  assert.match(resourceJs, /\/pages\/experiences\/experiences/);
-  assert.match(resourceJs, /\/package-career\/pages\/oa-bank\/oa-bank/);
   assert.doesNotMatch(homeWxml, /home-career-insights/);
   assert.doesNotMatch(homeJs, /buildNewsFeed|getNews|HOME_NEWS_CACHE_KEY/);
   assert.match(homeWxml, /items="\{\{campusLatestUpdates\}\}"/);

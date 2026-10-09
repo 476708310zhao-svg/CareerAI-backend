@@ -3,7 +3,12 @@ const api = require('../../../utils/api-v4.js');
 Page({
   data: { agents: [], selectedAgent: 'job_advisor', applications: [], applicationIndex: 0, query: '', requestWrite: false,
     tasks: [], currentTask: null, loading: false },
-  onLoad() { this.refresh(); }, onShow() { this.loadTasks(); },
+  onLoad(options = {}) {
+    this._redirecting = true;
+    const query = Object.keys(options).map(key => `${encodeURIComponent(key)}=${encodeURIComponent(options[key])}`).join('&');
+    wx.redirectTo({ url: '/package-ai/pages/ai-assistant/ai-assistant' + (query ? `?${query}` : '') });
+  },
+  onShow() { if (!this._redirecting) this.loadTasks(); },
   refresh() {
     Promise.all([api.getAgents(), api.getApplicationBoard()]).then(([agents, board]) => {
       const groups = board.data && board.data.groups || {};

@@ -271,7 +271,7 @@ Page({
   },
 
   goAiCareer() {
-    navigation.safeSwitchTab('/pages/ai-career/ai-career');
+    navigation.safeNavigateTo('/package-ai/pages/ai-assistant/ai-assistant?source=applications');
   },
 
   openCreate() {

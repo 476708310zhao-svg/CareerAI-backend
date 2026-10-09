@@ -3,16 +3,19 @@ const apiFavorites = require('./api-favorites.js');
 const reminders = require('./reminders.js');
 const favoriteReminder = require('./favorite-reminder.js');
 const dateTime = require('./date-time.js');
+const apiCampus = require('./api-campus.js');
 const progress = require('./job-progress.js');
 
 const STORAGE_KEY = 'userFavorites';
 const OUTBOX_KEY = 'favoriteSyncOutboxV4';
+const OWNER_KEY = 'jobFavoritesVisibleOwner';
+const CAMPUS_LINKED_KEY = 'campusFollowFavoriteLinkedV1';
 const TYPES = ['job', 'experience', 'company', 'agency', 'campus'];
 const SYNC_TTL = 2 * 60 * 1000;
 let _syncPending = null;
 let _flushPending = null;
 let _lastSyncAt = 0;
-const OWNER_KEY = 'jobFavoritesVisibleOwner';
+let _campusImportPending = null;
 let _preparedOwner = '';
 let _ownerGeneration = 0;
 
@@ -26,6 +29,7 @@ function _resetOwnerData() {
   _lastSyncAt = 0;
   _syncPending = null;
   _flushPending = null;
+  _campusImportPending = null;
   _ownerGeneration += 1;
 }
 
@@ -56,6 +60,76 @@ function prepareOwner() {
 
 function _sameOwner(owner) {
   return !!owner && owner.scope === _ownerScope() && owner.generation === _ownerGeneration;
+}
+
+function _campusLinked(scope) {
+  if (!scope) return {};
+  try { return wx.getStorageSync(`${CAMPUS_LINKED_KEY}:${scope}`) || {}; } catch (e) { return {}; }
+}
+
+function _markCampusLinked(id, scope) {
+  const ownerScope = String(scope || _ownerScope() || '');
+  if (!ownerScope) return;
+  const linked = _campusLinked(ownerScope);
+  linked[String(id)] = true;
+  wx.setStorageSync(`${CAMPUS_LINKED_KEY}:${ownerScope}`, linked);
+}
+
+// 关注和提醒共用校招收藏入口；重复关注不会切换成取消收藏。
+function followCampus(item, options) {
+  const id = item && (item.id || item.campusId || item.targetId);
+  if (!id) return false;
+  const result = add('campus', {
+    targetId: String(id),
+    title: item.company || item.companyName || item.title || '校招岗位 #' + id,
+    subtitle: item.positionName || item.positionType || item.jobTitle || item.subtitle || '',
+    ...(options && options.createdAt ? { createdAt: options.createdAt } : {})
+  });
+  if (result || isFavorited('campus', id)) _markCampusLinked(id);
+  return result || isFavorited('campus', id);
+}
+
+// 将当前账号只保存提醒的校招关注导入一次。旧版无 owner 标记的数据不归属给任一新账号。
+function syncCampusFollows() {
+  const owner = prepareOwner();
+  if (!owner.scope || !owner.visible) return Promise.resolve(_ensureShape({}));
+  if (_campusImportPending) return _campusImportPending;
+  const token = wx.getStorageSync('token') || '';
+  const candidates = new Map();
+  const localRows = typeof reminders.listCampusReminderLocals === 'function'
+    ? reminders.listCampusReminderLocals()
+    : [];
+  localRows.forEach(row => {
+    const id = String(row && row.targetId || '');
+    if (!id) return;
+    const snapshot = wx.getStorageSync('campusDetailSnapshot_' + id) || {};
+    candidates.set(id, { ...snapshot, id, followedAt: row.reminder && row.reminder.updatedAt });
+  });
+  const pending = reminders.fetchReminders({ sourceType: 'campus_schedule' }).then(rows => {
+    (rows || []).forEach(row => {
+      if (row.sourceType !== 'campus_schedule' || row.reminderType !== 'campus_deadline' || !row.targetId) return;
+      if (!row.enabled) { candidates.delete(String(row.targetId)); return; }
+      candidates.set(String(row.targetId), { ...(candidates.get(String(row.targetId)) || {}),
+        ...(row.payload || {}), id: String(row.targetId),
+        company: row.company || (row.payload || {}).company,
+        positionName: row.jobTitle || (row.payload || {}).positionName,
+        followedAt: row.createdAt });
+    });
+    return Array.from(candidates.values()).reduce((promise, item) => promise.then(async () => {
+      if ((wx.getStorageSync('token') || '') !== token || !_sameOwner(owner)) return;
+      if (_campusLinked(owner.scope)[item.id]) return;
+      if (isFavorited('campus', item.id)) { _markCampusLinked(item.id); return; }
+      if (!item.company && !item.title) {
+        const response = await apiCampus.getCampusDetail(item.id).catch(() => null);
+        if (response && response.code === 0 && response.data) item = { ...item, ...response.data, id: item.id };
+      }
+      if ((wx.getStorageSync('token') || '') === token && _sameOwner(owner)) followCampus(item, { createdAt: item.followedAt });
+    }), Promise.resolve());
+  }).then(() => getAll()).finally(() => {
+    if (_campusImportPending === pending) _campusImportPending = null;
+  });
+  _campusImportPending = pending;
+  return _campusImportPending;
 }
 
 function _ensureShape(data) {
@@ -136,7 +210,8 @@ function _flushOutbox() {
 }
 
 function _timestamp(value) {
-  return dateTime.timestamp(value);
+  const parsed = dateTime.timestamp(value);
+  return parsed > Date.now() + 5 * 60 * 1000 ? Date.now() : parsed;
 }
 
 function _find(list, targetId) {
@@ -168,11 +243,13 @@ function _mergeRemote(localAll, remoteRows) {
   const pending = _readOutbox();
   const remoteKeys = {};
   (remoteRows || []).forEach(row => {
-    const type = TYPES.includes(row.type) ? row.type : 'job';
+    if (!row || !TYPES.includes(row.type)) return;
+    const type = row.type;
     const key = _key(type, row.targetId);
     remoteKeys[key] = true;
     if (pending[key]) return;
     if (row.deleted || row.status === 'deleted') {
+      if (type === 'campus') _markCampusLinked(row.targetId);
       merged[type] = _removeFromList(merged[type], row.targetId);
       return;
     }
@@ -246,6 +323,7 @@ function remove(type, targetId) {
   if (!owner.scope) return false;
   const all = _getAll();
   if (!all[type] || !_find(all[type], targetId)) return false;
+  if (type === 'campus') _markCampusLinked(targetId);
   all[type] = _removeFromList(all[type], targetId);
   _saveAll(all);
   _queue('delete', type, targetId, null);
@@ -295,7 +373,29 @@ function toggle(type, item, title, subtitle) {
   add(type, value); return true;
 }
 
+function invalidateOwner() {
+  _syncPending = null;
+  _flushPending = null;
+  _campusImportPending = null;
+  _lastSyncAt = 0;
+  _ownerGeneration += 1;
+}
+
+function clearCurrentOwner() {
+  const scope = _ownerScope();
+  invalidateOwner();
+  _saveAll({});
+  _saveOutbox({});
+  if (scope) {
+    try { wx.removeStorageSync(`${CAMPUS_LINKED_KEY}:${scope}`); } catch (error) {}
+  }
+  try { wx.setStorageSync(OWNER_KEY, ''); } catch (error) {}
+  _preparedOwner = '';
+}
+
 module.exports = {
   add, remove, update, isFavorited, getList, getAll, getCount, toggle, syncFromServer,
-  prepareOwner, flushPending: _flushOutbox, mergeRemote: _mergeRemote, OUTBOX_KEY, OWNER_KEY
+  followCampus, syncCampusFollows,
+  prepareOwner, flushPending: _flushOutbox, mergeRemote: _mergeRemote,
+  invalidateOwner, clearCurrentOwner, OUTBOX_KEY, OWNER_KEY
 };

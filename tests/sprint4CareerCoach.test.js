@@ -221,7 +221,9 @@ test('Sprint 4 mini program exposes the coach page, task completion and deferral
   assert.match(page, /deferTodayTask/);
   assert.match(page, /updateTodayTask/);
   assert.match(page, /parseDashboardResponse/);
-  assert.match(resource, /career-coach\/career-coach/);
+  assert.match(resource, /测评资料/);
+  assert.match(resource, /笔试题库/);
+  assert.doesNotMatch(resource, /career-coach\/career-coach|Career Coach/);
 });
 
 test('Sprint 4 mini program never renders request failures as an empty dashboard', () => {

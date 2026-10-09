@@ -1,5 +1,6 @@
 // pages/messages/messages.js
 const { getMessages, markMessageRead, markAllMessagesRead } = require('../../../utils/api-messages.js');
+const unreadMessages = require('../../../utils/unread-messages.js');
 
 Page({
   data: {
@@ -62,7 +63,7 @@ Page({
           this.filterMessages();
           this.updateMessageStats(messages);
           this._syncTabBarBadge(unreadCount);
-          wx.setStorageSync('unreadMessages', unreadCount);
+          unreadMessages.set(unreadCount);
           getApp().globalData.unreadCount = unreadCount;
         } else {
           this._loadLocalFallback();
@@ -132,7 +133,7 @@ Page({
       const unread = messages.filter(m => !m.isRead).length;
       this.updateMessageStats(messages);
       this._syncTabBarBadge(unread);
-      wx.setStorageSync('unreadMessages', unread);
+      unreadMessages.set(unread);
 
       // 同步到后端
       const token = wx.getStorageSync('token');
@@ -157,7 +158,7 @@ Page({
     this.filterMessages();
     this.updateMessageStats(messages);
     this._syncTabBarBadge(0);
-    wx.setStorageSync('unreadMessages', 0);
+    unreadMessages.set(0);
 
     if (token) {
       markAllMessagesRead().catch(() => {});
@@ -175,7 +176,7 @@ Page({
           this.setData({ messages: [], filteredMessages: [] });
           this.updateMessageStats([]);
           wx.removeStorageSync('userMessages');
-          wx.setStorageSync('unreadMessages', 0);
+          unreadMessages.set(0);
           this._syncTabBarBadge(0);
           wx.showToast({ title: '已清空', icon: 'success' });
         }

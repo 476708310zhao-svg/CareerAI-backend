@@ -3,6 +3,10 @@ const browseHistory = require('../../../utils/browse-history.js');
 const apiClient = require('../../../utils/api-client.js');
 const analytics = require('../../../utils/analytics.js');
 const loginGate = require('../../../behaviors/login-gate.js');
+const favUtil = require('../../../utils/favorites.js');
+const reminders = require('../../../utils/reminders.js');
+const ownerStorage = require('../../../utils/owner-storage.js');
+const unreadMessages = require('../../../utils/unread-messages.js');
 
 function removeStorageByPrefix(prefix) {
   try {
@@ -32,6 +36,10 @@ function clearLocalCareerData() {
     try { wx.removeStorageSync(key); } catch (e) {}
   });
   removeStorageByPrefix('aiReport_');
+  ['ai_assistant_messages', 'ai_assistant_saved_results', 'aiCareerCompatTasks_v1'].forEach(key => {
+    try { wx.removeStorageSync(key); } catch (error) {}
+    removeOwnerStorage(key);
+  });
   ['aiReport:', 'lastAiReport:', 'interviewHistory:', 'interviewContext:', 'pendingResumeOptimization:',
     'applicationMaterials:', 'interviewMistakeNotebook:', 'dailyPracticeQuestions:'].forEach(removeStorageByPrefix);
 }
@@ -40,6 +48,23 @@ function clearLocalResumeData() {
   ['onlineResume', 'resumeFiles'].forEach(key => {
     try { wx.removeStorageSync(key); } catch (e) {}
   });
+}
+
+function removeOwnerStorage(base) {
+  removeStorageByPrefix(ownerStorage.key(base));
+}
+
+function clearLocalFavoriteData() {
+  const scope = ownerStorage.capture();
+  favUtil.clearCurrentOwner();
+  unreadMessages.clear();
+  ['userFavorites', 'favoriteSyncOutboxV4', 'jobFavoritesVisibleOwner', 'campusFollowFavoriteLinkedV1']
+    .forEach(key => {
+      try { wx.removeStorageSync(key); } catch (e) {}
+    });
+  removeStorageByPrefix(`campusFollowFavoriteLinkedV1:${scope}`);
+  removeStorageByPrefix(`campusReminder:${scope}:`);
+  removeStorageByPrefix('campus_sub_');
 }
 
 Page({
@@ -188,6 +213,8 @@ Page({
       confirmColor: '#ef4444',
       success: (res) => {
         if (!res.confirm) return;
+        favUtil.invalidateOwner();
+        reminders.invalidateOperations();
         apiClient._write({
           method: 'DELETE',
           path: '/api/users/me/data',
@@ -195,6 +222,7 @@ Page({
         }).then(() => {
           clearLocalCareerData();
           clearLocalResumeData();
+          clearLocalFavoriteData();
           analytics.track('privacy_delete_server_data');
           wx.showToast({ title: '已清空个人数据', icon: 'success' });
           this.calcCacheSize();
@@ -227,6 +255,8 @@ Page({
           confirmColor: '#ef4444',
           success: (finalRes) => {
             if (!finalRes.confirm) return;
+            favUtil.invalidateOwner();
+            reminders.invalidateOperations();
             apiClient._write({
               method: 'DELETE',
               path: '/api/users/me',
@@ -235,6 +265,7 @@ Page({
               analytics.track('privacy_delete_account');
               clearLocalCareerData();
               clearLocalResumeData();
+              clearLocalFavoriteData();
               wx.removeStorageSync('token');
               wx.removeStorageSync('userProfile');
               wx.showToast({ title: '账号已注销', icon: 'success' });

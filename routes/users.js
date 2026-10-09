@@ -119,6 +119,10 @@ function deletePersonalData(userId) {
 
     del('jobReminders', 'DELETE FROM job_reminders WHERE user_id=?');
     del('messages', 'DELETE FROM messages WHERE user_id=?');
+    // Delete the idempotency ledger before the materialized favorite rows so a
+    // later sync cannot resurrect data that the user explicitly removed.
+    del('favoriteOperationsV4', 'DELETE FROM favorite_operations_v4 WHERE user_id=?');
+    del('favoriteSyncV4', 'DELETE FROM favorite_sync_v4 WHERE user_id=?');
     del('favorites', 'DELETE FROM favorites WHERE user_id=?');
     del('applications', 'DELETE FROM applications WHERE user_id=?');
     del('resumes', 'DELETE FROM resumes WHERE user_id=?');
@@ -566,3 +570,4 @@ router.post('/web-register', loginLimiter, (req, res) => {
 });
 
 module.exports = router;
+module.exports.deletePersonalData = deletePersonalData;

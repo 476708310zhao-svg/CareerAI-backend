@@ -1,5 +1,6 @@
 const apiClient = require('./api-client.js');
 const config = require('./app-config.js');
+const ownerStorage = require('./owner-storage.js');
 
 const TEMPLATE_CACHE_KEY = 'notifyTemplateConfig';
 const TEMPLATE_CACHE_TTL = 6 * 60 * 60 * 1000;
@@ -9,6 +10,36 @@ const CAMPUS_DEFAULT_LEAD_DAYS = [7, 3, 1, 0];
 
 let templateCache = null;
 let templateLoading = null;
+let operationGeneration = 0;
+
+function captureOperation() {
+  return {
+    owner: ownerStorage.capture(),
+    token: (() => { try { return String(wx.getStorageSync('token') || ''); } catch (e) { return ''; } })(),
+    generation: operationGeneration
+  };
+}
+
+function isOperationCurrent(operation) {
+  if (!operation || !operation.token || operation.owner === 'guest') return false;
+  let token = '';
+  try { token = String(wx.getStorageSync('token') || ''); } catch (e) {}
+  return operation.generation === operationGeneration && token === operation.token && ownerStorage.isCurrent(operation.owner);
+}
+
+function invalidateOperations() { operationGeneration += 1; }
+
+function loginRequiredError() {
+  const error = new Error('请先登录后保存关注和提醒');
+  error.code = 'LOGIN_REQUIRED';
+  return error;
+}
+
+function staleOperationError() {
+  const error = new Error('账号或页面状态已变化');
+  error.code = 'STALE_OPERATION';
+  return error;
+}
 
 function hasToken() {
   try {
@@ -40,8 +71,26 @@ function normalizeDateText(value) {
   return `${match[1]}-${month}-${day}`;
 }
 
-function campusReminderStorageKey(id) {
-  return 'campus_sub_' + id;
+function campusReminderStorageKey(id, owner) {
+  return owner
+    ? ownerStorage.keyFor(owner, 'campusReminder', id)
+    : ownerStorage.key('campusReminder', id);
+}
+
+function listCampusReminderLocals() {
+  const prefix = ownerStorage.key('campusReminder') + ':';
+  try {
+    return (wx.getStorageInfoSync().keys || []).reduce((rows, key) => {
+      const text = String(key || '');
+      if (text.indexOf(prefix) !== 0) return rows;
+      const targetId = text.slice(prefix.length);
+      const reminder = wx.getStorageSync(key);
+      if (targetId && reminder && reminder.enabled !== false) rows.push({ targetId, reminder });
+      return rows;
+    }, []);
+  } catch (e) {
+    return [];
+  }
 }
 
 function buildCampusDeadlineReminder(item, options) {
@@ -74,11 +123,13 @@ function buildCampusDeadlineReminder(item, options) {
   };
 }
 
-function saveCampusReminderLocal(item, reminder) {
+function saveCampusReminderLocal(item, reminder, operation) {
   const id = item && (item.id || item.campusId || item.targetId);
   if (!id && id !== 0) return false;
+  const stable = operation || captureOperation();
+  if (!isOperationCurrent(stable)) return false;
   try {
-    wx.setStorageSync(campusReminderStorageKey(id), {
+    wx.setStorageSync(campusReminderStorageKey(id, stable.owner), {
       enabled: true,
       reminderDate: reminder && reminder.reminderDate ? reminder.reminderDate : '',
       leadDays: reminder && reminder.leadDays ? reminder.leadDays : CAMPUS_DEFAULT_LEAD_DAYS,
@@ -90,10 +141,12 @@ function saveCampusReminderLocal(item, reminder) {
   }
 }
 
-function removeCampusReminderLocal(id) {
+function removeCampusReminderLocal(id, operation) {
   if (!id && id !== 0) return false;
+  const stable = operation || captureOperation();
+  if (!isOperationCurrent(stable)) return false;
   try {
-    wx.removeStorageSync(campusReminderStorageKey(id));
+    wx.removeStorageSync(campusReminderStorageKey(id, stable.owner));
     return true;
   } catch (e) {
     return false;
@@ -185,11 +238,12 @@ function registerSubscribe(templateIds) {
   }).then(() => true).catch(() => false);
 }
 
-function requestSubscribe(reminderType) {
+function requestSubscribe(reminderType, operation) {
   if (typeof wx.requestSubscribeMessage !== 'function') {
     return Promise.resolve(false);
   }
   return fetchTemplates(false).then(templates => new Promise(resolve => {
+    if (operation && !isOperationCurrent(operation)) return resolve(false);
     const tmplId = pickTemplateId(templates, reminderType);
     if (!tmplId) {
       resolve(false);
@@ -198,8 +252,9 @@ function requestSubscribe(reminderType) {
     wx.requestSubscribeMessage({
       tmplIds: [tmplId],
       success: (res) => {
+        if (operation && !isOperationCurrent(operation)) return resolve(false);
         if (res && res[tmplId] === 'accept') {
-          registerSubscribe([tmplId]).then(resolve);
+          registerSubscribe([tmplId]).then(value => resolve(!operation || isOperationCurrent(operation) ? value : false));
           return;
         }
         resolve(false);
@@ -211,50 +266,67 @@ function requestSubscribe(reminderType) {
 
 function upsertReminder(payload, options) {
   const body = payload || {};
+  const operation = options && options.operation;
   if (!hasToken() || !body.targetId) return Promise.resolve(null);
+  if (operation && !isOperationCurrent(operation)) return Promise.reject(staleOperationError());
   const reminderType = body.reminderType || 'deadline';
   const leadDays = normalizeLeadDays(
     body.leadDays || body.reminderLeadDays,
     reminderType === 'interview' ? [1, 0] : [3, 1, 0]
   );
-  const write = () => apiClient.put({
-    path: '/api/notify/reminders',
-    body: Object.assign({}, body, {
-      reminderType,
-      leadDays,
-      enabled: body.enabled !== false
-    }),
-    timeout: 15000
-  }).then(res => (res && res.code === 0 ? res.data : null)).catch(() => null);
+  const write = () => {
+    if (operation && !isOperationCurrent(operation)) return Promise.reject(staleOperationError());
+    return apiClient.put({
+      path: '/api/notify/reminders',
+      body: Object.assign({}, body, {
+        reminderType,
+        leadDays,
+        enabled: body.enabled !== false
+      }),
+      timeout: 15000
+    }).then(res => {
+      if (operation && !isOperationCurrent(operation)) throw staleOperationError();
+      return res && res.code === 0 ? res.data : null;
+    });
+  };
 
   if (options && options.withSubscribe) {
-    return requestSubscribe(reminderType).then(write);
+    return requestSubscribe(reminderType, operation).then(write);
   }
   return write();
 }
 
 function upsertCampusDeadlineReminder(item, options) {
+  const operation = options && options.operation || captureOperation();
+  if (!isOperationCurrent(operation)) return Promise.reject(operation.token ? staleOperationError() : loginRequiredError());
   const payload = buildCampusDeadlineReminder(item, options);
   if (!payload.targetId) return Promise.resolve(null);
   if (!payload.reminderDate) {
-    saveCampusReminderLocal(item, payload);
+    saveCampusReminderLocal(item, payload, operation);
     return Promise.resolve({ localOnly: true, data: payload });
   }
-  return upsertReminder(payload, { withSubscribe: !!(options && options.withSubscribe) })
+  return upsertReminder(payload, { withSubscribe: !!(options && options.withSubscribe), operation })
     .then(data => {
-      saveCampusReminderLocal(item, data || payload);
+      if (!isOperationCurrent(operation)) throw staleOperationError();
+      saveCampusReminderLocal(item, data || payload, operation);
       return data || { localOnly: true, data: payload };
     });
 }
 
-function disableCampusDeadlineReminder(id) {
+function disableCampusDeadlineReminder(id, operation) {
+  const stable = operation || captureOperation();
+  if (!isOperationCurrent(stable)) return Promise.reject(stable.token ? staleOperationError() : loginRequiredError());
   const targetId = id && typeof id === 'object' ? (id.id || id.campusId || id.targetId) : id;
-  removeCampusReminderLocal(targetId);
-  return disableReminder(CAMPUS_SOURCE_TYPE, targetId, CAMPUS_DEADLINE_TYPE);
+  return disableReminder(CAMPUS_SOURCE_TYPE, targetId, CAMPUS_DEADLINE_TYPE, stable).then(result => {
+    if (!isOperationCurrent(stable)) throw staleOperationError();
+    removeCampusReminderLocal(targetId, stable);
+    return result;
+  });
 }
 
-function disableReminder(sourceType, targetId, reminderType) {
+function disableReminder(sourceType, targetId, reminderType, operation) {
   if (!hasToken() || !targetId) return Promise.resolve(null);
+  if (operation && !isOperationCurrent(operation)) return Promise.reject(staleOperationError());
   return apiClient._write({
     method: 'DELETE',
     path: '/api/notify/reminders/' +
@@ -262,7 +334,10 @@ function disableReminder(sourceType, targetId, reminderType) {
       encodeURIComponent(targetId) + '/' +
       encodeURIComponent(reminderType || 'deadline'),
     timeout: 15000
-  }).then(res => (res && res.code === 0 ? res : null)).catch(() => null);
+  }).then(res => {
+    if (operation && !isOperationCurrent(operation)) throw staleOperationError();
+    return res && res.code === 0 ? res : null;
+  });
 }
 
 function fetchReminders(filters) {
@@ -293,5 +368,9 @@ module.exports = {
   saveCampusReminderLocal,
   removeCampusReminderLocal,
   isCampusReminderLocalEnabled,
-  campusReminderStorageKey
+  listCampusReminderLocals,
+  campusReminderStorageKey,
+  captureOperation,
+  isOperationCurrent,
+  invalidateOperations
 };
