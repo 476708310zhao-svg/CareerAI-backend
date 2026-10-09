@@ -2,6 +2,8 @@
 const demoData = require('../../../utils/demo-data.js');
 const analytics = require('../../../utils/analytics.js');
 const notebook = require('../../../utils/interview-notebook.js');
+const v4Api = require('../../../utils/api-v4.js');
+const ownerStorage = require('../../../utils/owner-storage.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
 Page({
@@ -9,12 +11,17 @@ Page({
     report: null,
     loading: true,
     activeTab: 0, // 0: 总览, 1: 问答复盘
-    qaBookmarkSet: {} // qid → bool，标记当前报告中已收藏的题目
+    qaBookmarkSet: {}, // qid → bool，标记当前报告中已收藏的题目
+    savingToApplication: false,
+    savedToApplication: false,
   },
 
   onLoad(options) {
+    this._unloaded = false;
+    this._ownerScope = ownerStorage.capture();
     this.loadReportDetail(options.id);
   },
+  onUnload() { this._unloaded = true; },
 
   switchTab(e) {
     const idx = Number(e.currentTarget.dataset.index);
@@ -29,10 +36,11 @@ Page({
 
     // 优先按唯一 key 读取对应报告，再兜底 lastAiReport
     let cached = null;
-    if (id) cached = wx.getStorageSync('aiReport_' + id);
-    if (!cached) cached = wx.getStorageSync('lastAiReport');
+    if (id) cached = ownerStorage.get('aiReport', id, null);
+    if (!cached) cached = ownerStorage.get('lastAiReport', '', null);
 
     setTimeout(() => {
+      if (this._unloaded || !ownerStorage.isCurrent(this._ownerScope)) return;
       if (cached && cached.qaList && cached.qaList.length > 0) {
         // 计算维度颜色和等级
         const dimensions = (cached.dimensions || []).map(d => ({
@@ -245,7 +253,10 @@ Page({
         answer,
         category: source || 'ai_report',
         difficulty: Number(score) < 80 ? '需加强' : '中等',
-        feedback
+        feedback,
+        applicationId: this.data.report && this.data.report.applicationId || '',
+        company: this.data.report && this.data.report.company || '',
+        position: this.data.report && this.data.report.role || ''
       }, Number(score) < 80 ? 'unknown' : 'saved');
       set[qid] = true;
       wx.showToast({ title: '已加入错题本', icon: 'success' });
@@ -270,7 +281,10 @@ Page({
         answer: item.a,
         category: report.role || 'ai_report',
         difficulty: Number(item.score) < 70 ? '重点复习' : '需加强',
-        feedback: item.feedback
+        feedback: item.feedback,
+        applicationId: report.applicationId || '',
+        company: report.company || '',
+        position: report.role || ''
       }, 'unknown');
       set[item.qid] = true;
       count += 1;
@@ -609,5 +623,28 @@ Page({
   // 重新面试
   retryInterview() {
     wx.navigateBack();
+  },
+
+  saveToApplication() {
+    const report = this.data.report;
+    if (!report || !report.applicationId || this.data.savingToApplication || this.data.savedToApplication) return;
+    const title = `复盘 AI 面试报告${report.role ? `：${report.role}` : ''}（${report.totalScore || 0}分）`;
+    this.setData({ savingToApplication: true });
+    v4Api.addApplicationTask(report.applicationId, {
+      title: title.slice(0, 200),
+      priority: Number(report.totalScore || 0) < 70 ? 'high' : 'medium'
+    }).then(res => {
+      if (!res || res.code !== 0) throw new Error((res && res.message) || '保存失败');
+      this.setData({ savingToApplication: false, savedToApplication: true });
+      wx.showToast({ title: '已加入当前申请', icon: 'success' });
+    }).catch(err => {
+      this.setData({ savingToApplication: false });
+      wx.showToast({ title: (err && err.message) || '保存失败', icon: 'none' });
+    });
+  },
+
+  openApplication() {
+    const id = this.data.report && this.data.report.applicationId;
+    if (id) wx.navigateTo({ url: '/package-user/pages/application-detail/application-detail?id=' + encodeURIComponent(id) });
   }
 })

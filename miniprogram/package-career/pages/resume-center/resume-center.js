@@ -1,4 +1,5 @@
 const api = require('../../../utils/api-v4.js');
+const ownerStorage = require('../../../utils/owner-storage.js');
 
 const TYPE_LABELS = {
   education: '教育', experience: '工作', project: '项目', skill: '技能', award: '奖项'
@@ -18,6 +19,7 @@ Page({
     manualMode: false,
     manualJson: '',
     loading: false,
+    restoreBusy: false,
     showCreate: false,
     createName: '',
     templateIndex: 0,
@@ -28,16 +30,26 @@ Page({
   },
 
   onLoad(options) {
-    const context = options && options.targeted === '1' ? wx.getStorageSync('pendingResumeOptimization') : null;
+    this._ownerScope = ownerStorage.capture();
+    this._unloaded = false;
+    const context = options && options.targeted === '1' ? ownerStorage.get('pendingResumeOptimization', '', null) : null;
     this.setData({ optimizationContext: context && context.jobId ? context : null });
     this.refresh();
+  },
+  onUnload() {
+    this._unloaded = true;
+    this._requestGeneration = (this._requestGeneration || 0) + 1;
+    this._restoreRequestGeneration = (this._restoreRequestGeneration || 0) + 1;
   },
   onPullDownRefresh() { this.refresh().finally(() => wx.stopPullDownRefresh()); },
 
   refresh() {
+    const generation = this._requestGeneration = (this._requestGeneration || 0) + 1;
+    const owner = this._ownerScope;
     this.setData({ loading: true });
     return Promise.all([api.getResumeTemplates(), api.getV4Resumes(), api.getCareerExperiences()])
       .then(([templates, resumes, experiences]) => {
+        if (this._unloaded || generation !== this._requestGeneration || !ownerStorage.isCurrent(owner)) return;
         const list = (resumes.data || []).map(item => Object.assign({}, item, {
           typeLabel: ((templates.data || []).find(type => type.code === item.resumeType) || {}).name || item.resumeType,
           updatedLabel: String(item.updatedAt || '').slice(0, 10)
@@ -50,6 +62,7 @@ Page({
           loading: false
         });
       }).catch(err => {
+        if (this._unloaded || generation !== this._requestGeneration || !ownerStorage.isCurrent(owner)) return;
         this.setData({ loading: false });
         wx.showToast({ title: err.message || '加载失败', icon: 'none' });
       });
@@ -75,7 +88,11 @@ Page({
 
   selectResume(e) {
     const item = this.data.resumes.find(row => String(row.id) === String(e.currentTarget.dataset.id));
-    if (item) this.setData({ currentResume: item, versions: [], proposal: null });
+    if (item) {
+      this._restoreRequestGeneration = (this._restoreRequestGeneration || 0) + 1;
+      this._restoreBusy = false;
+      this.setData({ currentResume: item, versions: [], proposal: null, restoreBusy: false });
+    }
   },
 
   resumeActions(e) {
@@ -117,15 +134,68 @@ Page({
     });
   },
 
+  initializeResumeVersion() {
+    const resume = this.data.currentResume;
+    if (!resume || resume.currentVersionId || this._initializingVersion) return;
+    wx.showModal({
+      title: '初始化首个版本',
+      content: '将当前旧简历内容保存为 V1，之后才能用于申请材料和 AI 优化。',
+      confirmText: '确认创建',
+      success: result => {
+        if (!result.confirm || this._initializingVersion) return;
+        this._initializingVersion = true;
+        const owner = ownerStorage.capture();
+        api.createResumeVersion(resume.id, { expectedVersionId: null, useLegacyContent: true }).then(() => {
+          if (!this._unloaded && ownerStorage.isCurrent(owner)) {
+            wx.showToast({ title: '已创建 V1', icon: 'success' });
+            this.refresh();
+          }
+        }).catch(err => {
+          if (!this._unloaded && ownerStorage.isCurrent(owner)) wx.showToast({ title: err.message || '初始化失败', icon: 'none' });
+        }).finally(() => { this._initializingVersion = false; });
+      }
+    });
+  },
+
   restoreVersion(e) {
     const version = this.data.versions.find(item => String(item.id) === String(e.currentTarget.dataset.id));
-    if (!version || !this.data.currentResume) return;
+    const resume = this.data.currentResume;
+    if (!version || !resume || this._restoreBusy) return;
+    const expectedVersionId = Number(resume.currentVersionId);
+    if (!Number.isSafeInteger(expectedVersionId) || expectedVersionId <= 0) return this.initializeResumeVersion();
+    const owner = this._ownerScope;
+    const selectedResumeId = resume.id;
     wx.showModal({ title: `恢复 V${version.versionNo}`, content: '恢复会创建一个新版本，不会覆盖现有历史。',
       success: result => {
-        if (!result.confirm) return;
-        api.restoreResumeVersion(this.data.currentResume.id, version.id).then(() => {
+        if (!result.confirm || this._unloaded || this._restoreBusy || !ownerStorage.isCurrent(owner)
+          || !this.data.currentResume || String(this.data.currentResume.id) !== String(selectedResumeId)
+          || Number(this.data.currentResume.currentVersionId) !== expectedVersionId) return;
+        const generation = this._restoreRequestGeneration = (this._restoreRequestGeneration || 0) + 1;
+        this._restoreBusy = true;
+        this.setData({ restoreBusy: true });
+        api.restoreResumeVersion(selectedResumeId, version.id, { expectedVersionId }).then(res => {
+          if (this._unloaded || generation !== this._restoreRequestGeneration || !ownerStorage.isCurrent(owner)
+            || !this.data.currentResume || String(this.data.currentResume.id) !== String(selectedResumeId)) return null;
+          const updatedResume = Object.assign({}, this.data.currentResume, { currentVersionId: res.data.id });
+          this.setData({
+            currentResume: updatedResume,
+            resumes: this.data.resumes.map(item => String(item.id) === String(selectedResumeId) ? Object.assign({}, item, { currentVersionId: res.data.id }) : item)
+          });
           wx.showToast({ title: '已创建恢复版本', icon: 'success' });
-          this.loadVersions(this.data.currentResume);
+          return api.getResumeVersions(selectedResumeId).then(versions => {
+            if (this._unloaded || generation !== this._restoreRequestGeneration || !ownerStorage.isCurrent(owner)
+              || !this.data.currentResume || String(this.data.currentResume.id) !== String(selectedResumeId)) return;
+            this.setData({ versions: versions.data || [], activeTab: 'versions' });
+          });
+        }).catch(err => {
+          if (!this._unloaded && generation === this._restoreRequestGeneration && ownerStorage.isCurrent(owner)) {
+            wx.showToast({ title: err.message || '恢复失败', icon: 'none' });
+          }
+        }).finally(() => {
+          if (!this._unloaded && generation === this._restoreRequestGeneration && ownerStorage.isCurrent(owner)) {
+            this._restoreBusy = false;
+            this.setData({ restoreBusy: false });
+          }
         });
       }
     });
@@ -133,6 +203,11 @@ Page({
 
   optimizeResume() {
     if (!this.data.currentResume) return wx.showToast({ title: '请先选择简历', icon: 'none' });
+    if (!this.data.currentResume.currentVersionId) return this.initializeResumeVersion();
+    if (this.data.loading || this._proposalMutationBusy) return;
+    const owner = ownerStorage.capture();
+    const generation = this._proposalRequestGeneration = (this._proposalRequestGeneration || 0) + 1;
+    const selectedResumeId = this.data.currentResume.id;
     this.setData({ loading: true });
     const context = this.data.optimizationContext || {};
     api.createResumeChangeSet(this.data.currentResume.id, {
@@ -140,6 +215,8 @@ Page({
       applicationId: context.applicationId || null,
       jdText: context.jdText || ''
     }).then(res => {
+      if (this._unloaded || generation !== this._proposalRequestGeneration || !ownerStorage.isCurrent(owner)
+        || !this.data.currentResume || String(this.data.currentResume.id) !== String(selectedResumeId)) return;
       const proposal = res.data;
       const generation = proposal.generation || {};
       proposal.isFallback = generation.degraded === true;
@@ -152,6 +229,7 @@ Page({
       (proposal.suggestions || []).forEach(item => { decisions[item.id] = 'reject'; });
       this.setData({ proposal, decisions, manualMode: false, manualJson: JSON.stringify(proposal.sourceContent || {}, null, 2), loading: false });
     }).catch(err => {
+      if (this._unloaded || generation !== this._proposalRequestGeneration || !ownerStorage.isCurrent(owner)) return;
       this.setData({ loading: false });
       wx.showToast({ title: err.message || '生成失败', icon: 'none' });
     });
@@ -167,21 +245,31 @@ Page({
   onManualJsonInput(e) { this.setData({ manualJson: e.detail.value }); },
 
   confirmSuggestions() {
+    if (!this.data.proposal || this._proposalMutationBusy) return;
     const payload = { decisions: this.data.decisions };
     if (this.data.manualMode) {
       try { payload.manualContent = JSON.parse(this.data.manualJson); }
       catch (e) { return wx.showToast({ title: '手动编辑的 JSON 格式有误', icon: 'none' }); }
     }
-    api.confirmResumeChangeSet(this.data.proposal.id, payload).then(() => {
+    const owner = ownerStorage.capture();
+    const proposalId = this.data.proposal.id;
+    this._proposalMutationBusy = true;
+    api.confirmResumeChangeSet(proposalId, payload).then(() => {
+      if (this._unloaded || !ownerStorage.isCurrent(owner) || !this.data.proposal || String(this.data.proposal.id) !== String(proposalId)) return;
       wx.showToast({ title: '已保存新版本', icon: 'success' });
-      if (this.data.optimizationContext) wx.removeStorageSync('pendingResumeOptimization');
+      if (this.data.optimizationContext) ownerStorage.remove('pendingResumeOptimization');
       this.setData({ proposal: null, manualMode: false, manualJson: '', optimizationContext: null });
       this.refresh();
-    }).catch(err => wx.showToast({ title: err.message || '保存失败', icon: 'none' }));
+    }).catch(err => { if (!this._unloaded && ownerStorage.isCurrent(owner)) wx.showToast({ title: err.message || '保存失败', icon: 'none' }); })
+      .finally(() => { this._proposalMutationBusy = false; });
   },
 
   rejectSuggestions() {
-    api.rejectResumeChangeSet(this.data.proposal.id, { decisions: this.data.decisions }).then(() => this.setData({ proposal: null }));
+    if (!this.data.proposal || this._proposalMutationBusy) return;
+    const owner=ownerStorage.capture(); const proposalId=this.data.proposal.id; this._proposalMutationBusy=true;
+    api.rejectResumeChangeSet(proposalId, { decisions: this.data.decisions }).then(() => {
+      if (!this._unloaded && ownerStorage.isCurrent(owner) && this.data.proposal && String(this.data.proposal.id)===String(proposalId)) this.setData({ proposal: null });
+    }).finally(()=>{this._proposalMutationBusy=false;});
   },
 
   openExperience() { this.setData({ showExperience: true, experienceForm: { title: '', organization: '', description: '' } }); },

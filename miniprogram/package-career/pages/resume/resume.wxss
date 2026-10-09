@@ -1699,3 +1699,292 @@ page,
 .page {
   background: var(--app-page-bg);
 }
+
+/* BOSS 风格简历工作台：先诊断，再编辑，附件与在线简历分流 */
+.diagnosis-banner {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin: 0 0 18rpx;
+  padding: 20rpx 22rpx;
+  border-radius: 22rpx;
+  background: linear-gradient(90deg, #e4faf8, #f1fcff);
+  border: 1rpx solid rgba(20, 184, 166, 0.12);
+}
+
+.diagnosis-icon {
+  width: 52rpx;
+  height: 52rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 18rpx;
+  color: #ffffff;
+  background: linear-gradient(135deg, #14b8a6, #2563eb);
+  font-size: 34rpx;
+  font-weight: 900;
+}
+
+.diagnosis-copy,
+.profile-overview-copy,
+.template-copy,
+.attachment-notice-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.diagnosis-title,
+.diagnosis-desc,
+.profile-name,
+.profile-role,
+.profile-contact,
+.attachment-notice-title,
+.attachment-notice-desc,
+.template-title,
+.template-desc {
+  display: block;
+}
+
+.diagnosis-title {
+  color: #1d2939;
+  font-size: 28rpx;
+  font-weight: 900;
+}
+
+.diagnosis-desc,
+.attachment-notice-desc,
+.template-desc {
+  margin-top: 6rpx;
+  color: #667085;
+  font-size: 21rpx;
+}
+
+.diagnosis-action,
+.attachment-notice-action {
+  flex-shrink: 0;
+  padding: 9rpx 18rpx;
+  border-radius: 999rpx;
+  color: #0f9f99;
+  border: 1rpx solid #14b8a6;
+  font-size: 22rpx;
+  font-weight: 800;
+}
+
+.profile-overview {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  margin-bottom: 24rpx;
+}
+
+.profile-avatar {
+  width: 92rpx;
+  height: 92rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: #ffffff;
+  background: linear-gradient(145deg, #1bb6b1, #346fe9);
+  box-shadow: 0 10rpx 24rpx rgba(37, 99, 235, 0.18);
+  font-size: 38rpx;
+  font-weight: 900;
+}
+
+.profile-name {
+  color: #101828;
+  font-size: 34rpx;
+  font-weight: 900;
+}
+
+.profile-role {
+  margin-top: 6rpx;
+  color: #344054;
+  font-size: 25rpx;
+  font-weight: 700;
+}
+
+.profile-contact {
+  margin-top: 6rpx;
+  color: #98a2b3;
+  font-size: 21rpx;
+}
+
+.profile-edit {
+  flex-shrink: 0;
+}
+
+.expectation-card {
+  padding-bottom: 22rpx;
+}
+
+.expectation-row {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  padding: 20rpx;
+  border-radius: 20rpx;
+  background: #f8fbff;
+  border: 1rpx solid #edf1f7;
+}
+
+.expectation-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.expectation-title {
+  display: block;
+  color: #1d2939;
+  font-size: 28rpx;
+  font-weight: 850;
+}
+
+.expectation-meta {
+  display: block;
+  margin-top: 7rpx;
+  color: #98a2b3;
+  font-size: 21rpx;
+}
+
+.expectation-arrow,
+.template-arrow {
+  color: #98a2b3;
+  font-size: 40rpx;
+  line-height: 1;
+}
+
+.attachment-notice {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin: 0 0 20rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 20rpx;
+  background: #e3faf9;
+}
+
+.attachment-notice-close {
+  align-self: flex-start;
+  color: #0f9f99;
+  font-size: 34rpx;
+  line-height: 1;
+}
+
+.attachment-notice-title {
+  color: #0f8f8c;
+  font-size: 25rpx;
+  font-weight: 800;
+}
+
+.attachment-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 6rpx 4rpx 16rpx;
+  color: #101828;
+  font-size: 31rpx;
+  font-weight: 900;
+}
+
+.attachment-count {
+  color: #98a2b3;
+  font-size: 21rpx;
+  font-weight: 500;
+}
+
+.attachment-card-right {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+}
+
+.attachment-more {
+  color: #98a2b3;
+  font-size: 26rpx;
+  letter-spacing: 2rpx;
+}
+
+.attachment-hint {
+  color: #b6c0cf;
+}
+
+.template-promo {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  margin-top: 26rpx;
+  padding: 24rpx 22rpx;
+  border-radius: 22rpx;
+  background: linear-gradient(100deg, #fff8ef, #fffdf8);
+  border: 1rpx solid #f6d5ad;
+}
+
+.template-icon {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: #ffffff;
+  background: linear-gradient(145deg, #f5b272, #e88352);
+  font-size: 32rpx;
+}
+
+.template-title {
+  color: #b45309;
+  font-size: 29rpx;
+  font-weight: 900;
+}
+
+.attachment-footer {
+  position: fixed;
+  z-index: 100;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: calc(16rpx + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+  padding: 12rpx;
+  border-radius: 26rpx;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 18rpx 44rpx rgba(16, 24, 40, 0.14);
+  backdrop-filter: blur(20rpx);
+}
+
+.attachment-upload-btn,
+.attachment-create-btn {
+  height: 78rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20rpx;
+  font-size: 27rpx;
+  font-weight: 850;
+}
+
+.attachment-upload-btn {
+  color: #344054;
+  background: #f6f8fb;
+}
+
+.attachment-create-btn {
+  color: #ffffff;
+  background: linear-gradient(135deg, #14a9a5, #2563eb);
+  box-shadow: 0 12rpx 24rpx rgba(37, 99, 235, 0.18);
+}
+
+.new-badge {
+  margin-left: 10rpx;
+  padding: 4rpx 9rpx;
+  border-radius: 999rpx;
+  color: #ffffff;
+  background: #ff7d73;
+  font-size: 18rpx;
+  font-weight: 700;
+}

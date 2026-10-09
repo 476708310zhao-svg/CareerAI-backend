@@ -175,7 +175,7 @@ function ensureV4Schema() {
       application_id    INTEGER NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
       resume_id         INTEGER REFERENCES resumes(id) ON DELETE SET NULL,
       resume_version_id INTEGER REFERENCES resume_versions_v4(id) ON DELETE SET NULL,
-      material_type     TEXT NOT NULL CHECK(material_type IN ('tailored_resume','cover_letter','recruiter_message','follow_up_email')),
+      material_type     TEXT NOT NULL CHECK(material_type IN ('tailored_resume','cover_letter','why_company','why_role','recruiter_message','follow_up_email')),
       status            TEXT NOT NULL DEFAULT 'pending',
       content           TEXT NOT NULL,
       ai_model          TEXT NOT NULL,

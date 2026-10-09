@@ -43,8 +43,9 @@ function archiveV4Resume(id) { return write('POST', '/api/v4/resumes/' + encodeU
 function setDefaultV4Resume(id) { return write('POST', '/api/v4/resumes/' + encodeURIComponent(id) + '/default'); }
 function linkV4Resume(id, payload) { return write('POST', '/api/v4/resumes/' + encodeURIComponent(id) + '/links', payload); }
 function getResumeVersions(id) { return get('/api/v4/resumes/' + encodeURIComponent(id) + '/versions'); }
+function createResumeVersion(id, payload) { return write('POST', '/api/v4/resumes/' + encodeURIComponent(id) + '/versions', payload); }
 function compareResumeVersions(id, from, to) { return get('/api/v4/resumes/' + encodeURIComponent(id) + '/versions/compare', { from, to }); }
-function restoreResumeVersion(id, versionId) { return write('POST', '/api/v4/resumes/' + encodeURIComponent(id) + '/versions/' + encodeURIComponent(versionId) + '/restore'); }
+function restoreResumeVersion(id, versionId, payload) { return write('POST', '/api/v4/resumes/' + encodeURIComponent(id) + '/versions/' + encodeURIComponent(versionId) + '/restore', payload); }
 function createResumeChangeSet(id, payload) { return write('POST', '/api/v4/resumes/' + encodeURIComponent(id) + '/ai-change-sets', payload); }
 function confirmResumeChangeSet(id, payload) { return write('POST', '/api/v4/resumes/ai-change-sets/' + encodeURIComponent(id) + '/confirm', payload); }
 function rejectResumeChangeSet(id, payload) { return write('POST', '/api/v4/resumes/ai-change-sets/' + encodeURIComponent(id) + '/reject', payload); }
@@ -55,11 +56,12 @@ function confirmMaterialDraft(id, payload) { return write('POST', '/api/v4/mater
 function rejectMaterialDraft(id) { return write('POST', '/api/v4/materials/drafts/' + encodeURIComponent(id) + '/reject'); }
 function trackOfficialApply(id) { return write('POST', '/api/v4/applications/' + encodeURIComponent(id) + '/official-apply'); }
 function getInterviewSpaces() { return get('/api/v4/interviews/spaces'); }
+function ensureInterviewSpace(applicationId) { return write('POST', '/api/v4/interviews/spaces', { applicationId }); }
 function getInterviewSpace(id) { return get('/api/v4/interviews/spaces/' + encodeURIComponent(id)); }
 function updateInterviewSpace(id, payload) { return write('PATCH', '/api/v4/interviews/spaces/' + encodeURIComponent(id), payload); }
 function startInterviewSession(id, payload) { return write('POST', '/api/v4/interviews/spaces/' + encodeURIComponent(id) + '/sessions', payload); }
 function answerInterviewQuestion(id, payload) { return write('POST', '/api/v4/interviews/sessions/' + encodeURIComponent(id) + '/answers', payload); }
-function completeInterviewSession(id) { return write('POST', '/api/v4/interviews/sessions/' + encodeURIComponent(id) + '/complete'); }
+function completeInterviewSession(id, payload) { return write('POST', '/api/v4/interviews/sessions/' + encodeURIComponent(id) + '/complete', payload); }
 function cancelInterviewSession(id) { return write('POST', '/api/v4/interviews/sessions/' + encodeURIComponent(id) + '/cancel'); }
 function getInterviewReports() { return get('/api/v4/interviews/reports'); }
 function getInterviewTrends() { return get('/api/v4/interviews/trends'); }
@@ -140,6 +142,7 @@ module.exports = {
   setDefaultV4Resume,
   linkV4Resume,
   getResumeVersions,
+  createResumeVersion,
   compareResumeVersions,
   restoreResumeVersion,
   createResumeChangeSet,
@@ -152,6 +155,7 @@ module.exports = {
   rejectMaterialDraft,
   trackOfficialApply,
   getInterviewSpaces,
+  ensureInterviewSpace,
   getInterviewSpace,
   updateInterviewSpace,
   startInterviewSession,

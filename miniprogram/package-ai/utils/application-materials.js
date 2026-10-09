@@ -1,6 +1,13 @@
 const MATERIAL_KEY = 'applicationMaterials';
-const apiClient = require('./api-client.js');
-const { sendChatToDeepSeek } = require('./api-ai.js');
+const apiClient = require('../../utils/api-client.js');
+const { sendChatToDeepSeek } = require('../../utils/api-ai.js');
+const progress = require('../../utils/job-progress.js');
+
+function storageKey() {
+  let owner = '';
+  try { owner = progress.currentOwnerScope ? String(progress.currentOwnerScope() || '') : ''; } catch (error) {}
+  return `${MATERIAL_KEY}:${owner || 'guest'}`;
+}
 
 const QUESTION_TYPES = [
   { code: 'why_company', label: 'Why this company?' },
@@ -17,7 +24,7 @@ const QUESTION_TYPES = [
 
 function readMaterials() {
   try {
-    const list = wx.getStorageSync(MATERIAL_KEY);
+    const list = wx.getStorageSync(storageKey());
     return Array.isArray(list) ? list : [];
   } catch (e) {
     return [];
@@ -43,15 +50,17 @@ function normalizeRemoteMaterial(item) {
     jobTitle: item.jobTitle || '',
     resumeName: item.resumeName || '',
     resumeVersionId: item.resumeVersionId || '',
+    applicationId: item.applicationId || '',
+    status: item.status || 'saved',
     content: item.content || '',
     createdAt: item.createdAt || '',
     updatedAt: item.updatedAt || ''
   };
 }
 
-function writeMaterials(list) {
+function writeMaterials(list, key = storageKey()) {
   try {
-    wx.setStorageSync(MATERIAL_KEY, list || []);
+    wx.setStorageSync(key, list || []);
   } catch (e) {}
 }
 
@@ -208,8 +217,9 @@ function updateMaterial(id, patch) {
 
 function removeMaterial(id) {
   const list = readMaterials();
+  const target = list.find(item => String(item.id) === String(id));
   writeMaterials(list.filter(item => String(item.id) !== String(id)));
-  deleteRemoteMaterial(id).catch(() => {});
+  archiveRemoteMaterial(target && (target.serverId || target.id) || id).catch(() => {});
 }
 
 function getStats() {
@@ -228,14 +238,16 @@ function getStats() {
 
 function fetchRemoteMaterials() {
   if (!hasToken()) return Promise.resolve(readMaterials());
+  const ownerKey = storageKey();
   return apiClient.request({
     path: '/api/career-assets/application-materials',
     noCache: true,
     timeout: 12000
   }).then(res => {
+    if (ownerKey !== storageKey()) return readMaterials();
     if (!res || res.code !== 0 || !Array.isArray(res.data)) return readMaterials();
     const remote = res.data.map(normalizeRemoteMaterial);
-    writeMaterials(remote);
+    writeMaterials(remote, ownerKey);
     return remote;
   }).catch(() => readMaterials());
 }
@@ -252,11 +264,11 @@ function syncMaterial(material) {
   });
 }
 
-function deleteRemoteMaterial(id) {
+function archiveRemoteMaterial(id) {
   if (!hasToken() || !id) return Promise.resolve();
-  return apiClient._write({
-    method: 'DELETE',
-    path: '/api/career-assets/application-materials/' + encodeURIComponent(id),
+  if (!/^\d+$/.test(String(id))) return Promise.resolve();
+  return apiClient.post({
+    path: '/api/v4/materials/saved/' + encodeURIComponent(id) + '/archive',
     timeout: 15000
   }).catch(() => {});
 }

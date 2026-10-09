@@ -12,6 +12,15 @@
   <!-- ======================== TAB 1: 在线简历 ======================== -->
   <view class="tab-content" wx:if="{{currentTab === 0}}">
 
+    <view class="diagnosis-banner" bindtap="openDiagnosis">
+      <view class="diagnosis-icon">⌁</view>
+      <view class="diagnosis-copy">
+        <text class="diagnosis-title">简历诊断 {{diagnosisCount}} 项待优化</text>
+        <text class="diagnosis-desc">完善关键信息，让岗位匹配更准确</text>
+      </view>
+      <text class="diagnosis-action">去查看</text>
+    </view>
+
     <!-- 简历选择栏（多份简历管理 T-5）-->
     <view class="resume-switcher" wx:if="{{isLoggedIn}}">
       <view class="switcher-left" bindtap="showResumeManager">
@@ -100,6 +109,16 @@
 
     <!-- 基本信息与个人优势 -->
     <view class="section-card profile-summary-card">
+      <view class="profile-overview">
+        <view class="profile-avatar">{{profileInitial}}</view>
+        <view class="profile-overview-copy">
+          <text class="profile-name">{{onlineResume.basicInfo.name || '未填写姓名'}}</text>
+          <text class="profile-role">{{onlineResume.basicInfo.title || '添加求职意向'}}</text>
+          <text class="profile-contact">{{profileContact}}</text>
+        </view>
+        <view class="edit-icon profile-edit" bindtap="editBasicInfo">编辑</view>
+      </view>
+      <view class="profile-card-divider"></view>
       <view class="card-header">
         <view class="left-border">基本信息</view>
         <view class="edit-icon" bindtap="editBasicInfo">编辑</view>
@@ -138,6 +157,21 @@
         <text class="tap-edit">点击编辑</text>
       </view>
       <view wx:else class="empty-hint" bindtap="editSummary">点击填写个人优势</view>
+    </view>
+
+    <view class="section-card expectation-card">
+      <view class="card-header">
+        <view class="left-border">求职期望</view>
+        <view class="add-btn" bindtap="openResumeMetaEditor">编辑</view>
+      </view>
+      <view wx:if="{{targetJobInput || currentResumeTargetRole}}" class="expectation-row">
+        <view class="expectation-main">
+          <text class="expectation-title">{{targetJobInput || currentResumeTargetRole}}</text>
+          <text class="expectation-meta">用于简历诊断、岗位匹配和投递版本</text>
+        </view>
+        <text class="expectation-arrow">›</text>
+      </view>
+      <view wx:else class="empty-hint" bindtap="openResumeMetaEditor">添加目标岗位，让简历更有针对性</view>
     </view>
 
     <!-- 岗位匹配分析 + NLP 优化 -->
@@ -275,6 +309,20 @@
 
   <!-- ======================== TAB 2: 附件简历 ======================== -->
   <view class="tab-content" wx:if="{{currentTab === 1}}">
+    <view wx:if="{{attachmentNoticeVisible}}" class="attachment-notice">
+      <text class="attachment-notice-close" bindtap="dismissAttachmentNotice">×</text>
+      <view class="attachment-notice-copy">
+        <text class="attachment-notice-title">文件长时间未更新，建议更新完善</text>
+        <text class="attachment-notice-desc">保持附件简历与在线简历一致，投递时更高效</text>
+      </view>
+      <text class="attachment-notice-action" bindtap="dismissAttachmentNotice">我知道了</text>
+    </view>
+
+    <view class="attachment-heading">
+      <text>我的附件简历</text>
+      <text class="attachment-count">最多支持上传 3 份</text>
+    </view>
+
     <view class="resume-list">
       <block wx:for="{{resumeList}}" wx:key="id">
         <view class="resume-card" bindtap="handleAction" data-index="{{index}}">
@@ -282,19 +330,32 @@
             <image class="file-icon" src="/images/application.png" lazy-load></image>
             <view class="info">
               <text class="name">{{item.name}}</text>
-              <text class="date">更新于 {{item.date}}</text>
-              <text class="date">点击可预览 / 同步到在线简历</text>
+              <text class="date">{{item.sizeText || 'PDF'}} · 更新于 {{item.date}}</text>
+              <text class="date attachment-hint">点击可预览 / 同步到在线简历</text>
             </view>
           </view>
-          <view class="tag default" wx:if="{{item.isDefault}}">默认</view>
+          <view class="attachment-card-right">
+            <view class="tag default" wx:if="{{item.isDefault}}">默认</view>
+            <text class="attachment-more">•••</text>
+          </view>
         </view>
       </block>
       <view wx:if="{{resumeList.length === 0}}" class="empty-hint" style="padding: 80rpx 0;">暂无附件简历</view>
     </view>
 
-    <view style="height: 150rpx;"></view>
-    <view class="footer-btn">
-      <c-button bindtap="handleUpload">上传新简历</c-button>
+    <view class="template-promo" bindtap="openTemplateCenter">
+      <view class="template-icon">▣</view>
+      <view class="template-copy">
+        <text class="template-title">专业简历模板</text>
+        <text class="template-desc">专业面试官好评 · 一键生成 · 多款样式</text>
+      </view>
+      <text class="template-arrow">›</text>
+    </view>
+
+    <view style="height: 210rpx;"></view>
+    <view class="attachment-footer">
+      <view class="attachment-upload-btn" bindtap="handleUpload">上传简历 / 作品集</view>
+      <view class="attachment-create-btn" bindtap="openOnlineResumeEditor">制作新简历 <text class="new-badge">超多模板</text></view>
     </view>
   </view>
 

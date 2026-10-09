@@ -18,6 +18,7 @@ Page({
     // 目标公司
     hotCompanies: ['Google', 'Meta', 'Amazon', 'Apple', 'Microsoft', '字节跳动', '腾讯', '阿里巴巴'],
     companyInput: '',
+    applicationId: '',
 
     // 目标岗位
     hotPositions: ['Software Engineer', 'Product Manager', 'Data Scientist', 'Frontend Developer', 'Backend Developer', '产品经理', '算法工程师'],
@@ -38,17 +39,24 @@ Page({
     pendingStart: false
   },
 
-  onLoad() {
+  onLoad(options = {}) {
+    const contextPatch = {
+      applicationId: options.applicationId || '',
+      companyInput: options.company || '',
+      positionInput: options.position || '',
+      selectedType: options.type || ''
+    };
+    if (contextPatch.applicationId || contextPatch.companyInput || contextPatch.positionInput) this.setData(contextPatch);
     const profile = wx.getStorageSync('userProfile');
     if (!profile) return;
     const preset = matcher.getInterviewPreset(profile);
     const hints = [];
     const patch = {};
-    if (preset.type) {
+    if (preset.type && !contextPatch.selectedType) {
       patch.selectedType = preset.type;
       hints.push('面试类型');
     }
-    if (preset.position) {
+    if (preset.position && !contextPatch.positionInput) {
       patch.positionInput = preset.position;
       hints.push('目标岗位');
     }
@@ -133,6 +141,7 @@ Page({
       difficulty: selectedDifficulty,
       questionCount: selectedCount
     };
+    if (this.data.applicationId) navigationParams.applicationId = this.data.applicationId;
 
     const query = Object.keys(navigationParams)
       .map(k => `${k}=${encodeURIComponent(navigationParams[k])}`)

@@ -2,10 +2,17 @@ const STORAGE_KEY = 'interviewMistakeNotebook';
 const DAILY_KEY = 'dailyPracticeQuestions';
 const apiClient = require('./api-client.js');
 const reminders = require('./reminders.js');
+const progress = require('./job-progress.js');
+
+function scopedKey(base) {
+  let owner = '';
+  try { owner = progress.currentOwnerScope ? String(progress.currentOwnerScope() || '') : ''; } catch (error) {}
+  return `${base}:${owner || 'guest'}`;
+}
 
 function readList() {
   try {
-    const list = wx.getStorageSync(STORAGE_KEY);
+    const list = wx.getStorageSync(scopedKey(STORAGE_KEY));
     return Array.isArray(list) ? list : [];
   } catch (e) {
     return [];
@@ -29,14 +36,17 @@ function normalizeRemoteQuestion(item) {
     category: item.category || 'behavior',
     difficulty: item.difficulty || '中等',
     status: item.status || 'unknown',
+    applicationId: item.applicationId || '',
+    company: item.company || '',
+    position: item.position || '',
     createdAt: item.createdAt || '',
     updatedAt: item.updatedAt || ''
   };
 }
 
-function writeList(list) {
+function writeList(list, key = scopedKey(STORAGE_KEY)) {
   try {
-    wx.setStorageSync(STORAGE_KEY, list || []);
+    wx.setStorageSync(key, list || []);
   } catch (e) {}
 }
 
@@ -47,7 +57,10 @@ function normalizeQuestion(question) {
     title: q.title || q.question || '面试题',
     answer: q.answer || '',
     category: q.category || 'behavior',
-    difficulty: q.difficulty || '中等'
+    difficulty: q.difficulty || '中等',
+    applicationId: q.applicationId || '',
+    company: q.company || '',
+    position: q.position || ''
   };
 }
 
@@ -84,14 +97,14 @@ function addDailyPractice(question) {
   const q = normalizeQuestion(question);
   let list = [];
   try {
-    list = wx.getStorageSync(DAILY_KEY) || [];
+    list = wx.getStorageSync(scopedKey(DAILY_KEY)) || [];
   } catch (e) {}
   if (!Array.isArray(list)) list = [];
   const exists = list.some(item => String(item.id) === String(q.id));
   if (!exists) {
     list.unshift(Object.assign({}, q, { addedAt: new Date().toISOString() }));
     try {
-      wx.setStorageSync(DAILY_KEY, list.slice(0, 30));
+      wx.setStorageSync(scopedKey(DAILY_KEY), list.slice(0, 30));
     } catch (e) {}
   }
   syncDailyPractice(q).catch(() => {});
@@ -101,18 +114,18 @@ function addDailyPractice(question) {
 function removeDailyPractice(id) {
   let list = [];
   try {
-    list = wx.getStorageSync(DAILY_KEY) || [];
+    list = wx.getStorageSync(scopedKey(DAILY_KEY)) || [];
   } catch (e) {}
   if (!Array.isArray(list)) list = [];
   try {
-    wx.setStorageSync(DAILY_KEY, list.filter(item => String(item.id) !== String(id)));
+    wx.setStorageSync(scopedKey(DAILY_KEY), list.filter(item => String(item.id) !== String(id)));
   } catch (e) {}
   deleteRemoteDailyPractice(id).catch(() => {});
 }
 
 function getDailyPractice() {
   try {
-    const list = wx.getStorageSync(DAILY_KEY);
+    const list = wx.getStorageSync(scopedKey(DAILY_KEY));
     return Array.isArray(list) ? list : [];
   } catch (e) {
     return [];
@@ -173,28 +186,32 @@ function buildReferenceAnswer(question) {
 
 function fetchRemoteNotebook() {
   if (!hasToken()) return Promise.resolve(readList());
+  const ownerKey = scopedKey(STORAGE_KEY);
   return apiClient.request({
     path: '/api/career-assets/interview-notebook',
     noCache: true,
     timeout: 12000
   }).then(res => {
+    if (ownerKey !== scopedKey(STORAGE_KEY)) return readList();
     if (!res || res.code !== 0 || !Array.isArray(res.data)) return readList();
     const remote = res.data.map(normalizeRemoteQuestion);
-    writeList(remote);
+    writeList(remote, ownerKey);
     return remote;
   }).catch(() => readList());
 }
 
 function fetchRemoteDailyPractice() {
   if (!hasToken()) return Promise.resolve(getDailyPractice());
+  const ownerKey = scopedKey(DAILY_KEY);
   return apiClient.request({
     path: '/api/career-assets/interview-daily-practice',
     noCache: true,
     timeout: 12000
   }).then(res => {
+    if (ownerKey !== scopedKey(DAILY_KEY)) return getDailyPractice();
     if (!res || res.code !== 0 || !Array.isArray(res.data)) return getDailyPractice();
     const remote = res.data.map(normalizeRemoteQuestion);
-    try { wx.setStorageSync(DAILY_KEY, remote); } catch (e) {}
+    try { wx.setStorageSync(ownerKey, remote); } catch (e) {}
     return remote;
   }).catch(() => getDailyPractice());
 }

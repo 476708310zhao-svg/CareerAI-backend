@@ -7,14 +7,21 @@ const analytics = require('../../services/v4Analytics');
 const { applicationRefs, canonicalJobId, mergeCoreRefs, withCoreRefs } = require('../../utils/coreEntityRefs');
 
 const router = express.Router();
+router.use((req, res, next) => { if (req.method === 'GET') res.set('Cache-Control', 'no-store'); next(); });
 router.use(authMiddleware);
 
 function fail(res, error) {
+  const status = error.status || 500;
   return res.status(error.status || 500).json({
     code: error.code || -1,
-    message: error.message || '服务器错误',
-    data: error.details ? { details: error.details } : undefined
+    message: status >= 500 ? '简历服务暂时不可用' : (error.message || '请求失败'),
+    data: status < 500 && error.details ? { details: error.details } : undefined
   });
+}
+
+function positiveId(value) {
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
 function experienceView(row) {
@@ -73,7 +80,9 @@ router.post('/experiences', (req, res) => {
 });
 
 router.patch('/experiences/:id', (req, res) => {
-  const row = db.prepare('SELECT * FROM career_experience_library WHERE id=? AND user_id=?').get(Number(req.params.id), req.user.userId);
+  const experienceId = positiveId(req.params.id);
+  if (!experienceId) return res.status(400).json({ code:-1, message:'经历 ID 无效' });
+  const row = db.prepare('SELECT * FROM career_experience_library WHERE id=? AND user_id=?').get(experienceId, req.user.userId);
   if (!row) return res.status(404).json({ code: -1, message: '经历不存在' });
   const body = req.body || {};
   const type = body.type === undefined ? row.type : center.cleanText(body.type, 30);
@@ -89,8 +98,10 @@ router.patch('/experiences/:id', (req, res) => {
 });
 
 router.post('/experiences/:id/archive', (req, res) => {
+  const experienceId = positiveId(req.params.id);
+  if (!experienceId) return res.status(400).json({ code:-1, message:'经历 ID 无效' });
   const result = db.prepare("UPDATE career_experience_library SET archived_at=datetime('now'), updated_at=datetime('now') WHERE id=? AND user_id=?")
-    .run(Number(req.params.id), req.user.userId);
+    .run(experienceId, req.user.userId);
   if (!result.changes) return res.status(404).json({ code: -1, message: '经历不存在' });
   res.json({ code: 0, message: '经历已归档' });
 });
@@ -99,10 +110,7 @@ router.get('/', (req, res) => {
   const includeArchived = req.query.includeArchived === 'true';
   const rows = db.prepare(`SELECT * FROM resumes WHERE user_id=? ${includeArchived ? '' : "AND COALESCE(archived_at, '')=''"} ORDER BY is_default DESC, updated_at DESC`)
     .all(req.user.userId);
-  rows.forEach(row => center.ensureCurrentVersion(req.user.userId, row.id));
-  const refreshed = db.prepare(`SELECT * FROM resumes WHERE user_id=? ${includeArchived ? '' : "AND COALESCE(archived_at, '')=''"} ORDER BY is_default DESC, updated_at DESC`)
-    .all(req.user.userId);
-  res.json({ code: 0, data: refreshed.map(resumeView) });
+  res.json({ code: 0, data: rows.map(resumeView) });
 });
 
 router.post('/', (req, res) => {
@@ -123,31 +131,71 @@ router.post('/', (req, res) => {
 });
 
 router.get('/:id/versions', (req, res) => {
-  const owned = center.ensureCurrentVersion(req.user.userId, Number(req.params.id));
+  const resumeId = positiveId(req.params.id);
+  if (!resumeId) return res.status(400).json({ code: -1, message: '简历 ID 无效' });
+  const owned = db.prepare('SELECT id FROM resumes WHERE id=? AND user_id=?').get(resumeId, req.user.userId);
   if (!owned) return res.status(404).json({ code: -1, message: '简历不存在' });
-  const rows = db.prepare('SELECT * FROM resume_versions_v4 WHERE resume_id=? AND user_id=? ORDER BY version_no DESC').all(owned.resume.id, req.user.userId);
+  const rows = db.prepare('SELECT * FROM resume_versions_v4 WHERE resume_id=? AND user_id=? ORDER BY version_no DESC').all(resumeId, req.user.userId);
   res.json({ code: 0, data: rows.map(center.versionView) });
 });
 
+router.post('/:id/versions', (req, res) => {
+  const body = req.body || {};
+  const resumeId = positiveId(req.params.id);
+  if (!resumeId) return res.status(400).json({code:-1,message:'简历 ID 无效'});
+  const initializesFirstVersion = body.expectedVersionId === null;
+  const content = initializesFirstVersion && body.useLegacyContent === true ? undefined : body.content;
+  if (content === undefined ? !initializesFirstVersion : (!content || typeof content !== 'object' || Array.isArray(content) || JSON.stringify(content).length > 80000)) return res.status(400).json({code:-1,message:'简历内容无效或过长'});
+  const expectedVersionId = initializesFirstVersion ? null : positiveId(body.expectedVersionId);
+  if (!initializesFirstVersion && !expectedVersionId) return res.status(400).json({code:-1,message:'当前简历版本无效'});
+  try {
+    const version = db.transaction(() => {
+      if (initializesFirstVersion) return center.initializeVersion({userId:req.user.userId,resumeId,content});
+      const resume = db.prepare('SELECT * FROM resumes WHERE id=? AND user_id=?').get(resumeId, req.user.userId);
+      if (!resume || resume.archived_at) throw Object.assign(new Error('简历不存在或已归档'), {status:404});
+      if (Number(resume.current_version_id) !== expectedVersionId) throw Object.assign(new Error('简历已在其他页面更新，请重新打开后合并修改；本次草稿未保存'), {status:409});
+      const current = db.prepare('SELECT id FROM resume_versions_v4 WHERE id=? AND resume_id=? AND user_id=?').get(expectedVersionId, resumeId, req.user.userId);
+      if (!current) throw Object.assign(new Error('当前简历版本不存在'), {status:409});
+      return center.createVersion({userId:req.user.userId,resumeId,content,sourceVersionId:current.id,summary:'Web 手动编辑'});
+    }).immediate();
+    res.status(201).json({code:0,data:version});
+  } catch (error) { fail(res,error); }
+});
+
 router.get('/:id/versions/compare', (req, res) => {
-  const resumeId = Number(req.params.id);
-  const left = db.prepare('SELECT * FROM resume_versions_v4 WHERE id=? AND resume_id=? AND user_id=?').get(Number(req.query.from), resumeId, req.user.userId);
-  const right = db.prepare('SELECT * FROM resume_versions_v4 WHERE id=? AND resume_id=? AND user_id=?').get(Number(req.query.to), resumeId, req.user.userId);
+  const resumeId = positiveId(req.params.id); const fromId = positiveId(req.query.from); const toId = positiveId(req.query.to);
+  if (!resumeId || !fromId || !toId) return res.status(400).json({ code:-1, message:'简历或版本 ID 无效' });
+  const left = db.prepare('SELECT * FROM resume_versions_v4 WHERE id=? AND resume_id=? AND user_id=?').get(fromId, resumeId, req.user.userId);
+  const right = db.prepare('SELECT * FROM resume_versions_v4 WHERE id=? AND resume_id=? AND user_id=?').get(toId, resumeId, req.user.userId);
   if (!left || !right) return res.status(404).json({ code: -1, message: '对比版本不存在' });
   res.json({ code: 0, data: { from: center.versionView(left), to: center.versionView(right), changes: center.compareContent(center.parseJson(left.content, {}), center.parseJson(right.content, {})) } });
 });
 
 router.post('/:id/versions/:versionId/restore', (req, res) => {
-  const source = db.prepare('SELECT * FROM resume_versions_v4 WHERE id=? AND resume_id=? AND user_id=?').get(Number(req.params.versionId), Number(req.params.id), req.user.userId);
-  if (!source) return res.status(404).json({ code: -1, message: '恢复版本不存在' });
+  const resumeId=positiveId(req.params.id); const versionId=positiveId(req.params.versionId);
+  if(!resumeId||!versionId) return res.status(400).json({code:-1,message:'简历或版本 ID 无效'});
+  const expectedVersionId=positiveId(req.body && req.body.expectedVersionId);
+  if(!expectedVersionId) return res.status(400).json({code:-1,message:'当前简历版本无效'});
   try {
-    const version = center.createVersion({ userId: req.user.userId, resumeId: source.resume_id, content: center.parseJson(source.content, {}), sourceVersionId: source.id, summary: `恢复自 V${source.version_no}`, createdBy: 'restore' });
+    const version = db.transaction(() => {
+      const resume = db.prepare("SELECT * FROM resumes WHERE id=? AND user_id=? AND COALESCE(archived_at,'')='' ").get(resumeId, req.user.userId);
+      if (!resume) throw Object.assign(new Error('简历不存在或已归档'), {status:404});
+      if (Number(resume.current_version_id) !== expectedVersionId) {
+        throw Object.assign(new Error('简历已在其他页面更新，请重新加载版本后再恢复'), {status:409,code:'STALE_RESUME_VERSION'});
+      }
+      const current = db.prepare('SELECT id FROM resume_versions_v4 WHERE id=? AND resume_id=? AND user_id=?').get(expectedVersionId, resumeId, req.user.userId);
+      if (!current) throw Object.assign(new Error('当前简历版本不存在'), {status:409,code:'STALE_RESUME_VERSION'});
+      const source = db.prepare('SELECT * FROM resume_versions_v4 WHERE id=? AND resume_id=? AND user_id=?').get(versionId, resumeId, req.user.userId);
+      if (!source) throw Object.assign(new Error('恢复版本不存在'), {status:404});
+      return center.createVersion({ userId: req.user.userId, resumeId: source.resume_id, content: center.parseJson(source.content, {}), sourceVersionId: source.id, summary: `恢复自 V${source.version_no}`, createdBy: 'restore', expectedCurrentVersionId: expectedVersionId });
+    }).immediate();
     res.status(201).json({ code: 0, data: version, message: '已创建恢复版本，历史版本保持不变' });
   } catch (error) { fail(res, error); }
 });
 
 router.post('/:id/copy', (req, res) => {
-  const owned = center.ensureCurrentVersion(req.user.userId, Number(req.params.id));
+  const resumeId=positiveId(req.params.id); if(!resumeId)return res.status(400).json({code:-1,message:'简历 ID 无效'});
+  const owned = center.ensureCurrentVersion(req.user.userId, resumeId);
   if (!owned) return res.status(404).json({ code: -1, message: '简历不存在' });
   const name = center.cleanText(req.body && req.body.name, 80) || `${owned.resume.name} - 副本`;
   const result = db.prepare(`INSERT INTO resumes (user_id, name, language, data, is_default, target_role, target_job_id, resume_type, archived_at, updated_at) VALUES (?, ?, ?, ?, 0, ?, ?, ?, '', datetime('now'))`)
@@ -157,7 +205,8 @@ router.post('/:id/copy', (req, res) => {
 });
 
 router.patch('/:id', (req, res) => {
-  const row = db.prepare('SELECT * FROM resumes WHERE id=? AND user_id=?').get(Number(req.params.id), req.user.userId);
+  const resumeId=positiveId(req.params.id); if(!resumeId)return res.status(400).json({code:-1,message:'简历 ID 无效'});
+  const row = db.prepare('SELECT * FROM resumes WHERE id=? AND user_id=?').get(resumeId, req.user.userId);
   if (!row) return res.status(404).json({ code: -1, message: '简历不存在' });
   const name = req.body.name === undefined ? row.name : center.cleanText(req.body.name, 80);
   if (!name) return res.status(400).json({ code: -1, message: '简历名称不能为空' });
@@ -169,7 +218,8 @@ router.patch('/:id', (req, res) => {
 });
 
 router.post('/:id/default', (req, res) => {
-  const row = db.prepare('SELECT id FROM resumes WHERE id=? AND user_id=? AND COALESCE(archived_at, \'\')=\'\'').get(Number(req.params.id), req.user.userId);
+  const resumeId=positiveId(req.params.id); if(!resumeId)return res.status(400).json({code:-1,message:'简历 ID 无效'});
+  const row = db.prepare('SELECT id FROM resumes WHERE id=? AND user_id=? AND COALESCE(archived_at, \'\')=\'\'').get(resumeId, req.user.userId);
   if (!row) return res.status(404).json({ code: -1, message: '简历不存在或已归档' });
   db.transaction(() => {
     db.prepare('UPDATE resumes SET is_default=0 WHERE user_id=?').run(req.user.userId);
@@ -179,16 +229,20 @@ router.post('/:id/default', (req, res) => {
 });
 
 router.post('/:id/archive', (req, res) => {
+  const resumeId=positiveId(req.params.id); if(!resumeId)return res.status(400).json({code:-1,message:'简历 ID 无效'});
   const result = db.prepare("UPDATE resumes SET archived_at=datetime('now'), is_default=0, updated_at=datetime('now') WHERE id=? AND user_id=?")
-    .run(Number(req.params.id), req.user.userId);
+    .run(resumeId, req.user.userId);
   if (!result.changes) return res.status(404).json({ code: -1, message: '简历不存在' });
   res.json({ code: 0, message: '简历已归档' });
 });
 
 router.post('/:id/links', (req, res) => {
-  const resume = db.prepare('SELECT id FROM resumes WHERE id=? AND user_id=?').get(Number(req.params.id), req.user.userId);
+  const resumeId=positiveId(req.params.id); if(!resumeId)return res.status(400).json({code:-1,message:'简历 ID 无效'});
+  const resume = db.prepare('SELECT id FROM resumes WHERE id=? AND user_id=?').get(resumeId, req.user.userId);
   if (!resume) return res.status(404).json({ code: -1, message: '简历不存在' });
-  const applicationId = Number(req.body && req.body.applicationId) || null;
+  const rawApplicationId=req.body&&req.body.applicationId;
+  const applicationId = rawApplicationId===undefined||rawApplicationId===null||rawApplicationId==='' ? null : positiveId(rawApplicationId);
+  if(rawApplicationId!==undefined&&rawApplicationId!==null&&rawApplicationId!==''&&!applicationId)return res.status(400).json({code:-1,message:'申请记录 ID 无效'});
   const application = ownedApplication(req.user.userId, applicationId);
   if (applicationId && !application) return res.status(404).json({ code: -1, message: '申请记录不存在' });
   const jobId = center.cleanText((req.body && req.body.jobId) || canonicalJobId(application), 120);
@@ -214,11 +268,13 @@ router.post('/:id/links', (req, res) => {
 });
 
 router.post('/:id/ai-change-sets', async (req, res) => {
-  const resumeId = Number(req.params.id);
+  const resumeId = positiveId(req.params.id);
+  if(!resumeId)return res.status(400).json({code:-1,message:'简历 ID 无效'});
   const body = req.body || {};
   const resume = db.prepare('SELECT id FROM resumes WHERE id=? AND user_id=?').get(resumeId, req.user.userId);
   if (!resume) return res.status(404).json({ code: -1, message: '简历不存在' });
-  const applicationId = Number(body.applicationId) || null;
+  const applicationId = body.applicationId===undefined||body.applicationId===null||body.applicationId==='' ? null : positiveId(body.applicationId);
+  if(body.applicationId!==undefined&&body.applicationId!==null&&body.applicationId!==''&&!applicationId)return res.status(400).json({code:-1,message:'申请记录 ID 无效'});
   const application = applicationId ? ownedApplication(req.user.userId, applicationId) : null;
   if (applicationId && !application) return res.status(404).json({ code: -1, message: '申请记录不存在' });
   const applicationJobId = canonicalJobId(application || {});
@@ -243,18 +299,20 @@ router.post('/:id/ai-change-sets', async (req, res) => {
 });
 
 router.get('/ai-change-sets/:changeSetId', (req, res) => {
-  const data = center.getChangeSet(req.user.userId, Number(req.params.changeSetId));
+  const changeSetId=positiveId(req.params.changeSetId);if(!changeSetId)return res.status(400).json({code:-1,message:'修改方案 ID 无效'});
+  const data = center.getChangeSet(req.user.userId, changeSetId);
   if (!data) return res.status(404).json({ code: -1, message: '修改方案不存在' });
   res.json({ code: 0, data });
 });
 
 router.post('/ai-change-sets/:changeSetId/confirm', (req, res) => {
+  const changeSetId=positiveId(req.params.changeSetId);if(!changeSetId)return res.status(400).json({code:-1,message:'修改方案 ID 无效'});
   try {
-    const data = center.confirmChangeSet({ userId: req.user.userId, changeSetId: Number(req.params.changeSetId),
+    const data = center.confirmChangeSet({ userId: req.user.userId, changeSetId,
       decisions: req.body && req.body.decisions || {}, manualContent: req.body && req.body.manualContent });
     analytics.trackFunnel(req.user.userId, 'resume_optimized', withCoreRefs(
       {
-        changeSetId: Number(req.params.changeSetId),
+        changeSetId,
         decisions: req.body && req.body.decisions || {},
         acceptedCount: Object.values(data.changeSet.decisions || {}).filter(value => value === 'accept').length
       },
@@ -271,8 +329,9 @@ router.post('/ai-change-sets/:changeSetId/confirm', (req, res) => {
 });
 
 router.post('/ai-change-sets/:changeSetId/reject', (req, res) => {
+  const changeSetId=positiveId(req.params.changeSetId);if(!changeSetId)return res.status(400).json({code:-1,message:'修改方案 ID 无效'});
   const result = db.prepare("UPDATE resume_ai_change_sets SET status='rejected', decisions=?, confirmed_at=datetime('now') WHERE id=? AND user_id=? AND status='pending'")
-    .run(JSON.stringify(req.body && req.body.decisions || {}), Number(req.params.changeSetId), req.user.userId);
+    .run(JSON.stringify(req.body && req.body.decisions || {}), changeSetId, req.user.userId);
   if (!result.changes) return res.status(409).json({ code: -1, message: '修改方案不存在或已处理' });
   res.json({ code: 0, message: '已拒绝，简历未发生变化' });
 });

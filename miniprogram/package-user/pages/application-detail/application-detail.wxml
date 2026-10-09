@@ -30,11 +30,17 @@
         <text class="muted">{{match.qualificationStatus === 'eligible' ? '资格符合' : (match.qualificationStatus === 'partial' ? '部分符合' : '存在资格限制')}}</text>
         <text class="match-gap" wx:if="{{match.gaps.length}}">注意：{{match.gaps[0]}}</text>
       </view>
+      <view class="match-action" bindtap="openJdMatch">重新匹配</view>
     </view>
 
     <view wx:if="{{primaryAction}}" class="primary-action-bar" bindtap="handlePrimaryAction">
       <view class="primary-action-copy"><text class="primary-action-kicker">建议下一步</text><text class="primary-action-label">{{primaryAction.label}}</text></view>
       <text class="primary-action-arrow">›</text>
+    </view>
+
+    <view class="section-card match-empty-card" wx:if="{{!match}}">
+      <view class="section-head"><view><text class="card-title">岗位匹配</text><text class="section-note">还没有这条申请的 JD 匹配报告</text></view></view>
+      <view class="secondary-btn match-start-btn" bindtap="openJdMatch">进行 JD 匹配</view>
     </view>
 
     <view class="section-card follow-up-card" id="follow-up">
@@ -86,9 +92,14 @@
       <view wx:if="{{!history.length}}" class="empty">暂无状态历史</view>
     </view>
 
-    <view class="section-card" wx:if="{{materials.length}}">
-      <view class="section-head"><text class="card-title">申请材料</text><text class="section-note">{{materials.length}} 份</text></view>
+    <view class="section-card application-pack-card">
+      <view class="section-head"><view><text class="card-title">申请包</text><text class="section-note application-pack-note">简历、JD 匹配和网申材料围绕这条申请集中管理</text></view><text class="section-note">{{materials.length}} 份材料</text></view>
       <view class="material-item" wx:for="{{materials}}" wx:key="id"><text>{{item.label || item.type}}</text><text class="muted">{{item.resumeName || item.updatedAt}}</text></view>
+      <view wx:if="{{!materials.length}}" class="empty">还没有申请材料，先选择简历并生成一份草稿。</view>
+      <view class="application-pack-actions">
+        <view class="secondary-btn pack-btn" bindtap="openResumeCenter">选择或管理简历</view>
+        <view class="primary-btn pack-btn" bindtap="openApplicationMaterials">打开申请材料</view>
+      </view>
     </view>
   </block>
 </view>

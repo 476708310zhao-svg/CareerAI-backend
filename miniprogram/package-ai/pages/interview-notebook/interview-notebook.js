@@ -117,9 +117,11 @@ Page({
   practice(e) {
     const item = this.findItem(e.currentTarget.dataset.id);
     if (!item) return;
-    wx.navigateTo({
-      url: '/package-ai/pages/interview-dialog/interview-dialog?autoQuestion=' + encodeURIComponent(item.title)
-    });
+    const params = ['autoQuestion=' + encodeURIComponent(item.title)];
+    if (item.applicationId) params.push('applicationId=' + encodeURIComponent(item.applicationId));
+    if (item.company) params.push('company=' + encodeURIComponent(item.company));
+    if (item.position) params.push('position=' + encodeURIComponent(item.position));
+    wx.navigateTo({ url: '/package-ai/pages/interview-dialog/interview-dialog?' + params.join('&') });
   },
 
   markUnknown(e) {

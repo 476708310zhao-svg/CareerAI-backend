@@ -8,7 +8,29 @@ const aiRuntime = require('../../services/v4AiRuntime');
 const { applicationRefs, mergeCoreRefs, withCoreRefs } = require('../../utils/coreEntityRefs');
 
 const router = express.Router();
+router.use((req, res, next) => { if (req.method === 'GET') res.set('Cache-Control', 'no-store'); next(); });
 router.use(authMiddleware);
+
+function assertMaterialDraftSchema() {
+  const applied = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_migrations'").get()
+    && db.prepare("SELECT 1 FROM schema_migrations WHERE version='0011'").get();
+  if (!applied) throw new Error('Database migration 0011 is required for application material types');
+  const schema = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='ai_application_material_drafts'").pluck().get();
+  if (!schema || !String(schema).includes("'why_company'") || !String(schema).includes("'why_role'")) {
+    throw new Error('Database migration 0011 is required for application material types');
+  }
+  const notebookColumns = new Set(db.prepare('PRAGMA table_info(interview_notebook)').all().map(column => column.name));
+  if (['application_id', 'company', 'position'].some(column => !notebookColumns.has(column))) {
+    throw new Error('Database migration 0011 is required for interview application context');
+  }
+  const notebookApplicationFk = db.prepare("PRAGMA foreign_key_list(interview_notebook)").all()
+    .some(key => key.from === 'application_id' && key.table === 'applications' && key.on_delete === 'SET NULL');
+  const uniqueDraftIndex = db.prepare("SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_application_materials_ai_draft_owner'").get();
+  if (!notebookApplicationFk || !uniqueDraftIndex) throw new Error('Database migration 0011 safety indexes are required');
+  return true;
+}
+
+assertMaterialDraftSchema();
 
 // 整份简历属于简历中心。申请文案接口只生成可阅读、可复制的文本。
 const MATERIAL_TYPES = ['cover_letter', 'why_company', 'why_role', 'recruiter_message', 'follow_up_email'];
@@ -21,6 +43,19 @@ const LABELS = {
   recruiter_message: 'Recruiter 消息',
   follow_up_email: 'Follow-up 邮件'
 };
+
+function positiveId(value) {
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+function sendError(res, error, fallback) {
+  const status = error.status || 500;
+  return res.status(status).json({
+    code: error.code || -1,
+    message: status >= 500 ? fallback : (error.message || '请求失败')
+  });
+}
 
 function applicationView(row) {
   const snapshot = center.parseJson(row.job_snapshot, {});
@@ -179,7 +214,13 @@ router.get('/quota', (req, res) => {
 router.get('/drafts', (req, res) => {
   const params = [req.user.userId];
   let where = 'user_id=?';
-  if (req.query.applicationId) { where += ' AND application_id=?'; params.push(Number(req.query.applicationId)); }
+  if (req.query.applicationId) {
+    const applicationId = Number(req.query.applicationId);
+    if (!Number.isSafeInteger(applicationId) || applicationId <= 0) return res.status(400).json({ code: -1, message: '申请记录 ID 无效' });
+    const application = db.prepare('SELECT id FROM applications WHERE id=? AND user_id=?').get(applicationId, req.user.userId);
+    if (!application) return res.status(404).json({ code: -1, message: '申请记录不存在' });
+    where += ' AND application_id=?'; params.push(applicationId);
+  }
   if (req.query.status) { where += ' AND status=?'; params.push(center.cleanText(req.query.status, 30)); }
   const rows = db.prepare(`SELECT * FROM ai_application_material_drafts WHERE ${where} ORDER BY created_at DESC, id DESC`).all(...params);
   res.json({ code: 0, data: rows.map(draftView) });
@@ -189,16 +230,22 @@ router.post('/drafts', async (req, res) => { try {
   const body = req.body || {};
   const type = center.cleanText(body.materialType, 40);
   if (!MATERIAL_TYPES.includes(type)) return res.status(400).json({ code: -1, message: '材料类型无效' });
-  const applicationRow = db.prepare('SELECT * FROM applications WHERE id=? AND user_id=?').get(Number(body.applicationId), req.user.userId);
+  const applicationId = positiveId(body.applicationId);
+  if (!applicationId) return res.status(400).json({ code: -1, message: '申请记录 ID 无效' });
+  const applicationRow = db.prepare('SELECT * FROM applications WHERE id=? AND user_id=?').get(applicationId, req.user.userId);
   if (!applicationRow) return res.status(404).json({ code: -1, message: '申请记录不存在' });
-  let owned = null;
-  if (body.resumeId) {
-    owned = center.ensureCurrentVersion(req.user.userId, Number(body.resumeId));
-    if (!owned) return res.status(404).json({ code: -1, message: '简历不存在' });
-  } else if (applicationRow.resume_id) {
-    owned = center.ensureCurrentVersion(req.user.userId, applicationRow.resume_id);
-  }
-  if (!owned) return res.status(400).json({ code: 'RESUME_REQUIRED', message: '生成申请文案前，请先选择一份已完善的简历' });
+  if (body.resumeId !== undefined && body.resumeId !== null && body.resumeId !== '' && !positiveId(body.resumeId)) return res.status(400).json({ code:-1, message:'简历 ID 无效' });
+  const resumeId = positiveId(body.resumeId || applicationRow.resume_id);
+  if (!resumeId) return res.status(400).json({ code: 'RESUME_REQUIRED', message: '生成申请文案前，请先选择一份已完善的简历' });
+  const resume = db.prepare("SELECT * FROM resumes WHERE id=? AND user_id=? AND COALESCE(archived_at,'')='' ").get(resumeId, req.user.userId);
+  if (!resume) return res.status(404).json({ code: -1, message: '简历不存在' });
+  if (body.resumeVersionId !== undefined && body.resumeVersionId !== null && body.resumeVersionId !== '' && !positiveId(body.resumeVersionId)) return res.status(400).json({ code:-1, message:'简历版本 ID 无效' });
+  const requestedVersionId = positiveId(body.resumeVersionId || (resumeId === Number(applicationRow.resume_id) ? applicationRow.resume_version_id : null));
+  if (!requestedVersionId) return res.status(409).json({ code:'RESUME_VERSION_REQUIRED', message:'该简历尚未初始化版本，请先到简历中心确认创建首个版本' });
+  const selectedVersion = db.prepare('SELECT * FROM resume_versions_v4 WHERE id=? AND resume_id=? AND user_id=?')
+    .get(requestedVersionId, resume.id, req.user.userId);
+  if (!selectedVersion) return res.status(404).json({ code:-1, message:'简历版本不存在或无权使用' });
+  const owned = { resume, version: selectedVersion };
   const resumeContent = center.parseJson(owned.version.content, {});
   if (!hasUsefulResumeContent(resumeContent)) {
     return res.status(422).json({ code: 'RESUME_INCOMPLETE', message: '所选简历缺少可用经历或技能，请先到简历中心补充真实内容' });
@@ -223,55 +270,71 @@ router.post('/drafts', async (req, res) => { try {
   ), '/api/v4/materials/drafts');
   res.status(201).json({ code: 0, data: Object.assign(data, { quota: getQuotaStatus(req.user.userId), generation: aiRuntime.safeMetadata(generated) }), message: '草稿已生成，确认前不会保存到申请材料' });
 } catch (error) {
-  res.status(error.status || 500).json({ code: error.code || -1, message: error.message || '申请材料生成失败' });
+  sendError(res, error, '申请材料生成失败');
 }
 });
 
 router.post('/drafts/:id/reject', (req, res) => {
+  const draftId = positiveId(req.params.id);
+  if (!draftId) return res.status(400).json({ code:-1, message:'草稿 ID 无效' });
   const result = db.prepare("UPDATE ai_application_material_drafts SET status='rejected', confirmed_at=datetime('now') WHERE id=? AND user_id=? AND status='pending'")
-    .run(Number(req.params.id), req.user.userId);
+    .run(draftId, req.user.userId);
   if (!result.changes) return res.status(409).json({ code: -1, message: '草稿不存在或已处理' });
   res.json({ code: 0, message: '草稿已拒绝，未保存任何材料' });
 });
 
 router.post('/drafts/:id/confirm', (req, res) => {
-  const draft = db.prepare('SELECT * FROM ai_application_material_drafts WHERE id=? AND user_id=?').get(Number(req.params.id), req.user.userId);
-  if (!draft) return res.status(404).json({ code: -1, message: '草稿不存在' });
-  if (draft.status !== 'pending') return res.status(409).json({ code: -1, message: '草稿已处理，不能重复保存' });
-  if (draft.material_type === 'tailored_resume') {
-    return res.status(409).json({
-      code: 'TAILORED_RESUME_MOVED',
-      message: '整份简历定制已移至简历中心，请在那里生成和管理岗位版本'
-    });
-  }
-  const applicationRow = db.prepare('SELECT * FROM applications WHERE id=? AND user_id=?').get(draft.application_id, req.user.userId);
-  if (!applicationRow) return res.status(409).json({ code: -1, message: '关联申请记录不存在' });
-  const content = center.cleanText(req.body && req.body.content !== undefined ? req.body.content : draft.content, 12000);
-  if (!content) return res.status(400).json({ code: -1, message: '材料内容不能为空' });
-  const application = applicationView(applicationRow);
+  const draftId = positiveId(req.params.id);
+  if (!draftId) return res.status(400).json({ code:-1, message:'草稿 ID 无效' });
   try {
     const saved = db.transaction(() => {
+      const draft = db.prepare('SELECT * FROM ai_application_material_drafts WHERE id=? AND user_id=?').get(draftId, req.user.userId);
+      if (!draft) throw Object.assign(new Error('草稿不存在'), { status:404 });
+      if (draft.status === 'confirmed' && draft.saved_material_id) {
+        const existing = db.prepare('SELECT id FROM application_materials WHERE id=? AND user_id=? AND ai_draft_id=?').get(draft.saved_material_id, req.user.userId, draft.id);
+        if (existing) return { materialId: existing.id, draftId: draft.id, idempotent: true };
+      }
+      if (draft.status !== 'pending') throw Object.assign(new Error('草稿已处理，不能重复保存'), { status:409 });
+      if (draft.material_type === 'tailored_resume') throw Object.assign(new Error('整份简历定制已移至简历中心'), { status:409, code:'TAILORED_RESUME_MOVED' });
+      const applicationRow = db.prepare('SELECT * FROM applications WHERE id=? AND user_id=?').get(draft.application_id, req.user.userId);
+      if (!applicationRow) throw Object.assign(new Error('关联申请记录不存在'), { status:409 });
+      const content = center.cleanText(req.body && req.body.content !== undefined ? req.body.content : draft.content, 12000);
+      if (!content) throw Object.assign(new Error('材料内容不能为空'), { status:400 });
+      const application = applicationView(applicationRow);
       const storedContent = content;
       const clientId = `v4_material_${draft.id}`;
-      const result = db.prepare(`
-        INSERT INTO application_materials
+      db.prepare(`
+        INSERT OR IGNORE INTO application_materials
           (user_id, client_id, question_type, question_label, job_id, company, job_title, resume_name, resume_version_id, content,
            application_id, status, ai_draft_id, ai_model, prompt_version, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'saved', ?, ?, ?, datetime('now'))
       `).run(req.user.userId, clientId, draft.material_type, LABELS[draft.material_type], application.jobId,
         application.company, application.jobTitle, draft.resume_id ? (db.prepare('SELECT name FROM resumes WHERE id=?').get(draft.resume_id) || {}).name || '' : '',
         String(draft.resume_version_id || ''), storedContent, application.id, draft.id, draft.ai_model, draft.prompt_version);
+      const material = db.prepare('SELECT id FROM application_materials WHERE user_id=? AND ai_draft_id=?').get(req.user.userId, draft.id);
+      if (!material) throw new Error('申请材料保存失败');
       if (draft.material_type === 'cover_letter') {
         db.prepare('UPDATE applications SET cover_letter=?, updated_at=datetime(\'now\') WHERE id=? AND user_id=?').run(content, application.id, req.user.userId);
       }
-      db.prepare("UPDATE ai_application_material_drafts SET status='confirmed', content=?, saved_material_id=?, confirmed_at=datetime('now') WHERE id=?")
-        .run(storedContent, result.lastInsertRowid, draft.id);
-      return { materialId: result.lastInsertRowid };
-    })();
-    res.status(201).json({ code: 0, data: Object.assign(saved, { draft: draftView(db.prepare('SELECT * FROM ai_application_material_drafts WHERE id=?').get(draft.id)) }), message: '用户已确认，材料已保存' });
+      const confirmed = db.prepare("UPDATE ai_application_material_drafts SET status='confirmed', content=?, saved_material_id=?, confirmed_at=datetime('now') WHERE id=? AND user_id=? AND status='pending'")
+        .run(storedContent, material.id, draft.id, req.user.userId);
+      if (confirmed.changes !== 1) throw Object.assign(new Error('草稿已处理，不能重复保存'), { status:409 });
+      return { materialId: material.id, draftId: draft.id, idempotent: false };
+    }).immediate();
+    const confirmedDraft = db.prepare('SELECT * FROM ai_application_material_drafts WHERE id=? AND user_id=?').get(saved.draftId, req.user.userId);
+    res.status(saved.idempotent ? 200 : 201).json({ code: 0, data: Object.assign(saved, { draft: draftView(confirmedDraft) }), message: '用户已确认，材料已保存' });
   } catch (error) {
-    res.status(error.status || 500).json({ code: error.code || -1, message: error.message || '保存失败' });
+    sendError(res, error, '申请材料保存失败');
   }
+});
+
+router.post('/saved/:id/archive', (req, res) => {
+  const materialId = positiveId(req.params.id);
+  if (!materialId) return res.status(400).json({ code:-1, message:'材料 ID 无效' });
+  const result = db.prepare("UPDATE application_materials SET status='archived',updated_at=datetime('now') WHERE id=? AND user_id=?")
+    .run(materialId, req.user.userId);
+  if (!result.changes) return res.status(404).json({ code:-1, message:'材料不存在' });
+  res.json({ code:0, message:'材料已归档' });
 });
 
 module.exports = router;

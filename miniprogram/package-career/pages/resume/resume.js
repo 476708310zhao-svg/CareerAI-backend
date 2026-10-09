@@ -65,6 +65,18 @@ function decorateOptimizationHistory(list) {
   }));
 }
 
+function maskPhone(value) {
+  const text = String(value || '').trim();
+  return /^\d{7,}$/.test(text) ? `${text.slice(0, 3)}****${text.slice(-4)}` : text;
+}
+
+function formatFileSize(value) {
+  const size = Number(value || 0);
+  if (!size) return '';
+  if (size >= 1024 * 1024) return `${(size / 1024 / 1024).toFixed(1)}MB`;
+  return `${Math.max(1, Math.round(size / 1024))}KB`;
+}
+
 Page(Object.assign({
   behaviors: [safePage, loginGate],
   data: {
@@ -121,10 +133,16 @@ Page(Object.assign({
 
     // 附件简历
     resumeList: [],
+    attachmentNoticeVisible: false,
+    attachmentNoticeDismissed: false,
 
     // 在线简历数据
     onlineResume: DEFAULT_RESUME,
     targetJobInput: '',
+    profileInitial: '我',
+    profileContact: '补充联系方式后更容易被联系',
+    diagnosisCount: 0,
+    diagnosisItems: [],
 
     // 统一弹窗高度（动态更新）
     _modalStyle: 'height: 60vh; background: #fff; border-radius: 24rpx 24rpx 0 0;'
@@ -161,17 +179,75 @@ Page(Object.assign({
     const saved = wx.getStorageSync('onlineResume');
     if (saved && saved.basicInfo) {
       saved.score = this._calcScore(saved);
-      this.setData({ onlineResume: saved });
+      this.setData({ onlineResume: saved }, () => this._refreshResumePresentation(saved));
     } else {
       const profile = wx.getStorageSync('userProfile') || {};
       const resume = cloneDefaultResume();
       if (profile.nickName) resume.basicInfo.name = profile.nickName;
       if (profile.major) resume.basicInfo.title = profile.major;
       resume.score = this._calcScore(resume);
-      this.setData({ onlineResume: resume });
+      this.setData({ onlineResume: resume }, () => this._refreshResumePresentation(resume));
     }
     const files = wx.getStorageSync('resumeFiles') || [];
-    this.setData({ resumeList: files });
+    this.setData({ resumeList: files }, () => this._refreshAttachmentPresentation(files));
+  },
+
+  _refreshResumePresentation(resume) {
+    const value = resume || this.data.onlineResume || cloneDefaultResume();
+    const basic = value.basicInfo || {};
+    const missing = [];
+    if (!basic.name) missing.push('补充姓名');
+    if (!basic.title) missing.push('填写求职意向');
+    if (!basic.phone && !basic.email) missing.push('补充联系方式');
+    if (!value.summary) missing.push('完善个人优势');
+    if (!value.workExp || !value.workExp.length) missing.push('添加工作经历');
+    if (!value.education || !value.education.length) missing.push('补充教育经历');
+    this.setData({
+      profileInitial: String(basic.name || '我').trim().slice(0, 1) || '我',
+      profileContact: maskPhone(basic.phone) || basic.email || '补充联系方式后更容易被联系',
+      diagnosisCount: missing.length,
+      diagnosisItems: missing.slice(0, 3)
+    });
+  },
+
+  _refreshAttachmentPresentation(files) {
+    const list = Array.isArray(files) ? files : [];
+    const dismissed = !!wx.getStorageSync('resumeAttachmentNoticeDismissed');
+    const now = Date.now();
+    const stale = list.some(item => {
+      const time = new Date(item.date || item.updatedAt || 0).getTime();
+      return time > 0 && now - time > 180 * 24 * 60 * 60 * 1000;
+    });
+    this.setData({
+      attachmentNoticeDismissed: dismissed,
+      attachmentNoticeVisible: stale && !dismissed
+    });
+  },
+
+  dismissAttachmentNotice() {
+    wx.setStorageSync('resumeAttachmentNoticeDismissed', true);
+    this.setData({ attachmentNoticeVisible: false, attachmentNoticeDismissed: true });
+  },
+
+  openDiagnosis() {
+    if (!this.data.diagnosisCount) {
+      wx.showToast({ title: '简历信息已较完整', icon: 'success' });
+      return;
+    }
+    wx.showModal({
+      title: `简历诊断 ${this.data.diagnosisCount} 项待优化`,
+      content: `建议先${(this.data.diagnosisItems || []).join('、')}。完成后再进行岗位匹配分析。`,
+      confirmText: '去完善',
+      success: result => { if (result.confirm) this.setData({ currentTab: 0 }); }
+    });
+  },
+
+  openTemplateCenter() {
+    this.openV4ResumeCenter();
+  },
+
+  openOnlineResumeEditor() {
+    this.setData({ currentTab: 0 });
   },
 
   // ── 多份简历：从服务端同步列表并加载当前简历 ──────────────────────────────
@@ -218,7 +294,7 @@ Page(Object.assign({
               targetJobInput: detail.data.targetRole || target.targetRole || this.data.targetJobInput,
               optimizationHistory: detail.data.optimizationHistory || [],
               formattedOptimizationHistory: decorateOptimizationHistory(detail.data.optimizationHistory || [])
-            });
+            }, () => this._refreshResumePresentation(r));
           } else {
             this.loadResume();
             this.setData({
@@ -240,14 +316,14 @@ Page(Object.assign({
       this.loadResume();
     }
     const files = wx.getStorageSync('resumeFiles') || [];
-    this.setData({ resumeList: files });
+    this.setData({ resumeList: files }, () => this._refreshAttachmentPresentation(files));
   },
 
   // ── 保存简历（登录时存服务端，否则存 localStorage）──────────────────────────
   _saveResume(resumeValue) {
     const resume = JSON.parse(JSON.stringify(resumeValue || this.data.onlineResume || cloneDefaultResume()));
     resume.score = this._calcScore(resume);
-    this.setData({ onlineResume: resume });
+    this.setData({ onlineResume: resume }, () => this._refreshResumePresentation(resume));
     wx.setStorageSync('onlineResume', resume); // 本地始终同步一份备份
 
     if (this.data.isLoggedIn && this.data.currentResumeId) {
@@ -794,49 +870,8 @@ Page(Object.assign({
     };
   },
 
-  // --- 附件简历 ---
-  handleUpload() {
-    wx.showActionSheet({
-      itemList: ['从微信聊天选择', '从手机文件选择'],
-      success: () => {
-        const files = this.data.resumeList.slice();
-        files.push({
-          id: Date.now(),
-          name: '新简历_' + new Date().toISOString().slice(0, 10) + '.pdf',
-          date: new Date().toISOString().slice(0, 10),
-          type: 'pdf',
-          isDefault: files.length === 0
-        });
-        this.setData({ resumeList: files });
-        wx.setStorageSync('resumeFiles', files);
-        wx.showToast({ title: '上传成功', icon: 'success' });
-      }
-    });
-  },
-
   openV4ResumeCenter() {
     wx.navigateTo({ url: '/package-career/pages/resume-center/resume-center' });
-  },
-
-  handleAction(e) {
-    const index = e.currentTarget.dataset.index;
-    wx.showActionSheet({
-      itemList: ['设为默认', '删除'],
-      success: (res) => {
-        const files = this.data.resumeList.slice();
-        if (res.tapIndex === 0) {
-          files.forEach((f, i) => { f.isDefault = i === index; });
-          this.setData({ resumeList: files });
-          wx.setStorageSync('resumeFiles', files);
-          wx.showToast({ title: '已设为默认', icon: 'success' });
-        } else if (res.tapIndex === 1) {
-          files.splice(index, 1);
-          this.setData({ resumeList: files });
-          wx.setStorageSync('resumeFiles', files);
-          wx.showToast({ title: '已删除', icon: 'success' });
-        }
-      }
-    });
   },
 
   _formatAttachmentResume(row, index) {
@@ -848,6 +883,7 @@ Page(Object.assign({
       type: 'pdf',
       url: row.file_url || row.url || '',
       size: row.file_size || row.size || 0,
+      sizeText: formatFileSize(row.file_size || row.size || 0),
       isDefault: index === 0
     };
   },
@@ -856,7 +892,7 @@ Page(Object.assign({
     const token = wx.getStorageSync('token');
     if (!token) {
       const files = wx.getStorageSync('resumeFiles') || [];
-      this.setData({ resumeList: files });
+      this.setData({ resumeList: files }, () => this._refreshAttachmentPresentation(files));
       return Promise.resolve(files);
     }
 
@@ -868,18 +904,18 @@ Page(Object.assign({
         success: (res) => {
           if (res.statusCode === 200 && res.data && res.data.code === 0) {
             const files = (res.data.data || []).map((item, idx) => this._formatAttachmentResume(item, idx));
-            this.setData({ resumeList: files });
+            this.setData({ resumeList: files }, () => this._refreshAttachmentPresentation(files));
             wx.setStorageSync('resumeFiles', files);
             resolve(files);
           } else {
             const files = wx.getStorageSync('resumeFiles') || [];
-            this.setData({ resumeList: files });
+            this.setData({ resumeList: files }, () => this._refreshAttachmentPresentation(files));
             resolve(files);
           }
         },
         fail: () => {
           const files = wx.getStorageSync('resumeFiles') || [];
-          this.setData({ resumeList: files });
+          this.setData({ resumeList: files }, () => this._refreshAttachmentPresentation(files));
           resolve(files);
         }
       });
@@ -1099,6 +1135,10 @@ Page(Object.assign({
   },
 
   handleUpload() {
+    if ((this.data.resumeList || []).length >= 3) {
+      wx.showToast({ title: '最多上传 3 份附件简历', icon: 'none' });
+      return;
+    }
     if (!wx.getStorageSync('token')) {
       this.ensureAuthenticated(
         '登录后上传并安全保存附件简历',
@@ -1134,7 +1174,7 @@ Page(Object.assign({
           const files = [nextFile].concat(this.data.resumeList.map((item) => {
             return Object.assign({}, item, { isDefault: false });
           }));
-          this.setData({ resumeList: files });
+          this.setData({ resumeList: files }, () => this._refreshAttachmentPresentation(files));
           wx.setStorageSync('resumeFiles', files);
           wx.showToast({ title: '上传成功', icon: 'success' });
         } catch (err) {
@@ -1169,14 +1209,14 @@ Page(Object.assign({
           this.syncAttachmentToOnlineResume(target);
         } else if (res.tapIndex === 2) {
           files.forEach((f, i) => { f.isDefault = i === index; });
-          this.setData({ resumeList: files });
+          this.setData({ resumeList: files }, () => this._refreshAttachmentPresentation(files));
           wx.setStorageSync('resumeFiles', files);
           wx.showToast({ title: '已设为默认', icon: 'success' });
         } else if (res.tapIndex === 3) {
           const removeLocal = () => {
             files.splice(index, 1);
             if (files.length && !files.some((f) => f.isDefault)) files[0].isDefault = true;
-            this.setData({ resumeList: files });
+          this.setData({ resumeList: files }, () => this._refreshAttachmentPresentation(files));
             wx.setStorageSync('resumeFiles', files);
             wx.showToast({ title: '已删除', icon: 'success' });
           };

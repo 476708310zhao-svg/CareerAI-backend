@@ -306,6 +306,7 @@ R（结果）：...`;
   practiceSTAR(e) {
     const role = e.currentTarget.dataset.role;
     const roleMap = { consulting: '咨询分析师', pm: '产品经理', ops: '运营专员', tech: '软件工程师', finance: '金融分析师', general: '综合岗位' };
-    wx.navigateTo({ url: `/package-ai/pages/interview-setup/interview-setup?type=behavior&position=${encodeURIComponent(roleMap[role] || '综合岗位')}` });
+    const params = [`type=behavior`, `position=${encodeURIComponent(roleMap[role] || '综合岗位')}`];
+    wx.navigateTo({ url: '/package-ai/pages/interview-setup/interview-setup?' + params.join('&') });
   },
 });

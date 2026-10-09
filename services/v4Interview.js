@@ -208,18 +208,23 @@ async function scoreAnswer(answer, question, jobTitle) {
 }
 
 function startSession(userId, spaceId, type) {
-  const space = db.prepare('SELECT * FROM interview_spaces_v4 WHERE id=? AND user_id=?').get(spaceId, userId);
-  if (!space) { const error = new Error('面试空间不存在'); error.status = 404; throw error; }
-  membership.consumeQuota(userId, 'interview_monthly', 1, 'month');
-  const result = db.prepare(`INSERT INTO interview_sessions_v4 (user_id, space_id, session_type, ai_model, prompt_version) VALUES (?, ?, ?, ?, ?)`)
-    .run(userId, spaceId, ['mock', 'star'].includes(type) ? type : 'mock', process.env.INTERVIEW_AI_MODEL || aiRuntime.getStatus().model, 'interview-v4.0-s4-2');
-  return db.prepare('SELECT * FROM interview_sessions_v4 WHERE id=?').get(result.lastInsertRowid);
+  return db.transaction(() => {
+    const space = db.prepare('SELECT * FROM interview_spaces_v4 WHERE id=? AND user_id=?').get(spaceId, userId);
+    if (!space) { const error = new Error('面试空间不存在'); error.status = 404; throw error; }
+    const existing = db.prepare("SELECT * FROM interview_sessions_v4 WHERE user_id=? AND space_id=? AND status='active' ORDER BY id DESC LIMIT 1")
+      .get(userId, spaceId);
+    if (existing) return { session: existing, created: false };
+    membership.consumeQuota(userId, 'interview_monthly', 1, 'month');
+    const result = db.prepare(`INSERT INTO interview_sessions_v4 (user_id, space_id, session_type, ai_model, prompt_version) VALUES (?, ?, ?, ?, ?)`)
+      .run(userId, spaceId, ['mock', 'star'].includes(type) ? type : 'mock', process.env.INTERVIEW_AI_MODEL || aiRuntime.getStatus().model, 'interview-v4.0-s4-2');
+    return { session: db.prepare('SELECT * FROM interview_sessions_v4 WHERE id=?').get(result.lastInsertRowid), created: true };
+  }).immediate();
 }
 
-function completeSession(userId, sessionId, now = new Date()) {
+function sessionOutcome(userId, sessionId) {
   const session = db.prepare('SELECT s.*, p.job_title FROM interview_sessions_v4 s JOIN interview_spaces_v4 p ON p.id=s.space_id WHERE s.id=? AND s.user_id=?').get(sessionId, userId);
   if (!session) { const error = new Error('训练会话不存在'); error.status = 404; throw error; }
-  if (session.status === 'completed') return db.prepare('SELECT * FROM interview_reports_v4 WHERE session_id=?').get(session.id);
+  if (session.status === 'cancelled') throw Object.assign(new Error('训练会话已取消，不能生成报告'), { status:409, code:'INTERVIEW_SESSION_CANCELLED' });
   const answers = db.prepare('SELECT * FROM interview_answers_v4 WHERE session_id=? AND user_id=? ORDER BY id').all(session.id, userId);
   if (!answers.length) { const error = new Error('至少完成一道题后才能生成报告'); error.status = 400; throw error; }
   const avg = key => Math.round(answers.reduce((sum, item) => sum + Number(item[key] || 0), 0) / answers.length);
@@ -231,13 +236,43 @@ function completeSession(userId, sessionId, now = new Date()) {
   const strengths = sorted.slice(-2).reverse().map(([key, score]) => ({ key, name: labels[key], score }));
   const feedback = answers.map(item => ({ answerId: item.id, question: item.question, feedback: item.feedback,
     scores: { content: item.content_score, structure: item.structure_score, expression: item.expression_score, jobMatch: item.job_match_score } }));
-  const result = db.transaction(() => {
-    const inserted = db.prepare(`INSERT OR REPLACE INTO interview_reports_v4
+  return { session, answers, dimensions, overall, weaknesses, strengths, feedback };
+}
+
+function previewCompletion(userId, sessionId) {
+  const outcome = sessionOutcome(userId, sessionId);
+  if (outcome.session.status === 'completed') {
+    return { requiresConfirmation: false, alreadyCompleted: true, effects: [] };
+  }
+  return {
+    requiresConfirmation: true,
+    effects: [
+      `生成本次 ${outcome.answers.length} 道题的面试报告（综合分 ${outcome.overall}）`,
+      '面试准备进度增加 20%（上限 100%）',
+      `生成 ${outcome.weaknesses.length} 条今日复练任务`,
+      '在申请记录未有其他待办时，写入面试复练建议'
+    ]
+  };
+}
+
+function completeSession(userId, sessionId, now = new Date()) {
+  return db.transaction(() => {
+    const current = db.prepare('SELECT status FROM interview_sessions_v4 WHERE id=? AND user_id=?').get(sessionId, userId);
+    if (!current) throw Object.assign(new Error('训练会话不存在'), { status:404 });
+    if (current.status === 'cancelled') throw Object.assign(new Error('训练会话已取消，不能生成报告'), { status:409, code:'INTERVIEW_SESSION_CANCELLED' });
+    if (current.status === 'completed') return {
+      report: db.prepare('SELECT * FROM interview_reports_v4 WHERE session_id=? AND user_id=?').get(sessionId, userId),
+      alreadyCompleted: true
+    };
+    if (current.status !== 'active') throw Object.assign(new Error('训练会话已结束'), { status:409 });
+    const { session, answers, dimensions, overall, weaknesses, strengths, feedback } = sessionOutcome(userId, sessionId);
+    const inserted = db.prepare(`INSERT INTO interview_reports_v4
       (session_id, user_id, space_id, overall_score, dimensions, strengths, weaknesses, question_feedback, summary)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(session.id, userId, session.space_id, overall, JSON.stringify(dimensions), JSON.stringify(strengths), JSON.stringify(weaknesses), JSON.stringify(feedback),
         `本次完成 ${answers.length} 道题，综合评分 ${overall}。优先提升${weaknesses.map(item => item.name).join('、')}。`);
-    db.prepare("UPDATE interview_sessions_v4 SET status='completed', completed_at=datetime('now') WHERE id=?").run(session.id);
+    const completed = db.prepare("UPDATE interview_sessions_v4 SET status='completed', completed_at=datetime('now') WHERE id=? AND user_id=? AND status='active'").run(session.id, userId);
+    if (completed.changes !== 1) throw Object.assign(new Error('训练会话已结束'), { status:409 });
     db.prepare('UPDATE interview_spaces_v4 SET preparation_completion=MIN(100, preparation_completion+20), updated_at=datetime(\'now\') WHERE id=?').run(session.space_id);
     weaknesses.forEach(item => db.prepare(`INSERT OR IGNORE INTO today_tasks_v4
       (user_id, source_type, source_id, local_key, task_type, title, detail, priority, task_date, url, updated_at)
@@ -251,9 +286,8 @@ function completeSession(userId, sessionId, now = new Date()) {
       updated_at=datetime('now')
       WHERE id=(SELECT application_id FROM interview_spaces_v4 WHERE id=? AND user_id=?) AND user_id=?`)
       .run(nextAction, session.space_id, userId, userId);
-    return db.prepare('SELECT * FROM interview_reports_v4 WHERE session_id=?').get(session.id);
-  })();
-  return result;
+    return { report: db.prepare('SELECT * FROM interview_reports_v4 WHERE session_id=?').get(session.id), alreadyCompleted: false };
+  }).immediate();
 }
 
 function reportView(row) {
@@ -274,4 +308,4 @@ function reportView(row) {
     questionFeedback: parseJson(row.question_feedback, []), summary: row.summary, createdAt: row.created_at, refs };
 }
 
-module.exports = { buildInterviewBrief, ensureSpace, spaceView, refsForSpace, sessionView, scoreAnswer, startSession, completeSession, reportView };
+module.exports = { buildInterviewBrief, ensureSpace, spaceView, refsForSpace, sessionView, scoreAnswer, startSession, previewCompletion, completeSession, reportView };

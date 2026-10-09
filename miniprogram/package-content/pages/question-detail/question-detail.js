@@ -267,7 +267,10 @@ Page({
       return;
     }
     wx.navigateTo({
-      url: `/package-ai/pages/interview-dialog/interview-dialog?autoQuestion=${encodeURIComponent(q.title)}`
+      url: (() => {
+        const params = ['autoQuestion=' + encodeURIComponent(q.title)];
+        return '/package-ai/pages/interview-dialog/interview-dialog?' + params.join('&');
+      })()
     });
   },
 

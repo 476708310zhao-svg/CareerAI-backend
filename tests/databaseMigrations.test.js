@@ -62,12 +62,12 @@ test('database migration baseline is recorded once and exposes status', () => wi
     const second = applyPendingMigrations(db);
     const status = getMigrationStatus(db);
 
-    assert.equal(first.appliedNow.length, 10);
+    assert.equal(first.appliedNow.length, 11);
     assert.equal(second.appliedNow.length, 0);
-    assert.equal(status.applied.length, 10);
+    assert.equal(status.applied.length, 11);
     assert.equal(status.pending.length, 0);
     assert.match(status.applied[0].checksum, /^[a-f0-9]{64}$/);
-    assert.equal(status.applied.at(-1).version, '0010');
+    assert.equal(status.applied.at(-1).version, '0011');
     assert.equal(
       db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('ai_conversations','ai_conversation_turns')").pluck().get(),
       2
@@ -117,7 +117,7 @@ test('database migration baseline is recorded once and exposes status', () => wi
   }
 }));
 
-test('database migration upgrades an existing 0001-0006 database through 0010 exactly once', () => withTempDir(directory => {
+test('database migration upgrades an existing 0001-0006 database through 0011 exactly once', () => withTempDir(directory => {
   const legacyMigrationsDir = path.join(directory, 'migrations-through-0006');
   copyMigrationsThrough(legacyMigrationsDir, '0006');
 
@@ -130,10 +130,10 @@ test('database migration upgrades an existing 0001-0006 database through 0010 ex
     ]);
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0007', '0008', '0009', '0010']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0007', '0008', '0009', '0010', '0011']);
     assert.equal(
       db.prepare('SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1').pluck().get(),
-      '0010'
+      '0011'
     );
     assert.equal(
       db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('ai_conversations','ai_conversation_turns')").pluck().get(),
@@ -157,7 +157,7 @@ test('database migration upgrades an existing 0001-0007 database with nullable b
     db.prepare('INSERT INTO application_history (id, application_id, user_id) VALUES (?, ?, ?)').run('1', '11', '21');
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0008', '0009', '0010']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0008', '0009', '0010', '0011']);
     assert.deepEqual(
       db.prepare('SELECT batch_id AS batchId, batch_size AS batchSize FROM application_history WHERE id=?').get('1'),
       { batchId: null, batchSize: null }
@@ -172,7 +172,7 @@ test('database migration upgrades an existing 0001-0007 database with nullable b
   }
 }));
 
-test('database migration upgrades an existing 0001-0008 AI conversation schema through 0010 exactly once', () => withTempDir(directory => {
+test('database migration upgrades an existing 0001-0008 AI conversation schema through 0011 exactly once', () => withTempDir(directory => {
   const previousMigrationsDir = path.join(directory, 'migrations-through-0008');
   copyMigrationsThrough(previousMigrationsDir, '0008');
 
@@ -195,7 +195,7 @@ test('database migration upgrades an existing 0001-0008 AI conversation schema t
     `).run(conversationId, 'legacy-request', 'Legacy question', 'Legacy answer', 'completed').lastInsertRowid;
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0009', '0010']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0009', '0010', '0011']);
     assert.deepEqual(
       db.prepare(`
         SELECT request_fingerprint AS requestFingerprint,
@@ -246,7 +246,7 @@ test('database migration upgrades an existing 0001-0009 database with an idempot
     assert.throws(() => assertAssistantConfirmationSchema(db), /migration 0010 is required/);
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0010']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0010', '0011']);
     assert.doesNotThrow(() => assertAssistantConfirmationSchema(db));
     assert.deepEqual(
       db.prepare('PRAGMA foreign_key_list(ai_assistant_confirmations)').all()
@@ -288,6 +288,82 @@ test('database migration upgrades an existing 0001-0009 database with an idempot
     for(const graph of [byUser,byApplication,byConversation,byTurn]) {
       assert.equal(db.prepare('SELECT COUNT(*) FROM ai_assistant_confirmations WHERE action_id=?').pluck().get(graph.actionId),0);
     }
+    assert.equal(applyPendingMigrations(db).appliedNow.length, 0);
+  } finally {
+    db.close();
+  }
+}));
+
+test('database migration 0011 preserves material drafts and expands only the supported material types', () => withTempDir(directory => {
+  const previousMigrationsDir = path.join(directory, 'migrations-through-0010');
+  copyMigrationsThrough(previousMigrationsDir, '0010');
+
+  const db = new Database(path.join(directory, 'material-types-upgrade.db'));
+  try {
+    db.pragma('foreign_keys = ON');
+    createRequiredBaselineTables(db);
+    const previous = applyPendingMigrations(db, { migrationsDir: previousMigrationsDir });
+    assert.equal(previous.appliedNow.at(-1).version, '0010');
+    db.prepare('INSERT INTO users (id,openid) VALUES (?,?)').run(1, 'migration-material-owner');
+    db.prepare('INSERT INTO applications (id,user_id) VALUES (?,?)').run(11, 1);
+    db.prepare('INSERT INTO application_materials (id,user_id,ai_draft_id) VALUES (501,1,77)').run();
+    db.prepare('INSERT INTO application_materials (id,user_id,ai_draft_id) VALUES (502,1,77)').run();
+    db.prepare(`INSERT INTO interview_notebook
+      (id,user_id,question_id,title,answer,category,difficulty,status,created_at,updated_at)
+      VALUES (88,1,'legacy-q','Legacy question','Legacy answer','behavior','medium','mastered','2026-10-01','2026-10-02')`).run();
+    db.prepare(`
+      INSERT INTO ai_application_material_drafts
+        (id,user_id,application_id,material_type,status,content,ai_model,prompt_version,prompt_snapshot,quota_feature,quota_cost,saved_material_id,created_at,confirmed_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    `).run(77, 1, 11, 'cover_letter', 'confirmed', 'legacy draft', 'fixture-model', 'fixture-prompt', '', 'application_assistant', 1, 502, '2026-10-09 00:00:00', '2026-10-09 00:01:00');
+    db.prepare("DELETE FROM sqlite_sequence WHERE name IN ('interview_notebook','ai_application_material_drafts')").run();
+    db.prepare("INSERT INTO sqlite_sequence(name,seq) VALUES ('interview_notebook',900),('ai_application_material_drafts',800)").run();
+
+    const upgrade = applyPendingMigrations(db);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0011']);
+    assert.deepEqual(
+      db.prepare("SELECT name,seq FROM sqlite_sequence WHERE name IN ('interview_notebook','ai_application_material_drafts') ORDER BY name").all(),
+      [{ name:'ai_application_material_drafts', seq:800 }, { name:'interview_notebook', seq:900 }]
+    );
+    assert.deepEqual(
+      db.prepare('SELECT id,material_type AS materialType,status,content,saved_material_id AS savedMaterialId FROM ai_application_material_drafts WHERE id=77').get(),
+      { id: 77, materialType: 'cover_letter', status:'confirmed', content: 'legacy draft', savedMaterialId:501 }
+    );
+    assert.deepEqual(
+      db.prepare('SELECT id,ai_draft_id AS aiDraftId FROM application_materials WHERE id IN (501,502) ORDER BY id').all(),
+      [{ id:501, aiDraftId:'77' }, { id:502, aiDraftId:null }]
+    );
+    assert.equal(
+      db.prepare('SELECT id FROM application_materials WHERE user_id=1 AND ai_draft_id=77').pluck().get(),
+      501
+    );
+    const insert = db.prepare(`
+      INSERT INTO ai_application_material_drafts
+        (user_id,application_id,material_type,status,content,ai_model,prompt_version)
+      VALUES (1,11,?,'pending','draft','fixture-model','fixture-prompt')
+    `);
+    assert.doesNotThrow(() => insert.run('why_company'));
+    assert.doesNotThrow(() => insert.run('why_role'));
+    assert.throws(() => insert.run('unsupported_type'), /CHECK constraint failed/);
+    assert.deepEqual(
+      db.prepare('PRAGMA index_info(idx_ai_material_drafts_application)').all().map(column => column.name),
+      ['user_id', 'application_id', 'status', 'created_at']
+    );
+    assert.deepEqual(
+      db.prepare('PRAGMA table_info(interview_notebook)').all()
+        .filter(column => ['application_id', 'company', 'position'].includes(column.name))
+        .map(column => column.name),
+      ['application_id', 'company', 'position']
+    );
+    assert.deepEqual(
+      db.prepare('SELECT id,question_id AS questionId,title,status FROM interview_notebook WHERE id=88').get(),
+      { id:88, questionId:'legacy-q', title:'Legacy question', status:'mastered' }
+    );
+    assert.ok(insert.run('cover_letter').lastInsertRowid > 800);
+    assert.ok(db.prepare("INSERT INTO interview_notebook(user_id,question_id,title) VALUES (1,'next-q','Next')").run().lastInsertRowid > 900);
+    assert.deepEqual(db.prepare('PRAGMA index_info(idx_application_materials_ai_draft_owner)').all().map(column=>column.name), ['user_id','ai_draft_id']);
+    assert.ok(db.prepare('PRAGMA foreign_key_list(interview_notebook)').all().some(key=>key.from==='application_id'&&key.table==='applications'&&key.on_delete==='SET NULL'));
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
     assert.equal(applyPendingMigrations(db).appliedNow.length, 0);
   } finally {
     db.close();

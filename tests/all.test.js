@@ -25,6 +25,7 @@ require('./dailyTasks.test');
 require('./applicationWorkbench.test');
 require('./applicationWorkflow.test');
 require('./aiConversations.test');
+require('./checkpoint6.test');
 require('./testRuntimeIsolation.test');
 require('./mobileWorkflow.test');
 require('./webWorkbench.test');

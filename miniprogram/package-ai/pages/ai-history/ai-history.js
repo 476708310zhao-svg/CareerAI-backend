@@ -1,5 +1,6 @@
 // pages/ai-history/ai-history.js
 const { formatDate } = require('../../../utils/util.js');
+const ownerStorage = require('../../../utils/owner-storage.js');
 
 Page({
   data: {
@@ -27,7 +28,7 @@ Page({
     this.setData({ isLoading: true });
 
     // 从 localStorage 读取真实面试记录
-    const history = wx.getStorageSync('interviewHistory') || [];
+    const history = ownerStorage.get('interviewHistory', '', []);
 
     if (history.length > 0) {
       // 按时间倒序排列
@@ -191,13 +192,13 @@ Page({
   viewReport(e) {
     const item = e.currentTarget.dataset;
     const id = item.id;
-    const reportKey = item.reportkey || '';
+    const reportId = item.reportid || id;
 
     // 如果有对应的报告缓存，先设置到 lastAiReport 以便报告页读取
-    if (reportKey) {
-      const report = wx.getStorageSync(reportKey);
+    if (reportId) {
+      const report = ownerStorage.get('aiReport', reportId, null);
       if (report) {
-        wx.setStorageSync('lastAiReport', report);
+        ownerStorage.set('lastAiReport', '', report);
       }
     }
 
@@ -224,7 +225,7 @@ Page({
       content: '将删除所有面试记录，此操作不可恢复',
       success: (res) => {
         if (res.confirm) {
-          wx.removeStorageSync('interviewHistory');
+          ownerStorage.remove('interviewHistory');
           this.setData({ records: [], bestScore: 0 });
           wx.showToast({ title: '已清空', icon: 'success' });
         }

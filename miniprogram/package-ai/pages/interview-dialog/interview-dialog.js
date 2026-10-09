@@ -7,6 +7,7 @@ const sendChatToDeepSeek = api.sendChatToDeepSeek;
 const config   = require('../../../utils/app-config.js');
 const analytics = require('../../../utils/analytics.js');
 const loginGate = require('../../../behaviors/login-gate.js');
+const ownerStorage = require('../../../utils/owner-storage.js');
 const API_BASE = config.API_BASE_URL;
 
 // 录音管理器（全局单例）
@@ -31,6 +32,7 @@ Page({
   data: {
     // 基础参数
     jobId: '',
+    applicationId: '',
     userId: '',
     autoQuestion: '',
     interviewType: '',
@@ -70,6 +72,7 @@ Page({
 
   // --- 页面卸载：清理录音等资源 ---
   onUnload: function() {
+    this._unmounted = true;
     if (recorderMgr && this.data.isRecording) {
       try { recorderMgr.stop(); } catch (_) {}
     }
@@ -78,6 +81,8 @@ Page({
 
   // --- 页面加载 ---
   onLoad: function(options) {
+    this._unmounted = false;
+    this._ownerScope = ownerStorage.capture();
     // 获取场景参数
     const interviewType = options.type ? decodeURIComponent(options.type) : '';
     const company = options.company ? decodeURIComponent(options.company) : '';
@@ -88,6 +93,7 @@ Page({
 
     this.setData({
       jobId: options.jobId || 'test-job',
+      applicationId: options.applicationId || '',
       userId: options.userId || 'test-user',
       interviewType,
       company,
@@ -359,6 +365,7 @@ ${firstInstruction}
 
   // --- 5. 处理总结回复 ---
   handleSummary: function(content) {
+    if (this._unmounted || !ownerStorage.isCurrent(this._ownerScope)) return;
     const records = [...this.data.interviewRecords];
     if (records.length > 0) {
       records[records.length - 1].feedback = '（详情见综合总结）';
@@ -416,6 +423,7 @@ ${firstInstruction}
     // 将结构化报告存入缓存，供 ai-report 页面读取
     const reportCache = {
       id: Date.now().toString(),
+      applicationId: this.data.applicationId || '',
       role: this.data.position || '综合面试',
       company: this.data.company || '',
       type: this.data.interviewType || '',
@@ -438,14 +446,14 @@ ${firstInstruction}
       createTime: new Date().toLocaleDateString('zh-CN')
     };
 
-    // 存储报告：唯一 key + 向后兼容的 lastAiReport
-    wx.setStorageSync('lastAiReport', reportCache);
-    wx.setStorageSync('aiReport_' + reportCache.id, reportCache);
+    ownerStorage.set('lastAiReport', '', reportCache);
+    ownerStorage.set('aiReport', reportCache.id, reportCache);
 
     // 同步写入面试历史列表，供 ai-history 页面读取
-    const historyList = wx.getStorageSync('interviewHistory') || [];
+    const historyList = ownerStorage.get('interviewHistory', '', []);
     historyList.unshift({
       id: reportCache.id,
+      applicationId: reportCache.applicationId,
       position: this.data.position || '综合面试',
       company: this.data.company || '',
       interviewType: this.data.interviewType || '',
@@ -453,7 +461,7 @@ ${firstInstruction}
       score: reportData.totalScore,
       questionCount: records.length,
       timestamp: Date.now(),
-      reportKey: 'aiReport_' + reportCache.id,
+      reportId: reportCache.id,
       weakCount: reportCache.weakQuestions.length,
       nextAction: reportCache.actionPlan[0] && reportCache.actionPlan[0].title || '',
       lowestDimension: reportData.dimensions.slice().sort((a, b) => a.score - b.score)[0] || null,
@@ -464,7 +472,7 @@ ${firstInstruction}
     });
     // 最多保留50条
     if (historyList.length > 50) historyList.splice(50);
-    wx.setStorageSync('interviewHistory', historyList);
+    ownerStorage.set('interviewHistory', '', historyList);
     analytics.track('interview_simulation_complete', {
       reportId: reportCache.id,
       score: reportData.totalScore,
@@ -476,7 +484,8 @@ ${firstInstruction}
 
     // 延迟跳转到报告页
     setTimeout(() => {
-      wx.navigateTo({ url: '/package-ai/pages/ai-report/ai-report' });
+      if (this._unmounted || !ownerStorage.isCurrent(this._ownerScope)) return;
+      wx.navigateTo({ url: '/package-ai/pages/ai-report/ai-report?id=' + encodeURIComponent(reportCache.id) });
     }, 600);
   },
 
@@ -760,7 +769,8 @@ ${firstInstruction}
   },
 
   openReport: function() {
-    wx.navigateTo({ url: '/package-ai/pages/ai-report/ai-report' });
+    const report = ownerStorage.get('lastAiReport', '', {});
+    wx.navigateTo({ url: '/package-ai/pages/ai-report/ai-report' + (report.id ? '?id=' + encodeURIComponent(report.id) : '') });
   },
 
   closeReport: function() {

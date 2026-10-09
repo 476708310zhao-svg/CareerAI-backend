@@ -21,6 +21,8 @@ function clearLocalCareerData() {
     'interviewHistory',
     'bookmarkedQuestions',
     'lastAiReport',
+    'interviewContext',
+    'pendingResumeOptimization',
     'audioReviewHistory',
     'projectReviewHistory',
     'dailyBriefCache',
@@ -30,6 +32,8 @@ function clearLocalCareerData() {
     try { wx.removeStorageSync(key); } catch (e) {}
   });
   removeStorageByPrefix('aiReport_');
+  ['aiReport:', 'lastAiReport:', 'interviewHistory:', 'interviewContext:', 'pendingResumeOptimization:',
+    'applicationMaterials:', 'interviewMistakeNotebook:', 'dailyPracticeQuestions:'].forEach(removeStorageByPrefix);
 }
 
 function clearLocalResumeData() {

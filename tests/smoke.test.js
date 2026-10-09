@@ -955,21 +955,38 @@ test('v4 application status machine writes an auditable history', async () => {
   assert.equal(history.data.list[0].toStatus, 'applied');
 });
 
-test('v4 interview loop auto-creates a job space, scores practice and creates Today tasks', async () => {
+test('v4 interview loop explicitly ensures a job space, scores practice and creates Today tasks', async () => {
   for (const status of ['phone_screen', 'interview_1']) {
     const statusRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/status`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ status, note: 'Sprint 4 interview smoke' })
     });
     assert.equal(statusRes.status, 200);
-    const statusBody = await readJson(statusRes);
-    assert.ok(statusBody.data.interviewSpaceId);
+    await readJson(statusRes);
   }
+
+  const ensureSpaceRes = await fetch(`${BASE_URL}/api/v4/interviews/spaces`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ applicationId: v4ApplicationId })
+  });
+  const ensuredSpace = await readJson(ensureSpaceRes);
+  assert.equal(ensureSpaceRes.status, ensuredSpace.idempotent ? 200 : 201);
+  assert.equal(ensuredSpace.data.applicationId, v4ApplicationId);
+  const ensureSpaceAgainRes = await fetch(`${BASE_URL}/api/v4/interviews/spaces`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ applicationId: v4ApplicationId })
+  });
+  assert.equal(ensureSpaceAgainRes.status, 200);
+  const ensuredSpaceAgain = await readJson(ensureSpaceAgainRes);
+  assert.equal(ensuredSpaceAgain.idempotent, true);
+  assert.equal(ensuredSpaceAgain.data.id, ensuredSpace.data.id);
+
   const spacesRes = await fetch(`${BASE_URL}/api/v4/interviews/spaces`, { headers: authHeaders() });
   assert.equal(spacesRes.status, 200);
   const spaces = await readJson(spacesRes);
   const space = spaces.data.find(item => item.applicationId === v4ApplicationId);
   assert.ok(space);
+  assert.equal(space.id, ensuredSpace.data.id);
   assert.ok(Array.isArray(space.frequentQuestions));
   assert.ok(space.brief);
   assert.ok(Array.isArray(space.brief.companyFocus));
@@ -1000,7 +1017,21 @@ test('v4 interview loop auto-creates a job space, scores practice and creates To
   assert.ok(answer.data.structure >= 70);
   assert.equal(answer.data.refs.interviewSessionId, session.data.id);
 
-  const reportRes = await fetch(`${BASE_URL}/api/v4/interviews/sessions/${session.data.id}/complete`, { method: 'POST', headers: authHeaders() });
+  const reportPreviewRes = await fetch(`${BASE_URL}/api/v4/interviews/sessions/${session.data.id}/complete`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ confirmEffects: false })
+  });
+  assert.equal(reportPreviewRes.status, 200);
+  const reportPreview = await readJson(reportPreviewRes);
+  assert.equal(reportPreview.data.requiresConfirmation, true);
+  assert.ok(reportPreview.data.effects.length >= 3);
+  assert.equal(db.prepare('SELECT status FROM interview_sessions_v4 WHERE id=?').pluck().get(session.data.id), 'active');
+  assert.equal(db.prepare('SELECT COUNT(*) FROM interview_reports_v4 WHERE session_id=?').pluck().get(session.data.id), 0);
+
+  const reportRes = await fetch(`${BASE_URL}/api/v4/interviews/sessions/${session.data.id}/complete`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ confirmEffects: true })
+  });
   assert.equal(reportRes.status, 201);
   const report = await readJson(reportRes);
   assert.ok(report.data.overallScore > 0);
@@ -1325,12 +1356,23 @@ test('v4 resume center keeps immutable versions and confirms AI suggestions expl
   assert.ok(compared.data.changes.some(change => change.path === 'summary'));
 
   const restoreRes = await fetch(`${BASE_URL}/api/v4/resumes/${resumeId}/versions/${originalVersion.id}/restore`, {
-    method: 'POST', headers: authHeaders()
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ expectedVersionId: confirmed.data.version.id })
   });
   assert.equal(restoreRes.status, 201);
   const restored = await readJson(restoreRes);
   assert.equal(restored.data.versionNo, 3);
   assert.equal(restored.data.content.summary, 'Built pipeline improving latency by 20%');
+  const staleRestoreRes = await fetch(`${BASE_URL}/api/v4/resumes/${resumeId}/versions/${originalVersion.id}/restore`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ expectedVersionId: confirmed.data.version.id })
+  });
+  assert.equal(staleRestoreRes.status, 409);
+  const staleRestore = await readJson(staleRestoreRes);
+  assert.equal(staleRestore.code, 'STALE_RESUME_VERSION');
+  const versionsAfterStaleRestoreRes = await fetch(`${BASE_URL}/api/v4/resumes/${resumeId}/versions`, { headers: authHeaders() });
+  const versionsAfterStaleRestore = await readJson(versionsAfterStaleRestoreRes);
+  assert.equal(versionsAfterStaleRestore.data.length, 3, 'stale restore must not create another version');
 
   const fabricatedRes = await fetch(`${BASE_URL}/api/v4/resumes/${resumeId}/ai-change-sets`, {
     method: 'POST',

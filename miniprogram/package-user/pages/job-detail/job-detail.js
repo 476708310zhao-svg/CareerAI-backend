@@ -12,6 +12,7 @@ const featureFlags = require('../../../utils/feature-flags.js');
 const navigation = require('../../../utils/navigation.js');
 const reminders = require('../../../utils/reminders.js');
 const analytics = require('../../../utils/analytics.js');
+const ownerStorage = require('../../../utils/owner-storage.js');
 const { presentJob, clean } = require('../../../utils/job-presenter.js');
 const { markCachedDataMeta } = require('../../../utils/data-provenance.js');
 const loginGate = require('../../../behaviors/login-gate.js');
@@ -789,7 +790,7 @@ Requirements:
   goResumeOptimize: function() {
     const job = this.data.job || {};
     const application = this.data.v4Application || this.data.application || {};
-    wx.setStorageSync('pendingResumeOptimization', {
+    ownerStorage.set('pendingResumeOptimization', '', {
       jobId: String(job.id || ''),
       applicationId: application.id || null,
       company: job.company || '',
@@ -803,8 +804,13 @@ Requirements:
   // 跳转 AI 面试
   startAiInterview: function() {
     if (!this.data.job) return;
+    const application = this.data.v4Application || this.data.application || {};
+    const params = ['jobId=' + encodeURIComponent(this.data.job.id)];
+    if (application.id) params.push('applicationId=' + encodeURIComponent(application.id));
+    if (application.company || this.data.job.company) params.push('company=' + encodeURIComponent(application.company || this.data.job.company));
+    if (application.jobTitle || this.data.job.title) params.push('position=' + encodeURIComponent(application.jobTitle || this.data.job.title));
     wx.navigateTo({
-      url: `/package-ai/pages/interview-dialog/interview-dialog?jobId=${encodeURIComponent(this.data.job.id)}`
+      url: '/package-ai/pages/interview-dialog/interview-dialog?' + params.join('&')
     });
   },
 

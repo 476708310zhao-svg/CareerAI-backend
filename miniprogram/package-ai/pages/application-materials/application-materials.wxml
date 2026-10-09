@@ -4,14 +4,16 @@
   <view class="hero">
     <view class="hero-copy">
       <text class="kicker">APPLICATION MATERIALS</text>
-      <text class="title">申请材料库</text>
-      <text class="subtitle">沉淀 Why company、项目经历、工作授权等常用网申回答。</text>
+      <text class="title">申请包 · 申请材料</text>
+      <text class="subtitle">围绕具体申请，沉淀网申回答、沟通草稿和岗位版本。</text>
     </view>
     <view class="hero-stat">
       <text class="hero-num">{{stats.total}}</text>
       <text class="hero-label">草稿</text>
     </view>
   </view>
+
+  <view wx:if="{{targetApplicationLabel}}" class="application-context">当前申请：{{targetApplicationLabel}}</view>
 
   <view class="quick-row">
     <view class="quick-card">
@@ -89,7 +91,10 @@
       <picker range="{{aiMaterialTypes}}" range-key="label" value="{{materialTypeIndex}}" bindchange="onMaterialTypeChange"><view class="form-input">{{aiMaterialTypes[materialTypeIndex].label}}</view></picker>
       <text class="form-label">基于简历</text>
       <picker range="{{resumes}}" range-key="name" value="{{resumeIndex}}" bindchange="onResumeChange"><view class="form-input">{{resumes[resumeIndex].name || '未选择简历'}}</view></picker>
-      <view class="generate-btn" wx:if="{{!generatedDraft}}" bindtap="generateAiMaterial">{{generating ? '生成中...' : '生成待确认草稿'}}</view>
+      <text class="form-label">简历版本</text>
+      <picker range="{{resumeVersions}}" range-key="displayName" value="{{resumeVersionIndex}}" bindchange="onResumeVersionChange"><view class="form-input">{{resumeVersions[resumeVersionIndex].displayName || '暂无可用版本'}}</view></picker>
+      <view class="generate-btn" wx:if="{{!resumeVersions.length}}" bindtap="initializeSelectedResumeVersion">{{initializingVersion ? '初始化中...' : '确认创建首个简历版本'}}</view>
+      <view class="generate-btn {{generating || mutatingDraft ? 'disabled' : ''}}" wx:if="{{!generatedDraft && resumeVersions.length}}" bindtap="generateAiMaterial">{{generating ? '生成中...' : '生成待确认草稿'}}</view>
       <view wx:if="{{generatedDraft}}" class="generated-box">
         <text class="generator-meta">{{generatedDraft.materialLabel}} · {{generatedDraft.aiModel}} · {{generatedDraft.promptVersion}}</text>
         <textarea class="generated-textarea" value="{{generatedContent}}" bindinput="onGeneratedInput" maxlength="12000" />
@@ -97,8 +102,8 @@
       </view>
     </scroll-view>
     <view wx:if="{{generatedDraft}}" class="editor-actions">
-      <view class="editor-btn danger" bindtap="rejectGeneratedDraft">拒绝草稿</view>
-      <view class="editor-btn primary" bindtap="confirmGeneratedDraft">确认并保存</view>
+      <view class="editor-btn danger {{mutatingDraft ? 'disabled' : ''}}" bindtap="rejectGeneratedDraft">拒绝草稿</view>
+      <view class="editor-btn primary {{mutatingDraft ? 'disabled' : ''}}" bindtap="confirmGeneratedDraft">{{mutatingDraft ? '处理中...' : '确认并保存'}}</view>
     </view>
   </view>
 

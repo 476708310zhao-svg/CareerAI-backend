@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
+router.use((req, res, next) => { if (req.method === 'GET') res.set('Cache-Control', 'no-store'); next(); });
 
 function safeJsonParse(value, fallback) {
   if (value === undefined || value === null || value === '') return fallback;
@@ -15,6 +16,18 @@ function jsonString(value, fallback) {
 
 function stringValue(value, fallback = '') {
   return value === undefined || value === null ? fallback : String(value);
+}
+
+function ownedInterviewContext(userId, body) {
+  const raw = body && body.applicationId;
+  if (raw === undefined || raw === null || String(raw).trim() === '') {
+    return { applicationId: null, company: '', position: '' };
+  }
+  const applicationId = Number(raw);
+  if (!Number.isSafeInteger(applicationId) || applicationId <= 0) return { error: '申请记录 ID 无效', status: 400 };
+  const application = db.prepare('SELECT id,company,job_title FROM applications WHERE id=? AND user_id=?').get(applicationId, userId);
+  if (!application) return { error: '申请记录不存在', status: 404 };
+  return { applicationId, company: application.company || '', position: application.job_title || '' };
 }
 
 function makeClientId(prefix) {
@@ -32,6 +45,8 @@ function materialRow(row) {
     jobTitle: row.job_title || '',
     resumeName: row.resume_name || '',
     resumeVersionId: row.resume_version_id || '',
+    applicationId: row.application_id || '',
+    status: row.status || 'saved',
     content: row.content || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -72,6 +87,9 @@ function notebookRow(row) {
     category: row.category || '',
     difficulty: row.difficulty || '',
     status: row.status || 'unknown',
+    applicationId: row.application_id || '',
+    company: row.company || '',
+    position: row.position || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -188,7 +206,7 @@ router.get('/star-templates', (req, res) => {
 
 router.get('/application-materials', authMiddleware, (req, res) => {
   const { questionType, jobId } = req.query;
-  const where = ['user_id = ?', "question_type <> 'tailored_resume'"];
+  const where = ['user_id = ?', "question_type <> 'tailored_resume'", "COALESCE(status,'saved') <> 'archived'"];
   const params = [req.user.userId];
   if (questionType) { where.push('question_type = ?'); params.push(String(questionType)); }
   if (jobId) { where.push('job_id = ?'); params.push(String(jobId)); }
@@ -401,20 +419,25 @@ router.get('/interview-notebook', authMiddleware, (req, res) => {
 
 router.post('/interview-notebook', authMiddleware, (req, res) => {
   const body = req.body || {};
+  const context = ownedInterviewContext(req.user.userId, body);
+  if (context.error) return res.status(context.status).json({ code: -1, message: context.error });
   const questionId = stringValue(body.id || body.questionId || body.qid).trim();
   const title = stringValue(body.title || body.question).trim();
   if (!questionId || !title) return res.status(400).json({ code: -1, message: '题目信息不完整' });
   db.prepare(`
     INSERT INTO interview_notebook
-      (user_id, question_id, title, answer, category, difficulty, status, updated_at)
+      (user_id, question_id, title, answer, category, difficulty, status, application_id, company, position, updated_at)
     VALUES
-      (@userId, @questionId, @title, @answer, @category, @difficulty, @status, datetime('now'))
+      (@userId, @questionId, @title, @answer, @category, @difficulty, @status, @applicationId, @company, @position, datetime('now'))
     ON CONFLICT(user_id, question_id) DO UPDATE SET
       title=excluded.title,
       answer=excluded.answer,
       category=excluded.category,
       difficulty=excluded.difficulty,
       status=excluded.status,
+      application_id=excluded.application_id,
+      company=excluded.company,
+      position=excluded.position,
       updated_at=datetime('now')
   `).run({
     userId: req.user.userId,
@@ -423,7 +446,10 @@ router.post('/interview-notebook', authMiddleware, (req, res) => {
     answer: stringValue(body.answer),
     category: stringValue(body.category, 'behavior'),
     difficulty: stringValue(body.difficulty, '中等'),
-    status: stringValue(body.status, 'unknown')
+    status: stringValue(body.status, 'unknown'),
+    applicationId: context.applicationId,
+    company: context.company,
+    position: context.position
   });
   const row = db.prepare('SELECT * FROM interview_notebook WHERE user_id=? AND question_id=?')
     .get(req.user.userId, questionId);
@@ -466,6 +492,8 @@ router.get('/interview-daily-practice', authMiddleware, (req, res) => {
 
 router.post('/interview-daily-practice', authMiddleware, (req, res) => {
   const body = req.body || {};
+  const context = ownedInterviewContext(req.user.userId, body);
+  if (context.error) return res.status(context.status).json({ code: -1, message: context.error });
   const questionId = stringValue(body.id || body.questionId || body.qid).trim();
   const title = stringValue(body.title || body.question).trim();
   if (!questionId || !title) return res.status(400).json({ code: -1, message: '题目信息不完整' });
@@ -474,7 +502,10 @@ router.post('/interview-daily-practice', authMiddleware, (req, res) => {
     title,
     answer: stringValue(body.answer),
     category: stringValue(body.category, 'behavior'),
-    difficulty: stringValue(body.difficulty, '中等')
+    difficulty: stringValue(body.difficulty, '中等'),
+    applicationId: context.applicationId || '',
+    company: context.company,
+    position: context.position
   };
   db.prepare(`
     INSERT INTO interview_daily_practice (user_id, question_id, payload)

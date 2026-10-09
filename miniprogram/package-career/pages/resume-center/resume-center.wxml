@@ -32,6 +32,7 @@
       <view class="more" catchtap="resumeActions" data-id="{{item.id}}">•••</view>
     </view>
     <view class="optimize" wx:if="{{currentResume}}" bindtap="optimizeResume">{{optimizationContext ? '按目标 JD 优化「' + currentResume.name + '」' : '为「' + currentResume.name + '」生成优化建议'}}</view>
+    <view class="optimize" wx:if="{{currentResume && !currentResume.currentVersionId}}" bindtap="initializeResumeVersion">确认创建首个版本</view>
   </view>
 
   <view wx:if="{{activeTab === 'experiences'}}">
@@ -48,7 +49,7 @@
     <view class="empty" wx:if="{{!versions.length}}">从简历菜单选择“查看版本”</view>
     <view wx:for="{{versions}}" wx:key="id" class="version-card">
       <view><text class="card-title">V{{item.versionNo}} · {{item.changeSummary || '简历版本'}}</text><text class="meta">{{item.createdAt}}</text></view>
-      <view class="restore" bindtap="restoreVersion" data-id="{{item.id}}">恢复</view>
+      <view class="restore {{restoreBusy ? 'disabled' : ''}}" bindtap="restoreVersion" data-id="{{item.id}}">{{restoreBusy ? '恢复中…' : '恢复'}}</view>
     </view>
   </view>
 

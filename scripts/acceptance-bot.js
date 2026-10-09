@@ -283,7 +283,7 @@ class AcceptanceBot {
         ['page', 'package-ai/pages/interview-notebook/interview-notebook'],
         ['util', 'utils/job-progress.js'],
         ['util', 'utils/reminders.js'],
-        ['util', 'utils/application-materials.js'],
+        ['util', 'package-ai/utils/application-materials.js'],
         ['util', 'utils/jd-match.js'],
         ['util', 'utils/interview-notebook.js'],
       ];
@@ -301,6 +301,26 @@ class AcceptanceBot {
       }
       assert(missing.length === 0, `missing 2.0 files: ${missing.join(', ')}`);
       return `${expected.length} career-line entries checked`;
+    });
+
+    await this.step('static', 'application materials utility has one package-scoped source', async () => {
+      const legacyPath = path.join(MINI_ROOT, 'utils', 'application-materials.js');
+      assert(!fs.existsSync(legacyPath), `legacy utility must stay removed: ${path.relative(ROOT, legacyPath)}`);
+
+      const expectedRequire = "require('../../utils/application-materials.js')";
+      const consumers = [
+        'package-ai/pages/ai-assistant/ai-assistant.js',
+        'package-ai/pages/application-materials/application-materials.js',
+      ];
+      const invalidConsumers = consumers.filter(relativePath => {
+        const source = fs.readFileSync(path.join(MINI_ROOT, relativePath), 'utf8');
+        return !source.includes(expectedRequire);
+      });
+      assert(
+        invalidConsumers.length === 0,
+        `package-ai utility import missing: ${invalidConsumers.join(', ')}`
+      );
+      return `legacy utility absent; ${consumers.length} consumers use package-ai utility`;
     });
   }
 

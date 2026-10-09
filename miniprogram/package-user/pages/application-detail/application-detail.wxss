@@ -19,6 +19,8 @@ page { background: #F5F7FB; color: #101828; font-family: -apple-system, BlinkMac
 .match-num { margin-top: 27rpx; font-size: 42rpx; font-weight: 900; }
 .match-copy, .task-copy, .contact-copy, .timeline-copy { display: flex; flex: 1; flex-direction: column; gap: 7rpx; min-width: 0; }
 .match-gap { color: #B54708; font-size: 22rpx; }
+.match-action { align-self: flex-end; padding: 10rpx 14rpx; border-radius: 999rpx; color: #1D4ED8; background: #EFF6FF; font-size: 21rpx; font-weight: 800; }
+.match-start-btn { margin-top: 0; text-align: center; line-height: 76rpx; }
 .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20rpx; }
 .card-title { font-size: 29rpx; font-weight: 850; }
 .section-note, .muted { color: #667085; font-size: 22rpx; line-height: 1.45; }
@@ -48,5 +50,8 @@ page { background: #F5F7FB; color: #101828; font-family: -apple-system, BlinkMac
 .timeline-item { position: relative; padding-left: 6rpx; }
 .timeline-dot { width: 18rpx; height: 18rpx; margin-top: 8rpx; border: 6rpx solid #DBEAFE; border-radius: 50%; background: #2563EB; }
 .material-item { justify-content: space-between; }
+.application-pack-note { display: block; margin-top: 6rpx; max-width: 500rpx; }
+.application-pack-actions { display: flex; gap: 14rpx; margin-top: 18rpx; }
+.pack-btn { flex: 1; margin-top: 0; text-align: center; line-height: 76rpx; }
 .transition-row { display: flex; flex-wrap: wrap; gap: 14rpx; }
 .transition-btn { padding: 16rpx 24rpx; border: 1rpx solid #BFDBFE; border-radius: 999rpx; color: #1D4ED8; background: #EFF6FF; font-size: 24rpx; font-weight: 800; }

@@ -1,5 +1,6 @@
 const v4Api = require('../../../utils/api-v4.js');
 const progress = require('../../../utils/job-progress.js');
+const ownerStorage = require('../../../utils/owner-storage.js');
 
 function currentOwnerScope() {
   return progress.currentOwnerScope ? String(progress.currentOwnerScope() || '') : '';
@@ -351,7 +352,14 @@ Page({
       if (ownerScope !== currentOwnerScope()) return this.clearStaleAccount();
       if (token !== String(wx.getStorageSync('token') || '')) return;
       const space = (res.data || []).find(item => String(item.applicationId) === String(this.data.id));
-      wx.navigateTo({ url: '/package-ai/pages/interview-space/interview-space' + (space ? '?id=' + space.id : '') });
+      if (!space) return v4Api.ensureInterviewSpace(this.data.id).then(created => {
+        if (this._unloaded || requestId !== this._navigationRequestId || ownerScope !== currentOwnerScope()) return;
+        wx.navigateTo({ url: '/package-ai/pages/interview-space/interview-space?id=' + encodeURIComponent(created.data.id) + '&applicationId=' + encodeURIComponent(this.data.id) });
+      });
+      const query = [];
+      if (space) query.push('id=' + encodeURIComponent(space.id));
+      query.push('applicationId=' + encodeURIComponent(this.data.id));
+      wx.navigateTo({ url: '/package-ai/pages/interview-space/interview-space?' + query.join('&') });
     }).catch(err => {
       if (!this._unloaded && ownerScope !== currentOwnerScope()) return this.clearStaleAccount();
       if (!this._unloaded && requestId === this._navigationRequestId && token === String(wx.getStorageSync('token') || '')) {
@@ -365,6 +373,42 @@ Page({
     if (!action) return;
     if (action.action === 'status') return this.changeStatus({ currentTarget: { dataset: { status: action.status, label: action.statusLabel } } });
     wx.pageScrollTo({ selector: action.action === 'tasks' ? '#application-tasks' : '#follow-up', duration: 280 });
+  },
+
+  openApplicationMaterials() {
+    if (!this.data.id) return;
+    wx.navigateTo({
+      url: '/package-ai/pages/application-materials/application-materials?applicationId=' + encodeURIComponent(this.data.id)
+    });
+  },
+
+  openResumeCenter() {
+    const app = this.data.application || {};
+    const snapshot = app.jobSnapshot || {};
+    ownerStorage.set('pendingResumeOptimization', '', {
+      applicationId: this.data.id,
+      jobId: app.jobId || snapshot.id || '',
+      company: app.company || snapshot.company || '',
+      jobTitle: app.jobTitle || snapshot.title || snapshot.jobTitle || '',
+      jdText: snapshot.description || snapshot.jd || snapshot.requirements || ''
+    });
+    wx.navigateTo({ url: '/package-career/pages/resume-center/resume-center?targeted=1' });
+  },
+
+  openJdMatch() {
+    const app = this.data.application;
+    if (!app) return;
+    const snapshot = app.jobSnapshot || {};
+    try {
+      wx.setStorageSync('tempJobDetail', {
+        title: app.jobTitle || snapshot.title || '',
+        company: app.company || snapshot.company || '',
+        applyLink: app.officialApplyUrl || snapshot.applyUrl || snapshot.sourceUrl || '',
+        jobLink: app.officialApplyUrl || snapshot.applyUrl || snapshot.sourceUrl || '',
+        description: snapshot.description || snapshot.jd || snapshot.requirements || ''
+      });
+    } catch (error) {}
+    wx.navigateTo({ url: '/package-ai/pages/jd-match/jd-match?applicationId=' + encodeURIComponent(this.data.id) });
   },
 
   viewJob() {

@@ -623,6 +623,7 @@ page,
 }
 
 /* Polished AI interview report */
+.application-context{display:block;margin-top:12rpx;color:#1d4ed8;font-size:22rpx}
 page {
   --report-bg: #f6f8fb;
   --report-panel: #ffffff;
@@ -905,3 +906,4 @@ page {
   font-weight: 900;
   box-shadow: 0 14rpx 26rpx rgba(37, 99, 235, 0.2);
 }
+.application-save-btn.is-saved { color: #15803D; background: #DCFCE7; }

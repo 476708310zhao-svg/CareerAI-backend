@@ -75,7 +75,7 @@ function ensureCurrentVersion(userId, resumeId) {
   return { resume, version };
 }
 
-function createVersion({ userId, resumeId, content, sourceVersionId, changeSetId = null, summary = '', createdBy = 'user', name, resumeType }) {
+function createVersion({ userId, resumeId, content, sourceVersionId, changeSetId = null, summary = '', createdBy = 'user', name, resumeType, expectedCurrentVersionId }) {
   const owned = ensureCurrentVersion(userId, resumeId);
   if (!owned) throw Object.assign(new Error('简历不存在'), { status: 404 });
   const entitlement = membership.getMembership(userId).entitlements;
@@ -96,10 +96,38 @@ function createVersion({ userId, resumeId, content, sourceVersionId, changeSetId
     sourceVersionId || owned.version.id, changeSetId, cleanText(summary, 500), cleanText(createdBy, 30)
   );
   const version = db.prepare('SELECT * FROM resume_versions_v4 WHERE id=?').get(result.lastInsertRowid);
-  db.prepare(`
-    UPDATE resumes SET data=?, current_version_id=?, resume_type=?, updated_at=datetime('now')
-    WHERE id=? AND user_id=?
-  `).run(version.content, version.id, version.resume_type, resumeId, userId);
+  const updated = expectedCurrentVersionId === undefined
+    ? db.prepare(`
+      UPDATE resumes SET data=?, current_version_id=?, resume_type=?, updated_at=datetime('now')
+      WHERE id=? AND user_id=?
+    `).run(version.content, version.id, version.resume_type, resumeId, userId)
+    : db.prepare(`
+      UPDATE resumes SET data=?, current_version_id=?, resume_type=?, updated_at=datetime('now')
+      WHERE id=? AND user_id=? AND current_version_id=?
+    `).run(version.content, version.id, version.resume_type, resumeId, userId, expectedCurrentVersionId);
+  if (updated.changes !== 1) {
+    throw Object.assign(new Error('简历已在其他页面更新，请重新加载版本后再操作'), { status:409, code:'STALE_RESUME_VERSION' });
+  }
+  return versionView(version);
+}
+
+function initializeVersion({ userId, resumeId, content }) {
+  const resume = db.prepare('SELECT * FROM resumes WHERE id=? AND user_id=?').get(resumeId, userId);
+  if (!resume || resume.archived_at) throw Object.assign(new Error('简历不存在或已归档'), { status: 404 });
+  const currentCount = db.prepare('SELECT COUNT(*) AS count FROM resume_versions_v4 WHERE resume_id=? AND user_id=?').get(resumeId, userId).count;
+  if (resume.current_version_id || currentCount !== 0) {
+    throw Object.assign(new Error('简历已有版本，请刷新后基于当前版本修改'), { status: 409, code: 'RESUME_ALREADY_INITIALIZED' });
+  }
+  const versionLimit = Number(membership.getMembership(userId).entitlements.resume_versions || 0);
+  if (versionLimit === 0) throw Object.assign(new Error('当前套餐无法创建简历版本'), { status: 429, code: 'RESUME_VERSION_LIMIT' });
+  const result = db.prepare(`
+    INSERT INTO resume_versions_v4
+      (resume_id,user_id,version_no,name,resume_type,content,change_summary,created_by)
+    VALUES (?,?,1,?,?,?,'显式初始化首个版本','user')
+  `).run(resumeId, userId, resume.name || '我的简历', normalizeResumeType(resume.resume_type), JSON.stringify(content === undefined ? legacyResumeContent(resume) : (content || {})));
+  const version = db.prepare('SELECT * FROM resume_versions_v4 WHERE id=?').get(result.lastInsertRowid);
+  db.prepare("UPDATE resumes SET data=?,current_version_id=?,updated_at=datetime('now') WHERE id=? AND user_id=? AND current_version_id IS NULL")
+    .run(version.content, version.id, resumeId, userId);
   return versionView(version);
 }
 
@@ -335,26 +363,32 @@ function getChangeSet(userId, id) {
 }
 
 function confirmChangeSet({ userId, changeSetId, decisions = {}, manualContent }) {
-  const row = db.prepare('SELECT * FROM resume_ai_change_sets WHERE id=? AND user_id=?').get(changeSetId, userId);
-  if (!row) throw Object.assign(new Error('修改方案不存在'), { status: 404 });
-  if (row.status !== 'pending') throw Object.assign(new Error('修改方案已处理，不能重复保存'), { status: 409 });
-  const source = db.prepare('SELECT * FROM resume_versions_v4 WHERE id=? AND user_id=?').get(row.source_version_id, userId);
-  if (!source) throw Object.assign(new Error('原简历版本不存在'), { status: 409 });
-  const suggestions = parseJson(row.suggestions, []);
-  const normalizedDecisions = {};
-  let content = parseJson(source.content, {});
-  suggestions.forEach(item => {
-    const decision = decisions[item.id] === 'accept' ? 'accept' : 'reject';
-    normalizedDecisions[item.id] = decision;
-    if (decision === 'accept') content = replaceExact(content, item.before, item.after);
-  });
   if (manualContent !== undefined && manualContent !== null) {
     if (!manualContent || typeof manualContent !== 'object' || Array.isArray(manualContent)) {
       throw Object.assign(new Error('手动编辑内容必须是完整简历对象'), { status: 400 });
     }
-    content = manualContent;
   }
   const tx = db.transaction(() => {
+    const row = db.prepare("SELECT * FROM resume_ai_change_sets WHERE id=? AND user_id=? AND status='pending'").get(changeSetId, userId);
+    if (!row) {
+      const exists = db.prepare('SELECT id FROM resume_ai_change_sets WHERE id=? AND user_id=?').get(changeSetId, userId);
+      throw Object.assign(new Error(exists ? '修改方案已处理，不能重复保存' : '修改方案不存在'), { status: exists ? 409 : 404 });
+    }
+    const resume = db.prepare('SELECT * FROM resumes WHERE id=? AND user_id=?').get(row.resume_id, userId);
+    if (!resume || Number(resume.current_version_id) !== Number(row.source_version_id)) {
+      throw Object.assign(new Error('简历已产生更新版本，请基于最新版本重新生成优化建议'), { status: 409, code: 'STALE_RESUME_CHANGE_SET' });
+    }
+    const source = db.prepare('SELECT * FROM resume_versions_v4 WHERE id=? AND resume_id=? AND user_id=?').get(row.source_version_id, row.resume_id, userId);
+    if (!source) throw Object.assign(new Error('原简历版本不存在'), { status: 409 });
+    const suggestions = parseJson(row.suggestions, []);
+    const normalizedDecisions = {};
+    let content = parseJson(source.content, {});
+    suggestions.forEach(item => {
+      const decision = decisions[item.id] === 'accept' ? 'accept' : 'reject';
+      normalizedDecisions[item.id] = decision;
+      if (decision === 'accept') content = replaceExact(content, item.before, item.after);
+    });
+    if (manualContent !== undefined && manualContent !== null) content = manualContent;
     const version = createVersion({
       userId, resumeId: row.resume_id, content, sourceVersionId: row.source_version_id,
       changeSetId: row.id, summary: `AI 建议确认：接受 ${Object.values(normalizedDecisions).filter(v => v === 'accept').length} 条`,
@@ -370,12 +404,13 @@ function confirmChangeSet({ userId, changeSetId, decisions = {}, manualContent }
       db.prepare("UPDATE applications SET resume_id=?, resume_version_id=?, updated_at=datetime('now') WHERE id=? AND user_id=?")
         .run(row.resume_id, String(version.id), row.application_id, userId);
     }
-    db.prepare(`UPDATE resume_ai_change_sets SET status='confirmed', decisions=?, manual_content=?, result_version_id=?, confirmed_at=datetime('now') WHERE id=?`)
-      .run(JSON.stringify(normalizedDecisions), manualContent ? JSON.stringify(manualContent) : '', version.id, row.id);
-    return version;
+    const confirmed = db.prepare(`UPDATE resume_ai_change_sets SET status='confirmed', decisions=?, manual_content=?, result_version_id=?, confirmed_at=datetime('now') WHERE id=? AND user_id=? AND status='pending'`)
+      .run(JSON.stringify(normalizedDecisions), manualContent ? JSON.stringify(manualContent) : '', version.id, row.id, userId);
+    if (confirmed.changes !== 1) throw Object.assign(new Error('修改方案已处理，不能重复保存'), { status: 409 });
+    return { row, version };
   });
-  const version = tx();
-  return { changeSet: getChangeSet(userId, row.id), version };
+  const result = tx.immediate();
+  return { changeSet: getChangeSet(userId, result.row.id), version: result.version };
 }
 
 module.exports = {
@@ -388,6 +423,7 @@ module.exports = {
   normalizeResumeType,
   versionView,
   ensureCurrentVersion,
+  initializeVersion,
   createVersion,
   compareContent,
   defaultSuggestions,

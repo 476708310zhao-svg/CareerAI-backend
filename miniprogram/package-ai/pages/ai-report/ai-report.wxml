@@ -10,6 +10,7 @@
     <view class="role-info">
       <text class="role-title">{{report.role}}</text>
       <text class="company-name" wx:if="{{report.company}}">{{report.company}}</text>
+      <view wx:if="{{report.applicationId}}" class="application-context" bindtap="openApplication">关联申请 · 查看详情 ›</view>
       <view class="score-badge" style="background: {{report.scoreColor}}30; color: {{report.scoreColor}};">
         {{report.scoreLevel}}
       </view>
@@ -242,7 +243,8 @@
   <!-- 底部操作栏 -->
   <view class="bottom-bar">
     <view class="btn-secondary" bindtap="retryInterview">再次面试</view>
-    <view class="btn-primary" bindtap="saveAsImage">保存报告</view>
+    <view wx:if="{{report.applicationId}}" class="btn-secondary application-save-btn {{savedToApplication ? 'is-saved' : ''}}" bindtap="saveToApplication">{{savingToApplication ? '保存中…' : (savedToApplication ? '已加入申请' : '加入当前申请')}}</view>
+    <view class="btn-primary" bindtap="saveAsImage">保存图片</view>
   </view>
 
   <view class="bottom-spacer"></view>

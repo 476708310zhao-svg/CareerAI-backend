@@ -9,6 +9,17 @@ page {
   box-sizing: border-box;
 }
 
+.application-context {
+  margin-top: 18rpx;
+  padding: 18rpx 22rpx;
+  border: 1rpx solid #BFDBFE;
+  border-radius: 18rpx;
+  color: #1D4ED8;
+  background: #EFF6FF;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
 .hero {
   display: flex;
   align-items: center;
