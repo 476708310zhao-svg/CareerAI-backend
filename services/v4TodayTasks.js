@@ -1,5 +1,6 @@
 const db = require('../db/database');
 const { applicationRefs, mergeCoreRefs } = require('../utils/coreEntityRefs');
+const { shanghaiDayKey, addCalendarDays } = require('../utils/shanghaiDate');
 
 const PRIORITIES = new Set(['high', 'medium', 'low']);
 const SOURCE_URLS = {
@@ -130,35 +131,38 @@ function view(row) {
   };
 }
 
-function list(userId) {
+function list(userId, now = new Date()) {
+  const dayKey = shanghaiDayKey(now);
   return db.prepare(`SELECT * FROM today_tasks_v4
-    WHERE user_id=? AND task_date=date('now')
+    WHERE user_id=? AND task_date=?
     ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END,
       CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, id DESC`)
-    .all(userId).map(view);
+    .all(userId, dayKey).map(view);
 }
 
-function listScheduled(userId, limit = 10) {
+function listScheduled(userId, limit = 10, now = new Date()) {
+  const dayKey = shanghaiDayKey(now);
   return db.prepare(`SELECT * FROM today_tasks_v4
-    WHERE user_id=? AND status='pending' AND task_date>date('now')
+    WHERE user_id=? AND status='pending' AND task_date>?
     ORDER BY task_date ASC, CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, id DESC
-    LIMIT ?`).all(userId, Math.max(1, Math.min(30, Number(limit) || 10))).map(view);
+    LIMIT ?`).all(userId, dayKey, Math.max(1, Math.min(30, Number(limit) || 10))).map(view);
 }
 
-function syncLocal(userId, tasks) {
+function syncLocal(userId, tasks, now = new Date()) {
+  const dayKey = shanghaiDayKey(now);
   const normalized = (Array.isArray(tasks) ? tasks : [])
     .slice(0, 20)
     .map(normalizeLocalTask)
     .filter(Boolean);
   db.transaction(() => {
-    const existing = db.prepare("SELECT * FROM today_tasks_v4 WHERE user_id=? AND task_date=date('now') AND source_type='home_local'")
-      .all(userId);
+    const existing = db.prepare("SELECT * FROM today_tasks_v4 WHERE user_id=? AND task_date=? AND source_type='home_local'")
+      .all(userId, dayKey);
     const byKey = new Map(existing.map(row => [row.local_key, row]));
     const insert = db.prepare(`INSERT INTO today_tasks_v4
       (user_id, source_type, source_id, local_key, task_type, title, detail, url, priority, status, task_date, completed_at, updated_at)
-      VALUES (?, 'home_local', ?, ?, ?, ?, ?, ?, ?, ?, date('now'), ?, datetime('now'))`);
+      VALUES (?, 'home_local', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`);
     const update = db.prepare(`UPDATE today_tasks_v4
-      SET task_type=?, title=?, detail=?, url=?, priority=?,
+      SET source_id=NULL, task_type=?, title=?, detail=?, url=?, priority=?,
         status=CASE WHEN ? THEN ? ELSE status END,
         completed_at=CASE WHEN ? THEN ? ELSE completed_at END,
         updated_at=?
@@ -175,18 +179,25 @@ function syncLocal(userId, tasks) {
           item.doneKnown ? 1 : 0, nextStatus, item.doneKnown ? 1 : 0, completedAt,
           nextUpdatedAt, current.id, userId);
       } else {
-        insert.run(userId, item.sourceId, item.localKey, item.taskType, item.title, item.detail, item.url,
-          item.priority, item.completed ? 'completed' : 'pending', completedAt);
+        // Local recurring tasks are identified by (user, date, local_key).
+        // A hashed source_id hits the legacy global UNIQUE constraint next day.
+        // NULL avoids that constraint without deleting history or changing schema.
+        insert.run(userId, item.localKey, item.taskType, item.title, item.detail, item.url,
+          item.priority, item.completed ? 'completed' : 'pending', dayKey, completedAt);
         if (item.clientUpdatedAt) {
           db.prepare(`UPDATE today_tasks_v4 SET updated_at=?
-            WHERE user_id=? AND task_date=date('now') AND local_key=?`)
-            .run(item.clientUpdatedAt, userId, item.localKey);
+            WHERE user_id=? AND task_date=? AND local_key=?`)
+            .run(item.clientUpdatedAt, userId, dayKey, item.localKey);
         }
       }
+      // Repeated keys in one request must update the row just inserted as well.
+      byKey.set(item.localKey, db.prepare(`SELECT * FROM today_tasks_v4
+        WHERE user_id=? AND task_date=? AND source_type='home_local' AND local_key=?`)
+        .get(userId, dayKey, item.localKey));
     });
   })();
 
-  return list(userId);
+  return list(userId, now);
 }
 
 function updateStatus(userId, id, completed, clientUpdatedAt) {
@@ -210,12 +221,12 @@ function updateStatus(userId, id, completed, clientUpdatedAt) {
   return view(db.prepare('SELECT * FROM today_tasks_v4 WHERE id=? AND user_id=?').get(Number(id), userId));
 }
 
-function deferTask(userId, id, days) {
+function deferTask(userId, id, days, now = new Date()) {
   const taskId = Number(id);
   const delay = Math.max(1, Math.min(30, Number(days) || 1));
   const row = db.prepare('SELECT * FROM today_tasks_v4 WHERE id=? AND user_id=?').get(taskId, userId);
   if (!row) return { task: null, conflict: false };
-  const target = db.prepare("SELECT date('now', ?) AS value").get(`+${delay} days`).value;
+  const target = addCalendarDays(shanghaiDayKey(now), delay);
   const duplicate = row.local_key ? db.prepare(`SELECT id FROM today_tasks_v4
     WHERE user_id=? AND task_date=? AND local_key=? AND id!=?`).get(userId, target, row.local_key, row.id) : null;
   if (duplicate) return { task: null, conflict: true, existingTaskId: duplicate.id, taskDate: target };

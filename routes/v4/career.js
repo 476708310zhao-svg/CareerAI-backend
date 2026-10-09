@@ -19,8 +19,8 @@ function dashboard(userId) {
     weeklyReport: state.weeklyReport,
     today: {
       ...generation,
-      tasks: todayTasks.list(userId),
-      scheduled: todayTasks.listScheduled(userId)
+      tasks: todayTasks.list(userId, now),
+      scheduled: todayTasks.listScheduled(userId, 10, now)
     }
   };
 }

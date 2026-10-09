@@ -11,6 +11,9 @@ process.env.NOTIFY_EXTERNAL_DISABLED = '1';
 const db = require('../db/database');
 const { ensureV4Schema } = require('../db/v4Schema');
 const todayTasks = require('../services/v4TodayTasks');
+const { shanghaiDayKey, addCalendarDays } = require('../utils/shanghaiDate');
+const agents = require('../services/v4Agents');
+const interview = require('../services/v4Interview');
 
 ensureV4Schema();
 const notifyTest = require('../routes/notify')._test;
@@ -159,4 +162,101 @@ test('favorite timestamps parse SQLite UTC safely on iOS-compatible paths', () =
   assert.equal(timestamp('2026-08-03T08:50:12.000Z'), Date.UTC(2026, 7, 3, 8, 50, 12));
   assert.equal(timestamp('2026-08-03'), Date.UTC(2026, 7, 3));
   assert.equal(timestamp('not-a-date'), 0);
+});
+
+test('Today recurring local tasks can repeat across days without rewriting history', () => {
+  const userId = Number(db.prepare('INSERT INTO users (openid,nickname) VALUES (?,?)')
+    .run('today_regression_' + Date.now(), 'API regression').lastInsertRowid);
+  const task = { id: 'resume_polish', title: '完善简历', desc: '今日任务' };
+  const legacySourceId = todayTasks.normalizeLocalTask(task).sourceId;
+  const now = new Date();
+  const today = shanghaiDayKey(now);
+  const yesterday = addCalendarDays(today, -1);
+  try {
+    const oldId = Number(db.prepare(`INSERT INTO today_tasks_v4
+      (user_id,source_type,source_id,local_key,title,status,task_date)
+      VALUES (?,'home_local',?,? ,?,'completed',?)`)
+      .run(userId,legacySourceId,task.id,task.title,yesterday).lastInsertRowid);
+    const first = todayTasks.syncLocal(userId,[task],now).filter(row => row.localKey === task.id);
+    assert.equal(first.length,1);
+    assert.equal(first[0].taskDate,today);
+    assert.equal(first[0].completed,false);
+    assert.notEqual(first[0].id,oldId);
+    const repeat = todayTasks.syncLocal(userId,[task],now).filter(row => row.localKey === task.id);
+    assert.equal(repeat[0].id,first[0].id);
+    assert.equal(db.prepare('SELECT status FROM today_tasks_v4 WHERE id=?').get(oldId).status,'completed');
+    const deferred = todayTasks.deferTask(userId,first[0].id,1,now);
+    assert.ok(deferred.task);
+    assert.equal(deferred.task.taskDate,addCalendarDays(today,1));
+    const recreated = todayTasks.syncLocal(userId,[task],now).find(row => row.localKey===task.id);
+    assert.notEqual(recreated.id,first[0].id);
+    assert.equal(db.prepare('SELECT count(*) AS n FROM today_tasks_v4 WHERE user_id=?').get(userId).n,3);
+  } finally { db.prepare('DELETE FROM users WHERE id=?').run(userId); }
+});
+
+test('Today duplicate keys in a single request merge and preserve the newest completion', () => {
+  const userId = Number(db.prepare('INSERT INTO users (openid,nickname) VALUES (?,?)')
+    .run('today_duplicate_' + Date.now(), 'API regression').lastInsertRowid);
+  const task = { id:'daily_duplicate', title:'重复任务', doneKnown:true };
+  const newer = new Date(Date.now()+1000).toISOString();
+  const older = new Date(Date.now()-1000).toISOString();
+  try {
+    const rows = todayTasks.syncLocal(userId,[{...task,done:true,updatedAt:newer},{...task,done:false,updatedAt:older}]);
+    assert.equal(rows.length,1);
+    assert.equal(rows[0].completed,true);
+    assert.equal(rows[0].updatedAt,newer);
+  } finally { db.prepare('DELETE FROM users WHERE id=?').run(userId); }
+});
+
+test('Today updating a legacy task title does not collide with yesterday', () => {
+  const userId = Number(db.prepare('INSERT INTO users (openid,nickname) VALUES (?,?)')
+    .run('today_legacy_update_' + Date.now(), 'API regression').lastInsertRowid);
+  const task = { id:'legacy_rename', title:'重复标题' };
+  const sourceId = todayTasks.normalizeLocalTask(task).sourceId;
+  const now = new Date();
+  const today = shanghaiDayKey(now);
+  const yesterday = addCalendarDays(today,-1);
+  const insert = db.prepare(`INSERT INTO today_tasks_v4 (user_id,source_type,source_id,local_key,title,task_date)
+    VALUES (?,'home_local',?,?,?,?)`);
+  try {
+    insert.run(userId,sourceId,task.id,task.title,yesterday);
+    insert.run(userId,sourceId,task.id,'旧标题',today);
+    const rows = todayTasks.syncLocal(userId,[task],now);
+    assert.equal(rows.length,1);
+    assert.equal(rows[0].title,task.title);
+  } finally { db.prepare('DELETE FROM users WHERE id=?').run(userId); }
+});
+
+test('Agent and interview task writes bind the injected Shanghai business date', () => {
+  const userId = Number(db.prepare('INSERT INTO users (openid,nickname) VALUES (?,?)')
+    .run(`shanghai_writers_${Date.now()}`, 'Shanghai task writers').lastInsertRowid);
+  const applicationId = Number(db.prepare("INSERT INTO applications (user_id,job_id,status) VALUES (?,?,'interview_1')")
+    .run(userId, `shanghai_writer_job_${Date.now()}`).lastInsertRowid);
+  const now = new Date('2026-10-11T16:05:00.000Z');
+  try {
+    const agentTaskId = Number(db.prepare(`INSERT INTO ai_agent_tasks_v4
+      (user_id,agent_type,status,input,output,write_action,confirmation_token)
+      VALUES (?,'career_planner','awaiting_confirmation',?,?,'create_today_task','confirm-shanghai')`)
+      .run(userId, JSON.stringify({ taskTitle: '上海凌晨 Agent 任务', writeValue: '执行建议' }), JSON.stringify({ message: '建议' })).lastInsertRowid);
+    agents.confirmWrite(userId, agentTaskId, 'confirm-shanghai', now);
+    assert.equal(db.prepare("SELECT task_date FROM today_tasks_v4 WHERE user_id=? AND source_type='ai_agent' AND source_id=?")
+      .get(userId, agentTaskId).task_date, '2026-10-12');
+
+    const spaceId = Number(db.prepare(`INSERT INTO interview_spaces_v4
+      (user_id,application_id,company,job_title) VALUES (?,?,'Boundary Co','Engineer')`)
+      .run(userId, applicationId).lastInsertRowid);
+    const sessionId = Number(db.prepare(`INSERT INTO interview_sessions_v4
+      (user_id,space_id,session_type,status) VALUES (?,?,'mock','active')`)
+      .run(userId, spaceId).lastInsertRowid);
+    db.prepare(`INSERT INTO interview_answers_v4
+      (session_id,user_id,question,answer,feedback,content_score,structure_score,expression_score,job_match_score)
+      VALUES (?,?,'Question','Answer','Feedback',50,40,30,20)`).run(sessionId, userId);
+    interview.completeSession(userId, sessionId, now);
+    const interviewDates = db.prepare("SELECT task_date FROM today_tasks_v4 WHERE user_id=? AND source_type='interview_report'")
+      .all(userId).map(row => row.task_date);
+    assert.equal(interviewDates.length, 2);
+    assert.ok(interviewDates.every(day => day === '2026-10-12'));
+  } finally {
+    db.prepare('DELETE FROM users WHERE id=?').run(userId);
+  }
 });

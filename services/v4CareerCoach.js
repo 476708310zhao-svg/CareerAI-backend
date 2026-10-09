@@ -3,6 +3,12 @@
 const db = require('../db/database');
 const { getProfile } = require('./v4Profile');
 const { toV4Status } = require('../utils/applicationStatus');
+const {
+  shanghaiDayKey,
+  utcTimestampToShanghaiDayKey,
+  calendarDayDifference,
+  shanghaiWeekRange
+} = require('../utils/shanghaiDate');
 
 const DIMENSION_ORDER = ['education', 'experience', 'skills', 'projects', 'resume', 'interview', 'networking'];
 const DIMENSION_META = Object.freeze({
@@ -52,24 +58,15 @@ function clamp(value, min = 0, max = 100) {
 }
 
 function dateKey(value = new Date()) {
-  const date = value instanceof Date ? value : new Date(value);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return shanghaiDayKey(value);
 }
 
 function startOfWeek(value = new Date()) {
-  const date = value instanceof Date ? new Date(value) : new Date(value);
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() - ((date.getDay() + 6) % 7));
-  return date;
+  return new Date(`${shanghaiWeekRange(value).start}T00:00:00+08:00`);
 }
 
 function endOfWeek(value = new Date()) {
-  const date = startOfWeek(value);
-  date.setDate(date.getDate() + 6);
-  return date;
+  return new Date(`${shanghaiWeekRange(value).end}T00:00:00+08:00`);
 }
 
 function textSize(value) {
@@ -122,12 +119,11 @@ function collectCareerSnapshot(userId, now = new Date()) {
     FROM applications WHERE user_id=? AND COALESCE(archived_at,'')=''`).all(userId)
     .map(row => ({ ...row, normalizedStatus: toV4Status(row) }));
   const history = db.prepare('SELECT application_id, to_status, created_at FROM application_history WHERE user_id=? ORDER BY id').all(userId);
-  const weekStart = dateKey(startOfWeek(now));
-  const weekEnd = dateKey(endOfWeek(now));
+  const { start: weekStart, end: weekEnd } = shanghaiWeekRange(now);
   const eventRows = db.prepare(`SELECT event_name, COUNT(*) AS count FROM analytics_events
-    WHERE user_id=? AND date(created_at) BETWEEN ? AND ? GROUP BY event_name`).all(userId, weekStart, weekEnd);
+    WHERE user_id=? AND date(created_at, '+8 hours') BETWEEN ? AND ? GROUP BY event_name`).all(userId, weekStart, weekEnd);
   const completedTodayTasks = db.prepare(`SELECT COUNT(*) AS count FROM today_tasks_v4
-    WHERE user_id=? AND status='completed' AND date(completed_at) BETWEEN ? AND ?`).get(userId, weekStart, weekEnd).count;
+    WHERE user_id=? AND status='completed' AND date(completed_at, '+8 hours') BETWEEN ? AND ?`).get(userId, weekStart, weekEnd).count;
   return {
     userId, now, profile, experiences, resumes,
     resumeVersions: Number(resumeVersions || 0),
@@ -265,8 +261,14 @@ function identifyBottleneck(snapshot, sets) {
 
 function buildWeeklyReport(snapshot) {
   const sets = funnelSets(snapshot);
-  const weekHistory = snapshot.history.filter(item => String(item.created_at || '').slice(0, 10) >= snapshot.weekStart
-    && String(item.created_at || '').slice(0, 10) <= snapshot.weekEnd);
+  const weekHistory = snapshot.history.filter(item => {
+    try {
+      const dayKey = utcTimestampToShanghaiDayKey(item.created_at);
+      return dayKey >= snapshot.weekStart && dayKey <= snapshot.weekEnd;
+    } catch (error) {
+      return false;
+    }
+  });
   const weeklySubmitted = new Set(weekHistory.filter(item => ['applied', 'oa'].includes(item.to_status)).map(item => item.application_id)).size;
   const weeklyInterviews = new Set(weekHistory.filter(item => ['phone_screen', 'interview_1', 'interview_2', 'final'].includes(item.to_status)).map(item => item.application_id)).size;
   const weeklyOffers = new Set(weekHistory.filter(item => item.to_status === 'offer').map(item => item.application_id)).size;
@@ -351,11 +353,11 @@ function buildDynamicPlan(diagnostic, weeklyReport) {
 
 function daysUntil(dateText, now) {
   if (!dateText) return null;
-  const target = new Date(`${String(dateText).slice(0, 10)}T00:00:00`).getTime();
-  if (!Number.isFinite(target)) return null;
-  const today = new Date(now);
-  today.setHours(0, 0, 0, 0);
-  return Math.ceil((target - today.getTime()) / 86400000);
+  try {
+    return calendarDayDifference(String(dateText).slice(0, 10), shanghaiDayKey(now));
+  } catch (error) {
+    return null;
+  }
 }
 
 function dailyCandidates(snapshot, diagnostic, weeklyReport) {

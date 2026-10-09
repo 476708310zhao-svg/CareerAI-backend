@@ -1,15 +1,28 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const {
+  dateKey,
   buildDiagnostic,
   buildWeeklyReport,
   buildDynamicPlan,
-  dailyCandidates
+  dailyCandidates,
+  buildCareerState,
+  ensureDailyTasks
 } = require('../services/v4CareerCoach');
+const todayTasks = require('../services/v4TodayTasks');
+const db = require('../db/database');
+const {
+  shanghaiDayKey,
+  utcTimestampToShanghaiDayKey,
+  addCalendarDays,
+  calendarDayDifference,
+  shanghaiWeekRange
+} = require('../utils/shanghaiDate');
 const {
   parseDashboardResponse
 } = require('../miniprogram/package-career/pages/career-coach/career-coach-state');
@@ -41,6 +54,105 @@ function snapshot(overrides = {}) {
     ...overrides
   };
 }
+
+test('Shanghai business dates cross UTC midnight at 00:00 Asia/Shanghai', () => {
+  const beforeMidnight = new Date('2026-10-08T15:59:59.000Z');
+  const afterMidnight = new Date('2026-10-08T16:00:00.000Z');
+
+  assert.equal(shanghaiDayKey(beforeMidnight), '2026-10-08');
+  assert.equal(shanghaiDayKey(afterMidnight), '2026-10-09');
+  assert.equal(dateKey(beforeMidnight), '2026-10-08');
+  assert.equal(dateKey(afterMidnight), '2026-10-09');
+  assert.deepEqual(shanghaiWeekRange(beforeMidnight), { start: '2026-10-05', end: '2026-10-11' });
+  assert.deepEqual(shanghaiWeekRange(afterMidnight), { start: '2026-10-05', end: '2026-10-11' });
+  assert.equal(addCalendarDays('2026-10-08', 1), '2026-10-09');
+  assert.equal(calendarDayDifference('2026-10-09', '2026-10-08'), 1);
+  assert.equal(calendarDayDifference('2026-10-08', '2026-10-09'), -1);
+  assert.equal(calendarDayDifference('2026-10-09', '2026-10-09'), 0);
+  assert.equal(addCalendarDays('2024-02-28', 1), '2024-02-29');
+  assert.equal(addCalendarDays('2026-01-31', 1), '2026-02-01');
+  assert.throws(() => addCalendarDays('2026-02-29', 1), /Invalid calendar day/);
+  assert.throws(() => shanghaiDayKey('not-a-date'), /Invalid date/);
+  assert.deepEqual(shanghaiWeekRange('2026-10-11T15:59:59.000Z'), { start: '2026-10-05', end: '2026-10-11' });
+  assert.deepEqual(shanghaiWeekRange('2026-10-11T16:00:00.000Z'), { start: '2026-10-12', end: '2026-10-18' });
+  assert.equal(utcTimestampToShanghaiDayKey('2026-10-11 15:59:59'), '2026-10-11');
+  assert.equal(utcTimestampToShanghaiDayKey('2026-10-11 16:00:00'), '2026-10-12');
+  assert.throws(() => utcTimestampToShanghaiDayKey('invalid'), /Invalid UTC timestamp/);
+
+  const helperPath = path.join(__dirname, '..', 'utils', 'shanghaiDate.js');
+  const script = `const h=require(${JSON.stringify(helperPath)});process.stdout.write(JSON.stringify({day:h.shanghaiDayKey('2026-10-11T16:00:00.000Z'),week:h.shanghaiWeekRange('2026-10-11T16:00:00.000Z'),audit:h.utcTimestampToShanghaiDayKey('2026-10-11 16:00:00')}));`;
+  const outputs = ['UTC', 'America/Los_Angeles'].map(TZ => execFileSync(process.execPath, ['-e', script], {
+    encoding: 'utf8', env: { ...process.env, TZ }
+  }));
+  assert.equal(outputs[0], outputs[1]);
+
+  const userId = Number(db.prepare('INSERT INTO users (openid,nickname) VALUES (?,?)')
+    .run(`shanghai_boundary_${Date.now()}`, 'Shanghai date boundary').lastInsertRowid);
+  try {
+    const beforeState = buildCareerState(userId, beforeMidnight);
+    const beforeTasks = ensureDailyTasks(userId, beforeMidnight, beforeState);
+    assert.equal(beforeTasks.date, '2026-10-08');
+    assert.ok(beforeTasks.created > 0);
+    const listedBefore = todayTasks.list(userId, beforeMidnight);
+    assert.ok(listedBefore.length > 0);
+    assert.ok(listedBefore.every(item => item.taskDate === '2026-10-08'));
+
+    const afterState = buildCareerState(userId, afterMidnight);
+    const afterTasks = ensureDailyTasks(userId, afterMidnight, afterState);
+    assert.equal(afterTasks.date, '2026-10-09');
+    assert.ok(afterTasks.created > 0);
+    const listedAfter = todayTasks.list(userId, afterMidnight);
+    assert.ok(listedAfter.length > 0);
+    assert.ok(listedAfter.every(item => item.taskDate === '2026-10-09'));
+    assert.ok(todayTasks.listScheduled(userId, 10, beforeMidnight).some(item => item.taskDate === '2026-10-09'));
+
+    const diagnosticDays = db.prepare('SELECT snapshot_date FROM career_diagnostics_v4 WHERE user_id=? ORDER BY snapshot_date')
+      .all(userId).map(row => row.snapshot_date);
+    assert.deepEqual(diagnosticDays, ['2026-10-08', '2026-10-09']);
+
+    const deadlineBefore = dailyCandidates(snapshot({
+      now: beforeMidnight,
+      applications: [{ id: 91, normalizedStatus: 'interested', deadline: '2026-10-09', company: 'Boundary Co' }]
+    }), buildDiagnostic(snapshot()), buildWeeklyReport(snapshot()));
+    const deadlineAfter = dailyCandidates(snapshot({
+      now: afterMidnight,
+      applications: [{ id: 91, normalizedStatus: 'interested', deadline: '2026-10-09', company: 'Boundary Co' }]
+    }), buildDiagnostic(snapshot()), buildWeeklyReport(snapshot()));
+    assert.match(deadlineBefore.find(item => item.key === 'deadline_91').detail, /距离截止 1 天/);
+    assert.match(deadlineAfter.find(item => item.key === 'deadline_91').detail, /距离截止 0 天/);
+  } finally {
+    db.prepare('DELETE FROM users WHERE id=?').run(userId);
+  }
+});
+
+test('Career weekly statistics assign SQLite UTC audit timestamps to Shanghai Monday', () => {
+  const userId = Number(db.prepare('INSERT INTO users (openid,nickname) VALUES (?,?)')
+    .run(`career_week_boundary_${Date.now()}`, 'Career week boundary').lastInsertRowid);
+  const applicationId = Number(db.prepare("INSERT INTO applications (user_id,job_id,status) VALUES (?,?,'applied')")
+    .run(userId, `career_week_job_${Date.now()}`).lastInsertRowid);
+  try {
+    db.prepare(`INSERT INTO application_history (application_id,user_id,to_status,created_at)
+      VALUES (?,?,'applied',?), (?,?,'interview_1',?)`)
+      .run(applicationId, userId, '2026-10-11 15:59:00', applicationId, userId, '2026-10-11 16:10:00');
+    db.prepare(`INSERT INTO analytics_events (user_id,event_name,created_at)
+      VALUES (?,'job_viewed',?), (?,'job_matched',?)`)
+      .run(userId, '2026-10-11 15:59:00', userId, '2026-10-11 16:10:00');
+    db.prepare(`INSERT INTO today_tasks_v4 (user_id,source_type,source_id,title,status,task_date,completed_at)
+      VALUES (?,'week_boundary',1,'Sunday task','completed','2026-10-11',?),
+             (?,'week_boundary',2,'Monday task','completed','2026-10-12',?)`)
+      .run(userId, '2026-10-11 15:59:00', userId, '2026-10-11 16:10:00');
+
+    const state = buildCareerState(userId, new Date('2026-10-11T16:30:00.000Z'));
+    assert.deepEqual(state.weeklyReport.period, { start: '2026-10-12', end: '2026-10-18' });
+    assert.equal(state.snapshot.eventCounts.job_viewed || 0, 0);
+    assert.equal(state.snapshot.eventCounts.job_matched, 1);
+    assert.equal(state.snapshot.completedTodayTasks, 1);
+    assert.equal(state.weeklyReport.input.applicationsSubmitted, 0);
+    assert.equal(state.weeklyReport.input.interviewsReached, 1);
+  } finally {
+    db.prepare('DELETE FROM users WHERE id=?').run(userId);
+  }
+});
 
 test('Sprint 4 diagnostic always returns seven evidence-backed dimensions', () => {
   const diagnostic = buildDiagnostic(snapshot());

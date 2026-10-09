@@ -2,6 +2,7 @@ const db = require('../db/database');
 const membership = require('./v4Membership');
 const aiRuntime = require('./v4AiRuntime');
 const { applicationRefs, mergeCoreRefs } = require('../utils/coreEntityRefs');
+const { shanghaiDayKey } = require('../utils/shanghaiDate');
 
 function parseJson(value, fallback) { try { return JSON.parse(value); } catch (e) { return fallback; } }
 function text(value, max = 1000) { return String(value || '').replace(/\s+/g, ' ').trim().slice(0, max); }
@@ -215,7 +216,7 @@ function startSession(userId, spaceId, type) {
   return db.prepare('SELECT * FROM interview_sessions_v4 WHERE id=?').get(result.lastInsertRowid);
 }
 
-function completeSession(userId, sessionId) {
+function completeSession(userId, sessionId, now = new Date()) {
   const session = db.prepare('SELECT s.*, p.job_title FROM interview_sessions_v4 s JOIN interview_spaces_v4 p ON p.id=s.space_id WHERE s.id=? AND s.user_id=?').get(sessionId, userId);
   if (!session) { const error = new Error('训练会话不存在'); error.status = 404; throw error; }
   if (session.status === 'completed') return db.prepare('SELECT * FROM interview_reports_v4 WHERE session_id=?').get(session.id);
@@ -239,11 +240,11 @@ function completeSession(userId, sessionId) {
     db.prepare("UPDATE interview_sessions_v4 SET status='completed', completed_at=datetime('now') WHERE id=?").run(session.id);
     db.prepare('UPDATE interview_spaces_v4 SET preparation_completion=MIN(100, preparation_completion+20), updated_at=datetime(\'now\') WHERE id=?').run(session.space_id);
     weaknesses.forEach(item => db.prepare(`INSERT OR IGNORE INTO today_tasks_v4
-      (user_id, source_type, source_id, local_key, task_type, title, detail, priority, url, updated_at)
-      VALUES (?, 'interview_report', ?, ?, 'interview_repractice', ?, ?, 'high', ?, datetime('now'))`)
+      (user_id, source_type, source_id, local_key, task_type, title, detail, priority, task_date, url, updated_at)
+      VALUES (?, 'interview_report', ?, ?, 'interview_repractice', ?, ?, 'high', ?, ?, datetime('now'))`)
       .run(userId, inserted.lastInsertRowid, `interview_repractice_${inserted.lastInsertRowid}_${item.key}`,
         `复练面试${item.name}`, `当前 ${item.score} 分；重新回答一题，并根据报告反馈检查证据、结构和岗位关联。`,
-        `/package-ai/pages/interview-space/interview-space?id=${session.space_id}&focus=${item.key}`));
+        shanghaiDayKey(now), `/package-ai/pages/interview-space/interview-space?id=${session.space_id}&focus=${item.key}`));
     const nextAction = `复练面试${weaknesses.map(item => item.name).join('、')}`;
     db.prepare(`UPDATE applications SET next_action=CASE
       WHEN TRIM(COALESCE(next_action,''))='' OR next_action LIKE '复练面试%' THEN ? ELSE next_action END,

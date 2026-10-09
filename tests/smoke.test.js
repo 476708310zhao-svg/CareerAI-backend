@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const db = require('../db/database');
 const featureFlags = require('../utils/featureFlags');
+const { shanghaiDayKey, addCalendarDays } = require('../utils/shanghaiDate');
 
 const HOST = '127.0.0.1';
 let BASE_URL = '';
@@ -1808,6 +1809,10 @@ test('canonical job funnel is complete and smoke analytics stay outside producti
 test('v4 application assistant saves only confirmed drafts and enforces free quota', async () => {
   const user = db.prepare('SELECT id FROM users WHERE email=?').get(testAccount.email);
   const resume = db.prepare("SELECT id FROM resumes WHERE user_id=? AND name='SDE Resume'").get(user.id);
+  const quotaRes = await fetch(`${BASE_URL}/api/v4/materials/quota`, { headers: authHeaders() });
+  assert.equal(quotaRes.status, 200);
+  const quota = await readJson(quotaRes);
+  assert.match(quota.data.date, /^\d{4}-\d{2}-\d{2}$/);
   const draftRes = await fetch(`${BASE_URL}/api/v4/materials/drafts`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -1819,9 +1824,14 @@ test('v4 application assistant saves only confirmed drafts and enforces free quo
   assert.equal(draft.data.status, 'pending');
   assert.equal(draft.data.generation.source, 'fallback');
   assert.equal(typeof draft.data.generation.elapsedMs, 'number');
+  const materialUsage = db.prepare(`SELECT usage_date, count FROM ai_usage
+    WHERE user_id=? AND feature='application_assistant' ORDER BY id DESC LIMIT 1`).get(user.id);
+  assert.ok(materialUsage);
+  const quotaDay = materialUsage.usage_date;
+  assert.equal(draft.data.quota.date, quotaDay);
   const materialPromptSnapshot = db.prepare('SELECT prompt_snapshot AS value FROM ai_application_material_drafts WHERE id=?').get(draft.data.id).value;
   assert.doesNotMatch(materialPromptSnapshot, /hiring@example\.com|212-555-0100/i);
-  const materialQuotaAfterDraft = Number((db.prepare("SELECT count FROM ai_usage WHERE user_id=? AND feature='application_assistant' AND usage_date=date('now')").get(user.id) || {}).count || 0);
+  const materialQuotaAfterDraft = Number((db.prepare("SELECT count FROM ai_usage WHERE user_id=? AND feature='application_assistant' AND usage_date=?").get(user.id, quotaDay) || {}).count || 0);
   const before = db.prepare('SELECT COUNT(*) AS count FROM application_materials WHERE ai_draft_id=?').get(draft.data.id).count;
   assert.equal(before, 0, 'unconfirmed material must not be saved');
 
@@ -1843,12 +1853,15 @@ test('v4 application assistant saves only confirmed drafts and enforces free quo
   assert.equal(tailoredRes.status, 400);
   const tailored = await readJson(tailoredRes);
   assert.equal(tailored.message, '材料类型无效');
-  assert.equal(Number((db.prepare("SELECT count FROM ai_usage WHERE user_id=? AND feature='application_assistant' AND usage_date=date('now')").get(user.id) || {}).count || 0), materialQuotaAfterDraft,
+  assert.equal(Number((db.prepare("SELECT count FROM ai_usage WHERE user_id=? AND feature='application_assistant' AND usage_date=?").get(user.id, quotaDay) || {}).count || 0), materialQuotaAfterDraft,
     'rejected material requests must not consume quota');
 
-  db.prepare(`INSERT INTO ai_usage (user_id, feature, usage_date, count, updated_at)
-    VALUES (?, 'application_assistant', date('now'), 3, datetime('now'))
-    ON CONFLICT(user_id, feature, usage_date) DO UPDATE SET count=3`).run(user.id);
+  const exhaustMaterialQuota = db.prepare(`INSERT INTO ai_usage (user_id, feature, usage_date, count, updated_at)
+    VALUES (?, 'application_assistant', ?, 3, datetime('now'))
+    ON CONFLICT(user_id, feature, usage_date) DO UPDATE SET count=3, updated_at=datetime('now')`);
+  const materialRequestDay = shanghaiDayKey(new Date());
+  [addCalendarDays(materialRequestDay, -1), materialRequestDay, addCalendarDays(materialRequestDay, 1)]
+    .forEach(day => exhaustMaterialQuota.run(user.id, day));
   const blockedRes = await fetch(`${BASE_URL}/api/v4/materials/drafts`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -2253,13 +2266,16 @@ test('ai usage endpoint reports quota and blocks exhausted free features before 
   assert.ok(usageBody.data.features.some(item => item.feature === 'ats' && item.limit === 3));
 
   const user = db.prepare('SELECT id FROM users WHERE email = ?').get(testAccount.email);
-  const day = usageBody.data.date;
-  db.prepare(`
+  assert.match(usageBody.data.date, /^\d{4}-\d{2}-\d{2}$/);
+  const exhaustAtsQuota = db.prepare(`
     INSERT INTO ai_usage (user_id, feature, usage_date, count, updated_at)
     VALUES (?, 'ats', ?, 3, datetime('now'))
     ON CONFLICT(user_id, feature, usage_date)
     DO UPDATE SET count=3, updated_at=datetime('now')
-  `).run(user.id, day);
+  `);
+  const atsRequestDay = shanghaiDayKey(new Date());
+  [addCalendarDays(atsRequestDay, -1), atsRequestDay, addCalendarDays(atsRequestDay, 1)]
+    .forEach(day => exhaustAtsQuota.run(user.id, day));
 
   const atsRes = await fetch(`${BASE_URL}/api/ai/ats`, {
     method: 'POST',

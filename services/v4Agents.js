@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const db = require('../db/database');
 const aiRuntime = require('./v4AiRuntime');
 const { containsFabricatedExecutionClaim } = require('../utils/aiSafety');
+const { shanghaiDayKey } = require('../utils/shanghaiDate');
 
 const AGENTS = {
   job_advisor: { name: 'AI 岗位顾问', promptVersion: 'job-advisor-v4.0-1' },
@@ -109,15 +110,15 @@ function view(row) { return row ? { id: row.id, agentType: row.agent_type, agent
   writeAction: row.write_action, confirmationToken: row.status === 'awaiting_confirmation' ? row.confirmation_token : '',
   aiModel: row.ai_model, promptVersion: row.prompt_version, createdAt: row.created_at, finishedAt: row.finished_at } : null; }
 
-function confirmWrite(userId, taskId, token) {
+function confirmWrite(userId, taskId, token, now = new Date()) {
   const row = db.prepare("SELECT * FROM ai_agent_tasks_v4 WHERE id=? AND user_id=? AND status='awaiting_confirmation'").get(taskId, userId);
   if (!row || !token || token !== row.confirmation_token) { const error = new Error('确认令牌无效或任务已处理'); error.status = 409; throw error; }
   const input = parseJson(row.input, {}); const output = parseJson(row.output, {});
   if (row.write_action === 'update_application_next_action' && row.application_id) {
     db.prepare("UPDATE applications SET next_action=?,updated_at=datetime('now') WHERE id=? AND user_id=?").run(String(input.writeValue || output.message).slice(0, 300), row.application_id, userId);
   } else {
-    db.prepare(`INSERT OR IGNORE INTO today_tasks_v4 (user_id,source_type,source_id,title,detail,priority)
-      VALUES (?,'ai_agent',?,?,?,'medium')`).run(userId, row.id, String(input.taskTitle || `${AGENTS[row.agent_type].name}建议`).slice(0, 160), String(input.writeValue || output.message).slice(0, 1000));
+    db.prepare(`INSERT OR IGNORE INTO today_tasks_v4 (user_id,source_type,source_id,title,detail,priority,task_date)
+      VALUES (?,'ai_agent',?,?,?,'medium',?)`).run(userId, row.id, String(input.taskTitle || `${AGENTS[row.agent_type].name}建议`).slice(0, 160), String(input.writeValue || output.message).slice(0, 1000), shanghaiDayKey(now));
   }
   db.prepare("UPDATE ai_agent_tasks_v4 SET status='completed',confirmed_at=datetime('now'),confirmation_token='' WHERE id=?").run(row.id);
   return db.prepare('SELECT * FROM ai_agent_tasks_v4 WHERE id=?').get(row.id);
