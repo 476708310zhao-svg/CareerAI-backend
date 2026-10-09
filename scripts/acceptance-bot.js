@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const MINI_ROOT = path.join(ROOT, 'miniprogram');
 const DEFAULT_TIMEOUT_MS = 10000;
+const SERVER_CLOSE_TIMEOUT_MS = 3000;
+const LOCAL_RUNTIME_PREFIX = 'jobapp-acceptance-';
+const LOCAL_RUNTIME_OWNERSHIP = new WeakMap();
 
 function parseArgs(argv) {
   const options = {
@@ -86,6 +90,9 @@ class AcceptanceBot {
     this.baseUrl = options.baseUrl;
     this.server = null;
     this.db = null;
+    this.localRuntimeDir = '';
+    this.localRuntimeDirCreatedByBot = '';
+    this.retainedRuntimeDir = '';
     this.featureFlags = null;
     this.previousFlags = {};
     this.created = {
@@ -135,7 +142,11 @@ class AcceptanceBot {
         }
       }
     } finally {
-      await this.cleanup();
+      try {
+        await this.cleanup();
+      } catch (err) {
+        this.recordCleanupIssue('unexpected cleanup failure', 'FAIL', err);
+      }
     }
 
     const report = this.buildReport(startedAt);
@@ -148,9 +159,13 @@ class AcceptanceBot {
 
   async startLocalServer() {
     const port = this.options.port || (4300 + Math.floor(Math.random() * 500));
+    const ownership = this.initializeLocalRuntime();
     Object.assign(process.env, {
       NODE_ENV: 'test',
       PORT: String(port),
+      DB_PATH: path.join(ownership.runtimePath, 'jobapp.db'),
+      DATA_DIR: path.join(ownership.runtimePath, 'data'),
+      UPLOAD_DIR: path.join(ownership.runtimePath, 'uploads'),
       JWT_SECRET: 'acceptance_bot_secret_please_do_not_use_in_production_1234567890',
       ADMIN_USERNAME: 'acceptance_admin',
       ADMIN_PASSWORD: 'acceptance_admin_password_123',
@@ -170,8 +185,10 @@ class AcceptanceBot {
     });
 
     const { startServer } = require(path.join(ROOT, 'server'));
-    this.featureFlags = require(path.join(ROOT, 'utils', 'featureFlags'));
     this.db = require(path.join(ROOT, 'db', 'database'));
+    require(path.join(ROOT, 'db', 'v4Schema')).ensureV4Schema();
+    require(path.join(ROOT, 'db', 'migrate')).applyPendingMigrations(this.db);
+    this.featureFlags = require(path.join(ROOT, 'utils', 'featureFlags'));
     this.previousFlags.recruitment = this.featureFlags.isFeatureEnabled('recruitment');
     this.previousFlags.membership = this.featureFlags.isFeatureEnabled('membership');
     this.featureFlags.updateFeatureFlag('recruitment', true);
@@ -180,6 +197,20 @@ class AcceptanceBot {
     this.server = startServer(port);
     this.baseUrl = `http://127.0.0.1:${port}`;
     await this.waitForServer();
+  }
+
+  initializeLocalRuntime() {
+    if (LOCAL_RUNTIME_OWNERSHIP.has(this)) {
+      throw new Error('Local acceptance runtime is already initialized');
+    }
+    const ownership = createOwnedLocalRuntimeRoot(this.options.keepData);
+    LOCAL_RUNTIME_OWNERSHIP.set(this, ownership);
+
+    // These fields are informational compatibility state only. Cleanup always
+    // uses the module-private ownership snapshot captured above.
+    this.localRuntimeDir = ownership.runtimePath;
+    this.localRuntimeDirCreatedByBot = ownership.runtimePath;
+    return ownership;
   }
 
   async waitForServer() {
@@ -852,13 +883,7 @@ class AcceptanceBot {
           this.db.prepare('DELETE FROM users WHERE id = ?').run(userId);
         }
       } catch (err) {
-        this.steps.push({
-          group: 'cleanup',
-          name: 'remove local test data',
-          status: 'WARN',
-          detail: err.message,
-          durationMs: 0,
-        });
+        this.recordCleanupIssue('remove local test data', 'WARN', err);
       }
     }
 
@@ -871,26 +896,60 @@ class AcceptanceBot {
           this.featureFlags.updateFeatureFlag('membership', this.previousFlags.membership);
         }
       } catch (err) {
-        this.steps.push({
-          group: 'cleanup',
-          name: 'restore local feature flags',
-          status: 'WARN',
-          detail: err.message,
-          durationMs: 0,
-        });
+        this.recordCleanupIssue('restore local feature flags', 'WARN', err);
       }
     }
 
     if (this.server) {
-      await new Promise(resolve => this.server.close(resolve));
+      try {
+        await closeServerWithTimeout(this.server);
+      } catch (err) {
+        this.recordCleanupIssue('close local acceptance server', 'FAIL', err);
+      }
     }
     if (this.mode === 'local' && this.db && typeof this.db.close === 'function') {
       try {
         this.db.close();
       } catch (err) {
-        // The process can still exit; this is only best-effort cleanup.
+        this.recordCleanupIssue('close isolated acceptance database', 'WARN', err);
       }
     }
+
+    const runtimeOwnership = LOCAL_RUNTIME_OWNERSHIP.get(this);
+    if (this.mode === 'local' && runtimeOwnership) {
+      const runtimeDir = runtimeOwnership.runtimePath;
+      if (runtimeOwnership.keepData) {
+        this.retainedRuntimeDir = runtimeDir;
+        console.log(`Acceptance runtime data preserved (--keep-data): ${runtimeDir}`);
+      } else {
+        try {
+          if (validateOwnedLocalRuntimeRoot(runtimeOwnership)) {
+            fs.rmSync(runtimeDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+          }
+          LOCAL_RUNTIME_OWNERSHIP.delete(this);
+          this.localRuntimeDir = '';
+          this.localRuntimeDirCreatedByBot = '';
+        } catch (err) {
+          this.recordCleanupIssue(
+            'remove isolated runtime directory',
+            'FAIL',
+            new Error(`${runtimeDir}: ${errorMessage(err)}`)
+          );
+        }
+      }
+    }
+  }
+
+  recordCleanupIssue(name, status, err) {
+    const detail = errorMessage(err);
+    this.steps.push({
+      group: 'cleanup',
+      name,
+      status,
+      detail,
+      durationMs: 0,
+    });
+    console.error(`[${status}] cleanup :: ${name} - ${detail}`);
   }
 
   buildReport(startedAt) {
@@ -905,6 +964,7 @@ class AcceptanceBot {
       baseUrl: this.baseUrl,
       mode: this.mode,
       writeEnabled: this.options.write,
+      retainedRuntimeDir: this.retainedRuntimeDir || null,
       summary: {
         passed: summary.pass || 0,
         failed: summary.fail || 0,
@@ -945,6 +1005,7 @@ function renderMarkdownReport(report) {
     `- Mode: ${report.mode}`,
     `- Base URL: ${report.baseUrl}`,
     `- Write checks: ${report.writeEnabled ? 'enabled' : 'disabled'}`,
+    `- Retained runtime data: ${report.retainedRuntimeDir || 'none'}`,
     `- Summary: ${report.summary.passed} passed, ${report.summary.failed} failed, ${report.summary.warned} warned, ${report.summary.skipped} skipped`,
     '',
     '| Status | Group | Check | Duration | Detail |',
@@ -1031,6 +1092,150 @@ function warn(detail) {
   return { status: 'WARN', detail };
 }
 
+function sameFilesystemPath(left, right) {
+  if (process.platform === 'win32') {
+    return String(left).toLowerCase() === String(right).toLowerCase();
+  }
+  return left === right;
+}
+
+function directoryIdentity(stat) {
+  const validDevice = typeof stat.dev === 'bigint'
+    ? stat.dev !== 0n
+    : Number.isSafeInteger(stat.dev) && stat.dev !== 0;
+  const validInode = typeof stat.ino === 'bigint'
+    ? stat.ino !== 0n
+    : Number.isSafeInteger(stat.ino) && stat.ino !== 0;
+  return validDevice && validInode
+    ? Object.freeze({ dev: stat.dev, ino: stat.ino })
+    : null;
+}
+
+function createOwnedLocalRuntimeRoot(keepData = false) {
+  const tempRootRealpath = fs.realpathSync.native(os.tmpdir());
+  const runtimePath = path.resolve(fs.mkdtempSync(path.join(tempRootRealpath, LOCAL_RUNTIME_PREFIX)));
+  const runtimeRealpath = fs.realpathSync.native(runtimePath);
+  const runtimeStat = fs.lstatSync(runtimePath, { bigint: true });
+  const basename = path.basename(runtimePath);
+  const suffix = basename.slice(LOCAL_RUNTIME_PREFIX.length);
+
+  if (!sameFilesystemPath(path.dirname(runtimePath), tempRootRealpath)
+    || !sameFilesystemPath(path.dirname(runtimeRealpath), tempRootRealpath)) {
+    throw new Error(`Acceptance runtime is not a direct child of the system temp directory: ${runtimePath}`);
+  }
+  if (!basename.startsWith(LOCAL_RUNTIME_PREFIX) || suffix.length === 0) {
+    throw new Error(`Acceptance runtime has an invalid name: ${runtimePath}`);
+  }
+  if (!runtimeStat.isDirectory() || runtimeStat.isSymbolicLink()) {
+    throw new Error(`Acceptance runtime is not a real directory: ${runtimePath}`);
+  }
+
+  return Object.freeze({
+    tempRootRealpath,
+    runtimePath,
+    runtimeRealpath,
+    identity: directoryIdentity(runtimeStat),
+    keepData: Boolean(keepData),
+  });
+}
+
+function validateOwnedLocalRuntimeRoot(ownership) {
+  if (!ownership || !Object.isFrozen(ownership)) {
+    throw new Error('Acceptance runtime ownership snapshot is missing or mutable');
+  }
+
+  const currentTempRootRealpath = fs.realpathSync.native(os.tmpdir());
+  const runtimePath = path.resolve(ownership.runtimePath);
+  const basename = path.basename(runtimePath);
+  const suffix = basename.slice(LOCAL_RUNTIME_PREFIX.length);
+
+  if (!sameFilesystemPath(currentTempRootRealpath, ownership.tempRootRealpath)) {
+    throw new Error('System temp directory no longer matches the acceptance runtime ownership snapshot');
+  }
+  if (!sameFilesystemPath(path.dirname(runtimePath), ownership.tempRootRealpath)) {
+    throw new Error(`Acceptance runtime is not a direct child of the system temp directory: ${runtimePath}`);
+  }
+  if (!basename.startsWith(LOCAL_RUNTIME_PREFIX) || suffix.length === 0) {
+    throw new Error(`Acceptance runtime has an invalid name: ${runtimePath}`);
+  }
+
+  let runtimeStat;
+  try {
+    runtimeStat = fs.lstatSync(runtimePath, { bigint: true });
+  } catch (err) {
+    if (err && err.code === 'ENOENT') return false;
+    throw err;
+  }
+  if (!runtimeStat.isDirectory() || runtimeStat.isSymbolicLink()) {
+    throw new Error(`Refusing to remove replaced acceptance runtime: ${runtimePath}`);
+  }
+
+  const currentRuntimeRealpath = fs.realpathSync.native(runtimePath);
+  if (!sameFilesystemPath(currentRuntimeRealpath, ownership.runtimeRealpath)
+    || !sameFilesystemPath(path.dirname(currentRuntimeRealpath), ownership.tempRootRealpath)) {
+    throw new Error(`Acceptance runtime realpath changed: ${runtimePath}`);
+  }
+
+  const currentIdentity = directoryIdentity(runtimeStat);
+  if (ownership.identity && (!currentIdentity
+    || ownership.identity.dev !== currentIdentity.dev
+    || ownership.identity.ino !== currentIdentity.ino)) {
+    throw new Error(`Acceptance runtime identity changed: ${runtimePath}`);
+  }
+  return true;
+}
+
+function errorMessage(err) {
+  if (err && err.stack) return firstLine(err.stack);
+  if (err && err.message) return err.message;
+  return String(err);
+}
+
+function closeServerWithTimeout(server, timeoutMs = SERVER_CLOSE_TIMEOUT_MS) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = err => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (err) reject(err);
+      else resolve();
+    };
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+
+      const forcedMethods = [];
+      const forceErrors = [];
+      for (const method of ['closeIdleConnections', 'closeAllConnections']) {
+        if (typeof server[method] !== 'function') continue;
+        forcedMethods.push(`${method}()`);
+        try {
+          server[method]();
+        } catch (err) {
+          forceErrors.push(`${method}: ${errorMessage(err)}`);
+        }
+      }
+
+      const forcedDetail = forcedMethods.length > 0
+        ? `forced ${forcedMethods.join(' and ')}`
+        : 'no supported forced-close API was available';
+      const forceErrorDetail = forceErrors.length > 0
+        ? `; forced-close errors: ${forceErrors.join('; ')}`
+        : '';
+      reject(new Error(
+        `server did not close within ${timeoutMs}ms; ${forcedDetail}${forceErrorDetail}`
+      ));
+    }, timeoutMs);
+
+    try {
+      server.close(err => finish(err || null));
+    } catch (err) {
+      finish(err);
+    }
+  });
+}
+
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -1077,7 +1282,15 @@ async function main() {
   process.exit(exitCode);
 }
 
-main().catch(err => {
-  console.error(err && err.stack ? err.stack : err);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch(err => {
+    console.error(err && err.stack ? err.stack : err);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  AcceptanceBot,
+  closeServerWithTimeout,
+  __test: Object.freeze({ createOwnedLocalRuntimeRoot, validateOwnedLocalRuntimeRoot }),
+};
