@@ -4,7 +4,6 @@
   "onReachBottomDistance": 100,
   "backgroundTextStyle": "dark",
   "usingComponents": {
-    "empty-state": "/components/empty-state/empty-state",
     "c-job-card": "/components/c-job-card/c-job-card"
   }
 }

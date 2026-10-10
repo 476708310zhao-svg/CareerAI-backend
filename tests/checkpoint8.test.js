@@ -420,7 +420,7 @@ test('daily brief discards an old-owner result and stores only the current owner
   assert.equal(storage['dailyBriefCache:owner-b'].result.todaySummary, 'B current');
 });
 
-test('only proven orphaned home components are removed and have no runtime references', () => {
+test('only proven orphaned components are removed and have no runtime references', () => {
   const removed = ['home-core-tools', 'home-career-insights'];
   removed.forEach(name => ['js', 'json', 'wxml', 'wxss'].forEach(extension => {
     assert.equal(fs.existsSync(path.join(ROOT, 'components', name, `${name}.${extension}`)), false, `${name}.${extension}`);
@@ -430,6 +430,18 @@ test('only proven orphaned home components are removed and have no runtime refer
     const refs = files.filter(file => fs.readFileSync(file, 'utf8').includes(name));
     assert.deepEqual(refs, [], name + ' must have no miniprogram references');
   });
+});
+
+test('the unused empty-state component is removed without banning local empty-state styles', () => {
+  ['js', 'json', 'wxml', 'wxss'].forEach(extension => {
+    assert.equal(fs.existsSync(path.join(ROOT, 'components', 'empty-state', `empty-state.${extension}`)), false);
+  });
+  const files = walk(ROOT).filter(file => /\.(?:json|wxml)$/.test(file));
+  const componentRefs = files.filter(file => {
+    const source = fs.readFileSync(file, 'utf8');
+    return /\/components\/empty-state\/empty-state|<empty-state(?:\s|>)/.test(source);
+  });
+  assert.deepEqual(componentRefs, []);
 });
 
 test('legacy AI Career routes are lightweight safe-query redirects', () => {

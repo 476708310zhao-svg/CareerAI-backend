@@ -91,3 +91,26 @@ test('login popup always provides visible cancel paths and exits after phone den
   assert.match(popupJs, /if \(!e\.detail\.code\) \{[\s\S]*?_dismissLogin\('phone-denied'\)/);
   assert.match(popupJs, /triggerEvent\('close', \{ reason \}\)/);
 });
+
+test('login converts a misrouted production 404 into an actionable service message', () => {
+  const apiClient = read('utils/api-client.js');
+  const apiUser = read('utils/api-user.js');
+  const { _createHttpError } = require('../miniprogram/utils/api-client.js');
+  const routeError = _createHttpError({ statusCode: 404, data: '<!DOCTYPE html><html><body>Not Found</body></html>' });
+  const resourceError = _createHttpError({ statusCode: 404, data: { message: '申请记录不存在' } });
+
+  assert.match(apiClient, /isHtmlNotFound[\s\S]*?SERVICE_ROUTE_UNAVAILABLE/);
+  assert.match(apiClient, /服务接口暂不可用，请稍后重试/);
+  assert.match(apiUser, /function normalizeLoginError\(error\)/);
+  assert.match(apiUser, /登录服务暂不可用，请稍后重试/);
+  assert.match(apiUser, /LOGIN_SERVICE_UNAVAILABLE/);
+  assert.equal(routeError.code, 'SERVICE_ROUTE_UNAVAILABLE');
+  assert.equal(routeError.message, '服务接口暂不可用，请稍后重试');
+  assert.equal(resourceError.message, '申请记录不存在');
+});
+
+test('production nginx gives API routes explicit priority over a co-hosted website', () => {
+  const nginx = fs.readFileSync(path.join(ROOT, '..', 'nginx.conf'), 'utf8');
+  assert.match(nginx, /location \^~ \/api\/\s*\{/);
+  assert.match(nginx, /location \^~ \/api\/[\s\S]*?proxy_pass\s+http:\/\/127\.0\.0\.1:4400;/);
+});

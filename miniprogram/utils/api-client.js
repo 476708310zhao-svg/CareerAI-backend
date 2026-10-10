@@ -28,7 +28,13 @@ function _createNetworkError(err) {
 
 function _createHttpError(res) {
   const message = res.data && (res.data.message || res.data.error);
-  const error = new Error(message || ('HTTP ' + res.statusCode));
+  const isHtmlNotFound = Number(res.statusCode) === 404
+    && typeof res.data === 'string'
+    && /<!doctype html|<html[\s>]/i.test(res.data);
+  const error = new Error(message || (isHtmlNotFound
+    ? '服务接口暂不可用，请稍后重试'
+    : ('HTTP ' + res.statusCode)));
+  error.code = isHtmlNotFound ? 'SERVICE_ROUTE_UNAVAILABLE' : 'HTTP_ERROR';
   error.statusCode = res.statusCode;
   error.body = res.data;
   return error;
@@ -219,4 +225,4 @@ function _write(options, _retried) {
 function post(options) { return _write(Object.assign({}, options, { method: 'POST' })); }
 function put(options)  { return _write(Object.assign({}, options, { method: 'PUT', timeout: options.timeout || 15000 })); }
 
-module.exports = { request, _write, post, put, DETAIL_CACHE_TTL, _isSuccessStatus };
+module.exports = { request, _write, post, put, DETAIL_CACHE_TTL, _isSuccessStatus, _createHttpError };

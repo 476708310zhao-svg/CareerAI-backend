@@ -55,6 +55,16 @@ function persistUserSession(user) {
   return profile;
 }
 
+function normalizeLoginError(error) {
+  if (error && (error.code === 'SERVICE_ROUTE_UNAVAILABLE' || Number(error.statusCode) === 404)) {
+    const serviceError = new Error('登录服务暂不可用，请稍后重试');
+    serviceError.code = 'LOGIN_SERVICE_UNAVAILABLE';
+    serviceError.statusCode = 404;
+    return serviceError;
+  }
+  return error instanceof Error ? error : new Error('登录失败，请重试');
+}
+
 /**
  * 微信登录：wx.login → code → 后端 → JWT token
  * 成功后自动将 token 和 userProfile 存入 Storage
@@ -76,7 +86,7 @@ function login() {
           } else {
             reject(new Error(res.message || '登录失败'));
           }
-        }).catch(reject);
+        }).catch(error => reject(normalizeLoginError(error)));
       },
       fail: (err) => reject(new Error('wx.login 调用失败: ' + JSON.stringify(err)))
     });
@@ -116,11 +126,11 @@ function phoneLogin(phoneCode, loginCode) {
       return res.data;
     }
     throw new Error(res.message || '手机号登录失败');
-  });
+  }).catch(error => { throw normalizeLoginError(error); });
 }
 
 function getApplications() {
   return request({ path: '/api/applications' });
 }
 
-module.exports = { login, phoneLogin, getUserProfile, getUserProfileSchema, updateUserProfileRemote, updateUserDetail, getApplications, persistUserSession };
+module.exports = { login, phoneLogin, getUserProfile, getUserProfileSchema, updateUserProfileRemote, updateUserDetail, getApplications, persistUserSession, normalizeLoginError };
