@@ -112,6 +112,32 @@ Component({
         fail: () => this.syncState()
       });
       if (!started) this.syncState();
+    },
+
+    goAiAssistant() {
+      const pages = getCurrentPages();
+      const current = pages[pages.length - 1] || {};
+      const route = String(current.route || '').replace(/^\/+/, '');
+      const data = current.data || {};
+      const context = { source: route.split('/').pop() || 'home' };
+
+      if (route === 'pages/applications/applications') {
+        const application = (data.visibleApplications || [])[0] || (data.applications || [])[0] || {};
+        context.applicationId = application.id || '';
+        context.company = application.company || '';
+        context.role = application.jobTitle || application.title || '';
+      } else if (route === 'pages/jobs/jobs') {
+        context.role = data.searchKeyword || data.activeTag || '';
+      } else if (route === 'pages/resources/resources') {
+        context.company = data.company || '';
+        context.role = data.role || '';
+      }
+
+      const query = Object.keys(context)
+        .filter(key => context[key] !== '')
+        .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(context[key])}`)
+        .join('&');
+      navigation.safeNavigateTo('/package-ai/pages/ai-assistant/ai-assistant' + (query ? `?${query}` : ''));
     }
   }
 });

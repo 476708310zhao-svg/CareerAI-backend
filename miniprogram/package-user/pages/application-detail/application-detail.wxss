@@ -8,6 +8,7 @@ page { background: #F5F7FB; color: #101828; font-family: -apple-system, BlinkMac
 .hero-company { margin-top: 10rpx; color: #DBEAFE; font-size: 25rpx; }
 .status-pill { position: absolute; top: 30rpx; right: 28rpx; padding: 9rpx 18rpx; border-radius: 999rpx; color: #172554; background: #fff; font-size: 22rpx; font-weight: 800; }
 .hero-action { margin-top: 28rpx; font-size: 24rpx; font-weight: 700; }
+.context-ai-action { display: flex; align-items: center; width: fit-content; min-height: 72rpx; margin-top: 18rpx; padding: 0 22rpx; border: 1rpx solid rgba(255,255,255,.34); border-radius: 999rpx; background: rgba(255,255,255,.15); box-shadow: inset 0 1rpx 0 rgba(255,255,255,.2); }
 .primary-action-bar { display: flex; align-items: center; justify-content: space-between; margin-top: 18rpx; padding: 22rpx 26rpx; border: 1rpx solid #BFDBFE; border-radius: 20rpx; color: #1E3A8A; background: #EFF6FF; box-shadow: 0 8rpx 24rpx rgba(37, 99, 235, .10); }
 .primary-action-copy { display: flex; flex-direction: column; gap: 6rpx; }
 .primary-action-kicker { color: #64748B; font-size: 21rpx; }

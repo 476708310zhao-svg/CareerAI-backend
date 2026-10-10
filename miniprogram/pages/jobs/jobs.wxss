@@ -4,3 +4,14 @@ page { min-height:100%; background:#f3f6fb; color:#14213d; } view,text,input,but
 .skeleton-list { display:flex; flex-direction:column; gap:16rpx; }.skeleton-card { padding:26rpx; border:1rpx solid #e3e9f2; border-radius:26rpx; background:#fff; }.skeleton-title { width:58%; height:28rpx; border-radius:8rpx; }.skeleton-line { width:82%; height:20rpx; margin-top:20rpx; border-radius:8rpx; }.skeleton-line.short { width:44%; }.shimmer { background:linear-gradient(90deg,#edf1f6 20%,#f8fafc 50%,#edf1f6 80%); background-size:200% 100%; animation:shimmer 1.2s linear 3; }.list-tip { display:block; padding:22rpx; color:#667085; font-size:24rpx; text-align:center; }
 .filter-panel { padding:18rpx 28rpx calc(30rpx + env(safe-area-inset-bottom)); }.panel-head { display:flex; align-items:center; justify-content:space-between; }.panel-title { font-size:32rpx; font-weight:740; }.filter-label { margin-top:24rpx; margin-bottom:13rpx; color:#344054; font-size:24rpx; font-weight:650; }.filter-chips { display:flex; flex-wrap:wrap; gap:12rpx; }.filter-chips.nowrap { display:inline-flex; flex-wrap:nowrap; padding-bottom:4rpx; }.filter-chip { min-height:88rpx; }.panel-actions .primary-action,.panel-actions .secondary-action { flex:1; }.safe-tail { height:10rpx; } @keyframes shimmer { to { background-position:-200% 0; } }
 @media (max-width:340px) { .jobs-page { padding-left:22rpx; padding-right:22rpx; }.filter-button { min-width:110rpx; }.filter-button text:last-child { display:none; }.closed-actions { flex-direction:column; } }
+
+/* Layered cards and floating controls from the established UI. */
+page { background: radial-gradient(circle at 90% -6%, rgba(105,133,255,.16), transparent 32%), linear-gradient(180deg,#fbfdff,#f3f7fd 56%,#f8fafc); }
+.search-card,.closed-card,.state-card,.profile-notice,.campus-entry,.source-notice { border-color: rgba(190,208,232,.7); background: linear-gradient(145deg,rgba(255,255,255,.99),rgba(247,250,255,.98)); box-shadow: 0 14rpx 34rpx rgba(36,58,92,.075), inset 0 1rpx 0 rgba(255,255,255,.95); }
+.search-card { border-radius: 30rpx; box-shadow: 0 20rpx 46rpx rgba(37,68,112,.1), inset 0 1rpx 0 rgba(255,255,255,.96); }
+.search-box { border: 1rpx solid rgba(205,217,235,.76); background: rgba(247,250,255,.96); }
+.filter-button,.match-button { border-color: rgba(190,208,232,.82); background: rgba(255,255,255,.9); box-shadow: 0 8rpx 22rpx rgba(36,58,92,.055); }
+.quick-chip,.history-chip,.filter-chip { border-color: rgba(197,211,231,.82); box-shadow: 0 7rpx 18rpx rgba(36,58,92,.04); }
+.quick-chip.active,.filter-chip.active,.match-button.active { border-color: rgba(76,112,224,.48); background: linear-gradient(135deg,#eef4ff,#e8edff); box-shadow: 0 8rpx 20rpx rgba(43,92,230,.09); }
+.primary-action { background: linear-gradient(135deg,#2b5ce6,#5d55df); box-shadow: 0 12rpx 28rpx rgba(43,92,230,.22); }
+.campus-mark { background: linear-gradient(145deg,#eef5ff,#e4ecff); box-shadow: 0 9rpx 20rpx rgba(43,92,230,.1); }

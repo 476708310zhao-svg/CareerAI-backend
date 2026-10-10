@@ -172,13 +172,17 @@ test('visual styles keep readable body text, stable press feedback and finite lo
   const files = [
     'pages/index/index.wxss', 'pages/jobs/jobs.wxss', 'pages/applications/applications.wxss',
     'pages/resources/resources.wxss', 'pages/profile/profile.wxss',
-    'components/c-job-card/c-job-card.wxss', 'custom-tab-bar/index.wxss'
+    'components/c-job-card/c-job-card.wxss'
   ];
   const css = files.map(read).join('\n');
   assert.doesNotMatch(css, /font-size:\s*(?:1\d|2[0-3])rpx/);
   assert.doesNotMatch(css, /#7b879b|#7b8493/i);
   assert.doesNotMatch(css, /transform:\s*scale\(/);
   assert.doesNotMatch(css, /animation:[^;]*infinite/);
+  const tabCss = read('custom-tab-bar/index.wxss');
+  assert.match(tabCss, /animation:[^;]*infinite/);
+  assert.match(tabCss, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+  assert.match(tabCss, /\.ai-float-core[\s\S]*animation:\s*none/);
   assert.doesNotMatch(read('app.wxss'), /!important/);
 });
 

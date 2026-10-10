@@ -375,6 +375,22 @@ Page({
     wx.pageScrollTo({ selector: action.action === 'tasks' ? '#application-tasks' : '#follow-up', duration: 280 });
   },
 
+  openContextAi() {
+    const application = this.data.application || {};
+    const snapshot = application.jobSnapshot || {};
+    const params = {
+      source: 'applications',
+      applicationId: this.data.id,
+      company: application.company || snapshot.company || '',
+      role: application.jobTitle || snapshot.title || snapshot.jobTitle || ''
+    };
+    const query = Object.keys(params)
+      .filter(key => params[key] !== '')
+      .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+      .join('&');
+    wx.navigateTo({ url: '/package-ai/pages/ai-assistant/ai-assistant?' + query });
+  },
+
   openApplicationMaterials() {
     if (!this.data.id) return;
     wx.navigateTo({

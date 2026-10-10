@@ -53,3 +53,14 @@ view, text, input { box-sizing: border-box; }
 .truth-desc { margin-top: 7rpx; color: #667085; font-size: 24rpx; line-height: 1.55; }
 .bottom-spacer { height: 16rpx; }
 @media (max-width: 340px) { .resource-page { padding-left: 22rpx; padding-right: 22rpx; } }
+
+/* Reuse the original soft-gradient resource card treatment. */
+page { background: radial-gradient(circle at 90% -6%,rgba(105,133,255,.16),transparent 32%),linear-gradient(180deg,#fbfdff,#f3f7fd 58%,#f8fafc); }
+.search-card,.context-card,.asset-card,.empty-card,.truth-card { border-color: rgba(190,208,232,.72); background: linear-gradient(145deg,rgba(255,255,255,.99),rgba(247,250,255,.98)); box-shadow: 0 14rpx 34rpx rgba(36,58,92,.075),inset 0 1rpx 0 rgba(255,255,255,.95); }
+.context-card { border-color: rgba(158,185,235,.72); background: radial-gradient(circle at 100% 0,rgba(106,134,255,.14),transparent 40%),linear-gradient(135deg,#fff,#f1f5ff); }
+.search-row { border: 1rpx solid rgba(205,217,235,.76); background: rgba(247,250,255,.96); }
+.category-chip,.type-chip { border-color: rgba(197,211,231,.82); box-shadow: 0 7rpx 18rpx rgba(36,58,92,.04); }
+.category-chip.active,.type-chip.active { border-color: rgba(76,112,224,.48); background: linear-gradient(135deg,#eef4ff,#e8edff); box-shadow: 0 8rpx 20rpx rgba(43,92,230,.09); }
+.asset-card { border-radius: 28rpx; }
+.asset-mark { background: linear-gradient(145deg,#edf4ff,#e3ebff); box-shadow: 0 9rpx 20rpx rgba(43,92,230,.09); }
+.truth-card { border-color: rgba(150,178,229,.65); background: linear-gradient(135deg,#f8fbff,#eef3ff); }

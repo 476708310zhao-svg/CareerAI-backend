@@ -15,13 +15,18 @@
     <view class="top-title">
       <text class="top-icon">AI</text>
       <view class="top-copy">
-        <text class="top-name">AI 求职助手</text>
-        <text class="top-sub">围绕岗位、申请、简历与面试连续协作</text>
+        <text class="top-name">{{contextActive ? 'AI 帮我推进' : 'AI 求职助手'}}</text>
+        <text class="top-sub">{{contextActive ? '已继承当前页面信息' : '围绕岗位、申请、简历与面试连续协作'}}</text>
       </view>
     </view>
     <view class="new-chat-btn" bindtap="onNewChat" hover-class="btn-hover">
       <text class="new-chat-icon">+</text>
     </view>
+  </view>
+
+  <view wx:if="{{contextActive}}" class="context-bar" aria-role="status" aria-label="当前上下文：{{contextLabel}}">
+    <view class="context-mark" aria-hidden="true"><text>CTX</text></view>
+    <text class="context-text">当前上下文：{{contextLabel}}</text>
   </view>
 
   <view wx:if="{{sidebarOpen}}" class="drawer-mask" bindtap="toggleSidebar"></view>
@@ -240,7 +245,7 @@
       <text class="input-leading">AI</text>
       <input
         class="input"
-        placeholder="输入求职问题或具体目标"
+        placeholder="{{composerPlaceholder}}"
         placeholder-class="input-ph"
         value="{{inputText}}"
         bindinput="onInputChange"

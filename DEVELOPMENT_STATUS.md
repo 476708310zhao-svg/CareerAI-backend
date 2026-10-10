@@ -128,6 +128,8 @@ Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成
 
 ## 当前文件占用
 
+- Codex（2026-10-10）：恢复小程序旧版视觉语言、悬浮 TabBar 与上下文 AI 入口。范围 `miniprogram/custom-tab-bar/*`、五个一级页面 WXSS、`components/c-job-card`、`package-ai/pages/ai-assistant/*` 及相关导航/视觉测试；保留五 Tab、申请工作流和数据库隔离，不回退业务结构。状态：代码完成；336/336 全量测试、30/30 Acceptance、`check:miniprogram` 与 `git diff --check` 通过，主数据库指纹未变；待微信开发者工具人工视觉验收。
+
 | 负责人 | 文件 | 任务 | 状态 |
 |---|---|---|---|
 | Codex | `miniprogram/package-career/pages/career-coach/*`、`tests/sprint4CareerCoach.test.js`、开发记录 | 修复竞争力陪跑登录按钮只更新状态、未挂载登录弹层而无响应 | 已完成；专项 6/6、全量 204/204、发布检查和微信 CLI preview 通过 |

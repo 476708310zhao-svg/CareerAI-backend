@@ -274,6 +274,11 @@ Page({
     statusBarHeight: 44,
     safeBottom:  0,
     keyboardHeight: 0,
+    contextActive: false,
+    contextLabel: '',
+    contextSource: '',
+    contextApplicationId: '',
+    composerPlaceholder: '输入求职问题或具体目标',
     sidebarOpen: false,
     showMoreTools: false,
     showLoginPopup: false,
@@ -340,6 +345,7 @@ Page({
       safeBottom
     });
     this._buildUserContext();
+    this._applyRouteContext(options);
     this._restoreOrInit();
     this.loadAssistantResumeContext();
     if (options.action === 'application') {
@@ -422,6 +428,58 @@ Page({
         appCount:  (wx.getStorageSync('localApplications') || []).length
       };
     } catch (e) {}
+  },
+
+  _applyRouteContext(options = {}) {
+    const read = value => {
+      try { return decodeURIComponent(String(value || '')).trim(); } catch (error) { return String(value || '').trim(); }
+    };
+    const source = read(options.source || '');
+    const applicationId = read(options.applicationId || '');
+    let company = read(options.company || '');
+    let role = read(options.role || '');
+    let application = null;
+    try {
+      const applications = progress.getList ? progress.getList() : [];
+      application = applicationId
+        ? applications.find(item => String(item.id) === applicationId)
+        : (source === 'applications' ? applications.find(item => !['offer', 'rejected', 'withdrawn'].includes(String(item.status || ''))) || applications[0] : null);
+    } catch (error) {}
+
+    if (application) {
+      const snapshot = application.jobSnapshot || {};
+      company = company || application.company || snapshot.company || '';
+      role = role || application.jobTitle || application.title || snapshot.title || '';
+    }
+
+    const applicationLabel = [company, role].filter(Boolean).join(' · ');
+    const sourceLabels = {
+      index: '首页 · 今日行动',
+      home: '首页 · 今日行动',
+      jobs: role ? `找岗位 · ${role}` : '找岗位',
+      applications: applicationLabel ? `${applicationLabel}申请` : '申请工作台',
+      resources: applicationLabel ? `资源准备 · ${applicationLabel}` : '资源准备',
+      profile: '个人求职档案'
+    };
+    const contextLabel = applicationLabel && source !== 'applications'
+      ? applicationLabel
+      : (sourceLabels[source] || applicationLabel || '');
+    const contextActive = Boolean(source || applicationId || company || role);
+    if (!contextActive) return;
+
+    this._userContext = Object.assign({}, this._userContext || {}, {
+      currentPage: source,
+      applicationId: applicationId || (application && application.id) || '',
+      company,
+      targetJob: role || (this._userContext && this._userContext.targetJob) || ''
+    });
+    this.setData({
+      contextActive: true,
+      contextLabel: contextLabel || '当前求职任务',
+      contextSource: source,
+      contextApplicationId: applicationId || (application && application.id) || '',
+      composerPlaceholder: source === 'applications' || applicationId ? '继续问这条申请…' : '围绕当前页面继续提问…'
+    });
   },
 
   // ── 简历摘要注入（检测到简历相关意图时） ──────────────────────
@@ -957,6 +1015,9 @@ Page({
     if (ctx.location) parts.push('目标地区：' + ctx.location);
     if (ctx.education) parts.push('学历背景：' + ctx.education);
     if (ctx.hasResume) parts.push('用户已完善简历信息');
+    if (ctx.company) parts.push('当前公司：' + ctx.company);
+    if (ctx.applicationId) parts.push('当前申请 ID：' + ctx.applicationId);
+    if (ctx.currentPage) parts.push('当前页面：' + ctx.currentPage);
     return parts.length ? FALLBACK_SYSTEM + '\n\n用户信息：\n' + parts.join('\n') : FALLBACK_SYSTEM;
   },
 

@@ -23,3 +23,12 @@ view, text, image { box-sizing: border-box; }
 .service-name { flex: 1; font-size: 26rpx; font-weight: 640; }.service-copy .service-name { display: block; }.service-desc { margin-top: 4rpx; color: #667085; font-size: 24rpx; }
 .unread { min-width: 36rpx; height: 36rpx; padding: 0 10rpx; border-radius: 999rpx; color: #fff; background: #d83b3b; font-size: 24rpx; line-height: 36rpx; text-align: center; }
 .press, .row-press { opacity: .76; }.row-press { background: #f7f9fd; }
+
+/* Restore the premium cards and floating visual depth without changing structure. */
+page { background: radial-gradient(circle at 90% -6%,rgba(105,133,255,.17),transparent 33%),linear-gradient(180deg,#fbfdff,#f3f7fd 58%,#f8fafc); }
+.identity-card,.member-card,.asset-tile,.service-card { border-color: rgba(190,208,232,.72); background: linear-gradient(145deg,rgba(255,255,255,.99),rgba(247,250,255,.98)); box-shadow: 0 14rpx 34rpx rgba(36,58,92,.075),inset 0 1rpx 0 rgba(255,255,255,.95); }
+.identity-card { border-radius: 30rpx; box-shadow: 0 20rpx 46rpx rgba(37,68,112,.1),inset 0 1rpx 0 rgba(255,255,255,.96); }
+.avatar { border: 4rpx solid rgba(255,255,255,.96); box-shadow: 0 12rpx 28rpx rgba(31,55,96,.12); }
+.member-card { border-color: rgba(91,104,223,.62); background: radial-gradient(circle at 100% 0,rgba(116,212,255,.3),transparent 36%),linear-gradient(135deg,#173b8f,#3d5fd1 62%,#6755df); box-shadow: 0 20rpx 42rpx rgba(42,71,166,.21),inset 0 1rpx 0 rgba(255,255,255,.22); }
+.asset-tile { border-radius: 28rpx; }
+.asset-icon,.service-icon { box-shadow: inset 0 1rpx 0 rgba(255,255,255,.92),0 8rpx 18rpx rgba(36,58,92,.06); }

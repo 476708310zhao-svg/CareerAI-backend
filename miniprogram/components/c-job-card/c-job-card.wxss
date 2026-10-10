@@ -274,3 +274,15 @@
 .job-card--compact .job-card__company-row {
   margin-top: 14rpx;
 }
+
+/* Match the established elevated card language used across the mini program. */
+.job-card {
+  border-color: rgba(190,208,232,.72);
+  border-radius: 28rpx;
+  background: linear-gradient(145deg,rgba(255,255,255,.99),rgba(247,250,255,.98));
+  box-shadow: 0 14rpx 34rpx rgba(36,58,92,.075),inset 0 1rpx 0 rgba(255,255,255,.95);
+}
+.job-card--pressed { opacity: .9; box-shadow: 0 8rpx 20rpx rgba(36,58,92,.055); }
+.job-card__logo { box-shadow: 0 8rpx 18rpx rgba(36,58,92,.08); }
+.job-card__queue { border-radius: 999rpx; background: linear-gradient(135deg,#eef4ff,#e8edff); box-shadow: 0 8rpx 20rpx rgba(43,92,230,.09); }
+.job-card__tag,.job-card__skill,.job-card__evidence-tag { border-radius: 999rpx; }

@@ -1,4 +1,20 @@
 <view class="custom-tabbar">
+  <view
+    class="ai-float"
+    catchtap="goAiAssistant"
+    hover-class="ai-float-hover"
+    aria-role="button"
+    aria-label="打开当前页面的上下文 AI"
+  >
+    <view class="ai-float-core">
+      <view class="ai-float-glow" aria-hidden="true"></view>
+      <view class="ai-float-orbit orbit-a" aria-hidden="true"></view>
+      <view class="ai-float-orbit orbit-b" aria-hidden="true"></view>
+      <view class="ai-float-spark spark-one" aria-hidden="true"></view>
+      <view class="ai-float-spark spark-two" aria-hidden="true"></view>
+      <view class="ai-float-mark"><text class="ai-float-text">AI</text></view>
+    </view>
+  </view>
   <view class="tabbar-panel">
     <block wx:for="{{list}}" wx:key="pagePath">
       <view

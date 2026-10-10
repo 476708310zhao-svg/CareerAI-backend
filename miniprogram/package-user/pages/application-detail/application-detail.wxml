@@ -13,6 +13,7 @@
       </view>
       <view class="status-pill">{{application.statusText}}</view>
       <view class="hero-action" bindtap="viewJob">查看岗位详情 ›</view>
+      <view class="hero-action context-ai-action" bindtap="openContextAi">让 AI 帮我推进这条申请 ›</view>
       <view class="hero-action" wx:if="{{application.status === 'phone_screen' || application.status === 'interview_1' || application.status === 'interview_2' || application.status === 'final'}}" bindtap="openInterviewSpace">进入岗位面试空间 ›</view>
     </view>
 

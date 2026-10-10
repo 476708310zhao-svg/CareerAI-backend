@@ -10,6 +10,35 @@ page { background: #F2F2F7; }
   background: radial-gradient(circle at 12% 0, rgba(43,92,230,0.06), transparent 30%), linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
 }
 
+.context-bar {
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  min-height: 72rpx;
+  padding: 12rpx 28rpx;
+  border-bottom: 1rpx solid rgba(133, 161, 232, 0.42);
+  color: #2556c7;
+  background: linear-gradient(90deg, #edf3ff 0%, #e6edff 100%);
+  box-shadow: 0 8rpx 22rpx rgba(45, 87, 190, 0.06);
+}
+
+.context-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 15rpx;
+  color: #fff;
+  background: linear-gradient(145deg, #4c83f3, #6457e8);
+  box-shadow: 0 8rpx 18rpx rgba(65, 94, 214, 0.18);
+}
+
+.context-mark text { font-size: 16rpx; font-weight: 900; letter-spacing: .5rpx; }
+.context-text { overflow: hidden; font-size: 24rpx; font-weight: 700; line-height: 34rpx; text-overflow: ellipsis; white-space: nowrap; }
+
 /* 鈹€鈹€ 椤堕儴鏍?鈹€鈹€ */
 .top-bar {
   min-height: 88rpx;

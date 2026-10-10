@@ -159,7 +159,7 @@ test('custom TabBar restores selected state and owner-scoped unread badge after 
   assert.deepEqual(navigated, ['/pages/jobs/jobs']);
 });
 
-test('home puts one honest primary action first and removes tool-hall and floating-AI distractions', () => {
+test('home puts one honest primary action first while the restored contextual AI stays outside home content', () => {
   const home = read('pages/index/index.wxml');
   const homeJs = read('pages/index/index.js');
   const tabWxml = read('custom-tab-bar/index.wxml');
@@ -168,8 +168,10 @@ test('home puts one honest primary action first and removes tool-hall and floati
   assert.ok(home.indexOf('class="zy-main-action"') < home.indexOf('今天还要做'));
   assert.doesNotMatch(home, /\sautoplay(?:\s|>)/);
   assert.doesNotMatch(home, /home-core-tools|home-career-insights|banner-wrap|membership-benefit-banner/);
-  assert.doesNotMatch(tabWxml, /ai-float|goAiAssistant/);
-  assert.doesNotMatch(tabWxss, /ai-float|ai-orbit|ai-glow/);
+  assert.match(tabWxml, /class="ai-float"/);
+  assert.match(tabWxml, /catchtap="goAiAssistant"/);
+  assert.match(tabWxss, /\.ai-float/);
+  assert.match(tabWxss, /prefers-reduced-motion/);
   assert.match(home, /workbench\.primaryUrl/);
   assert.doesNotMatch(home, /zy-progress-card|zy-progress-item|求职进展/);
   assert.match(homeJs, /title = nextTask\.title/);

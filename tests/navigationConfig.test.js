@@ -112,16 +112,20 @@ test('application pipeline entry points use the main progress Tab', () => {
 
 
 
-test('home keeps one highest-priority action without a global floating AI entry', () => {
+test('home keeps one highest-priority action and the floating AI inherits page context', () => {
   const customWxml = read('custom-tab-bar/index.wxml');
   const customJs = read('custom-tab-bar/index.js');
   const customWxss = read('custom-tab-bar/index.wxss');
   const homeWxml = read('pages/index/index.wxml');
   const homeJs = read('pages/index/index.js');
 
-  assert.doesNotMatch(customWxml, /ai-float|goAiAssistant/);
-  assert.doesNotMatch(customJs, /goAiAssistant|package-ai\/pages\/ai-assistant\/ai-assistant/);
-  assert.doesNotMatch(customWxss, /ai-float|ai-orbit|ai-glow/);
+  assert.match(customWxml, /class="ai-float"/);
+  assert.match(customWxml, /catchtap="goAiAssistant"/);
+  assert.match(customJs, /goAiAssistant\(\)/);
+  assert.match(customJs, /applicationId/);
+  assert.match(customJs, /package-ai\/pages\/ai-assistant\/ai-assistant/);
+  assert.match(customWxss, /\.ai-float/);
+  assert.match(customWxss, /\.tabbar-panel[\s\S]*border-radius:\s*34rpx/);
   assert.equal((homeWxml.match(/class="zy-main-action"/g) || []).length, 1);
   assert.ok(homeWxml.indexOf('class="zy-main-action"') < homeWxml.indexOf('今天还要做'));
   assert.doesNotMatch(homeWxml, /\sautoplay(?:\s|>)/);
@@ -132,6 +136,24 @@ test('home keeps one highest-priority action without a global floating AI entry'
   assert.match(homeJs, /buildPrimaryTaskMeta\(nextTask, applications\)/);
   assert.match(homeJs, /String\(item\.id \|\| ''\) !== primaryTaskId/);
   assert.match(homeJs, /\.slice\(0, 2\)/);
+});
+
+test('contextual AI shows inherited application context and remains directly reachable from application detail', () => {
+  const assistantJs = read('package-ai/pages/ai-assistant/ai-assistant.js');
+  const assistantWxml = read('package-ai/pages/ai-assistant/ai-assistant.wxml');
+  const detailJs = read('package-user/pages/application-detail/application-detail.js');
+  const detailWxml = read('package-user/pages/application-detail/application-detail.wxml');
+
+  assert.match(assistantJs, /_applyRouteContext\(options\)/);
+  assert.match(assistantJs, /contextApplicationId/);
+  assert.match(assistantJs, /currentPage/);
+  assert.match(assistantWxml, /AI 帮我推进/);
+  assert.match(assistantWxml, /当前上下文：\{\{contextLabel\}\}/);
+  assert.match(assistantWxml, /placeholder="\{\{composerPlaceholder\}\}"/);
+  assert.match(detailWxml, /bindtap="openContextAi"/);
+  assert.match(detailWxml, /让 AI 帮我推进这条申请/);
+  assert.match(detailJs, /applicationId:\s*this\.data\.id/);
+  assert.match(detailJs, /ai-assistant\/ai-assistant/);
 });
 
 test('home recommendations are controlled by an independent public feature flag', () => {

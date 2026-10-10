@@ -1,6 +1,87 @@
-.custom-tabbar { position:fixed; left:0; right:0; bottom:0; z-index:9999; padding-bottom:env(safe-area-inset-bottom); border-top:1rpx solid #e4e9f1; background:rgba(255,255,255,.97); }
-.tabbar-panel { display:flex; align-items:center; width:100%; min-height:108rpx; padding:6rpx 12rpx; }
-.tabbar-item { position:relative; display:flex; flex:1; min-width:0; min-height:96rpx; flex-direction:column; align-items:center; justify-content:center; gap:4rpx; border-radius:20rpx; }
-.tabbar-item-hover { background:#f3f6fb; }.tabbar-item.is-active { background:#f5f8ff; }
-.tabbar-icon-wrap { position:relative; display:flex; align-items:center; justify-content:center; width:54rpx; height:54rpx; }.tabbar-icon { display:block; width:38rpx; height:38rpx; }.tabbar-text { max-width:100%; overflow:hidden; color:#667085; font-size:24rpx; font-weight:550; line-height:30rpx; text-overflow:ellipsis; white-space:nowrap; }.tabbar-item.is-active .tabbar-text { color:#2556c7; font-weight:720; }
-.tabbar-badge { position:absolute; top:-9rpx; right:-18rpx; min-width:36rpx; height:36rpx; padding:0 8rpx; border:3rpx solid #fff; border-radius:999rpx; color:#fff; background:#d83b3b; font-size:24rpx; line-height:36rpx; text-align:center; }
+.custom-tabbar {
+  position: fixed;
+  right: 0;
+  bottom: 18rpx;
+  bottom: calc(18rpx + env(safe-area-inset-bottom));
+  left: 0;
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.tabbar-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: calc(100vw - 64rpx);
+  max-width: 686rpx;
+  min-height: 112rpx;
+  padding: 10rpx 12rpx;
+  border: 1.5rpx solid rgba(214, 224, 239, 0.9);
+  border-radius: 34rpx;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18rpx 42rpx rgba(15, 35, 78, 0.14), inset 0 1rpx 0 rgba(255, 255, 255, 0.96);
+  pointer-events: auto;
+}
+
+.tabbar-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 94rpx;
+  border-radius: 28rpx;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.tabbar-item-hover { transform: translateY(2rpx); background: rgba(239, 244, 255, 0.78); }
+.tabbar-item.is-active { background: linear-gradient(180deg, rgba(43, 92, 230, 0.12), rgba(43, 92, 230, 0.055)); }
+.tabbar-icon-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 52rpx; height: 52rpx; margin-bottom: 5rpx; }
+.tabbar-icon { display: block; width: 42rpx; height: 42rpx; }
+.tabbar-text { max-width: 100%; color: #69758a; font-size: 24rpx; font-weight: 650; line-height: 28rpx; text-align: center; white-space: nowrap; }
+.tabbar-item.is-active .tabbar-text { color: #2b5ce6; font-weight: 850; }
+.tabbar-badge { position: absolute; top: -12rpx; right: -20rpx; min-width: 36rpx; height: 36rpx; padding: 0 8rpx; border: 3rpx solid rgba(255,255,255,.94); border-radius: 999rpx; color: #fff; background: #ef4444; box-shadow: 0 8rpx 18rpx rgba(239,68,68,.3); font-size: 24rpx; font-weight: 800; line-height: 36rpx; text-align: center; }
+
+.ai-float {
+  position: fixed;
+  right: 24rpx;
+  bottom: 154rpx;
+  bottom: calc(154rpx + env(safe-area-inset-bottom));
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 142rpx;
+  min-width: 142rpx;
+  height: 92rpx;
+  min-height: 92rpx;
+  pointer-events: auto;
+}
+
+.ai-float-core { position: relative; display: flex; align-items: center; justify-content: center; width: 142rpx; height: 92rpx; transform-origin: center; animation: ai-float-drift 3.8s ease-in-out infinite; transition: transform 140ms ease, opacity 140ms ease; }
+.ai-float-hover .ai-float-core { transform: translateY(4rpx) scale(.94); animation-play-state: paused; }
+.ai-float-glow { position: absolute; top: 12rpx; left: 25rpx; width: 94rpx; height: 74rpx; border-radius: 999rpx; background: radial-gradient(circle, rgba(71,116,255,.32), rgba(71,116,255,.08) 56%, transparent 74%); animation: ai-glow-breathe 2.6s ease-in-out infinite; }
+.ai-float-orbit { position: absolute; top: 17rpx; left: 2rpx; width: 138rpx; height: 56rpx; border: 2rpx solid rgba(128,170,255,.36); border-radius: 50%; background: rgba(255,255,255,.34); transform-origin: center; }
+.ai-float-orbit.orbit-a { animation: ai-orbit-a 6.2s linear infinite; }
+.ai-float-orbit.orbit-b { border-color: rgba(124,92,255,.26); animation: ai-orbit-b 7.4s linear infinite; }
+.ai-float-spark { position: absolute; width: 9rpx; height: 9rpx; border-radius: 50%; background: #65c7ff; box-shadow: 0 0 14rpx rgba(101,199,255,.58); }
+.ai-float-spark.spark-one { top: 31rpx; left: 22rpx; animation: ai-spark-one 2.8s ease-in-out infinite; }
+.ai-float-spark.spark-two { right: 25rpx; bottom: 24rpx; background: #7c5cff; box-shadow: 0 0 14rpx rgba(124,92,255,.5); animation: ai-spark-two 3.2s ease-in-out infinite; }
+.ai-float-mark { position: relative; display: flex; align-items: center; justify-content: center; width: 72rpx; height: 72rpx; border-radius: 20rpx; background: linear-gradient(145deg,#7ddcff 0%,#3b73ff 52%,#7659ff 100%); box-shadow: 0 16rpx 30rpx rgba(59,115,255,.28), inset 0 2rpx 0 rgba(255,255,255,.3); transform: rotate(-4deg); animation: ai-mark-breathe 2.8s ease-in-out infinite; }
+.ai-float-text { color: #fff; font-size: 31rpx; font-weight: 950; line-height: 34rpx; }
+
+@keyframes ai-float-drift { 0%,100% { transform: translate3d(0,0,0); } 50% { transform: translate3d(0,-8rpx,0); } }
+@keyframes ai-glow-breathe { 0%,100% { opacity:.72; transform:scale(.88); } 50% { opacity:1; transform:scale(1.1); } }
+@keyframes ai-orbit-a { 0% { transform:rotate(-18deg); } 100% { transform:rotate(342deg); } }
+@keyframes ai-orbit-b { 0% { transform:rotate(18deg); } 100% { transform:rotate(-342deg); } }
+@keyframes ai-mark-breathe { 0%,100% { transform:rotate(-4deg) scale(1); } 50% { transform:rotate(-2deg) scale(1.035); } }
+@keyframes ai-spark-one { 0%,100% { opacity:.38; transform:scale(.8); } 45% { opacity:1; transform:translate3d(-5rpx,-4rpx,0) scale(1.12); } }
+@keyframes ai-spark-two { 0%,100% { opacity:.34; transform:scale(.78); } 55% { opacity:.95; transform:translate3d(5rpx,4rpx,0) scale(1.08); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-float-core, .ai-float-glow, .ai-float-orbit, .ai-float-spark, .ai-float-mark { animation: none; }
+}

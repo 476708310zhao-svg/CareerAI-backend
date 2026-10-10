@@ -74,3 +74,14 @@ view, text, input, button { box-sizing: border-box; }
 .sheet-actions { justify-content: flex-end; gap: 14rpx; margin-top: 24rpx; }.sheet-actions .primary-button { margin: 0; }.disabled { opacity: .55; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (max-width: 340px) { .progress-page { padding-left: 22rpx; padding-right: 22rpx; }.funnel { gap: 9rpx; }.funnel-top { font-size: 24rpx; }.form-row { display: block; } }
+
+/* Preserve the richer pre-simplification hierarchy. */
+page { background: radial-gradient(circle at 92% -6%, rgba(105,133,255,.17), transparent 33%), linear-gradient(180deg,#fbfdff,#f3f7fd 58%,#f8fafc); }
+.add-button,.primary-button { background: linear-gradient(135deg,#2b5ce6,#5b55df); box-shadow: 0 12rpx 28rpx rgba(43,92,230,.22); }
+.summary-card { border-color: rgba(182,203,235,.76); background: radial-gradient(circle at 100% 0,rgba(111,143,255,.13),transparent 38%),linear-gradient(145deg,#fff,#f3f7ff); box-shadow: 0 20rpx 46rpx rgba(37,68,112,.105),inset 0 1rpx 0 rgba(255,255,255,.96); }
+.focus-card,.application-card,.state-card,.notice-card { border-color: rgba(190,208,232,.72); background: linear-gradient(145deg,rgba(255,255,255,.99),rgba(247,250,255,.98)); box-shadow: 0 14rpx 34rpx rgba(36,58,92,.075),inset 0 1rpx 0 rgba(255,255,255,.95); }
+.application-card { border-radius: 28rpx; }
+.company-mark,.state-mark { background: linear-gradient(145deg,#eef5ff,#e4ecff); box-shadow: 0 9rpx 20rpx rgba(43,92,230,.08); }
+.next-action { border: 1rpx solid rgba(213,223,239,.72); background: linear-gradient(135deg,#f7f9fd,#f1f5fc); }
+.filter { border-color: rgba(197,211,231,.82); box-shadow: 0 7rpx 18rpx rgba(36,58,92,.04); }
+.filter.active { border-color: rgba(76,112,224,.48); background: linear-gradient(135deg,#eef4ff,#e8edff); box-shadow: 0 8rpx 20rpx rgba(43,92,230,.09); }
