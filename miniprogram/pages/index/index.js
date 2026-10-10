@@ -1,6 +1,5 @@
 // pages/index/index.js
-const { getAggregatedJobs, getCompanies, getCampusList, normalizeCompanyLogo } = require('../../utils/api.js');
-const config = require('../../utils/app-config.js');
+const { getAggregatedJobs, normalizeCompanyLogo } = require('../../utils/api.js');
 const favUtil = require('../../utils/favorites.js');
 const progress = require('../../utils/job-progress.js');
 const jdMatch = require('../../utils/jd-match.js');
@@ -8,33 +7,14 @@ const dailyTasks = require('../../utils/daily-tasks.js');
 const demoData = require('../../utils/demo-data.js');
 const matcher = require('../../utils/matcher.js');
 const { formatSalaryRange } = require('../../utils/util.js');
-const { normalizeBannerUrl } = require('../../utils/assets.js');
 const browseHistory = require('../../utils/browse-history.js');
 const featureFlags = require('../../utils/feature-flags.js');
 const navigation = require('../../utils/navigation.js');
-const { normalizeDataMeta, markCachedDataMeta, summaryText } = require('../../utils/data-provenance.js');
+const { markCachedDataMeta } = require('../../utils/data-provenance.js');
 const apiV4 = require('../../utils/api-v4.js');
 const ownerStorage = require('../../utils/owner-storage.js');
 const unreadMessages = require('../../utils/unread-messages.js');
-const BANNER_CACHE_KEY = 'cachedBanners_v2';
-const HOT_COMPANIES_CACHE_KEY = 'cachedHotCompanies_v3';
-const HOME_CAMPUS_CACHE_KEY = 'cachedHomeCampusUpdates_v1';
-const HOME_CAMPUS_CACHE_VERSION = 4;
-const HOME_CAMPUS_CACHE_TTL = 20 * 60 * 1000;
-const HOME_CAMPUS_PREVIEW_LIMIT = 8;
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
-const HOME_FEATURES = [
-  { id: 1, name: 'JD匹配', icon: '/images/icon-ai-assistant.png', url: '/package-ai/pages/jd-match/jd-match', badge: 'P0', isAi: true, bg: 'linear-gradient(145deg,#eef6ff,#f8fbff)' },
-  { id: 2, name: '校招日历', icon: '/images/icon-calendar.png', url: '/pages/campus/campus', badge: '今日', bg: 'linear-gradient(145deg,#ecfdf5,#f8fbff)' },
-  { id: 3, name: '申请管线', icon: '/images/icon-apply.png', url: '/pages/applications/applications', badge: '', bg: 'linear-gradient(145deg,#fff7ed,#f8fbff)' },
-  { id: 4, name: '简历评分', icon: '/images/icon-resume.png', url: '/package-career/pages/ats-optimize/ats-optimize', badge: 'ATS', isAi: true, bg: 'linear-gradient(145deg,#f8fafc,#eef6ff)' },
-  { id: 5, name: 'AI面试', icon: '/images/icon-interview.png', url: '/package-ai/pages/interview-setup/interview-setup', badge: '', isAi: true, bg: 'linear-gradient(145deg,#eef2ff,#f8fbff)' },
-  { id: 6, name: 'AI助手', icon: '/images/icon-ai-assistant.png', url: '/package-ai/pages/ai-assistant/ai-assistant', badge: 'AI', isAi: true, bg: 'linear-gradient(145deg,#eef6ff,#f8fbff)' },
-  { id: 7, name: '面经题库', icon: '/images/experience.png', url: '/pages/experiences/experiences', badge: '', bg: 'linear-gradient(145deg,#eef2ff,#f8fbff)' },
-  { id: 8, name: '薪酬查询', icon: '/images/icon-salary.png', url: '/package-career/pages/salary/salary', badge: '', bg: 'linear-gradient(145deg,#ecfdf5,#f8fbff)' },
-  { id: 9, name: '机构测评', icon: '/images/assess-active.png', url: '/pages/agencies/agencies', badge: '', bg: 'linear-gradient(145deg,#fff7ed,#f8fbff)' },
-  { id: 10, name: '求职规划', icon: '/images/icon-plan.png', url: '/package-career/pages/career-planner/career-planner', badge: '', bg: 'linear-gradient(145deg,#f8fafc,#eef6ff)' }
-];
 // TabBar 页面路径列表，用于判断跳转方式
 Page({
   data: {
@@ -42,65 +22,10 @@ Page({
     greeting: '你好，同学',
     avatarUrl: '/images/default-avatar.png',
 
-    // 1. 轮播图（默认空，onLoad 后从 API 拉取，失败则用兜底数据）
-    bannerList: [],
-    currentBanner: 0,
-    apiBase: config.API_BASE_URL,
     skeletonRows: [1, 2, 3],
     recruitmentEnabled: true,
     homeRecommendationsEnabled: false,
     membershipEnabled: false,
-
-    // 2. 金刚区：保留 4 个非 AI 专题入口，重复的 AI 功能下沉到专题区
-    features: HOME_FEATURES,
-
-    aiSpotlight: {
-      primary: {
-        title: 'AI 求职助手',
-        desc: '从问题进入 JD、简历、面试工作流',
-        action: '立即使用',
-        url: '/package-ai/pages/ai-assistant/ai-assistant'
-      },
-      tools: [
-        { id: 1, title: 'JD 快速匹配', desc: '粘贴岗位，先看适不适合投', icon: '/images/icon-ai-assistant.png', url: '/package-ai/pages/jd-match/jd-match', tone: 'tone-blue' },
-        { id: 2, title: 'ATS 简历评分', desc: '检查关键词与格式风险', icon: '/images/icon-resume.png', url: '/package-career/pages/ats-optimize/ats-optimize', tone: 'tone-mint' },
-        { id: 3, title: '项目优化', desc: '项目经历重写包装', icon: '/images/icon-project.png', url: '/package-ai/pages/project-review/project-review', tone: 'tone-indigo' }
-      ]
-    },
-
-    // 3. 热门公司
-    hotCompanies: [
-      { id:  1, name: 'Google',       description: 'Search · AI',       domain: 'google.com',       initial: 'G', color: '#4285F4' },
-      { id:  2, name: 'Apple',        description: 'Hardware · Software',domain: 'apple.com',        initial: 'A', color: '#1C1C1E' },
-      { id:  3, name: 'Microsoft',    description: 'Cloud · AI',        domain: 'microsoft.com',    initial: 'M', color: '#0078D4' },
-      { id:  4, name: 'Amazon',       description: 'E-Commerce · AWS',  domain: 'amazon.com',       initial: 'A', color: '#FF9900' },
-      { id:  5, name: 'Meta',         description: 'Social · VR',       domain: 'meta.com',         initial: 'M', color: '#0866FF' },
-      { id:  6, name: 'Netflix',      description: 'Streaming · Content',domain: 'netflix.com',     initial: 'N', color: '#E50914' },
-      { id:  7, name: 'Nvidia',       description: 'GPU · AI Chips',    domain: 'nvidia.com',       initial: 'N', color: '#76B900' },
-      { id:  8, name: 'Tesla',        description: 'EV · Energy',       domain: 'tesla.com',        initial: 'T', color: '#CC0000' },
-      { id:  9, name: 'OpenAI',       description: 'AI · ChatGPT',      domain: 'openai.com',       initial: 'O', color: '#10A37F' },
-      { id: 10, name: 'Salesforce',   description: 'CRM · Cloud',       domain: 'salesforce.com',   initial: 'S', color: '#00A1E0' },
-      { id: 11, name: 'Adobe',        description: 'Design · Creative', domain: 'adobe.com',        initial: 'A', color: '#FF0000' },
-      { id: 12, name: 'Uber',         description: 'Ride-Hailing · Delivery', domain: 'uber.com',  initial: 'U', color: '#000000' },
-      { id: 13, name: 'Airbnb',       description: 'Travel · Homestay', domain: 'airbnb.com',       initial: 'A', color: '#FF5A5F' },
-      { id: 14, name: 'Stripe',       description: 'Payments · FinTech',domain: 'stripe.com',       initial: 'S', color: '#635BFF' },
-      { id: 15, name: 'Spotify',      description: 'Music · Podcast',   domain: 'spotify.com',      initial: 'S', color: '#1DB954' },
-      { id: 16, name: 'LinkedIn',     description: 'Professional Network',domain: 'linkedin.com',   initial: 'L', color: '#0A66C2' },
-      { id: 17, name: 'PayPal',       description: 'Payments · Finance',domain: 'paypal.com',       initial: 'P', color: '#003087' },
-      { id: 18, name: 'Oracle',       description: 'Database · Cloud',  domain: 'oracle.com',       initial: 'O', color: '#F80000' },
-      { id: 19, name: 'IBM',          description: 'Enterprise · AI',   domain: 'ibm.com',          initial: 'I', color: '#0043CE' },
-      { id: 20, name: 'Intel',        description: 'CPU · Chips',       domain: 'intel.com',        initial: 'I', color: '#0068B5' },
-      { id: 21, name: 'Goldman Sachs',description: 'Investment Banking', domain: 'goldmansachs.com', initial: 'G', color: '#1A4784' },
-      { id: 22, name: 'JPMorgan',     description: 'Banking · Finance', domain: 'jpmorgan.com',     initial: 'J', color: '#005DA6' },
-      { id: 23, name: 'Morgan Stanley',description: 'Wealth · Banking', domain: 'morganstanley.com',initial: 'M', color: '#002D72' },
-      { id: 24, name: 'BlackRock',    description: 'Asset Management',  domain: 'blackrock.com',    initial: 'B', color: '#000000' },
-      { id: 25, name: 'McKinsey',     description: 'Strategy Consulting',domain: 'mckinsey.com',    initial: 'M', color: '#003277' },
-      { id: 26, name: 'BCG',          description: 'Strategy Consulting',domain: 'bcg.com',         initial: 'B', color: '#009A44' },
-      { id: 27, name: 'Deloitte',     description: 'Audit · Consulting',domain: 'deloitte.com',     initial: 'D', color: '#86BC25' },
-      { id: 28, name: 'Accenture',    description: 'IT · Consulting',   domain: 'accenture.com',    initial: 'A', color: '#A100FF' },
-      { id: 29, name: 'Shopify',      description: 'E-Commerce · SaaS', domain: 'shopify.com',      initial: 'S', color: '#96BF48' },
-      { id: 30, name: 'Zoom',         description: 'Video · Collaboration',domain: 'zoom.us',       initial: 'Z', color: '#2D8CFF' },
-    ],
 
     // 4. 推荐职位
     recommendJobs: [],
@@ -117,16 +42,11 @@ Page({
     showBackToTop: false, // 控制回到顶部按钮显隐
     workbench: {
       isLoggedIn: false,
-      title: '今天有 3 项求职任务',
-      subtitle: '先完成一项今日任务，逐步推进简历、岗位和面试准备。',
-      primaryText: '查看今日任务',
-      primaryUrl: '/package-ai/pages/daily-brief/daily-brief',
-      metrics: [
-        { label: '推荐岗位', value: '0', suffix: '个', tone: 'blue', icon: '/images/icon-ai-assistant.png' },
-        { label: '待投递', value: '0', suffix: '个', tone: 'muted', icon: '/images/icon-apply.png' },
-        { label: '待面试', value: '0', suffix: '个', tone: 'amber', icon: '/images/icon-interview.png' },
-        { label: '进行中', value: '0', suffix: '个', tone: 'muted', icon: '/images/icon-plan.png' }
-      ],
+      title: '正在读取今日任务',
+      subtitle: '任务加载完成后，这里只显示当前最重要的一步。',
+      meta: '尚未读取申请与任务数据',
+      primaryText: '查看申请进度',
+      primaryUrl: '/pages/applications/applications',
       suggestionTitle: '先完成求职档案',
       suggestionDesc: '补充简历、目标岗位与求职地区',
       suggestionUrl: '/package-user/pages/profile-edit/profile-edit'
@@ -139,19 +59,13 @@ Page({
       advice: ''
     },
     todayTasks: [],
+    todaySecondaryTasks: [],
     todayTaskStats: {
       total: 0,
       done: 0,
       pending: 0,
       percent: 0
-    },
-    campusFeatured: null,
-    campusUpdates: [],
-    campusLatestUpdates: [],
-    campusUpdateTotal: 0,
-    campusUpdateLoading: false,
-    campusUpdateReady: false,
-    campusUpdateDateLabel: '今日更新'
+    }
   },
 
   onLoad() {
@@ -162,22 +76,14 @@ Page({
     const recruitmentEnabled = !!flags.recruitment;
     const homeRecommendationsEnabled = recruitmentEnabled && !!flags.home_recommendations;
     this.applyFeatureState(flags);
-    this.normalizeHomeData();
     try {
       this.loadUserProfile();
       this.loadProgressSummary();
       this.loadTodayTasks();
       this.loadWorkbenchSummary();
       this.syncWorkbenchReports();
-      const hasCachedCampusUpdates = this.loadCachedCampusUpdates();
-      if (!hasCachedCampusUpdates) this.setData({ campusUpdateLoading: true });
     } catch (e) {
       console.warn('[index] 初始化求职计划失败:', e);
-    }
-    try {
-      this.fetchBanners();
-    } catch (e) {
-      console.warn('[fetchBanners]', e);
     }
     if (homeRecommendationsEnabled) {
       let hasCachedJobs = false;
@@ -195,16 +101,12 @@ Page({
     } else {
       this.setData({ loadingJobs: false, recommendJobs: [] });
     }
-    this.scheduleDeferredHomeData();
   },
 
   applyRecruitmentState(enabled) {
     const recruitmentEnabled = !!enabled;
     this.setData({
       recruitmentEnabled,
-      features: HOME_FEATURES
-        .filter(item => item.feature !== 'recruitment' || recruitmentEnabled)
-        .map(item => Object.assign({}, item, { isAiClass: item.isAi ? 'is-ai' : '' })),
       recommendJobs: recruitmentEnabled ? this.data.recommendJobs : [],
       loadingJobs: recruitmentEnabled ? this.data.loadingJobs : false
     });
@@ -227,25 +129,12 @@ Page({
 
   _onFeatureFlagsChange(flags) {
     const wasRecommendationsEnabled = this.data.homeRecommendationsEnabled;
-    const wasRecruitmentEnabled = this.data.recruitmentEnabled;
     this.applyFeatureState(flags);
     this.loadWorkbenchSummary();
-    if (wasRecruitmentEnabled !== this.data.recruitmentEnabled) this.fetchBanners();
     if (this.data.homeRecommendationsEnabled && !wasRecommendationsEnabled) {
       this.loadCachedOrMockJobs();
       this.fetchRecommendJobs();
     }
-  },
-
-  normalizeHomeData() {
-    this.setData({
-      features: (this.data.features || []).map(item => Object.assign({}, item, {
-        isAiClass: item.isAi ? 'is-ai' : ''
-      })),
-      hotCompanies: (this.data.hotCompanies || []).map(item => Object.assign({}, item, {
-        logoSrc: item.logo || ''
-      }))
-    });
   },
 
   onShow() {
@@ -258,7 +147,7 @@ Page({
       this._todayTaskRequestId = (this._todayTaskRequestId || 0) + 1;
       this._workbenchReportRequestId = (this._workbenchReportRequestId || 0) + 1;
       this._recommendRequestId = (this._recommendRequestId || 0) + 1;
-      this.setData({ recommendJobs: [], todayTasks: [], todayTaskStats: dailyTasks.getStats([]) });
+      this.setData({ recommendJobs: [], todayTasks: [], todaySecondaryTasks: [], todayTaskStats: dailyTasks.getStats([]) });
     }
     const app = getApp();
     if (app && typeof app.syncCustomTabBar === 'function') app.syncCustomTabBar();
@@ -274,9 +163,6 @@ Page({
       && (ownerChanged || this.data.loadingJobs || !(this.data.recommendJobs || []).length)) {
       this.loadCachedOrMockJobs();
       this.fetchRecommendJobs({ force: true });
-    }
-    if (this.data.campusUpdateLoading || !this.data.campusUpdateReady) {
-      this.fetchCampusUpdates({ force: true });
     }
   },
 
@@ -308,9 +194,7 @@ Page({
     this.loadProgressSummary();
     this.loadTodayTasks();
     this.loadWorkbenchSummary();
-    this.fetchBanners();
     if (this.data.homeRecommendationsEnabled) this.fetchRecommendJobs({ force: true });
-    this.fetchCampusUpdates({ force: true });
     setTimeout(() => wx.stopPullDownRefresh(), 800);
   },
 
@@ -324,7 +208,7 @@ Page({
     this._todayTaskSyncOwner = '';
     this._workbenchReportSyncing = false;
     this._workbenchReportOwner = '';
-    this.clearDeferredHomeTimers();
+    clearTimeout(this._initialRecommendTimer);
   },
 
   onHide() {
@@ -341,21 +225,6 @@ Page({
   isHomeRequestCurrent(owner, requestId, field) {
     return !this._unloaded && this._visible && ownerStorage.isCurrent(owner)
       && requestId === this[field];
-  },
-
-  clearDeferredHomeTimers() {
-    clearTimeout(this._initialRecommendTimer);
-    (this._homeTimers || []).forEach(timer => clearTimeout(timer));
-    this._homeTimers = [];
-  },
-
-  scheduleDeferredHomeData() {
-    (this._homeTimers || []).forEach(timer => clearTimeout(timer));
-    this._homeTimers = [
-      setTimeout(() => {
-        try { this.fetchCampusUpdates(); } catch (e) { console.warn('[fetchCampusUpdates]', e); }
-      }, 360)
-    ];
   },
 
   // 页面滚动监听：超过一定距离显示“回到顶部”按钮
@@ -391,60 +260,6 @@ Page({
       title: '职引 | 留学生AI求职助手',
       imageUrl: '/images/banner1.jpg'
     };
-  },
-
-  normalizeAssetUrl(url) {
-    return normalizeBannerUrl(url);
-  },
-
-  normalizeBanners(list) {
-    const membershipEnabled = this.data ? this.data.membershipEnabled : featureFlags.isMembershipEnabled();
-    const recruitmentEnabled = this.data ? this.data.recruitmentEnabled : featureFlags.isRecruitmentEnabled();
-    return (list || [])
-      .filter(item => membershipEnabled || !featureFlags.isMembershipUrl(item.url))
-      .filter(item => recruitmentEnabled || !featureFlags.isRecruitmentUrl(item.url))
-      .map(item => Object.assign({}, item, {
-      imageUrl: this.normalizeAssetUrl(item.imageUrl || item.image_url)
-    }));
-  },
-
-  onBannerImageError(e) {
-    const index = e.currentTarget.dataset.index;
-    if (typeof index !== 'number') return;
-    const bannerList = this.data.bannerList.map((item, i) => {
-      if (i !== index) return item;
-      return Object.assign({}, item, { imageUrl: '' });
-    });
-    this.setData({ bannerList });
-  },
-
-  // ======== Banner 数据 ========
-  fetchBanners() {
-    const FALLBACK = [
-      { id: 1, gradient: 'linear-gradient(135deg,#1769E8 0%,#4C9BFF 100%)', icon: '🚀', title: '2027 Summer Internship 求职季', subtitle: '精选实习岗位 · 简历优化 · 面试冲刺', url: '/pages/jobs/jobs' },
-      { id: 2, gradient: 'linear-gradient(135deg,#3156C8 0%,#7B8EFF 100%)', icon: '🏢', title: '今日校招机会更新', subtitle: '新开网申 · 即将截止 · 热门企业', url: '/pages/campus/campus' },
-      { id: 3, gradient: 'linear-gradient(135deg,#0AA777 0%,#45C8B0 100%)', icon: '🤖', title: 'AI 模拟面试', subtitle: '针对目标岗位练习并获得反馈', url: '/package-ai/pages/interview-setup/interview-setup' }
-    ];
-
-    // 立即显示缓存或兜底，不阻塞页面
-    const cached = wx.getStorageSync(BANNER_CACHE_KEY);
-    this.setData({ bannerList: (cached && cached.length > 0) ? this.normalizeBanners(cached) : FALLBACK });
-
-    // 后台静默拉取最新数据，5 秒超时
-    wx.request({
-      url: (config.CONTENT_API_BASE_URL || config.API_BASE_URL) + '/api/banners',
-      method: 'GET',
-      timeout: 5000,
-      success: (res) => {
-        const list = res.data && res.data.code === 0 && res.data.data;
-        if (list && list.length > 0) {
-          const normalized = this.normalizeBanners(list);
-          this.setData({ bannerList: normalized });
-          wx.setStorageSync(BANNER_CACHE_KEY, normalized);
-        }
-      },
-      fail: () => {}
-    });
   },
 
   // 优先加载缓存；开发兜底只在 ENABLE_DEMO_FALLBACK=true 时启用
@@ -609,45 +424,6 @@ Page({
     this.fetchRecommendJobs({ force: true });
   },
 
-  // 公司 Logo 加载失败时，自动降级为文字头像
-  onCompanyLogoError(e) {
-    const idx = e.currentTarget.dataset.idx;
-    if (typeof idx !== 'number' || (this.data.hotCompanies[idx] && this.data.hotCompanies[idx].logoFailed)) return;
-    this.setData({
-      [`hotCompanies[${idx}].logoFailed`]: true,
-      [`hotCompanies[${idx}].logoSrc`]: ''
-    });
-  },
-
-  fetchHotCompanies(options) {
-    const force = !!(options && options.force);
-    if (!force) {
-      const cached = wx.getStorageSync(HOT_COMPANIES_CACHE_KEY);
-      if (cached && cached.length) {
-        this.setData({ hotCompanies: cached });
-      }
-    }
-
-    getCompanies({ page: 1, pageSize: 12 }).then(res => {
-      const list = res && res.data && Array.isArray(res.data.list) ? res.data.list : [];
-      if (!list.length) return;
-      const hotCompanies = list.map(company => ({
-        id: company.id,
-        name: company.name,
-        description: company.industryL2 || company.industry || company.officialDomain || '',
-        domain: company.officialDomain || '',
-        logo: company.logo,
-        logoSrc: company.logo || '',
-        initial: (company.name || '?').slice(0, 1).toUpperCase(),
-        color: company.brandColor || '#2563eb'
-      }));
-      this.setData({ hotCompanies });
-      wx.setStorageSync(HOT_COMPANIES_CACHE_KEY, hotCompanies);
-    }).catch(err => {
-      console.warn('[fetchHotCompanies] 获取热门公司失败:', err);
-    });
-  },
-
   // 职位 Logo 加载失败时，自动降级为文字头像
   onJobLogoError(e) {
     const index = e.currentTarget.dataset.index;
@@ -763,89 +539,6 @@ Page({
       showCancel: false,
       confirmText: '知道了'
     });
-  },
-
-  loadCachedCampusUpdates() {
-    const cached = wx.getStorageSync(HOME_CAMPUS_CACHE_KEY);
-    if (!cached || !Array.isArray(cached.items) || cached.items.length === 0) return false;
-    if (cached.version !== HOME_CAMPUS_CACHE_VERSION) return false;
-    if ((Date.now() - (cached.t || 0)) > HOME_CAMPUS_CACHE_TTL) return false;
-    this.applyCampusUpdates(cached.items, cached.total || cached.items.length, { useCache: true });
-    return true;
-  },
-
-  fetchCampusUpdates(options) {
-    const force = !!(options && options.force);
-    if (!force && this.data.campusFeatured) return;
-    if (!this.data.campusFeatured && this.data.campusUpdates.length === 0) {
-      this.setData({ campusUpdateLoading: true });
-    }
-
-    getCampusList({
-      sort: 'latest',
-      page: 0,
-      pageSize: 50,
-      latestDay: '1',
-      timeout: 6000
-    }).then(res => {
-      const payload = res && res.code === 0 && res.data ? res.data : null;
-      const list = payload ? (Array.isArray(payload) ? payload : (payload.list || [])) : [];
-      if (!list.length) throw new Error('empty campus list');
-      const latest = this.pickLatestCampusDay(list);
-      const sourceList = latest.items.length ? latest.items : list;
-      const formatted = this.rankCampusUpdates(sourceList).slice(0, HOME_CAMPUS_PREVIEW_LIMIT);
-      const total = payload.latestDate ? (payload.total || formatted.length) : (latest.total || formatted.length);
-      this.applyCampusUpdates(formatted, total);
-      wx.setStorageSync(HOME_CAMPUS_CACHE_KEY, {
-        version: HOME_CAMPUS_CACHE_VERSION,
-        items: formatted,
-        total,
-        latestDate: payload.latestDate || latest.dateKey || '',
-        t: Date.now()
-      });
-    }).catch(err => {
-      console.warn('[fetchCampusUpdates] 获取每日校招失败:', err);
-      if (!this.data.campusFeatured && ALLOW_DEMO_FALLBACK) {
-        const fallback = this.rankCampusUpdates(demoData.getList('CAMPUS')).slice(0, HOME_CAMPUS_PREVIEW_LIMIT);
-        this.applyCampusUpdates(fallback, fallback.length);
-      } else {
-        this.setData({
-          campusUpdateLoading: false,
-          campusUpdateReady: true
-        });
-      }
-    });
-  },
-
-  applyCampusUpdates(items, total, options) {
-    const useCache = !!(options && options.useCache);
-    const list = (items || [])
-      .filter(Boolean)
-      .map(item => {
-        const defaults = {
-          domain: 'campus', source: item.source, publishedAt: item.startDate,
-          updatedAt: item.updatedAt, isExpired: item.deadlineWindow === 'expired'
-        };
-        const dataMeta = useCache
-          ? markCachedDataMeta(item.dataMeta, defaults)
-          : normalizeDataMeta(item.dataMeta, defaults);
-        return Object.assign({}, item, {
-          title: this.buildCampusUpdateTitle(item.company, item.title || item.positionName || item.positionType),
-          subtitle: this.normalizeCampusUpdateSubtitle(item),
-          dataMeta,
-          _sourceSummary: summaryText(dataMeta)
-        });
-      });
-    this.setData({
-      campusFeatured: list[0] || null,
-      campusUpdates: list.slice(1, HOME_CAMPUS_PREVIEW_LIMIT),
-      campusLatestUpdates: list.slice(0, HOME_CAMPUS_PREVIEW_LIMIT),
-      campusUpdateTotal: total || list.length,
-      campusUpdateDateLabel: this.getCampusUpdateDateLabel(list[0]),
-      campusUpdateLoading: false,
-      campusUpdateReady: true
-    });
-    this.loadWorkbenchSummary();
   },
 
   rankCampusUpdates(list) {
@@ -1084,6 +777,29 @@ Page({
     return keywords[0] || '目标岗位';
   },
 
+  buildPrimaryTaskMeta(task, applications) {
+    if (!task) return '';
+    const rows = Array.isArray(applications) ? applications : [];
+    const url = String(task.url || '');
+    const applicationIdMatch = url.match(/[?&]applicationId=(\d+)/);
+    const taskIdMatch = String(task.id || '').match(/(?:due|interview)_(\d+)/);
+    const applicationId = applicationIdMatch ? applicationIdMatch[1] : (taskIdMatch ? taskIdMatch[1] : '');
+    const application = applicationId
+      ? rows.find(item => String(item.id || item.applicationId || '') === applicationId)
+      : null;
+    const company = String(task.company || (application && application.company) || '').trim();
+    const role = String(task.role || task.position || (application && (application.jobTitle || application.position)) || '').trim();
+    const deadline = String(task.deadline || (application && (application.deadline || application.deadlineDate)) || '').trim();
+    const priority = String(task.priority || '').toLowerCase();
+    const reason = task.selectionReason || task.reason
+      || (priority === 'high' ? '任务标记为高优先级' : '今日待办中排序最前');
+    return [
+      company || role ? [company, role].filter(Boolean).join(' · ') : '',
+      deadline ? `截止 ${deadline}` : '',
+      `选择依据：${reason}`
+    ].filter(Boolean).join(' · ');
+  },
+
   loadWorkbenchSummary() {
     let profile = {};
     try {
@@ -1091,9 +807,7 @@ Page({
     } catch (e) {}
     const stats = progress.getStats();
     const atsScore = this.readLatestAtsScore();
-    const taskStats = this.data.todayTaskStats || dailyTasks.getStats(this.data.todayTasks || []);
-    const recommendationCount = Math.min(3, (this.data.recommendJobs || []).length);
-    const pendingApplications = Number((stats.byStatus && stats.byStatus.collected) || 0);
+    const applications = progress.getList();
     const nextTask = (this.data.todayTasks || []).find(item => !item.done
       && (this.data.recruitmentEnabled || !featureFlags.isRecruitmentUrl(item.url))) || null;
     const hasToken = (() => {
@@ -1102,49 +816,54 @@ Page({
     const resume = ownerStorage.get('onlineResume', '', {});
     const hasResume = atsScore > 0 || Object.keys(resume || {}).some(key => !!resume[key]);
     const isLoggedIn = !!(hasToken || profile.nickName || hasResume || stats.total);
-    const pendingTaskCount = Number(taskStats.pending || 0);
     const hasApplications = Number(stats.total || 0) > 0;
     let title;
     let subtitle;
+    let meta;
     let primaryText;
     let primaryUrl;
-    if (!hasApplications) {
+    if (nextTask) {
+      title = nextTask.title;
+      subtitle = nextTask.desc || '继续推进当前申请的下一步。';
+      meta = this.buildPrimaryTaskMeta(nextTask, applications);
+      primaryText = nextTask.type === 'interview' ? '准备今日面试' : '开始处理';
+      primaryUrl = nextTask.url || '/pages/applications/applications';
+    } else if (!hasApplications) {
       if (this.data.recruitmentEnabled) {
         title = '找到第一个目标岗位';
         subtitle = '暂无申请记录，先搜索岗位并加入待投递。';
+        meta = '当前申请记录为 0 条';
         primaryText = '去找岗位';
         primaryUrl = '/pages/jobs/jobs';
       } else {
         title = '先准备求职资料';
         subtitle = '岗位服务暂未开放，可以先完善简历并查看求职资源。';
+        meta = '当前申请记录为 0 条 · 岗位服务未开放';
         primaryText = '打开资源中心';
         primaryUrl = '/pages/resources/resources';
       }
-    } else if (nextTask) {
-      title = pendingTaskCount > 0 ? `今天有 ${pendingTaskCount} 项待办` : '今天最重要的一步';
-      subtitle = nextTask.desc || '继续推进当前申请的下一步。';
-      primaryText = nextTask.type === 'interview' ? '准备今日面试' : '处理下一项';
-      primaryUrl = nextTask.url || '/pages/applications/applications';
     } else {
       title = '暂时没有待处理事项';
       subtitle = '回顾申请进度，确认是否有新的截止日或面试节点。';
+      meta = `当前有 ${Number(stats.active || 0)} 条申请正在推进`;
       primaryText = '查看申请进度';
       primaryUrl = '/pages/applications/applications';
     }
 
+    const primaryTaskId = nextTask ? String(nextTask.id || '') : '';
+    const todaySecondaryTasks = (this.data.todayTasks || [])
+      .filter(item => !item.done && String(item.id || '') !== primaryTaskId)
+      .slice(0, 2);
+
     this.setData({
+      todaySecondaryTasks,
       workbench: {
         isLoggedIn,
         title,
         subtitle,
+        meta,
         primaryText,
         primaryUrl,
-        metrics: [
-          { label: '推荐岗位', value: String(recommendationCount), suffix: '个', tone: recommendationCount ? 'blue' : 'muted', icon: '/images/icon-ai-assistant.png' },
-          { label: '待投递', value: String(pendingApplications), suffix: '个', tone: pendingApplications ? 'amber' : 'muted', icon: '/images/icon-apply.png' },
-          { label: '待面试', value: String(stats.interviews || 0), suffix: '个', tone: stats.interviews ? 'amber' : 'muted', icon: '/images/icon-interview.png' },
-          { label: '进行中', value: String(stats.active || 0), suffix: '个', tone: stats.active ? 'blue' : 'muted', icon: '/images/icon-plan.png' }
-        ],
         suggestionTitle: nextTask && hasApplications ? nextTask.title : title,
         suggestionDesc: subtitle
       }

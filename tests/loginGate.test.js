@@ -42,7 +42,7 @@ test('progress login card no longer redirects to Profile', () => {
   const progressWxml = read('pages/applications/applications.wxml');
 
   assert.doesNotMatch(progressJs, /safeSwitchTab\(['"]\/pages\/profile\/profile/);
-  assert.match(progressWxml, /bindtap="promptLogin">立即登录/);
+  assert.match(progressWxml, /bindtap="promptLogin"[^>]*>立即登录/);
 });
 
 test('AI Career compatibility routes safely redirect to the login-gated unified assistant', () => {

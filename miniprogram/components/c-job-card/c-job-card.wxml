@@ -1,4 +1,4 @@
-<view class="job-card {{compact ? 'job-card--compact' : ''}} {{view.deadlineClosed ? 'job-card--closed' : ''}}" bindtap="openJob" hover-class="job-card--pressed">
+<view class="job-card {{compact ? 'job-card--compact' : ''}} {{view.deadlineClosed ? 'job-card--closed' : ''}}" bindtap="openJob" hover-class="job-card--pressed" aria-role="button" aria-label="{{view.accessibilityLabel}}">
   <view class="job-card__headline">
     <text class="job-card__title">{{view.title}}</text>
     <text class="job-card__salary">{{view.salary}}</text>
@@ -29,10 +29,11 @@
     <text class="job-card__skill" wx:for="{{view.skills}}" wx:key="*this">{{item}}</text>
   </view>
 
-  <view class="job-card__decision" wx:if="{{!compact && ((showMatch && view.hasMatch) || view.deadlineText)}}">
-    <view class="job-card__match" wx:if="{{showMatch && view.hasMatch}}">
-      <text class="job-card__match-score">{{view.matchScore ? '匹配度 ' + view.matchScore + '%' : 'AI推荐'}}</text>
-      <text class="job-card__match-reason" wx:if="{{view.matchReason}}">{{view.matchReason}}</text>
+  <view class="job-card__decision" wx:if="{{!compact && (showMatch || view.deadlineText)}}">
+    <view class="job-card__match" wx:if="{{showMatch}}">
+      <text class="job-card__match-label">可验证依据</text>
+      <view class="job-card__evidence" wx:if="{{view.matchEvidence.length}}"><text class="job-card__evidence-tag" wx:for="{{view.matchEvidence}}" wx:key="*this">{{item}}</text></view>
+      <text class="job-card__match-reason" wx:else>暂无可验证匹配依据</text>
     </view>
     <text class="job-card__deadline job-card__deadline--{{view.deadlineTone}}">{{view.deadlineText}}</text>
   </view>
@@ -44,11 +45,10 @@
       <text class="job-card__provenance job-card__provenance--{{view.freshnessTone}}">{{view.sourceSummary}}</text>
     </view>
     <view class="job-card__actions">
-    <view class="job-card__favorite {{view.isSaved ? 'job-card__favorite--saved' : ''}}" catchtap="toggleFavorite" hover-class="job-card__favorite--pressed" aria-role="button" aria-label="收藏岗位">
-      <text class="job-card__favorite-icon">{{view.isSaved ? '♥' : '♡'}}</text>
+    <view class="job-card__favorite {{view.isSaved ? 'job-card__favorite--saved' : ''}}" catchtap="toggleFavorite" hover-class="job-card__favorite--pressed" aria-role="button" aria-label="{{view.isSaved ? '取消收藏岗位' : '收藏岗位'}}" aria-pressed="{{view.isSaved}}">
       <text>{{view.isSaved ? '已收藏' : '收藏'}}</text>
     </view>
-    <button wx:if="{{showQueue}}" class="job-card__queue" catchtap="queueJob" loading="{{queueBusy}}" disabled="{{queueBusy}}">{{view.inProgress && view.applicationStatus !== 'interested' ? '查看进度' : '待投递'}}</button>
+    <button wx:if="{{showQueue}}" class="job-card__queue" catchtap="queueJob" loading="{{queueBusy}}" disabled="{{queueBusy}}" aria-label="{{view.inProgress && view.applicationStatus !== 'interested' ? '查看岗位申请进度' : '将岗位加入待投递'}}">{{view.inProgress && view.applicationStatus !== 'interested' ? '查看进度' : '待投递'}}</button>
     </view>
   </view>
 </view>

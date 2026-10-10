@@ -6,14 +6,18 @@
         catchtap="switchTab"
         data-index="{{index}}"
         hover-class="tabbar-item-hover"
+        aria-role="button"
+        aria-label="切换到{{item.text}}{{item.showBadge && unreadCount > 0 ? '，' + badgeText + '条未读' : ''}}"
+        aria-selected="{{selected === index}}"
       >
         <view class="tabbar-icon-wrap">
           <image
             class="tabbar-icon"
             src="{{selected === index ? item.selectedIconPath : item.iconPath}}"
             mode="aspectFit"
+            aria-hidden="true"
           />
-          <view wx:if="{{item.showBadge && unreadCount > 0}}" class="tabbar-badge">{{badgeText}}</view>
+          <view wx:if="{{item.showBadge && unreadCount > 0}}" class="tabbar-badge" aria-label="{{badgeText}}条未读">{{badgeText}}</view>
         </view>
         <text class="tabbar-text">{{item.text}}</text>
       </view>

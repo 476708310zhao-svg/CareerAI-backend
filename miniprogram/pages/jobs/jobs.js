@@ -737,6 +737,9 @@ Page({
           matchScore: Math.round(Number(match.score || 0) / 10),
           matchScore100: Number(match.score || 0),
           isMatch: Number(match.score || 0) >= 60,
+          matchedSkills: Array.isArray(match.matchedSkills) ? match.matchedSkills : [],
+          qualificationStatus: match.qualificationStatus || '',
+          locationMatched: match.locationMatched === true,
           matchReason: match.qualificationStatus === 'eligible'
             ? '资格符合 · 建议优先投递'
             : (match.qualificationStatus === 'partial' ? '部分符合 · 投递前核实资格' : '存在资格限制 · 请查看详情'),

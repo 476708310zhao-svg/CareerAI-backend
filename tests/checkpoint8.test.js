@@ -162,22 +162,23 @@ test('custom TabBar restores selected state and owner-scoped unread badge after 
 test('home puts one honest primary action first and removes tool-hall and floating-AI distractions', () => {
   const home = read('pages/index/index.wxml');
   const homeJs = read('pages/index/index.js');
-  const plan = read('components/home-career-plan/home-career-plan.wxml');
   const tabWxml = read('custom-tab-bar/index.wxml');
   const tabWxss = read('custom-tab-bar/index.wxss');
-  assert.equal((home.match(/<home-career-plan\b/g) || []).length, 1);
-  assert.ok(home.indexOf('<home-career-plan') < home.indexOf('class="banner-wrap"'));
+  assert.equal((home.match(/class="zy-main-action"/g) || []).length, 1);
+  assert.ok(home.indexOf('class="zy-main-action"') < home.indexOf('今天还要做'));
   assert.doesNotMatch(home, /\sautoplay(?:\s|>)/);
-  assert.doesNotMatch(home, /home-core-tools|home-career-insights/);
+  assert.doesNotMatch(home, /home-core-tools|home-career-insights|banner-wrap|membership-benefit-banner/);
   assert.doesNotMatch(tabWxml, /ai-float|goAiAssistant/);
   assert.doesNotMatch(tabWxss, /ai-float|ai-orbit|ai-glow/);
-  assert.equal((plan.match(/bindtap="onPrimary"/g) || []).length, 1);
-  assert.doesNotMatch(plan, /onSuggestion/);
-  assert.match(plan, /为什么现在做/);
+  assert.match(home, /workbench\.primaryUrl/);
+  assert.doesNotMatch(home, /zy-progress-card|zy-progress-item|求职进展/);
+  assert.match(homeJs, /title = nextTask\.title/);
+  assert.match(homeJs, /buildPrimaryTaskMeta\(nextTask, applications\)/);
   assert.match(homeJs, /'找到第一个目标岗位'/);
   assert.match(homeJs, /'暂时没有待处理事项'/);
   assert.doesNotMatch(homeJs, /'今日任务已完成'|Math\.max\(1, Number\(taskStats\.pending/);
-  assert.match(homeJs, /dailyTasks\.buildTasks\(\)\.slice\(0, 3\)/);
+  assert.match(homeJs, /String\(item\.id \|\| ''\) !== primaryTaskId/);
+  assert.match(homeJs, /\.slice\(0, 2\)/);
 });
 
 test('home-private caches and delayed responses are owner-scoped', () => {

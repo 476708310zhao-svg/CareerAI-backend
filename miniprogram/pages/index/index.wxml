@@ -1,82 +1,30 @@
-<view class="page">
-  <view class="search-wrap" bindtap="goToJobSearch" hover-class="search-hover">
-    <image src="/images/search.png" class="search-icon" mode="aspectFit"></image>
-    <text class="search-text">搜索职位、公司或岗位</text>
-  </view>
-
-  <view class="home-content">
-    <home-career-plan
-      plan="{{workbench}}"
-      bind:action="navigateToPage"
-    ></home-career-plan>
-
-    <view class="banner-wrap" wx:if="{{bannerList.length > 0}}">
-      <swiper
-        class="banner-swiper"
-        indicator-dots="{{bannerList.length > 1}}"
-        indicator-color="rgba(255,255,255,0.55)"
-        indicator-active-color="#ffffff"
-        bindchange="onBannerChange"
-      >
-        <block wx:for="{{bannerList}}" wx:key="id">
-          <swiper-item>
-            <view class="banner-item" bindtap="navigateToPage" data-url="{{item.url}}" hover-class="banner-hover">
-              <image wx:if="{{item.imageUrl}}" src="{{item.imageUrl}}" class="banner-bg-image" mode="aspectFill" data-index="{{index}}" binderror="onBannerImageError"></image>
-              <view wx:else class="banner-gradient" style="background:{{item.gradient}};">
-                <view class="banner-copy">
-                  <text class="banner-title">{{item.title}}</text>
-                  <text class="banner-sub">{{item.subtitle}}</text>
-                  <text class="banner-action">立即查看</text>
-                </view>
-                <text class="banner-icon">{{item.icon}}</text>
-              </view>
-            </view>
-          </swiper-item>
-        </block>
-      </swiper>
+<view class="zy-page">
+  <view class="zy-home-head">
+    <view class="zy-home-copy">
+      <text class="zy-kicker">今日行动台</text>
+      <text class="zy-page-title">{{greeting}}</text>
+      <text class="zy-page-sub">{{progressSummary.active ? '你有 ' + progressSummary.active + ' 条申请正在推进，先完成最关键的一步。' : '从一个真实目标开始，逐步建立你的求职进度。'}}</text>
     </view>
-
-    <home-recommended-jobs
-      wx:if="{{recruitmentEnabled && homeRecommendationsEnabled}}"
-      jobs="{{recommendJobs}}"
-      loading="{{loadingJobs}}"
-      error="{{jobsError}}"
-      personalization="{{recommendTitle}}"
-      bind:select="goToJobDetail"
-      bind:more="viewMoreJobs"
-      bind:complete="goCompleteProfile"
-      bind:retry="retryRecommendJobs"
-    ></home-recommended-jobs>
-
-    <home-campus-updates
-      items="{{campusLatestUpdates}}"
-      total="{{campusUpdateTotal}}"
-      loading="{{campusUpdateLoading}}"
-      ready="{{campusUpdateReady}}"
-      date-label="{{campusUpdateDateLabel}}"
-      bind:more="goToCampusList"
-      bind:select="goToCampusUpdateDetail"
-      bind:logoerror="onCampusLogoError"
-    ></home-campus-updates>
-
-    <view
-      class="membership-benefit-banner {{membershipEnabled ? 'is-open' : 'is-preview'}}"
-      bindtap="openMembershipBenefits"
-      hover-class="membership-benefit-hover"
-      aria-role="button"
-      aria-label="查看求职会员权益"
-    >
-      <view class="membership-benefit-mark">PRO</view>
-      <view class="membership-benefit-copy">
-        <text class="membership-benefit-title">求职会员权益</text>
-        <text class="membership-benefit-sub">{{membershipEnabled ? 'AI 额度 · 多版本简历 · 模拟面试' : '权益入口已保留 · 真实微信支付暂未开放'}}</text>
-      </view>
-      <view class="membership-benefit-action">
-        <text>{{membershipEnabled ? '查看权益' : '了解权益'}}</text>
-        <text class="membership-benefit-arrow">›</text>
-      </view>
+    <image class="zy-avatar" src="{{avatarUrl}}" mode="aspectFill" binderror="onAvatarError" aria-label="个人头像" />
+  </view>
+  <view class="zy-main-action" bindtap="navigateToPage" data-url="{{workbench.primaryUrl}}" hover-class="zy-main-action--pressed" aria-role="button" aria-label="{{workbench.primaryText}}：{{workbench.title}}">
+    <view class="zy-main-meta"><text class="zy-main-dot" aria-hidden="true"></text><text>{{workbench.meta}}</text></view>
+    <text class="zy-main-title">{{workbench.title}}</text>
+    <text class="zy-main-desc">{{workbench.subtitle}}</text>
+    <view class="zy-main-cta"><text>{{workbench.primaryText}}</text><text class="zy-arrow" aria-hidden="true">›</text></view>
+  </view>
+  <view class="zy-section-head"><view><text class="zy-section-title">今天还要做</text><text class="zy-section-sub">主任务之外最多展示两项</text></view><text class="zy-section-count">{{todaySecondaryTasks.length}} 项</text></view>
+  <view class="zy-list-card" wx:if="{{todaySecondaryTasks.length}}">
+    <view wx:for="{{todaySecondaryTasks}}" wx:key="id" class="zy-task {{item.done ? 'is-done' : ''}}" bindtap="openTodayTask" data-url="{{item.url}}" hover-class="zy-row--pressed" aria-role="button" aria-label="打开任务：{{item.title}}，{{item.desc}}">
+      <view class="zy-task-check" catchtap="toggleTodayTask" data-id="{{item.id}}" aria-role="button" aria-label="{{item.done ? '标记为未完成' : '标记为已完成'}}" aria-pressed="{{item.done}}"><text wx:if="{{item.done}}">完成</text></view>
+      <view class="zy-row-copy"><text class="zy-row-title">{{item.title}}</text><text class="zy-row-desc">{{item.desc}}</text></view><text class="zy-row-arrow" aria-hidden="true">›</text>
     </view>
   </view>
-
-  <view class="page-bottom-spacer"></view>
+  <view class="zy-empty-card" wx:else><view class="zy-empty-mark"><text></text></view><text class="zy-empty-title">主任务之外没有其他事项</text><text class="zy-empty-desc">先完成上方行动，之后可回顾申请进度。</text></view>
+  <block wx:if="{{recruitmentEnabled && homeRecommendationsEnabled}}">
+    <view class="zy-section-head"><view><text class="zy-section-title">与你的目标相关</text><text class="zy-section-sub">{{recommendTitle}}</text></view><view class="zy-text-action" bindtap="viewMoreJobs" aria-role="button" aria-label="查看更多岗位">找岗位</view></view>
+    <view class="zy-job-card" wx:if="{{recommendJobs.length}}" bindtap="goToJobDetail" data-id="{{recommendJobs[0].id}}" hover-class="zy-row--pressed" aria-role="button" aria-label="查看推荐岗位 {{recommendJobs[0].title}}"><view class="zy-company-mark">{{recommendJobs[0].companyInitial || '职'}}</view><view class="zy-row-copy"><text class="zy-row-title">{{recommendJobs[0].title}}</text><text class="zy-row-desc">{{recommendJobs[0].company}} · {{recommendJobs[0].location || '地点待确认'}}</text></view><text class="zy-match-tag">推荐</text></view>
+    <view class="zy-empty-card zy-empty-compact" wx:elif="{{!loadingJobs}}"><text class="zy-empty-title">暂无可验证的岗位推荐</text><text class="zy-empty-desc">完善求职目标后再来看看，系统不会填充演示结果。</text></view>
+  </block>
+  <view class="zy-home-tail"></view>
 </view>

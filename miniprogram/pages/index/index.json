@@ -1,9 +1,5 @@
 {
   "navigationBarTitleText": "职引",
   "enablePullDownRefresh": true,
-  "usingComponents": {
-    "home-career-plan": "/components/home-career-plan/home-career-plan",
-    "home-campus-updates": "/components/home-campus-updates/home-campus-updates",
-    "home-recommended-jobs": "/components/home-recommended-jobs/home-recommended-jobs"
-  }
+  "usingComponents": {}
 }

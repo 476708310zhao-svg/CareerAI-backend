@@ -146,6 +146,11 @@ Page({
     this.setData({ stats: { favorites: favCount } });
   },
 
+  openIdentity() {
+    if (this.data.isLogin) this.goToEditProfile();
+    else this.onLogin();
+  },
+
   goToEditProfile() {
     wx.navigateTo({ url: '/package-user/pages/profile-edit/profile-edit' });
   },

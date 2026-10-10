@@ -122,17 +122,16 @@ test('home keeps one highest-priority action without a global floating AI entry'
   assert.doesNotMatch(customWxml, /ai-float|goAiAssistant/);
   assert.doesNotMatch(customJs, /goAiAssistant|package-ai\/pages\/ai-assistant\/ai-assistant/);
   assert.doesNotMatch(customWxss, /ai-float|ai-orbit|ai-glow/);
-  assert.equal((homeWxml.match(/<home-career-plan\b/g) || []).length, 1);
-  assert.ok(homeWxml.indexOf('<home-career-plan') < homeWxml.indexOf('class="banner-wrap"'));
+  assert.equal((homeWxml.match(/class="zy-main-action"/g) || []).length, 1);
+  assert.ok(homeWxml.indexOf('class="zy-main-action"') < homeWxml.indexOf('今天还要做'));
   assert.doesNotMatch(homeWxml, /\sautoplay(?:\s|>)/);
-  assert.doesNotMatch(homeWxml, /today-task-card|todayTaskPreview/);
-  assert.match(homeWxml, /class="membership-benefit-banner/);
-  assert.match(homeWxml, /真实微信支付暂未开放/);
-  assert.match(homeJs, /openMembershipBenefits\(\)/);
-  assert.match(homeJs, /title: '2027 Summer Internship 求职季'/);
-  assert.match(homeJs, /title: '今日校招机会更新'/);
-  assert.match(homeJs, /title: 'AI 模拟面试'/);
-  assert.match(homeJs, /slice\(0, 3\)/);
+  assert.doesNotMatch(homeWxml, /today-task-card|todayTaskPreview|banner-wrap|membership-benefit-banner/);
+  assert.doesNotMatch(homeWxml, /zy-progress-card|zy-progress-item|求职进展/);
+  assert.match(homeWxml, /todaySecondaryTasks/);
+  assert.match(homeJs, /title = nextTask\.title/);
+  assert.match(homeJs, /buildPrimaryTaskMeta\(nextTask, applications\)/);
+  assert.match(homeJs, /String\(item\.id \|\| ''\) !== primaryTaskId/);
+  assert.match(homeJs, /\.slice\(0, 2\)/);
 });
 
 test('home recommendations are controlled by an independent public feature flag', () => {
@@ -149,7 +148,8 @@ test('home recommendations are controlled by an independent public feature flag'
 test('home workbench distinguishes no application, next task and honest empty states', () => {
   const homeJs = read('pages/index/index.js');
 
-  assert.match(homeJs, /const pendingTaskCount = Number\(taskStats\.pending \|\| 0\)/);
+  assert.match(homeJs, /const nextTask = \(this\.data\.todayTasks \|\| \[\]\)\.find/);
+  assert.match(homeJs, /title = nextTask\.title/);
   assert.match(homeJs, /if \(!hasApplications\)/);
   assert.match(homeJs, /'找到第一个目标岗位'/);
   assert.match(homeJs, /'暂时没有待处理事项'/);
@@ -160,6 +160,16 @@ test('home workbench distinguishes no application, next task and honest empty st
   assert.doesNotMatch(homeJs, /title = '先完善简历，再开始精准匹配'/);
 });
 
+test('global design tokens cover the shared component aliases', () => {
+  const appStyles = read('app.wxss');
+  [
+    '--brand', '--brand-dark', '--brand-shadow', '--bg-panel', '--bg-raised',
+    '--border', '--text-primary', '--text-secondary', '--text-muted', '--btn-height',
+    '--btn-height-sm', '--r-pill', '--color-brand', '--color-ink', '--color-ink-2',
+    '--color-ink-3', '--color-ink-4', '--color-line-soft', '--color-surface-muted',
+    '--color-success-tint', '--color-warning-soft', '--color-danger-soft', '--shadow-action'
+  ].forEach(token => assert.match(appStyles, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*:')));
+});
 
 
 test('resume version helper stays inside the AI subpackage instead of bloating the main package', () => {
@@ -253,19 +263,22 @@ test('resource hub presents content assets and gated purchased state instead of 
   const resourceWxss = read('pages/resources/resources.wxss');
   const resourceJson = JSON.parse(read('pages/resources/resources.json'));
 
-  assert.match(resourceWxml, /资源中心/);
+  assert.match(resourceWxml, /求职准备资源/);
   assert.match(resourceJs, /测评资料/);
   assert.match(resourceJs, /笔试题库/);
   assert.match(resourceJs, /面试经验/);
   assert.match(resourceJs, /公司 \/ 行业/);
   assert.match(resourceJs, /我的收藏/);
   assert.match(resourceJs, /我的已购/);
-  assert.match(resourceJs, /资料商品、订单和权益/);
-  assert.equal(resourceJson.navigationStyle, 'custom');
+  assert.match(resourceWxml, /资料购买与交付能力尚未接入/);
+  assert.equal(resourceJson.navigationStyle, undefined);
   assert.match(resourceWxml, /class="category-scroll"/);
-  assert.match(resourceWxml, /placeholder="公司，如 Amazon"/);
-  assert.match(resourceWxml, /placeholder="岗位，如 Data"/);
+  assert.match(resourceWxml, /搜索标题、标签或内容说明/);
+  assert.match(resourceWxml, /目标上下文/);
+  assert.match(resourceWxml, /不代表搜索筛选结果或已绑定申请/);
   assert.match(resourceWxml, /关于资料权益/);
+  assert.match(resourceWxml, /适用阶段/);
+  assert.match(resourceWxml, /aria-disabled="true"/);
   assert.doesNotMatch(resourceJs, /AI 求职规划|Offer 对比|Networking Copilot|薪酬查询/);
   assert.doesNotMatch(resourceWxml, /expert-card|AI 求职助手|workflow-nav/);
   assert.match(resourceWxss, /\.asset-list\s*\{/);
@@ -274,7 +287,7 @@ test('resource hub presents content assets and gated purchased state instead of 
   assert.match(resourceJs, /\/package-career\/pages\/oa-bank\/oa-bank/);
 });
 
-test('home uses a latest campus list from the unified campus API', () => {
+test('home avoids hidden campus requests while the campus page keeps the unified API', () => {
   const homeWxml = read('pages/index/index.wxml');
   const homeJs = read('pages/index/index.js');
   const campusJs = read('pages/campus/campus.js');
@@ -283,13 +296,8 @@ test('home uses a latest campus list from the unified campus API', () => {
 
   assert.doesNotMatch(homeWxml, /home-career-insights/);
   assert.doesNotMatch(homeJs, /buildNewsFeed|getNews|HOME_NEWS_CACHE_KEY/);
-  assert.match(homeWxml, /items="\{\{campusLatestUpdates\}\}"/);
-  assert.match(homeJs, /latestDay:\s*'1'/);
-  assert.doesNotMatch(homeJs, /getFeishuCampusList/);
-  assert.match(homeJs, /getCampusList/);
-  assert.match(homeJs, /b\.updateTimestamp\s*-\s*a\.updateTimestamp/);
-  assert.match(homeJs, /今日更新/);
-  assert.doesNotMatch(homeJs, /今日新开|昨日新开|天前新开/);
+  assert.doesNotMatch(homeWxml, /home-campus-updates|campusLatestUpdates/);
+  assert.doesNotMatch(homeJs, /getFeishuCampusList|getCampusList|HOME_CAMPUS_CACHE|fetchCampusUpdates|loadCachedCampusUpdates/);
   assert.doesNotMatch(campusJs, /getFeishuCampusList/);
   assert.match(campusJs, /api\.getCampusList/);
   assert.doesNotMatch(campusDetailJs, /getFeishuCampusDetail/);

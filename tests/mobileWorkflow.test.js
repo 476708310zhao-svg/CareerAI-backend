@@ -290,10 +290,23 @@ test('resource hub is a content asset center instead of a multi-tool hall', () =
     ['assessment', 'written', 'interview', 'company', 'favorites', 'purchased']);
   const source = fs.readFileSync(path.join(__dirname, '../miniprogram/pages/resources/resources.js'), 'utf8');
   assert.doesNotMatch(source, /AI 求职规划|Offer 对比|薪酬查询|Networking Copilot/);
-  assert.match(source, /资料商品、订单和权益/);
+  assert.equal(page.data.categories.find(row => row.id === 'purchased').disabled, true);
+  assert.match(source, /\[item\.title, item\.desc\]\.concat\(item\.tags \|\| \[\]\)/);
+  page.selectCategory({ currentTarget: { dataset: { id: 'written' } } });
+  assert.deepEqual(Array.from(page.data.questionTypes, item => item.id), ['', 'oa', 'algorithm', 'frontend', 'system']);
+  for (const questionType of ['algorithm', 'frontend', 'system']) {
+    page.selectQuestionType({ currentTarget: { dataset: { id: questionType } } });
+    assert.deepEqual(Array.from(page.data.assets, item => item.id), ['algorithm']);
+  }
+  page.selectCategory({ currentTarget: { dataset: { id: 'interview' } } });
+  assert.deepEqual(Array.from(page.data.questionTypes, item => item.id), ['', 'behavior']);
+  assert.deepEqual(Array.from(page.data.assets, item => item.id), ['experience', 'star']);
+  page.selectCategory({ currentTarget: { dataset: { id: 'company' } } });
+  assert.equal(page.data.questionType, '');
+  assert.deepEqual(Array.from(page.data.assets, item => item.id), ['companies', 'news']);
 });
 
-test('resource filters pass company, role and question type into real content destinations', () => {
+test('resource search is local while target context is only passed into real destinations', () => {
   const h = fixture(), routes = [];
   const page = load('pages/resources/resources.js', {
     '../../utils/navigation.js': { safeNavigateTo: url => routes.push(url) },
@@ -307,9 +320,12 @@ test('resource filters pass company, role and question type into real content de
   assert.match(routes[0], /company=Amazon/);
   assert.match(routes[0], /role=Data/);
   assert.match(routes[0], /type=behavior/);
+  page.onKeyword({ detail: { value: 'STAR' } });
+  assert.deepEqual(Array.from(page.data.assets, item => item.id), ['star']);
+  const activeBeforeDisabledTap = page.data.activeCategory;
   page.selectCategory({ currentTarget: { dataset: { id: 'purchased' } } });
-  assert.equal(page.data.assets.length, 0);
-  assert.match(page.data.emptyDesc, /不会展示虚构/);
+  assert.equal(page.data.activeCategory, activeBeforeDisabledTap);
+  assert.deepEqual(Array.from(page.data.assets, item => item.id), ['star']);
 });
 
 test('restored resources route uses switchTab through shared navigation', () => {

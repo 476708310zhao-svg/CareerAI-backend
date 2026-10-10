@@ -48,12 +48,12 @@ test('campus sync maps the new table fields and derives recruit year from start 
   assert.equal(item.announce_url, 'https://example.com/notice');
 });
 
-test('home campus feed bypasses stale client and intermediary caches', () => {
+test('home no longer loads the invisible campus feed while campus API requests stay fresh', () => {
   const apiSource = fs.readFileSync(path.join(ROOT, 'miniprogram/utils/api-campus.js'), 'utf8');
   const homeSource = fs.readFileSync(path.join(ROOT, 'miniprogram/pages/index/index.js'), 'utf8');
 
   assert.match(apiSource, /_fresh:\s*Date\.now\(\)/);
-  assert.match(homeSource, /onShow\(\)[\s\S]*?fetchCampusUpdates\(\{ force: true \}\)/);
+  assert.doesNotMatch(homeSource, /getCampusList|fetchCampusUpdates|loadCachedCampusUpdates|HOME_CAMPUS_CACHE_KEY/);
 });
 
 test('campus deployment only replaces campus-specific Feishu settings', () => {

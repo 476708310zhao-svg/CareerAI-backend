@@ -1,5 +1,64 @@
 /* app.wxss */
 page {
+  /* Shared design tokens. Keep the legacy aliases because some subpackages
+   * still consume them while they are being migrated to the 2026 palette. */
+  --brand: #2563eb;
+  --brand-dark: #1d4ed8;
+  --brand-shadow: rgba(37, 99, 235, 0.18);
+  --brand-bg: #eef4ff;
+  --bg-panel: #ffffff;
+  --bg-raised: #f7f8fb;
+  --border: #e5eaf2;
+  --border-subtle: rgba(16, 24, 40, 0.06);
+  --text-primary: #101828;
+  --text-secondary: #475467;
+  --text-muted: #667085;
+  --danger: #dc2626;
+  --btn-height: 88rpx;
+  --btn-height-sm: 88rpx;
+  --btn-font-size: 28rpx;
+  --btn-font-size-sm: 24rpx;
+  --r-pill: 999rpx;
+  --r-xs: 12rpx;
+  --radius-lg: 26rpx;
+  --radius-full: 999rpx;
+  --motion-fast: 0.16s ease;
+  --motion-normal: 0.22s ease;
+  --shadow-action: 0 12rpx 26rpx rgba(37, 99, 235, 0.18);
+  --shadow-card: 0 14rpx 34rpx rgba(36, 58, 92, 0.07);
+  --color-brand: #2563eb;
+  --color-brand-tint: #eef4ff;
+  --color-brand-tint-legacy: #eef4ff;
+  --color-brand-soft: #f4f8ff;
+  --color-ink: #101828;
+  --color-ink-2: #344054;
+  --color-ink-3: #667085;
+  --color-ink-4: #667085;
+  --color-neutral: #475467;
+  --color-neutral-muted: #667085;
+  --color-surface-muted: #f2f4f7;
+  --color-surface-subtle: #f7f8fb;
+  --color-bg: #ffffff;
+  --color-bg-soft: #f7f8fb;
+  --color-form-bg: #f8faff;
+  --color-line-soft: #e8edf5;
+  --color-divider-strong: #dfe5ee;
+  --color-neutral-line: #e8edf5;
+  --color-neutral-line-strong: #d0d5dd;
+  --color-success: #12a174;
+  --color-success-soft: #eafbf3;
+  --color-success-tint: #e9fbf5;
+  --color-success-text: #087a55;
+  --color-warning: #d97706;
+  --color-warning-soft: #fff4dd;
+  --color-warning-strong: #b54708;
+  --color-danger: #dc2626;
+  --color-danger-soft: #fef2f2;
+  --color-danger-tint: #fff0f0;
+  --warning-bg: #fff8db;
+  --success-bg: #eafbf3;
+  --info-bg: #eef4ff;
+  --font-lg: 34rpx;
   --card-radius: 26rpx;
   --card-radius-lg: 30rpx;
   --card-bg: linear-gradient(145deg, rgba(255,255,255,0.99) 0%, rgba(248,251,255,0.98) 100%);
@@ -51,183 +110,6 @@ page {
   box-shadow: var(--card-shadow);
 }
 
-/* Unified neutral surfaces across pages and subpackages. */
-.card,
-.job-card,
-.company-card,
-.agency-card,
-.q-card,
-.app-card,
-.fav-card,
-.message-card,
-.article-card,
-.section-card,
-.info-card,
-.content-card,
-.form-card,
-.role-card,
-.item-card,
-.review-card,
-.title-card,
-.answer-card,
-.summary-card,
-.progress-card,
-.resume-card,
-.tool-card,
-.service-card,
-.workspace-card,
-.setting-card,
-.status-card,
-.feature-card,
-.detail-card,
-.head-card,
-.desc-card {
-  border-radius: var(--card-radius) !important;
-  border-color: var(--card-border) !important;
-  box-shadow: var(--card-shadow) !important;
-  background-clip: padding-box;
-}
-
-/* Semantic and specialist cards keep their own fill colors. */
-.ai-trigger-card,
-.eval-score-card,
-.tpl-card,
-.modal-card,
-.type-card,
-.lc-stats-card,
-.lc-hint-card,
-.tips-card,
-.system-card,
-.loading-card,
-.dim-card,
-.transcript-card,
-.idle-card,
-.highlight-card,
-.focus-card,
-.advice-card,
-.motivation-card,
-.track-card,
-.history-card,
-.two-col-card,
-.resume-bullet-card,
-.diff-summary-card,
-.salary-summary-card,
-.lead-card,
-.search-card,
-.recommend-card,
-.recorder-card,
-.benefit-card,
-.free-card,
-.member-card,
-.check-card,
-.project-card,
-.quick-card,
-.promise-card,
-.intel-card,
-.insight-card,
-.gd-review-card,
-.ap-resume-card,
-.action-card,
-.remind-card,
-.author-card,
-.tags-card,
-.comment-card,
-.news-icon-card,
-.jobs-empty-card,
-.compare-card,
-.share-card,
-.fx-card,
-.user-stats-card,
-.cmp-form-card,
-.cmp-result-card,
-.bq-card,
-.audio-card,
-.campus-card,
-.deadline-card,
-.exp-card,
-.salary-card {
-  border-radius: var(--card-radius) !important;
-  box-shadow: var(--card-shadow) !important;
-  background-clip: padding-box;
-}
-
-.ai-loading-card,
-.answer-action-card,
-.interview-card,
-.mcp-card,
-.news-card,
-.sec-card,
-.stat-card,
-.suite-card,
-.topic-card,
-.trending-card,
-.wechat-privacy-card {
-  border-radius: var(--card-radius) !important;
-  box-shadow: var(--card-shadow) !important;
-  background-clip: padding-box;
-}
-
-.card,
-.job-card,
-.company-card,
-.agency-card,
-.q-card,
-.app-card,
-.fav-card,
-.message-card,
-.article-card,
-.section-card,
-.info-card,
-.content-card,
-.form-card,
-.role-card,
-.item-card,
-.review-card,
-.title-card,
-.answer-card,
-.resume-card,
-.tool-card,
-.service-card,
-.workspace-card,
-.setting-card,
-.feature-card,
-.detail-card,
-.head-card,
-.desc-card {
-  background-image: var(--card-bg) !important;
-}
-
-/* Hero and data-result surfaces sit one level higher. */
-.jobs-brief,
-.training-hero,
-.assessment-hero,
-.hero-card,
-.score-card,
-.result-card,
-.percentile-card,
-.analysis-card,
-.gd-overview-card {
-  border-radius: var(--card-radius-lg) !important;
-  box-shadow: var(--card-shadow-raised) !important;
-  background-clip: padding-box;
-}
-
-.card:active,
-.job-card:active,
-.company-card:active,
-.agency-card:active,
-.q-card:active,
-.app-card:active,
-.fav-card:active,
-.message-card:active,
-.article-card:active,
-.role-card:active,
-.item-card:active,
-.tool-card:active,
-.detail-card:active {
-  box-shadow: var(--card-shadow-press) !important;
-}
-
 /* 列表项样式 */
 .list-item {
   padding: 30rpx;
@@ -262,28 +144,4 @@ page {
   padding: 80rpx 0;
   color: #999;
   font-size: 28rpx;
-}
-
-/* Global dark AI marks: keep AI icons visible on pale cards. */
-.ai-icon-box,
-.ai-avatar,
-.ai-intro-badge,
-.ai-badge,
-.answer-action-mark,
-.brand-mark,
-.top-icon,
-.drawer-logo,
-.ai-tag,
-.q-ai-tag,
-.fab-text {
-  background: linear-gradient(135deg, #111827 0%, #1e293b 100%) !important;
-  color: #ffffff !important;
-  border-color: rgba(15, 23, 42, 0.16) !important;
-}
-
-.ai-icon-txt,
-.ai-avatar-icon,
-.ai-avatar-text,
-.ai-badge-txt {
-  color: #ffffff !important;
 }

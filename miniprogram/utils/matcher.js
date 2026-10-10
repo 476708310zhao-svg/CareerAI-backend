@@ -119,7 +119,8 @@ function matchJobs(profile, jobs) {
       ...job,
       matchScore:  score,
       isMatch:     score > 0,
-      matchReason: matched.length ? '匹配' + matched.slice(0, 2).join('/') : '',
+      matchReason: matched.length ? '关键词覆盖：' + matched.slice(0, 2).join('、') : '',
+      matchedKeywords: matched.slice(0, 2),
     };
   }).sort((a, b) => b.matchScore - a.matchScore);
 }

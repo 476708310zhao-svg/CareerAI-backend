@@ -233,6 +233,23 @@ function requirementValues(source) {
   return unique(values).slice(0, 12).map(text => ({ text, bullet: true }));
 }
 
+function matchEvidence(source) {
+  const match = source.match || {};
+  const matched = unique([
+    ...list(first(source, ['matchedSkills', 'matchedKeywords'])),
+    ...list(match.matchedSkills),
+    ...list(match.matchedKeywords)
+  ]).slice(0, 3);
+  const qualification = clean(first(source, ['qualificationStatus']) || match.qualificationStatus).toLowerCase();
+  const evidence = [];
+  if (source.locationMatched === true || match.locationMatched === true) evidence.push('地点符合目标');
+  if (matched.length) evidence.push(`关键词覆盖：${matched.join('、')}`);
+  if (qualification === 'eligible') evidence.push('资格信息显示符合');
+  if (qualification === 'partial') evidence.push('部分资格待核实');
+  if (qualification === 'ineligible') evidence.push('存在资格限制，需核实');
+  return evidence;
+}
+
 function presentJob(source) {
   const job = source || {};
   const dataMeta = normalizeDataMeta(job.dataMeta, {
@@ -249,6 +266,7 @@ function presentJob(source) {
   const state = applicationState(job);
   const applied = state.isApplied;
   const employmentType = employmentText(first(job, ['type', 'jobType', 'employmentType', 'job_employment_type']));
+  const evidence = matchEvidence(job);
   const presentation = {
     id: first(job, ['id', 'jobId', 'job_id']),
     title: clean(first(job, ['title', 'jobTitle', 'job_title'])) || '职位名称待确认',
@@ -266,6 +284,8 @@ function presentJob(source) {
     matchScore: score > 0 ? Math.min(100, score) : 0,
     matchReason: clean(first(job, ['matchReason', 'matchReasons', 'recommendationText', 'recommendation'])),
     hasMatch: score > 0 || !!clean(first(job, ['matchReason', 'matchReasons', 'recommendationText', 'recommendation'])),
+    matchEvidence: evidence,
+    matchEvidenceText: evidence.length ? evidence.join('；') : '暂无可验证匹配依据',
     deadlineText: deadline.text,
     deadlineTone: deadline.tone,
     deadlineClosed: deadline.closed,
@@ -291,6 +311,14 @@ function presentJob(source) {
     isFallback: dataMeta.isFallback
   };
   presentation.basicInfo = basicInfo(job, presentation);
+  presentation.accessibilityLabel = [
+    presentation.title,
+    presentation.company,
+    presentation.location,
+    presentation.salary,
+    presentation.deadlineText,
+    presentation.matchEvidenceText
+  ].filter(Boolean).join('，');
   presentation.applyButtonText = presentation.inProgress
     ? '查看进度'
     : (presentation.deadlineClosed ? '已截止' : (presentation.hasApplyLink ? '前往投递' : '保存投递'));
@@ -302,5 +330,6 @@ module.exports = {
   stripHtml,
   contentBlocks,
   deadlineMeta,
+  matchEvidence,
   presentJob
 };

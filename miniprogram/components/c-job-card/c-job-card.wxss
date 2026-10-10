@@ -16,8 +16,8 @@
 }
 
 .job-card--pressed {
-  transform: scale(0.988);
   opacity: 0.9;
+  box-shadow: 0 4rpx 14rpx rgba(15, 23, 42, 0.04);
 }
 
 .job-card--closed {
@@ -92,8 +92,8 @@
 
 .job-card__company-meta {
   margin-top: 5rpx;
-  color: #7b8493;
-  font-size: 23rpx;
+  color: #667085;
+  font-size: 24rpx;
   line-height: 1.35;
 }
 
@@ -103,7 +103,7 @@
   color: #2563eb;
   background: #edf4ff;
   border-radius: 999rpx;
-  font-size: 21rpx;
+  font-size: 24rpx;
   font-weight: 650;
 }
 
@@ -120,7 +120,7 @@
   max-width: 100%;
   padding: 7rpx 13rpx;
   border-radius: 8rpx;
-  font-size: 22rpx;
+  font-size: 24rpx;
   line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -159,21 +159,24 @@
   min-width: 0;
 }
 
-.job-card__match-score,
+.job-card__match-label,
 .job-card__match-reason {
   display: block;
 }
 
-.job-card__match-score {
+.job-card__match-label {
   color: #245bd6;
   font-size: 24rpx;
   font-weight: 700;
 }
 
+.job-card__evidence { display: flex; flex-wrap: wrap; gap: 8rpx; margin-top: 8rpx; }
+.job-card__evidence-tag { padding: 7rpx 12rpx; border-radius: 999rpx; color: #344054; background: #f2f4f7; font-size: 24rpx; line-height: 1.35; }
+
 .job-card__match-reason {
   margin-top: 5rpx;
   color: #667085;
-  font-size: 21rpx;
+  font-size: 24rpx;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -182,7 +185,7 @@
 .job-card__deadline {
   flex-shrink: 0;
   color: #4f6b58;
-  font-size: 23rpx;
+  font-size: 24rpx;
   font-weight: 650;
   white-space: nowrap;
 }
@@ -192,7 +195,7 @@
 }
 
 .job-card__deadline--closed {
-  color: #98a2b3;
+  color: #667085;
 }
 
 .job-card__footer {
@@ -208,8 +211,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 14rpx;
-  color: #98a2b3;
-  font-size: 21rpx;
+  color: #667085;
+  font-size: 24rpx;
 }
 
 .job-card__actions { display: flex; align-items: center; justify-content: flex-end; gap: 16rpx; margin-left: auto; }
@@ -240,9 +243,10 @@
   align-items: center;
   gap: 6rpx;
   min-height: 88rpx;
-  padding: 0 10rpx;
+  min-width: 112rpx;
+  padding: 0 18rpx;
   color: #667085;
-  font-size: 22rpx;
+  font-size: 24rpx;
 }
 
 .job-card__favorite--saved {
@@ -251,11 +255,6 @@
 
 .job-card__favorite--pressed {
   opacity: 0.55;
-}
-
-.job-card__favorite-icon {
-  font-size: 30rpx;
-  line-height: 1;
 }
 
 .job-card--compact {
