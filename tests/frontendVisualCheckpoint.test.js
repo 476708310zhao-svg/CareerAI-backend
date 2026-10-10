@@ -206,3 +206,37 @@ test('interactive controls expose accessible names and selected or pressed state
   assert.match(read('pages/resources/resources.wxml'), /aria-selected="\{\{activeCategory===item\.id\}\}"/);
   assert.match(read('pages/applications/applications.wxml'), /aria-label="公司名称，必填"/);
 });
+
+test('premium tab information architecture stays task-first and contextual', () => {
+  const home = read('pages/index/index.wxml');
+  assert.ok(home.indexOf('zy-signal-panel') < home.indexOf('zy-main-action'));
+  assert.ok(home.indexOf('zy-main-action') < home.indexOf('今天还要做'));
+
+  const jobs = read('pages/jobs/jobs.wxml');
+  assert.ok(jobs.indexOf('search-card') < jobs.indexOf('campus-entry'));
+  assert.ok(jobs.indexOf('campus-entry') < jobs.indexOf('control-row'));
+
+  const applications = read('pages/applications/applications.wxml');
+  assert.ok(applications.indexOf('NEXT ACTION') < applications.indexOf('summary-card'));
+  assert.ok(applications.indexOf('summary-card') < applications.indexOf('全部申请'));
+
+  const resources = read('pages/resources/resources.wxml');
+  assert.ok(resources.indexOf('resource-hero') < resources.indexOf('category-scroll'));
+  assert.ok(resources.indexOf('category-scroll') < resources.indexOf('CURATED'));
+
+  const profile = read('pages/profile/profile.wxml');
+  assert.ok(profile.indexOf('identity-card') < profile.indexOf('ASSETS'));
+  assert.ok(profile.indexOf('ASSETS') < profile.indexOf('ACCOUNT'));
+
+  const assistant = read('package-ai/pages/ai-assistant/ai-assistant.wxml');
+  assert.ok(assistant.indexOf('context-bar') < assistant.indexOf('msg-scroll'));
+  assert.match(assistant, /当前上下文：\{\{contextLabel\}\}/);
+  assert.doesNotMatch(assistant, /thinking-steps|drawer-search/);
+  assert.match(assistant, />复制</);
+  assert.match(assistant, />保存</);
+  assert.match(assistant, />继续追问</);
+
+  const tabBar = read('custom-tab-bar/index.wxml');
+  assert.match(tabBar, /ai-float-label">助手</);
+  assert.match(tabBar, /打开当前页面的上下文 AI/);
+});

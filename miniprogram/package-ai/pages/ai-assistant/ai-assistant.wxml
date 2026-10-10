@@ -7,7 +7,7 @@
       <view class="nav-back-btn" bindtap="goBack" hover-class="btn-hover">
         <text class="nav-back-icon">‹</text>
       </view>
-      <view class="menu-btn" bindtap="toggleSidebar" hover-class="btn-hover">
+      <view class="menu-btn" bindtap="toggleSidebar" hover-class="btn-hover" aria-role="button" aria-label="打开 AI 工具与历史">
         <view class="menu-line"></view>
         <view class="menu-line short"></view>
       </view>
@@ -16,17 +16,17 @@
       <text class="top-icon">AI</text>
       <view class="top-copy">
         <text class="top-name">{{contextActive ? 'AI 帮我推进' : 'AI 求职助手'}}</text>
-        <text class="top-sub">{{contextActive ? '已继承当前页面信息' : '围绕岗位、申请、简历与面试连续协作'}}</text>
+        <text class="top-sub">{{contextActive ? '已连接当前求职任务' : '把问题变成一个可执行的下一步'}}</text>
       </view>
     </view>
-    <view class="new-chat-btn" bindtap="onNewChat" hover-class="btn-hover">
+    <view class="new-chat-btn" bindtap="onNewChat" hover-class="btn-hover" aria-role="button" aria-label="开始新对话">
       <text class="new-chat-icon">+</text>
     </view>
   </view>
 
   <view wx:if="{{contextActive}}" class="context-bar" aria-role="status" aria-label="当前上下文：{{contextLabel}}">
-    <view class="context-mark" aria-hidden="true"><text>CTX</text></view>
-    <text class="context-text">当前上下文：{{contextLabel}}</text>
+    <view class="context-mark" aria-hidden="true"><text>AI</text></view>
+    <view class="context-copy"><text class="context-caption">当前上下文</text><text class="context-text">当前上下文：{{contextLabel}}</text></view>
   </view>
 
   <view wx:if="{{sidebarOpen}}" class="drawer-mask" bindtap="toggleSidebar"></view>
@@ -42,11 +42,7 @@
         <text class="drawer-new-icon">+</text>
         <text>新对话</text>
       </view>
-      <view class="drawer-search">
-        <text class="drawer-search-icon">⌕</text>
-        <text class="drawer-search-placeholder">搜索聊天</text>
-      </view>
-      <view class="drawer-section-title">AI 功能套件</view>
+      <view class="drawer-section-title">AI 工具</view>
       <block wx:for="{{assistantTools}}" wx:key="title">
         <view
           wx:if="{{index < 4 || showMoreTools}}"
@@ -100,9 +96,9 @@
 
         <view class="msg-row {{item.role === 'user' ? 'user-row' : 'ai-row'}}">
 
-          <!-- AI 头像 -->
+          <!-- AI 标记 -->
           <view wx:if="{{item.role === 'ai'}}" class="ai-avatar">
-            <text class="ai-avatar-icon">✦</text>
+            <text class="ai-avatar-icon">AI</text>
           </view>
 
           <view class="bubble-wrap">
@@ -115,17 +111,12 @@
               class="bubble ai-bubble loading-bubble"
             >
               <view class="thinking-head">
-                <text class="thinking-title">CareerGPT 正在思考</text>
+                <text class="thinking-title">正在整理回答</text>
                 <view class="dot-wrap">
                   <view class="dot"></view>
                   <view class="dot"></view>
                   <view class="dot"></view>
                 </view>
-              </view>
-              <view class="thinking-steps">
-                <text>理解你的目标</text>
-                <text>匹配求职策略</text>
-                <text>生成可执行建议</text>
               </view>
             </view>
             <view
@@ -156,26 +147,19 @@
               <view class="answer-action-head">
                 <view class="answer-action-mark">AI</view>
                 <view class="answer-action-copy">
-                  <text class="answer-action-title">下一步操作</text>
-                  <text class="answer-action-sub">保存答案，或继续细化面试准备</text>
+                  <text class="answer-action-title">处理这个结果</text>
+                  <text class="answer-action-sub">保存、复制，或让 AI 继续细化</text>
                 </view>
               </view>
               <view class="answer-action-grid">
                 <view class="answer-action-btn ux-result-action" bindtap="onCopyAnswer" data-index="{{index}}" hover-class="card-hover">
-                  <text class="answer-action-icon">⧉</text>
                   <text>复制</text>
                 </view>
                 <view class="answer-action-btn ux-result-action" bindtap="onSaveAnswer" data-index="{{index}}" hover-class="card-hover">
-                  <text class="answer-action-icon">✓</text>
                   <text>保存</text>
                 </view>
                 <view class="answer-action-btn ux-result-action primary" bindtap="onContinueAsk" data-type="follow" hover-class="card-hover">
-                  <text class="answer-action-icon">↳</text>
                   <text>继续追问</text>
-                </view>
-                <view class="answer-action-btn ux-result-action" bindtap="onContinueAsk" data-type="plan" hover-class="card-hover">
-                  <text class="answer-action-icon">▦</text>
-                  <text>拆成清单</text>
                 </view>
               </view>
               <view
@@ -216,6 +200,7 @@
                 wx:for-item="suite"
                 wx:key="title"
                 class="suite-card {{(loading || streaming) ? 'quick-disabled' : ''}}"
+                wx:if="{{index < 4}}"
                 bindtap="onToolAction"
                 data-action="{{suite.action}}"
                 data-url="{{suite.url}}"
@@ -268,6 +253,8 @@
         class="send-btn {{streaming ? 'stop-btn' : (inputText && !loading ? 'active' : 'inactive')}}"
         bindtap="onSendOrStop"
         hover-class="btn-hover"
+        aria-role="button"
+        aria-label="{{streaming ? '停止生成' : '发送消息'}}"
       >
         <text class="send-icon">{{streaming ? '■' : '↑'}}</text>
       </view>

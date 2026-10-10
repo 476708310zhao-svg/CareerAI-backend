@@ -67,6 +67,29 @@ page {
   --card-shadow: 0 14rpx 34rpx rgba(36,58,92,0.07), inset 0 1rpx 0 rgba(255,255,255,0.94);
   --card-shadow-raised: 0 20rpx 48rpx rgba(37,68,112,0.105), inset 0 1rpx 0 rgba(255,255,255,0.96);
   --card-shadow-press: 0 8rpx 20rpx rgba(36,58,92,0.055), inset 0 1rpx 0 rgba(255,255,255,0.9);
+  /* 2026 premium mobile workspace system */
+  --zy-bg: #f5f6f8;
+  --zy-surface: #ffffff;
+  --zy-surface-soft: #f8f9fb;
+  --zy-ink: #111827;
+  --zy-ink-2: #354052;
+  --zy-muted: #667085;
+  --zy-line: #e7eaf0;
+  --zy-line-strong: #d8dde7;
+  --zy-brand: #315ee8;
+  --zy-brand-deep: #2448bd;
+  --zy-brand-soft: #edf2ff;
+  --zy-success: #138a68;
+  --zy-success-soft: #eaf8f3;
+  --zy-warning: #b65e0b;
+  --zy-warning-soft: #fff5e8;
+  --zy-danger: #c83b42;
+  --zy-danger-soft: #fff0f1;
+  --zy-radius-sm: 18rpx;
+  --zy-radius-md: 26rpx;
+  --zy-radius-lg: 34rpx;
+  --zy-shadow-card: 0 16rpx 44rpx rgba(20, 31, 55, 0.07);
+  --zy-shadow-float: 0 24rpx 64rpx rgba(20, 31, 55, 0.14);
 }
 .container {
   padding: 20rpx;
