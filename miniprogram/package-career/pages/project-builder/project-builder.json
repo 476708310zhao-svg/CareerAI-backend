@@ -1,6 +1,3 @@
 {
-  "navigationBarTitleText": "AI 项目生成器",
-  "usingComponents": {
-    "c-button": "/components/c-button/c-button"
-  }
+  "navigationBarTitleText": "AI 项目生成器"
 }
