@@ -1,14 +1,27 @@
 # DEVELOPMENT_STATUS
 
-更新时间：2026-09-10
+更新时间：2026-10-10
 
-主项目目录：`D:\ChatGPT-Projects\求职小程序\jobapp-server`
+主项目目录：以 `git rev-parse --show-toplevel` 的结果为准。
 
-小程序源码目录：`D:\ChatGPT-Projects\求职小程序\jobapp-server\miniprogram`
+小程序源码目录：仓库根目录下的 `miniprogram/`。
 
-旧入口 `C:\Users\admin\Desktop\求职小程序` 为指向 D 盘项目目录的 Junction，不是第二份独立项目。
+禁止在个人机器旧副本、Junction 别名或仓库外复制目录中开发、预览、部署或提交。
 
 ## 当前批次
+
+### 2026-10-10 功能简化与 AI 编排 checkpoint 交付候选
+
+- Integration 0 已建立工作区拆分、数据库保护和原子提交边界。
+- Checkpoint 1–9 已形成独立提交，Checkpoint 10 开始前的已提交运行代码基线为 `2fad29d14013dc813f11f5e5738c0095091e7c15`；Checkpoint 10 文档候选的自动化门禁已通过，本记录随本次文档提交生效，提交哈希以 Git 历史为准。
+- 当前小程序一级导航固定为：首页、找岗位、进度、资源中心、我的。首页聚焦单一主行动；资源中心承担内容资产，“我的”承担个人资产，不再展示旧四 Agent 选择器或旧简历主入口。
+- 申请工作台、持久上下文 AI、移动申请、简历版本、申请材料和面试空间已按账号/申请隔离；AI 写入和跨对象影响保持预览、确认及幂等保护。
+- 2026-10-10 11:39（Asia/Shanghai）候选 tree `abdaccf0cdecccda635440546d039e48f88916c9` 完成自动化门禁；该值是文档候选的 Git tree 证据，不是 branch commit。`npm test` 318/318、`check:acceptance` 30/30、`check:miniprogram` 通过（媒体 192.3 KB，主包 0.99 MB）；`check:e2e-3.0` 4/4 仅为 dry-run 预检。Migration `0001–0011`连续性、五 Tab、6 个 feature 默认值、Checkpoint 9 组件清理、材料工具路径与其他静态一致性检查通过；主数据库指纹未变，未执行 migration apply。
+- 未完成/未授权：微信开发者工具完整主链路、真机 E2E、真实支付与测评资料商业化、生产部署、远端同步。
+- 功能开关以代码和环境显式配置为准；`utils/featureFlags.js` 的所有已登记开关代码默认值均为 `false`。
+- 工作区中的业务预制 diff、设计审计、截图/日志、零引用资源图、API 巡检和未完成依赖不属于已交付 checkpoint，详见 `docs/FINAL_DELIVERY_RECORD_20261010.md`。
+
+事实层级固定为：已提交的运行代码/schema 与最终门禁输出是事实依据；`docs/FINAL_DELIVERY_RECORD_20261010.md` 是交付摘要；正式 PRD 表达产品意图；Integration manifest 记录 checkpoint 拆分历史。以下内容是历史快照，只用于追溯，不能覆盖上述事实依据。
 
 Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成代码和自动化验证。提醒使用唯一投递键、租约、失败重试、有界并发和结构化耗时；Today 改为跨设备增量合并并拒绝旧状态覆盖；收藏增加幂等 outbox、删除 tombstone，并统一进入小程序请求层。竞争力陪跑已补充响应完整性校验；收藏同步已兼容 iOS 对 SQLite 空格日期格式的限制。真实双设备/微信订阅消息 staging、生产 migration 和上线仍待 Human；未运行真实 E2E、未调用真实 AI、未部署。
 

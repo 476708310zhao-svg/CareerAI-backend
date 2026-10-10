@@ -4,17 +4,9 @@ CareerAI 留学生求职助手全栈代码仓库，包含 Node.js 后端、管�
 
 ## 当前项目目录
 
-```text
-C:\Users\admin\Desktop\求职小程序\jobapp-server
-```
-
-后端、后台和部署相关开发使用上面这个目录。微信开发者工具当前打开的小程序项目目录是：
-
-```text
-C:\Users\admin\Desktop\求职小程序\求职小程序
-```
-
-后续开发前请先确认本次要改的是后端项目还是小程序项目，避免误扫或误改其它仓库。
+本仓库是后端、Web 工作台、管理后台和微信小程序共用的唯一项目。执行命令前使用
+`git rev-parse --show-toplevel` 确认项目根目录；微信开发者工具打开根目录下的
+`miniprogram/`。不要使用个人机器上的旧副本或把本机绝对路径写入交付文档。
 
 ## 目录结构
 
@@ -31,6 +23,17 @@ C:\Users\admin\Desktop\求职小程序\求职小程序
 └── miniprogram/           # 微信小程序端
 ```
 
+## 当前产品结构（2026-10-10）
+
+- 小程序保留五个一级 Tab：`首页`、`找岗位`、`进度`、`资源中心`、`我的`。
+- 一条 `application` 是求职推进的主对象；申请工作台关联简历版本、申请材料、面试空间、任务和时间线。
+- 用户侧只提供统一的上下文 AI 入口；岗位顾问、申请助手、面试教练和职业规划属于内部能力路由。
+- 简历主入口统一到 Resume Center；旧页面只保留兼容跳转，不作为新功能入口。
+- 资源中心定位为内容资产中心；“我的”定位为个人资产中心。“我的已购”当前只保留分类/入口和诚实空态，没有独立功能开关；真实商品、订单、支付和授权不属于本轮交付。
+
+本轮 checkpoint、提交、验证证据和未决门禁见
+[`docs/FINAL_DELIVERY_RECORD_20261010.md`](docs/FINAL_DELIVERY_RECORD_20261010.md)。
+
 旧根目录下还存在 `ai.js`、`app.js`、`jobs.js`、`rateLimit.js` 等历史文件。日常开发优先看 `server.js`、`routes/`、`middleware/`、`services/`、`db/`、`admin/` 和 `miniprogram/`，不要在未确认用途前继续扩展旧入口文件。
 
 ## 本地开发
@@ -41,10 +44,16 @@ cp .env.example .env
 npm run dev
 ```
 
-默认服务端口为 `3000`，可通过 `.env` 中的 `PORT` 调整。启动后常用检查接口：
+默认服务端口为 `4400`；如果 `.env` 中设置了 `PORT`，以该值为准。启动后终端会打印实际端口。Web 工作台访问：
+
+```text
+http://127.0.0.1:4400/web/
+```
+
+若终端打印的是其他端口，将 URL 中的端口替换为实际值。根路径 `/` 也会打开 Web 工作台。启动后常用检查接口：
 
 ```bash
-curl http://127.0.0.1:3000/api/health
+curl http://127.0.0.1:4400/api/health
 ```
 
 小程序端请在微信开发者工具中打开 `miniprogram/` 目录。
@@ -53,9 +62,11 @@ curl http://127.0.0.1:3000/api/health
 
 ```bash
 npm test
+npm run check:miniprogram
+npm run check:acceptance
 ```
 
-当前测试使用 Node.js 内置 test runner，测试文件位于 `tests/*.test.js`。后端改动提交前至少运行 `npm test`。
+当前测试使用 Node.js 内置 test runner，测试文件位于 `tests/*.test.js`。发布候选必须在不包含本地预制改动的干净快照中运行上述三项；微信开发者工具和真机回归是独立人工门禁，不能由静态检查代替。
 
 GitHub Actions 已新增 `.github/workflows/test.yml`，在 push/PR 到 `main` 时运行：
 
@@ -78,7 +89,7 @@ npm test
 | `AI_API_KEY` / `AI_API_URL` / `AI_MODEL` | AI 通用覆盖配置 | 可选 |
 | `DEEPSEEK_API_KEY` / `DEEPSEEK_API_URL` / `DEEPSEEK_MODEL` | DeepSeek 兼容配置 | 切回 DeepSeek 时填写 |
 | `RAPID_API_KEY` / `RAPID_API_HOST` / `RAPID_API_URL` | JSearch 职位搜索 | 使用真实职位搜索时必填 |
-| `RECRUITMENT_FEATURE_ENABLED` | 职位功能总开关，默认 `false` | 否 |
+| `RECRUITMENT_FEATURE_ENABLED` | 职位功能总开关，代码默认 `false`；经产品决策后可显式开启 | 否 |
 | `WEBHOOK_SECRET` | GitHub Webhook 签名 | 部署 Webhook 必填 |
 | `PAYMENT_ENABLED` / `PAYMENT_PROVIDER` | 会员支付开关和支付方式 | 支付上线时配置 |
 | `REAL_PAYMENT_LAUNCH_APPROVED` / `COMMERCE_ROLLOUT_APPROVED` | 真实支付与商业灰度 Human 审批门禁，默认 `false` | 资质、商品与退款方案审批后配置 |
@@ -130,7 +141,7 @@ RECRUITMENT_FEATURE_ENABLED=false
 数据库已建立 `schema_migrations` 和 `db/migrations/*.sql` 基线。查询状态必须显式指定数据库，且只读不写：
 
 ```bash
-npm run migrate:db -- --db="D:\path\to\jobapp.db" --status
+npm run migrate:db -- --db="./tmp/jobapp.db" --status
 ```
 
 apply 必须同时提供已验证备份和确认口令；生产 apply 还需要 Human 上线审批。隔离的备份、迁移、失败事务和恢复演练使用 `npm run rehearse:db-migrations`。完整规则见 `docs/DATABASE_MIGRATION_PLAN.md`。现有启动期 DDL 暂时作为兼容兜底，新增表、字段和索引必须先写 migration，禁止继续在业务路由中增加建表逻辑。

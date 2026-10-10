@@ -2,6 +2,19 @@
 
 本文件记录 AI 参与的主要代码改动、验证结果和后续注意事项，便于多 AI 协作时快速接手。
 
+## 2026-10-10
+
+### 功能简化与 AI 编排 Checkpoint 1–10
+
+- Checkpoint 1–9 已拆分为原子提交，覆盖 migration baseline、申请工作台、持久上下文 AI、Web P0、移动申请、简历/材料/面试闭环、资源/我的资产化、首页/五 Tab 导航以及零引用组件清理。
+- 安全补丁将数据库测试与 acceptance runtime 固定到隔离临时目录，避免自动化测试触碰主数据库。
+- 用户侧 AI 收敛为统一上下文入口；简历主入口统一为 Resume Center；资源中心和我的分别承担内容资产与个人资产。
+- 2026-10-10 11:39（Asia/Shanghai），Checkpoint 10 自动化候选门禁已通过：候选 tree 为 `abdaccf0cdecccda635440546d039e48f88916c9`（Git tree 证据，不是 branch commit），`npm test` 318/318、`check:miniprogram` 通过（媒体 192.3 KB，主包 0.99 MB）、`check:acceptance` 30/30。
+- `check:e2e-3.0` 4/4 仅为 dry-run 预检，不代表微信 UI 或真机 E2E已通过。Migration `0001–0011`、五 Tab、6 个 feature 默认值、Checkpoint 9 组件清理和材料工具路径等静态一致性检查通过；主数据库指纹未变且未执行 apply。
+- Checkpoint 10 本记录随本次文档提交生效，提交哈希以 Git 历史为准。微信开发者工具完整主链路、真机 E2E、生产部署、远端同步和真实支付仍未完成。
+- 测评资料购买 PRD 仅为后续规划；本轮未交付真实商品、订单、支付、Grant 或退款链路，不得对外宣称已上线。
+- 事实判定以已提交的运行代码/schema 和最终门禁输出为准；交付记录是摘要，PRD 表达意图，manifest 记录拆分历史，旧记录只用于追溯。
+
 ## 2026-09-10
 
 ### 修复竞争力陪跑组件加载失败
