@@ -204,6 +204,7 @@ Page({
   },
 
   goToFavorites() { wx.navigateTo({ url: '/package-user/pages/favorites/favorites' }); },
+  goToApplications() { wx.switchTab({ url: '/pages/applications/applications' }); },
   goToPurchasedMaterials() { wx.showToast({ title: '资料购买与权益暂未开放', icon: 'none' }); },
   goToMessages()  { wx.navigateTo({ url: '/package-user/pages/messages/messages' }); },
   goToSettings()  { wx.navigateTo({ url: '/package-user/pages/settings/settings' }); },

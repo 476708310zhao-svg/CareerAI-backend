@@ -8,10 +8,10 @@
 
 **Project:** Zhiyin Career
 **Generated:** 2026-10-10 15:12:48
-**Category:** Luxury/Premium Brand
-**Design Dials:** Variance 4/10 (Balanced / Modern) | Motion 3/10 (Subtle) | Density 5/10 (Standard)
+**Category:** Light Mobile Productivity
+**Design Dials:** Variance 3/10 (Minimal) | Motion 2/10 (Subtle) | Density 5/10 (Standard)
 
-> **WeChat native override (authoritative):** use the platform system font, warm-white surfaces, deep ink text and restrained Zhiyin blue (`#315EE8`) accents. Do not import remote fonts or copy web-only glass/hover treatments. Keep the five-tab shell, 88rpx touch targets, safe-area padding and reduced-motion behavior defined by the mini-program implementation.
+> **Human-approved WeChat direction (authoritative):** use the platform system font, warm-white and pale-blue surfaces, deep ink text and restrained Zhiyin blue (`#315EE8`) accents. Cards stay white with quiet borders and extremely soft shadows. Never use large black/navy panels, dark gradients, English decorative headings, remote fonts, heavy glass effects or an AI control that covers a Tab item. Keep five equal Tab items, an independent lower-right AI button, 88rpx touch targets, safe-area padding and reduced-motion behavior.
 
 ---
 
@@ -21,36 +21,31 @@
 
 | Role | Hex | CSS Variable |
 |------|-----|--------------|
-| Primary | `#1C1917` | `--color-primary` |
+| Primary | `#315EE8` | `--color-primary` |
 | On Primary | `#FFFFFF` | `--color-on-primary` |
-| Secondary | `#44403C` | `--color-secondary` |
+| Secondary | `#667085` | `--color-secondary` |
 | On Secondary | `#FFFFFF` | `--color-on-secondary` |
-| Accent/CTA | `#A16207` | `--color-accent` |
+| Accent/CTA | `#315EE8` | `--color-accent` |
 | On Accent/CTA | `#FFFFFF` | `--color-on-accent` |
-| Background | `#FAFAF9` | `--color-background` |
-| Foreground | `#0C0A09` | `--color-foreground` |
+| Background | `#F5F8FF` | `--color-background` |
+| Foreground | `#111827` | `--color-foreground` |
 | Card | `#FFFFFF` | `--color-card` |
-| Card Foreground | `#0C0A09` | `--color-card-foreground` |
-| Muted | `#E8ECF0` | `--color-muted` |
-| Muted Foreground | `#475569` | `--color-muted-foreground` |
-| Border | `#D6D3D1` | `--color-border` |
+| Card Foreground | `#111827` | `--color-card-foreground` |
+| Muted | `#EDF2FF` | `--color-muted` |
+| Muted Foreground | `#667085` | `--color-muted-foreground` |
+| Border | `#E2E8F3` | `--color-border` |
 | Destructive | `#DC2626` | `--color-destructive` |
 | On Destructive | `#FFFFFF` | `--color-on-destructive` |
-| Ring | `#1C1917` | `--color-ring` |
+| Ring | `#315EE8` | `--color-ring` |
 
-**Color Notes:** Premium black + gold accent [Accent adjusted from #CA8A04]
+**Color Notes:** Human-approved warm white + restrained blue; dark blocks are forbidden.
 
 ### Typography
 
-- **Heading Font:** Cormorant
-- **Body Font:** Montserrat
-- **Mood:** luxury, high-end, fashion, elegant, refined, premium
-- **Google Fonts:** [Cormorant + Montserrat](https://fonts.googleapis.com/css2?family=Cormorant:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap)
-
-**CSS Import:**
-```css
-@import url('https://fonts.googleapis.com/css2?family=Cormorant:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap');
-```
+- **Heading Font:** WeChat platform system sans-serif
+- **Body Font:** WeChat platform system sans-serif
+- **Mood:** bright, calm, friendly, refined, direct
+- **Remote fonts:** forbidden for this native mini-program shell
 
 ### Spacing Variables
 

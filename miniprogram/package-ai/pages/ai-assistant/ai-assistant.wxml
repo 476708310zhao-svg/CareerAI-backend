@@ -4,7 +4,7 @@
   <!-- 顶部栏（自定义导航，含状态栏占位） -->
   <view class="top-bar" style="padding-top: {{statusBarHeight}}px;">
     <view class="top-left">
-      <view class="nav-back-btn" bindtap="goBack" hover-class="btn-hover">
+      <view class="nav-back-btn" bindtap="goBack" hover-class="btn-hover" aria-role="button" aria-label="返回上一页">
         <text class="nav-back-icon">‹</text>
       </view>
       <view class="menu-btn" bindtap="toggleSidebar" hover-class="btn-hover" aria-role="button" aria-label="打开 AI 工具与历史">
@@ -147,8 +147,8 @@
               <view class="answer-action-head">
                 <view class="answer-action-mark">AI</view>
                 <view class="answer-action-copy">
-                  <text class="answer-action-title">处理这个结果</text>
-                  <text class="answer-action-sub">保存、复制，或让 AI 继续细化</text>
+                  <text class="answer-action-title">继续处理</text>
+                  <text class="answer-action-sub">复制、保存或继续细化</text>
                 </view>
               </view>
               <view class="answer-action-grid">

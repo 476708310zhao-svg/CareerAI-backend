@@ -130,7 +130,7 @@ test('Checkpoint 7 keeps one AI entry and clears owner-scoped local assets on pr
   const assistantWxml = fs.readFileSync(path.join(root, 'package-ai/pages/ai-assistant/ai-assistant.wxml'), 'utf8');
   const applicationsJs = fs.readFileSync(path.join(root, 'pages/applications/applications.js'), 'utf8');
   const legacyAiCareer = fs.readFileSync(path.join(root, 'pages/ai-career/ai-career.js'), 'utf8');
-  assert.match(resourceJs, /测评资料/);
+  assert.match(resourceJs, /精选/);
   assert.match(resourceJs, /笔试题库/);
   assert.match(resourceJs, /面试经验/);
   assert.match(resourceJs, /我的已购/);
@@ -145,7 +145,7 @@ test('Checkpoint 7 keeps one AI entry and clears owner-scoped local assets on pr
   assert.match(applicationsJs, /package-ai\/pages\/ai-assistant\/ai-assistant\?source=applications/);
   assert.match(legacyAiCareer, /wx\.redirectTo\(\{ url: '\/package-ai\/pages\/ai-assistant\/ai-assistant'/);
   assert.match(profileWxml, /我的简历/);
-  assert.match(profileWxml, /我的已购/);
+  assert.match(profileWxml, /我的申请/);
   assert.match(profileWxml, /我的收藏/);
   assert.match(profileWxml, /账号与设置/);
   assert.match(settingsJs, /campusFollowFavoriteLinkedV1:/);

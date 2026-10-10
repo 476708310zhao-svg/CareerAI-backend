@@ -2,7 +2,7 @@ const navigation = require('../../utils/navigation.js');
 const featureFlags = require('../../utils/feature-flags.js');
 
 const CATEGORIES = [
-  { id: 'assessment', title: '测评资料' }, { id: 'written', title: '笔试题库' },
+  { id: 'assessment', title: '精选' }, { id: 'written', title: '笔试题库' },
   { id: 'interview', title: '面试经验' }, { id: 'company', title: '公司 / 行业' },
   { id: 'favorites', title: '我的收藏' }, { id: 'purchased', title: '我的已购', disabled: true }
 ];

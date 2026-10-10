@@ -156,7 +156,7 @@ test('critical controls on all five pages and the tab bar meet 88rpx touch targe
     ['pages/jobs/jobs.wxss', ['.search-box', '.clear-button,.panel-close', '.filter-button', '.quick-chip,.history-chip,.filter-chip', '.history-clear', '.match-button', '.notice-action', '.campus-entry']],
     ['pages/applications/applications.wxss', ['.add-button', '.focus-row', '.filter', '.status-button', '.primary-button, .secondary-button', '.sheet-close', '.field-input']],
     ['pages/resources/resources.wxss', ['.search-row', '.search-input', '.category-chip, .type-chip', '.asset-card', '.clear-button']],
-    ['pages/profile/profile.wxss', ['.identity-card', '.member-card', '.asset-tile', '.service-row']],
+    ['pages/profile/profile.wxss', ['.identity-card', '.asset-tile', '.service-row', '.about-link']],
     ['custom-tab-bar/index.wxss', ['.tabbar-item']]
   ];
   cases.forEach(([file, selectors]) => {
@@ -179,6 +179,7 @@ test('visual styles keep readable body text, stable press feedback and finite lo
   assert.doesNotMatch(css, /#7b879b|#7b8493/i);
   assert.doesNotMatch(css, /transform:\s*scale\(/);
   assert.doesNotMatch(css, /animation:[^;]*infinite/);
+  assert.doesNotMatch(css, /background(?:-color)?:[^;]*(?:#111827|#141b29|#172033|#25324d)/i);
   const tabCss = read('custom-tab-bar/index.wxss');
   assert.match(tabCss, /animation:[^;]*infinite/);
   assert.match(tabCss, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
@@ -209,7 +210,8 @@ test('interactive controls expose accessible names and selected or pressed state
 
 test('premium tab information architecture stays task-first and contextual', () => {
   const home = read('pages/index/index.wxml');
-  assert.ok(home.indexOf('zy-signal-panel') < home.indexOf('zy-main-action'));
+  assert.ok(home.indexOf('zy-search') < home.indexOf('zy-main-action'));
+  assert.ok(home.indexOf('zy-main-action') < home.indexOf('zy-signal-panel'));
   assert.ok(home.indexOf('zy-main-action') < home.indexOf('今天还要做'));
 
   const jobs = read('pages/jobs/jobs.wxml');
@@ -217,16 +219,17 @@ test('premium tab information architecture stays task-first and contextual', () 
   assert.ok(jobs.indexOf('campus-entry') < jobs.indexOf('control-row'));
 
   const applications = read('pages/applications/applications.wxml');
-  assert.ok(applications.indexOf('NEXT ACTION') < applications.indexOf('summary-card'));
+  assert.ok(applications.indexOf('建议下一步') < applications.indexOf('summary-card'));
   assert.ok(applications.indexOf('summary-card') < applications.indexOf('全部申请'));
 
   const resources = read('pages/resources/resources.wxml');
   assert.ok(resources.indexOf('resource-hero') < resources.indexOf('category-scroll'));
-  assert.ok(resources.indexOf('category-scroll') < resources.indexOf('CURATED'));
+  assert.ok(resources.indexOf('category-scroll') < resources.indexOf('精选资源'));
 
   const profile = read('pages/profile/profile.wxml');
-  assert.ok(profile.indexOf('identity-card') < profile.indexOf('ASSETS'));
-  assert.ok(profile.indexOf('ASSETS') < profile.indexOf('ACCOUNT'));
+  assert.ok(profile.indexOf('identity-card') < profile.indexOf('我的资产'));
+  assert.ok(profile.indexOf('我的资产') < profile.indexOf('账号与服务'));
+  assert.doesNotMatch(profile, /member-card|我的已购/);
 
   const assistant = read('package-ai/pages/ai-assistant/ai-assistant.wxml');
   assert.ok(assistant.indexOf('context-bar') < assistant.indexOf('msg-scroll'));
@@ -237,6 +240,8 @@ test('premium tab information architecture stays task-first and contextual', () 
   assert.match(assistant, />继续追问</);
 
   const tabBar = read('custom-tab-bar/index.wxml');
-  assert.match(tabBar, /ai-float-label">助手</);
+  assert.match(tabBar, /ai-float-text">AI</);
   assert.match(tabBar, /打开当前页面的上下文 AI/);
+
+  assert.doesNotMatch([home, applications, resources, profile].join('\n'), /TODAY|PIPELINE|LIBRARY|NEXT ACTION|ASSETS|ACCOUNT/);
 });

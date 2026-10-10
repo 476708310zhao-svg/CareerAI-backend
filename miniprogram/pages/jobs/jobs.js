@@ -127,8 +127,8 @@ Page({
     isRefreshing: false,
 
     hotPositions: [
-      'Software Engineer', 'Data Scientist', 'Product Manager',
-      'UX Designer', 'DevOps', 'Frontend', 'Backend', 'ML Engineer', 'Quant'
+      '产品经理', '数据分析', '软件工程', '市场',
+      '用户研究', '前端开发', '后端开发', '机器学习'
     ],
     hotCompanies: [
       'Google', 'Amazon', 'Microsoft', 'Meta',

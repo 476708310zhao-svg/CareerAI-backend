@@ -1,11 +1,11 @@
 page { min-height: 100%; background: var(--zy-bg); }
-.jobs-page { min-height: 100vh; box-sizing: border-box; padding: 34rpx 28rpx 0; color: var(--zy-ink); background: radial-gradient(circle at 8% 0, rgba(49,94,232,.08), transparent 27%), var(--zy-bg); }
+.jobs-page { min-height: 100vh; box-sizing: border-box; padding: 34rpx 28rpx 0; color: var(--zy-ink); background: radial-gradient(circle at 84% 2%, rgba(103,200,255,.12), transparent 29%), var(--zy-bg); }
 .jobs-head { display: flex; flex-direction: column; padding: 18rpx 4rpx 28rpx; }
 .jobs-kicker { color: var(--zy-brand); font-size: 24rpx; font-weight: 800; letter-spacing: 3rpx; line-height: 32rpx; }
-.jobs-title { margin-top: 8rpx; color: var(--zy-ink); font-size: 52rpx; font-weight: 850; letter-spacing: -2rpx; line-height: 1.18; }
+.jobs-title { color: var(--zy-ink); font-size: 50rpx; font-weight: 850; letter-spacing: -2rpx; line-height: 1.18; }
 .jobs-sub { margin-top: 12rpx; color: var(--zy-muted); font-size: 27rpx; line-height: 1.55; }
 
-.search-card { margin-bottom: 18rpx; padding: 14rpx; border: 1rpx solid var(--zy-line); border-radius: var(--zy-radius-lg); background: rgba(255,255,255,.94); box-shadow: var(--zy-shadow-card); }
+.search-card { margin-bottom: 18rpx; padding: 12rpx; border: 1rpx solid var(--zy-line); border-radius: var(--zy-radius-lg); background: rgba(255,255,255,.96); box-shadow: var(--zy-shadow-card); }
 .search-line { display: flex; align-items: center; }
 .search-box { display: flex; align-items: center; flex: 1; min-width: 0; min-height: 96rpx; padding: 0 16rpx; border-radius: 24rpx; background: var(--zy-surface-soft); }
 .search-symbol { position: relative; flex: none; width: 42rpx; height: 42rpx; margin-right: 8rpx; }
@@ -15,13 +15,13 @@ page { min-height: 100%; background: var(--zy-bg); }
 .placeholder { color: #8a94a6; }
 .clear-button,.panel-close { display: flex; align-items: center; justify-content: center; flex: none; min-width: 88rpx; min-height: 88rpx; color: var(--zy-muted); font-size: 32rpx; }
 .filter-button { display: flex; align-items: center; justify-content: center; flex: none; min-width: 124rpx; min-height: 96rpx; margin-left: 10rpx; border-radius: 24rpx; color: var(--zy-ink-2); background: #eef1f5; font-size: 25rpx; font-weight: 720; transition: background-color 180ms ease, color 180ms ease; }
-.filter-button.active { color: #fff; background: var(--zy-ink); }
+.filter-button.active { color: var(--zy-brand); background: var(--zy-brand-soft); }
 .filter-lines { position: relative; width: 28rpx; height: 22rpx; margin-right: 9rpx; border-top: 3rpx solid currentColor; border-bottom: 3rpx solid currentColor; }
 .filter-lines::after { position: absolute; top: 8rpx; left: 6rpx; width: 22rpx; height: 3rpx; background: currentColor; content: ''; }
 .chip-scroll { width: 100%; margin-top: 10rpx; }
 .chip-row,.history-row,.filter-chips { display: flex; gap: 10rpx; }
 .quick-chip,.history-chip,.filter-chip { display: flex; align-items: center; justify-content: center; flex: none; min-height: 88rpx; box-sizing: border-box; padding: 0 24rpx; border: 1rpx solid var(--zy-line); border-radius: 999rpx; color: var(--zy-ink-2); background: #fff; font-size: 25rpx; font-weight: 650; transition: background-color 180ms ease, color 180ms ease; }
-.quick-chip.active,.filter-chip.active { border-color: var(--zy-ink); color: #fff; background: var(--zy-ink); }
+.quick-chip.active,.filter-chip.active { border-color: #d7e2fb; color: var(--zy-brand); background: var(--zy-brand-soft); }
 .history { display: flex; align-items: center; margin-top: 8rpx; padding: 0 4rpx; }
 .history-label { flex: none; margin-right: 12rpx; color: var(--zy-muted); font-size: 24rpx; }
 .history-scroll { flex: 1; min-width: 0; }
@@ -62,7 +62,7 @@ page { min-height: 100%; background: var(--zy-bg); }
 .closed-desc,.state-desc { max-width: 520rpx; margin-top: 10rpx; color: var(--zy-muted); font-size: 25rpx; line-height: 1.6; }
 .closed-actions,.panel-actions { display: flex; width: 100%; gap: 14rpx; margin-top: 28rpx; }
 .primary-action,.secondary-action { display: flex; align-items: center; justify-content: center; flex: 1; min-height: 88rpx; box-sizing: border-box; padding: 0 26rpx; border: 0; border-radius: 999rpx; font-size: 26rpx; font-weight: 760; line-height: 88rpx; }
-.primary-action { color: #fff; background: var(--zy-ink); }
+.primary-action { color: #fff; background: var(--zy-brand); }
 .secondary-action { color: var(--zy-ink); background: #eef1f5; }
 .secondary-action.inline { flex: none; min-width: 180rpx; margin-top: 24rpx; }
 .list-tip { display: block; padding: 30rpx 0; color: var(--zy-muted); font-size: 24rpx; text-align: center; }

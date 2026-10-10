@@ -7,8 +7,8 @@
     aria-label="打开当前页面的上下文 AI"
   >
     <view class="ai-float-core">
-      <view class="ai-float-mark"><text class="ai-float-text">AI</text></view>
-      <text class="ai-float-label">助手</text>
+      <view class="ai-spark" aria-hidden="true"></view>
+      <text class="ai-float-text">AI</text>
     </view>
   </view>
   <view class="tabbar-panel">
