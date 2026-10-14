@@ -189,6 +189,8 @@ Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成
 
 ## 当前文件占用
 
+- Codex CI 收口（2026-10-14）：占用 `tests/sprint4CareerCoach.test.js`、`tests/sprint5Networking.test.js` 与本记录；Linux CI 的两条旧资源页文案断言与当前已确认的资源分类不一致，只更新断言到当前产品结构，不变更业务实现。
+
 - Codex 视觉验收（2026-10-14）：占用 `.agents/skills/zhiyin-miniprogram-pixel-replica/scripts/capture-and-compare.js` 与本记录；开发者工具已登录且 automation 端口可连接，但固定 8/15 秒操作超时导致视口、fixture 或导航中断。本轮仅允许增加可配置等待时间，不更改基准 PNG、差异阈值或遮罩。
 
 - Codex release 集成（2026-10-14）：占用 `.gitignore` 与本记录新增行，整理当前工作区安全提交；仅排除本地 `artifacts/` 运行数据及根目录微信开发者工具配置，保留业务代码和设计基准。

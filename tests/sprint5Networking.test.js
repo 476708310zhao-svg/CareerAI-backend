@@ -73,6 +73,6 @@ test('Sprint 5 mini program exposes CRM, editable drafts and explicit external-s
   assert.doesNotMatch(page, /\/api\/ai\/networking/);
   assert.match(template, /系统不会执行外发|不会代替你发送消息/);
   assert.match(resources, /面试经验/);
-  assert.match(resources, /公司 \/ 行业/);
+  assert.match(resources, /公司资料库/);
   assert.doesNotMatch(resources, /pages\/networking\/networking|Networking Copilot/);
 });
