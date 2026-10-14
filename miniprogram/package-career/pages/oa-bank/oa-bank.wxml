@@ -1,10 +1,102 @@
 <view class="page">
-  <view class="hero"><text class="hero-title">OA Copilot</text><text class="hero-sub">按岗位训练、计时复盘，结果仅基于本人确认记录</text><view class="summary" wx:if="{{dashboard}}"><text>完成 {{dashboard.summary.completedSessions}} 次</text><text>待复习 {{dashboard.summary.learningMistakes}} 题</text></view></view>
-  <view class="notice" wx:if="{{dashboard}}">{{dashboard.notice}}</view>
-  <view class="timer-card" wx:if="{{activeSession}}"><text class="eyebrow">正在练习 · {{activeSession.questionTypeLabel}}</text><text class="timer">{{elapsedText}}</text><view class="button-row"><view class="button secondary" bindtap="abandonPractice">放弃，不计入统计</view><view class="button" bindtap="openResultForm">记录结果</view></view></view>
-  <view class="section"><view class="section-head"><text class="section-title">训练计划</text><view class="small-button" bindtap="openPlanForm">＋ 新建计划</view></view><view class="empty" wx:if="{{!loading && !plans.length}}">还没有训练计划</view><view class="card" wx:for="{{plans}}" wx:key="id"><view class="card-head"><view><text class="card-title">{{item.company}}</text><text class="card-sub">{{item.role || '未填写岗位'}}</text></view><text class="status">{{item.status === 'active' ? '进行中' : '已完成'}}</text></view><view class="tags"><text class="tag" wx:for="{{item.focusTypes}}" wx:for-item="type" wx:key="*this">{{type}}</text></view><text class="meta">本周 {{item.weeklyCompletedMinutes}} / {{item.weeklyMinutes}} 分钟{{item.targetDate ? ' · 目标 ' + item.targetDate : ''}}</text><view class="button" wx:if="{{item.status === 'active'}}" bindtap="startPractice" data-id="{{item.id}}">开始 30 分钟计时练习</view></view></view>
-  <view class="section"><text class="section-title">题型能力统计</text><view class="capability" wx:for="{{capabilities}}" wx:key="type"><view><text class="cap-title">{{item.label}}</text><text class="card-sub">{{item.sampleNotice}}</text></view><text class="cap-score">{{item.accuracy === null ? '不评估' : item.accuracy + '%'}}</text></view></view>
-  <view class="section"><text class="section-title">错题本</text><view class="empty" wx:if="{{!mistakes.length}}">完成练习后可在这里复习错题</view><view class="card" wx:for="{{mistakes}}" wx:key="id"><text class="eyebrow">{{item.questionTypeLabel}}</text><text class="mistake-prompt">{{item.prompt}}</text><text class="card-sub" wx:if="{{item.correctAnswer}}">正确答案：{{item.correctAnswer}}</text><view class="small-button" bindtap="markMistake" data-id="{{item.id}}" data-status="{{item.status === 'learning' ? 'mastered' : 'learning'}}">{{item.status === 'learning' ? '已重练，标记掌握' : '重新加入练习'}}</view></view></view>
-  <view class="mask" wx:if="{{showPlanForm}}" bindtap="closePlanForm"></view><view class="sheet" wx:if="{{showPlanForm}}"><view class="sheet-head"><text class="section-title">新建 OA 计划</text><text bindtap="closePlanForm">✕</text></view><scroll-view scroll-y class="sheet-body"><input class="input" placeholder="公司 *" value="{{planForm.company}}" bindinput="onPlanInput" data-key="company"/><input class="input" placeholder="岗位" value="{{planForm.role}}" bindinput="onPlanInput" data-key="role"/><input class="input" placeholder="目标日期 YYYY-MM-DD" value="{{planForm.targetDate}}" bindinput="onPlanInput" data-key="targetDate"/><input class="input" type="number" placeholder="每周训练分钟" value="{{planForm.weeklyMinutes}}" bindinput="onPlanInput" data-key="weeklyMinutes"/><text class="field-label">训练题型 *</text><view class="tags"><view wx:for="{{questionTypes}}" wx:key="value" class="select-tag {{item.selected ? 'selected' : ''}}" bindtap="toggleFocusType" data-value="{{item.value}}">{{item.label}}</view></view></scroll-view><view class="button" bindtap="savePlan">{{saving ? '保存中...' : '创建计划'}}</view></view>
-  <view class="mask" wx:if="{{showResultForm}}" bindtap="closeResultForm"></view><view class="sheet" wx:if="{{showResultForm}}"><view class="sheet-head"><text class="section-title">记录本次结果</text><text bindtap="closeResultForm">✕</text></view><scroll-view scroll-y class="sheet-body"><input class="input" type="number" placeholder="总题数 *" value="{{resultForm.totalQuestions}}" bindinput="onResultInput" data-key="totalQuestions"/><input class="input" type="number" placeholder="答对题数" value="{{resultForm.correctCount}}" bindinput="onResultInput" data-key="correctCount"/><text class="field-label">可选：记录一道错题</text><textarea class="textarea" placeholder="题目" value="{{resultForm.prompt}}" bindinput="onResultInput" data-key="prompt"/><textarea class="textarea" placeholder="我的答案" value="{{resultForm.userAnswer}}" bindinput="onResultInput" data-key="userAnswer"/><textarea class="textarea" placeholder="正确答案" value="{{resultForm.correctAnswer}}" bindinput="onResultInput" data-key="correctAnswer"/><textarea class="textarea" placeholder="复盘备注" value="{{resultForm.notes}}" bindinput="onResultInput" data-key="notes"/></scroll-view><view class="button" bindtap="completePractice">确认并保存本人记录</view></view>
+  <view class="hero">
+    <text class="hero-title">OA Copilot</text>
+    <text class="hero-sub">按岗位训练、计时复盘，结果仅基于本人确认记录</text>
+    <view class="summary" wx:if="{{dashboard}}">
+      <text>完成 {{dashboard.summary.completedSessions}} 次</text>
+      <text>待复习 {{dashboard.summary.learningMistakes}} 题</text>
+    </view>
+  </view>
+
+  <view class="state-card" wx:if="{{loading && !dashboard}}" aria-role="status">
+    <text class="state-title">正在加载 OA 训练数据</text>
+    <text class="state-copy">请稍候</text>
+  </view>
+
+  <view class="state-card error" wx:elif="{{loadError}}" aria-role="alert">
+    <text class="state-title">{{loadError}}</text>
+    <text class="state-copy">{{loadErrorAction === 'login' ? '登录后会自动重新加载训练计划。' : '请检查网络后重新加载。'}}</text>
+    <view class="state-action" bindtap="retryDashboard" hover-class="press" aria-role="button" aria-label="{{loadErrorAction === 'login' ? '立即登录' : '重新加载'}}">
+      {{loadErrorAction === 'login' ? '立即登录' : '重新加载'}}
+    </view>
+  </view>
+
+  <block wx:if="{{dashboard}}">
+    <view class="notice">{{dashboard.notice}}</view>
+    <view class="timer-card" wx:if="{{activeSession}}">
+      <text class="eyebrow">正在练习 · {{activeSession.questionTypeLabel}}</text>
+      <text class="timer">{{elapsedText}}</text>
+      <view class="button-row">
+        <view class="button secondary" bindtap="abandonPractice">放弃，不计入统计</view>
+        <view class="button" bindtap="openResultForm">记录结果</view>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-head">
+        <text class="section-title">训练计划</text>
+        <view class="small-button" bindtap="openPlanForm">＋ 新建计划</view>
+      </view>
+      <view class="empty" wx:if="{{!loading && !plans.length}}">还没有训练计划</view>
+      <view class="card" wx:for="{{plans}}" wx:key="id">
+        <view class="card-head">
+          <view><text class="card-title">{{item.company}}</text><text class="card-sub">{{item.role || '未填写岗位'}}</text></view>
+          <text class="status">{{item.status === 'active' ? '进行中' : '已完成'}}</text>
+        </view>
+        <view class="tags"><text class="tag" wx:for="{{item.focusTypes}}" wx:for-item="type" wx:key="*this">{{type}}</text></view>
+        <text class="meta">本周 {{item.weeklyCompletedMinutes}} / {{item.weeklyMinutes}} 分钟{{item.targetDate ? ' · 目标 ' + item.targetDate : ''}}</text>
+        <view class="button" wx:if="{{item.status === 'active'}}" bindtap="startPractice" data-id="{{item.id}}">开始 30 分钟计时练习</view>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">题型能力统计</text>
+      <view class="capability" wx:for="{{capabilities}}" wx:key="type">
+        <view><text class="cap-title">{{item.label}}</text><text class="card-sub">{{item.sampleNotice}}</text></view>
+        <text class="cap-score">{{item.accuracy === null ? '不评估' : item.accuracy + '%'}}</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">错题本</text>
+      <view class="empty" wx:if="{{!mistakes.length}}">完成练习后可在这里复习错题</view>
+      <view class="card" wx:for="{{mistakes}}" wx:key="id">
+        <text class="eyebrow">{{item.questionTypeLabel}}</text>
+        <text class="mistake-prompt">{{item.prompt}}</text>
+        <text class="card-sub" wx:if="{{item.correctAnswer}}">正确答案：{{item.correctAnswer}}</text>
+        <view class="small-button" bindtap="markMistake" data-id="{{item.id}}" data-status="{{item.status === 'learning' ? 'mastered' : 'learning'}}">{{item.status === 'learning' ? '已重练，标记掌握' : '重新加入练习'}}</view>
+      </view>
+    </view>
+  </block>
+
+  <view class="mask" wx:if="{{showPlanForm}}" bindtap="closePlanForm"></view>
+  <view class="sheet" wx:if="{{showPlanForm}}">
+    <view class="sheet-head"><text class="section-title">新建 OA 计划</text><text bindtap="closePlanForm">✕</text></view>
+    <scroll-view scroll-y class="sheet-body">
+      <input class="input" placeholder="公司 *" value="{{planForm.company}}" bindinput="onPlanInput" data-key="company"/>
+      <input class="input" placeholder="岗位" value="{{planForm.role}}" bindinput="onPlanInput" data-key="role"/>
+      <input class="input" placeholder="目标日期 YYYY-MM-DD" value="{{planForm.targetDate}}" bindinput="onPlanInput" data-key="targetDate"/>
+      <input class="input" type="number" placeholder="每周训练分钟" value="{{planForm.weeklyMinutes}}" bindinput="onPlanInput" data-key="weeklyMinutes"/>
+      <text class="field-label">训练题型 *</text>
+      <view class="tags"><view wx:for="{{questionTypes}}" wx:key="value" class="select-tag {{item.selected ? 'selected' : ''}}" bindtap="toggleFocusType" data-value="{{item.value}}">{{item.label}}</view></view>
+    </scroll-view>
+    <view class="button" bindtap="savePlan">{{saving ? '保存中...' : '创建计划'}}</view>
+  </view>
+
+  <view class="mask" wx:if="{{showResultForm}}" bindtap="closeResultForm"></view>
+  <view class="sheet" wx:if="{{showResultForm}}">
+    <view class="sheet-head"><text class="section-title">记录本次结果</text><text bindtap="closeResultForm">✕</text></view>
+    <scroll-view scroll-y class="sheet-body">
+      <input class="input" type="number" placeholder="总题数 *" value="{{resultForm.totalQuestions}}" bindinput="onResultInput" data-key="totalQuestions"/>
+      <input class="input" type="number" placeholder="答对题数" value="{{resultForm.correctCount}}" bindinput="onResultInput" data-key="correctCount"/>
+      <text class="field-label">可选：记录一道错题</text>
+      <textarea class="textarea" placeholder="题目" value="{{resultForm.prompt}}" bindinput="onResultInput" data-key="prompt"/>
+      <textarea class="textarea" placeholder="我的答案" value="{{resultForm.userAnswer}}" bindinput="onResultInput" data-key="userAnswer"/>
+      <textarea class="textarea" placeholder="正确答案" value="{{resultForm.correctAnswer}}" bindinput="onResultInput" data-key="correctAnswer"/>
+      <textarea class="textarea" placeholder="复盘备注" value="{{resultForm.notes}}" bindinput="onResultInput" data-key="notes"/>
+    </scroll-view>
+    <view class="button" bindtap="completePractice">确认并保存本人记录</view>
+  </view>
+
+  <c-login-popup show="{{authPromptVisible}}" subtitle="{{authPromptSubtitle}}" bindclose="closeAuthPrompt" bindsuccess="onAuthPromptSuccess"/>
 </view>

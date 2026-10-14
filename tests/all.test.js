@@ -8,6 +8,7 @@ require('./aiClient.test');
 require('./v4AiRuntime.test');
 require('./aiQualityGate.test');
 require('./databaseMigrations.test');
+require('./releaseEngineering.test');
 require('./sprint3AiLoops.test');
 require('./sprint4CareerCoach.test');
 require('./sprint5Networking.test');

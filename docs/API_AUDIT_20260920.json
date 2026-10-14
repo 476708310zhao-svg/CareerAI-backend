@@ -1,0 +1,445 @@
+{
+  "checkedAt": "2026-09-20T06:51:53.202Z",
+  "baseUrl": "https://api.zhiyincareer.com",
+  "counts": {
+    "ok": 56,
+    "disabled": 2
+  },
+  "results": [
+    {
+      "path": "/api/health",
+      "status": 200,
+      "state": "ok",
+      "durationMs": 449
+    },
+    {
+      "path": "/api/health/ready",
+      "status": 200,
+      "state": "ok",
+      "durationMs": 1925
+    },
+    {
+      "path": "/api/features",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 2271
+    },
+    {
+      "path": "/api/share/configs",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 13
+    },
+    {
+      "path": "/api/banners",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 10
+    },
+    {
+      "path": "/api/campus?pageSize=1",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 1377
+    },
+    {
+      "path": "/api/campus/meta",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 39
+    },
+    {
+      "path": "/api/companies?pageSize=1",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 42
+    },
+    {
+      "path": "/api/experiences?pageSize=1",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 43
+    },
+    {
+      "path": "/api/agencies?pageSize=1",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 7
+    },
+    {
+      "path": "/api/countries",
+      "status": 200,
+      "state": "ok",
+      "durationMs": 1209
+    },
+    {
+      "path": "/api/exchange-rates",
+      "status": 200,
+      "state": "ok",
+      "durationMs": 11
+    },
+    {
+      "path": "/api/news?category=career-tips",
+      "status": 200,
+      "state": "ok",
+      "durationMs": 17
+    },
+    {
+      "path": "/api/payment/config",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 9
+    },
+    {
+      "path": "/api/notify/templates",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 10
+    },
+    {
+      "path": "/api/users/profile-schema",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 8
+    },
+    {
+      "path": "/api/users/profile",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 8
+    },
+    {
+      "path": "/api/resumes",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 10
+    },
+    {
+      "path": "/api/applications",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 7
+    },
+    {
+      "path": "/api/favorites",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 10
+    },
+    {
+      "path": "/api/messages",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 11
+    },
+    {
+      "path": "/api/payment/orders",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 5
+    },
+    {
+      "path": "/api/ai/usage",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 19
+    },
+    {
+      "path": "/api/career-assets/application-materials",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 18
+    },
+    {
+      "path": "/api/career-assets/jd-match-reports",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 6
+    },
+    {
+      "path": "/api/career-assets/interview-notebook",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 8
+    },
+    {
+      "path": "/api/career-assets/interview-questions",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 11
+    },
+    {
+      "path": "/api/career-assets/star-templates",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 7
+    },
+    {
+      "path": "/api/jobs?pageSize=1",
+      "status": 503,
+      "code": -1,
+      "state": "disabled",
+      "durationMs": 8
+    },
+    {
+      "path": "/api/aggregate/jobs?pageSize=1",
+      "status": 503,
+      "code": -1,
+      "state": "disabled",
+      "durationMs": 7
+    },
+    {
+      "path": "/api/v4/profile",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 8
+    },
+    {
+      "path": "/api/v4/profile/completion",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 8
+    },
+    {
+      "path": "/api/v4/jobs",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 29
+    },
+    {
+      "path": "/api/v4/applications/board",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 6
+    },
+    {
+      "path": "/api/v4/resumes/templates",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 9
+    },
+    {
+      "path": "/api/v4/resumes/experiences",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 10
+    },
+    {
+      "path": "/api/v4/resumes",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 6
+    },
+    {
+      "path": "/api/v4/materials/quota",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 9
+    },
+    {
+      "path": "/api/v4/materials/drafts",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 10
+    },
+    {
+      "path": "/api/v4/interviews/spaces",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 6
+    },
+    {
+      "path": "/api/v4/interviews/reports",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 8
+    },
+    {
+      "path": "/api/v4/interviews/trends",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 10
+    },
+    {
+      "path": "/api/v4/today/tasks",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 10
+    },
+    {
+      "path": "/api/v4/career/dashboard",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 15
+    },
+    {
+      "path": "/api/v4/career/diagnostic",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 17
+    },
+    {
+      "path": "/api/v4/career/plan",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 9
+    },
+    {
+      "path": "/api/v4/career/weekly-report",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 11
+    },
+    {
+      "path": "/api/v4/networking/dashboard",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 13
+    },
+    {
+      "path": "/api/v4/agents",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 7
+    },
+    {
+      "path": "/api/v4/agents/tasks",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 8
+    },
+    {
+      "path": "/api/v4/membership/plans",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 9
+    },
+    {
+      "path": "/api/v4/membership/status",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 8
+    },
+    {
+      "path": "/api/v4/membership/orders",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 10
+    },
+    {
+      "path": "/api/v4/membership/ledger",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 12
+    },
+    {
+      "path": "/api/v4/oa/dashboard",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 8
+    },
+    {
+      "path": "/api/v4/projects/dashboard",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 10
+    },
+    {
+      "path": "/api/career-assets/interview-daily-practice",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 11
+    },
+    {
+      "path": "/api/career-assets/daily-brief?date=2026-09-20",
+      "status": 200,
+      "code": 0,
+      "state": "ok",
+      "durationMs": 7
+    }
+  ],
+  "syncRegression": {
+    "status": 200,
+    "code": 0,
+    "retryStatus": 200,
+    "rows": [
+      {
+        "date": "2026-09-19",
+        "status": "completed",
+        "count": 1
+      },
+      {
+        "date": "2026-09-20",
+        "status": "completed",
+        "count": 1
+      }
+    ]
+  },
+  "cors": [
+    {
+      "origin": "https://zhiyincareer.com",
+      "status": 200,
+      "allowOrigin": "https://zhiyincareer.com"
+    },
+    {
+      "origin": "https://www.zhiyincareer.com",
+      "status": 200,
+      "allowOrigin": "https://www.zhiyincareer.com"
+    },
+    {
+      "origin": "https://untrusted.example",
+      "status": 500,
+      "allowOrigin": null
+    }
+  ]
+}

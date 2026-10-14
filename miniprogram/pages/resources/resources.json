@@ -1,4 +1,5 @@
 {
-  "navigationBarTitleText": "资源中心",
+  "navigationBarTitleText": "资源",
+  "navigationStyle": "custom",
   "enablePullDownRefresh": false
 }

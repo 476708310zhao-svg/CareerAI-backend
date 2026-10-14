@@ -164,6 +164,14 @@ Page({
     if (url) navigation.safeNavigateTo(url);
   },
 
+  openCareerPlanner() {
+    navigation.safeNavigateTo('/package-career/pages/career-planner/career-planner');
+  },
+
+  openDailyBrief() {
+    navigation.safeNavigateTo('/package-ai/pages/daily-brief/daily-brief');
+  },
+
   retry() {
     this.loadDashboard(true);
   }

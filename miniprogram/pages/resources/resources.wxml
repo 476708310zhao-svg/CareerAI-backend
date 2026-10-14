@@ -1,18 +1,52 @@
-<view class="resource-page">
+<view class="resource-page" style="padding-top: {{navTop}}px">
   <view class="resource-hero">
-    <view class="page-head"><text class="page-title">资源中心</text><text class="page-sub">只保留能直接帮你行动的内容</text></view>
-    <view class="search-card" wx:if="{{activeCategory!=='favorites'}}"><view class="search-row"><view class="search-symbol" aria-hidden="true"><text></text></view><input class="search-input" value="{{keyword}}" placeholder="搜索题库、面经或公司资料" placeholder-class="placeholder" bindinput="onKeyword" aria-label="搜索求职准备资源" /></view></view>
+    <view class="search-card search-row">
+      <image class="search-icon" src="/images/zhiyin-icons/search-muted.svg" mode="aspectFit" aria-hidden="true"/>
+      <input class="search-input" value="{{keyword}}" placeholder="搜索题库、面经或公司资料" placeholder-class="placeholder" bindinput="onKeyword" aria-label="搜索求职准备资源"/>
+    </view>
   </view>
 
-  <view class="context-card" wx:if="{{company || role}}" aria-label="目标上下文"><text class="context-label">当前目标</text><text class="context-value">{{company || '公司待确认'}}{{company && role ? ' · ' : ''}}{{role || ''}}</text><text class="context-note">目标上下文仅会带入后续页面，不代表搜索筛选结果或已绑定申请。</text></view>
+  <view class="context-card" wx:if="{{company || role}}" aria-label="目标上下文">
+    <view class="context-icon"><image src="/images/zhiyin-icons/target.svg" mode="aspectFit" aria-hidden="true"/></view>
+    <view class="context-copy">
+      <text class="context-label">当前目标</text>
+      <text class="context-value">{{company || '公司待确认'}}{{company && role ? ' · ' : ''}}{{role || ''}}</text>
+      <text class="context-note">目标上下文不代表搜索筛选结果或已绑定申请。</text>
+    </view>
+  </view>
 
-  <scroll-view class="category-scroll" scroll-x enhanced show-scrollbar="{{false}}"><view class="category-row"><block wx:for="{{categories}}" wx:key="id"><view wx:if="{{item.disabled}}" class="category-chip disabled" aria-role="button" aria-disabled="true" aria-label="{{item.title}}，暂未开放"><text>{{item.title}}</text><text class="disabled-badge">未开放</text></view><view wx:else class="category-chip {{activeCategory===item.id?'active':''}}" data-id="{{item.id}}" bindtap="selectCategory" hover-class="press" aria-role="button" aria-label="查看{{item.title}}" aria-selected="{{activeCategory===item.id}}">{{item.title}}</view></block></view></scroll-view>
-  <scroll-view wx:if="{{activeCategory==='written'||activeCategory==='interview'}}" class="type-scroll" scroll-x show-scrollbar="{{false}}"><view class="type-row"><view wx:for="{{questionTypes}}" wx:key="id" class="type-chip {{questionType===item.id?'active':''}}" data-id="{{item.id}}" bindtap="selectQuestionType" hover-class="press" aria-role="button" aria-label="按{{item.title}}查看" aria-selected="{{questionType===item.id}}">{{item.title}}</view></view></scroll-view>
+  <view class="featured-section" wx:if="{{!keyword}}">
+    <view class="section-head"><view><text class="section-title">精选资源</text></view></view>
+    <view class="feature-grid">
+      <view wx:for="{{featuredAssets}}" wx:key="id" class="feature-card feature-{{item.tone}}" data-id="{{item.id}}" bindtap="openAsset" hover-class="row-press" aria-role="button" aria-label="打开{{item.title}}；适用阶段：{{item.stage}}">
+        <view class="feature-icon"><image src="{{item.icon}}" mode="aspectFit" aria-hidden="true"/></view>
+        <text class="feature-title">{{item.title}}</text>
+        <image class="feature-arrow" src="/images/zhiyin-icons/chevron.svg" mode="aspectFit" aria-hidden="true"/>
+      </view>
+    </view>
+  </view>
 
-  <view class="section-head"><view><text class="section-title">{{activeCategory==='favorites'?'真实收藏':'精选资源'}}</text><text class="section-sub">按当前求职阶段整理</text></view><text class="section-count">{{assets.length}} 项</text></view>
-  <view class="asset-list" wx:if="{{assets.length}}"><view wx:for="{{assets}}" wx:key="id" class="asset-card" data-id="{{item.id}}" bindtap="openAsset" hover-class="row-press" aria-role="button" aria-label="打开{{item.title}}；适用阶段：{{item.stage}}；作用：{{item.action}}"><view class="asset-mark tone-{{index%3}}"><text>{{item.mark}}</text></view><view class="asset-copy"><view class="asset-title-row"><text class="asset-title">{{item.title}}</text><text class="asset-stage">{{item.stage}}</text></view><text class="asset-desc">{{item.action}}</text></view><text class="asset-arrow" aria-hidden="true">›</text></view></view>
-  <view class="empty-card" wx:else><view class="empty-mark"><text></text></view><text class="empty-title">{{emptyTitle}}</text><text class="empty-desc">{{emptyDesc}}</text><view class="clear-button" bindtap="clearFilters" hover-class="press" aria-role="button" aria-label="清除资源筛选">清除筛选</view></view>
+  <view class="content-section">
+    <view class="section-head"><view><text class="section-title">{{sectionTitle}}</text></view></view>
+    <view class="asset-list" wx:if="{{listAssets.length}}">
+      <view wx:for="{{listAssets}}" wx:key="id" class="asset-card" data-id="{{item.id}}" bindtap="openAsset" hover-class="row-press" aria-role="button" aria-label="打开{{item.title}}；适用阶段：{{item.stage}}">
+        <view class="asset-mark asset-{{item.tone}}"><image src="{{item.icon}}" mode="aspectFit" aria-hidden="true"/></view>
+        <view class="asset-copy"><text class="asset-title">{{item.title}}</text><text class="asset-stage">适用阶段：{{item.stage}}</text></view>
+        <image class="asset-arrow" src="/images/zhiyin-icons/chevron.svg" mode="aspectFit" aria-hidden="true"/>
+      </view>
+    </view>
+    <view class="empty-card" wx:else>
+      <view class="empty-icon"><image src="/images/zhiyin-icons/search-blue.svg" mode="aspectFit" aria-hidden="true"/></view>
+      <text class="empty-title">{{emptyTitle}}</text>
+      <text class="empty-desc">{{emptyDesc}}</text>
+      <view class="clear-button" bindtap="clearFilters" hover-class="chip-press" aria-role="button" aria-label="清除资源筛选">清除筛选</view>
+    </view>
+    <view class="unavailable-card" wx:if="{{!keyword}}" aria-role="button" aria-disabled="true" aria-label="我的已购，资料购买与交付能力尚未接入">
+      <view class="asset-mark asset-unavailable"><image src="/images/zhiyin-icons/bookmark.svg" mode="aspectFit" aria-hidden="true"/></view>
+      <view class="asset-copy"><text class="asset-title">我的已购</text><text class="asset-stage">资料购买与交付能力尚未接入</text></view>
+      <text class="unavailable-badge">未开放</text>
+    </view>
+  </view>
 
-  <view class="truth-card"><text class="truth-label">真实内容说明</text><text class="truth-desc">仅展示当前版本已接入的真实内容；资料购买与交付能力尚未接入。</text></view>
   <view class="bottom-spacer"></view>
 </view>

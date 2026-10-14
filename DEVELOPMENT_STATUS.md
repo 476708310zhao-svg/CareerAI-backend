@@ -1,6 +1,6 @@
 # DEVELOPMENT_STATUS
 
-更新时间：2026-10-10
+更新时间：2026-10-14
 
 主项目目录：以 `git rev-parse --show-toplevel` 的结果为准。
 
@@ -9,6 +9,28 @@
 禁止在个人机器旧副本、Junction 别名或仓库外复制目录中开发、预览、部署或提交。
 
 ## 当前批次
+
+### 2026-10-14 上线 P0/P1 修复与待验收项
+
+- [x] 修复生产 HTTPS Nginx 的 `/api/` 路由，保留官网转发；公开 `/api/health/ready`、`/api/features`、`/api/campus` 返回 JSON 200，空参数登录请求返回预期 JSON 400。原配置已在服务器同目录备份，`nginx -t` 及 reload 成功。
+- [x] 生产 `.env` 使用现有服务端校验器只读验证通过（未读取或展示密钥值）；AI 可用，ASR、短信和微信订阅模板仍未配置，应保持相关能力降级。
+- [x] 发布脚本改为隔离快照预检、只读生产迁移状态门禁、候选/正式 PM2 进程身份验证与失败回滚；备份必须验证 SQLite、运行环境及 Nginx 配置，失败不生成成功标记；CI 执行发布门禁及 Acceptance。
+- [x] 当前小程序首页/AI/导航的 P1 文案、触控目标、可访问语义、辅助文字对比度、缓存时效及会员失败关闭已修复；业务路由保持不变。
+- [x] 本地最终 `check:release`：360 通过、1 个仅限 Linux 的测试跳过；Acceptance 30/30；差异无空白错误。
+- [ ] 微信开发者工具 390×844 截图叠加和真机登录验收仍待完成；扩充后的首页内容与旧基准图冲突，不能将旧图的差异报告当作新方案通过。
+- [ ] 生产数据库只读迁移检查发现跟踪表不存在，当前线上代码报告 `0001–0006` 共 6 项待迁移；应用部署被新门禁阻止。Linux 实际备份/候选切流、微信后台审核配置也未完成；本批未执行数据库迁移或应用代码部署。
+
+### 2026-10-10 已确认浅色原型正式落地（已完成）
+
+- Codex 当前占用：`design-system/zhiyin-career/MASTER.md`、`miniprogram/app.wxss`、`miniprogram/custom-tab-bar/*`、五个一级页面、`miniprogram/components/c-job-card/*`、`miniprogram/package-ai/pages/ai-assistant/*`、`miniprogram/pages/profile/profile.js`、`miniprogram/pages/jobs/jobs.js` 与相关视觉/导航测试。
+- 目标：严格按照 Human 已确认的六张蓝白浅色原型落地，移除大面积深色色块、英文装饰标题和遮挡 Tab 的 AI 入口；不改接口、登录、状态机或数据库。
+- 状态：五个一级页面、悬浮 TabBar 与上下文 AI 已按确认原型完成正式代码落地；340/340 全量测试、30/30 Acceptance、AI 质量、数据内容、小程序静态与包体检查通过，主数据库 SHA-256 保持 `B221AD658D1B24AECAB2F8C1E43F2749C44F979EF703DE35D92283A491C69D4B`。微信开发者工具内视觉编译仍待 Human 点击执行。
+
+### 2026-10-10 五 Tab 与上下文 AI 信息架构重构（已完成）
+
+- Codex 当前占用：`miniprogram/app.wxss`、`miniprogram/custom-tab-bar/*`、`miniprogram/pages/index/*`、`pages/jobs/*`、`pages/applications/*`、`pages/resources/*`、`pages/profile/*`、`miniprogram/package-ai/pages/ai-assistant/*`、相关视觉/导航回归测试与 `design-system/zhiyin-career/`。
+- 目标：保留已交付业务逻辑和数据隔离，重构为统一的高级、简洁、直接的移动端工作台。
+- 状态：五个一级页面、悬浮 TabBar 与上下文 AI 已完成结构和视觉重构，提交 `0516208`；340/340 全量测试、30/30 Acceptance、AI 质量、数据内容、小程序静态与包体检查通过，主数据库指纹未变化。微信开发者工具服务端口关闭，CLI 无法代替界面执行编译，保留一次开发者工具内人工视觉验收。
 
 ### 2026-10-10 功能简化与 AI 编排 checkpoint 交付候选
 
@@ -21,7 +43,39 @@
 - 功能开关以代码和环境显式配置为准；`utils/featureFlags.js` 的所有已登记开关代码默认值均为 `false`。
 - 工作区中的业务预制 diff、设计审计、截图/日志、零引用资源图、API 巡检和未完成依赖不属于已交付 checkpoint，详见 `docs/FINAL_DELIVERY_RECORD_20261010.md`。
 
+### 2026-10-10 小程序质量与登录 404 修复
+
+- [x] 移除职位页已经没有渲染使用的 `empty-state` 注册及四个组件文件，解决微信开发者工具“无使用或无依赖文件”告警。
+- [x] 确认本地服务端挂载 `/api/users/login` 和 `/api/users/phone-login`，前端路径与代码契约一致。
+- [x] 复现生产 `https://api.zhiyincareer.com/api/health` 与登录接口均被 Next.js 官网接管并返回 HTML 404，确认为线上 Nginx/API 路由冲突，不是微信 `code` 失效。
+- [x] 小程序将误路由的 HTML 404 转换为“登录服务暂不可用”，不再直接展示 `HTTP 404`。
+- [x] 仓库 `nginx.conf` 增加 `location ^~ /api/` 优先代理到 `127.0.0.1:4400`，避免同机官网路由抢占 API。
+- [x] 专项 19/19、全量 338/338、Acceptance 30/30、AI 质量 7/7、`check:miniprogram` 与数据内容检查通过；主数据库 SHA-256 仍为 `B221AD658D1B24AECAB2F8C1E43F2749C44F979EF703DE35D92283A491C69D4B`。
+- [x] 2026-10-14 已在服务器修复并重载活动 Nginx 站点配置，公开 `/api/health/ready` 恢复 JSON 200；真实微信授权登录仍需开发者工具/真机确认。
+- [ ] 微信开发者工具重新扫描、登录真机验收、五个一级页面的产品结构视觉验收待 Human 执行。
+
 事实层级固定为：已提交的运行代码/schema 与最终门禁输出是事实依据；`docs/FINAL_DELIVERY_RECORD_20261010.md` 是交付摘要；正式 PRD 表达产品意图；Integration manifest 记录 checkpoint 拆分历史。以下内容是历史快照，只用于追溯，不能覆盖上述事实依据。
+
+2026-09-23 正式 API HTTPS 证书故障已恢复：`api.zhiyincareer.com` 的 Let's Encrypt 证书于 2026-09-20 17:23（北京时间）过期，导致微信开发者工具报 `ERR_CERT_DATE_INVALID`，请求未进入应用。已续签并由宝塔 Nginx 重新加载，新证书有效至 2026-12-22 07:56（北京时间）。生产 `/api/health`、`/api/health/ready` 均为 200，未登录访问 `/api/v4/applications/board` 返回预期 401，证明 TLS 与路由正常。服务器原来缺少 certbot timer/cron，现已安装 `/etc/cron.d/certbot-jobapp` 每日两次自动续期，`crond` active；Let's Encrypt staging 模拟续期及 Nginx reload hook 全部成功。未修改小程序代码或业务数据。
+
+2026-09-20 Web P0：补齐 AI 会话恢复/历史/取消/切换隔离，小程序一次性电脑登录码、Web 手动新增申请、PDF 导入与在线简历版本编辑、任务新增/编辑/完成、面试日期及联系人，资源入口接真实工作区。Web 4/4（隔离 API 17/17），原工作台与 P0 Edge 浏览器验收通过；全量临时数据库发布检查 250/250、AI 7/7、小程序检查和数据检查错误 0。此前后台登录 401/429 在隔离数据中未复现。尚未真机双端验收、真实模型联调或生产部署；移动端 AI 历史迁移仍属 P1。
+
+
+2026-09-20 “我的”按用户要求去重：移除资源中心已有的简历、JD、申请材料、模拟面试、每日简报、错题本、使用指南等入口及求职资产区；会员仅保留顶部入口，收藏和消息各保留一次，我的面经保留个人发布管理。账号服务收敛为反馈、关于、设置三行，删除失去用途的资产统计与远端加载。相关测试 45/45、`check:miniprogram`、定向 `git diff --check` 通过；浏览器静态排版覆盖四种屏宽与未登录/普通/会员状态，无横向溢出，尚未微信真机验收或发布。
+
+2026-09-20 资源中心压缩为分类切换布局：四个求职阶段与“更多工具”一次展示一组，最多 6 个双列工具卡；AI 专家和专项咨询保持顶部，内容与服务改为一行四个入口。所有原有工具及带参数路由保留，切换后返回页面保留当前分类。专项测试 45/45、`check:miniprogram` 通过；使用真实页面数据和 WXSS 的浏览器静态排版检查覆盖 320/375/390/430 宽度与全部 5 个分类，约 1～1.22 屏，无横向溢出或标题裁切。静态预览不替代微信真机验收；未部署。
+
+2026-09-18 按用户提供的旧版截图恢复“我的”页结构：保留求职资产卡、8 个求职工具（收藏、简历、模拟面试、每日简报、材料库、错题本、笔经面经等）和 5 个其他服务入口（反馈、指南、关于、会员权益、设置）。保留当前申请管线 Tab 路由修正和资源中心 Tab，不恢复独立 AI 专家 Tab。新增旧版模块回归断言，定向测试 44/44、`check:miniprogram` 通过，未进行真机验收。
+
+2026-09-18 资源中心视觉层级优化：四个求职阶段使用更清晰的分段导航；每个主阶段的第一项作为主操作横跨整行；增加阶段提示语和更大的可点击卡片；低频“职业决策”改为“更多工具”，避免与主流程竞争；AI 专家入口保持在顶部。定向测试 43/43、`check:miniprogram` 通过，未进行微信真机验收。
+
+2026-09-16 资源中心恢复为第 4 个 Tab，导航顺序为：首页、找岗位、进度、资源中心、我的。资源中心按“明确方向、准备简历、匹配投递、面试准备”四个流程组织工具，顶部提供 AI 专家统一入口；校招日历、AI 网申助手、JD 匹配、简历优化、模拟面试、面试复盘等均保留直接入口。首页恢复岗位、校招、AI 面试三个 Banner 轮播，后台数量不足时自动补齐。新增资源中心路由、工具去重和注册页测试；全量 237/237、`check:miniprogram` 通过，未部署、未进行微信真机验收。
+
+2026-09-16 小程序申请详情可靠性收尾：增加加载失败重试；刷新保留未保存跟进草稿；仅 PATCH 修改字段，避免回写旧日期/长备注；保存防重、失败保留内容、保存期间继续编辑不丢失；可清除日期；状态更新携带服务端版本，冲突刷新并保留草稿；异步请求期间账号变化清空旧数据。“更新下一步”使用卡片选择器定位。新增 5 项行为测试，全量 234/234、`check:release` 通过；申请详情和面试空间标签嵌套检查通过，未做微信真机验收。
+
+2026-09-15 职引 5.0 P0 首页与申请详情继续收敛：首页移除会员权益横幅，运营 Banner 仅保留岗位/校招相关内容，按用户反馈撤回重复新增的“今日待办”列表，保留原有“今日求职计划”卡；申请详情将下一步行动、截止日期、面试日期和短备注压缩为“下一步跟进”轻量卡片。专项 45/45、全量 229/229、`check:release` 通过，未运行真实微信 E2E。
+
+2026-09-15 UI/UX 第二阶段已完成：申请详情按上下文提供单一“建议下一步”主操作；AI 面试报告可将复盘加入当前申请任务，并将相册导出明确命名为“保存图片”。已补充静态回归断言，未运行真实微信 E2E，未提交或部署。
 
 Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成代码和自动化验证。提醒使用唯一投递键、租约、失败重试、有界并发和结构化耗时；Today 改为跨设备增量合并并拒绝旧状态覆盖；收藏增加幂等 outbox、删除 tombstone，并统一进入小程序请求层。竞争力陪跑已补充响应完整性校验；收藏同步已兼容 iOS 对 SQLite 空格日期格式的限制。真实双设备/微信订阅消息 staging、生产 migration 和上线仍待 Human；未运行真实 E2E、未调用真实 AI、未部署。
 
@@ -29,6 +83,13 @@ Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成
 
 | 日期 | 事项 | 文件 | 验证 |
 |---|---|---|---|
+| 2026-09-14 | 第四批功能收敛：将 AI 求职规划、竞争力陪跑和每日简报明确为同一计划的生成、诊断和执行视图，增加互相带上下文的入口说明，避免用户维护多套计划 | `miniprogram/package-career/pages/career-planner/career-planner.js`、`career-planner.wxml`、`career-planner.wxss`、`miniprogram/package-career/pages/career-coach/career-coach.js`、`career-coach.wxml`、`career-coach.wxss`、`tests/navigationConfig.test.js` | 全量 207/207、`check:miniprogram`、`git diff --check` 通过 |
+| 2026-09-14 | 第三批功能收敛：申请详情新增 JD 匹配入口；匹配前自动写入当前岗位快照，用户可从申请上下文重新匹配，补齐岗位、简历、匹配和材料的申请包闭环 | `miniprogram/package-user/pages/application-detail/application-detail.js`、`application-detail.wxml`、`application-detail.wxss`、`tests/navigationConfig.test.js` | 全量 206/206、`check:miniprogram`、`git diff --check` 通过 |
+| 2026-09-14 | 第二批功能收敛：申请详情新增“申请包”区域，提供关联简历与申请材料的上下文入口；申请材料页支持携带 `applicationId` 打开并自动选中对应申请，避免用户重新寻找岗位和申请记录 | `miniprogram/package-user/pages/application-detail/application-detail.js`、`application-detail.wxml`、`application-detail.wxss`、`miniprogram/package-ai/pages/application-materials/application-materials.js`、`application-materials.wxml`、`application-materials.wxss`、`tests/navigationConfig.test.js` | 全量 206/206、`check:miniprogram`、`git diff --check` 通过 |
+| 2026-09-14 | 第一批功能收敛：将首页、个人中心、每日任务和使用指南中的旧“投递追踪/求职进度”入口统一指向主 Tab“申请管线”；旧页面默认兼容跳回主 Tab，仅本地记录详情保留兼容参数，暂不删除业务能力 | `miniprogram/pages/index/index.js`、`miniprogram/pages/profile/profile.js`、`miniprogram/utils/daily-tasks.js`、`miniprogram/package-user/pages/usage-guide/usage-guide.js`、`miniprogram/pages/applications/applications.js`、`miniprogram/package-user/pages/job-progress/job-progress.js`、`tests/navigationConfig.test.js` | 全量 205/205、`check:miniprogram`、`git diff --check` 通过 |
+| 2026-09-14 | 按用户纠正恢复资源中心原有完整展示，撤回隐藏/展开交互；本轮转为评估功能本身的重叠与必要性，未执行功能合并或删除 | `miniprogram/pages/resources/resources.js`、`resources.wxml`、`resources.wxss` | 三个资源页文件已恢复至本轮修改前版本 |
+| 2026-09-14 | 继续收口首页入口：移除与资源、进度和 AI 专家 Tab 重复的“核心求职工具”区，首页聚焦今日任务、运营信息和校招更新 | `miniprogram/pages/index/index.wxml`、`index.js` | `check:miniprogram`、导航回归通过 |
+| 2026-09-11 | 精简个人中心信息架构：移除与资源中心重复的我的简历、模拟面试、笔经面经和使用指南入口；收藏、投递、面试记录继续从统计卡进入，快捷区收敛为消息、每日简报、申请材料和错题本 | `miniprogram/pages/profile/profile.wxml`、`profile.wxss` | `check:miniprogram`、导航回归 14/14 通过 |
 | 2026-09-10 | 修复竞争力陪跑分包页面在 `lazyCodeLoading: requiredComponents` 下偶发将 AI 说明组件解析为 `wx://not-found`；页面改为显式声明主包组件依赖，并增加配置回归断言 | `miniprogram/package-career/pages/career-coach/career-coach.json`、`tests/sprint4CareerCoach.test.js` | Sprint 4 专项 6/6、全量 204/204、`check:release` 与微信官方 CLI preview 编译通过 |
 | 2026-09-10 | 修复收藏同步将 SQLite UTC 时间直接传入 `new Date()` 导致部分 iOS 无法解析的警告；改为逐字段 UTC 解析，并兼容 ISO、日期和数字时间戳 | `miniprogram/utils/date-time.js`、`miniprogram/utils/favorites.js`、`tests/sprint8Reliability.test.js` | Sprint 8 专项 7/7、全量 204/204、`check:release` 通过；未运行真实 E2E |
 | 2026-09-09 | 修复竞争力陪跑在 401、超时、网络错误、HTTP 错误或残缺响应下仍进入成功视图，造成分数、七维诊断、周报和计划全部空白的问题；登录失效改为重新登录，其余异常展示可重试错误 | `career-coach.js`、`career-coach-state.js`、`tests/sprint4CareerCoach.test.js` | Sprint 4 专项 6/6、全量 203/203、`check:release` 通过；未运行真实 E2E，生产后端仍需独立发布 |
@@ -128,10 +189,58 @@ Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成
 
 ## 当前文件占用
 
+- Codex release 集成（2026-10-14）：占用 `.gitignore` 与本记录新增行，整理当前工作区安全提交；仅排除本地 `artifacts/` 运行数据及根目录微信开发者工具配置，保留业务代码和设计基准。
+
+- Codex（2026-10-14）：按 Human 最新截图调整资源页，顺序接续已完成的 ui_impl 视觉改动；范围 `miniprogram/pages/resources/resources.{js,wxml,wxss}`、资源页相关断言所在 `tests/{frontendVisualCheckpoint,navigationConfig,mobileWorkflow,checkpoint7}.test.js` 与本记录。已移除资源分类切换条，在同页展示全部 9 个可用入口及未开放的“我的已购”，精选卡片改为图文同排并缩短；搜索覆盖全部资源，原有目标上下文与题型参数传递保留。相关回归 94/94、`check:miniprogram`、`git diff --check` 通过；待微信开发者工具视觉复核，未改底部主导航，未提交/发布。
+
+- Codex ui_impl（2026-10-14）：占用 `miniprogram/pages/ai-career/ai-career.{wxml,wxss}`、`miniprogram/custom-tab-bar/index.wxss`、`miniprogram/pages/index/index.{js,wxml,wxss}`、`miniprogram/pages/{jobs,resources}/*.wxss`、`miniprogram/utils/{app-config,feature-flags,data-provenance}.js`、`tests/{checkpoint8,frontendVisualCheckpoint,campusContent}.test.js`、`.agents/skills/zhiyin-miniprogram-pixel-replica/references/screens.json` 与本记录此行；会员缓存/失败关闭、AI 侧栏与网申触控语义、辅助文字对比度和缓存时效修复完成。聚焦测试 37/37、`check:miniprogram`、Impeccable 检测（空结果）与 `git diff --check` 通过；390×844 微信截图叠加由发布验收执行，扩充内容与旧首页原型基准存在明确冲突。不占用发布脚本或 `tests/all.test.js`，未替换已确认原型图，未提交/推送。
+
+- Codex release_impl（2026-10-13 至 14）：占用 `tests/checkpoint7.test.js`、`tests/releaseEngineering.test.js`、`tests/all.test.js`、`scripts/backup-production.sh`、`scripts/verify-pm2-instance.js`、`deploy.sh`、`server.js`、`.github/workflows/test.yml`、`.github/workflows/deploy.yml`、`docs/production-deploy.md` 与本记录顶部；已修复过期页面断言、备份失败误报、发布前隔离快照/只读迁移状态门禁、候选与切流监听进程身份校验/回滚及 CI。切流后从物理 release 执行 PM2，`/current` 别名拒绝冒充新实例。上轮全量测试 352 pass/1 Windows-only skip、Acceptance 30/30；最后一项修改后的聚焦测试 6 pass/1 Windows-only skip、Shell 语法与差异检查通过。生产 Nginx 实际配置路径须设置 GitHub production Environment 变量 `PRODUCTION_NGINX_CONFIG_PATH`。生产 migration 状态与真实 Linux 备份/部署仍待人工验证；公网 API 404 将阻止发布并触发回滚。未执行生产迁移 apply、生产部署、共享库写入或 Git 提交。
+
+- Codex（2026-10-13）：首页内容密度优化代码完成，待 390×844 微信开发者工具截图验收，未提交/发布。范围 `miniprogram/pages/index/index.{js,wxml,wxss}`、`miniprogram/package-ai/pages/jd-match/jd-match.js`、对应导航/视觉/校招内容测试及本记录；增加常用功能、最多两条真实且近期发布的岗位、校招动态，保留当前蓝白视觉与原有业务入口。专项测试 46/46、`check:miniprogram`、布局检测与 `git diff --check` 通过；全量测试 346/347，唯一失败为既存 `checkpoint7.test.js:149` 仍断言“我的申请”，与当前“我的”页面结构冲突。开发者工具 CLI 服务端口关闭，尚未完成编译截图及原型叠加，不视作视觉验收通过。
+
+- Codex（2026-10-13）：按首页截图收紧“今日重点”和“申请进度”卡片：主行动卡最小高度由 276rpx 调至 218rpx，进度卡由 226rpx 调至 174rpx；同步压缩内部留白，保留主按钮及“查看全部”的 88rpx 点按高度。`check:miniprogram`、首页视觉与导航专项 37/37、`git diff --check` 通过；尚待微信开发者工具实机视觉复核，未提交/发布。
+
 - Codex（2026-10-10）：恢复小程序旧版视觉语言、悬浮 TabBar 与上下文 AI 入口。范围 `miniprogram/custom-tab-bar/*`、五个一级页面 WXSS、`components/c-job-card`、`package-ai/pages/ai-assistant/*` 及相关导航/视觉测试；保留五 Tab、申请工作流和数据库隔离，不回退业务结构。状态：代码完成；336/336 全量测试、30/30 Acceptance、`check:miniprogram` 与 `git diff --check` 通过，主数据库指纹未变；待微信开发者工具人工视觉验收。
+
+2026-09-20 Codex：Web P0 完善（代码与隔离验收完成，未提交/部署），范围 `public/web/*`、AI 会话 service/route、新增 Web 登录衔接 service/route、`server.js`、V4 申请/简历路由、小程序设置页、隔离 API/浏览器测试与 Web 开发文档。风险：登录衔接仅允许已登录的小程序用户生成短期一次性凭证，不按未核验的邮箱/手机号合并账号；验证过期/重放/匿名拒绝。上传复用已有 PDF 文件头和大小检查；简历新版本验证归属与并发冲突，AI 验证跨申请/退出隔离。全部测试使用临时数据库，不调用真实模型，不修改生产数据。
+
+- Codex（2026-09-20）：校招关注未展示在收藏的问题已修复；用户确认点击“加入关注/截止提醒”，原操作只存提醒。范围 `miniprogram/utils/favorites.js`、`miniprogram/package-content/pages/campus-detail/campus-detail.js`、`miniprogram/package-user/pages/favorites/favorites.js`、`tests/mobileWorkflow.test.js` 和本文件。关注成功或本地兜底均加入校招收藏，取消提醒保留收藏；进入收藏页导入本机旧关注及账号有效云端提醒，导入标记/删除 tombstone 防止取消收藏后反复恢复。默认展示最近收藏所属分类，异步刷新保留手动选择；排序使用 iOS 安全日期解析。专项 30/30、隔离库全量 250/250 与 `check:release` 通过，保留原 3 项支付静态提示。未执行真机 E2E、尚未发布；重新编译进入收藏页触发历史关注补入（仅本地保存且已清缓存的数据无法恢复）。
+
+- Codex（2026-09-20）：微信上传检查“主包未使用 JS：utils/application-materials.js”已修复。该工具仅被 AI 助手与申请材料页使用，已迁移至 `miniprogram/package-ai/utils/application-materials.js`，同步两页引用及工具的公共 API 引用；范围为上述三个 JS 文件与本记录。仅调整分包归属，功能不变。导航/移动流程 45/45、小程序静态检查（含 require 路径）通过，主包估算降至 1.00 MB；待开发者工具重新编译复查上传质量检查，尚未上传。
+
+- Codex（2026-09-20）：首页校招截止日期 `10.25` 的 iOS 解析警告已修复。范围 `miniprogram/pages/index/index.js`、新增 `miniprogram/utils/campus-deadline.js`、`tests/campusContent.test.js` 和本文件。优先使用接口规范日期；短日期按招聘年份/开始日期推断，兼容跨年、闰年，非法日期和非日期说明保持原文；按北京时间计算剩余天数，不把原始文本交给 Date。同步更新校招排序的 SQLite 时间解析、升级首页缓存版本。专项测试 54/54、小程序静态检查通过；未运行微信真机 E2E、未发布，重新编译后验证。
+
+- Codex（2026-09-20）：小程序 API 排查修复已完成。范围 `services/v4TodayTasks.js`、相关测试、`miniprogram/utils/daily-tasks.js`、`util.js`、`jd-match.js`、`pages/index/index.js`、`components/home-campus-updates/*`、API 巡检脚本与记录。Today 跨天/重复键冲突已定点发布，官网精确 CORS 域名已补齐并备份。公网 58 项查询：56 正常、2 招聘关闭；Today 同步/重复请求均 200，历史保持正确。隔离库 `check:release` 243/243 及各检查通过。未改鉴权/支付核心或数据库结构；iOS 日期与 WXSS 修复在本地小程序，尚未发布。详见 `docs/API_AUDIT_20260920.md`。
+
+- Codex（2026-09-20）：资源中心流程工具去掉文字图标、降低卡片高度，内容与服务改用历史时钟、资讯报纸、机构评分、指南书本四个本地图形图标。范围 `miniprogram/pages/resources/resources.{js,wxml,wxss}`、`miniprogram/images/resource-*.png` 和本文件；已完成，定向测试 45/45、`check:miniprogram` 通过（媒体 196.0 KB），20 组浏览器静态排版与图片解码检查通过，未进行微信真机验收、未发布。
+
+- Codex（2026-09-20）：按用户补充要求恢复“我的简历”图标，个人记录改为四列（简历、收藏、消息、我的面经），直达现有简历页。范围 `miniprogram/pages/profile/profile.{js,wxml,wxss}`、`tests/navigationConfig.test.js` 和本文件；已完成，导航检查 23/23、`check:miniprogram` 通过，未发布。
+
+- Codex（2026-09-20）：“我的”去除与资源中心重复的工具和资产入口，保留个人资料、会员、收藏、消息、我的面经与账号服务。范围 `miniprogram/pages/profile/profile.{js,wxml,wxss}`、`tests/navigationConfig.test.js` 和本文件；已完成，定向 45/45 和小程序检查通过，未发布。
+
+- Codex（2026-09-20）：资源中心紧凑布局，将纵向全部展开改为分类切换、双列工具和四列服务入口。范围 `miniprogram/pages/resources/resources.{js,wxml,wxss}`、`tests/mobileWorkflow.test.js`、`tests/navigationConfig.test.js` 和本文件；已完成，专项测试 45/45、小程序静态检查和 20 组浏览器静态排版检查通过，未进行微信真机验收、未部署。
+
+- Codex（2026-09-16）：恢复首页三个 Banner 轮播，并恢复首页会员权益入口（位于今日求职计划之后）；后台 Banner 不足时补齐岗位、校招、AI 面试默认 Banner。范围 `miniprogram/pages/index/index.js`、`index.wxml`、测试与文档；已完成，定向测试 43/43、`check:miniprogram` 通过。
+
+2026-09-16—2026-09-18 Codex：`routes/ai-conversations.js`、`services/aiConversations.js`、`db/migrations/0007_ai_conversations.sql`、`server.js`、`public/web/app.js`、Web 隔离测试及开发文档。任务：Web AI 服务端会话、上下文和失败/取消恢复；已完成。
+
+风险与验证：新增会话表仅增量建表，不改现有业务表；隔离库验证重复执行、事务、跨用户拒绝、重复 requestId 幂等、失败和取消状态、AI 结果未经确认不写入申请。`node --check`、Web 专项 4/4（含隔离 API 11/11）、数据库迁移 5/5、AI 质量 7/7 通过；旧 `/api/ai/assistant` 保持兼容。真实模型和生产部署待后续验收。
+
+- Codex：按用户最新要求恢复第四位资源中心 Tab，并按求职流程整合 AI 专家工具。范围 `miniprogram/app.json`、`custom-tab-bar/index.js`、`utils/navigation.js`、`utils/util.js`、`package-ai/pages/ai-assistant/ai-assistant.js`、`pages/resources/*`、`tests/navigationConfig.test.js`、`tests/mobileWorkflow.test.js` 与 P0/5.0 规划文档；已完成，237/237 与 `check:release` 通过，未部署。
+
+- Codex（2026-09-16）：首页 Banner 移至搜索下方、今日计划上方，间距改为 Banner 下方留白；范围 `miniprogram/pages/index/index.wxml`、`index.wxss` 和本文件；已完成，`check:miniprogram` 和定向 `git diff --check` 通过，未部署。
+
+- Codex（2026-09-16）：申请详情加载/保存/状态更新可靠性；范围 `miniprogram/package-user/pages/application-detail/*`、`tests/mobileWorkflow.test.js`、本文件和 `docs/V5_P0_MOBILE_WORKFLOW_20260915.md`；已完成，全量 234/234 与发布检查通过，未提交、未部署。
+
+- Codex：撤回重复首页待办卡；范围 `miniprogram/pages/index/index.{js,wxml,wxss}`、`tests/navigationConfig.test.js`、`docs/V5_P0_MOBILE_WORKFLOW_20260915.md` 和本文件；已完成，导航回归 21/21、`check:miniprogram` 和定向 `git diff --check` 通过，未提交、未部署。
+
+5.0 P0 移动闭环（2026-09-15，Codex 本批已完成）：岗位列表/详情、公共岗位卡片、申请状态工具、进度页、我的资源入口及专项测试已完成，释放占用。本批仅复用现有 V4 API，未修改 Web、后端路由和数据库。
 
 | 负责人 | 文件 | 任务 | 状态 |
 |---|---|---|---|
+| Codex | `routes/v4/applications.js`、`services/v4Application*.js`、`public/web/*`、Web 专项/浏览器测试、开发文档和修改记录 | Web 第二批（2026-09-15）：表格/看板、精确筛选/排序/分页、批量预览/更新/撤销、工作区聚合、关联隔离和安排保存 | 已完成本批；隔离 API 场景 7/7、前端数据检查 3/3、Edge 浏览器验收通过；发布检查 214/214、AI 矩阵 7/7、小程序检查通过；未做真实微信 E2E，未推送/部署 |
+| Codex | `public/web/index.html`、`public/web/styles.css`、`public/web/app.js`、`server.js`、`routes/ai.js`、`tests/webWorkbench.test.js`、`docs/WEB_APPLICATION_WORKBENCH_DEVELOPMENT_PLAN_20260914.md`、`CHANGELOG_AI.md` | Web 用户侧首个可运行版本：登录/注册、工作台、申请看板首版、关键词/状态筛选、申请详情状态变更、Today 任务完成和 AI 专家连续问询；传递公司、岗位和申请标识并同步勾选开发文档 | 已完成；`node --check`、全量 209/209 tests、`git diff --check` 通过；真实浏览器/微信双端验收待 Human |
 | Codex | `miniprogram/package-career/pages/career-coach/*`、`tests/sprint4CareerCoach.test.js`、开发记录 | 修复竞争力陪跑登录按钮只更新状态、未挂载登录弹层而无响应 | 已完成；专项 6/6、全量 204/204、发布检查和微信 CLI preview 通过 |
 | Codex | `miniprogram/package-career/pages/career-coach/career-coach.json`、`tests/sprint4CareerCoach.test.js`、开发记录 | 修复竞争力陪跑分包页面在按需注入时将 AI 说明组件解析为 `wx://not-found` | 已完成；专项 6/6、全量 204/204、发布检查和微信 CLI preview 通过 |
 | Codex | `miniprogram/utils/date-time.js`、`miniprogram/utils/favorites.js`、`tests/sprint8Reliability.test.js`、开发记录 | 修复收藏同步解析 SQLite 日期时的 iOS 兼容警告，并保持 UTC 排序语义 | 已完成；专项 7/7、全量 204/204 与发布检查通过；未运行真实 E2E，未部署 |
@@ -272,3 +381,59 @@ npm test
 | 负责人 | 文件范围 | 任务 | 状态 |
 |---|---|---|---|
 | Codex | `miniprogram/pages/index`、`miniprogram/pages/applications`、`miniprogram/pages/ai-career`、`miniprogram/custom-tab-bar`、`routes/v4/today.js` | 完成首页工作台、Today 同步与 V4 五项一级导航 | 已完成；79/79 tests、小程序检查通过；真实 E2E 待复验 |
+
+
+| 2026-09-14 | 完成官网 Web 与小程序重新分工规划：Web 作为申请管理主工作台，小程序作为提醒、快速更新和面试练习助手；明确申请管理 MVP、申请包、面试复盘的 Web 迁移顺序 | docs/WEB_MINIPROGRAM_PRODUCT_PLAN_20260914.md | 规划文档完成，未改运行代码 |
+
+## 面试训练收敛阶段（2026-09-14）
+
+| 事项 | 文件 | 验证 |
+|---|---|---|
+| 面试训练上下文串联：申请详情携带 `applicationId` 进入岗位面试空间；空间提供返回申请与复盘中心入口；AI 模拟面试将申请上下文写入报告和历史；报告错题复练保留申请上下文 | `miniprogram/package-user/pages/application-detail/application-detail.js`、`miniprogram/package-ai/pages/interview-space/*`、`interview-setup/*`、`interview-dialog/*`、`ai-report/*`、`interview-notebook/interview-notebook.js`、`tests/navigationConfig.test.js` | 208/208 tests，`check:miniprogram` 与 `git diff --check` 通过 |
+| 面试素材入口上下文复用：岗位面试空间写入 interviewContext，题库、STAR 和模拟面试入口自动复用公司、岗位和申请 | miniprogram/package-ai/pages/interview-space/interview-space.js、miniprogram/package-ai/pages/interview-setup/interview-setup.js、miniprogram/pages/experiences/experiences.js、miniprogram/package-content/pages/star-library/star-library.js、miniprogram/package-content/pages/question-detail/question-detail.js、	ests/navigationConfig.test.js | 待本轮测试完成 |
+
+## 小程序 UI/UX 收敛阶段（2026-09-15）
+
+| 负责人 | 文件范围 | 任务 | 状态 |
+|---|---|---|---|
+| Codex | `miniprogram/app.wxss`、首页 Today 工作台、校招卡片、首页求职计划、非首屏 Logo、`tests/navigationConfig.test.js`、`docs/UI_UPGRADE_20260915.md` | 补齐全局设计 Token，修复首页完成态和任务落地动作，明确校招卡片操作，降低首页渐变差异并补充图片懒加载 | 已完成；211/211 tests、导航专项 20/20、`check:miniprogram` 和 `git diff --check` 通过；真机回归待 Human |
+
+## Web 申请包操作阶段（2026-09-15）
+
+| 负责人 | 文件范围 | 任务 | 状态 |
+|---|---|---|---|
+| Codex | `services/v4ApplicationWorkspace.js`、`routes/v4/applications.js`、`db/v4Schema.js`、`public/web/applications.js`、`public/web/applications.css` | 简历版本选择、JD 匹配、ATS 检查、申请材料编辑/归档、AI 草稿确认写入 | 已完成；`npm test` 215/215，通过 Web 隔离场景及语法检查 |
+
+本阶段未进行真实微信双设备验收、生产部署或推送。当前剩余首期事项：Web 岗位创建入口、AI 通用回答确认写入备注/任务、双端人工验收。
+
+## Web 岗位入口阶段（2026-09-15）
+
+| 负责人 | 文件范围 | 任务 | 状态 |
+|---|---|---|---|
+| Codex | `public/web/app.js`、`public/web/styles.css` | Web 职位搜索、匹配分数展示、一键加入申请管线 | 已完成；沿用 V4 岗位与申请接口 |
+
+## 职引 5.0 P0 小程序收敛阶段（2026-09-15）
+
+| 负责人 | 文件范围 | 任务 | 状态 |
+|---|---|---|---|
+| Codex | `miniprogram/app.json`、`custom-tab-bar`、`utils/navigation.js`、`utils/util.js`、AI/申请页导航 | 小程序一级导航收敛为：首页、找岗位、进度、我的；AI 改为上下文页面，不再占用一级 Tab | 已完成；导航专项与全量 215 项测试通过 |
+| Codex | `miniprogram/pages/jobs/*`、既有岗位图标 | 将校招日历作为找岗位模块入口保留，支持从岗位搜索页进入校招批次和截止日期列表 | 已完成；`check:miniprogram` 通过 |
+
+### P0 第二批：移动申请闭环
+
+- 岗位卡片增加待投递/查看进度；服务端成功后显示状态，重复点击合并请求，409 读取已有申请，只有感兴趣记录可以推进至待投递，不覆盖面试和 Offer。
+- 统一移动状态展示，收藏和准备申请不再显示为已投递；详情页复制官方链接不再自动写已投递，也不再复制个人简历摘要。
+- 收藏继续使用原收藏同步；详情页收藏不再额外写申请记录，避免覆盖已有进度。明确点击待投递才创建申请；已有记录保留。
+- 进度页增加独立 OA 筛选、列表改状态（使用服务端合法流转与版本检查），移除漏斗、工具宫格和材料准备度展示。
+- 空列表和网络失败分开；进度页拦截过期请求，登录失效退出加载态；手动新增失败保留表单和同一个 jobId 供重试。
+- 我的增加完整资源目录入口；校招入口移出岗位页固定头部，避免遮挡；复用原岗位选中/未选中图标，移除重复搜索图。
+- 验证：新增移动流程测试 14/14，`check:release` 通过，全量 229/229；小程序媒体 191.2 KB、主包估算 1.04 MB；数据检查错误 0，保留既有 4 条提示。未部署、未进行微信真机 E2E。
+- 详情及剩余 P0 范围见 `docs/V5_P0_MOBILE_WORKFLOW_20260915.md`，不表示整个 5.0 P0 已全部完成。
+
+## Web AI 申请上下文与确认写入（2026-09-15）
+
+- 已完成：服务端读取本人申请状态、下一步及 JD 摘要；AI 回答可编辑预览后确认保存为申请备注或申请任务。
+- 权限验证：必须显式 confirm；跨用户申请拒绝；备注/任务长度有上限。
+- 最新验证：Web 专项 4/4（隔离 API 场景 9/9），Edge 浏览器验收通过。
+- 最终全量回归 215/215，`check:release` 通过；同期导航约定已统一，小程序检查通过。
+- 未推送、未部署、未进行真实微信双设备验收。

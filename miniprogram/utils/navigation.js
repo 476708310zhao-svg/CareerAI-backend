@@ -1,7 +1,7 @@
 const TAB_PAGES = new Set([
   '/pages/index/index',
   '/pages/jobs/jobs',
-  '/pages/applications/applications',
+  '/pages/ai-career/ai-career',
   '/pages/resources/resources',
   '/pages/profile/profile'
 ]);
@@ -9,6 +9,7 @@ const TAB_PAGES = new Set([
 const ROUTE_LOCK_MS = 850;
 const ROUTE_COMPLETE_GRACE_MS = 220;
 const ROUTE_STALE_MS = 1800;
+const AI_TAB_CONTEXT_KEY = 'pending_ai_tab_context';
 
 const rawRouteMethods = {};
 let routeLockKey = '';
@@ -183,6 +184,13 @@ function safeSwitchTab(url, options) {
   return runRoute('switchTab', Object.assign(routeOptions, { url: target }), routeOptions);
 }
 
+function openAiTab(context, options) {
+  try {
+    wx.setStorageSync(AI_TAB_CONTEXT_KEY, Object.assign({}, context || {}));
+  } catch (error) {}
+  return safeSwitchTab('/pages/ai-career/ai-career', options);
+}
+
 function safeReLaunch(url, options) {
   const target = normalizeUrl(url);
   if (!target) return false;
@@ -213,6 +221,7 @@ module.exports = {
   installRouteGuard,
   isTabPage,
   normalizePath,
+  openAiTab,
   safeNavigateBack,
   safeNavigateTo,
   safeRedirectTo,

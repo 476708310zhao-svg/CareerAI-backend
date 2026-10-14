@@ -222,14 +222,29 @@ router.post('/assistant', authMiddleware, aiLimiter, async (req, res) => {
   const safe = (v, max) => String(v || '').trim().slice(0, max);
   let systemContent = ASSISTANT_SYSTEM;
   if (userContext && typeof userContext === 'object') {
+    const redact = value => String(value || '').replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[邮箱已脱敏]').replace(/(?:\+?\d[\d\s().-]{7,}\d)/g, '[电话已脱敏]');
     const parts = [];
     if (safe(userContext.nickname, 20))   parts.push('用户昵称：'   + safe(userContext.nickname, 20));
     if (safe(userContext.targetJob, 50))  parts.push('目标岗位：'   + safe(userContext.targetJob, 50));
+    if (safe(userContext.company, 80))    parts.push('当前公司：'   + safe(userContext.company, 80));
+    if (safe(userContext.applicationId, 80)) parts.push('当前申请记录：' + safe(userContext.applicationId, 80));
     if (safe(userContext.location, 30))   parts.push('目标地区：'   + safe(userContext.location, 30));
     if (safe(userContext.education, 30))  parts.push('学历背景：'   + safe(userContext.education, 30));
     if (userContext.hasResume)            parts.push('已完善简历信息');
     const appCnt = parseInt(userContext.appCount) || 0;
     if (appCnt > 0)                       parts.push(`进行中投递：${appCnt} 条`);
+    const applicationId = Number(userContext.applicationId);
+    if (Number.isInteger(applicationId) && applicationId > 0) {
+      const application = db.prepare('SELECT company,job_title,status,next_action,job_snapshot FROM applications WHERE id=? AND user_id=?').get(applicationId, req.user.userId);
+      if (application) {
+        let snapshot = {};
+        try { snapshot = JSON.parse(application.job_snapshot || '{}') || {}; } catch (_) {}
+        parts.push('申请状态：' + safe(application.status, 30));
+        if (safe(application.next_action, 200)) parts.push('申请下一步：' + safe(application.next_action, 200));
+        const jd = redact(snapshot.description || snapshot.jd || '').slice(0, 1800);
+        if (jd) parts.push('当前岗位 JD 摘要：' + jd);
+      }
+    }
     if (parts.length > 0) {
       systemContent += '\n\n---\n当前用户信息（请结合以下信息给出个性化建议）：\n' + parts.join('\n');
     }

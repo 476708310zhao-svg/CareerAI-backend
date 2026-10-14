@@ -1,14 +1,42 @@
 // utils/app-config.js
-// The mini program keeps no API secrets. All business requests use the HTTPS production API.
+// The mini program keeps no API secrets. Development builds use the local
+// backend so DevTools never depends on an incomplete production deployment.
+// Trial and release builds always stay on the HTTPS production API.
 
 const PROD_API_BASE_URL = 'https://api.zhiyincareer.com';
+const DEV_API_BASE_URL = 'http://127.0.0.1:4400';
 const FEISHU_CONTENT_API_BASE_URL = 'https://feishu-bitable-action-api.onrender.com';
 
-module.exports = {
+function getMiniProgramEnvVersion() {
+  try {
+    if (typeof wx !== 'undefined' && typeof wx.getAccountInfoSync === 'function') {
+      const account = wx.getAccountInfoSync();
+      return account && account.miniProgram && account.miniProgram.envVersion || '';
+    }
+  } catch (error) {}
+  return '';
+}
+
+const MINI_PROGRAM_ENV_VERSION = getMiniProgramEnvVersion();
+// Development builds use a local API for real feature testing, but analytics
+// stays off by default. This prevents every page show from producing a noisy
+// connection error when the local backend is not running and keeps developer
+// navigation out of production metrics.
+const ANALYTICS_ENABLED = MINI_PROGRAM_ENV_VERSION !== 'develop';
+const baseUrls = {
   API_BASE_URL: PROD_API_BASE_URL,
   ASSET_BASE_URL: PROD_API_BASE_URL,
-  CONTENT_API_BASE_URL: PROD_API_BASE_URL,
+  CONTENT_API_BASE_URL: PROD_API_BASE_URL
+};
+if (MINI_PROGRAM_ENV_VERSION === 'develop') {
+  baseUrls.API_BASE_URL = DEV_API_BASE_URL;
+}
+
+module.exports = {
+  ...baseUrls,
   FEISHU_CONTENT_API_BASE_URL,
+  MINI_PROGRAM_ENV_VERSION,
+  ANALYTICS_ENABLED,
 
   // Public LeetCode endpoint.
   LEETCODE_API_URL: 'https://leetcode.cn/graphql',
@@ -39,12 +67,12 @@ module.exports = {
   // and authenticated-route smoke checks.
   V4_AGENT_API_ENABLED: true,
 
-  // Used only while the public feature state is unknown. This optimistic
-  // client fallback keeps the fixed Jobs tab usable during a cold-start
-  // network failure; a cached or server-provided false remains authoritative.
+  // Used only while the public feature state is unknown. Keep the fixed Jobs
+  // tab usable on cold start; membership must not appear available until a
+  // cached or server-provided flag explicitly enables it.
   DEFAULT_FEATURE_FLAGS: {
     recruitment: true,
     home_recommendations: false,
-    membership: true
+    membership: false
   }
 };

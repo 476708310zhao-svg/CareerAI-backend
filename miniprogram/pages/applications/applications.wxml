@@ -1,22 +1,21 @@
-<view class="progress-page">
-  <view class="page-head"><view><text class="page-title">申请进度</text><text class="page-sub">每次只推进一个明确节点</text></view><view class="add-button" bindtap="openCreate" hover-class="press" aria-role="button" aria-label="新增申请"><text class="add-line"></text><text>新增申请</text></view></view>
-
+<view class="progress-page" style="padding-top: {{navTop}}px">
+  <view class="secondary-nav"><view class="secondary-back" bindtap="goBack" hover-class="press" aria-role="button" aria-label="返回上一页"><text aria-hidden="true">‹</text></view><text class="secondary-title">申请进度</text><view class="secondary-spacer"></view></view>
   <view wx:if="{{syncNotice && !loading}}" class="notice-card"><text class="notice-dot"></text><text>{{syncNotice}}</text></view>
   <view wx:if="{{loading}}" class="state-card compact" aria-role="status" aria-label="正在同步申请进度"><view class="spinner" aria-hidden="true"></view><text class="state-desc">正在同步申请进度…</text></view>
   <view wx:elif="{{loginRequired}}" class="state-card"><view class="state-mark"><text></text></view><text class="state-title">登录后开启申请工作台</text><text class="state-desc">申请状态、材料、联系人、任务和面试记录会安全同步到你的账号。</text><view class="primary-button" bindtap="promptLogin" hover-class="press" aria-role="button" aria-label="立即登录">立即登录</view></view>
   <view wx:elif="{{error}}" class="state-card"><view class="state-mark error"><text></text></view><text class="state-title">暂时无法加载</text><text class="state-desc">{{error}}</text><view class="primary-button" bindtap="retry" hover-class="press" aria-role="button" aria-label="重新加载">重新加载</view></view>
 
   <block wx:else>
-    <view wx:if="{{highlights.length}}" class="focus-section"><view class="section-head"><view><text class="section-title">建议下一步</text></view><text class="section-count">{{highlights.length}} 项</text></view><view class="focus-card"><view wx:for="{{highlights}}" wx:key="id" class="focus-row" data-id="{{item.id}}" bindtap="openApplication" hover-class="row-press" aria-role="button" aria-label="{{item.title}}，{{item.desc}}"><text class="focus-badge {{item.type}}">{{item.badge}}</text><view class="row-copy"><text class="row-title">{{item.title}}</text><text class="row-desc">{{item.desc}}</text></view><text class="focus-action">开始准备</text></view></view></view>
+    <view wx:if="{{highlights.length}}" class="focus-card"><view wx:for="{{highlights}}" wx:key="id" wx:if="{{index === 0}}" class="focus-row" data-id="{{item.id}}" bindtap="openApplication" hover-class="row-press" aria-role="button" aria-label="{{item.title}}，{{item.desc}}"><view class="focus-copy"><text class="focus-kicker"><text class="focus-target">◎</text> 建议下一步</text><text class="row-title">{{item.title}}</text><text class="row-desc">{{item.desc}}</text></view><view class="focus-art"><view class="paper-line one"></view><view class="paper-line two"></view><view class="focus-pen"></view></view><text class="focus-action">开始准备</text></view></view>
 
     <view class="summary-card">
       <view class="summary-head"><view><text class="summary-title">申请概览</text><text class="summary-label">{{activeCount}} 条正在推进</text></view><text class="summary-state">共 {{total}} 条</text></view>
       <view class="funnel" aria-label="申请阶段概览">
-        <view wx:for="{{funnel}}" wx:key="key" class="funnel-item"><text class="funnel-count">{{item.count}}</text><text class="funnel-label">{{item.label}}</text></view>
+        <view wx:for="{{funnel}}" wx:key="key" wx:if="{{index < 3}}" class="funnel-item tone-{{index}}"><text class="funnel-label"><text class="funnel-icon">{{index===0?'▤':(index===1?'◷':'♙')}}</text>{{item.label}}</text><text class="funnel-count">{{item.count}}</text></view>
       </view>
     </view>
 
-    <view class="section list-section"><view class="section-head"><view><text class="section-title">全部申请</text></view></view>
+    <view class="section list-section"><view class="section-head"><view><text class="section-title">全部申请</text></view><view class="add-button" bindtap="openCreate" hover-class="press" aria-role="button" aria-label="新增申请"><text class="add-line"></text><text>新增申请</text></view></view>
       <scroll-view class="filter-scroll" scroll-x enhanced show-scrollbar="{{false}}"><view class="filter-row"><view wx:for="{{filters}}" wx:key="key" class="filter {{activeGroup===item.key?'active':''}}" data-group="{{item.key}}" bindtap="changeGroup" hover-class="press" aria-role="button" aria-label="筛选{{item.label}}，{{item.count}}条" aria-selected="{{activeGroup===item.key}}"><text>{{item.label}}</text><text class="filter-count">{{item.count}}</text></view></view></scroll-view>
       <view wx:if="{{visibleApplications.length===0}}" class="state-card empty-state"><view class="state-mark add"><text></text></view><text class="state-title">{{activeGroup==='all'?'还没有申请记录':'该阶段暂无申请'}}</text><text class="state-desc">从岗位页加入目标，或手动记录一条真实申请。</text><view class="empty-actions"><view class="primary-button small" bindtap="goJobs" hover-class="press" aria-role="button" aria-label="去找岗位">去找岗位</view><view class="secondary-button" bindtap="openCreate" hover-class="press" aria-role="button" aria-label="手动记录申请">手动记录</view></view></view>
       <view wx:else class="application-list"><view wx:for="{{visibleApplications}}" wx:key="id" class="application-card" data-id="{{item.id}}" bindtap="openApplication" hover-class="row-press" aria-role="button" aria-label="{{item.company}} {{item.jobTitle}}，{{item.statusText}}">

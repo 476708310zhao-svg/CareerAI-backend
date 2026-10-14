@@ -19,7 +19,7 @@
   >
     <view class="card-head">
       <view class="company-logo" wx:if="{{item.companyLogo}}">
-        <image class="company-logo-img" src="{{item.companyLogo}}" mode="aspectFit" />
+        <image class="company-logo-img" src="{{item.companyLogo}}" mode="aspectFit" lazy-load />
       </view>
       <view class="company-fallback" wx:else>{{item.companyInitial}}</view>
       <view class="card-title-wrap">

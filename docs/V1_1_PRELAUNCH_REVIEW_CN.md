@@ -75,7 +75,7 @@
 | fallback 岗位仅 18 条 | `data/jobs.json`, `scripts/check-data-content.js` | 检查警告建议至少 80 条 | 空状态和推荐内容不足 | 补充上线可用岗位库 | P1 | 建议修 |
 | 缺少统一埋点 | 全局 | 未发现 analytics/report 接口 | 无法判断转化漏斗和问题页面 | 增加最小埋点：曝光、搜索、详情、收藏、投递、反馈 | P2 | 不阻断 |
 | 调试日志较多 | `miniprogram/app.js`, `admin/banners.html`, `routes/payment.js` 等 | `console.log` | 暴露 userId 或污染日志 | 去掉前端生产日志，后端改分级日志 | P2 | 不阻断 |
-| 未使用组件 | `components/c-action-bar`, `c-ai-loading`, `c-search-bar`, `c-section-card` | 未发现引用 | 增加维护成本 | 上线后清理或补使用 | P3 | 否 |
+| 未使用组件 | `components/c-action-bar`, `c-ai-loading`, `c-search-bar`, `c-section-card` | 未发现引用 | 增加维护成本 | 已于 2026-10-10 清理 | P3 | 已处理 |
 | 客服入口不完整 | `feedback`, `about`, `settings` | 未发现原生客服按钮 | 用户无法即时咨询 | V1.1 保留反馈加邮箱，V1.2 接客服 | P2 | 否 |
 | 隐私说明与开放功能需对齐 | `privacy.wxml`, `docs/wechat-privacy-backend-guide.md` | AI、录音、支付、简历均有声明 | 若隐藏功能未同步说明，审核和信任风险 | 上线前按实际展示功能复核微信后台隐私指引 | P1 | 是 |
 

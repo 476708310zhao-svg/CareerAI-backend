@@ -1,16 +1,18 @@
 // pages/index/index.js
-const { getAggregatedJobs, normalizeCompanyLogo } = require('../../utils/api.js');
+const { getAggregatedJobs, getCampusList, normalizeCompanyLogo } = require('../../utils/api.js');
 const favUtil = require('../../utils/favorites.js');
 const progress = require('../../utils/job-progress.js');
 const jdMatch = require('../../utils/jd-match.js');
 const dailyTasks = require('../../utils/daily-tasks.js');
+const { timestamp } = require('../../utils/date-time.js');
+const { campusDeadlineMeta } = require('../../utils/campus-deadline.js');
 const demoData = require('../../utils/demo-data.js');
 const matcher = require('../../utils/matcher.js');
 const { formatSalaryRange } = require('../../utils/util.js');
 const browseHistory = require('../../utils/browse-history.js');
 const featureFlags = require('../../utils/feature-flags.js');
 const navigation = require('../../utils/navigation.js');
-const { markCachedDataMeta } = require('../../utils/data-provenance.js');
+const { markCachedDataMeta, normalizeDataMeta, summaryText } = require('../../utils/data-provenance.js');
 const apiV4 = require('../../utils/api-v4.js');
 const ownerStorage = require('../../utils/owner-storage.js');
 const unreadMessages = require('../../utils/unread-messages.js');
@@ -18,9 +20,7 @@ const ALLOW_DEMO_FALLBACK = demoData.enabled();
 // TabBar 页面路径列表，用于判断跳转方式
 Page({
   data: {
-    // 0. 用户问候
-    greeting: '你好，同学',
-    avatarUrl: '/images/default-avatar.png',
+    navTop: 64,
 
     skeletonRows: [1, 2, 3],
     recruitmentEnabled: true,
@@ -29,7 +29,11 @@ Page({
 
     // 4. 推荐职位
     recommendJobs: [],
+    latestJobs: [],
     loadingJobs: true,
+    loadingLatestJobs: false,
+    campusDigest: [],
+    loadingCampusDigest: false,
     jobsError: false,
     recommendTitle: '为您推荐',
     prefTags: [],
@@ -69,6 +73,7 @@ Page({
   },
 
   onLoad() {
+    this.measureNavigation();
     this._unloaded = false;
     this._visible = true;
     this._ownerScope = ownerStorage.capture();
@@ -100,7 +105,9 @@ Page({
       }, hasCachedJobs ? 240 : 100);
     } else {
       this.setData({ loadingJobs: false, recommendJobs: [] });
+      if (recruitmentEnabled) this.fetchLatestJobs();
     }
+    this.fetchHomeCampusDigest();
   },
 
   applyRecruitmentState(enabled) {
@@ -129,11 +136,15 @@ Page({
 
   _onFeatureFlagsChange(flags) {
     const wasRecommendationsEnabled = this.data.homeRecommendationsEnabled;
+    const wasRecruitmentEnabled = this.data.recruitmentEnabled;
     this.applyFeatureState(flags);
     this.loadWorkbenchSummary();
     if (this.data.homeRecommendationsEnabled && !wasRecommendationsEnabled) {
       this.loadCachedOrMockJobs();
       this.fetchRecommendJobs();
+    } else if (this.data.recruitmentEnabled && !this.data.homeRecommendationsEnabled
+      && (!wasRecruitmentEnabled || wasRecommendationsEnabled)) {
+      this.fetchLatestJobs({ force: true });
     }
   },
 
@@ -147,7 +158,12 @@ Page({
       this._todayTaskRequestId = (this._todayTaskRequestId || 0) + 1;
       this._workbenchReportRequestId = (this._workbenchReportRequestId || 0) + 1;
       this._recommendRequestId = (this._recommendRequestId || 0) + 1;
-      this.setData({ recommendJobs: [], todayTasks: [], todaySecondaryTasks: [], todayTaskStats: dailyTasks.getStats([]) });
+      this._latestJobRequestId = (this._latestJobRequestId || 0) + 1;
+      this._campusDigestRequestId = (this._campusDigestRequestId || 0) + 1;
+      this._campusDigestInFlight = false;
+      this.setData({ recommendJobs: [], latestJobs: [], loadingLatestJobs: false,
+        loadingCampusDigest: false, todayTasks: [], todaySecondaryTasks: [],
+        todayTaskStats: dailyTasks.getStats([]) });
     }
     const app = getApp();
     if (app && typeof app.syncCustomTabBar === 'function') app.syncCustomTabBar();
@@ -164,6 +180,9 @@ Page({
       this.loadCachedOrMockJobs();
       this.fetchRecommendJobs({ force: true });
     }
+    if (this.data.recruitmentEnabled && !this.data.homeRecommendationsEnabled
+      && !this.data.loadingLatestJobs && !(this.data.latestJobs || []).length) this.fetchLatestJobs();
+    this.fetchHomeCampusDigest();
   },
 
   syncPageChrome() {
@@ -195,6 +214,8 @@ Page({
     this.loadTodayTasks();
     this.loadWorkbenchSummary();
     if (this.data.homeRecommendationsEnabled) this.fetchRecommendJobs({ force: true });
+    else if (this.data.recruitmentEnabled) this.fetchLatestJobs({ force: true });
+    this.fetchHomeCampusDigest({ force: true });
     setTimeout(() => wx.stopPullDownRefresh(), 800);
   },
 
@@ -204,6 +225,9 @@ Page({
     this._todayTaskRequestId = (this._todayTaskRequestId || 0) + 1;
     this._workbenchReportRequestId = (this._workbenchReportRequestId || 0) + 1;
     this._recommendRequestId = (this._recommendRequestId || 0) + 1;
+    this._latestJobRequestId = (this._latestJobRequestId || 0) + 1;
+    this._campusDigestRequestId = (this._campusDigestRequestId || 0) + 1;
+    this._campusDigestInFlight = false;
     this._todayTaskSyncPromise = null;
     this._todayTaskSyncOwner = '';
     this._workbenchReportSyncing = false;
@@ -211,11 +235,29 @@ Page({
     clearTimeout(this._initialRecommendTimer);
   },
 
+  measureNavigation() {
+    let navTop = 64;
+    try {
+      const windowInfo = typeof wx.getWindowInfo === 'function' ? wx.getWindowInfo() : wx.getSystemInfoSync();
+      const menu = typeof wx.getMenuButtonBoundingClientRect === 'function' ? wx.getMenuButtonBoundingClientRect() : null;
+      const statusBottom = (Number(windowInfo && windowInfo.statusBarHeight) || 20) + 44;
+      const menuBottom = Number(menu && menu.bottom) || 0;
+      navTop = Math.max(56, statusBottom, menuBottom ? menuBottom + 8 : 0);
+    } catch (error) {
+      navTop = 64;
+    }
+    this.setData({ navTop });
+  },
+
   onHide() {
     this._visible = false;
     this._todayTaskRequestId = (this._todayTaskRequestId || 0) + 1;
     this._workbenchReportRequestId = (this._workbenchReportRequestId || 0) + 1;
     this._recommendRequestId = (this._recommendRequestId || 0) + 1;
+    this._latestJobRequestId = (this._latestJobRequestId || 0) + 1;
+    this._campusDigestRequestId = (this._campusDigestRequestId || 0) + 1;
+    this._campusDigestInFlight = false;
+    this.setData({ loadingLatestJobs: false, loadingCampusDigest: false });
     this._todayTaskSyncPromise = null;
     this._todayTaskSyncOwner = '';
     this._workbenchReportSyncing = false;
@@ -266,11 +308,12 @@ Page({
   loadCachedOrMockJobs() {
     const cached = ownerStorage.get('cachedRecommendJobs', '', []);
     if (cached && cached.length >= 3) {
-      const cachedJobs = cached.map(item => Object.assign({}, item, {
-        dataMeta: markCachedDataMeta(item.dataMeta, {
+      const cachedJobs = cached.map(item => {
+        const dataMeta = markCachedDataMeta(item.dataMeta, {
           domain: 'job', source: item.source || item._source, publishedAt: item.postedAtRaw
-        })
-      }));
+        });
+        return Object.assign({}, item, { dataMeta, sourceSummary: summaryText(dataMeta) });
+      });
       this.setData({
         recommendJobs: this.withCompanyLogos(cachedJobs).slice(0, 3),
         loadingJobs: false,
@@ -291,16 +334,11 @@ Page({
   loadUserProfile() {
     const profile = wx.getStorageSync('userProfile') || {};
 
-    // 1. 计算时间问候语
-    const hour = new Date().getHours();
-    const timeGreet = hour < 6 ? '夜深了' : hour < 12 ? '早上好' : hour < 14 ? '中午好' : hour < 18 ? '下午好' : '晚上好';
-    const name = profile.nickName || '同学';
-
-    // 2. 资料完整度计算
+    // 1. 资料完整度计算
     const completeness = matcher.getProfileCompleteness(profile);
     const hints = matcher.getMissingHints(profile);
 
-    // 3. 构建带来源标注的推荐关键词列表
+    // 2. 构建带来源标注的推荐关键词列表
     const sourceKws = [];
     matcher.getJobKeywords(profile).forEach(kw => sourceKws.push({ kw, source: '专业' }));
     const searchHistory = progress.currentOwnerScope()
@@ -319,10 +357,8 @@ Page({
     this.userSourceKws = uniqueSourceKws.length > 0 ? uniqueSourceKws : [{ kw: 'Software Engineer', source: '' }];
     this.userKeywords = this.userSourceKws.map(s => s.kw);
 
-    // 4. 统一执行一次 setData 提升渲染性能
+    // 3. 统一执行一次 setData 提升渲染性能
     this.setData({
-      greeting: `${timeGreet}，${name}`,
-      avatarUrl: profile.avatarUrl || '/images/default-avatar.png',
       profileCompleteness: completeness,
       profileHints: hints,
       showProfileGuide: completeness < 60 && hints.length > 0,
@@ -366,7 +402,7 @@ Page({
     const keyword = this.data.activePrefTag || (this.userKeywords && this.userKeywords[0]) || 'Software Engineer';
 
     try {
-      const res = await getAggregatedJobs({ keyword, country: 'us', size: 20, page: 1, noCache: force });
+      const res = await getAggregatedJobs({ keyword, country: 'global', size: 20, page: 1, noCache: force });
       if (!this.isHomeRequestCurrent(owner, requestId, '_recommendRequestId')) return;
       if (!res.data || res.data.length === 0) throw new Error('API Empty');
 
@@ -392,6 +428,72 @@ Page({
             jobsError: this.data.recommendJobs.length === 0
           });
         }
+    }
+  },
+
+  async fetchLatestJobs(options) {
+    if (!this.data.recruitmentEnabled || this.data.homeRecommendationsEnabled) return;
+    const force = !!(options && options.force);
+    if (this.data.loadingLatestJobs && !force) return;
+    const owner = ownerStorage.capture();
+    const requestId = (this._latestJobRequestId || 0) + 1;
+    this._latestJobRequestId = requestId;
+    this.setData({ loadingLatestJobs: true });
+    try {
+      const keyword = (this.userKeywords && this.userKeywords[0]) || 'Software Engineer';
+      const res = await getAggregatedJobs({ keyword, country: 'global', size: 20, page: 1, noCache: force });
+      if (!this.isHomeRequestCurrent(owner, requestId, '_latestJobRequestId')) return;
+      const now = Date.now();
+      const seen = new Set();
+      const jobs = this.formatJobData(Array.isArray(res && res.data) ? res.data : [])
+        .filter(job => {
+          const published = timestamp(job.postedAtRaw);
+          if (!job.id || !job.title || !job.company || !published
+            || published > now + 86400000 || published < now - 60 * 86400000
+            || (job.dataMeta && job.dataMeta.isExpired) || seen.has(String(job.id))) return false;
+          seen.add(String(job.id));
+          return true;
+        })
+        .sort((a, b) => timestamp(b.postedAtRaw) - timestamp(a.postedAtRaw))
+        .slice(0, 2);
+      this.setData({ latestJobs: this.withCompanyLogos(jobs), loadingLatestJobs: false });
+    } catch (error) {
+      if (!this.isHomeRequestCurrent(owner, requestId, '_latestJobRequestId')) return;
+      console.warn('[fetchLatestJobs] 获取最新岗位失败:', error);
+      this.setData({ latestJobs: [], loadingLatestJobs: false });
+    }
+  },
+
+  async fetchHomeCampusDigest(options) {
+    const force = !!(options && options.force);
+    if (this._campusDigestInFlight && !force) return;
+    if (!force && this._campusDigestFetchedAt && Date.now() - this._campusDigestFetchedAt < 5 * 60000) return;
+    const owner = ownerStorage.capture();
+    const requestId = (this._campusDigestRequestId || 0) + 1;
+    this._campusDigestRequestId = requestId;
+    this._campusDigestInFlight = true;
+    this.setData({ loadingCampusDigest: true });
+    try {
+      const res = await getCampusList({ sort: 'latest', deadlineWindow: 'open', page: 0, pageSize: 20 });
+      if (!this.isHomeRequestCurrent(owner, requestId, '_campusDigestRequestId')) return;
+      if (!res || res.code !== 0 || !res.data) throw new Error('校招动态接口返回异常');
+      const raw = Array.isArray(res.data) ? res.data : (res.data.list || []);
+      const digest = this.rankCampusUpdates(raw.filter(item => item && item.id && item.deadlineWindow !== 'expired'))
+        .sort((a, b) => Number(b.isUrgent) - Number(a.isUrgent) || b.updateTimestamp - a.updateTimestamp)
+        .slice(0, 2)
+        .map(item => Object.assign({}, item, {
+          digestLabel: item.isUrgent ? '即将截止' : '校招机会',
+          digestMeta: item.isUrgent && item.deadlineText ? item.deadlineText : this.normalizeCampusUpdateSubtitle(item)
+        }));
+      this._campusDigestFetchedAt = Date.now();
+      this.setData({ campusDigest: digest, loadingCampusDigest: false });
+    } catch (error) {
+      if (!this.isHomeRequestCurrent(owner, requestId, '_campusDigestRequestId')) return;
+      console.warn('[fetchHomeCampusDigest] 获取校招动态失败:', error);
+      this._campusDigestFetchedAt = Date.now();
+      this.setData({ campusDigest: [], loadingCampusDigest: false });
+    } finally {
+      if (requestId === this._campusDigestRequestId) this._campusDigestInFlight = false;
     }
   },
 
@@ -427,10 +529,12 @@ Page({
   // 职位 Logo 加载失败时，自动降级为文字头像
   onJobLogoError(e) {
     const index = e.currentTarget.dataset.index;
-    if (typeof index !== 'number' || (this.data.recommendJobs[index] && this.data.recommendJobs[index].logoFailed)) return;
+    const listName = e.currentTarget.dataset.list === 'latest' ? 'latestJobs' : 'recommendJobs';
+    if (typeof index !== 'number' || !(this.data[listName] || [])[index]
+      || this.data[listName][index].logoFailed) return;
     this.setData({
-      [`recommendJobs[${index}].logoFailed`]: true,
-      [`recommendJobs[${index}].logoSrc`]: ''
+      [`${listName}[${index}].logoFailed`]: true,
+      [`${listName}[${index}].logoSrc`]: ''
     });
   },
 
@@ -471,6 +575,9 @@ Page({
     return rawList.map(job => {
       const salary = formatSalaryRange(job.job_min_salary, job.job_max_salary);
       const desc = job.job_description || '';
+      const dataMeta = normalizeDataMeta(job.dataMeta, {
+        domain: 'job', source: job._source || '', publishedAt: job.job_posted_at_datetime_utc
+      });
       return {
         id: job.job_id,
         title: job.job_title,
@@ -486,7 +593,8 @@ Page({
         applyLink: job.job_apply_link || '',
         optFriendly: /\b(opt|cpt|h[- ]?1b|visa\s+sponsor|will\s+sponsor|work\s+authori)/i.test(desc),
         postedAtRaw: job.job_posted_at_datetime_utc || '',
-        dataMeta: job.dataMeta,
+        dataMeta,
+        sourceSummary: summaryText(dataMeta),
         source: job._source || ''
       };
     });
@@ -494,7 +602,9 @@ Page({
 
   formatTime(dateStr) {
     if (!dateStr) return '最近发布';
-    const diff = Date.now() - new Date(dateStr).getTime();
+    const postedAt = timestamp(dateStr);
+    if (!postedAt) return '最近发布';
+    const diff = Date.now() - postedAt;
     const days = Math.floor(diff / 86400000);
     if (days < 1) return '今天';
     if (days === 1) return '昨天';
@@ -553,17 +663,24 @@ Page({
     const locations = Array.isArray(item.locations) ? item.locations : [];
     const cityText = locations.length
       ? (locations.length > 2 ? locations.slice(0, 2).join(' / ') + ' +' + (locations.length - 2) : locations.join(' / '))
-      : (item.region || '全国');
-    const deadline = this.getCampusDeadlineMeta(item.deadlineDate || item.deadlineMonth || '');
+      : (item.region || '地区待确认');
+    const deadline = this.getCampusDeadlineMeta(item.deadlineDateNormalized || item.deadlineDate || item.deadline_date || item.deadlineMonth || '', {
+      startDate: item.startDate || item.start_date,
+      recruitYear: item.recruitYear || item.recruit_year
+    });
     const businessDate = this.getCampusBusinessDateKey(item);
     const updatedText = this.formatCampusBusinessDateText(businessDate);
-    const updateTimestamp = Date.parse(item.updatedAt || item.updated_at || item.createdAt || item.created_at || businessDate || '') || 0;
+    const updateTimestamp = timestamp(item.updatedAt || item.updated_at || item.createdAt || item.created_at || businessDate || '');
     const recentScore = businessDate ? 40 : 12;
     const hotScore = item.isHot ? 26 : 0;
     const deadlineScore = deadline.isSoon ? 30 : 0;
     const companyName = item.company || '校招机会';
     const positionTitle = item.positionName || item.positionType || '校招岗位';
     const title = this.buildCampusUpdateTitle(companyName, positionTitle);
+    const dataMeta = normalizeDataMeta(item.dataMeta, {
+      domain: 'campus', source: item.source || '',
+      updatedAt: item.updatedAt || item.updated_at || item.createdAt || item.created_at || ''
+    });
 
     return {
       id: item.id,
@@ -586,6 +703,8 @@ Page({
       isHot: !!item.isHot,
       notes: item.notes || '',
       source: item.source || '',
+      dataMeta,
+      sourceSummary: summaryText(dataMeta),
       isVerified: !!item.isVerified,
       viewCount: item.viewCount || item.view_count || 0,
       createdAt: item.createdAt || item.created_at || '',
@@ -692,19 +811,8 @@ Page({
     return key.slice(5) + '更新';
   },
 
-  getCampusDeadlineMeta(value) {
-    const text = String(value || '').trim();
-    if (!text || text === '尽快投递') return { text: text || '尽快投递', isSoon: true };
-    const parsed = new Date(text.replace(/-/g, '/'));
-    if (Number.isNaN(parsed.getTime())) return { text, isSoon: false };
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    parsed.setHours(0, 0, 0, 0);
-    const days = Math.round((parsed.getTime() - today.getTime()) / 86400000);
-    if (days < 0) return { text: '已截止', isSoon: false };
-    if (days === 0) return { text: '今日截止', isSoon: true };
-    if (days <= 7) return { text: days + '天后截止', isSoon: true };
-    return { text: text.slice(5) + '截止', isSoon: false };
+  getCampusDeadlineMeta(value, context) {
+    return campusDeadlineMeta(value, context);
   },
 
   formatCampusUpdatedText(value) {
@@ -1037,7 +1145,7 @@ Page({
       this.goToCampusList();
       return;
     }
-    const snapshot = (this.data.campusLatestUpdates || [])
+    const snapshot = (this.data.campusDigest || this.data.campusLatestUpdates || [])
       .filter(Boolean)
       .find(item => String(item.id) === String(id));
     if (snapshot) {
@@ -1063,7 +1171,8 @@ Page({
     if (!featureFlags.allowNavigation('/package-user/pages/job-detail/job-detail')) return;
     const detail = e.detail || {};
     const id = detail.id || e.currentTarget.dataset.id;
-    const job = (this.data.recommendJobs || []).find(item => String(item.id) === String(id));
+    const job = (this.data.recommendJobs || []).concat(this.data.latestJobs || [])
+      .find(item => String(item.id) === String(id));
     if (job) {
       const snapshot = {
         id: job.id,
@@ -1077,6 +1186,7 @@ Page({
         type: job.type,
         salary: job.salary,
         postedAt: job.postedAt,
+        dataMeta: job.dataMeta,
         optFriendly: job.optFriendly,
         applyLink: job.applyLink,
         description: job.rawDescription || job.description || ''
@@ -1109,10 +1219,6 @@ Page({
 
   onBannerChange(e) {
     this.setData({ currentBanner: e.detail.current });
-  },
-
-  onAvatarError() {
-    this.setData({ avatarUrl: '/images/default-avatar.png' });
   },
 
   onLogoError(e) {

@@ -1,35 +1,73 @@
 <view class="profile-page">
-  <view class="page-head">
-    <text class="page-title">我的</text>
-    <text class="page-sub">管理个人档案与求职资产</text>
-  </view>
-
-  <view class="identity-card" bindtap="openIdentity" hover-class="row-press" aria-role="button" aria-label="{{isLogin?'编辑个人资料':'登录或注册'}}">
-    <image class="avatar" src="{{isLogin?userInfo.avatarUrl:'/images/default-avatar.png'}}" mode="aspectFill" aria-hidden="true" />
-    <view class="identity-copy">
-      <view class="name-row"><text class="nickname">{{isLogin?userInfo.nickName:'登录 / 注册'}}</text><text wx:if="{{isVip}}" class="member-tag">会员</text></view>
-      <text class="identity-desc">{{isLogin ? ((userInfo.school||'完善学校信息') + (userInfo.major?' · '+userInfo.major:'')) : '登录后同步你的申请、简历与收藏'}}</text>
+  <view class="profile-identity" bindtap="openIdentity" hover-class="tap-soft" aria-role="button" aria-label="{{isLogin?'编辑个人资料':'登录或注册'}}">
+    <view class="avatar-wrap">
+      <image class="avatar" src="{{isLogin?userInfo.avatarUrl:'/images/default-avatar.png'}}" mode="aspectFill" aria-hidden="true" />
+      <text wx:if="{{!isLogin}}" class="avatar-badge">登录</text>
     </view>
-    <text class="row-arrow" aria-hidden="true">›</text>
+    <view class="identity-copy">
+      <view class="name-row">
+        <text class="nickname">{{isLogin?userInfo.nickName:'点击登录 / 注册'}}</text>
+        <text wx:if="{{isVip}}" class="vip-tag">PRO</text>
+        <text class="identity-arrow" aria-hidden="true">›</text>
+      </view>
+      <text class="profile-intro">{{isLogin ? ((userInfo.school||'完善求职档案') + (userInfo.major?' · '+userInfo.major:'')) : '建立求职档案，获取精准推荐'}}</text>
+    </view>
   </view>
 
-  <view class="section-head"><view><text class="section-title">我的资产</text><text class="section-sub">常用内容集中管理</text></view></view>
-  <view class="asset-grid">
-    <view class="asset-tile" bindtap="goToResumes" hover-class="press" aria-role="button" aria-label="我的简历，管理版本与内容"><view class="asset-icon"><image src="/images/profile-resume.png" mode="aspectFit" aria-hidden="true" /></view><view class="asset-copy"><text class="asset-name">我的简历</text><text class="asset-meta">版本与内容</text></view><text class="asset-arrow" aria-hidden="true">›</text></view>
-    <view class="asset-tile" bindtap="goToFavorites" hover-class="press" aria-role="button" aria-label="我的收藏，{{stats.favorites}}项内容"><view class="asset-icon"><image src="/images/profile-favorite.png" mode="aspectFit" aria-hidden="true" /></view><view class="asset-copy"><text class="asset-name">我的收藏</text><text class="asset-meta">{{stats.favorites}} 项内容</text></view><text class="asset-arrow" aria-hidden="true">›</text></view>
-    <view class="asset-tile" bindtap="goToMyExperiences" hover-class="press" aria-role="button" aria-label="我的面经，管理发布"><view class="asset-icon"><image src="/images/profile-experience.png" mode="aspectFit" aria-hidden="true" /></view><view class="asset-copy"><text class="asset-name">我的面经</text><text class="asset-meta">管理发布</text></view><text class="asset-arrow" aria-hidden="true">›</text></view>
-    <view class="asset-tile" bindtap="goToApplications" hover-class="press" aria-role="button" aria-label="我的申请，查看求职进度"><view class="asset-icon"><image src="/images/resource-guide.png" mode="aspectFit" aria-hidden="true" /></view><view class="asset-copy"><text class="asset-name">我的申请</text><text class="asset-meta">进度与待办</text></view><text class="asset-arrow" aria-hidden="true">›</text></view>
+  <view wx:if="{{membershipEnabled}}" class="vip-banner {{isVip?'is-active':''}}" bindtap="goToVip" hover-class="panel-press" aria-role="button" aria-label="{{isVip?'查看会员权益':'开通求职会员'}}">
+    <view class="vip-copy">
+      <view class="vip-title-row">
+        <text class="vip-mark">{{isVip?'VIP':'PRO'}}</text>
+        <text class="vip-title">{{isVip?'求职进阶能力已解锁':'解锁求职进阶能力'}}</text>
+      </view>
+      <text class="vip-description">{{isVip?('有效期至 '+(vipInfo.expireDate||'长期有效')):'简历优化、AI 面试与薪资洞察'}}</text>
+    </view>
+    <text class="vip-action">{{isVip?'查看权益':'去开通'}} ›</text>
   </view>
 
-  <view class="section-head"><view><text class="section-title">账号与服务</text><text class="section-sub">通知、隐私和产品支持</text></view></view>
+  <view class="records-card">
+    <text class="card-title">我的记录</text>
+    <view class="records-grid">
+      <view class="record-item" bindtap="goToResumes" hover-class="tile-press" aria-role="button" aria-label="我的简历">
+        <view class="record-icon tone-mint"><image src="/images/profile-resume.png" mode="aspectFit" aria-hidden="true" /></view>
+        <text class="record-name">我的简历</text>
+      </view>
+      <view class="record-item" bindtap="goToFavorites" hover-class="tile-press" aria-role="button" aria-label="我的收藏，共{{stats.favorites}}项">
+        <view class="record-icon tone-amber"><image src="/images/profile-favorite.png" mode="aspectFit" aria-hidden="true" /></view>
+        <text class="record-name">我的收藏</text>
+      </view>
+      <view class="record-item" bindtap="goToMessages" hover-class="tile-press" aria-role="button" aria-label="消息通知{{unreadCount>0?'，'+unreadCount+'条未读':''}}">
+        <view class="record-icon tone-blue">
+          <image src="/images/profile-message.png" mode="aspectFit" aria-hidden="true" />
+          <text wx:if="{{unreadCount>0}}" class="unread-dot" aria-label="{{unreadCount}}条未读">{{unreadCount}}</text>
+        </view>
+        <text class="record-name">消息通知</text>
+      </view>
+      <view class="record-item" bindtap="goToMyExperiences" hover-class="tile-press" aria-role="button" aria-label="我的面经">
+        <view class="record-icon tone-coral"><image src="/images/profile-experience.png" mode="aspectFit" aria-hidden="true" /></view>
+        <text class="record-name">我的面经</text>
+      </view>
+    </view>
+  </view>
+
   <view class="service-card">
-    <view class="service-row" bindtap="goToMessages" hover-class="row-press" aria-role="button" aria-label="消息通知{{unreadCount>0?'，'+unreadCount+'条未读':''}}"><view class="service-icon"><image src="/images/profile-message.png" mode="aspectFit" aria-hidden="true" /></view><text class="service-name">消息通知</text><text wx:if="{{unreadCount>0}}" class="unread" aria-label="{{unreadCount}}条未读">{{unreadCount}}</text><text class="row-arrow" aria-hidden="true">›</text></view>
-    <view class="service-row" bindtap="goToSettings" hover-class="row-press" aria-role="button" aria-label="账号与设置"><view class="service-icon"><image src="/images/profile-settings.png" mode="aspectFit" aria-hidden="true" /></view><view class="service-copy"><text class="service-name">账号与设置</text><text class="service-desc">登录状态与基础偏好</text></view><text class="row-arrow" aria-hidden="true">›</text></view>
-    <view class="service-row" bindtap="goToSettings" hover-class="row-press" aria-role="button" aria-label="隐私与数据"><view class="service-icon"><image src="/images/profile-settings.png" mode="aspectFit" aria-hidden="true" /></view><view class="service-copy"><text class="service-name">隐私与数据</text><text class="service-desc">授权、安全与数据管理</text></view><text class="row-arrow" aria-hidden="true">›</text></view>
-    <view class="service-row" bindtap="goToFeedback" hover-class="row-press" aria-role="button" aria-label="意见反馈"><view class="service-icon"><image src="/images/profile-feedback.png" mode="aspectFit" aria-hidden="true" /></view><text class="service-name">意见反馈</text><text class="row-arrow" aria-hidden="true">›</text></view>
+    <view class="service-row" bindtap="goToFeedback" hover-class="tap-soft" aria-role="button" aria-label="意见反馈">
+      <view class="service-icon-wrap"><image class="service-icon" src="/images/profile-feedback.png" mode="aspectFit" aria-hidden="true" /></view>
+      <text class="service-name">意见反馈</text>
+      <text class="service-arrow" aria-hidden="true">›</text>
+    </view>
+    <view class="service-row" bindtap="goToAbout" hover-class="tap-soft" aria-role="button" aria-label="关于我们">
+      <view class="service-icon-wrap"><image class="service-icon" src="/images/profile-about.png" mode="aspectFit" aria-hidden="true" /></view>
+      <text class="service-name">关于我们</text>
+      <text class="service-arrow" aria-hidden="true">›</text>
+    </view>
+    <view class="service-row" bindtap="goToSettings" hover-class="tap-soft" aria-role="button" aria-label="账号与设置">
+      <view class="service-icon-wrap"><image class="service-icon" src="/images/profile-settings.png" mode="aspectFit" aria-hidden="true" /></view>
+      <text class="service-name">账号与设置</text>
+      <text class="service-arrow" aria-hidden="true">›</text>
+    </view>
   </view>
 
-  <view class="about-link" bindtap="goToAbout" hover-class="row-press" aria-role="button" aria-label="关于职引">关于职引</view>
   <c-login-popup show="{{showLoginPopup}}" bind:close="onLoginPopupClose" bind:success="onLoginSuccess" />
   <view class="bottom-spacer"></view>
 </view>

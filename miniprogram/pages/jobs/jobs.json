@@ -1,5 +1,6 @@
 {
   "navigationBarTitleText": "找岗位",
+  "navigationStyle": "custom",
   "enablePullDownRefresh": true,
   "onReachBottomDistance": 100,
   "backgroundTextStyle": "dark",

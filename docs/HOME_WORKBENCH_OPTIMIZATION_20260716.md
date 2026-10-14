@@ -56,7 +56,7 @@ AI Career 统一入口
 新增以下首页专用组件：
 
 - `home-career-plan`：用户状态、四项关键指标、今日建议和主行动。
-- `home-core-tools`：JD 匹配、简历优化、投递追踪、AI 模拟面试。
+- 原 `home-core-tools` 核心工具组件已下线；相关入口已按求职阶段迁移到资源中心，避免首页重复展示。
 - `home-campus-updates`：每日最新校招单列信息流及完整校招入口。
 - `home-recommended-jobs`：推荐岗位的 loading / empty / error / list。
 

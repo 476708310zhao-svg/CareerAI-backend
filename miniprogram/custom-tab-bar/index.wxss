@@ -1,28 +1,31 @@
 .custom-tabbar {
   position: fixed;
-  right: 0;
-  bottom: 18rpx;
-  bottom: calc(18rpx + env(safe-area-inset-bottom));
-  left: 0;
+  right: 24rpx;
+  bottom: calc(16rpx + env(safe-area-inset-bottom));
+  left: 24rpx;
   z-index: 9999;
   display: flex;
   justify-content: center;
   pointer-events: none;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 .tabbar-panel {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: calc(100vw - 48rpx);
+  width: 100%;
   max-width: 702rpx;
   min-height: 112rpx;
-  padding: 8rpx 10rpx;
+  box-sizing: border-box;
+  padding: 4rpx 10rpx;
   border: 1rpx solid rgba(218, 227, 242, 0.94);
-  border-radius: 34rpx;
+  border-radius: 38rpx;
   background: rgba(255, 255, 255, 0.97);
-  box-shadow: 0 22rpx 54rpx rgba(49, 94, 232, 0.12), inset 0 1rpx 0 rgba(255, 255, 255, 0.98);
+  box-shadow: 0 16rpx 40rpx rgba(49, 94, 232, 0.12), inset 0 1rpx 0 rgba(255, 255, 255, 0.98);
   pointer-events: auto;
+  overflow: visible;
 }
 
 .tabbar-item {
@@ -32,57 +35,57 @@
   justify-content: center;
   flex: 1;
   min-width: 0;
-  min-height: 94rpx;
+  min-height: 100rpx;
   flex-direction: column;
-  border-radius: 26rpx;
+  border-radius: 24rpx;
   transition: background-color 180ms ease, opacity 180ms ease;
 }
 
 .tabbar-item-hover { background: #f4f7ff; opacity: .78; }
-.tabbar-item.is-active { background: #edf2ff; }
-.tabbar-icon-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 50rpx; height: 48rpx; margin-bottom: 4rpx; }
-.tabbar-icon { display: block; width: 40rpx; height: 40rpx; }
-.tabbar-text { max-width: 100%; color: #7c879a; font-size: 24rpx; font-weight: 650; line-height: 28rpx; text-align: center; white-space: nowrap; }
-.tabbar-item.is-active .tabbar-text { color: #315ee8; font-weight: 780; }
+.tabbar-item.is-active { background: transparent; }
+.tabbar-icon-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 44rpx; height: 42rpx; margin-bottom: 2rpx; }
+.tabbar-icon { display: block; width: 34rpx; height: 34rpx; }
+.tabbar-text { max-width: 100%; color: #667085; font-size: 22rpx; font-weight: 500; line-height: 28rpx; text-align: center; white-space: nowrap; }
+.tabbar-item.is-active .tabbar-text { color: #315ee8; font-weight: 700; }
 .tabbar-badge { position: absolute; top: -12rpx; right: -18rpx; min-width: 36rpx; height: 36rpx; padding: 0 8rpx; border: 3rpx solid #fff; border-radius: 999rpx; color: #fff; background: #c83b42; font-size: 24rpx; font-weight: 800; line-height: 36rpx; text-align: center; }
 
-.ai-float {
-  position: fixed;
-  right: 26rpx;
-  bottom: 150rpx;
-  bottom: calc(150rpx + env(safe-area-inset-bottom));
-  z-index: 10000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100rpx;
-  min-height: 100rpx;
-  pointer-events: auto;
-}
+.tabbar-ai-item { z-index: 2; }
+.tabbar-ai-item.tabbar-item-hover { background: transparent; opacity: 1; }
 
-.ai-float-core {
+.ai-float {
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  min-height: 100rpx;
+  flex-direction: column;
+}
+
+.ai-float-core {
+  position: absolute;
+  top: -30rpx;
+  left: 50%;
+  display: flex;
+  align-items: center;
   justify-content: center;
-  width: 88rpx;
-  height: 88rpx;
+  width: 92rpx;
+  height: 92rpx;
+  box-sizing: border-box;
   flex-direction: column;
   border: 3rpx solid rgba(255, 255, 255, .88);
   border-radius: 50%;
   background: linear-gradient(145deg, #67c8ff 0%, #315ee8 68%, #2448bd 100%);
-  box-shadow: 0 18rpx 42rpx rgba(49, 94, 232, .25);
-  animation: ai-float-drift 4.6s ease-in-out infinite;
-  transition: opacity 160ms ease;
+  box-shadow: 0 12rpx 30rpx rgba(49, 94, 232, .26), 0 0 0 10rpx rgba(232, 241, 255, .9);
+  transform: translateX(-50%);
+  transition: opacity 160ms ease, transform 160ms ease;
 }
 
-.ai-float-hover .ai-float-core { opacity: .78; }
-.ai-spark { position: relative; width: 20rpx; height: 20rpx; margin-bottom: 2rpx; transform: rotate(45deg); border-radius: 4rpx; background: #fff; }
-.ai-spark::after { position: absolute; inset: 6rpx -6rpx; border-radius: 999rpx; background: #fff; content: ''; }
-.ai-float-text { position: relative; color: #fff; font-size: 24rpx; font-weight: 850; line-height: 28rpx; }
-
-@keyframes ai-float-drift { 0%,100% { transform: translate3d(0,0,0); } 50% { transform: translate3d(0,-5rpx,0); } }
+.tabbar-ai-item.tabbar-item-hover .ai-float-core { opacity: .82; transform: translateX(-50%) scale(.96); }
+.ai-spark { display: block; width: 24rpx; height: 24rpx; margin-bottom: -1rpx; }
+.ai-float-text { position: relative; color: #fff; font-size: 22rpx; font-weight: 700; line-height: 28rpx; }
 
 @media (prefers-reduced-motion: reduce) {
-  .ai-float-core { animation: none; }
+  .tabbar-item,
+  .ai-float-core { transition: none; }
 }

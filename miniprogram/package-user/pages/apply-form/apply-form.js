@@ -249,6 +249,6 @@ Page({
   },
 
   goApplications() {
-    wx.switchTab({ url: '/pages/applications/applications' });
+    wx.navigateTo({ url: '/pages/applications/applications' });
   },
 });

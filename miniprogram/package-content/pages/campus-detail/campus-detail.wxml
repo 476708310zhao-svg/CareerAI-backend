@@ -137,7 +137,7 @@
     <block wx:for="{{relatedList}}" wx:key="id">
       <view class="related-item" bindtap="goRelated" data-id="{{item.id}}">
         <view class="related-logo">
-          <image wx:if="{{item.companyLogo}}" src="{{item.companyLogo}}" mode="aspectFit" binderror="onRelatedLogoError" data-index="{{index}}"/>
+            <image wx:if="{{item.companyLogo}}" src="{{item.companyLogo}}" mode="aspectFit" lazy-load binderror="onRelatedLogoError" data-index="{{index}}"/>
           <text wx:else>{{item._companyInitial}}</text>
         </view>
         <view class="related-main">

@@ -1,1 +1,409 @@
-<view class="compat-page"><view class="compat-spinner"></view><text>正在打开 AI 助手…</text></view>
+<!-- pages/ai-assistant/ai-assistant.wxml -->
+<view class="page">
+
+  <!-- AI 主 Tab：顶部只保留品牌、历史与新对话，避免重复返回语义。 -->
+  <view class="top-bar" style="padding-top: {{statusBarHeight}}px;">
+    <view class="top-title">
+      <view class="top-icon"><image src="/images/zhiyin-icons/spark.svg" mode="aspectFit" aria-hidden="true" /></view>
+      <view class="top-copy">
+        <text class="top-name">AI 求职</text>
+      </view>
+    </view>
+    <view class="top-actions">
+      <view class="top-action-btn" bindtap="toggleSidebar" hover-class="btn-hover" aria-role="button" aria-label="打开 AI 工具与历史">
+        <image src="/images/zhiyin-icons/clock.svg" mode="aspectFit" aria-hidden="true" />
+      </view>
+      <view class="top-action-btn primary" bindtap="onNewChat" hover-class="btn-hover" aria-role="button" aria-label="新建对话">
+        <text>＋</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{contextActive && !freshChat}}" class="context-bar" aria-role="status" aria-label="当前上下文：{{contextLabel}}">
+    <view class="context-status-dot"></view>
+    <text class="context-caption">当前任务</text>
+    <text class="context-text">{{contextLabel}}</text>
+    <view class="context-switch" bindtap="toggleSidebar" hover-class="btn-hover" aria-role="button" aria-label="切换当前上下文"><text>切换</text></view>
+  </view>
+
+  <view wx:if="{{sidebarOpen}}" class="drawer-mask" bindtap="toggleSidebar" aria-hidden="true"></view>
+  <view class="drawer {{sidebarOpen ? 'open' : ''}}" style="padding-top: {{statusBarHeight}}px;">
+    <scroll-view scroll-y enhanced show-scrollbar="{{false}}" class="drawer-scroll">
+      <view class="drawer-brand">
+        <view class="drawer-logo">AI</view>
+        <view class="drawer-title-wrap">
+          <text class="drawer-title">求职助手</text>
+        </view>
+        <view class="drawer-close" bindtap="toggleSidebar" hover-class="btn-hover" aria-role="button" aria-label="关闭 AI 工具侧栏">关闭</view>
+      </view>
+      <view class="drawer-new" bindtap="onNewChat" hover-class="card-hover" aria-role="button" aria-label="新建 AI 对话">
+        <text class="drawer-new-icon">+</text>
+        <text>新对话</text>
+      </view>
+      <view class="drawer-section-title">AI 工具</view>
+      <block wx:for="{{assistantTools}}" wx:key="title">
+        <view
+          wx:if="{{index < 4 || showMoreTools}}"
+          class="drawer-tool"
+          bindtap="onToolAction"
+          data-action="{{item.action}}"
+          data-text="{{item.prompt}}"
+          data-url="{{item.url}}"
+          hover-class="card-hover"
+          aria-role="button"
+          aria-label="使用 AI 工具：{{item.title}}"
+        >
+          <view class="drawer-tool-icon"><image src="{{item.iconSrc}}" mode="aspectFit" aria-hidden="true" /></view>
+          <view class="drawer-tool-copy">
+            <text class="drawer-tool-title">{{item.title}}</text>
+          </view>
+        </view>
+      </block>
+      <view wx:if="{{assistantTools.length > 4}}" class="drawer-more" bindtap="toggleMoreTools" hover-class="card-hover" aria-role="button" aria-label="{{showMoreTools ? '收起更多 AI 工具' : '展开更多 AI 工具'}}" aria-expanded="{{showMoreTools}}">
+        <text>{{showMoreTools ? '收起' : '更多'}}</text>
+        <text class="drawer-more-count" wx:if="{{!showMoreTools}}">其余 {{assistantTools.length - 4}} 个功能</text>
+      </view>
+      <view class="drawer-section-title recent-title">最近对话</view>
+      <block wx:for="{{recentChats}}" wx:key="id">
+        <view class="recent-chat" bindtap="toggleSidebar" hover-class="card-hover" aria-role="button" aria-label="关闭侧栏并返回对话：{{item.title}}">
+          <view class="recent-dot"></view>
+          <view class="recent-copy">
+            <text class="recent-name">{{item.title}}</text>
+          </view>
+          <text class="recent-time">{{item.time}}</text>
+        </view>
+      </block>
+    </scroll-view>
+  </view>
+
+  <!-- 对话是页面主体；首次进入也从 AI 的第一条消息开始。 -->
+  <scroll-view
+    class="msg-scroll"
+    scroll-y
+    scroll-into-view="{{scrollId}}"
+    scroll-with-animation
+    enhanced
+    show-scrollbar="{{false}}"
+  >
+    <view class="msg-list">
+      <block wx:for="{{messages}}" wx:key="id">
+        <view wx:if="{{item.showTime && !item.isWelcome}}" class="time-stamp">{{item.timeLabel}}</view>
+        <view class="msg-row {{item.role === 'user' ? 'user-row' : 'ai-row'}} {{item.isWelcome ? 'welcome-row' : ''}}">
+
+          <!-- AI 标记 -->
+          <view wx:if="{{item.role === 'ai'}}" class="ai-avatar">
+            <image src="/images/zhiyin-icons/spark.svg" mode="aspectFit" aria-hidden="true" />
+          </view>
+
+          <view class="bubble-wrap">
+
+            <view wx:if="{{item.role === 'ai' && !item.isError}}" class="ai-generated-label">{{item.isWelcome ? 'AI 求职助手' : 'AI 生成'}}</view>
+
+            <!-- 气泡主体 -->
+            <view
+              wx:if="{{item.role === 'ai' && item.isStreaming && loading && !streaming && !item.displayText}}"
+              class="bubble ai-bubble loading-bubble"
+            >
+              <view class="thinking-head">
+                <text class="thinking-title">正在整理回答</text>
+                <view class="dot-wrap">
+                  <view class="dot"></view>
+                  <view class="dot"></view>
+                  <view class="dot"></view>
+                </view>
+              </view>
+            </view>
+            <view
+              wx:else
+              class="bubble {{item.role === 'user' ? 'user-bubble' : item.isError ? 'error-bubble' : 'ai-bubble'}}"
+            >
+
+              <!-- 用户消息、streaming 中、error：plain text -->
+              <text
+                wx:if="{{item.role === 'user' || item.isStreaming || item.isError}}"
+                class="bubble-text"
+                user-select
+              >{{item.displayText}}</text>
+
+              <!-- 完成的 AI 消息：rich-text 渲染 Markdown -->
+              <rich-text
+                wx:else
+                class="bubble-text bubble-rich"
+                nodes="{{item.htmlContent}}"
+              ></rich-text>
+
+              <view
+                wx:if="{{item.isWelcome}}"
+                class="welcome-context"
+                bindtap="toggleSidebar"
+                hover-class="card-hover"
+                aria-role="button"
+                aria-label="{{contextActive ? '切换当前求职上下文' : '选择求职上下文'}}"
+              >
+                <image src="/images/zhiyin-icons/target.svg" mode="aspectFit" aria-hidden="true" />
+                <view class="welcome-context-copy">
+                  <text class="welcome-context-label">{{contextActive ? '当前上下文' : '通用求职模式'}}</text>
+                  <text class="welcome-context-value">{{contextActive ? contextLabel : (hasAssistantResume ? '已读取简历，可直接开始提问' : '可从岗位或申请页带入具体任务')}}</text>
+                </view>
+                <text class="welcome-context-action">{{contextActive ? '切换' : '选择'}}</text>
+              </view>
+            </view>
+
+            <view wx:if="{{item.isWelcome}}" class="welcome-starters">
+              <text class="welcome-starters-label">你可以这样开始</text>
+              <view
+                wx:for="{{starterPrompts}}"
+                wx:key="title"
+                class="welcome-starter"
+                bindtap="onSuggestion"
+                data-text="{{item.prompt}}"
+                hover-class="chip-hover"
+                aria-role="button"
+                aria-label="发送：{{item.title}}"
+              >
+                <text>{{item.title}}</text>
+                <image src="/images/zhiyin-icons/chevron.svg" mode="aspectFit" aria-hidden="true" />
+              </view>
+            </view>
+
+            <view
+              wx:if="{{item.role === 'ai' && !item.isWelcome && !item.isStreaming && !item.isError && (item.content || item.displayText || item.htmlContent)}}"
+              class="answer-action-card ux-ai-result-card"
+            >
+              <view class="answer-action-head">
+                <view class="answer-action-mark">AI</view>
+                <view class="answer-action-copy">
+                  <text class="answer-action-title">继续处理</text>
+                  <text class="answer-action-sub">复制、保存或继续细化</text>
+                </view>
+              </view>
+              <view class="answer-action-grid">
+                <view class="answer-action-btn ux-result-action" bindtap="onCopyAnswer" data-index="{{index}}" hover-class="card-hover" aria-role="button" aria-label="复制这条 AI 回答">
+                  <text>复制</text>
+                </view>
+                <view class="answer-action-btn ux-result-action" bindtap="onSaveAnswer" data-index="{{index}}" hover-class="card-hover" aria-role="button" aria-label="保存这条 AI 回答">
+                  <text>保存</text>
+                </view>
+                <view class="answer-action-btn ux-result-action primary" bindtap="onContinueAsk" data-type="follow" hover-class="card-hover" aria-role="button" aria-label="继续追问这条 AI 回答">
+                  <text>继续追问</text>
+                </view>
+              </view>
+              <view
+                wx:if="{{item.suggestions && item.suggestions.length && index === latestAiIdx && !loading && !streaming}}"
+                class="answer-suggestions"
+              >
+                <text class="answer-suggestions-title">推荐追问</text>
+                <view class="answer-suggestion-list">
+                  <view
+                    wx:for="{{item.suggestions}}"
+                    wx:for-item="sug"
+                    wx:key="*this"
+                    class="sug-chip"
+                    bindtap="onSuggestion"
+                    data-text="{{sug}}"
+                    hover-class="chip-hover"
+                    aria-role="button"
+                    aria-label="发送追问：{{sug}}"
+                  >{{sug}}</view>
+                </view>
+              </view>
+            </view>
+
+            <!-- 错误重试按钮 -->
+            <view wx:if="{{item.isError && item.retryText}}" class="retry-row">
+              <view
+                class="retry-btn"
+                bindtap="onRetry"
+                data-text="{{item.retryText}}"
+                hover-class="btn-hover"
+                aria-role="button"
+                aria-label="重新发送上一条消息"
+              >
+                <text class="retry-txt">↻ 重新发送</text>
+              </view>
+            </view>
+
+          </view>
+        </view>
+      </block>
+
+      <text class="ai-notice">AI 生成内容仅供求职参考，请结合实际情况核验。</text>
+      <view id="scroll-anchor" style="height: {{keyboardHeight > 0 ? 180 : 220}}rpx;"></view>
+    </view>
+  </scroll-view>
+
+  <!-- Codex 式对话输入框：输入在上，工具与发送操作在下。 -->
+  <view class="input-bar {{keyboardHeight > 0 ? 'keyboard-open' : ''}}" style="bottom: {{keyboardHeight > 0 ? keyboardHeight : tabBarOffset}}px; padding-bottom: {{keyboardHeight > 0 ? 18 : safeBottom + 18}}px;">
+    <view class="composer-shell">
+      <input
+        class="input"
+        placeholder="描述你的目标、问题或当前进度…"
+        placeholder-class="input-ph"
+        aria-label="向 AI 求职助手发送消息"
+        value="{{inputText}}"
+        bindinput="onInputChange"
+        bindfocus="onInputFocus"
+        bindblur="onInputBlur"
+        bindconfirm="onSend"
+        bindkeyboardheightchange="onKeyboardHeight"
+        confirm-type="send"
+        confirm-hold="{{true}}"
+        maxlength="300"
+        adjust-position="{{false}}"
+        cursor-spacing="24"
+        hold-keyboard="{{true}}"
+      />
+      <view class="composer-footer">
+        <view class="composer-tool" bindtap="toggleSidebar" hover-class="btn-hover" aria-role="button" aria-label="打开求职工具与对话记录">
+          <text class="composer-plus">＋</text>
+          <text>工具</text>
+        </view>
+        <text class="composer-context">{{contextActive ? contextLabel : '通用求职'}}</text>
+        <text wx:if="{{inputLen > 260}}" class="char-count {{inputLen >= 285 ? 'char-warn' : ''}}">{{inputLen}}/300</text>
+        <view
+          class="send-btn {{streaming ? 'stop-btn' : (inputText && !loading ? 'active' : 'inactive')}}"
+          bindtap="onSendOrStop"
+          hover-class="btn-hover"
+          aria-role="button"
+          aria-label="{{streaming ? '停止生成' : '发送消息'}}"
+        >
+          <text class="send-icon">{{streaming ? '■' : '↑'}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view
+    class="application-mask"
+    wx:if="{{showApplicationPanel}}"
+    bindtap="closeApplicationAssistant"
+    aria-hidden="true"
+  ></view>
+  <view class="application-panel {{showApplicationPanel ? 'show' : ''}}" aria-role="dialog" aria-label="网申助手">
+    <view class="application-header">
+      <view class="application-heading">
+        <text class="application-kicker">APPLICATION</text>
+        <text class="application-title">网申助手</text>
+      </view>
+      <view class="application-close" bindtap="closeApplicationAssistant" hover-class="btn-hover" aria-role="button" aria-label="关闭网申助手">×</view>
+    </view>
+    <scroll-view scroll-y enhanced show-scrollbar="{{false}}" class="application-body">
+      <view class="application-section">
+        <text class="application-label">选择岗位</text>
+        <scroll-view wx:if="{{applicationJobs.length}}" scroll-x enhanced show-scrollbar="{{false}}" class="application-job-scroll">
+          <view class="application-choice-row">
+            <view
+              wx:for="{{applicationJobs}}"
+              wx:key="id"
+              class="application-choice {{selectedApplicationJobId == item.id ? 'active' : ''}}"
+              bindtap="selectApplicationJob"
+              data-id="{{item.id}}"
+              aria-role="button"
+              aria-label="选择岗位：{{item.company || '目标公司'}}，{{item.jobTitle || item.title || '目标岗位'}}"
+              aria-selected="{{selectedApplicationJobId == item.id}}"
+            >
+              <text class="application-choice-title">{{item.company || '目标公司'}}</text>
+              <text class="application-choice-sub">{{item.jobTitle || item.title || '目标岗位'}}</text>
+            </view>
+          </view>
+        </scroll-view>
+        <view wx:else class="application-empty">
+          <text>先在职位详情或求职进度中添加一个岗位，再生成定制化网申草稿。</text>
+        </view>
+      </view>
+
+      <view class="application-section">
+        <text class="application-label">选择简历</text>
+        <picker
+          wx:if="{{hasApplicationResume}}"
+          mode="selector"
+          range="{{applicationResumeVersionLabels}}"
+          value="{{selectedApplicationResumeIndex}}"
+          disabled="{{applicationResumeLoading || applicationResumeVersions.length <= 1}}"
+          bindchange="onApplicationResumeChange"
+          aria-label="选择用于网申草稿的简历版本"
+        >
+          <view class="application-resume-picker">
+            <view class="application-resume-copy">
+              <text class="application-resume-title">{{selectedApplicationResumeName}}</text>
+              <text class="application-resume-sub">{{selectedApplicationResumeTargetRole || '将结合这份简历生成回答'}}</text>
+            </view>
+            <text class="application-resume-action">{{applicationResumeVersions.length > 1 ? '切换 ›' : '默认'}}</text>
+          </view>
+        </picker>
+        <view wx:else class="application-empty" bindtap="goApplicationResume" hover-class="card-hover" aria-role="button" aria-label="前往完善在线简历">
+          <text>{{applicationResumeLoading ? '正在读取简历...' : '先完善在线简历，再生成更贴合的网申草稿。'}}</text>
+        </view>
+      </view>
+
+      <view class="application-section">
+        <text class="application-label">问题类型</text>
+        <view class="application-jd-block">
+          <text class="application-label small">JD / 网申题干</text>
+          <textarea
+            class="application-jd-input"
+            value="{{applicationJdText}}"
+            maxlength="5000"
+            auto-height
+            placeholder="粘贴岗位 JD 或网申题干，AI 会结合简历与岗位生成更贴合的回答"
+            bindinput="onApplicationJdInput"
+            aria-label="岗位 JD 或网申题干"
+          />
+        </view>
+        <view class="question-type-grid">
+          <view
+            wx:for="{{applicationQuestionTypes}}"
+            wx:key="code"
+            class="question-type {{selectedQuestionType === item.code ? 'active' : ''}}"
+            bindtap="selectApplicationQuestion"
+            data-type="{{item.code}}"
+            aria-role="button"
+            aria-label="选择问题类型：{{item.label}}"
+            aria-selected="{{selectedQuestionType === item.code}}"
+          >{{item.label}}</view>
+        </view>
+      </view>
+
+      <view class="application-generate {{applicationJobs.length && hasApplicationResume && !applicationGenerating ? '' : 'disabled'}}" bindtap="generateApplicationDraft" hover-class="btn-hover" aria-role="button" aria-label="生成网申回答草稿" aria-disabled="{{!applicationJobs.length || !hasApplicationResume || applicationGenerating}}">
+        {{applicationGenerating ? '生成中...' : '生成回答草稿'}}
+      </view>
+
+      <view class="application-draft" wx:if="{{applicationDraft}}">
+        <text class="application-draft-title">{{applicationDraft.questionLabel}}</text>
+        <text class="application-draft-meta">{{applicationDraft.company}} · {{applicationDraft.jobTitle}}</text>
+        <text class="application-draft-resume" wx:if="{{applicationDraft.resumeName}}">基于：{{applicationDraft.resumeName}}</text>
+        <text class="application-draft-content" user-select>{{applicationDraft.content}}</text>
+        <view class="application-draft-actions">
+          <view class="application-draft-btn" bindtap="copyApplicationDraft" hover-class="btn-hover" aria-role="button" aria-label="复制网申回答草稿">复制</view>
+          <view class="application-draft-btn primary" bindtap="saveApplicationDraft" hover-class="btn-hover" aria-role="button" aria-label="保存网申回答草稿到材料库">保存到材料库</view>
+        </view>
+      </view>
+
+      <view class="application-section saved-section" wx:if="{{applicationSavedMaterials.length}}">
+        <view class="application-label-row">
+          <text class="application-label inline">最近保存</text>
+          <view class="application-label-link" bindtap="goApplicationMaterials" hover-class="btn-hover" aria-role="button" aria-label="查看全部已保存网申材料">查看全部 ›</view>
+        </view>
+        <view
+          wx:for="{{applicationSavedMaterials}}"
+          wx:key="id"
+          class="saved-material"
+        >
+          <view class="saved-material-head">
+            <text class="saved-material-title">{{item.questionLabel}}</text>
+            <text class="saved-material-meta">{{item.company}}</text>
+          </view>
+          <text class="saved-material-content" user-select>{{item.content}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <c-login-popup
+    show="{{showLoginPopup}}"
+    subtitle="{{loginSubtitle}}"
+    bind:close="onLoginPopupClose"
+    bind:success="onLoginSuccess"
+  />
+
+</view>

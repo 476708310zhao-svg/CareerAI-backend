@@ -16,13 +16,12 @@
 - [x] 建立 2026 Product Design System：主色、辅助色、字号、间距、圆角、阴影、动效 token。
 - [x] 关闭自动暗色模式，保证当前白色 AI SaaS 风格稳定。
 - [x] 统一公共按钮组件 `c-button`。
-- [x] 统一公共卡片组件 `c-section-card`。
-- [x] 统一搜索框组件 `c-search-bar`。
+- [x] 清理未使用的公共卡片组件 `c-section-card` 与搜索框组件 `c-search-bar`。
 - [x] 统一标签组件 `c-tag`。
-- [x] 统一底部操作栏组件 `c-action-bar`。
+- [x] 清理未使用的底部操作栏组件 `c-action-bar`。
 - [x] 优化空状态组件 `empty-state`。
 - [x] 优化通用 loading 组件 `loading-spinner`。
-- [x] 优化 AI loading 组件 `c-ai-loading`。
+- [x] 清理未使用的 AI loading 组件 `c-ai-loading`。
 
 ## 阶段二：性能与首屏体验优化
 

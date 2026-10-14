@@ -79,7 +79,7 @@ Page({
   onLoad(options) {
     if (!options || options.legacy !== '1') {
       this._compatRedirect = true;
-      navigation.safeSwitchTab('/pages/applications/applications');
+      navigation.safeNavigateTo('/pages/applications/applications');
       return;
     }
     this._pendingRecordId = options.id ? String(options.id) : '';

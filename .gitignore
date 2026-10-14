@@ -12,6 +12,9 @@ db/backups/
 *.bak
 reports/acceptance/
 reports/e2e-3.0/
+artifacts/
+/project.config.json
+.impeccable/
 
 miniprogram/node_modules/
 miniprogram/project.private.config.json

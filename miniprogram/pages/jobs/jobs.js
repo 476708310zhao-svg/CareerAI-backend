@@ -14,6 +14,7 @@ const { queueJob } = require('../../utils/application-queue.js');
 const navigation = require('../../utils/navigation.js');
 const analytics = require('../../utils/analytics.js');
 const ownerStorage = require('../../utils/owner-storage.js');
+const { getNavigationLayout } = require('../../utils/navigation-layout.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 const JOB_LIST_CACHE_TTL = 30 * 60 * 1000;
 
@@ -112,6 +113,7 @@ Page({
   behaviors: [loginGate],
 
   data: {
+    navTop: 80,
     recruitmentEnabled: true,
     jobs: [],
     isMockData: false,
@@ -143,7 +145,7 @@ Page({
     filterVisible: false,
     filterType: '',      // '' | 'FULLTIME' | 'PARTTIME' | 'CONTRACTOR' | 'INTERN'
     filterDate: '',      // '' | 'today' | 'week' | 'month'
-    filterCountry: 'us', // ISO alpha2 小写
+    filterCountry: 'global', // global | ISO alpha2 小写
     filterSponsor: '',   // opt | stem | h1b | international | excludeCitizen
     filterActive: false,
     countryList: [],     // 从 /api/countries 加载
@@ -177,7 +179,7 @@ Page({
     }
     const state = progress.getJobState(id);
     if (state.inProgress && state.applicationStatus !== 'interested') {
-      navigation.safeSwitchTab('/pages/applications/applications');
+      navigation.safeNavigateTo('/pages/applications/applications');
       return;
     }
     this.setData({ queueingJobId: String(id) });
@@ -202,7 +204,7 @@ Page({
     const dateMap = { today: 'today', week: '3days', month: 'month' };
     return [
       this.data.searchKeyword || 'Software Engineer jobs',
-      this.data.filterCountry || 'us',
+      this.data.filterCountry || 'global',
       dateMap[this.data.filterDate] || 'auto',
       this.data.filterType || 'any'
       , this.data.filterSponsor || 'any-sponsor'
@@ -259,6 +261,7 @@ Page({
 
   onLoad: function(options) {
     this._visible = true;
+    if (typeof getNavigationLayout === 'function') this.setData(getNavigationLayout());
     featureFlags.guardRecruitmentPage({ stayOnJobsTab: true });
     const recruitmentEnabled = typeof featureFlags.isRecruitmentEnabled === 'function'
       ? featureFlags.isRecruitmentEnabled()
@@ -560,14 +563,14 @@ Page({
 
   onFilterCountrySelect: function(e) {
     const val = e.currentTarget.dataset.val;
-    this.setData({ filterCountry: this.data.filterCountry === val ? 'us' : val });
+    this.setData({ filterCountry: this.data.filterCountry === val ? 'global' : val });
   },
 
   onFilterSponsorSelect: function(e) {
     const val = e.currentTarget.dataset.val;
     if (!wx.getStorageSync('token')) {
       this.ensureAuthenticated(
-        '登录后使用 Sponsor 精准筛选和个性化岗位匹配',
+        '登录后使用工作资格筛选和个性化岗位匹配',
         () => this.onFilterSponsorSelect(e)
       );
       return;
@@ -576,12 +579,12 @@ Page({
   },
 
   resetFilter: function() {
-    this.setData({ filterType: '', filterDate: '', filterCountry: 'us', filterSponsor: '', filterActive: false, filterVisible: false });
+    this.setData({ filterType: '', filterDate: '', filterCountry: 'global', filterSponsor: '', filterActive: false, filterVisible: false });
     this.loadJobs(true);
   },
 
   applyFilter: function() {
-    const active = !!(this.data.filterType || this.data.filterDate || this.data.filterCountry !== 'us' || this.data.filterSponsor);
+    const active = !!(this.data.filterType || this.data.filterDate || this.data.filterCountry !== 'global' || this.data.filterSponsor);
     this.setData({ filterActive: active, filterVisible: false });
     this.loadJobs(true);
   },
@@ -601,7 +604,7 @@ Page({
       query,
       page,
       this.data.pageSize,
-      this.data.filterCountry || 'us',
+      this.data.filterCountry || 'global',
       this.data.filterDate || 'all',
       this.data.filterType || 'any', this.data.filterSponsor || '', this.data.matchMode
     ].join('|');
@@ -628,7 +631,7 @@ Page({
       keyword: query,
       page,
       size: this.data.pageSize,
-      country: this.data.filterCountry || 'us',
+      country: this.data.filterCountry || 'global',
       date_posted: datePosted,
       employment_types: this.data.filterType || '',
       noCache: reset
@@ -692,7 +695,7 @@ Page({
       keyword: query === 'Software Engineer jobs' ? '' : query,
       page,
       pageSize: this.data.pageSize,
-      country: this.data.filterCountry || '',
+      country: this.data.filterCountry === 'global' ? '' : (this.data.filterCountry || ''),
       employmentType: this.data.filterType || '',
       datePosted: ({ today: 'today', week: '3days', month: 'month' })[this.data.filterDate] || '',
       ...(sponsorParams[this.data.filterSponsor] || {}),

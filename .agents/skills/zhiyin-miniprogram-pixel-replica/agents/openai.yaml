@@ -1,0 +1,5 @@
+interface:
+  display_name: "职引小程序像素复刻"
+  short_description: "按确认原型执行小程序截图对比与视觉门禁"
+  brand_color: "#2F6BFF"
+  default_prompt: "Use $zhiyin-miniprogram-pixel-replica to replicate and verify the selected Zhiyin Mini Program screen against its approved 390×844 baseline."

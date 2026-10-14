@@ -7,6 +7,8 @@ const assert = require('node:assert/strict');
 isolatedRuntime.registerCleanup(test);
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
+const { campusDeadlineMeta } = require('../miniprogram/utils/campus-deadline');
 const { buildRecordQuery, transform } = require('../scripts/sync_feishu_server');
 
 const ROOT = path.join(__dirname, '..');
@@ -48,12 +50,15 @@ test('campus sync maps the new table fields and derives recruit year from start 
   assert.equal(item.announce_url, 'https://example.com/notice');
 });
 
-test('home no longer loads the invisible campus feed while campus API requests stay fresh', () => {
+test('home shows a compact campus digest while campus API requests stay fresh', () => {
   const apiSource = fs.readFileSync(path.join(ROOT, 'miniprogram/utils/api-campus.js'), 'utf8');
   const homeSource = fs.readFileSync(path.join(ROOT, 'miniprogram/pages/index/index.js'), 'utf8');
+  const homeMarkup = fs.readFileSync(path.join(ROOT, 'miniprogram/pages/index/index.wxml'), 'utf8');
 
   assert.match(apiSource, /_fresh:\s*Date\.now\(\)/);
-  assert.doesNotMatch(homeSource, /getCampusList|fetchCampusUpdates|loadCachedCampusUpdates|HOME_CAMPUS_CACHE_KEY/);
+  assert.match(homeSource, /getCampusList\(\{ sort: 'latest', deadlineWindow: 'open'/);
+  assert.match(homeMarkup, /campusDigest/);
+  assert.doesNotMatch(homeSource, /fetchCampusUpdates|loadCachedCampusUpdates|HOME_CAMPUS_CACHE_KEY/);
 });
 
 test('campus deployment only replaces campus-specific Feishu settings', () => {
@@ -117,4 +122,68 @@ test('campus list and detail show source and freshness metadata', () => {
   assert.match(detailJs, /_freshnessReason/);
   assert.match(detailWxml, /detail\._freshnessText/);
   assert.match(homeWxml, /item\._sourceSummary/);
+});
+
+test('home campus deadlines accept compact dates without platform string parsing', () => {
+  class IOSDate extends Date {
+    constructor(...args) {
+      assert.notEqual(typeof args[0], 'string', 'raw date strings must not reach Date');
+      super(...args);
+    }
+    static parse() { throw new Error('raw date strings must not reach Date.parse'); }
+  }
+  const context = { module: { exports: {} }, Date: IOSDate };
+  vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'miniprogram/utils/campus-deadline.js'), 'utf8'), context);
+  const meta = context.module.exports.campusDeadlineMeta;
+  const now = Date.UTC(2026, 8, 20);
+  for (const value of ['10.25', '10/25', '10-25', '2026.10.25', '26.10.25', '2026-10-25', '2026/10/25', '10月25日']) {
+    assert.equal(meta(value, {}, now).text, '10-25截止', value);
+    assert.equal(meta(value, {}, now).isSoon, false, value);
+  }
+  for (const value of ['招满为止', '长期招聘', '待定', '13.25', '2.30', '2026-02-29', '2026-02-31']) {
+    assert.equal(meta(value, {}, now).text, value);
+    assert.equal(meta(value, {}, now).isSoon, false);
+  }
+  assert.equal(meta('', {}, now).text, '尽快投递');
+});
+
+test('home campus deadlines respect recruitment year, leap years and Shanghai day boundaries', () => {
+  const now = Date.UTC(2026, 8, 20);
+  assert.equal(campusDeadlineMeta('10.25', { recruitYear: 2025 }, now).text, '已截止');
+  assert.equal(campusDeadlineMeta('4.30', { startDate: '2026-10-01' }, now).text, '04-30截止');
+  assert.equal(campusDeadlineMeta('2.29', { recruitYear: 2028 }, now).text, '02-29截止');
+  assert.equal(campusDeadlineMeta('2026-09-19', {}, now).text, '已截止');
+  assert.equal(campusDeadlineMeta('2026-09-27', {}, now).text, '7天后截止');
+  assert.equal(campusDeadlineMeta('2026-09-28', {}, now).isSoon, false);
+  assert.equal(campusDeadlineMeta('10.25', {}, Date.UTC(2026, 9, 24, 15, 59)).text, '1天后截止');
+  assert.equal(campusDeadlineMeta('10.25', {}, Date.UTC(2026, 9, 24, 16)).text, '今日截止');
+});
+
+test('home campus cards use normalized deadlines and preserve context for legacy data', () => {
+  let page;
+  const calls = [];
+  vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'miniprogram/pages/index/index.js'), 'utf8'), {
+    Page: value => { page = value; },
+    require: name => {
+      if (name.endsWith('/demo-data.js')) return { enabled: () => false };
+      if (name.endsWith('/date-time.js')) return require('../miniprogram/utils/date-time');
+      if (name.endsWith('/campus-deadline.js')) return { campusDeadlineMeta: (value, context) => {
+        calls.push({ value, context });
+        return { text: '04-30截止', isSoon: false };
+      } };
+      if (name.endsWith('/data-provenance.js')) return require('../miniprogram/utils/data-provenance');
+      return {};
+    }
+  });
+  const item = { id: 1, company: '示例', companyLogo: '/logo.png', deadlineDate: '4.30',
+    deadlineDateNormalized: '2027-04-30', startDate: '2026-10-01', recruitYear: 2026,
+    updatedAt: '2026-09-20 09:03:56' };
+  const card = page.formatCampusUpdateItem(item);
+  assert.equal(calls[0].value, '2027-04-30');
+  assert.equal(card.updateTimestamp, Date.UTC(2026, 8, 20, 9, 3, 56));
+  assert.match(card.sourceSummary, /^来源待核实 · (近期更新|建议复核|可能过期)$/);
+  page.formatCampusUpdateItem({ ...item, deadlineDateNormalized: '' });
+  assert.equal(calls[1].value, '4.30');
+  assert.equal(calls[1].context.startDate, '2026-10-01');
+  assert.equal(calls[1].context.recruitYear, 2026);
 });

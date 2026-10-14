@@ -705,7 +705,7 @@ router.get('/remote', jobsLimiter, async (req, res) => {
 router.get('/aggregate', jobsLimiter, async (req, res) => {
   const {
     query = 'software engineer',
-    country = 'us',
+    country = 'global',
     page = 1,
     pageSize = 20,
     date_posted,
@@ -732,9 +732,9 @@ router.get('/aggregate', jobsLimiter, async (req, res) => {
           query,
           page: 1,
           num_pages: Math.max(1, Math.ceil(searchTarget / 10)),
-          country,
           date_posted: dateWindow
         };
+        if (country && country !== 'global') params.country = country;
         if (employment_types) params.employment_types = employment_types;
         const r = await axios.get(`${RAPID_BASE}/search`, {
           params,
@@ -757,6 +757,7 @@ router.get('/aggregate', jobsLimiter, async (req, res) => {
 
   async function _fetchAdzunaFresh() {
     if (!_isValidAdzuna()) return [];
+    if (!country || country === 'global') return [];
     try {
       const countryCode = ADZUNA_COUNTRIES.has(country) ? country : 'us';
       const contract = _toAdzunaContract(employment_types);
@@ -1269,6 +1270,38 @@ router.get('/', jobsLimiter, async (req, res) => {
     const { keyword, region, industry, jobType, visaSponsored, page = 1, pageSize = 10 } = req.query;
     const pg = Math.max(parseInt(page) || 1, 1);
     const ps = Math.min(Math.max(parseInt(pageSize) || 10, 1), 50);
+
+    // Web clients use this fast path for the first render, then refresh from
+    // live sources in the background. This keeps external API latency from
+    // leaving the job list in an indefinite loading state.
+    if (req.query.source === 'local') {
+      const filteredJobs = _applyWebFilters(localJobs().map(_toLocalWebJob), req.query);
+      const startIndex = (pg - 1) * ps;
+      const list = filteredJobs.slice(startIndex, startIndex + ps);
+      return res.json({
+        code: 0,
+        message: 'success',
+        data: {
+          list,
+          total: filteredJobs.length,
+          page: pg,
+          pageSize: ps,
+          totalPages: Math.ceil(filteredJobs.length / ps) || 1,
+          source: 'local_fallback',
+          sources: ['local'],
+          dataMeta: _collectionMeta(list, {
+            degraded: true,
+            fallbackReason: '实时职位正在后台更新'
+          })
+        },
+        meta: {
+          liveJobsEnabled: LIVE_JOBS_ENABLED,
+          source: 'local_fallback',
+          keyword: keyword || '',
+          generatedAt: new Date().toISOString()
+        }
+      });
+    }
 
     const liveJobs = await _fetchLiveWebJobs({ keyword, region, industry, jobType, visaSponsored, page: pg });
     const localFallbackJobs = localJobs().map(_toLocalWebJob);

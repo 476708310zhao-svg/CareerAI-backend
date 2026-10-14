@@ -67,11 +67,18 @@ function normalizeDataMeta(meta, defaults) {
 
 function markCachedDataMeta(meta, defaults) {
   const original = normalizeDataMeta(meta || {}, defaults || {});
+  const domain = (defaults && defaults.domain) || 'job';
+  // A server's old "近期更新" label is not evidence that a cache is still
+  // fresh today. Re-evaluate from the original content time, never fetchedAt.
+  const freshness = original.isExpired || original.freshness === 'expired'
+    ? 'expired' : freshnessFromDate(original.referenceAt, domain);
   return Object.assign({}, original, {
     originSourceCode: original.sourceCode,
     originSourceLabel: original.sourceLabel,
     sourceCode: 'cache',
     sourceLabel: SOURCE_LABELS.cache,
+    freshness,
+    freshnessLabel: FRESHNESS_LABELS[freshness],
     isFallback: true,
     fallbackReason: '当前展示的是最近一次成功加载的本地缓存'
   });

@@ -59,6 +59,14 @@
         <view class="month-badge">{{item.months}}个月</view><view class="horizon-copy"><text class="horizon-title">{{item.title}}</text><text class="horizon-objective">{{item.objective}}</text><text class="horizon-action" wx:for="{{item.actions}}" wx:for-item="action" wx:key="*this">• {{action}}</text><text class="metric">验收：{{item.metric}}</text></view>
       </view>
     </view>
+
+    <view class="section-card plan-view-card">
+      <view class="section-head"><view><text class="section-title">计划视图</text><text class="section-sub">规划、诊断和每日任务读取同一套求职数据</text></view></view>
+      <view class="plan-view-actions">
+        <view class="plan-view-btn secondary" bindtap="openCareerPlanner">生成或查看路线</view>
+        <view class="plan-view-btn primary" bindtap="openDailyBrief">执行今日任务</view>
+      </view>
+    </view>
   </block>
 
   <c-login-popup

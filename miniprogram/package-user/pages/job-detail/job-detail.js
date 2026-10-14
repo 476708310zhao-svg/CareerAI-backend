@@ -674,7 +674,7 @@ Requirements:
       return;
     }
     if (this.data.inProgress && this.data.progressStatusText !== '已收藏') {
-      navigation.safeSwitchTab('/pages/applications/applications');
+      navigation.safeNavigateTo('/pages/applications/applications');
       return;
     }
     this.setData({ isApplying: true });
@@ -819,7 +819,7 @@ Requirements:
     const job = this.data.job;
     if (!job) return;
     if (this.data.inProgress) {
-      navigation.safeSwitchTab('/pages/applications/applications');
+      navigation.safeNavigateTo('/pages/applications/applications');
       return;
     }
     if (this.data.jobView && this.data.jobView.deadlineClosed) {

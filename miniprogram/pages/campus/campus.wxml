@@ -19,7 +19,7 @@
         />
         <view class="clear-btn" wx:if="{{keyword}}" bindtap="clearSearch">✕</view>
       </view>
-      <view class="filter-toggle-btn {{filterExpanded ? 'active' : ''}}" bindtap="toggleFilter">
+      <view class="filter-toggle-btn {{filterExpanded ? 'active' : ''}}" bindtap="toggleFilter" aria-role="button" aria-label="筛选校招信息">
         <text class="filter-icon">≡</text>
         <text>筛选</text>
       </view>
@@ -201,7 +201,8 @@
             <view class="remind-btn {{item._isSubscribed ? 'active' : ''}}" catchtap="subscribeFromCard" data-index="{{index}}">
               {{subscribingId == item.id ? '处理中' : (item._isSubscribed ? '已提醒' : '提醒')}}
             </view>
-            <view class="apply-btn" catchtap="goApply" data-url="{{item.applyUrl}}">复制链接</view>
+            <view wx:if="{{item.applyUrl}}" class="apply-btn" catchtap="goApply" data-url="{{item.applyUrl}}">复制投递链接</view>
+            <view wx:else class="apply-btn apply-btn-muted" catchtap="goToDetail" data-id="{{item.id}}">查看公告</view>
           </view>
         </view>
 

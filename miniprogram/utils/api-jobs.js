@@ -165,7 +165,7 @@ function getAggregatedJobs(data) {
   data = data || {};
   const params = {
     query:    data.keyword || 'software engineer',
-    country:  data.country  || 'us',
+    country:  data.country  || 'global',
     page:     data.page     || 1,
     pageSize: data.size     || 20
   };

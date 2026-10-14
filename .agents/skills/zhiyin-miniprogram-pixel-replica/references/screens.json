@@ -1,0 +1,173 @@
+{
+  "viewport": { "width": 390, "height": 844 },
+  "defaults": {
+    "crop": { "x": 78, "y": 116, "width": 699, "height": 1614 },
+    "masks": [
+      { "x": 0, "y": 0, "width": 390, "height": 54, "reason": "native status and menu chrome" },
+      { "x": 0, "y": 828, "width": 390, "height": 16, "reason": "native home indicator" }
+    ],
+    "pixelThreshold": 0.1,
+    "maxDiffRatio": 0.06,
+    "maxGlobalShiftPx": 2,
+    "waitMs": 1200,
+    "fixtureWaitMs": 700
+  },
+  "screens": {
+    "home": {
+      "route": "/pages/index/index",
+      "navigation": "switchTab",
+      "baseline": "assets/home-approved.png",
+      "baselineContentStatus": "outdated-after-approved-home-density-expansion",
+      "baselineContentNote": "The approved PNG predates the current quick actions, two latest-job rows and campus digest. Keep the PNG and strict thresholds unchanged; this screen cannot claim pixel parity until the expanded composition is approved.",
+      "masks": [
+        { "x": 8, "y": 54, "width": 56, "height": 58, "reason": "variable user avatar" }
+      ],
+      "fixture": {
+        "greeting": "上午好，继续推进目标",
+        "workbench": {
+          "isLoggedIn": true,
+          "title": "完善字节跳动产品经理简历",
+          "subtitle": "补充项目结果与量化指标",
+          "meta": "字节跳动 · 产品经理 · 选择依据：今日优先任务",
+          "primaryText": "继续完成",
+          "primaryUrl": "/pages/applications/applications"
+        },
+        "progressSummary": {
+          "total": 5,
+          "active": 3,
+          "dueSoon": 1,
+          "todayInterviews": 1,
+          "advice": ""
+        },
+        "todaySecondaryTasks": [
+          {
+            "id": "visual-interview",
+            "title": "准备面试问题",
+            "desc": "梳理常见问题，形成自己的回答思路",
+            "type": "interview",
+            "url": "/pages/applications/applications",
+            "done": false
+          },
+          {
+            "id": "visual-jobs",
+            "title": "查看最新岗位",
+            "desc": "发现更合适的机会，保持投递节奏",
+            "type": "jobs",
+            "url": "/pages/jobs/jobs",
+            "done": false
+          }
+        ],
+        "recruitmentEnabled": true,
+        "homeRecommendationsEnabled": false,
+        "loadingJobs": false,
+        "loadingLatestJobs": false,
+        "loadingCampusDigest": false,
+        "recommendJobs": [],
+        "latestJobs": [
+          {
+            "id": "visual-job-1",
+            "title": "产品经理实习",
+            "company": "字节跳动",
+            "city": "上海",
+            "type": "实习",
+            "companyInitial": "字",
+            "logoSrc": "",
+            "logoFailed": true,
+            "sourceSummary": "JSearch · 近期更新"
+          },
+          {
+            "id": "visual-job-2",
+            "title": "数据分析师",
+            "company": "腾讯",
+            "city": "深圳",
+            "type": "全职",
+            "companyInitial": "腾",
+            "logoSrc": "",
+            "logoFailed": true,
+            "sourceSummary": "Adzuna · 近期更新"
+          }
+        ],
+        "campusDigest": [
+          {
+            "id": "visual-campus-1",
+            "title": "某科技公司校招",
+            "digestMeta": "10 月 25 日截止",
+            "digestLabel": "即将截止",
+            "sourceSummary": "飞书校招日历 · 近期更新",
+            "isUrgent": true
+          }
+        ]
+      }
+    },
+    "jobs": {
+      "route": "/pages/jobs/jobs",
+      "navigation": "switchTab",
+      "baseline": "assets/jobs-approved.png",
+      "fixture": {
+        "recruitmentEnabled": true,
+        "loading": false,
+        "loadError": "",
+        "isMockData": false,
+        "filterVisible": false,
+        "filterActive": false,
+        "filterCountry": "global",
+        "searchKeyword": "",
+        "matchMode": false,
+        "hasMore": false,
+        "hotPositions": ["产品经理", "数据分析", "软件工程", "市场"],
+        "jobs": [
+          {
+            "id": "visual-job-1",
+            "title": "产品经理实习",
+            "company": "字节跳动",
+            "location": "上海",
+            "type": "INTERN",
+            "skills": ["产品", "数据分析", "用户研究"],
+            "deadline": "3 天后截止",
+            "logo": "/images/zhiyin-icons/company.svg"
+          },
+          {
+            "id": "visual-job-2",
+            "title": "商业分析实习",
+            "company": "腾讯",
+            "location": "深圳",
+            "type": "INTERN",
+            "skills": ["数据分析", "商业分析", "策略研究"],
+            "deadline": "本周五截止",
+            "logo": "/images/zhiyin-icons/company.svg"
+          },
+          {
+            "id": "visual-job-3",
+            "title": "数据产品经理",
+            "company": "小红书",
+            "location": "上海",
+            "type": "FULLTIME",
+            "skills": ["产品", "数据分析", "用户增长"],
+            "deadline": "10 月 28 日截止",
+            "logo": "/images/zhiyin-icons/company.svg"
+          }
+        ]
+      }
+    },
+    "applications": {
+      "route": "/pages/applications/applications",
+      "navigation": "navigateTo",
+      "baseline": "assets/applications-approved.png"
+    },
+    "resources": {
+      "route": "/pages/resources/resources",
+      "navigation": "switchTab",
+      "baseline": "assets/resources-approved.png"
+    },
+    "profile": {
+      "route": "/pages/profile/profile",
+      "navigation": "switchTab",
+      "baseline": "assets/profile-approved.png"
+    },
+    "context-ai": {
+      "route": "/pages/ai-career/ai-career",
+      "navigation": "switchTab",
+      "baseline": "assets/context-ai-approved.png"
+    }
+  }
+}

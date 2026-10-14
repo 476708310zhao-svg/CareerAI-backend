@@ -280,30 +280,20 @@ test('favorites default to a populated category but background sync preserves an
   assert.equal(h.page.data.currentList[0].targetId, '1');
 });
 
-test('resource hub is a content asset center instead of a multi-tool hall', () => {
+test('resource hub exposes all nine assets on one page instead of hiding them behind category tabs', () => {
   const h = fixture();
   const page = load('pages/resources/resources.js', {
     '../../utils/navigation.js': { safeNavigateTo() {} }, '../../utils/feature-flags.js': { allowNavigation: () => true }
   }, h.wx, true);
   page.onLoad({});
-  assert.deepEqual(Array.from(page.data.categories, row => row.id),
-    ['assessment', 'written', 'interview', 'company', 'favorites', 'purchased']);
   const source = fs.readFileSync(path.join(__dirname, '../miniprogram/pages/resources/resources.js'), 'utf8');
+  const wxml = fs.readFileSync(path.join(__dirname, '../miniprogram/pages/resources/resources.wxml'), 'utf8');
   assert.doesNotMatch(source, /AI 求职规划|Offer 对比|薪酬查询|Networking Copilot/);
-  assert.equal(page.data.categories.find(row => row.id === 'purchased').disabled, true);
   assert.match(source, /\[item\.title, item\.desc\]\.concat\(item\.tags \|\| \[\]\)/);
-  page.selectCategory({ currentTarget: { dataset: { id: 'written' } } });
-  assert.deepEqual(Array.from(page.data.questionTypes, item => item.id), ['', 'oa', 'algorithm', 'frontend', 'system']);
-  for (const questionType of ['algorithm', 'frontend', 'system']) {
-    page.selectQuestionType({ currentTarget: { dataset: { id: questionType } } });
-    assert.deepEqual(Array.from(page.data.assets, item => item.id), ['algorithm']);
-  }
-  page.selectCategory({ currentTarget: { dataset: { id: 'interview' } } });
-  assert.deepEqual(Array.from(page.data.questionTypes, item => item.id), ['', 'behavior']);
-  assert.deepEqual(Array.from(page.data.assets, item => item.id), ['experience', 'star']);
-  page.selectCategory({ currentTarget: { dataset: { id: 'company' } } });
-  assert.equal(page.data.questionType, '');
-  assert.deepEqual(Array.from(page.data.assets, item => item.id), ['companies', 'news']);
+  assert.equal(page.data.assets.length, 9);
+  assert.deepEqual(Array.from(page.data.listAssets, item => item.id), ['agency', 'algorithm', 'companies', 'news', 'favorite']);
+  assert.match(wxml, /我的已购，资料购买与交付能力尚未接入/);
+  assert.doesNotMatch(wxml, /category-scroll|type-scroll/);
 });
 
 test('resource search is local while target context is only passed into real destinations', () => {
@@ -313,19 +303,19 @@ test('resource search is local while target context is only passed into real des
     '../../utils/feature-flags.js': { allowNavigation: url => url !== '/blocked' }
   }, h.wx, true);
   page.onLoad({ category: 'interview', company: 'Amazon', role: 'Data', type: 'behavior' });
-  assert.equal(page.data.activeCategory, 'interview');
+  assert.equal(page.data.assets.length, 9);
   assert.ok(page.data.assets.some(item => item.id === 'experience'));
   page.openAsset({ currentTarget: { dataset: { id: 'experience' } } });
   assert.match(routes[0], /^\/pages\/experiences\/experiences\?/);
   assert.match(routes[0], /company=Amazon/);
   assert.match(routes[0], /role=Data/);
   assert.match(routes[0], /type=behavior/);
+  page.openAsset({ currentTarget: { dataset: { id: 'algorithm' } } });
+  assert.match(routes[1], /type=algorithm/);
+  assert.doesNotMatch(routes[1], /type=behavior/);
   page.onKeyword({ detail: { value: 'STAR' } });
   assert.deepEqual(Array.from(page.data.assets, item => item.id), ['star']);
-  const activeBeforeDisabledTap = page.data.activeCategory;
-  page.selectCategory({ currentTarget: { dataset: { id: 'purchased' } } });
-  assert.equal(page.data.activeCategory, activeBeforeDisabledTap);
-  assert.deepEqual(Array.from(page.data.assets, item => item.id), ['star']);
+  assert.deepEqual(Array.from(page.data.listAssets, item => item.id), ['star']);
 });
 
 test('restored resources route uses switchTab through shared navigation', () => {
@@ -984,7 +974,7 @@ test('an in-progress closed job opens progress instead of showing the deadline w
     '../../../utils/api.js': {}, '../../../utils/api-v4.js': {},
     '../../../utils/demo-data.js': { enabled: () => false },
     '../../../utils/job-progress.js': { getByJobId: () => null, currentOwnerScope: () => 'owner' },
-    '../../../utils/navigation.js': { safeSwitchTab: url => routes.push(url) },
+    '../../../utils/navigation.js': { safeNavigateTo: url => routes.push(url) },
     '../../../utils/analytics.js': { track() {} }, '../../../behaviors/login-gate.js': {},
     '../../../utils/application-queue.js': { queueJob: async () => ({}) }
   }, f.wx, true);

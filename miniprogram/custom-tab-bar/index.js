@@ -5,32 +5,32 @@ const FULL_TAB_LIST = [
   {
     pagePath: 'pages/index/index',
     text: '首页',
-    iconPath: '/images/home.png',
-    selectedIconPath: '/images/home-active.png'
+    iconPath: '/images/zhiyin-icons/nav-home.png',
+    selectedIconPath: '/images/zhiyin-icons/nav-home-active.png'
   },
   {
     pagePath: 'pages/jobs/jobs',
     text: '找岗位',
-    iconPath: '/images/jobs.png',
-    selectedIconPath: '/images/jobs-active.png'
+    iconPath: '/images/zhiyin-icons/nav-jobs.png',
+    selectedIconPath: '/images/zhiyin-icons/nav-jobs-active.png'
   },
   {
-    pagePath: 'pages/applications/applications',
-    text: '进度',
-    iconPath: '/images/icon-apply-muted.png',
-    selectedIconPath: '/images/icon-apply.png'
+    pagePath: 'pages/ai-career/ai-career',
+    text: 'AI求职',
+    iconPath: '/images/zhiyin-icons/nav-ai.png',
+    selectedIconPath: '/images/zhiyin-icons/nav-ai-active.png'
   },
   {
     pagePath: 'pages/resources/resources',
-    text: '资源中心',
-    iconPath: '/images/assess.png',
-    selectedIconPath: '/images/assess-active.png'
+    text: '资源',
+    iconPath: '/images/zhiyin-icons/nav-resources.png',
+    selectedIconPath: '/images/zhiyin-icons/nav-resources-active.png'
   },
   {
     pagePath: 'pages/profile/profile',
     text: '我的',
-    iconPath: '/images/profile.png',
-    selectedIconPath: '/images/profile-active.png',
+    iconPath: '/images/zhiyin-icons/nav-profile.png',
+    selectedIconPath: '/images/zhiyin-icons/nav-profile-active.png',
     showBadge: true
   }
 ];
@@ -42,6 +42,7 @@ Component({
 
   data: {
     selected: 0,
+    hidden: false,
     unreadCount: 0,
     badgeText: '',
     list: FULL_TAB_LIST
@@ -101,12 +102,30 @@ Component({
       });
     },
 
+    setHidden(hidden) {
+      this.setData({ hidden: !!hidden });
+    },
+
+    setSelected(index) {
+      const selected = Number(index);
+      if (!Number.isInteger(selected) || selected < 0 || selected >= this.data.list.length) return;
+      this.setData({ selected });
+    },
+
     switchTab(e) {
       const index = Number(e.currentTarget.dataset.index);
       const item = this.data.list[index];
       if (!item || index === this.data.selected) return;
 
       this.setData({ selected: index });
+      if (item.pagePath === 'pages/ai-career/ai-career') {
+        const started = navigation.openAiTab(this.buildAiContext(), {
+          success: () => this.syncState(),
+          fail: () => this.syncState()
+        });
+        if (!started) this.syncState();
+        return;
+      }
       const started = navigation.safeSwitchTab(`/${item.pagePath}`, {
         success: () => this.syncState(),
         fail: () => this.syncState()
@@ -114,7 +133,7 @@ Component({
       if (!started) this.syncState();
     },
 
-    goAiAssistant() {
+    buildAiContext() {
       const pages = getCurrentPages();
       const current = pages[pages.length - 1] || {};
       const route = String(current.route || '').replace(/^\/+/, '');
@@ -133,11 +152,7 @@ Component({
         context.role = data.role || '';
       }
 
-      const query = Object.keys(context)
-        .filter(key => context[key] !== '')
-        .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(context[key])}`)
-        .join('&');
-      navigation.safeNavigateTo('/package-ai/pages/ai-assistant/ai-assistant' + (query ? `?${query}` : ''));
+      return context;
     }
   }
 });

@@ -1,5 +1,6 @@
 // Sprint 6 OA Copilot：所有成绩、耗时与错题都由用户本人记录并确认。
 const v4Api = require('../../../utils/api-v4.js');
+const loginGate = require('../../../behaviors/login-gate.js');
 
 const EMPTY_PLAN = { company: '', role: '', targetDate: '', weeklyMinutes: '180', focusTypes: [] };
 const EMPTY_RESULT = { totalQuestions: '', correctCount: '', prompt: '', userAnswer: '', correctAnswer: '', notes: '' };
@@ -9,30 +10,64 @@ function modal(options) {
 }
 
 Page({
+  behaviors: [loginGate],
+
   data: {
     loading: false, dashboard: null, plans: [], capabilities: [], mistakes: [], questionTypes: [],
     activeSession: null, elapsedSeconds: 0, elapsedText: '00:00', showPlanForm: false,
     planForm: Object.assign({}, EMPTY_PLAN), showResultForm: false,
-    resultForm: Object.assign({}, EMPTY_RESULT), saving: false
+    resultForm: Object.assign({}, EMPTY_RESULT), saving: false,
+    loadError: '', loadErrorAction: 'retry'
   },
 
-  onLoad() { this.loadDashboard(); },
+  onLoad() { this.loadOrPromptLogin(); },
   onShow() { if (this.data.dashboard) this.loadDashboard(); },
   onUnload() { this.stopTimer(); },
   onPullDownRefresh() { this.loadDashboard().finally(() => wx.stopPullDownRefresh()); },
 
+  loadOrPromptLogin() {
+    const subtitle = '登录后可创建 OA 训练计划、记录练习结果和同步错题本';
+    if (!this.ensureAuthenticated(subtitle, () => this.loadDashboard())) {
+      this.setData({ loading: false, loadError: '登录后才能使用 OA 题库', loadErrorAction: 'login' });
+      return;
+    }
+    this.loadDashboard();
+  },
+
+  retryDashboard() {
+    if (this.data.loadErrorAction === 'login') {
+      this.loadOrPromptLogin();
+      return;
+    }
+    this.loadDashboard();
+  },
+
   async loadDashboard() {
-    this.setData({ loading: true });
+    this.setData({ loading: true, loadError: '' });
     try {
       const res = await v4Api.getOaDashboard();
+      if (res && res._source === 'unauthorized') {
+        this.setData({ loading: false, loadError: '登录状态已失效，请重新登录', loadErrorAction: 'login' });
+        this.ensureAuthenticated('登录状态已失效，重新登录后可继续使用 OA 题库', () => this.loadDashboard());
+        return;
+      }
+      if (res && ['networkError', 'timeout', 'rateLimit', 'error'].includes(res._source)) {
+        const message = res._source === 'rateLimit'
+          ? '请求较多，请稍后重试'
+          : (res._status === 404 ? 'OA 服务尚未部署，请更新后端服务' : '暂时无法连接 OA 服务');
+        throw new Error(message);
+      }
       if (!res || res.code !== 0) throw new Error((res && res.message) || '加载失败');
       const data = res.data || {};
       this.setData({ dashboard: data, plans: data.plans || [], capabilities: data.capabilities || [],
         mistakes: data.mistakes || [],
         questionTypes: (data.questionTypes || []).map(item => Object.assign({}, item, { selected: false })),
-        activeSession: data.activeSession || null });
+        activeSession: data.activeSession || null, loadError: '', loadErrorAction: 'retry' });
       if (data.activeSession) this.startTimer(data.activeSession.startedAt); else this.stopTimer();
-    } catch (error) { wx.showToast({ title: error.message || '加载失败', icon: 'none' }); }
+    } catch (error) {
+      console.warn('[oa-bank] loadDashboard', error);
+      this.setData({ loadError: error.message || 'OA 数据加载失败', loadErrorAction: 'retry' });
+    }
     finally { this.setData({ loading: false }); }
   },
 
@@ -51,6 +86,7 @@ Page({
   stopTimer() { if (this._timer) clearInterval(this._timer); this._timer = null; },
 
   openPlanForm() {
+    if (!this.ensureAuthenticated('登录后可创建 OA 训练计划', () => this.openPlanForm())) return;
     this.setData({ showPlanForm: true, planForm: Object.assign({}, EMPTY_PLAN),
       questionTypes: this.data.questionTypes.map(item => Object.assign({}, item, { selected: false })) });
   },
@@ -66,6 +102,7 @@ Page({
   },
 
   async savePlan() {
+    if (this.data.saving) return;
     const form = this.data.planForm;
     if (!form.company.trim() || !form.focusTypes.length) { wx.showToast({ title: '请填写公司并选择题型', icon: 'none' }); return; }
     this.setData({ saving: true });

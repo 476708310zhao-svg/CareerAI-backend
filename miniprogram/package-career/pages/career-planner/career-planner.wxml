@@ -334,6 +334,14 @@
       </view>
     </view>
 
+    <view class="sec-card plan-next-card">
+      <view class="sec-header"><text class="sec-icon">➡️</text><view><text class="sec-title">把规划变成行动</text><text class="section-sub">竞争力陪跑会结合真实申请数据更新优先级</text></view></view>
+      <view class="plan-next-actions">
+        <view class="plan-next-btn secondary" bindtap="openCareerCoach">进入竞争力陪跑</view>
+        <view class="plan-next-btn primary" bindtap="openDailyBrief">查看今日任务</view>
+      </view>
+    </view>
+
     <view class="bottom-spacer"></view>
 
   </view>

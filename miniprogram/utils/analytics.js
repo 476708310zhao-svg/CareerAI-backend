@@ -10,6 +10,10 @@ const RETRY_AFTER_SERVER_ERROR = 10 * 60 * 1000;
 let launchOptions = {};
 let installed = false;
 
+function isEnabled() {
+  return config.ANALYTICS_ENABLED !== false;
+}
+
 function safeStorageGet(key, fallback) {
   try {
     const value = wx.getStorageSync(key);
@@ -85,7 +89,7 @@ function coreRefs(payload) {
 }
 
 function enqueue(event) {
-  if (isDisabled()) return;
+  if (!isEnabled() || isDisabled()) return;
   const queue = safeStorageGet(QUEUE_KEY, []);
   const list = Array.isArray(queue) ? queue : [];
   list.push(event);
@@ -116,7 +120,7 @@ function handleSendError(err) {
 }
 
 function send(event) {
-  if (isDisabled()) return Promise.resolve(true);
+  if (!isEnabled() || isDisabled()) return Promise.resolve(true);
   return apiClient.post({
     path: '/api/analytics/events',
     body: event,
@@ -128,6 +132,10 @@ function send(event) {
 }
 
 function flush() {
+  if (!isEnabled()) {
+    safeStorageSet(QUEUE_KEY, []);
+    return;
+  }
   if (isDisabled()) {
     safeStorageSet(QUEUE_KEY, []);
     return;
@@ -153,7 +161,7 @@ function flush() {
 }
 
 function track(eventName, payload) {
-  if (isDisabled()) return Promise.resolve(true);
+  if (!isEnabled() || isDisabled()) return Promise.resolve(true);
   const clean = cleanPayload(payload);
   clean.refs = coreRefs(clean);
   const event = {
@@ -185,7 +193,7 @@ function wrapLifecycle(options, name, before) {
 }
 
 function installPageTracker() {
-  if (typeof Page !== 'function' || installed) return;
+  if (!isEnabled() || typeof Page !== 'function' || installed) return;
   const originalPage = Page;
   Page = function(options) {
     options = options || {};

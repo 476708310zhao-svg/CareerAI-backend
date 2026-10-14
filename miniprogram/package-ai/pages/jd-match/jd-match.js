@@ -231,9 +231,9 @@ Page({
     historyLoaded: false
   },
 
-  onLoad() {
+  onLoad(options) {
     this.loadOnlineResume();
-    this.loadJobPreset();
+    if (!options || options.source !== 'home') this.loadJobPreset();
     this.loadReportHistory();
   },
 

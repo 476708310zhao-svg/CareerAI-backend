@@ -14,7 +14,7 @@ const savedKey = () => ownerStorage.key(SAVED_KEY);
 const MAX_CACHE   = 30;
 const TIME_GAP_MS = 5 * 60 * 1000;
 const CURSOR      = '▋';
-const TAB_PAGES   = new Set(['/pages/index/index', '/pages/jobs/jobs', '/pages/applications/applications', '/pages/resources/resources', '/pages/profile/profile']);
+const TAB_PAGES   = new Set(['/pages/index/index', '/pages/jobs/jobs', '/pages/ai-career/ai-career', '/pages/resources/resources', '/pages/profile/profile']);
 const FALLBACK_SYSTEM = '你是「职引」平台的 AI 求职助手，专注留学生求职。请用中文给出简洁、具体、可执行的建议，控制在 300 字以内，必要时用列表拆解步骤。';
 
 // ─── Markdown → HTML（用于 rich-text，仅处理 AI 输出）─────────

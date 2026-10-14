@@ -195,7 +195,7 @@
   flex: 1;
 }
 
-.campus-tags text {
+.campus-tag {
   max-width: 220rpx;
   overflow: hidden;
   padding: 3rpx 9rpx;

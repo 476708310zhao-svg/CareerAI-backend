@@ -27,6 +27,8 @@ Page({
 
     // 搜索
     searchKeyword: '',
+    resourceCompany: '',
+    resourceRole: '',
     _searchTimer: null,
 
     // 难度筛选
@@ -64,7 +66,7 @@ Page({
     // 实际展示的列表
     displayList: [],
 
-    // fixed-header 占位高度已由 WXSS class 控制，保留字段兼容旧逻辑
+    // 固定头部的实际像素高度，用于避免动态筛选栏覆盖正文。
     spacerHeight: 0,
 
     // 精华区子 Tab
@@ -95,10 +97,14 @@ Page({
     ]
   },
 
-  onLoad() {
+  onLoad(options = {}) {
     // Enrich questions with isFeatured + likes for featured filter
     const enriched = decorateQuestionList(this.data.allQuestions);
-    this.setData({ currentCat: 'all', allQuestions: enriched, displayList: enriched });
+    const requestedType = String(options.type || '');
+    const currentCat = this.data.categories.some(item => item.id === requestedType) ? requestedType : 'all';
+    const searchKeyword = String(options.keyword || '').trim();
+    this.setData({ currentCat, searchKeyword, resourceCompany: String(options.company || '').trim(),
+      resourceRole: String(options.role || '').trim(), allQuestions: enriched, displayList: enriched }, () => this.applyFilters());
     this.loadRemoteInterviewQuestions(enriched);
     clearTimeout(this._initialStatsTimer);
     this._initialStatsTimer = setTimeout(() => this.loadLeetCodeStats(), 80);
@@ -109,15 +115,32 @@ Page({
   onShow() {
     const app = getApp();
     if (app && typeof app.syncCustomTabBar === 'function') app.syncCustomTabBar();
+    this._updateSpacerHeight();
+  },
+
+  onReady() {
+    this._updateSpacerHeight();
   },
 
   onUnload() {
     clearTimeout(this._initialStatsTimer);
+    clearTimeout(this._spacerMeasureTimer);
   },
 
-  // 占位高度由 WXSS 根据当前 tab 控制，保留方法避免切换逻辑报错
+  // 分类切换会增减筛选区和 AI 出题栏，必须以真实渲染高度同步占位。
   _updateSpacerHeight() {
-    return;
+    clearTimeout(this._spacerMeasureTimer);
+    this._spacerMeasureTimer = setTimeout(() => {
+      this.createSelectorQuery()
+        .select('.fixed-header')
+        .boundingClientRect(rect => {
+          const height = Math.ceil(Number(rect && rect.height) || 0);
+          if (height > 0 && height !== this.data.spacerHeight) {
+            this.setData({ spacerHeight: height });
+          }
+        })
+        .exec();
+    }, 0);
   },
 
   // ======== 搜索 ========
@@ -196,18 +219,7 @@ Page({
         this.setData({ displayList: results });
       }
     } else {
-      // 本地搜索
-      const kw = keyword.toLowerCase();
-      const catId = this.data.currentCat;
-      const diffMap = { 'EASY': '简单', 'MEDIUM': '中等', 'HARD': '困难' };
-      const diffCn = diffMap[this.data.currentDiff];
-      let filtered = this.data.allQuestions.filter(q => {
-        if (catId !== 'all' && q.category !== catId) return false;
-        if (diffCn && q.difficulty !== diffCn) return false;
-        return q.title.toLowerCase().includes(kw) ||
-               (q.answer && q.answer.toLowerCase().includes(kw));
-      });
-      this.setData({ displayList: filtered });
+      this.applyFilters();
     }
   },
 
@@ -354,6 +366,8 @@ Page({
     const diffMap = { 'EASY': '简单', 'MEDIUM': '中等', 'HARD': '困难' };
     const diffCn = diffMap[this.data.currentDiff];
     const keyword = this.data.searchKeyword.toLowerCase();
+    const company = this.data.resourceCompany.toLowerCase();
+    const role = this.data.resourceRole.toLowerCase();
 
     let filtered = this.data.allQuestions;
 
@@ -366,12 +380,11 @@ Page({
       filtered = filtered.filter(q => q.difficulty === diffCn);
     }
     // 搜索
-    if (keyword) {
-      filtered = filtered.filter(q =>
-        q.title.toLowerCase().includes(keyword) ||
-        (q.answer && q.answer.toLowerCase().includes(keyword))
-      );
-    }
+    const searchable = q => [q.title, q.answer, q.company, q.companyName, q.role, q.position, q.jobTitle]
+      .concat(q.tags || []).filter(Boolean).join(' ').toLowerCase();
+    if (keyword) filtered = filtered.filter(q => searchable(q).includes(keyword));
+    if (company) filtered = filtered.filter(q => searchable(q).includes(company));
+    if (role) filtered = filtered.filter(q => searchable(q).includes(role));
 
     this.setData({ displayList: filtered });
   },

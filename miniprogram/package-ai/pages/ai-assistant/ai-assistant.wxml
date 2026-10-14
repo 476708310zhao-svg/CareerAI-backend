@@ -7,10 +7,6 @@
       <view class="nav-back-btn" bindtap="goBack" hover-class="btn-hover" aria-role="button" aria-label="返回上一页">
         <text class="nav-back-icon">‹</text>
       </view>
-      <view class="menu-btn" bindtap="toggleSidebar" hover-class="btn-hover" aria-role="button" aria-label="打开 AI 工具与历史">
-        <view class="menu-line"></view>
-        <view class="menu-line short"></view>
-      </view>
     </view>
     <view class="top-title">
       <text class="top-icon">AI</text>
@@ -19,14 +15,13 @@
         <text class="top-sub">{{contextActive ? '已连接当前求职任务' : '把问题变成一个可执行的下一步'}}</text>
       </view>
     </view>
-    <view class="new-chat-btn" bindtap="onNewChat" hover-class="btn-hover" aria-role="button" aria-label="开始新对话">
-      <text class="new-chat-icon">+</text>
+    <view class="new-chat-btn" bindtap="toggleSidebar" hover-class="btn-hover" aria-role="button" aria-label="打开 AI 工具与历史">
+      <view class="new-chat-bubble"></view><text class="new-chat-icon">+</text>
     </view>
   </view>
 
   <view wx:if="{{contextActive}}" class="context-bar" aria-role="status" aria-label="当前上下文：{{contextLabel}}">
-    <view class="context-mark" aria-hidden="true"><text>AI</text></view>
-    <view class="context-copy"><text class="context-caption">当前上下文</text><text class="context-text">当前上下文：{{contextLabel}}</text></view>
+    <text class="context-caption">当前上下文</text><view class="context-divider"></view><text class="context-text">{{contextLabel}}</text><view class="context-switch" bindtap="toggleSidebar"><text>切换</text><text class="context-arrow">›</text></view>
   </view>
 
   <view wx:if="{{sidebarOpen}}" class="drawer-mask" bindtap="toggleSidebar"></view>
@@ -227,7 +222,7 @@
   <!-- 输入栏 -->
   <view class="input-bar {{keyboardHeight > 0 ? 'keyboard-open' : ''}}" style="bottom: {{keyboardHeight}}px; padding-bottom: {{keyboardHeight > 0 ? 18 : safeBottom + 18}}px;">
     <view class="input-wrap">
-      <text class="input-leading">AI</text>
+      <text class="input-leading">⌕</text>
       <input
         class="input"
         placeholder="{{composerPlaceholder}}"

@@ -213,9 +213,11 @@ function normalizeListenPort(port) {
 
 function startServer(port = PORT) {
   const listenPort = normalizeListenPort(port);
-  const server = app.listen(listenPort, () => {
+  const listenHost = String(process.env.LISTEN_HOST || '').trim();
+  const onListen = () => {
     console.log('Server running at http://localhost:' + listenPort);
-  });
+  };
+  const server = listenHost ? app.listen(listenPort, listenHost, onListen) : app.listen(listenPort, onListen);
   return configureServer(server);
 }
 

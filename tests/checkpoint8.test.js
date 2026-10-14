@@ -10,7 +10,7 @@ const ROOT = path.join(__dirname, '..', 'miniprogram');
 const EXPECTED_TABS = [
   'pages/index/index',
   'pages/jobs/jobs',
-  'pages/applications/applications',
+  'pages/ai-career/ai-career',
   'pages/resources/resources',
   'pages/profile/profile'
 ];
@@ -80,7 +80,7 @@ test('Checkpoint 8 keeps app.json, custom TabBar and navigation on the same five
   const navigation = read('utils/navigation.js');
   const tabs = app.tabBar.list.map(item => item.pagePath);
   assert.deepEqual(tabs, EXPECTED_TABS);
-  assert.deepEqual(app.tabBar.list.map(item => item.text), ['首页', '找岗位', '进度', '资源中心', '我的']);
+  assert.deepEqual(app.tabBar.list.map(item => item.text), ['首页', '找岗位', 'AI求职', '资源', '我的']);
   EXPECTED_TABS.forEach(route => {
     assert.match(custom, new RegExp(route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     assert.match(navigation, new RegExp(('/' + route).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
@@ -123,6 +123,50 @@ test('feature flags keep cold-start recruitment usable but honor cached and serv
   assert.equal(flags.isRecruitmentEnabled(), false, 'cached server false must beat local optimistic true');
 });
 
+test('membership needs this-session verification and closes again when the feature API fails', async () => {
+  const config = require('../miniprogram/utils/app-config.js');
+  const storage = {
+    publicFeatureFlags_v2: { recruitment: false, home_recommendations: false, membership: true },
+    publicFeatureFlags_v3: { flags: { recruitment: false, home_recommendations: false, membership: true }, verifiedAt: Date.now() }
+  };
+  const toasts = [];
+  const observed = [];
+  let available = true;
+  const app = { globalData: {}, syncCustomTabBar() {} };
+  const wx = {
+    getStorageSync(key) { return storage[key]; },
+    setStorageSync(key, value) { storage[key] = value; },
+    showToast(value) { toasts.push(value.title); },
+    request(options) {
+      if (available) options.success({ statusCode: 200, data: { code: 0, data: {
+        recruitment: false, home_recommendations: false, membership: true
+      } } });
+      else options.fail({ errMsg: 'network unavailable' });
+      options.complete();
+    }
+  };
+  const flags = loadModule('utils/feature-flags.js', { './app-config.js': config }, {
+    wx, getApp: () => app, getCurrentPages: () => [{ _onFeatureFlagsChange(value) { observed.push(value.membership); } }]
+  });
+  assert.equal(config.DEFAULT_FEATURE_FLAGS.recruitment, true);
+  assert.equal(config.DEFAULT_FEATURE_FLAGS.membership, false);
+  assert.equal(flags.isMembershipEnabled(), false);
+  assert.equal(flags.getCachedFlags().membership, false, 'even a recent persisted v3 true is not a live verification');
+  delete storage.publicFeatureFlags_v3;
+  assert.equal(flags.getCachedFlags().membership, false, 'legacy v2 true is also unverified');
+  assert.equal(flags.allowNavigation('/pages/jobs/jobs'), true);
+  assert.equal(flags.allowNavigation('/package-user/pages/vip/vip'), false);
+  assert.deepEqual(toasts, ['功能暂未开放']);
+  await flags.refreshFeatureFlags({ force: true });
+  assert.equal(flags.isMembershipEnabled(), true, 'a successful current-session response can enable membership');
+  assert.ok(storage.publicFeatureFlags_v3.verifiedAt > 0);
+  available = false;
+  await flags.refreshFeatureFlags({ force: true });
+  assert.equal(flags.isMembershipEnabled(), false, 'failed refresh must immediately close commercial entry points');
+  assert.deepEqual(observed, [true, false]);
+  assert.equal(flags.allowNavigation('/pages/jobs/jobs'), true, 'the fixed tab remains reachable even when recruitment is off');
+});
+
 test('custom TabBar restores selected state and owner-scoped unread badge after attach/show', () => {
   let definition;
   let owner = 'owner-a';
@@ -159,7 +203,7 @@ test('custom TabBar restores selected state and owner-scoped unread badge after 
   assert.deepEqual(navigated, ['/pages/jobs/jobs']);
 });
 
-test('home puts one honest primary action first while the restored contextual AI stays outside home content', () => {
+test('home puts one honest primary action first while contextual AI stays in the center Tab', () => {
   const home = read('pages/index/index.wxml');
   const homeJs = read('pages/index/index.js');
   const tabWxml = read('custom-tab-bar/index.wxml');
@@ -169,7 +213,9 @@ test('home puts one honest primary action first while the restored contextual AI
   assert.doesNotMatch(home, /\sautoplay(?:\s|>)/);
   assert.doesNotMatch(home, /home-core-tools|home-career-insights|banner-wrap|membership-benefit-banner/);
   assert.match(tabWxml, /class="ai-float"/);
-  assert.match(tabWxml, /catchtap="goAiAssistant"/);
+  assert.match(tabWxml, /tabbar-ai-item/);
+  assert.match(tabWxml, /打开当前页面的上下文 AI/);
+  assert.doesNotMatch(tabWxml, /selected !== 2|goAiAssistant/);
   assert.match(tabWxss, /\.ai-float/);
   assert.match(tabWxss, /prefers-reduced-motion/);
   assert.match(home, /workbench\.primaryUrl/);
@@ -444,13 +490,16 @@ test('the unused empty-state component is removed without banning local empty-st
   assert.deepEqual(componentRefs, []);
 });
 
-test('legacy AI Career routes are lightweight safe-query redirects', () => {
-  ['pages/ai-career/ai-career.js', 'package-ai/pages/ai-career/ai-career.js'].forEach(file => {
-    const source = read(file);
-    assert.match(source, /ALLOWED_QUERY_KEYS/);
-    assert.match(source, /ai-assistant\/ai-assistant/);
-    assert.match(source, /redirectTo/);
-    assert.match(source, /fail:[\s\S]*showToast/);
-    assert.doesNotMatch(source, /createAgentTask|aiCareerCompatTasks|refresh\(|loadTasks\(/);
-  });
+test('main AI Career is the contextual Tab while the subpackage legacy route stays a safe redirect', () => {
+  const main = read('pages/ai-career/ai-career.js');
+  assert.match(main, /streamRequest/);
+  assert.match(main, /_consumePendingTabContext/);
+  assert.match(main, /pending_ai_tab_context/);
+
+  const legacy = read('package-ai/pages/ai-career/ai-career.js');
+  assert.match(legacy, /ALLOWED_QUERY_KEYS/);
+  assert.match(legacy, /ai-assistant\/ai-assistant/);
+  assert.match(legacy, /redirectTo/);
+  assert.match(legacy, /fail:[\s\S]*showToast/);
+  assert.doesNotMatch(legacy, /createAgentTask|aiCareerCompatTasks|refresh\(|loadTasks\(/);
 });

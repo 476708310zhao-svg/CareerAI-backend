@@ -18,3 +18,12 @@ page { min-height: 100%; background: #f3f6fb; }
 .input-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10rpx; }.input-item { padding: 14rpx 6rpx; border-radius: 14rpx; background: #f7f9fc; text-align: center; }.input-value,.input-label { display: block; }.input-value { color: #2459d7; font-size: 28rpx; font-weight: 900; }.input-label { margin-top: 4rpx; color: #7a869a; font-size: 18rpx; }
 .bottleneck { margin-top: 18rpx; padding: 18rpx; border-radius: 18rpx; background: #fff7ed; }.bottleneck-label { color: #b54708; font-size: 19rpx; font-weight: 800; }.bottleneck-title { margin-top: 6rpx; color: #7a2e0e; font-size: 26rpx; font-weight: 850; }.bottleneck-copy { margin-top: 7rpx; color: #9a4a16; font-size: 21rpx; line-height: 1.5; }.conversion { display: flex; justify-content: space-between; padding: 16rpx 0; border-bottom: 1rpx solid #edf0f5; color: #344054; font-size: 22rpx; }.notice { margin-top: 13rpx; color: #98a2b3; font-size: 19rpx; line-height: 1.5; }.focus-title { margin-top: 20rpx; color: #253858; font-size: 23rpx; font-weight: 800; }.focus { margin-top: 8rpx; color: #475467; font-size: 21rpx; }
 .basis { padding: 16rpx; border-radius: 16rpx; color: #475467; background: #f7f9fc; font-size: 21rpx; line-height: 1.5; }.horizon { display: flex; gap: 16rpx; padding: 22rpx 0; border-bottom: 1rpx solid #edf0f5; }.horizon:last-child { border-bottom: 0; }.month-badge { flex: none; align-self: flex-start; padding: 8rpx 12rpx; border-radius: 12rpx; color: #2459d7; background: #edf3ff; font-size: 19rpx; font-weight: 800; }.horizon-copy { min-width: 0; }.horizon-title { color: #253858; font-size: 25rpx; font-weight: 850; }.horizon-objective { margin-top: 7rpx; color: #475467; font-size: 21rpx; line-height: 1.5; }.horizon-action { margin-top: 6rpx; color: #667085; font-size: 20rpx; }.metric { margin-top: 10rpx; color: #087443; font-size: 20rpx; line-height: 1.5; }
+
+.plan-view-card {
+  border-color: rgba(43, 92, 230, .14);
+  background: linear-gradient(145deg, #ffffff, #f5f9ff);
+}
+.plan-view-actions { display: flex; gap: 14rpx; }
+.plan-view-btn { flex: 1; padding: 18rpx 10rpx; border-radius: 16rpx; text-align: center; font-size: 23rpx; font-weight: 800; }
+.plan-view-btn.secondary { color: #2459d7; background: #edf3ff; }
+.plan-view-btn.primary { color: #fff; background: #2b5ce6; }

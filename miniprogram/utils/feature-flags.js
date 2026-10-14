@@ -1,7 +1,9 @@
 const config = require('./app-config.js');
 
-const CACHE_KEY = 'publicFeatureFlags_v2';
+const CACHE_KEY = 'publicFeatureFlags_v3';
+const LEGACY_CACHE_KEY = 'publicFeatureFlags_v2';
 const REFRESH_INTERVAL = 30 * 1000;
+const MEMBERSHIP_VERIFICATION_TTL = 5 * 60 * 1000;
 const RECRUITMENT_PATHS = [
   '/pages/jobs/',
   '/package-user/pages/apply-form/',
@@ -15,6 +17,8 @@ const MEMBERSHIP_PATHS = [
 
 let pendingRefresh = null;
 let lastRefreshAt = 0;
+let lastMembershipVerifiedAt = 0;
+let lastAuthoritativeFlags = null;
 let redirecting = false;
 
 function defaultFlags() {
@@ -43,30 +47,49 @@ function normalizeFlags(value) {
 
 function readCachedFlags() {
   try {
-    const value = wx.getStorageSync(CACHE_KEY);
-    return value && typeof value === 'object' ? value : null;
+    const current = wx.getStorageSync(CACHE_KEY);
+    if (current && typeof current === 'object' && current.flags && typeof current.flags === 'object'
+      && Number.isFinite(Number(current.verifiedAt)) && Number(current.verifiedAt) > 0) {
+      return current.flags;
+    }
+    // v2 stored bare flags with no verification time. Preserve its explicit
+    // recruitment state, but never treat an old membership=true as live.
+    const legacy = wx.getStorageSync(LEGACY_CACHE_KEY);
+    return legacy && typeof legacy === 'object' ? legacy : null;
   } catch (e) { return null; }
 }
 
+function safeFlags(value) {
+  const flags = normalizeFlags(value);
+  const age = Date.now() - lastMembershipVerifiedAt;
+  if (!lastMembershipVerifiedAt || age < 0 || age > MEMBERSHIP_VERIFICATION_TTL) {
+    flags.membership = false;
+  }
+  return flags;
+}
+
 function getCachedFlags() {
+  if (lastAuthoritativeFlags) return safeFlags(lastAuthoritativeFlags);
   const cached = readCachedFlags();
-  return cached ? normalizeFlags(cached) : defaultFlags();
+  return safeFlags(cached || defaultFlags());
 }
 
 function getCurrentFlags() {
-  // A persisted response is authoritative, including explicit false values.
-  // Do not let an optimistic in-memory cold-start fallback overwrite it.
+  // A response verified in this session wins over storage (including when a
+  // storage write failed). Persisted false remains authoritative on restart;
+  // persisted membership=true is masked until a fresh successful response.
+  if (lastAuthoritativeFlags) return safeFlags(lastAuthoritativeFlags);
   const cached = readCachedFlags();
-  if (cached) return normalizeFlags(cached);
+  if (cached) return safeFlags(cached);
   try {
     const app = getApp();
     const flags = app && app.globalData && app.globalData.featureFlags;
     if (flags && ['recruitment', 'home_recommendations', 'membership']
       .some(key => typeof flags[key] === 'boolean')) {
-      return normalizeFlags(app.globalData.featureFlags);
+      return safeFlags(app.globalData.featureFlags);
     }
   } catch (e) {}
-  return defaultFlags();
+  return safeFlags(defaultFlags());
 }
 
 function isRecruitmentEnabled() {
@@ -99,24 +122,37 @@ function isMembershipUrl(url) {
   return MEMBERSHIP_PATHS.some(path => normalized.indexOf(path) === 0);
 }
 
-function publishFlags(flags) {
-  const normalized = normalizeFlags(flags);
-  try { wx.setStorageSync(CACHE_KEY, normalized); } catch (e) {}
-
+function notifyFlags(flags) {
   let app = null;
   try { app = getApp(); } catch (e) {}
   if (app && app.globalData) {
-    app.globalData.featureFlags = normalized;
+    app.globalData.featureFlags = flags;
     if (typeof app.syncCustomTabBar === 'function') app.syncCustomTabBar();
   }
 
   const pages = getCurrentPages();
   pages.forEach(page => {
     if (typeof page._onFeatureFlagsChange === 'function') {
-      try { page._onFeatureFlagsChange(normalized); } catch (e) {}
+      try { page._onFeatureFlagsChange(flags); } catch (e) {}
     }
   });
-  return normalized;
+  return flags;
+}
+
+function publishFlags(flags) {
+  const normalized = normalizeFlags(flags);
+  lastMembershipVerifiedAt = Date.now();
+  lastAuthoritativeFlags = normalized;
+  try { wx.setStorageSync(CACHE_KEY, { flags: normalized, verifiedAt: lastMembershipVerifiedAt }); } catch (e) {}
+  return notifyFlags(safeFlags(normalized));
+}
+
+function markFeatureStateUnavailable() {
+  lastRefreshAt = Date.now();
+  lastMembershipVerifiedAt = 0;
+  // Keep persisted non-commercial flags, but immediately hide paid entry
+  // points on visible pages when the authority cannot be reached.
+  return notifyFlags(getCurrentFlags());
 }
 
 function refreshFeatureFlags(options) {
@@ -126,7 +162,7 @@ function refreshFeatureFlags(options) {
   }
   if (pendingRefresh) return pendingRefresh;
 
-  pendingRefresh = new Promise(resolve => {
+  const refresh = new Promise(resolve => {
     wx.request({
       url: config.API_BASE_URL + '/api/features',
       method: 'GET',
@@ -138,12 +174,13 @@ function refreshFeatureFlags(options) {
           resolve(publishFlags(data.data));
           return;
         }
-        resolve(getCurrentFlags());
+        resolve(markFeatureStateUnavailable());
       },
-      fail: () => resolve(getCurrentFlags()),
-      complete: () => { pendingRefresh = null; }
+      fail: () => resolve(markFeatureStateUnavailable())
     });
   });
+  pendingRefresh = refresh;
+  refresh.then(() => { if (pendingRefresh === refresh) pendingRefresh = null; });
   return pendingRefresh;
 }
 

@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
+const vm = require('node:vm');
 
 const ROOT = path.join(__dirname, '..', 'miniprogram');
 
@@ -15,6 +16,7 @@ const GATED_PAGES = [
   'package-agency/pages/agency-detail/agency-detail',
   'package-content/pages/experience-detail/experience-detail',
   'package-career/pages/salary/salary',
+  'package-career/pages/oa-bank/oa-bank',
   'package-user/pages/settings/settings',
   'package-user/pages/vip/vip',
   'package-ai/pages/interview-dialog/interview-dialog'
@@ -45,11 +47,13 @@ test('progress login card no longer redirects to Profile', () => {
   assert.match(progressWxml, /bindtap="promptLogin"[^>]*>立即登录/);
 });
 
-test('AI Career compatibility routes safely redirect to the login-gated unified assistant', () => {
+test('AI Career Tab is login-gated while the legacy subpackage route stays a safe redirect', () => {
   const assistantJs = read('package-ai/pages/ai-assistant/ai-assistant.js');
   const assistantWxml = read('package-ai/pages/ai-assistant/ai-assistant.wxml');
+  const tabJs = read('pages/ai-career/ai-career.js');
+  const tabWxml = read('pages/ai-career/ai-career.wxml');
 
-  ['pages/ai-career/ai-career', 'package-ai/pages/ai-career/ai-career'].forEach(page => {
+  ['package-ai/pages/ai-career/ai-career'].forEach(page => {
     const js = read(page + '.js');
     const wxml = read(page + '.wxml');
     assert.match(js, /ALLOWED_QUERY_KEYS\s*=\s*new Set\(\['action', 'applicationId', 'prompt'\]\)/);
@@ -59,6 +63,11 @@ test('AI Career compatibility routes safely redirect to the login-gated unified 
     assert.doesNotMatch(js, /aiCareerCompatTasks|createAgentTask|loadTasks\(|getStorageSync\(/);
     assert.match(wxml, /正在打开 AI 助手/);
   });
+
+  assert.match(tabJs, /pending_ai_tab_context/);
+  assert.match(tabJs, /sendMessage\(\)[\s\S]*?if \(!this\._getToken\(\)\) \{[\s\S]*?this\._showLoginRequired\(/);
+  assert.match(tabWxml, /<c-login-popup/);
+  assert.match(tabWxml, /show="\{\{showLoginPopup\}\}"/);
 
   assert.match(assistantJs, /_getToken\(\)/);
   assert.match(assistantJs, /sendMessage\(\)[\s\S]*?if \(!this\._getToken\(\)\) \{[\s\S]*?this\._showLoginRequired\(/);
@@ -107,6 +116,56 @@ test('login converts a misrouted production 404 into an actionable service messa
   assert.equal(routeError.code, 'SERVICE_ROUTE_UNAVAILABLE');
   assert.equal(routeError.message, '服务接口暂不可用，请稍后重试');
   assert.equal(resourceError.message, '申请记录不存在');
+});
+
+test('develop builds use the isolated local API while trial and release stay on production HTTPS', () => {
+  const source = read('utils/app-config.js');
+  const loadConfig = envVersion => {
+    const context = {
+      module: { exports: {} },
+      exports: {},
+      wx: { getAccountInfoSync: () => ({ miniProgram: { envVersion } }) }
+    };
+    vm.runInNewContext(source, context, { filename: 'app-config.js' });
+    return context.module.exports;
+  };
+
+  const develop = loadConfig('develop');
+  const trial = loadConfig('trial');
+  const release = loadConfig('release');
+  assert.equal(develop.API_BASE_URL, 'http://127.0.0.1:4400');
+  assert.equal(develop.ANALYTICS_ENABLED, false);
+  assert.equal(trial.API_BASE_URL, 'https://api.zhiyincareer.com');
+  assert.equal(trial.ANALYTICS_ENABLED, true);
+  assert.equal(release.API_BASE_URL, 'https://api.zhiyincareer.com');
+  assert.equal(release.ANALYTICS_ENABLED, true);
+});
+
+test('develop analytics is a no-op and never opens the local events endpoint', async () => {
+  const source = read('utils/analytics.js');
+  const posts = [];
+  const storage = {};
+  const context = {
+    module: { exports: {} },
+    exports: {},
+    Promise,
+    Date,
+    getCurrentPages: () => [],
+    Page() {},
+    wx: {
+      getStorageSync: key => storage[key],
+      setStorageSync: (key, value) => { storage[key] = value; }
+    },
+    require(name) {
+      if (name === './api-client.js') return { post: options => { posts.push(options); return Promise.resolve({ code: 0 }); } };
+      if (name === './app-config.js') return { ANALYTICS_ENABLED: false, ENABLE_DEMO_FALLBACK: false };
+      throw new Error('Unexpected dependency: ' + name);
+    }
+  };
+  vm.runInNewContext(source, context, { filename: 'analytics.js' });
+  assert.equal(await context.module.exports.track('page_view', {}), true);
+  context.module.exports.flush();
+  assert.equal(posts.length, 0);
 });
 
 test('production nginx gives API routes explicit priority over a co-hosted website', () => {

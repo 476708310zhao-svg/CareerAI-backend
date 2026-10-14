@@ -55,14 +55,22 @@ sudo mkdir -p /www/backups/zhiyincareer
 
 ## 3. 部署代码
 
-推荐在 GitHub Actions 中手动触发 `Deploy Backend`。工作流会上传独立版本、备份共享数据、运行发布检查和严格预检，再切换 `current`。推送 `main` 不会自动发布。
+推荐在 GitHub Actions 中手动触发 `Deploy Backend`。工作流会上传独立版本、备份共享数据、运行发布检查和严格预检，再切换 `current`。推送 `main` 不会自动发布。在当前服务器的 GitHub `production` Environment 中，将 `PRODUCTION_NGINX_CONFIG_PATH` 设置为 `/www/server/panel/vhost/nginx/jobapp.conf`；脚本会跟随软链接备份实际目标文件，未设置或文件不存在将中止发布。其他环境须重新核对各自实际生效的 vhost 路径。
+
+上线前人工只读核对迁移状态：
+
+```bash
+node scripts/migrate_database.js --db=/var/lib/jobapp-server/db/jobapp.db --status
+```
+
+`pending` 必须为 0。若仍有待迁移项，停止发布；生产 migration apply 需另行审批、验证备份后手动执行。
 
 服务器上手动执行时，先把完整代码上传到一个新版本目录，再运行：
 
 ```bash
 cd /www/wwwroot/zhiyincareer-main/releases/<release>
 chmod +x deploy.sh scripts/*.sh
-APP_DATA_DIR=/var/lib/jobapp-server BACKUP_DIR=/www/backups/zhiyincareer bash scripts/backup-production.sh
+NGINX_CONFIG_PATH=/www/server/panel/vhost/nginx/jobapp.conf APP_DATA_DIR=/var/lib/jobapp-server BACKUP_DIR=/www/backups/zhiyincareer bash scripts/backup-production.sh
 bash deploy.sh
 ```
 
@@ -158,6 +166,8 @@ api.zhiyincareer.com
 
 Nginx 参考配置见项目根目录 `nginx.conf`。
 
+2026-10-14 线上核验记录：实际生效的 vhost 为 `/www/server/panel/vhost/nginx/jobapp.conf`，变更前的同目录备份为 `/www/server/panel/vhost/nginx/jobapp.conf.before-api-route-20261014`。该 vhost 的 `location ^~ /api/` 将普通 API 代理到 `127.0.0.1:4400`，与既有 `/api/v4/` 规则及指向 `3102` 的 Next.js 官网同时保留。`nginx -t` 通过并已 reload；公网 `/api/health/ready`、`/api/features`、`/api/campus` 均返回 200 JSON，畸形登录 POST 返回 400 JSON，官网首页返回 200 HTML。这些结果证明 API 请求不再被官网路由接管，但不代替真实微信登录验收。
+
 申请 SSL 后检查：
 
 ```bash
@@ -175,7 +185,7 @@ curl https://api.zhiyincareer.com/api/health
 手动备份：
 
 ```bash
-bash /www/wwwroot/zhiyincareer-main/current/scripts/backup-production.sh
+NGINX_CONFIG_PATH=/www/server/panel/vhost/nginx/jobapp.conf bash /www/wwwroot/zhiyincareer-main/current/scripts/backup-production.sh
 ```
 
 每日 03:20 自动备份：
@@ -187,7 +197,7 @@ crontab -e
 加入：
 
 ```cron
-20 3 * * * APP_DATA_DIR=/var/lib/jobapp-server BACKUP_DIR=/www/backups/zhiyincareer bash /www/wwwroot/zhiyincareer-main/current/scripts/backup-production.sh >> /var/log/jobapp-server/backup.log 2>&1
+20 3 * * * NGINX_CONFIG_PATH=/www/server/panel/vhost/nginx/jobapp.conf APP_DATA_DIR=/var/lib/jobapp-server BACKUP_DIR=/www/backups/zhiyincareer bash /www/wwwroot/zhiyincareer-main/current/scripts/backup-production.sh >> /var/log/jobapp-server/backup.log 2>&1
 ```
 
 ## 9. 发布流程
@@ -196,10 +206,14 @@ crontab -e
 
 ```bash
 cd /www/wwwroot/zhiyincareer-main/releases/<release>
-APP_DATA_DIR=/var/lib/jobapp-server BACKUP_DIR=/www/backups/zhiyincareer bash scripts/backup-production.sh
+NGINX_CONFIG_PATH=/www/server/panel/vhost/nginx/jobapp.conf APP_DATA_DIR=/var/lib/jobapp-server BACKUP_DIR=/www/backups/zhiyincareer bash scripts/backup-production.sh
 bash deploy.sh
 curl -fsS https://api.zhiyincareer.com/api/health/ready
 ```
+
+以上 Nginx 路径仅适用于已核验的当前服务器；更换服务器或 vhost 时须重新确定实际生效路径。发布脚本不会修改 crontab 或重复执行 `pm2 startup`；首次安装开机自启和定时任务须按本手册单独配置。发布脚本先在隔离库运行 Release/Acceptance，随后只读查生产迁移状态；候选服务仅绑定 `127.0.0.1:4401`、连接隔离快照。切流后内网及公网 `/api/health/ready` 都必须返回就绪；任何一步失败将尝试恢复旧 `current` 和 PM2 配置。公网 404 不能靠重试登录解决。
+
+如果公网探针返回 Next.js HTML 404，而内网 `127.0.0.1:4400` 正常，先核对 `nginx -T` 中 `api.zhiyincareer.com` 的实际 vhost、`location ^~ /api/` 和 upstream 是否指向 `127.0.0.1:4400`。确认配置差异、备份实际文件并经上线审批后，执行 `nginx -t`；仅在校验通过后人工 reload Nginx。发布脚本不会自动重写 Nginx。
 
 ## 10. 上线前核对
 

@@ -71,9 +71,15 @@ test('Sprint 6 migration is additive and creates all six persistence tables', ()
 test('Sprint 6 mini program uses V4 evidence workflows and removes fictional project writeback', () => {
   const root = path.join(__dirname, '..', 'miniprogram');
   const oaPage = fs.readFileSync(path.join(root, 'package-career', 'pages', 'oa-bank', 'oa-bank.js'), 'utf8');
+  const oaView = fs.readFileSync(path.join(root, 'package-career', 'pages', 'oa-bank', 'oa-bank.wxml'), 'utf8');
   const projectPage = fs.readFileSync(path.join(root, 'package-career', 'pages', 'project-builder', 'project-builder.js'), 'utf8');
   const trustPage = fs.readFileSync(path.join(root, 'package-user', 'pages', 'job-detail', 'job-detail.wxml'), 'utf8');
   assert.match(oaPage, /confirmSelfReported:\s*true/);
+  assert.match(oaPage, /behaviors:\s*\[loginGate\]/);
+  assert.match(oaPage, /_source === 'unauthorized'/);
+  assert.match(oaPage, /\['networkError', 'timeout', 'rateLimit', 'error'\]\.includes/);
+  assert.match(oaView, /bindtap="retryDashboard"/);
+  assert.match(oaView, /<c-login-popup/);
   assert.match(projectPage, /confirmEvidence:\s*true/);
   assert.match(projectPage, /confirmRealCompletion:\s*true/);
   assert.match(projectPage, /confirmResumeWriteback:\s*true/);

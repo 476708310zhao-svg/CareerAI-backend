@@ -6,6 +6,7 @@ const { LABELS } = require('../../utils/application-state.js');
 const { readApplication } = require('../../utils/application-queue.js');
 const analytics = require('../../utils/analytics.js');
 const { shanghaiDayParts } = require('../../utils/date-time.js');
+const { getNavigationLayout } = require('../../utils/navigation-layout.js');
 const {
   buildApplicationWorkbench,
   extractBoardData,
@@ -38,6 +39,7 @@ Page({
   behaviors: [loginGate],
 
   data: {
+    navTop: 80,
     todayLabel: todayLabel(),
     loading: true,
     refreshing: false,
@@ -57,6 +59,10 @@ Page({
     creating: false,
     updatingId: '',
     createForm: emptyCreateForm()
+  },
+
+  onLoad() {
+    if (typeof getNavigationLayout === 'function') this.setData(getNavigationLayout());
   },
 
   onShow() {
@@ -270,8 +276,17 @@ Page({
     navigation.safeNavigateTo('/package-career/pages/resume-center/resume-center');
   },
 
+  goBack() {
+    const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : [];
+    if (pages.length > 1) {
+      navigation.safeNavigateBack({ delta: 1 });
+      return;
+    }
+    navigation.safeSwitchTab('/pages/index/index');
+  },
+
   goAiCareer() {
-    navigation.safeNavigateTo('/package-ai/pages/ai-assistant/ai-assistant?source=applications');
+    navigation.openAiTab({ source: 'applications' });
   },
 
   openCreate() {

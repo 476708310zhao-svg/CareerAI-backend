@@ -2,6 +2,7 @@
 const { generateCareerPlan } = require('../../../utils/api.js');
 const vip = require('../../../utils/vip.js');
 const safePage = require('../../behaviors/safe-page');
+const navigation = require('../../../utils/navigation.js');
 
 const HISTORY_KEY = 'savedCareerPlans';
 const MAX_HISTORY  = 5;
@@ -207,6 +208,14 @@ Page({
   onLocationInput(e)   { this.setData({ location:   e.detail.value }); },
   onPositionInput(e)   { this.setData({ position:   e.detail.value }); },
   onBackgroundInput(e) { this.setData({ background: e.detail.value }); },
+
+  openCareerCoach() {
+    navigation.safeNavigateTo('/package-career/pages/career-coach/career-coach');
+  },
+
+  openDailyBrief() {
+    navigation.safeNavigateTo('/package-ai/pages/daily-brief/daily-brief');
+  },
 
   // ── 生成 ──────────────────────────────────────────────────────────────────
   onGenerate() {

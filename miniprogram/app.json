@@ -114,32 +114,32 @@
       {
         "pagePath": "pages/index/index",
         "text": "首页",
-        "iconPath": "images/home.png",
-        "selectedIconPath": "images/home-active.png"
+        "iconPath": "images/zhiyin-icons/nav-home.png",
+        "selectedIconPath": "images/zhiyin-icons/nav-home-active.png"
       },
       {
         "pagePath": "pages/jobs/jobs",
         "text": "找岗位",
-        "iconPath": "images/jobs.png",
-        "selectedIconPath": "images/jobs-active.png"
+        "iconPath": "images/zhiyin-icons/nav-jobs.png",
+        "selectedIconPath": "images/zhiyin-icons/nav-jobs-active.png"
       },
       {
-        "pagePath": "pages/applications/applications",
-        "text": "进度",
-        "iconPath": "images/icon-apply-muted.png",
-        "selectedIconPath": "images/icon-apply.png"
+        "pagePath": "pages/ai-career/ai-career",
+        "text": "AI求职",
+        "iconPath": "images/zhiyin-icons/nav-ai.png",
+        "selectedIconPath": "images/zhiyin-icons/nav-ai-active.png"
       },
       {
         "pagePath": "pages/resources/resources",
-        "text": "资源中心",
-        "iconPath": "images/assess.png",
-        "selectedIconPath": "images/assess-active.png"
+        "text": "资源",
+        "iconPath": "images/zhiyin-icons/nav-resources.png",
+        "selectedIconPath": "images/zhiyin-icons/nav-resources-active.png"
       },
       {
         "pagePath": "pages/profile/profile",
         "text": "我的",
-        "iconPath": "images/profile.png",
-        "selectedIconPath": "images/profile-active.png"
+        "iconPath": "images/zhiyin-icons/nav-profile.png",
+        "selectedIconPath": "images/zhiyin-icons/nav-profile-active.png"
       }
     ]
   },

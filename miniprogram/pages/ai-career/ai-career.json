@@ -1,4 +1,6 @@
 {
-  "navigationBarTitleText": "AI 助手",
-  "backgroundColor": "#F5F7FB"
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "c-login-popup": "/components/c-login-popup/c-login-popup"
+  }
 }

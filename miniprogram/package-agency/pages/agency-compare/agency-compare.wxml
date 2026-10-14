@@ -22,7 +22,7 @@
             data-id="{{item.id}}"
           >
             <view class="agency-logo-wrap">
-              <image wx:if="{{item.logo}}" class="agency-logo" src="{{item.logo}}" mode="aspectFill"/>
+              <image wx:if="{{item.logo}}" class="agency-logo" src="{{item.logo}}" mode="aspectFill" lazy-load/>
               <view wx:else class="agency-logo-placeholder">
                 <text class="agency-logo-text">{{item.logoText}}</text>
               </view>

@@ -53,7 +53,7 @@
         <text class="campus-source">{{item._sourceSummary}}</text>
         <view class="campus-footer">
           <view class="campus-tags">
-            <text wx:if="{{item.tagText}}">{{item.tagText}}</text>
+            <text wx:if="{{item.tagText}}" class="campus-tag">{{item.tagText}}</text>
           </view>
           <text class="campus-deadline {{item.isUrgent ? 'urgent' : ''}}">{{item.deadlineText}}</text>
           <text class="row-arrow">›</text>

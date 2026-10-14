@@ -1,7 +1,7 @@
 <view class="detail-card" wx:if="{{job}}">
   <view class="detail-head">
     <view class="company-logo" wx:if="{{job.companyLogo}}">
-      <image class="company-logo-img" src="{{job.companyLogo}}" mode="aspectFit" />
+        <image class="company-logo-img" src="{{job.companyLogo}}" mode="aspectFit" lazy-load />
     </view>
     <view class="company-fallback" wx:else>{{job.companyInitial}}</view>
     <view class="title-wrap">

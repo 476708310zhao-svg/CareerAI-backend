@@ -1,5 +1,6 @@
 {
   "navigationBarTitleText": "求职进度",
+  "navigationStyle": "custom",
   "enablePullDownRefresh": true,
   "backgroundColor": "#F5F7FB"
 }

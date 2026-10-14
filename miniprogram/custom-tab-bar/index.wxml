@@ -1,37 +1,35 @@
-<view class="custom-tabbar">
-  <view
-    class="ai-float"
-    catchtap="goAiAssistant"
-    hover-class="ai-float-hover"
-    aria-role="button"
-    aria-label="打开当前页面的上下文 AI"
-  >
-    <view class="ai-float-core">
-      <view class="ai-spark" aria-hidden="true"></view>
-      <text class="ai-float-text">AI</text>
-    </view>
-  </view>
+<view wx:if="{{!hidden}}" class="custom-tabbar">
   <view class="tabbar-panel">
     <block wx:for="{{list}}" wx:key="pagePath">
       <view
-        class="tabbar-item {{selected === index ? 'is-active' : ''}}"
+        class="tabbar-item {{index === 2 ? 'tabbar-ai-item' : ''}} {{selected === index ? 'is-active' : ''}}"
         catchtap="switchTab"
         data-index="{{index}}"
         hover-class="tabbar-item-hover"
         aria-role="button"
-        aria-label="切换到{{item.text}}{{item.showBadge && unreadCount > 0 ? '，' + badgeText + '条未读' : ''}}"
+        aria-label="{{index === 2 ? '打开当前页面的上下文 AI' : '切换到' + item.text + (item.showBadge && unreadCount > 0 ? '，' + badgeText + '条未读' : '')}}"
         aria-selected="{{selected === index}}"
       >
-        <view class="tabbar-icon-wrap">
-          <image
-            class="tabbar-icon"
-            src="{{selected === index ? item.selectedIconPath : item.iconPath}}"
-            mode="aspectFit"
-            aria-hidden="true"
-          />
-          <view wx:if="{{item.showBadge && unreadCount > 0}}" class="tabbar-badge" aria-label="{{badgeText}}条未读">{{badgeText}}</view>
-        </view>
-        <text class="tabbar-text">{{item.text}}</text>
+        <block wx:if="{{index === 2}}">
+          <view class="ai-float">
+            <view class="ai-float-core">
+              <image class="ai-spark" src="/images/zhiyin-icons/spark.svg" mode="aspectFit" aria-hidden="true" />
+              <text class="ai-float-text">AI</text>
+            </view>
+          </view>
+        </block>
+        <block wx:else>
+          <view class="tabbar-icon-wrap">
+            <image
+              class="tabbar-icon"
+              src="{{selected === index ? item.selectedIconPath : item.iconPath}}"
+              mode="aspectFit"
+              aria-hidden="true"
+            />
+            <view wx:if="{{item.showBadge && unreadCount > 0}}" class="tabbar-badge" aria-label="{{badgeText}}条未读">{{badgeText}}</view>
+          </view>
+          <text class="tabbar-text">{{item.text}}</text>
+        </block>
       </view>
     </block>
   </view>
