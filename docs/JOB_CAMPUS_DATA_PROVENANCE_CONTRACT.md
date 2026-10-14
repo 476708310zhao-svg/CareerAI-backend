@@ -10,12 +10,16 @@
 
 ### 职位
 
-1. 搜索页以 `/api/jobs/search` 为正式主源；服务端依次尝试 JSearch、Adzuna，再降级到本地历史职位库。
-2. 聚合页以 `/api/jobs/aggregate` 为正式主源，组合 The Muse、RemoteOK、Adzuna、JSearch 等已启用来源；不足时可补充本地历史职位。
+1. 搜索页以 `/api/jobs/search` 为正式主源；明确国家时依次尝试 JSearch、该国受支持的 Adzuna、地点匹配的 RemoteOK，再降级到同国本地历史职位库。`global` 不默认搜索美国。
+2. 聚合页以 `/api/jobs/aggregate` 为正式主源，组合已启用来源；明确国家时使用 JSearch/Adzuna，`global` 使用每天轮换的两个国家市场、RemoteOK 及已注册的 The Muse，并在 `coverage` 披露本次抽样范围。不足时 `global` 可补充本地历史职位；明确国家不跨国补位。
 3. 飞书人工职位只作为小程序网络层兜底，不与正式接口竞速决定主结果。
 4. 本地历史职位不复制、不生成 `_pool_` ID，也不把抓取时间或当前时间写成发布时间。
 
-官网 Web `/api/jobs` 与 `/api/jobs/map` 当前混合美国范围的 JSearch/Adzuna、未指定地区的 The Muse、RemoteOK 远程岗位及近期本地兜底。RemoteOK 能补充跨地区远程机会，但不代表全球各国本地岗位均有覆盖；“面向全球”是产品服务对象，不是现有招聘源的覆盖保证。聚合接口的默认 `country=global` 保持不变，不能把 `global` 作为未经确认的第三方国家代码传给 JSearch/Adzuna。旧小程序搜索接口的地域语义另行定义和验收，本次发布不扩大其接口契约。
+官网 Web `/api/jobs`、`/api/jobs/map` 与小程序 `/api/jobs/search`、`/api/jobs/aggregate` 接受 `country=global` 或两位国家代码。明确国家时，JSearch 使用该国家代码，Adzuna 只在已支持市场使用；上游不可用时不悄悄改搜美国，也不拿其他国家的本地旧岗位填充。`global` 以 RemoteOK 的跨地区远程岗位为基础，Web 列表、地图和小程序聚合列表每天轮换两个国家作为本地职位抽样，并在 `coverage` 标明 `sampled`、本次请求的国家及 `countriesWithResults`（实际返回当地岗位的国家）；这不是“世界所有国家的完整岗位库”。远程职位仅在岗位地点标明该国家或 worldwide/anywhere/global 时进入明确国家的结果。
+
+同一来源、同一查询在短时间内共用缓存并合并并发请求；来源遇到 429/403 时进入冷却期，后续排队请求不再立即打到上游。JSearch 默认每个服务进程每日最多 6 次上游调用，可按订阅方案用 `JSEARCH_DAILY_REQUEST_BUDGET` 调整；这只是进程内保护，重启会重置，不代替供应商配额。地图每个抽样国家的结果缓存 24 小时，不再一次并发拉取六组关键词和 12 页 The Muse。The Muse 正式用途只有配置已注册应用的 `THE_MUSE_API_KEY` 才调用，避免无注册凭据持续收到 403。职位地图仍会保留近期本地兜底和来源/新鲜度标识，但不会公开展示过期岗位。
+
+提供商依据：[JSearch country 参数与配额说明](https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch/playground/apiendpoint_374e27ef-ac8b-4014-a801-29065a6f224b)、[Adzuna 按国家搜索接口](https://developer.adzuna.com/docs/search)、[The Muse 注册与限流要求](https://www.themuse.com/developers/api/v2)、[RemoteOK API](https://remoteok.com/faq)。可用国家、招聘配额及上游条款可能变化，服务端只保证按所选国家发起有效请求，不保证每个国家都有结果。
 
 ### 校招
 

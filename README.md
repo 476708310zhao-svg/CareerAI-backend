@@ -89,6 +89,9 @@ npm test
 | `AI_API_KEY` / `AI_API_URL` / `AI_MODEL` | AI 通用覆盖配置 | 可选 |
 | `DEEPSEEK_API_KEY` / `DEEPSEEK_API_URL` / `DEEPSEEK_MODEL` | DeepSeek 兼容配置 | 切回 DeepSeek 时填写 |
 | `RAPID_API_KEY` / `RAPID_API_HOST` / `RAPID_API_URL` | JSearch 职位搜索 | 使用真实职位搜索时必填 |
+| `JSEARCH_DAILY_REQUEST_BUDGET` | JSearch 进程内每日请求保护上限，默认 6；应按订阅配额调整 | 可选 |
+| `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` | Adzuna 已支持国家的职位搜索 | 使用该来源时填写 |
+| `THE_MUSE_API_KEY` | The Muse 注册应用的 API key；未配置则不请求该来源 | 使用该来源时填写 |
 | `RECRUITMENT_FEATURE_ENABLED` | 职位功能总开关，代码默认 `false`；经产品决策后可显式开启 | 否 |
 | `WEBHOOK_SECRET` | GitHub Webhook 签名 | 部署 Webhook 必填 |
 | `PAYMENT_ENABLED` / `PAYMENT_PROVIDER` | 会员支付开关和支付方式 | 支付上线时配置 |
@@ -98,6 +101,8 @@ npm test
 | `ALLOWED_ORIGIN` | 浏览器管理后台跨域来源 | 浏览器访问时按需配置 |
 
 不要提交 `.env` 或任何真实密钥。`ALLOWED_ORIGIN` 需要配置精确来源，多个来源用逗号分隔。
+
+职位接口可用 `country=global` 或 ISO 两位国家代码（例如 `jp`、`de`、`br`）；小程序筛选面板提供常用国家选择及两位代码输入。明确国家时只返回该国来源或标明可在该国投递的远程岗位，不会静默改搜美国；`global` 的 Web 列表、地图和小程序聚合列表是轮换国家样本加跨地区远程职位，不保证所有国家同时有结果。JSearch 请求预算和冷却均为当前服务进程内保护，调整配额后需重启；供应商的实际配额与授权仍须单独核实。详见 [职位来源契约](docs/JOB_CAMPUS_DATA_PROVENANCE_CONTRACT.md)。
 
 ### 职位功能开关
 

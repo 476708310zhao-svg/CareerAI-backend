@@ -19,6 +19,10 @@ test('job discovery defaults to global scope and labels regional work authorizat
   assert.match(route, /country !== 'global'/);
 
   assert.match(view, />全球<\/view>/);
+  assert.match(view, /更多国家\/地区/);
+  assert.match(view, /输入两位国家代码/);
+  assert.match(page, /onCountryPickerChange/);
+  assert.match(page, /onCountryCodeConfirm/);
   assert.match(view, />工作资格（因地区而异）<\/text>/);
   assert.match(view, />国际生友好<\/view>/);
   assert.match(view, />美国 H-1B<\/view>/);

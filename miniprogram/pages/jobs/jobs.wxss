@@ -56,6 +56,11 @@ page{background:#f4f8ff;color:#11182c}
 .filter-chips{display:flex;flex-wrap:wrap;gap:12rpx}
 .filter-chip{padding:15rpx 24rpx;border-radius:999rpx;color:#677997;background:#f3f6fb;font-size:24rpx}
 .filter-chip.active{color:#1765ef;background:#e7f0ff}
+.country-more-row{display:flex;align-items:center;gap:12rpx;margin-top:14rpx}
+.country-more-link{display:flex;align-items:center;min-height:88rpx;color:#1765ef;font-size:24rpx;white-space:nowrap}
+.country-code-input{flex:1;min-width:0;height:88rpx;padding:0 16rpx;border-radius:16rpx;background:#f3f6fb;color:#18213a;font-size:24rpx;box-sizing:border-box}
+.country-code-apply{display:flex;align-items:center;justify-content:center;min-height:88rpx;padding:0 12rpx;color:#1765ef;font-size:24rpx}
+.country-selected{display:block;margin-top:8rpx;color:#677997;font-size:24rpx}
 .safe-tail{height:174rpx}
 .press{opacity:.76}
 .search-box{min-height:88rpx}

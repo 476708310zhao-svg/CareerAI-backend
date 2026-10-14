@@ -218,6 +218,32 @@ test('public jobs endpoint returns a list payload', async () => {
   if (body.data.list.length) assert.ok(body.data.list[0].dataMeta);
 });
 
+test('country-specific discovery never substitutes jobs from an unrelated market', async () => {
+  const listRes = await fetch(`${BASE_URL}/api/jobs?country=jp&pageSize=20`);
+  assert.equal(listRes.status, 200);
+  const list = (await readJson(listRes)).data;
+  assert.deepEqual(list.list, []);
+
+  const mapRes = await fetch(`${BASE_URL}/api/jobs/map?country=jp&pageSize=20`);
+  assert.equal(mapRes.status, 200);
+  const map = await readJson(mapRes);
+  assert.deepEqual(map.data.list, []);
+  assert.deepEqual(map.meta.coverage.countries, ['jp']);
+
+  const aggregateRes = await fetch(`${BASE_URL}/api/jobs/aggregate?country=jp&query=Software%20Engineer`);
+  assert.equal(aggregateRes.status, 200);
+  const aggregate = await readJson(aggregateRes);
+  assert.deepEqual(aggregate.data, []);
+  assert.equal(aggregate.dataMeta.degraded, true);
+
+  const searchRes = await fetch(`${BASE_URL}/api/jobs/search?country=jp&query=Software%20Engineer`);
+  assert.equal(searchRes.status, 200);
+  assert.deepEqual((await readJson(searchRes)).data, []);
+
+  const invalidRes = await fetch(`${BASE_URL}/api/jobs?country=not-a-country`);
+  assert.equal(invalidRes.status, 400);
+});
+
 test('recruitment discovery excludes stale jobs while historic details retain risk metadata', async () => {
   const fs = require('node:fs');
   const path = require('node:path');

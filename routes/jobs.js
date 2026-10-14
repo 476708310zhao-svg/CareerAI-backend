@@ -8,6 +8,8 @@ const { buildDataMeta, summarizeDataMeta } = require('../utils/dataProvenance');
 const { optionalAuth } = require('../middleware/auth');
 const analytics = require('../services/v4Analytics');
 const { withCoreRefs } = require('../utils/coreEntityRefs');
+const { createJobSourceGateway } = require('../services/jobSourceGateway');
+const { ADZUNA_COUNTRIES, normalizeCountry, globalSampleCountries, isRemoteJobEligible } = require('../utils/jobGeography');
 
 function localJobs() {
   return readJobsData().jobs || [];
@@ -31,6 +33,8 @@ function _isValidRapidKey(key) {
 // ── Adzuna ────────────────────────────────────────────────────────────────────
 const ADZUNA_APP_ID  = process.env.ADZUNA_APP_ID  || '';
 const ADZUNA_APP_KEY = process.env.ADZUNA_APP_KEY || '';
+const THE_MUSE_API_KEY = process.env.THE_MUSE_API_KEY || '';
+const sourceGateway = createJobSourceGateway();
 
 // ── LinkedIn Jobs（RapidAPI）─────────────────────────────────────────────────
 const LINKEDIN_RAPID_HOST = process.env.LINKEDIN_RAPID_HOST || 'linkedin-job-search-api.p.rapidapi.com';
@@ -42,15 +46,59 @@ function _isValidAdzuna() {
   return ADZUNA_APP_ID.length > 0 && ADZUNA_APP_KEY.length > 0;
 }
 
-// Adzuna 支持的国家代码（前端 country 参数直接复用）
-const ADZUNA_COUNTRIES = new Set(['us','gb','ca','au','sg','de','fr','in','it','nl','br','nz','pl']);
 const JOB_CACHE_TTL_MS = 1000 * 60 * 60 * 6;
 const LIVE_JOBS_ENABLED = process.env.LIVE_JOBS_ENABLED !== 'false';
+const FREE_JOB_SOURCES_ENABLED = process.env.DISABLE_FREE_JOB_SOURCES !== 'true';
 const externalJobCache = new Map();
+const _shouldLogSourceError = error => !['cooldown', 'budget_exhausted'].includes(error?.reason);
+const countryNamesZh = new Intl.DisplayNames(['zh-CN'], { type: 'region' });
+
+async function _requestJSearch(endpoint, params, timeout = 7000, policy = {}) {
+  return sourceGateway.request('jsearch', JSON.stringify([endpoint, params]), async () => {
+    const result = await axios.get(`${RAPID_BASE}/${endpoint}`, { params, headers: RAPID_HEADERS, timeout });
+    if (result.data?.status === 'ERROR') {
+      throw { response: { status: Number(result.data.error?.code) || 502, headers: result.headers } };
+    }
+    if (['search', 'job-details'].includes(endpoint) && !Array.isArray(result.data?.data)) {
+      throw new Error('invalid JSearch payload');
+    }
+    return result;
+  }, policy);
+}
+
+async function _requestAdzuna(country, page, params, timeout = 8000, policy = {}) {
+  return sourceGateway.request('adzuna', JSON.stringify([country, page, params]), async () => {
+    const result = await axios.get(`https://api.adzuna.com/v1/api/jobs/${country}/search/${page}`,
+      { params: { ...params, app_id: ADZUNA_APP_ID, app_key: ADZUNA_APP_KEY }, timeout });
+    if (!Array.isArray(result.data?.results)) throw new Error('invalid Adzuna payload');
+    return result;
+  }, policy);
+}
+
+async function _requestMuse(endpoint, params = {}, timeout = 6000) {
+  return sourceGateway.request('themuse', JSON.stringify([endpoint, params]), async () => {
+    const result = await axios.get(`https://www.themuse.com/api/public/${endpoint}`,
+      { params: { ...params, api_key: THE_MUSE_API_KEY }, timeout });
+    if (endpoint === 'jobs' && !Array.isArray(result.data?.results)) throw new Error('invalid The Muse payload');
+    return result;
+  });
+}
+
+async function _requestRemoteOK(timeout = 8000) {
+  return sourceGateway.request('remoteok', 'feed', async () => {
+    const result = await axios.get('https://remoteok.com/api', {
+      headers: { 'User-Agent': 'ZhiyinCareer/1.0 (job search app for international students)' }, timeout
+    });
+    if (!Array.isArray(result.data)) throw new Error('invalid RemoteOK payload');
+    return result;
+  });
+}
 
 function _cacheWebJob(job) {
   if (!job || !job.id) return job;
+  externalJobCache.delete(String(job.id));
   externalJobCache.set(String(job.id), { job, expiresAt: Date.now() + JOB_CACHE_TTL_MS });
+  if (externalJobCache.size > 2_000) externalJobCache.delete(externalJobCache.keys().next().value);
   return job;
 }
 
@@ -62,6 +110,18 @@ function _getCachedWebJob(id) {
     return null;
   }
   return cached.job;
+}
+
+async function _withSoftDeadline(promise, milliseconds, fallback) {
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise(resolve => { timer = setTimeout(() => resolve(fallback), milliseconds); })
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function _stripHtml(value = '') {
@@ -89,9 +149,15 @@ function _inferRegion(location = '', country = '') {
   if (/china|beijing|shanghai|shenzhen|guangzhou|hangzhou|中国|北京|上海|深圳|广州|杭州/.test(text)) return '中国';
   if (/hong kong|香港/.test(text)) return '香港';
   if (/singapore|新加坡/.test(text)) return '新加坡';
-  if (/united kingdom|london|uk|gb|英国|伦敦/.test(text)) return '英国';
+  if (/united kingdom|london|\buk\b|\bgb\b|英国|伦敦/.test(text)) return '英国';
   if (/remote/.test(text)) return '其他';
-  if (/united states|usa|us|new york|san francisco|seattle|美国/.test(text)) return '美国';
+  if (/united states|\busa\b|\bus\b|new york|san francisco|seattle|美国/.test(text)) return '美国';
+  if (/germany|deutschland|德国/.test(text)) return '德国';
+  if (/france|法国/.test(text)) return '法国';
+  if (/japan|日本/.test(text)) return '日本';
+  if (/india|印度/.test(text)) return '印度';
+  if (/united arab emirates|uae|阿联酋/.test(text)) return '阿联酋';
+  if (/^[a-z]{2}$/i.test(country)) return countryNamesZh.of(country.toUpperCase()) || country;
   return country || location || '其他';
 }
 
@@ -129,6 +195,8 @@ function _toWebJob(job) {
   const region = _inferRegion(location, job.job_country || '');
   const tags = Array.isArray(job.job_tags) ? job.job_tags.filter(Boolean) : [];
   const source = job._source || 'external';
+  const rawCountryCode = String(job._requestedCountry || job.job_country || '').toLowerCase();
+  const countryCode = /^[a-z]{2}$/.test(rawCountryCode) ? rawCountryCode : 'global';
   const dataMeta = job.dataMeta || buildDataMeta({
     domain: 'job',
     source,
@@ -142,6 +210,7 @@ function _toWebJob(job) {
     companyLogo: job.employer_logo || '',
     location,
     region,
+    countryCode,
     salary: _salaryText(job),
     jobType: _inferJobType(job.job_employment_type, title),
     industry: _inferIndustry(title, job.job_category || '', tags),
@@ -170,6 +239,7 @@ function _toLocalWebJob(job) {
     ...job,
     id: String(job.id),
     source: 'local',
+    countryCode: normalizeCountry('', job.region),
     sourceLabel: dataMeta.sourceLabel,
     dataMeta,
     tags: Array.isArray(job.requirements) ? job.requirements : [],
@@ -202,7 +272,12 @@ function _applyWebFilters(list, query) {
       _stripHtml(j.description || '').toLowerCase().includes(lk)
     );
   }
-  if (region) filtered = filtered.filter(j => j.region === region);
+  if (region) {
+    const code = normalizeCountry('', region);
+    filtered = filtered.filter(j => code === 'global'
+      ? j.region === region
+      : j.countryCode === code || (j.source === 'remoteok' && isRemoteJobEligible({ location: j.location }, code)));
+  }
   if (industry) filtered = filtered.filter(j => j.industry === industry);
   if (jobType) filtered = filtered.filter(j => j.jobType === jobType);
   if (visaSponsored === 'true') filtered = filtered.filter(j => j.visaSponsored === true);
@@ -262,75 +337,58 @@ function _trackJobView(req, jobId) {
     { userId: req.user.userId, jobId: String(jobId) }
   ), '/api/jobs/detail');
 }
-const MAP_KEYWORDS = ['software', 'data', 'product', 'finance', 'design', 'consulting'];
-const MAP_MUSE_PAGES = [1, 2];
-
-async function _fetchSearchJobsForWeb(query, page) {
-  const searchQuery = query || 'software engineer';
-  if (_isValidRapidKey(process.env.RAPID_API_KEY)) {
+async function _fetchSearchJobsForWeb(query, page, country, policy = {}) {
+  const searchQuery = query || 'jobs';
+  if (country !== 'global' && _isValidRapidKey(process.env.RAPID_API_KEY)) {
     try {
-      const result = await axios.get(`${RAPID_BASE}/search`, {
-        params: { query: searchQuery, page, num_pages: 1, country: 'us', date_posted: 'week' },
-        headers: RAPID_HEADERS,
-        timeout: 5000
-      });
+      const result = await _requestJSearch('search',
+        { query: searchQuery, page, num_pages: 1, country, date_posted: 'week' }, 5000, policy);
       const data = Array.isArray(result.data?.data) ? result.data.data : [];
-      if (data.length) return data.map(job => ({ ...job, _source: job._source || 'jsearch' }));
+      if (data.length) return data.map(job => ({ ...job, _source: 'jsearch', _requestedCountry: country }));
     } catch (err) {
-      console.warn('[jobs/web] JSearch 异常，尝试其他职位源:', err.message);
+      if (_shouldLogSourceError(err)) console.warn('[jobs/web] JSearch 异常，尝试其他职位源:', err.message);
     }
   }
 
-  if (_isValidAdzuna()) {
+  if (country !== 'global' && ADZUNA_COUNTRIES.has(country) && _isValidAdzuna()) {
     try {
-      const result = await axios.get(
-        `https://api.adzuna.com/v1/api/jobs/us/search/${page}`,
-        {
-          params: { app_id: ADZUNA_APP_ID, app_key: ADZUNA_APP_KEY, results_per_page: 20, what: searchQuery, sort_by: 'date' },
-          headers: { 'Content-Type': 'application/json' },
-          timeout: 8000
-        }
-      );
-      return (result.data.results || []).map(j => _normalizeAdzuna(j, 'us'));
+      const result = await _requestAdzuna(country, page,
+        { results_per_page: 20, what: searchQuery, sort_by: 'date' }, 8000, policy);
+      return (result.data.results || []).map(j => _normalizeAdzuna(j, country));
     } catch (err) {
-      console.warn('[jobs/web] Adzuna 异常，尝试免费职位源:', err.message);
+      if (_shouldLogSourceError(err)) console.warn('[jobs/web] Adzuna 异常，尝试免费职位源:', err.message);
     }
   }
   return [];
 }
 
-async function _fetchMuseJobsForWeb(query, page) {
+async function _fetchMuseJobsForWeb(query, page, country) {
+  if (!FREE_JOB_SOURCES_ENABLED || !THE_MUSE_API_KEY || country !== 'global') return [];
   try {
     const keyword = String(query || 'software').toLowerCase();
     const museCategory = MUSE_CATEGORIES[keyword] || 'Software Engineering';
-    const result = await axios.get('https://www.themuse.com/api/public/jobs', {
-      params: { page: Math.max(0, parseInt(page) - 1), category: museCategory },
-      timeout: 6000
-    });
+    const result = await _requestMuse('jobs',
+      { page: Math.max(0, parseInt(page) - 1), category: museCategory });
     return (result.data.results || []).map(_normalizeMuse);
   } catch (err) {
-    console.warn('[jobs/web] The Muse 异常:', err.message);
+    if (_shouldLogSourceError(err)) console.warn('[jobs/web] The Muse 异常:', err.message);
     return [];
   }
 }
 
-async function _fetchRemoteJobsForWeb(query, limit = 20) {
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const response = await axios.get('https://remoteok.com/api', {
-        headers: { 'User-Agent': 'ZhiyinCareer/1.0 (job search app for international students)' },
-        timeout: 3500
-      });
-      const keyword = String(query || '').toLowerCase();
-      return (response.data || [])
-        .slice(1)
-        .filter(j => j.id && j.position)
-        .filter(j => !keyword || (j.position || '').toLowerCase().includes(keyword) || (j.company || '').toLowerCase().includes(keyword) || (j.tags || []).some(t => String(t).toLowerCase().includes(keyword)))
-        .slice(0, limit)
-        .map(_normalizeRemoteOK);
-    } catch (err) {
-      if (attempt === 1) console.warn('[jobs/web] RemoteOK 异常:', err.message);
-    }
+async function _fetchRemoteJobsForWeb(query, limit = 20, country = 'global') {
+  if (!FREE_JOB_SOURCES_ENABLED) return [];
+  try {
+    const response = await _requestRemoteOK(3500);
+    const keyword = String(query || '').toLowerCase();
+    return (response.data || [])
+      .slice(1)
+      .filter(j => j.id && j.position && isRemoteJobEligible(j, country))
+      .filter(j => !keyword || (j.position || '').toLowerCase().includes(keyword) || (j.company || '').toLowerCase().includes(keyword) || (j.tags || []).some(t => String(t).toLowerCase().includes(keyword)))
+      .slice(0, limit)
+      .map(_normalizeRemoteOK);
+  } catch (err) {
+    if (_shouldLogSourceError(err)) console.warn('[jobs/web] RemoteOK 异常:', err.message);
   }
   return [];
 }
@@ -338,15 +396,18 @@ async function _fetchRemoteJobsForWeb(query, limit = 20) {
 async function _fetchLiveWebJobs(query) {
   if (!LIVE_JOBS_ENABLED) return [];
   const page = parseInt(query.page) || 1;
-  const keyword = query.keyword || query.query || 'software';
-  const [searchJobs, museJobs, remoteJobs] = await Promise.all([
-    _fetchSearchJobsForWeb(keyword, page),
-    _fetchMuseJobsForWeb(keyword, page),
-    _fetchRemoteJobsForWeb(keyword)
+  const keyword = query.keyword || query.query || '';
+  const country = normalizeCountry(query.country, query.region);
+  const marketCountries = country === 'global' ? globalSampleCountries() : [country];
+  const [searchBatches, museJobs, remoteJobs] = await Promise.all([
+    Promise.all(marketCountries.map(code => _withSoftDeadline(
+      _fetchSearchJobsForWeb(keyword, page, code), 6_000, []))),
+    _withSoftDeadline(_fetchMuseJobsForWeb(keyword, page, country), 6_000, []),
+    _fetchRemoteJobsForWeb(keyword, 20, country)
   ]);
 
   const seen = new Set();
-  return [...searchJobs, ...museJobs, ...remoteJobs]
+  return [...searchBatches.flat(), ...museJobs, ...remoteJobs]
     .map(_toWebJob)
     .filter(_isCurrentWebJob)
     .filter(job => {
@@ -358,26 +419,35 @@ async function _fetchLiveWebJobs(query) {
     .sort((a, b) => new Date(b.postedAt || 0).getTime() - new Date(a.postedAt || 0).getTime());
 }
 
-async function _fetchMapWebJobs(pageSize) {
+async function _fetchMapWebJobs(pageSize, country, countries) {
   if (!LIVE_JOBS_ENABLED) return [];
-  const batches = await Promise.all(
-    [_fetchRemoteJobsForWeb('', pageSize), ...MAP_KEYWORDS.flatMap(keyword => [
-      _fetchSearchJobsForWeb(keyword, 1),
-      ...MAP_MUSE_PAGES.map(page => _fetchMuseJobsForWeb(keyword, page))
-    ])]
-  );
+  // Global means a clearly labelled, rotating sample of local markets plus
+  // worldwide remote roles. Never fan out to every country on each page view.
+  const batches = await Promise.all([
+    _fetchRemoteJobsForWeb('', pageSize, country),
+    ...countries.map(code => _withSoftDeadline(
+      _fetchSearchJobsForWeb('software engineer', 1, code, { ttlMs: 24 * 60 * 60_000 }),
+      8_000, []))
+  ]);
+  const normalize = jobs => jobs.map(_toWebJob).filter(_isCurrentWebJob);
+  const remote = normalize(batches[0]);
+  const markets = normalize(batches.slice(1).flat());
+  const newest = jobs => jobs.sort((a, b) => new Date(b.postedAt || 0).getTime() - new Date(a.postedAt || 0).getTime());
+  const marketQuota = Math.min(markets.length, Math.ceil(pageSize * 0.4));
+  const remoteQuota = Math.min(remote.length, pageSize - marketQuota);
+  const priority = [
+    ...newest(markets).slice(0, marketQuota),
+    ...newest(remote).slice(0, remoteQuota),
+    ...newest([...markets.slice(marketQuota), ...remote.slice(remoteQuota)])
+  ];
   const seen = new Set();
-  return batches
-    .flat()
-    .map(_toWebJob)
-    .filter(_isCurrentWebJob)
+  return priority
     .filter(job => {
       const key = `${job.title}|${job.company}|${job.location}`.toLowerCase();
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     })
-    .sort((a, b) => new Date(b.postedAt || 0).getTime() - new Date(a.postedAt || 0).getTime())
     .slice(0, pageSize);
 }
 
@@ -392,7 +462,11 @@ function _toAdzunaContract(types) {
 
 // 将 Adzuna 结果归一化为 JSearch 格式（前端无需改动）
 function _normalizeAdzuna(job, countryCode) {
-  const currencyMap = { gb: 'GBP', ca: 'CAD', au: 'AUD', sg: 'SGD', de: 'EUR', fr: 'EUR', it: 'EUR', nl: 'EUR', br: 'BRL', in: 'INR' };
+  const currencyMap = {
+    gb: 'GBP', ca: 'CAD', au: 'AUD', sg: 'SGD', de: 'EUR', fr: 'EUR', it: 'EUR', nl: 'EUR',
+    at: 'EUR', be: 'EUR', es: 'EUR', br: 'BRL', in: 'INR', mx: 'MXN', nz: 'NZD',
+    pl: 'PLN', za: 'ZAR', ch: 'CHF'
+  };
   return _withRawJobMeta({
     job_id:                    'adz_' + job.id,
     job_title:                 job.title || '',
@@ -407,7 +481,8 @@ function _normalizeAdzuna(job, countryCode) {
     job_employment_type:       job.contract_time === 'full_time' ? 'FULLTIME' : job.contract_time === 'part_time' ? 'PARTTIME' : '',
     job_apply_link:            job.redirect_url || '',
     job_posted_at_datetime_utc: job.created || null,
-    _source: 'adzuna'
+    _source: 'adzuna',
+    _requestedCountry: countryCode
   }, 'adzuna');
 }
 
@@ -597,48 +672,52 @@ function _localFallbackPool(query) {
 // 优先级：JSearch → Adzuna → 本地数据
 // ════════════════════════════════════════════════════════════════════════════════
 router.get('/search', jobsLimiter, async (req, res) => {
+  const country = normalizeCountry(req.query.country);
+  if (!country) return res.status(400).json({ data: [], status: 'ERROR', message: 'country 必须为两位国家代码或 global' });
+  const query = String(req.query.query || 'software engineer').slice(0, 120);
+  const page = Math.min(5, Math.max(1, parseInt(req.query.page, 10) || 1));
   // 1. JSearch
-  if (_isValidRapidKey(process.env.RAPID_API_KEY)) {
+  if (country !== 'global' && _isValidRapidKey(process.env.RAPID_API_KEY)) {
     try {
-      const result = await axios.get(`${RAPID_BASE}/search`, {
-        params: req.query,
-        headers: RAPID_HEADERS,
-        timeout: 5000
-      });
+      const params = { query, country, page, num_pages: 1 };
+      if (_normalizeDatePosted(req.query.date_posted)) params.date_posted = _normalizeDatePosted(req.query.date_posted);
+      if (req.query.employment_types) params.employment_types = String(req.query.employment_types).slice(0, 80);
+      const result = await _requestJSearch('search', params, 5000);
       const payload = result.data || {};
       const data = (Array.isArray(payload.data) ? payload.data : []).map(job => _withRawJobMeta(job, 'jsearch'));
       return res.json({ ...payload, data, _source: 'jsearch', dataMeta: _collectionMeta(data) });
     } catch (err) {
-      const status = err.response?.status || 500;
-      console.warn('[jobs/search] JSearch 异常(', status, ')，尝试 Adzuna');
+      const status = err.status || err.response?.status || 500;
+      if (_shouldLogSourceError(err)) console.warn('[jobs/search] JSearch 异常(', status, ')，尝试 Adzuna');
     }
   }
 
   // 2. Adzuna
-  if (_isValidAdzuna()) {
+  if (country !== 'global' && ADZUNA_COUNTRIES.has(country) && _isValidAdzuna()) {
     try {
-      const { query = '', page = 1, country = 'us', employment_types } = req.query;
-      const countryCode = ADZUNA_COUNTRIES.has(country) ? country : 'us';
       const params = {
-        app_id:           ADZUNA_APP_ID,
-        app_key:          ADZUNA_APP_KEY,
         results_per_page: 10,
-        what:             query || 'software engineer'
+        what: query
       };
-      const contract = _toAdzunaContract(employment_types);
+      const contract = _toAdzunaContract(req.query.employment_types);
       if (contract) params.contract_time = contract;
-
-      const result = await axios.get(
-        `https://api.adzuna.com/v1/api/jobs/${countryCode}/search/${page}`,
-        { params, headers: { 'Content-Type': 'application/json' }, timeout: 8000 }
-      );
-      const data = (result.data.results || []).map(j => _normalizeAdzuna(j, countryCode));
+      const result = await _requestAdzuna(country, page, params);
+      const data = (result.data.results || []).map(j => _normalizeAdzuna(j, country));
       return res.json({ data, status: 'OK', _source: 'adzuna', total: result.data.count || data.length, dataMeta: _collectionMeta(data) });
     } catch (err) {
-      const status = err.response?.status || 500;
-      console.warn('[jobs/search] Adzuna 异常(', status, ')，降级本地数据');
+      const status = err.status || err.response?.status || 500;
+      if (_shouldLogSourceError(err)) console.warn('[jobs/search] Adzuna 异常(', status, ')，降级其他职位源');
     }
   }
+
+  // Global requests and countries without a local Adzuna market can still
+  // receive confirmed worldwide/country-eligible remote roles.
+  const remoteJobs = await _fetchRemoteJobsForWeb(query, 20, country);
+  if (remoteJobs.length) return res.json({
+    data: remoteJobs.map(job => _withRawJobMeta(job, 'remoteok')),
+    status: 'OK', _source: 'remoteok', total: remoteJobs.length,
+    dataMeta: _collectionMeta(remoteJobs)
+  });
 
   // 3. 本地兜底
   return _localSearch(req, res);
@@ -650,14 +729,14 @@ router.get('/search', jobsLimiter, async (req, res) => {
 // 参数：query / page / pageSize / tag
 // ════════════════════════════════════════════════════════════════════════════════
 router.get('/remote', jobsLimiter, async (req, res) => {
+  const country = normalizeCountry(req.query.country);
+  if (!country) return res.status(400).json({ data: [], status: 'ERROR', message: 'country 必须为两位国家代码或 global' });
   try {
-    const response = await axios.get('https://remoteok.com/api', {
-      headers: { 'User-Agent': 'ZhiyinCareer/1.0 (job search app for international students)' },
-      timeout: 10000
-    });
+    if (!FREE_JOB_SOURCES_ENABLED) throw new Error('remoteok disabled');
+    const response = await _requestRemoteOK(10000);
 
     // 第一条是 meta 信息，跳过
-    const allJobs = (response.data || []).slice(1).filter(j => j.id && j.position);
+    const allJobs = (response.data || []).slice(1).filter(j => j.id && j.position && isRemoteJobEligible(j, country));
 
     const { query = '', tag = '', page = 1, pageSize = 10 } = req.query;
     const keyword = (query || tag).toLowerCase();
@@ -670,8 +749,8 @@ router.get('/remote', jobsLimiter, async (req, res) => {
         )
       : allJobs;
 
-    const ps    = parseInt(pageSize) || 10;
-    const pg    = parseInt(page) || 1;
+    const ps    = Math.min(50, Math.max(1, parseInt(pageSize, 10) || 10));
+    const pg    = Math.max(1, parseInt(page, 10) || 1);
     const start = (pg - 1) * ps;
     const slice = filtered.slice(start, start + ps);
     const data  = slice.map(_normalizeRemoteOK);
@@ -687,12 +766,13 @@ router.get('/remote', jobsLimiter, async (req, res) => {
       dataMeta: _collectionMeta(data)
     });
   } catch (err) {
-    console.error('[jobs/remote] RemoteOK 异常:', err.message);
+    if (_shouldLogSourceError(err)) console.warn('[jobs/remote] RemoteOK 异常:', err.message);
     // 降级：从本地数据里找远程职位
     try {
       const remoteJobs = localJobs().filter(j =>
-        (j.jobType || '').toLowerCase().includes('remote') ||
-        (j.location || '').toLowerCase().includes('remote')
+        ((j.jobType || '').toLowerCase().includes('remote') ||
+          (j.location || '').toLowerCase().includes('remote')) &&
+        isRemoteJobEligible({ location: j.location }, country)
       );
       const data = remoteJobs.slice(0, 10).map(j => _withRawJobMeta({
         job_id: String(j.id), job_title: j.title, employer_name: j.company,
@@ -725,81 +805,61 @@ router.get('/aggregate', jobsLimiter, async (req, res) => {
     date_posted,
     employment_types
   } = req.query;
+  const normalizedCountry = normalizeCountry(country);
+  if (!normalizedCountry) return res.status(400).json({ data: [], status: 'ERROR', message: 'country 必须为两位国家代码或 global' });
+  const coverageCountries = normalizedCountry === 'global' ? globalSampleCountries() : [normalizedCountry];
   const ps = Math.min(parseInt(pageSize, 10) || 20, 50);
   const pg = Math.max(1, parseInt(page, 10) || 1);
   const needed = pg * ps;
   const searchTarget = Math.min(120, Math.max(needed + ps * 2, 60));
   const datePosted = _normalizeDatePosted(date_posted);
   const dateFilterExplicit = !!datePosted && datePosted !== 'all';
-  const dateWindows = dateFilterExplicit ? [datePosted] : ['week', 'month'];
-  const localMatches = _localSearchJobs(query);
-  const freeSourcesEnabled = process.env.DISABLE_FREE_JOB_SOURCES !== 'true';
+  const dateWindow = dateFilterExplicit ? datePosted : 'month';
+  const localMatches = normalizedCountry === 'global' ? _localSearchJobs(query) : [];
+  const freeSourcesEnabled = FREE_JOB_SOURCES_ENABLED;
 
-  async function _fetchJSearchFresh() {
+  async function _fetchJSearchFresh(countryCode) {
     if (!_isValidRapidKey(process.env.RAPID_API_KEY)) return [];
-    const seen = new Set();
-    const merged = [];
-
-    for (const dateWindow of dateWindows) {
-      try {
-        const params = {
-          query,
-          page: 1,
-          num_pages: Math.max(1, Math.ceil(searchTarget / 10)),
-          date_posted: dateWindow
-        };
-        if (country && country !== 'global') params.country = country;
-        if (employment_types) params.employment_types = employment_types;
-        const r = await axios.get(`${RAPID_BASE}/search`, {
-          params,
-          headers: RAPID_HEADERS,
-          timeout: 7000
-        });
-        const list = (r.data && r.data.data) || [];
-        for (const job of list) {
-          const key = _dedupeJobKey(job);
-          if (!seen.has(key)) {
-            seen.add(key);
-            merged.push(job);
-          }
-        }
-        if (merged.length >= searchTarget) break;
-      } catch (_) {}
-    }
-    return merged;
+    try {
+      const params = {
+        query: String(query).slice(0, 120), page: 1,
+        num_pages: normalizedCountry === 'global' ? 1 : Math.min(2, Math.max(1, Math.ceil(searchTarget / 10))),
+        date_posted: dateWindow, country: countryCode
+      };
+      if (employment_types) params.employment_types = String(employment_types).slice(0, 80);
+      const r = await _requestJSearch('search', params);
+      return ((r.data && r.data.data) || []).map(job => _withRawJobMeta(
+        { ...job, _requestedCountry: countryCode }, 'jsearch'));
+    } catch (_) { return []; }
   }
 
-  async function _fetchAdzunaFresh() {
+  async function _fetchAdzunaFresh(countryCode) {
     if (!_isValidAdzuna()) return [];
-    if (!country || country === 'global') return [];
+    if (!ADZUNA_COUNTRIES.has(countryCode)) return [];
     try {
-      const countryCode = ADZUNA_COUNTRIES.has(country) ? country : 'us';
       const contract = _toAdzunaContract(employment_types);
-      const pages = Math.max(1, Math.min(3, Math.ceil(searchTarget / 50)));
-      const requests = [];
-      for (let p = 1; p <= pages; p++) {
-        const params = {
-          app_id: ADZUNA_APP_ID,
-          app_key: ADZUNA_APP_KEY,
-          results_per_page: Math.min(50, searchTarget),
-          what: query,
-          sort_by: 'date'
-        };
-        if (contract) params.contract_time = contract;
-        requests.push(axios.get(
-          `https://api.adzuna.com/v1/api/jobs/${countryCode}/search/${p}`,
-          { params, headers: { 'Content-Type': 'application/json' }, timeout: 8000 }
-        ).catch(() => ({ data: { results: [] } })));
-      }
-      const results = await Promise.all(requests);
-      return results.flatMap(r => (r.data.results || []).map(j => _normalizeAdzuna(j, countryCode)));
+      const params = { results_per_page: Math.min(50, searchTarget), what: String(query).slice(0, 120), sort_by: 'date' };
+      if (contract) params.contract_time = contract;
+      const result = await _requestAdzuna(countryCode, 1, params);
+      return (result.data.results || []).map(job => _normalizeAdzuna(job, countryCode));
     } catch (_) {
       return [];
     }
   }
 
   async function _fetchSearchFresh() {
-    const [jsearchJobs, adzunaJobs] = await Promise.all([_fetchJSearchFresh(), _fetchAdzunaFresh()]);
+    // A global feed samples two markets per day and falls back per market.
+    // This is not a claim that every country was queried on each request.
+    if (normalizedCountry === 'global') {
+      const batches = await Promise.all(coverageCountries.map(async code => {
+        const jobs = await _fetchJSearchFresh(code);
+        return jobs.length ? jobs : _fetchAdzunaFresh(code);
+      }));
+      return batches.flat();
+    }
+    const [jsearchJobs, adzunaJobs] = await Promise.all([
+      _fetchJSearchFresh(normalizedCountry), _fetchAdzunaFresh(normalizedCountry)
+    ]);
     const seen = new Set();
     const merged = [];
     for (const job of [...jsearchJobs, ...adzunaJobs]) {
@@ -813,19 +873,11 @@ router.get('/aggregate', jobsLimiter, async (req, res) => {
   }
 
   async function _fetchMuseFresh() {
-    if (!freeSourcesEnabled) return [];
+    if (!freeSourcesEnabled || !THE_MUSE_API_KEY || normalizedCountry !== 'global') return [];
     try {
       const museCategory = _museCategoryForQuery(query);
-      const pages = Math.max(1, Math.min(3, Math.ceil(searchTarget / 20)));
-      const requests = [];
-      for (let p = 0; p < pages; p++) {
-        requests.push(axios.get('https://www.themuse.com/api/public/jobs', {
-          params: { page: p, category: museCategory },
-          timeout: 8000
-        }).catch(() => ({ data: { results: [] } })));
-      }
-      const results = await Promise.all(requests);
-      return results.flatMap(r => (r.data.results || []).map(_normalizeMuse));
+      const result = await _requestMuse('jobs', { page: 0, category: museCategory }, 8000);
+      return (result.data.results || []).map(_normalizeMuse);
     } catch (_) {
       return [];
     }
@@ -834,12 +886,9 @@ router.get('/aggregate', jobsLimiter, async (req, res) => {
   async function _fetchRemoteOKFresh() {
     if (!freeSourcesEnabled) return [];
     try {
-      const response = await axios.get('https://remoteok.com/api', {
-        headers: { 'User-Agent': 'ZhiyinCareer/1.0 (job search app for international students)' },
-        timeout: 8000
-      });
+      const response = await _requestRemoteOK();
       const tokens = _queryTokens(query);
-      const allJobs = (response.data || []).slice(1).filter(j => j.id && j.position);
+      const allJobs = (response.data || []).slice(1).filter(j => j.id && j.position && isRemoteJobEligible(j, normalizedCountry));
       const filtered = tokens.length
         ? allJobs.filter(j => {
             const text = [
@@ -859,7 +908,7 @@ router.get('/aggregate', jobsLimiter, async (req, res) => {
 
   try {
     const [searchJobs, museJobs, remoteJobs] = await Promise.all([
-      _fetchSearchFresh(),
+      _withSoftDeadline(_fetchSearchFresh(), 10_000, []),
       _fetchMuseFresh(),
       _fetchRemoteOKFresh()
     ]);
@@ -878,7 +927,7 @@ router.get('/aggregate', jobsLimiter, async (req, res) => {
     const start = (pg - 1) * ps;
     const minPoolSize = start + ps + 1;
     if (merged.length < minPoolSize) {
-      for (const job of _localFallbackPool(query)) {
+      for (const job of normalizedCountry === 'global' ? _localFallbackPool(query) : []) {
         if (!_matchesEmploymentType(job, employment_types)) continue;
         if (dateFilterExplicit && !_withinDatePosted(job, datePosted)) continue;
 
@@ -899,9 +948,17 @@ router.get('/aggregate', jobsLimiter, async (req, res) => {
       pageSize: ps,
       hasMore: start + ps < sorted.length,
       sources: [...new Set(sorted.map(j => j._source || (j._local ? 'local' : 'unknown')))],
+      coverage: {
+        mode: normalizedCountry === 'global' ? 'sampled' : 'country',
+        countries: coverageCountries,
+        countriesWithResults: [...new Set(searchJobs.map(job => job._requestedCountry || job.job_country)
+          .filter(value => /^[a-z]{2}$/i.test(String(value || '')))
+          .map(value => String(value).toLowerCase()))]
+      },
       dataMeta: _collectionMeta(slice, {
-        degraded: slice.some(job => job.dataMeta && job.dataMeta.isFallback),
-        fallbackReason: slice.some(job => job.dataMeta && job.dataMeta.isFallback) ? '实时来源数量不足，已补充历史职位库' : ''
+        degraded: !sorted.length || slice.some(job => job.dataMeta && job.dataMeta.isFallback),
+        fallbackReason: !sorted.length ? '所选地区暂无可验证实时岗位' :
+          (slice.some(job => job.dataMeta && job.dataMeta.isFallback) ? '实时来源数量不足，已补充历史职位库' : '')
       })
     });
   } catch (err) {
@@ -939,7 +996,7 @@ function _normalizeMuse(job) {
     employer_name:             company,
     employer_logo:             '',
     job_city:                  location,
-    job_country:               'US',
+    job_country:               location,
     job_description:           job.contents || '',
     job_min_salary:            null,
     job_max_salary:            null,
@@ -954,6 +1011,7 @@ function _normalizeMuse(job) {
 }
 
 router.get('/featured', jobsLimiter, async (req, res) => {
+  if (!THE_MUSE_API_KEY || !FREE_JOB_SOURCES_ENABLED) return _localSearch(req, res);
   try {
     const { query = '', category = '', level = '', location = '', page = 0 } = req.query;
 
@@ -966,10 +1024,7 @@ router.get('/featured', jobsLimiter, async (req, res) => {
     if (level)        params.level     = level;
     if (location)     params.location  = location;
 
-    const result = await axios.get('https://www.themuse.com/api/public/jobs', {
-      params,
-      timeout: 10000
-    });
+    const result = await _requestMuse('jobs', params, 10000);
 
     const data = (result.data.results || []).map(_normalizeMuse);
     res.json({
@@ -983,7 +1038,7 @@ router.get('/featured', jobsLimiter, async (req, res) => {
       dataMeta:   _collectionMeta(data)
     });
   } catch (err) {
-    console.error('[jobs/featured] The Muse 异常:', err.message);
+    if (_shouldLogSourceError(err)) console.warn('[jobs/featured] The Muse 异常:', err.message);
     return _localSearch(req, res);
   }
 });
@@ -1000,20 +1055,19 @@ router.get('/linkedin', jobsLimiter, async (req, res) => {
   try {
     const { query = 'software engineer', location = 'United States OR United Kingdom', page = 1 } = req.query;
     const offset = (parseInt(page) - 1) * 10;
-    const result = await axios.get(`https://${LINKEDIN_RAPID_HOST}/active-jb-1h`, {
-      params: {
-        title_filter:    query,
-        location_filter: location,
-        description_type: 'text',
-        offset:          offset
-      },
+    const params = {
+      title_filter: query, location_filter: location,
+      description_type: 'text', offset
+    };
+    const result = await sourceGateway.request('linkedin', JSON.stringify(params), () => axios.get(`https://${LINKEDIN_RAPID_HOST}/active-jb-1h`, {
+      params,
       headers: {
         'Content-Type':  'application/json',
         'X-RapidAPI-Key':  process.env.RAPID_API_KEY,
         'X-RapidAPI-Host': LINKEDIN_RAPID_HOST
       },
       timeout: 8000
-    });
+    }));
 
     const jobs = Array.isArray(result.data) ? result.data : (result.data.jobs || result.data.data || []);
     const data = jobs.map(j => _withRawJobMeta({
@@ -1035,8 +1089,8 @@ router.get('/linkedin', jobsLimiter, async (req, res) => {
 
     res.json({ data, status: 'OK', _source: 'linkedin', total: data.length, dataMeta: _collectionMeta(data) });
   } catch (err) {
-    const status = err.response?.status || 500;
-    console.error('[jobs/linkedin]', status, err.message);
+    const status = err.status || err.response?.status || 500;
+    if (_shouldLogSourceError(err)) console.warn('[jobs/linkedin]', status, err.message);
     if (status === 403) {
       return res.status(403).json({ error: '请先在 RapidAPI 订阅 LinkedIn Jobs API', data: [], _source: 'unavailable' });
     }
@@ -1055,14 +1109,15 @@ router.get('/indeed', jobsLimiter, async (req, res) => {
   }
   try {
     const { query = 'software engineer', location = 'United States', page = 1 } = req.query;
-    const result = await axios.get('https://indeed12.p.rapidapi.com/jobs/search', {
-      params: { q: query, l: location, page_id: String(page), locality: 'us' },
+    const params = { q: query, l: location, page_id: String(page), locality: 'us' };
+    const result = await sourceGateway.request('indeed', JSON.stringify(params), () => axios.get('https://indeed12.p.rapidapi.com/jobs/search', {
+      params,
       headers: {
         'X-RapidAPI-Key':  process.env.RAPID_API_KEY,
         'X-RapidAPI-Host': INDEED_RAPID_HOST
       },
       timeout: 8000
-    });
+    }));
 
     const jobs = result.data.hits || result.data.jobs || [];
     const data = jobs.map(j => _withRawJobMeta({
@@ -1084,8 +1139,8 @@ router.get('/indeed', jobsLimiter, async (req, res) => {
 
     res.json({ data, status: 'OK', _source: 'indeed', total: result.data.total || data.length, dataMeta: _collectionMeta(data) });
   } catch (err) {
-    const status = err.response?.status || 500;
-    console.error('[jobs/indeed]', status, err.message);
+    const status = err.status || err.response?.status || 500;
+    if (_shouldLogSourceError(err)) console.warn('[jobs/indeed]', status, err.message);
     if (status === 403) {
       return res.status(403).json({ error: '请先在 RapidAPI 订阅 Indeed API', data: [], _source: 'unavailable' });
     }
@@ -1099,16 +1154,17 @@ router.get('/indeed', jobsLimiter, async (req, res) => {
 function _localSearch(req, res) {
   try {
     const { query = '', page = 1, num_pages = 1 } = req.query;
-    const keyword = query.toLowerCase();
+    const country = normalizeCountry(req.query.country);
+    const keyword = String(query).toLowerCase();
     const all = localJobs().filter(j =>
-      !keyword ||
-      j.title.toLowerCase().includes(keyword) ||
-      j.company.toLowerCase().includes(keyword) ||
-      (j.description || '').toLowerCase().includes(keyword)
+      (country === 'global' || normalizeCountry('', j.region) === country) &&
+      (!keyword || j.title.toLowerCase().includes(keyword) ||
+        j.company.toLowerCase().includes(keyword) ||
+        (j.description || '').toLowerCase().includes(keyword))
     );
     const pageSize = 10;
-    const start = (parseInt(page) - 1) * pageSize;
-    const slice = all.slice(start, start + pageSize * parseInt(num_pages));
+    const start = (Math.max(1, parseInt(page, 10) || 1) - 1) * pageSize;
+    const slice = all.slice(start, start + pageSize * Math.min(2, Math.max(1, parseInt(num_pages, 10) || 1)));
     const data = slice.map(j => _withRawJobMeta({
       job_id:               String(j.id),
       job_title:            j.title,
@@ -1157,16 +1213,14 @@ router.get('/detail', optionalAuth, jobsLimiter, async (req, res) => {
     return res.status(404).json({ error: '职位不存在', data: [] });
   }
   try {
-    const result = await axios.get(`${RAPID_BASE}/job-details`, {
-      params: req.query, headers: RAPID_HEADERS, timeout: 5000
-    });
+    const result = await _requestJSearch('job-details', { job_id: String(req.query.job_id) }, 5000);
     const payload = result.data || {};
     const data = (Array.isArray(payload.data) ? payload.data : []).map(job => _withRawJobMeta(job, 'jsearch'));
     if (data.length) _trackJobView(req, req.query.job_id);
     res.json({ ...payload, data, _source: 'jsearch', dataMeta: _collectionMeta(data) });
   } catch (err) {
-    const status = err.response?.status || 500;
-    console.warn('[jobs/detail] JSearch 异常(', status, ')，降级本地数据');
+    const status = err.status || err.response?.status || 500;
+    if (_shouldLogSourceError(err)) console.warn('[jobs/detail] JSearch 异常(', status, ')，降级本地数据');
     const job = localJobs().find(j => String(j.id) === String(req.query.job_id));
     if (job) {
       const data = [_withRawJobMeta({
@@ -1187,14 +1241,12 @@ router.get('/salary', jobsLimiter, async (req, res) => {
     return res.json({ data: [], status: 'OK', _source: 'local' });
   }
   try {
-    const result = await axios.get(`${RAPID_BASE}/estimated-salary`, {
-      params: { ...req.query, location_type: req.query.location_type || 'ANY', years_of_experience: req.query.years_of_experience || 'ALL' },
-      headers: RAPID_HEADERS, timeout: 10000
-    });
+    const result = await _requestJSearch('estimated-salary',
+      { ...req.query, location_type: req.query.location_type || 'ANY', years_of_experience: req.query.years_of_experience || 'ALL' }, 10000);
     res.json(result.data);
   } catch (err) {
-    const status = err.response?.status || 500;
-    console.error('[jobs/salary]', status, err.message);
+    const status = err.status || err.response?.status || 500;
+    if (_shouldLogSourceError(err)) console.warn('[jobs/salary]', status, err.message);
     res.json({ data: [], status: 'OK', _source: 'local' });
   }
 });
@@ -1214,10 +1266,16 @@ router.get('/recommend/list', jobsLimiter, async (req, res) => {
 
 // GET /api/jobs/map
 router.get('/map', jobsLimiter, async (req, res) => {
+  const country = normalizeCountry(req.query.country, req.query.region);
+  if (!country) return res.status(400).json({ code: -1, message: 'country 必须为两位国家代码或 global' });
+  const coverageCountries = country === 'global' ? globalSampleCountries() : [country];
   try {
     const pageSize = Math.min(Math.max(parseInt(req.query.pageSize) || 160, 20), 240);
-    const liveJobs = await _fetchMapWebJobs(pageSize);
-    const localFallbackJobs = _publicLocalWebJobs();
+    const liveJobs = await _fetchMapWebJobs(pageSize, country, coverageCountries);
+    const countriesWithResults = [...new Set(liveJobs
+      .filter(job => job.source !== 'remoteok' && job.countryCode !== 'global')
+      .map(job => job.countryCode))];
+    const localFallbackJobs = _publicLocalWebJobs().filter(job => country === 'global' || job.countryCode === country);
     const list = [...liveJobs, ...localFallbackJobs].slice(0, pageSize);
     const hasFallback = list.length > liveJobs.length;
     const source = liveJobs.length ? (hasFallback ? 'live_with_local_fallback' : 'live') : 'local_fallback';
@@ -1237,12 +1295,19 @@ router.get('/map', jobsLimiter, async (req, res) => {
       },
       meta: {
         liveJobsEnabled: LIVE_JOBS_ENABLED,
+        coverage: {
+          mode: country === 'global' ? 'sampled' : 'country',
+          countries: coverageCountries, countriesWithResults,
+          remoteIncluded: liveJobs.some(job => job.source === 'remoteok')
+        },
         generatedAt: new Date().toISOString()
       }
     });
   } catch (error) {
     console.error('[jobs/map]', error.message);
-    const list = _publicLocalWebJobs().slice(0, Math.min(parseInt(req.query.pageSize) || 160, 240));
+    const list = _publicLocalWebJobs()
+      .filter(job => country === 'global' || job.countryCode === country)
+      .slice(0, Math.min(parseInt(req.query.pageSize) || 160, 240));
     res.json({
       code: 0,
       message: 'success',
@@ -1250,9 +1315,13 @@ router.get('/map', jobsLimiter, async (req, res) => {
         list,
         total: list.length,
         source: 'local_fallback',
-        sources: ['local'],
+        sources: list.length ? ['local'] : [],
         dataMeta: _collectionMeta(list, { degraded: true, fallbackReason: '实时地图岗位加载失败' })
-      }
+      },
+      meta: { coverage: {
+        mode: country === 'global' ? 'sampled' : 'country',
+        countries: coverageCountries, countriesWithResults: [], remoteIncluded: false
+      } }
     });
   }
 });
@@ -1281,6 +1350,8 @@ router.get('/filters/options', (req, res) => {
 router.get('/', jobsLimiter, async (req, res) => {
   try {
     const { keyword, region, industry, jobType, visaSponsored, page = 1, pageSize = 10 } = req.query;
+    const country = normalizeCountry(req.query.country, region);
+    if (!country) return res.status(400).json({ code: -1, message: 'country 必须为两位国家代码或 global' });
     const pg = Math.max(parseInt(page) || 1, 1);
     const ps = Math.min(Math.max(parseInt(pageSize) || 10, 1), 50);
 
@@ -1288,7 +1359,8 @@ router.get('/', jobsLimiter, async (req, res) => {
     // live sources in the background. This keeps external API latency from
     // leaving the job list in an indefinite loading state.
     if (req.query.source === 'local') {
-      const filteredJobs = _applyWebFilters(_publicLocalWebJobs(), req.query);
+      const filteredJobs = _applyWebFilters(_publicLocalWebJobs()
+        .filter(job => country === 'global' || job.countryCode === country), req.query);
       const startIndex = (pg - 1) * ps;
       const list = filteredJobs.slice(startIndex, startIndex + ps);
       return res.json({
@@ -1316,8 +1388,8 @@ router.get('/', jobsLimiter, async (req, res) => {
       });
     }
 
-    const liveJobs = await _fetchLiveWebJobs({ keyword, region, industry, jobType, visaSponsored, page: pg });
-    const localFallbackJobs = _publicLocalWebJobs();
+    const liveJobs = await _fetchLiveWebJobs({ keyword, region, country, industry, jobType, visaSponsored, page: pg });
+    const localFallbackJobs = _publicLocalWebJobs().filter(job => country === 'global' || job.countryCode === country);
     let filteredJobs = _applyWebFilters(liveJobs, req.query);
     let source = liveJobs.length ? 'live' : 'local_fallback';
 
@@ -1345,6 +1417,15 @@ router.get('/', jobsLimiter, async (req, res) => {
       meta: {
         liveJobsEnabled: LIVE_JOBS_ENABLED,
         source,
+        country,
+        coverage: {
+          mode: country === 'global' ? 'sampled' : 'country',
+          countries: country === 'global' ? globalSampleCountries() : [country],
+          countriesWithResults: [...new Set(liveJobs
+            .filter(job => job.source !== 'remoteok' && job.countryCode !== 'global')
+            .map(job => job.countryCode))],
+          remoteIncluded: liveJobs.some(job => job.source === 'remoteok')
+        },
         keyword: keyword || '',
         generatedAt: new Date().toISOString()
       }
@@ -1374,48 +1455,41 @@ router.get('/:id', jobsLimiter, async (req, res) => {
       }
     }
 
-    if (rawId.startsWith('muse_')) {
+    if (rawId.startsWith('muse_') && THE_MUSE_API_KEY && FREE_JOB_SOURCES_ENABLED) {
       try {
         const museId = rawId.replace(/^muse_/, '');
-        const result = await axios.get(`https://www.themuse.com/api/public/jobs/${museId}`, { timeout: 6000 });
+        const result = await _requestMuse(`jobs/${encodeURIComponent(museId)}`);
         const job = _toWebJob(_normalizeMuse(result.data));
         return res.json({ code: 0, message: 'success', data: job });
       } catch (err) {
-        console.warn('[jobs/detail] The Muse 详情拉取失败:', err.message);
+        if (_shouldLogSourceError(err)) console.warn('[jobs/detail] The Muse 详情拉取失败:', err.message);
       }
     }
 
     if (rawId.startsWith('rok_')) {
       try {
         const remoteId = rawId.replace(/^rok_/, '');
-        const response = await axios.get('https://remoteok.com/api', {
-          headers: { 'User-Agent': 'ZhiyinCareer/1.0 (job search app for international students)' },
-          timeout: 6000
-        });
+        const response = await _requestRemoteOK(6000);
         const remoteJob = (response.data || []).slice(1).find(j => String(j.id) === remoteId);
         if (remoteJob) {
           const job = _toWebJob(_normalizeRemoteOK(remoteJob));
           return res.json({ code: 0, message: 'success', data: job });
         }
       } catch (err) {
-        console.warn('[jobs/detail] RemoteOK 详情拉取失败:', err.message);
+        if (_shouldLogSourceError(err)) console.warn('[jobs/detail] RemoteOK 详情拉取失败:', err.message);
       }
     }
 
     if (_isValidRapidKey(process.env.RAPID_API_KEY)) {
       try {
-        const result = await axios.get(`${RAPID_BASE}/job-details`, {
-          params: { job_id: rawId },
-          headers: RAPID_HEADERS,
-          timeout: 5000
-        });
+        const result = await _requestJSearch('job-details', { job_id: rawId }, 5000);
         const apiJob = Array.isArray(result.data?.data) ? result.data.data[0] : null;
         if (apiJob) {
           const job = _toWebJob({ ...apiJob, _source: apiJob._source || 'jsearch' });
           return res.json({ code: 0, message: 'success', data: job });
         }
       } catch (err) {
-        console.warn('[jobs/detail] JSearch 详情拉取失败:', err.message);
+        if (_shouldLogSourceError(err)) console.warn('[jobs/detail] JSearch 详情拉取失败:', err.message);
       }
     }
 

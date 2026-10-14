@@ -146,6 +146,7 @@ Page({
     filterType: '',      // '' | 'FULLTIME' | 'PARTTIME' | 'CONTRACTOR' | 'INTERN'
     filterDate: '',      // '' | 'today' | 'week' | 'month'
     filterCountry: 'global', // global | ISO alpha2 小写
+    countryCodeInput: '',
     filterSponsor: '',   // opt | stem | h1b | international | excludeCitizen
     filterActive: false,
     countryList: [],     // 从 /api/countries 加载
@@ -566,6 +567,26 @@ Page({
     this.setData({ filterCountry: this.data.filterCountry === val ? 'global' : val });
   },
 
+  onCountryPickerChange: function(e) {
+    const country = (this.data.countryList || [])[Number(e.detail.value)];
+    if (country && /^[a-z]{2}$/i.test(country.api || '')) {
+      this.setData({ filterCountry: country.api.toLowerCase(), countryCodeInput: '' });
+    }
+  },
+
+  onCountryCodeInput: function(e) {
+    this.setData({ countryCodeInput: String(e.detail.value || '').trim() });
+  },
+
+  onCountryCodeConfirm: function() {
+    const code = String(this.data.countryCodeInput || '').trim().toLowerCase();
+    if (!/^[a-z]{2}$/.test(code)) {
+      wx.showToast({ title: '请输入两位国家代码', icon: 'none' });
+      return;
+    }
+    this.setData({ filterCountry: code, countryCodeInput: '' });
+  },
+
   onFilterSponsorSelect: function(e) {
     const val = e.currentTarget.dataset.val;
     if (!wx.getStorageSync('token')) {
@@ -579,7 +600,7 @@ Page({
   },
 
   resetFilter: function() {
-    this.setData({ filterType: '', filterDate: '', filterCountry: 'global', filterSponsor: '', filterActive: false, filterVisible: false });
+    this.setData({ filterType: '', filterDate: '', filterCountry: 'global', countryCodeInput: '', filterSponsor: '', filterActive: false, filterVisible: false });
     this.loadJobs(true);
   },
 
