@@ -4,12 +4,179 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const http = require('node:http');
+const { spawn, spawnSync } = require('node:child_process');
 const test = require('node:test');
 const { verifiedPid, verifiedRelease } = require('../scripts/verify-pm2-instance');
 
 const root = path.join(__dirname, '..');
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
+
+function runHealthcheck(baseUrl, options = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [path.join(root, 'scripts/healthcheck.js')], {
+      cwd: root,
+      env: {
+        ...process.env,
+        HEALTHCHECK_BASE_URL: baseUrl,
+        HEALTHCHECK_TIMEOUT_MS: '300',
+        HEALTHCHECK_DEADLINE_MS: '1500',
+        HEALTHCHECK_RETRY_DELAY_MS: '50',
+        ...options
+      }
+    });
+    let output = '';
+    child.stdout.on('data', chunk => { output += chunk; });
+    child.stderr.on('data', chunk => { output += chunk; });
+    child.once('error', reject);
+    child.once('close', code => resolve({ code, output }));
+  });
+}
+
+function runFeishuFetch(baseUrl, options = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ['-e', `
+      require('./services/feishuCompanyImport').fetchCompanyItems({ maxRecords: 1 })
+        .then(items => process.stdout.write(JSON.stringify(items)))
+        .catch(error => { console.error(error.message); process.exitCode = 1; });
+    `], {
+      cwd: root,
+      env: {
+        ...process.env,
+        FEISHU_COMPANY_IMPORT_API_BASE_URL: baseUrl,
+        FEISHU_COMPANY_IMPORT_TIMEOUT_MS: '1000',
+        FEISHU_COMPANY_IMPORT_RETRIES: '2',
+        ...options
+      }
+    });
+    let output = '';
+    child.stdout.on('data', chunk => { output += chunk; });
+    child.stderr.on('data', chunk => { output += chunk; });
+    child.once('error', reject);
+    child.once('close', code => resolve({ code, output }));
+  });
+}
+
+async function withReadinessServer(handler, action) {
+  const server = http.createServer(handler);
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    return await action(`http://127.0.0.1:${server.address().port}`);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+}
+
+test('healthcheck retries a delayed ready response within a bounded deadline', async () => {
+  let attempts = 0;
+  await withReadinessServer((req, res) => {
+    attempts += 1;
+    const ready = attempts >= 3;
+    res.writeHead(ready ? 200 : 503, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ready }));
+  }, async baseUrl => {
+    const result = await runHealthcheck(baseUrl);
+    assert.equal(result.code, 0, result.output);
+    assert.ok(attempts >= 3);
+    assert.match(result.output, /ready:.*3 attempts/);
+  });
+});
+
+test('healthcheck rejects sustained failure and invalid retry limits', async () => {
+  await withReadinessServer((req, res) => {
+    res.writeHead(503, { 'Content-Type': 'application/json' });
+    res.end('{"ready":false}');
+  }, async baseUrl => {
+    const startedAt = Date.now();
+    const failure = await runHealthcheck(baseUrl, { HEALTHCHECK_DEADLINE_MS: '350' });
+    assert.equal(failure.code, 1);
+    assert.match(failure.output, /did not succeed within 350ms/);
+    assert.ok(Date.now() - startedAt < 2500);
+    const invalid = await runHealthcheck(baseUrl, { HEALTHCHECK_DEADLINE_MS: 'Infinity' });
+    assert.equal(invalid.code, 1);
+    assert.match(invalid.output, /HEALTHCHECK_DEADLINE_MS must be an integer/);
+  });
+});
+
+test('healthcheck recovers from ECONNREFUSED and fails boundedly when refusal persists', async () => {
+  const reservation = http.createServer();
+  await new Promise(resolve => reservation.listen(0, '127.0.0.1', resolve));
+  const port = reservation.address().port;
+  await new Promise(resolve => reservation.close(resolve));
+  const baseUrl = `http://127.0.0.1:${port}`;
+  const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end('{"ready":true}');
+  });
+  try {
+    const healthcheck = runHealthcheck(baseUrl, { HEALTHCHECK_DEADLINE_MS: '2500' });
+    await new Promise((resolve, reject) => setTimeout(() => {
+      server.once('error', reject);
+      server.listen(port, '127.0.0.1', resolve);
+    }, 600));
+    const recovered = await healthcheck;
+    assert.equal(recovered.code, 0, recovered.output);
+    const attemptCount = Number(recovered.output.match(/\((\d+) attempts\)/)?.[1]);
+    assert.ok(attemptCount >= 2, recovered.output);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+  const refused = await runHealthcheck(baseUrl, { HEALTHCHECK_DEADLINE_MS: '350' });
+  assert.equal(refused.code, 1);
+  assert.match(refused.output, /did not succeed within 350ms/);
+});
+
+test('Feishu company import retries a transient failure without touching the database', async () => {
+  let attempts = 0;
+  await withReadinessServer((req, res) => {
+    attempts += 1;
+    const ok = attempts >= 2;
+    res.writeHead(ok ? 200 : 503, { 'Content-Type': 'application/json' });
+    res.end(ok ? JSON.stringify({ items: [{ id: 'test-company' }], total: 1 }) : '{}');
+  }, async baseUrl => {
+    const output = await runFeishuFetch(baseUrl);
+    assert.equal(output.code, 0, output.output);
+    assert.equal(attempts, 2);
+    assert.match(output.output, /"id":"test-company"/);
+  });
+});
+
+test('Feishu import does not retry auth, missing content or malformed JSON and never logs response bodies', async () => {
+  const secret = 'secret-personal-token-and-PII';
+  for (const scenario of [
+    { status: 401, body: secret, message: /HTTP 401/ },
+    { status: 404, body: secret, message: /HTTP 404/ },
+    { status: 200, body: `{invalid:${secret}`, message: /invalid JSON response/ }
+  ]) {
+    let attempts = 0;
+    await withReadinessServer((req, res) => {
+      attempts += 1;
+      res.writeHead(scenario.status, { 'Content-Type': 'application/json' });
+      res.end(scenario.body);
+    }, async baseUrl => {
+      const result = await runFeishuFetch(baseUrl);
+      assert.equal(result.code, 1);
+      assert.equal(attempts, 1);
+      assert.match(result.output, scenario.message);
+      assert.doesNotMatch(result.output, /secret-personal-token-and-PII/);
+    });
+  }
+});
+
+test('Feishu import retries HTTP 429 but reports a sanitized final failure', async () => {
+  let attempts = 0;
+  await withReadinessServer((req, res) => {
+    attempts += 1;
+    res.writeHead(429, { 'Content-Type': 'application/json' });
+    res.end('sensitive-upstream-value');
+  }, async baseUrl => {
+    const result = await runFeishuFetch(baseUrl);
+    assert.equal(result.code, 1);
+    assert.equal(attempts, 2);
+    assert.match(result.output, /HTTP 429/);
+    assert.doesNotMatch(result.output, /sensitive-upstream-value/);
+  });
+});
 
 test('production backup fails closed and verifies a consistent SQLite copy plus runtime config', () => {
   const script = read('scripts/backup-production.sh');
@@ -23,6 +190,13 @@ test('production backup fails closed and verifies a consistent SQLite copy plus 
   assert.match(script, /pm2 jlist --silent > "\$DEST\/pm2-processes\.json"/);
   assert.match(script, /\.incomplete/);
   assert.doesNotMatch(script, /cp -a "\$APP_DATA_DIR\/db\/jobapp\.db"\*/);
+});
+
+test('deployment refuses a missing or empty shared production env before linking it', () => {
+  const script = read('deploy.sh');
+  assert.match(script, /\[ -s "\$SHARED_ENV" \] \|\| \{[\s\S]*exit 1[\s\S]*\}/);
+  assert.doesNotMatch(script, /cp "\$DEPLOY_DIR\/\.env\.example" "\$SHARED_ENV"/);
+  assert.ok(script.indexOf('[ -s "$SHARED_ENV" ]') < script.indexOf('ln -sfn "$SHARED_ENV"'));
 });
 
 test('production backup exits before creating a success artifact when the source database is absent', {

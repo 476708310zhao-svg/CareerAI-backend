@@ -21,6 +21,13 @@ const API_BASE = process.env.FEISHU_COMPANY_IMPORT_API_BASE_URL
   || process.env.FEISHU_CONTENT_API_BASE_URL
   || process.env.FEISHU_MINIPROGRAM_API_BASE_URL
   || DEFAULT_API_BASE;
+function importOption(name, fallback, minimum, maximum) {
+  const raw = process.env[name];
+  const value = raw === undefined || raw === '' ? fallback : Number(raw);
+  return Number.isSafeInteger(value) && value >= minimum && value <= maximum ? value : fallback;
+}
+const IMPORT_TIMEOUT_MS = importOption('FEISHU_COMPANY_IMPORT_TIMEOUT_MS', 60000, 1000, 120000);
+const IMPORT_RETRIES = importOption('FEISHU_COMPANY_IMPORT_RETRIES', 3, 1, 5);
 
 const FIELD_ALIASES = {
   display_name: [
@@ -324,30 +331,64 @@ function findExistingCompany(company) {
   `).get(...names, ...names, ...names, ...names, ...names);
 }
 
-function fetchJson(url) {
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function importError(message, retryable = false) {
+  const error = new Error(message);
+  error.retryable = retryable;
+  return error;
+}
+
+function fetchJsonOnce(url, timeoutMs) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
     const client = parsed.protocol === 'http:' ? http : https;
-    const req = client.request(parsed, { method: 'GET', timeout: 30000 }, (res) => {
+    const req = client.request(parsed, { method: 'GET', timeout: timeoutMs }, (res) => {
       let body = '';
       res.setEncoding('utf8');
       res.on('data', chunk => { body += chunk; });
       res.on('end', () => {
         if (res.statusCode < 200 || res.statusCode >= 300) {
-          reject(new Error(`Feishu content API HTTP ${res.statusCode}: ${body.slice(0, 160)}`));
+          const status = res.statusCode;
+          reject(importError(`Feishu content API HTTP ${status}`, status === 429 || status >= 500));
           return;
         }
         try {
           resolve(JSON.parse(body || '{}'));
         } catch (err) {
-          reject(new Error(`Feishu content API JSON parse failed: ${err.message}`));
+          reject(importError('Feishu content API invalid JSON response'));
         }
       });
     });
-    req.on('error', reject);
-    req.on('timeout', () => req.destroy(new Error('Feishu content API timeout')));
+    req.on('error', error => {
+      const retryable = ['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'EAI_AGAIN', 'ENETUNREACH', 'EHOSTUNREACH'].includes(error.code);
+      reject(importError(retryable ? 'Feishu content API temporary network failure' : 'Feishu content API network failure', retryable));
+    });
+    req.on('timeout', () => {
+      const error = new Error('request timeout');
+      error.code = 'ETIMEDOUT';
+      req.destroy(error);
+    });
     req.end();
   });
+}
+
+async function fetchJson(url) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= IMPORT_RETRIES; attempt += 1) {
+    try {
+      return await fetchJsonOnce(url, IMPORT_TIMEOUT_MS);
+    } catch (error) {
+      lastError = error;
+      if (!error.retryable || attempt >= IMPORT_RETRIES) break;
+      const waitMs = Math.min(1000 * attempt, 3000);
+      console.warn(`Feishu content API request failed (${attempt}/${IMPORT_RETRIES}), retrying in ${waitMs}ms`);
+      await delay(waitMs);
+    }
+  }
+  throw lastError;
 }
 
 async function fetchCompanyItems(options = {}) {

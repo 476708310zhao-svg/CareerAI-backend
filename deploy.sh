@@ -43,14 +43,10 @@ case "$DEPLOY_DIR" in
 esac
 
 # ── 5. 链接共享 .env ────────────────────────
-if [ ! -f "$SHARED_ENV" ]; then
-  cp "$DEPLOY_DIR/.env.example" "$SHARED_ENV"
-  chmod 600 "$SHARED_ENV"
-  echo ""
-  echo "⚠️  首次部署：请编辑 .env 填入 API 密钥"
-  echo "    nano $SHARED_ENV"
-  echo ""
-fi
+[ -s "$SHARED_ENV" ] || {
+  echo "❌ 共享生产配置 $SHARED_ENV 缺失或为空，停止发布；不得从 .env.example 自动生成" >&2
+  exit 1
+}
 ln -sfn "$SHARED_ENV" "$DEPLOY_DIR/.env"
 
 # ── 6. 安装依赖 ──────────────────────────────

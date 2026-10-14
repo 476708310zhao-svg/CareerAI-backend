@@ -218,6 +218,56 @@ test('public jobs endpoint returns a list payload', async () => {
   if (body.data.list.length) assert.ok(body.data.list[0].dataMeta);
 });
 
+test('recruitment discovery excludes stale jobs while historic details retain risk metadata', async () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const jobsFile = path.join(process.env.DATA_DIR, 'jobs.json');
+  const { readJobsData } = require('../utils/jobData');
+  readJobsData();
+  const original = fs.readFileSync(jobsFile, 'utf8');
+  const dayAgo = days => new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+  const fixture = (id, days, deadline) => ({
+    id, title: `Release fixture ${id}`, company: 'Isolated Test Co',
+    location: 'Remote', region: '其他', jobType: '全职', industry: '互联网',
+    postedAt: dayAgo(days), deadline, applyUrl: 'https://example.com/jobs/test'
+  });
+  fs.writeFileSync(jobsFile, JSON.stringify({ jobs: [
+    fixture(991001, 1), fixture(991002, 45), fixture(991003, 120),
+    fixture(991004, 1, dayAgo(1))
+  ], companies: [] }));
+
+  try {
+    assert.equal(featureFlags.isFeatureEnabled('recruitment'), true);
+    const listRes = await fetch(`${BASE_URL}/api/jobs?source=local&pageSize=20`);
+    assert.equal(listRes.status, 200);
+    const list = (await readJson(listRes)).data.list;
+    assert.deepEqual(list.map(job => job.id), ['991001', '991002']);
+    assert.deepEqual(list.map(job => job.dataMeta.freshness), ['fresh', 'aging']);
+
+    const mapRes = await fetch(`${BASE_URL}/api/jobs/map?pageSize=20`);
+    assert.equal(mapRes.status, 200);
+    const map = (await readJson(mapRes)).data.list;
+    assert.deepEqual(map.map(job => job.id), ['991001', '991002']);
+
+    for (const id of ['991001', '991002']) {
+      const detailRes = await fetch(`${BASE_URL}/api/jobs/${id}`);
+      assert.equal(detailRes.status, 200);
+      assert.equal((await readJson(detailRes)).data.id, id);
+    }
+    for (const id of ['991003', '991004']) {
+      const detailRes = await fetch(`${BASE_URL}/api/jobs/${id}`);
+      assert.equal(detailRes.status, 200);
+      const detail = (await readJson(detailRes)).data;
+      assert.equal(detail.id, id);
+      assert.equal(detail.dataMeta.freshness, id === '991003' ? 'stale' : 'expired');
+      assert.ok(detail.dataMeta.freshnessReason);
+      if (id === '991004') assert.equal(detail.dataMeta.isExpired, true);
+    }
+  } finally {
+    fs.writeFileSync(jobsFile, original);
+  }
+});
+
 test('job search fallback is explicit and never fabricates pagination records', async () => {
   const res = await fetch(`${BASE_URL}/api/jobs/search?query=Software%20Engineer&page=1&num_pages=1`);
   assert.equal(res.status, 200);

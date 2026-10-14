@@ -189,6 +189,8 @@ Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成
 
 ## 当前文件占用
 
+- Codex merge_backend_impl（2026-10-14，隔离工作树 `codex/merged-backend-release-20261014`）：占用 `routes/jobs.js`、`scripts/healthcheck.js`、`services/feishuCompanyImport.js`、`deploy.sh`、`tests/releaseEngineering.test.js`、`tests/smoke.test.js`、`docs/JOB_CAMPUS_DATA_PROVENANCE_CONTRACT.md` 与本记录；选择性保留线上招聘版新增的近期岗位过滤、RemoteOK 地图覆盖及 Feishu 请求重试，同时保留目标版本全局岗位默认与发布安全门禁。历史岗位详情保留且标注时效风险、Feishu 非暂态错误不重试且错误信息脱敏、缺失共享配置拒绝发布，TCP 拒绝后的 readiness 重试已覆盖；文档说明全球产品定位不等于现有源覆盖全球本地职位。`check:release` 369 通过/2 Windows 跳过、Acceptance 29 通过/1 旧种子近期岗位不足的警告、Git Bash `bash -n deploy.sh` 与 `git diff --check` 均通过；仅本地合并，未提交、推送或部署。
+
 - Codex deploy_guard_impl（2026-10-14）：占用 `deploy.sh`、`scripts/backup-production.sh`、`scripts/verify-pm2-instance.js`、`tests/releaseEngineering.test.js` 与本记录此行；修复 PM2 JSON 静默输出，分别保留原始 `current` 链接与 PM2 实际物理版本，切流前复核旧 PID/4400 监听者。`current` 用同目录临时软链接及 `mv -Tf` 原子替换；切流期间的 EXIT/INT/TERM 守护可在失败或中断时分别恢复旧进程与旧链接，PM2 身份辅助脚本固定新版本绝对路径。Linux 隔离假 PM2 故障注入覆盖新进程启动失败、健康检查失败及 TERM，三种错位回滚均通过；临时测试目录已清理。本地/远端 `bash -n`、聚焦 7 通过/2 Windows 跳过、全量 362 通过/2 Windows 跳过、`check:release`、`git diff --check` 通过；未执行生产部署、提交或推送。
 
 - Codex CI 收口（2026-10-14）：占用 `tests/sprint4CareerCoach.test.js`、`tests/sprint5Networking.test.js` 与本记录；Linux CI 的两条旧资源页文案断言与当前已确认的资源分类不一致，只更新断言到当前产品结构，不变更业务实现。

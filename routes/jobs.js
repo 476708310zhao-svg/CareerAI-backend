@@ -181,6 +181,16 @@ function _toLocalWebJob(job) {
   return _cacheWebJob(webJob);
 }
 
+function _isCurrentWebJob(job) {
+  return job && !['stale', 'expired'].includes(job.dataMeta?.freshness);
+}
+
+function _publicLocalWebJobs() {
+  return localJobs()
+    .map(_toLocalWebJob)
+    .filter(job => ['fresh', 'aging'].includes(job.dataMeta?.freshness));
+}
+
 function _applyWebFilters(list, query) {
   const { keyword, region, industry, jobType, visaSponsored } = query;
   let filtered = [...list];
@@ -304,23 +314,25 @@ async function _fetchMuseJobsForWeb(query, page) {
   }
 }
 
-async function _fetchRemoteJobsForWeb(query) {
-  try {
-    const response = await axios.get('https://remoteok.com/api', {
-      headers: { 'User-Agent': 'ZhiyinCareer/1.0 (job search app for international students)' },
-      timeout: 6000
-    });
-    const keyword = String(query || '').toLowerCase();
-    return (response.data || [])
-      .slice(1)
-      .filter(j => j.id && j.position)
-      .filter(j => !keyword || (j.position || '').toLowerCase().includes(keyword) || (j.company || '').toLowerCase().includes(keyword) || (j.tags || []).some(t => String(t).toLowerCase().includes(keyword)))
-      .slice(0, 20)
-      .map(_normalizeRemoteOK);
-  } catch (err) {
-    console.warn('[jobs/web] RemoteOK 异常:', err.message);
-    return [];
+async function _fetchRemoteJobsForWeb(query, limit = 20) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await axios.get('https://remoteok.com/api', {
+        headers: { 'User-Agent': 'ZhiyinCareer/1.0 (job search app for international students)' },
+        timeout: 3500
+      });
+      const keyword = String(query || '').toLowerCase();
+      return (response.data || [])
+        .slice(1)
+        .filter(j => j.id && j.position)
+        .filter(j => !keyword || (j.position || '').toLowerCase().includes(keyword) || (j.company || '').toLowerCase().includes(keyword) || (j.tags || []).some(t => String(t).toLowerCase().includes(keyword)))
+        .slice(0, limit)
+        .map(_normalizeRemoteOK);
+    } catch (err) {
+      if (attempt === 1) console.warn('[jobs/web] RemoteOK 异常:', err.message);
+    }
   }
+  return [];
 }
 
 async function _fetchLiveWebJobs(query) {
@@ -336,6 +348,7 @@ async function _fetchLiveWebJobs(query) {
   const seen = new Set();
   return [...searchJobs, ...museJobs, ...remoteJobs]
     .map(_toWebJob)
+    .filter(_isCurrentWebJob)
     .filter(job => {
       const key = `${job.title}|${job.company}|${job.location}`.toLowerCase();
       if (seen.has(key)) return false;
@@ -348,15 +361,16 @@ async function _fetchLiveWebJobs(query) {
 async function _fetchMapWebJobs(pageSize) {
   if (!LIVE_JOBS_ENABLED) return [];
   const batches = await Promise.all(
-    MAP_KEYWORDS.flatMap(keyword => [
+    [_fetchRemoteJobsForWeb('', pageSize), ...MAP_KEYWORDS.flatMap(keyword => [
       _fetchSearchJobsForWeb(keyword, 1),
       ...MAP_MUSE_PAGES.map(page => _fetchMuseJobsForWeb(keyword, page))
-    ])
+    ])]
   );
   const seen = new Set();
   return batches
     .flat()
     .map(_toWebJob)
+    .filter(_isCurrentWebJob)
     .filter(job => {
       const key = `${job.title}|${job.company}|${job.location}`.toLowerCase();
       if (seen.has(key)) return false;
@@ -1191,7 +1205,7 @@ router.get('/recommend/list', jobsLimiter, async (req, res) => {
     const liveJobs = await _fetchLiveWebJobs({ keyword: req.query.keyword || 'software engineer', page: 1 });
     const list = liveJobs.length
       ? liveJobs.slice(0, 5)
-      : [...localJobs()].sort(() => 0.5 - Math.random()).slice(0, 5).map(_toLocalWebJob);
+      : _publicLocalWebJobs().sort(() => 0.5 - Math.random()).slice(0, 5);
     res.json({ code: 0, message: 'success', data: list });
   } catch (error) {
     console.error(error); res.status(500).json({ code: -1, message: '服务器内部错误' });
@@ -1203,11 +1217,10 @@ router.get('/map', jobsLimiter, async (req, res) => {
   try {
     const pageSize = Math.min(Math.max(parseInt(req.query.pageSize) || 160, 20), 240);
     const liveJobs = await _fetchMapWebJobs(pageSize);
-    const localFallbackJobs = localJobs().map(_toLocalWebJob);
-    const hasEnoughLiveCoverage = liveJobs.length >= 30;
-    const list = hasEnoughLiveCoverage
-      ? liveJobs
-      : [...liveJobs, ...localFallbackJobs].slice(0, pageSize);
+    const localFallbackJobs = _publicLocalWebJobs();
+    const list = [...liveJobs, ...localFallbackJobs].slice(0, pageSize);
+    const hasFallback = list.length > liveJobs.length;
+    const source = liveJobs.length ? (hasFallback ? 'live_with_local_fallback' : 'live') : 'local_fallback';
 
     res.json({
       code: 0,
@@ -1215,11 +1228,11 @@ router.get('/map', jobsLimiter, async (req, res) => {
       data: {
         list,
         total: list.length,
-        source: hasEnoughLiveCoverage ? 'live' : liveJobs.length ? 'live_with_local_fallback' : 'local_fallback',
+        source,
         sources: [...new Set(list.map(job => job.source).filter(Boolean))],
         dataMeta: _collectionMeta(list, {
-          degraded: !hasEnoughLiveCoverage,
-          fallbackReason: hasEnoughLiveCoverage ? '' : '实时地图岗位不足，已补充历史职位库'
+          degraded: hasFallback || !liveJobs.length,
+          fallbackReason: hasFallback ? '实时地图岗位不足，已补充近期职位库' : (liveJobs.length ? '' : '实时地图岗位不可用')
         })
       },
       meta: {
@@ -1229,7 +1242,7 @@ router.get('/map', jobsLimiter, async (req, res) => {
     });
   } catch (error) {
     console.error('[jobs/map]', error.message);
-    const list = localJobs().map(_toLocalWebJob).slice(0, Math.min(parseInt(req.query.pageSize) || 160, 240));
+    const list = _publicLocalWebJobs().slice(0, Math.min(parseInt(req.query.pageSize) || 160, 240));
     res.json({
       code: 0,
       message: 'success',
@@ -1275,7 +1288,7 @@ router.get('/', jobsLimiter, async (req, res) => {
     // live sources in the background. This keeps external API latency from
     // leaving the job list in an indefinite loading state.
     if (req.query.source === 'local') {
-      const filteredJobs = _applyWebFilters(localJobs().map(_toLocalWebJob), req.query);
+      const filteredJobs = _applyWebFilters(_publicLocalWebJobs(), req.query);
       const startIndex = (pg - 1) * ps;
       const list = filteredJobs.slice(startIndex, startIndex + ps);
       return res.json({
@@ -1304,7 +1317,7 @@ router.get('/', jobsLimiter, async (req, res) => {
     }
 
     const liveJobs = await _fetchLiveWebJobs({ keyword, region, industry, jobType, visaSponsored, page: pg });
-    const localFallbackJobs = localJobs().map(_toLocalWebJob);
+    const localFallbackJobs = _publicLocalWebJobs();
     let filteredJobs = _applyWebFilters(liveJobs, req.query);
     let source = liveJobs.length ? 'live' : 'local_fallback';
 
@@ -1353,14 +1366,20 @@ router.get('/:id', jobsLimiter, async (req, res) => {
     const numericId = parseId(rawId);
     if (numericId) {
       const localJob = localJobs().find(j => j.id === numericId);
-      if (localJob) return res.json({ code: 0, message: 'success', data: _toLocalWebJob(localJob) });
+      if (localJob) {
+        const job = _toLocalWebJob(localJob);
+        // Historic IDs remain navigable from saved applications and favorites.
+        // dataMeta.freshnessReason tells clients to verify the official posting.
+        return res.json({ code: 0, message: 'success', data: job });
+      }
     }
 
     if (rawId.startsWith('muse_')) {
       try {
         const museId = rawId.replace(/^muse_/, '');
         const result = await axios.get(`https://www.themuse.com/api/public/jobs/${museId}`, { timeout: 6000 });
-        return res.json({ code: 0, message: 'success', data: _toWebJob(_normalizeMuse(result.data)) });
+        const job = _toWebJob(_normalizeMuse(result.data));
+        return res.json({ code: 0, message: 'success', data: job });
       } catch (err) {
         console.warn('[jobs/detail] The Muse 详情拉取失败:', err.message);
       }
@@ -1374,7 +1393,10 @@ router.get('/:id', jobsLimiter, async (req, res) => {
           timeout: 6000
         });
         const remoteJob = (response.data || []).slice(1).find(j => String(j.id) === remoteId);
-        if (remoteJob) return res.json({ code: 0, message: 'success', data: _toWebJob(_normalizeRemoteOK(remoteJob)) });
+        if (remoteJob) {
+          const job = _toWebJob(_normalizeRemoteOK(remoteJob));
+          return res.json({ code: 0, message: 'success', data: job });
+        }
       } catch (err) {
         console.warn('[jobs/detail] RemoteOK 详情拉取失败:', err.message);
       }
@@ -1388,7 +1410,10 @@ router.get('/:id', jobsLimiter, async (req, res) => {
           timeout: 5000
         });
         const apiJob = Array.isArray(result.data?.data) ? result.data.data[0] : null;
-        if (apiJob) return res.json({ code: 0, message: 'success', data: _toWebJob({ ...apiJob, _source: apiJob._source || 'jsearch' }) });
+        if (apiJob) {
+          const job = _toWebJob({ ...apiJob, _source: apiJob._source || 'jsearch' });
+          return res.json({ code: 0, message: 'success', data: job });
+        }
       } catch (err) {
         console.warn('[jobs/detail] JSearch 详情拉取失败:', err.message);
       }
