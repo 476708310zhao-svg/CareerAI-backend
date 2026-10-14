@@ -17,7 +17,7 @@
 - [x] 发布脚本改为隔离快照预检、只读生产迁移状态门禁、候选/正式 PM2 进程身份验证与失败回滚；备份必须验证 SQLite、运行环境及 Nginx 配置，失败不生成成功标记；CI 执行发布门禁及 Acceptance。
 - [x] 当前小程序首页/AI/导航的 P1 文案、触控目标、可访问语义、辅助文字对比度、缓存时效及会员失败关闭已修复；业务路由保持不变。
 - [x] 本地最终 `check:release`：360 通过、1 个仅限 Linux 的测试跳过；Acceptance 30/30；差异无空白错误。
-- [ ] 微信开发者工具 390×844 截图叠加和真机登录验收仍待完成；扩充后的首页内容与旧基准图冲突，不能将旧图的差异报告当作新方案通过。
+- [ ] 微信开发者工具自动化已确认 390×844 视口并导航到资源页，但截图调用在 30 秒及 60 秒两次超时，未取得可比对新图；真机登录验收也仍待完成。扩充后的首页内容与旧基准图冲突，不能将旧图的差异报告当作新方案通过。
 - [ ] 生产数据库只读迁移检查发现跟踪表不存在，当前线上代码报告 `0001–0006` 共 6 项待迁移；应用部署被新门禁阻止。Linux 实际备份/候选切流、微信后台审核配置也未完成；本批未执行数据库迁移或应用代码部署。
 
 ### 2026-10-10 已确认浅色原型正式落地（已完成）
@@ -188,6 +188,8 @@ Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成
 | P2 | 超长 WXSS 精简清理 | Codex | 小程序 `pages/salary/salary.wxss`、`pages/applications/applications.wxss`、`pages/jobs/jobs.wxss`、`pages/index/index.wxss`、`pages/experiences/experiences.wxss`、`pages/resume/resume.wxss`、`pages/agencies/agencies.wxss`、`pages/project-builder/project-builder.wxss`、`pages/ai-assistant/ai-assistant.wxss`、`pages/profile/profile.wxss`、`pages/career-planner/career-planner.wxss` | 已完成首批 |
 
 ## 当前文件占用
+
+- Codex 视觉验收（2026-10-14）：占用 `.agents/skills/zhiyin-miniprogram-pixel-replica/scripts/capture-and-compare.js` 与本记录；开发者工具已登录且 automation 端口可连接，但固定 8/15 秒操作超时导致视口、fixture 或导航中断。本轮仅允许增加可配置等待时间，不更改基准 PNG、差异阈值或遮罩。
 
 - Codex release 集成（2026-10-14）：占用 `.gitignore` 与本记录新增行，整理当前工作区安全提交；仅排除本地 `artifacts/` 运行数据及根目录微信开发者工具配置，保留业务代码和设计基准。
 

@@ -47,6 +47,11 @@ async function navigate(miniProgram, config) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  const requestedOperationTimeout = Number(args['operation-timeout'] || 0);
+  if (args['operation-timeout'] && (!Number.isFinite(requestedOperationTimeout) || requestedOperationTimeout <= 0)) {
+    throw new Error('--operation-timeout must be a positive number of milliseconds');
+  }
+  const timeoutFor = baseMs => requestedOperationTimeout || baseMs;
   const skillRoot = path.resolve(__dirname, '..');
   const projectRoot = path.resolve(args['project-root'] || process.cwd());
   const manifest = JSON.parse(fs.readFileSync(path.join(skillRoot, 'references', 'screens.json'), 'utf8'));
@@ -66,10 +71,10 @@ async function main() {
       console.error('[visual-gate] connecting to Developer Tools automation');
       miniProgram = await withTimeout(
         automator.connect({ wsEndpoint: args.ws || 'ws://127.0.0.1:9420' }),
-        15000,
+        timeoutFor(15000),
         'Developer Tools connection'
       );
-      const systemInfo = await withTimeout(miniProgram.systemInfo(), 8000, 'viewport inspection');
+      const systemInfo = await withTimeout(miniProgram.systemInfo(), timeoutFor(8000), 'viewport inspection');
       if (systemInfo.windowWidth !== manifest.viewport.width || systemInfo.windowHeight !== manifest.viewport.height) {
         throw new Error(`Viewport must be ${manifest.viewport.width}x${manifest.viewport.height}; received ${systemInfo.windowWidth}x${systemInfo.windowHeight}`);
       }
@@ -82,11 +87,11 @@ async function main() {
       const actualPath = noCapture ? path.resolve(args.actual) : path.join(outputDir, 'actual.png');
       if (!noCapture) {
         console.error(`[visual-gate] navigating ${id} -> ${config.route}`);
-        const currentPage = await withTimeout(miniProgram.currentPage(), 8000, `${id} current-page inspection`);
+        const currentPage = await withTimeout(miniProgram.currentPage(), timeoutFor(8000), `${id} current-page inspection`);
         const expectedPath = config.route.split('?')[0].replace(/^\//, '');
         const page = currentPage && currentPage.path === expectedPath
           ? currentPage
-          : await withTimeout(navigate(miniProgram, config), 15000, `${id} navigation`);
+          : await withTimeout(navigate(miniProgram, config), timeoutFor(15000), `${id} navigation`);
         await page.waitFor(Number(args.wait || config.waitMs));
         if (config.fixture) {
           console.error(`[visual-gate] applying stable ${id} fixture`);
@@ -144,7 +149,7 @@ async function main() {
                 else finalizeFixture();
               });
             }), config.fixture),
-            8000,
+            timeoutFor(8000),
             `${id} fixture`
           );
           console.error(`[visual-gate] fixture state ${JSON.stringify(fixtureResult)}`);
@@ -173,7 +178,7 @@ async function main() {
               current._unloaded = runtimeState.unloaded;
               originalSetData.call(current, originalData, () => resolve(true));
             })),
-            8000,
+            timeoutFor(8000),
             `${id} fixture restore`
           );
         }
