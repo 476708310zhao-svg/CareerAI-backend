@@ -36,7 +36,7 @@ cp -a -- "$NGINX_CONFIG_REAL_PATH" "$DEST/nginx-vhost.conf"
   echo "Backup failed: shared .env or Nginx config is empty" >&2
   exit 1
 }
-pm2 jlist > "$DEST/pm2-processes.json"
+pm2 jlist --silent > "$DEST/pm2-processes.json"
 [ -s "$DEST/pm2-processes.json" ] || { echo "Backup failed: empty PM2 process snapshot" >&2; exit 1; }
 node -e '
   const rows = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));

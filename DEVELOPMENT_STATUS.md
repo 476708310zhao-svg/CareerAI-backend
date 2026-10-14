@@ -189,6 +189,8 @@ Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成
 
 ## 当前文件占用
 
+- Codex deploy_guard_impl（2026-10-14）：占用 `deploy.sh`、`scripts/backup-production.sh`、`scripts/verify-pm2-instance.js`、`tests/releaseEngineering.test.js` 与本记录此行；修复 PM2 JSON 静默输出，分别保留原始 `current` 链接与 PM2 实际物理版本，切流前复核旧 PID/4400 监听者。`current` 用同目录临时软链接及 `mv -Tf` 原子替换；切流期间的 EXIT/INT/TERM 守护可在失败或中断时分别恢复旧进程与旧链接，PM2 身份辅助脚本固定新版本绝对路径。Linux 隔离假 PM2 故障注入覆盖新进程启动失败、健康检查失败及 TERM，三种错位回滚均通过；临时测试目录已清理。本地/远端 `bash -n`、聚焦 7 通过/2 Windows 跳过、全量 362 通过/2 Windows 跳过、`check:release`、`git diff --check` 通过；未执行生产部署、提交或推送。
+
 - Codex CI 收口（2026-10-14）：占用 `tests/sprint4CareerCoach.test.js`、`tests/sprint5Networking.test.js` 与本记录；Linux CI 的两条旧资源页文案断言与当前已确认的资源分类不一致，只更新断言到当前产品结构，不变更业务实现。
 
 - Codex 视觉验收（2026-10-14）：占用 `.agents/skills/zhiyin-miniprogram-pixel-replica/scripts/capture-and-compare.js` 与本记录；开发者工具已登录且 automation 端口可连接，但固定 8/15 秒操作超时导致视口、fixture 或导航中断。本轮仅允许增加可配置等待时间，不更改基准 PNG、差异阈值或遮罩。
