@@ -2,6 +2,7 @@ const jdMatch = require('../../../utils/jd-match.js');
 const progress = require('../../../utils/job-progress.js');
 const navigation = require('../../../utils/navigation.js');
 const resumeVersions = require('../../utils/resume-versions.js');
+const ownerStorage = require('../../../utils/owner-storage.js');
 
 function readStorage(key, fallback) {
   try {
@@ -461,7 +462,7 @@ Page({
     const form = this.data.form;
     const jdText = String(form.jdText || '').trim();
     const resumeText = String(form.resumeText || '').trim();
-    const onlineResume = this.data.selectedResume || readStorage('onlineResume', {});
+    const onlineResume = this.data.selectedResume || ownerStorage.get('onlineResume', '', {});
     const useOnline = this.data.useOnlineResume && this.data.hasOnlineResume;
     const selectedResumeName = this.data.onlineResumeName || resumeVersions.getResumeDisplayName(onlineResume, '当前在线简历');
 

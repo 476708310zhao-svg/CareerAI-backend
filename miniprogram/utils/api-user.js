@@ -2,7 +2,19 @@
 // 用户认证、个人信息、投递记录模块
 
 const { request, post, put } = require('./api-client.js');
+const authSession = require('./auth-session.js');
 const { normalizeProfileStorage } = require('./user-profile-schema.js');
+let latestLoginAttempt = 0;
+
+function beginLoginAttempt() { latestLoginAttempt += 1; return latestLoginAttempt; }
+function isLatestLoginAttempt(attempt, revision) {
+  return attempt === latestLoginAttempt && revision === authSession.revision();
+}
+function supersededLoginError() {
+  const error = new Error('登录请求已被新的尝试取代');
+  error.code = 'LOGIN_SUPERSEDED';
+  return error;
+}
 
 function isVipActive(vipLevel, expireDate) {
   if (Number(vipLevel || 0) <= 0) return false;
@@ -70,25 +82,30 @@ function normalizeLoginError(error) {
  * 成功后自动将 token 和 userProfile 存入 Storage
  */
 function login() {
+  const attempt = beginLoginAttempt();
+  const revision = authSession.revision();
   return new Promise((resolve, reject) => {
     wx.login({
       success: (loginRes) => {
+        if (!isLatestLoginAttempt(attempt, revision)) return reject(supersededLoginError());
         if (!loginRes.code) return reject(new Error('wx.login 失败'));
         post({
           path: '/api/users/login',
           body: { code: loginRes.code },
           skipAuth: true
         }).then(res => {
+          if (!isLatestLoginAttempt(attempt, revision)) return reject(supersededLoginError());
           if (res.code === 0 && res.data) {
-            wx.setStorageSync('token', res.data.token);
+            authSession.setToken(res.data.token, wx);
             persistUserSession(res.data.user);
             resolve(res.data);
           } else {
             reject(new Error(res.message || '登录失败'));
           }
-        }).catch(error => reject(normalizeLoginError(error)));
+        }).catch(error => reject(isLatestLoginAttempt(attempt, revision) ? normalizeLoginError(error) : supersededLoginError()));
       },
-      fail: (err) => reject(new Error('wx.login 调用失败: ' + JSON.stringify(err)))
+      fail: (err) => reject(isLatestLoginAttempt(attempt, revision)
+        ? new Error('wx.login 调用失败: ' + JSON.stringify(err)) : supersededLoginError())
     });
   });
 }
@@ -115,18 +132,21 @@ function updateUserDetail(data) {
  * loginCode: from wx.login(), for openid binding
  */
 function phoneLogin(phoneCode, loginCode) {
+  const attempt = beginLoginAttempt();
+  const revision = authSession.revision();
   return post({
     path: '/api/users/phone-login',
     body: { phoneCode, loginCode },
     skipAuth: true
   }).then(res => {
+    if (!isLatestLoginAttempt(attempt, revision)) throw supersededLoginError();
     if (res.code === 0 && res.data) {
-      wx.setStorageSync('token', res.data.token);
+      authSession.setToken(res.data.token, wx);
       persistUserSession(res.data.user);
       return res.data;
     }
     throw new Error(res.message || '手机号登录失败');
-  }).catch(error => { throw normalizeLoginError(error); });
+  }).catch(error => { throw isLatestLoginAttempt(attempt, revision) ? normalizeLoginError(error) : supersededLoginError(); });
 }
 
 function getApplications() {

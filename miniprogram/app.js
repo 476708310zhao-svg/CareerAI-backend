@@ -7,6 +7,7 @@ const featureFlags = require('./utils/feature-flags.js');
 const share = require('./utils/share.js');
 const analytics = require('./utils/analytics.js');
 const unreadMessages = require('./utils/unread-messages.js');
+const authSession = require('./utils/auth-session.js');
 
 navigation.installRouteGuard();
 share.installPageShare();
@@ -94,16 +95,27 @@ App({
    */
   _silentLogin: function() {
     const token = wx.getStorageSync('token');
+    const revision = authSession.revision();
     if (token) {
       // 已有 token，后台校验是否仍有效（不阻塞启动）
       api.getUserProfile().then(res => {
+        const currentToken = wx.getStorageSync('token');
+        const sameSession = currentToken === token && authSession.revision() === revision;
+        const unauthorized = !!(res && (res._source === 'unauthorized' || res.code === 401 || res.statusCode === 401));
+        if (unauthorized) {
+          if (sameSession) {
+            authSession.clearToken(wx);
+            wx.removeStorageSync('userProfile');
+            this.globalData.isLoggedIn = false;
+          } else if (!currentToken) {
+            // The request client already cleared this exact token on HTTP 401.
+            this.globalData.isLoggedIn = false;
+          }
+          return;
+        }
+        if (!sameSession) return;
         if (res && res.code === 0) {
           this.globalData.isLoggedIn = true;
-        } else {
-          // token 无效，清除并等待用户主动登录
-          wx.removeStorageSync('token');
-          wx.removeStorageSync('userProfile');
-          this.globalData.isLoggedIn = false;
         }
       }).catch(() => {
         // 网络失败时保留本地登录态，不强制登出

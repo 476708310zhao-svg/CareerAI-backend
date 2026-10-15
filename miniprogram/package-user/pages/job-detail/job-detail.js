@@ -756,7 +756,7 @@ Requirements:
       }
     }
     if (!isCurrent()) return;
-    const resume = wx.getStorageSync('onlineResume') || {};
+    const resume = ownerStorage.get('onlineResume', '', {});
     const hasResume = !!(resume.basicInfo && (resume.basicInfo.name || resume.basicInfo.email)) ||
       (resume.skills && resume.skills.length) ||
       (resume.projects && resume.projects.length) ||

@@ -4,11 +4,19 @@ const ownerStorage = require('../../../utils/owner-storage.js');
 const TYPE_LABELS = {
   education: '教育', experience: '工作', project: '项目', skill: '技能', award: '奖项'
 };
+const RESUME_TYPE_LABELS = {
+  sde: '开发岗位', ai_engineer: 'AI 岗位', data: '数据岗位', quant: '量化岗位', general: '通用简历'
+};
 
 Page({
   data: {
     activeTab: 'resumes',
     templates: [],
+    attachments: [],
+    attachmentBusy: false,
+    attachmentStage: '',
+    attachmentError: '',
+    busyAttachmentId: null,
     resumes: [],
     experiences: [],
     currentResume: null,
@@ -43,22 +51,61 @@ Page({
   },
   onPullDownRefresh() { this.refresh().finally(() => wx.stopPullDownRefresh()); },
 
+  // Older running backends do not expose sourceAttachment in the resume list.
+  // Recover it from the immutable V1 content before deciding an attachment is new.
+  reconcileResumeSources(resumes) {
+    return Promise.all(resumes.map(resume => {
+      if (Object.prototype.hasOwnProperty.call(resume, 'sourceAttachment')) return Promise.resolve(resume);
+      return api.getResumeVersions(resume.id).then(result => {
+        const source = (result.data || []).find(version => version.content && version.content.sourceAttachment);
+        return Object.assign({}, resume, { sourceAttachment: source ? source.content.sourceAttachment : null });
+      });
+    }));
+  },
+
+  findLinkedResumeForAttachment(id) {
+    return api.getV4Resumes().then(result => this.reconcileResumeSources(result.data || []))
+      .then(resumes => resumes.find(resume => resume.sourceAttachment
+        && Number(resume.sourceAttachment.id) === Number(id)) || null);
+  },
+
   refresh() {
     const generation = this._requestGeneration = (this._requestGeneration || 0) + 1;
     const owner = this._ownerScope;
     this.setData({ loading: true });
-    return Promise.all([api.getResumeTemplates(), api.getV4Resumes(), api.getCareerExperiences()])
-      .then(([templates, resumes, experiences]) => {
+    return Promise.all([api.getResumeTemplates(), api.getV4Resumes(), api.getCareerExperiences(), api.getResumePdfs()])
+      .then(async ([templates, resumes, experiences, pdfs]) => {
         if (this._unloaded || generation !== this._requestGeneration || !ownerStorage.isCurrent(owner)) return;
-        const list = (resumes.data || []).map(item => Object.assign({}, item, {
-          typeLabel: ((templates.data || []).find(type => type.code === item.resumeType) || {}).name || item.resumeType,
+        const recovered = (pdfs.data || []).length
+          ? await this.reconcileResumeSources(resumes.data || []) : (resumes.data || []);
+        if (this._unloaded || generation !== this._requestGeneration || !ownerStorage.isCurrent(owner)) return;
+        const list = recovered.map(item => Object.assign({}, item, {
+          typeLabel: RESUME_TYPE_LABELS[item.resumeType] || '通用简历',
           updatedLabel: String(item.updatedAt || '').slice(0, 10)
         }));
+        const seenAttachments = {};
+        list.forEach(item => {
+          const sourceId = item.sourceAttachment && Number(item.sourceAttachment.id);
+          item.duplicateSource = !!(sourceId && seenAttachments[sourceId]);
+          if (sourceId) seenAttachments[sourceId] = true;
+        });
+        const attachments = (pdfs.data || []).map(item => {
+          const linked = list.find(resume => resume.sourceAttachment && Number(resume.sourceAttachment.id) === Number(item.id));
+          return Object.assign({}, item, {
+            filename: item.original_name || '附件简历.pdf',
+            sizeLabel: (Number(item.file_size || 0) / 1024 / 1024).toFixed(1) + ' MB',
+            dateLabel: String(item.created_at || '').slice(0, 10),
+            linkedResumeId: linked ? linked.id : null,
+            linkedResumeName: linked ? linked.name : ''
+          });
+        });
+        const selectedId = this.data.currentResume && this.data.currentResume.id;
         this.setData({
-          templates: templates.data || [],
+          templates: (templates.data || []).map(item => Object.assign({}, item, { name: RESUME_TYPE_LABELS[item.code] || item.name })),
+          attachments,
           resumes: list,
           experiences: (experiences.data || []).map(item => Object.assign({}, item, { typeLabel: TYPE_LABELS[item.type] || item.type })),
-          currentResume: list.find(item => item.isDefault) || list[0] || null,
+          currentResume: list.find(item => String(item.id) === String(selectedId)) || list.find(item => item.isDefault) || list[0] || null,
           loading: false
         });
       }).catch(err => {
@@ -69,12 +116,93 @@ Page({
   },
 
   switchTab(e) { this.setData({ activeTab: e.currentTarget.dataset.tab }); },
+  chooseResumePdf() {
+    if (this.data.attachmentBusy) return;
+    wx.chooseMessageFile({ count: 1, type: 'file', extension: ['pdf'],
+      success: result => {
+        const file = result.tempFiles && result.tempFiles[0];
+        if (!file || !/\.pdf$/i.test(String(file.name || ''))) {
+          return this.setData({ attachmentError: '请选择 PDF 格式的附件简历。' });
+        }
+        if (Number(file.size) > 10 * 1024 * 1024) {
+          return this.setData({ attachmentError: '文件不能超过 10 MB，请压缩后重试。' });
+        }
+        const owner = this._ownerScope;
+        this.setData({ attachmentBusy: true, attachmentStage: '正在上传简历…', attachmentError: '' });
+        api.uploadResumePdf(file.path, file.name).then(uploaded => {
+          if (this._unloaded || !ownerStorage.isCurrent(owner)) return;
+          this.setData({ attachmentStage: '上传成功，正在建立原始版本…', busyAttachmentId: uploaded.data.id });
+          return this.importResumePdf(uploaded.data.id);
+        }).catch(err => {
+          if (!this._unloaded && ownerStorage.isCurrent(owner)) this.setData({ attachmentError: err.message || '上传失败，请重试。' });
+        }).finally(() => {
+          if (!this._unloaded && ownerStorage.isCurrent(owner)) {
+            this.setData({ attachmentBusy: false, attachmentStage: '', busyAttachmentId: null });
+            this.refresh();
+          }
+        });
+      },
+      fail: error => {
+        if (error && !/cancel/i.test(error.errMsg || '')) this.setData({ attachmentError: '无法选择文件，请重试。' });
+      }
+    });
+  },
+  optimizeAttachment(e) {
+    if (this.data.attachmentBusy) return;
+    const id = Number(e.currentTarget.dataset.id);
+    const attachment = this.data.attachments.find(item => Number(item.id) === id);
+    if (!attachment) return;
+    if (attachment.linkedResumeId) {
+      const resume = this.data.resumes.find(item => String(item.id) === String(attachment.linkedResumeId));
+      if (resume) return this.setData({ currentResume: resume, proposal: null }, () => this.optimizeResume());
+    }
+    const owner = this._ownerScope;
+    this.setData({ attachmentBusy: true, busyAttachmentId: id, attachmentStage: '正在读取简历内容…', attachmentError: '' });
+    this.importResumePdf(id).catch(err => {
+      if (!this._unloaded && ownerStorage.isCurrent(owner)) this.setData({ attachmentError: err.message || '读取失败，请重试。' });
+    }).finally(() => {
+      if (!this._unloaded && ownerStorage.isCurrent(owner)) {
+        this.setData({ attachmentBusy: false, busyAttachmentId: null, attachmentStage: '' });
+        this.refresh();
+      }
+    });
+  },
+  importResumePdf(id) {
+    const owner = this._ownerScope;
+    return this.findLinkedResumeForAttachment(id).then(existing => {
+      if (this._unloaded || !ownerStorage.isCurrent(owner)) return null;
+      if (existing) {
+        this.setData({ currentResume: existing, attachmentError: '', attachmentStage: '' });
+        wx.showToast({ title: '已关联原简历', icon: 'success' });
+        return null;
+      }
+      return api.extractResumePdf(id);
+    }).then(result => {
+      if (!result) return null;
+      if (this._unloaded || !ownerStorage.isCurrent(owner)) return;
+      const data = result.data || {};
+      if (!data.extraction || data.extraction.status !== 'ok' || !String(data.text || '').trim()) {
+        throw new Error('这份 PDF 无法提取文字。请上传可选中文字的 PDF，扫描件可先转为文字版。');
+      }
+      const attachment = this.data.attachments.find(item => Number(item.id) === Number(id));
+      const source = data.resume || {};
+      const filename = (attachment && attachment.filename) || (source.sourceAttachment && source.sourceAttachment.filename) || '我的简历.pdf';
+      const content = Object.assign({}, source, { sourceAttachment: { id, filename } });
+      this.setData({ attachmentStage: '正在建立可优化版本…' });
+      return api.createV4Resume({ name: filename.replace(/\.pdf$/i, '').slice(0, 80) || '我的简历', resumeType: 'general', content });
+    }).then(created => {
+      if (!created || this._unloaded || !ownerStorage.isCurrent(owner)) return;
+      const resume = created.data;
+      this.setData({ currentResume: resume, attachmentError: '', attachmentStage: '' });
+      wx.showToast({ title: '简历已导入', icon: 'success' });
+    });
+  },
   openCreate() { this.setData({ showCreate: true, createName: '' }); },
   closeCreate() { this.setData({ showCreate: false }); },
   onCreateName(e) { this.setData({ createName: e.detail.value }); },
   onTemplateChange(e) { this.setData({ templateIndex: Number(e.detail.value) || 0 }); },
   createResume() {
-    const template = this.data.templates[this.data.templateIndex] || { code: 'general', name: 'General Resume' };
+    const template = this.data.templates[this.data.templateIndex] || { code: 'general', name: '通用简历' };
     const name = String(this.data.createName || '').trim() || template.name;
     api.createV4Resume({
       name, resumeType: template.code,
@@ -204,7 +332,8 @@ Page({
   optimizeResume() {
     if (!this.data.currentResume) return wx.showToast({ title: '请先选择简历', icon: 'none' });
     if (!this.data.currentResume.currentVersionId) return this.initializeResumeVersion();
-    if (this.data.loading || this._proposalMutationBusy) return;
+    if (this.data.loading || this._proposalMutationBusy || this._optimizingResume) return;
+    this._optimizingResume = true;
     const owner = ownerStorage.capture();
     const generation = this._proposalRequestGeneration = (this._proposalRequestGeneration || 0) + 1;
     const selectedResumeId = this.data.currentResume.id;
@@ -231,8 +360,9 @@ Page({
     }).catch(err => {
       if (this._unloaded || generation !== this._proposalRequestGeneration || !ownerStorage.isCurrent(owner)) return;
       this.setData({ loading: false });
-      wx.showToast({ title: err.message || '生成失败', icon: 'none' });
-    });
+      this.setData({ attachmentError: err.message || '生成失败，请补充简历内容后重试。' });
+      wx.showToast({ title: '优化失败，请查看提示', icon: 'none' });
+    }).finally(() => { this._optimizingResume = false; });
   },
 
   toggleSuggestion(e) {

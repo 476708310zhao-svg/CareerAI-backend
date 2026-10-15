@@ -10,7 +10,7 @@ const FULL_TAB_LIST = [
   },
   {
     pagePath: 'pages/jobs/jobs',
-    text: '找岗位',
+    text: '机会',
     iconPath: '/images/zhiyin-icons/nav-jobs.png',
     selectedIconPath: '/images/zhiyin-icons/nav-jobs-active.png'
   },

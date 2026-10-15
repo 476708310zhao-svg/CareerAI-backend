@@ -37,7 +37,7 @@ page { min-height: 100%; background: #f4f8ff; color: #101a34; }
 .feature-arrow { display: block; flex: none; width: 22rpx; height: 22rpx; margin-left: 4rpx; opacity: .74; }
 
 .asset-list { overflow: hidden; border: 1rpx solid #e1e9f6; border-radius: 28rpx; background: rgba(255,255,255,.98); box-shadow: 0 12rpx 34rpx rgba(61,102,176,.05); }
-.asset-card { display: flex; align-items: center; min-height: 116rpx; box-sizing: border-box; margin: 0 20rpx; padding: 12rpx 0; border-bottom: 1rpx solid #e6ecf5; transition: opacity 160ms ease; }
+.asset-card { display: flex; align-items: center; min-height: 104rpx; box-sizing: border-box; margin: 0 20rpx; padding: 12rpx 0; border-bottom: 1rpx solid #e6ecf5; transition: opacity 160ms ease; }
 .asset-card:last-child { border-bottom: 0; }
 .asset-mark { display: flex; align-items: center; justify-content: center; flex: 0 0 72rpx; width: 72rpx; height: 72rpx; border-radius: 20rpx; background: #edf4ff; }
 .asset-mark image { display: block; width: 36rpx; height: 36rpx; }
@@ -46,12 +46,11 @@ page { min-height: 100%; background: #f4f8ff; color: #101a34; }
 .asset-indigo { background: #eef0ff; }
 .asset-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; margin-left: 18rpx; }
 .asset-title { overflow: hidden; color: #17213a; font-size: 28rpx; font-weight: 650; line-height: 38rpx; text-overflow: ellipsis; white-space: nowrap; }
-.asset-stage { margin-top: 4rpx; overflow: hidden; color: #41679f; font-size: 24rpx; line-height: 32rpx; text-overflow: ellipsis; white-space: nowrap; }
 .asset-arrow { display: block; flex: none; width: 30rpx; height: 30rpx; margin-left: 8rpx; opacity: .7; }
 .unavailable-card { display: flex; align-items: center; min-height: 104rpx; box-sizing: border-box; margin-top: 12rpx; padding: 12rpx 20rpx; border: 1rpx solid #e1e9f6; border-radius: 24rpx; color: #8392aa; background: rgba(255,255,255,.74); }
 .asset-unavailable { background: #f1f4f9; }
 .asset-unavailable image { opacity: .48; }
-.unavailable-card .asset-title,.unavailable-card .asset-stage { color: #8392aa; }
+.unavailable-card .asset-title { color: #8392aa; }
 .unavailable-badge { flex: none; margin-left: 8rpx; padding: 5rpx 10rpx; border-radius: 10rpx; color: #8392aa; background: #edf1f6; font-size: 24rpx; line-height: 30rpx; }
 
 .empty-card { display: flex; align-items: center; justify-content: center; min-height: 310rpx; box-sizing: border-box; flex-direction: column; padding: 36rpx 24rpx; border: 1rpx solid #e1e9f6; border-radius: 28rpx; background: rgba(255,255,255,.94); text-align: center; }

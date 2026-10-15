@@ -6,6 +6,7 @@ const vipUtil = require('../../utils/vip.js');
 const ownerStorage = require('../../utils/owner-storage.js');
 const unreadMessages = require('../../utils/unread-messages.js');
 const reminders = require('../../utils/reminders.js');
+const authSession = require('../../utils/auth-session.js');
 
 Page({
   data: {
@@ -227,7 +228,7 @@ Page({
         unreadMessages.clear();
         ['ai_assistant_messages', 'ai_assistant_saved_results', 'aiCareerCompatTasks_v1'].forEach(key => ownerStorage.remove(key));
         wx.removeStorageSync('unreadMessages');
-        wx.removeStorageSync('token');
+        authSession.clearToken(wx);
         wx.removeStorageSync('userProfile');
         wx.removeStorageSync('vipInfo');
         wx.removeStorageSync('userVipInfo');

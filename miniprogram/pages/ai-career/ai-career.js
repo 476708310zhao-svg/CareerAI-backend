@@ -5,6 +5,7 @@ const progress = require('../../utils/job-progress.js');
 const appMaterials = require('../../utils/ai-application-materials.js');
 const resumeVersions = require('../../utils/ai-resume-versions.js');
 const ownerStorage = require('../../utils/owner-storage.js');
+const authSession = require('../../utils/auth-session.js');
 
 const API_BASE    = config.API_BASE_URL;
 const CACHE_KEY   = 'ai_assistant_messages';
@@ -12,6 +13,12 @@ const SAVED_KEY   = 'ai_assistant_saved_results';
 const PENDING_TAB_CONTEXT_KEY = 'pending_ai_tab_context';
 const cacheKey = () => ownerStorage.key(CACHE_KEY);
 const savedKey = () => ownerStorage.key(SAVED_KEY);
+const currentPageOwner = () => {
+  try { return ownerStorage.capture ? ownerStorage.capture() : ''; } catch (e) { return ''; }
+};
+const ownedResume = () => {
+  try { return ownerStorage.get ? ownerStorage.get('onlineResume', '', {}) || {} : {}; } catch (e) { return {}; }
+};
 const MAX_CACHE   = 30;
 const TIME_GAP_MS = 5 * 60 * 1000;
 const CURSOR      = '▋';
@@ -176,15 +183,12 @@ function extractChatContent(res) {
 // ─── SSE 流式请求 ────────────────────────────────────────────
 // wx.request enableChunked（基础库 2.26.0+）
 // DeepSeek SSE 格式: data: {"choices":[{"delta":{"content":"…"}}]}
-function streamRequest(messages, userContext, onDelta, onDone, onError) {
+function streamRequest(messages, userContext, onDelta, onDone, onError, requestAuth) {
   let sseBuffer = '';
   let hasErrored = false;
   let receivedText = '';
-  const authHeader = {};
-  try {
-    const token = wx.getStorageSync('token');
-    if (token) authHeader['Authorization'] = 'Bearer ' + token;
-  } catch (e) {}
+  const authHeader = requestAuth && requestAuth.token
+    ? { Authorization: 'Bearer ' + requestAuth.token } : {};
 
   const handleSseData = (data) => {
     if (hasErrored || !data || data === '[DONE]') return;
@@ -337,6 +341,7 @@ Page({
 
   onLoad(options = {}) {
     this._ensureRuntimeState();
+    this._pageOwner = currentPageOwner();
     const info = wx.getSystemInfoSync();
     const safeBottom = info.safeArea && info.screenHeight
       ? Math.max(0, info.screenHeight - info.safeArea.bottom)
@@ -355,6 +360,8 @@ Page({
   },
 
   onShow() {
+    this._ensurePageOwner();
+    if (this._streamAuth) this._isActiveStream(this._streamAuth);
     this._consumePendingTabContext();
     const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
     if (tabBar && typeof tabBar.setSelected === 'function') tabBar.setSelected(2);
@@ -366,10 +373,44 @@ Page({
     this._abortStream();
   },
 
+  _ensurePageOwner() {
+    const owner = currentPageOwner();
+    if (this._pageOwner === undefined) { this._pageOwner = owner; return true; }
+    if (this._pageOwner === owner) return true;
+    this._pageOwner = owner;
+    this._abortStream();
+    this._history = [];
+    this._userContext = {};
+    this._streamingIdx = -1;
+    this._lastRawText = '';
+    this.setData({
+      messages: [makeWelcome()], inputText: '', inputLen: 0,
+      loading: false, streaming: false, latestAiIdx: 0, freshChat: true,
+      scrollId: '', contextActive: false, contextLabel: '', contextSource: '',
+      contextApplicationId: '', composerPlaceholder: '输入求职问题或具体目标',
+      sidebarOpen: false, showMoreTools: false, showLoginPopup: false,
+      recentChats: [], showApplicationPanel: false, applicationJobs: [],
+      selectedApplicationJobId: '', selectedQuestionType: 'why_company',
+      assistantResume: null, assistantResumeName: '', hasAssistantResume: false,
+      applicationResumeVersions: [], applicationResumeVersionLabels: [],
+      selectedApplicationResumeId: '', selectedApplicationResumeIndex: 0,
+      selectedApplicationResumeName: '', selectedApplicationResumeTargetRole: '',
+      selectedApplicationResume: null, hasApplicationResume: false,
+      applicationResumeLoading: false, applicationDraft: null,
+      applicationSavedMaterials: [], applicationJdText: '', applicationGenerating: false
+    });
+    this._buildUserContext();
+    return false;
+  },
+
   loadAssistantResumeContext() {
+    const owner = currentPageOwner();
+    const session = authSession.capture(wx);
     resumeVersions.fetchResumeVersions().then(selection => {
+      if (owner !== currentPageOwner() || !authSession.isCurrent(session, wx)) return;
       this.applyAssistantResumeSelection(selection);
     }).catch(() => {
+      if (owner !== currentPageOwner() || !authSession.isCurrent(session, wx)) return;
       this.applyAssistantResumeSelection(resumeVersions.localSelection());
     });
   },
@@ -409,10 +450,14 @@ Page({
   },
 
   loadApplicationResumeVersions() {
+    const owner = currentPageOwner();
+    const session = authSession.capture(wx);
     this.setData({ applicationResumeLoading: true });
     resumeVersions.fetchResumeVersions().then(selection => {
+      if (owner !== currentPageOwner() || !authSession.isCurrent(session, wx)) return;
       this.applyApplicationResumeSelection(selection);
     }).catch(() => {
+      if (owner !== currentPageOwner() || !authSession.isCurrent(session, wx)) return;
       this.applyApplicationResumeSelection(resumeVersions.localSelection());
     });
   },
@@ -423,14 +468,14 @@ Page({
     try {
       const profile = wx.getStorageSync('userProfile') || {};
       const pref    = profile.jobPreference || {};
-      const resume  = this.data.assistantResume || wx.getStorageSync('onlineResume') || {};
+      const resume  = this.data.assistantResume || ownedResume();
       this._userContext = {
         nickname:  String(profile.nickname || '').slice(0, 20),
         targetJob: String(pref.targetPosition || pref.targetJob || '').slice(0, 50),
         location:  String(pref.targetLocation || pref.location || '').slice(0, 30),
         education: String((profile.education && profile.education.degree) ? profile.education.degree : '').slice(0, 30),
         hasResume: !!(resume.basicInfo && resume.basicInfo.name),
-        appCount:  (wx.getStorageSync('localApplications') || []).length
+        appCount: progress.getList().length
       };
     } catch (e) {}
   },
@@ -490,8 +535,8 @@ Page({
   _consumePendingTabContext() {
     let context = null;
     try {
-      context = wx.getStorageSync(PENDING_TAB_CONTEXT_KEY) || null;
-      if (context) wx.removeStorageSync(PENDING_TAB_CONTEXT_KEY);
+      context = ownerStorage.get(PENDING_TAB_CONTEXT_KEY, '', null);
+      if (context) ownerStorage.remove(PENDING_TAB_CONTEXT_KEY, '');
     } catch (error) {}
     if (!context || typeof context !== 'object') return;
     this._buildUserContext();
@@ -506,7 +551,7 @@ Page({
   _buildResumeContext(text) {
     if (!/简历|resume|优化|润色|ats|诊断|改进|经历|经验|描述/i.test(text)) return '';
     try {
-      const r = this.data.assistantResume || wx.getStorageSync('onlineResume') || {};
+      const r = this.data.assistantResume || ownedResume();
       const b = r.basicInfo || {};
       if (!b.name && !b.email) return '';
       const lines = [];
@@ -553,6 +598,7 @@ Page({
   // ── 输入 ──────────────────────────────────────────────────
 
   onInputChange(e) {
+    if (!this._ensurePageOwner()) return;
     this.setData({ inputText: e.detail.value, inputLen: e.detail.value.length });
   },
 
@@ -586,6 +632,31 @@ Page({
     }
   },
 
+  _isActiveStream(requestAuth) {
+    if (!requestAuth || this._streamAuth !== requestAuth) return false;
+    if (!this._ensurePageOwner()) return false;
+    if (authSession.isCurrent(requestAuth, wx)) return true;
+    this._finishStoppedStream();
+    return false;
+  },
+
+  _finishStoppedStream() {
+    this._applyPendingDelta();
+    const idx = this._streamingIdx;
+    const cur = idx >= 0 && this.data.messages[idx];
+    const content = cur && String(cur.content || '').trim();
+    this._abortStream();
+    this._streamingIdx = -1;
+    if (!cur) { this.setData({ loading: false, streaming: false }); return; }
+    this.setData({
+      [`messages[${idx}].content`]: content || '已停止生成',
+      [`messages[${idx}].displayText`]: content || '已停止生成',
+      [`messages[${idx}].htmlContent`]: content ? mdToHtml(content) : '',
+      [`messages[${idx}].isStreaming`]: false,
+      loading: false, streaming: false
+    });
+  },
+
   _showLoginRequired(subtitle) {
     this.setData({
       showLoginPopup: true,
@@ -598,6 +669,7 @@ Page({
   },
 
   onLoginSuccess() {
+    this._ensurePageOwner();
     this.setData({ showLoginPopup: false });
     wx.showToast({ title: '已登录，可继续发送', icon: 'none' });
   },
@@ -630,6 +702,7 @@ Page({
   },
 
   openApplicationAssistant() {
+    this._ensurePageOwner();
     const jobs = progress.getList().slice(0, 12);
     const selected = jobs[0] ? jobs[0].id : '';
     this.setData({
@@ -651,6 +724,7 @@ Page({
   },
 
   selectApplicationJob(e) {
+    if (!this._ensurePageOwner()) return;
     const id = e.currentTarget.dataset.id || '';
     const job = this.data.applicationJobs.find(item => String(item.id) === String(id)) || {};
     this.setData({
@@ -661,21 +735,28 @@ Page({
   },
 
   selectApplicationQuestion(e) {
+    if (!this._ensurePageOwner()) return;
     this.setData({ selectedQuestionType: e.currentTarget.dataset.type || 'why_company', applicationDraft: null });
   },
 
   onApplicationJdInput(e) {
+    if (!this._ensurePageOwner()) return;
     this.setData({ applicationJdText: e.detail.value || '', applicationDraft: null });
   },
 
   onApplicationResumeChange(e) {
+    if (!this._ensurePageOwner()) return;
     const index = Number(e.detail.value || 0);
     const target = (this.data.applicationResumeVersions || [])[index];
     if (!target || String(target.id) === String(this.data.selectedApplicationResumeId)) return;
     this.setData({ applicationResumeLoading: true, applicationDraft: null });
+    const owner = currentPageOwner();
+    const session = authSession.capture(wx);
     resumeVersions.loadResumeVersion(target.id, this.data.applicationResumeVersions).then(selection => {
+      if (owner !== currentPageOwner() || !authSession.isCurrent(session, wx)) return;
       this.applyApplicationResumeSelection(selection);
     }).catch(() => {
+      if (owner !== currentPageOwner() || !authSession.isCurrent(session, wx)) return;
       this.setData({ applicationResumeLoading: false });
       wx.showToast({ title: '简历加载失败', icon: 'none' });
     });
@@ -687,6 +768,7 @@ Page({
   },
 
   generateApplicationDraft() {
+    if (!this._ensurePageOwner()) return;
     if (!this.data.applicationJobs.length) {
       wx.showToast({ title: '请先添加目标岗位', icon: 'none' });
       return;
@@ -697,12 +779,14 @@ Page({
     }
     if (this.data.applicationGenerating) return;
     const job = this.data.applicationJobs.find(item => String(item.id) === String(this.data.selectedApplicationJobId)) || this.data.applicationJobs[0] || {};
-    const resume = this.data.selectedApplicationResume || this.data.assistantResume || wx.getStorageSync('onlineResume') || {};
+    const resume = this.data.selectedApplicationResume || this.data.assistantResume || ownedResume();
     const resumeMeta = {
       resumeName: this.data.selectedApplicationResumeName || resumeVersions.getResumeDisplayName(resume, '当前在线简历'),
       resumeVersionId: this.data.selectedApplicationResumeId || ''
     };
     this.setData({ applicationGenerating: true });
+    const owner = currentPageOwner();
+    const session = authSession.capture(wx);
     appMaterials.generateDraftAi({
       job,
       questionType: this.data.selectedQuestionType,
@@ -711,11 +795,13 @@ Page({
       resumeVersionId: resumeMeta.resumeVersionId,
       jdText: this.data.applicationJdText
     }).then(material => {
+      if (owner !== currentPageOwner() || !authSession.isCurrent(session, wx)) return;
       this.setData({ applicationDraft: Object.assign({}, material, resumeMeta), applicationGenerating: false });
       if (material && material.generationMode === 'template') {
         wx.showToast({ title: 'AI 暂不可用，已生成基础草稿', icon: 'none' });
       }
     }).catch(() => {
+      if (owner !== currentPageOwner() || !authSession.isCurrent(session, wx)) return;
       const material = appMaterials.generateDraft({
         job,
         questionType: this.data.selectedQuestionType,
@@ -728,6 +814,7 @@ Page({
   },
 
   saveApplicationDraft() {
+    if (!this._ensurePageOwner()) return;
     if (!this.data.applicationDraft) return;
     appMaterials.saveMaterial(this.data.applicationDraft);
     this.setData({ applicationSavedMaterials: appMaterials.readMaterials().slice(0, 3) });
@@ -735,6 +822,7 @@ Page({
   },
 
   copyApplicationDraft() {
+    if (!this._ensurePageOwner()) return;
     const draft = this.data.applicationDraft;
     if (!draft || !draft.content) return;
     wx.setClipboardData({
@@ -829,6 +917,7 @@ Page({
   },
 
   sendMessage() {
+    if (!this._ensurePageOwner()) return;
     this._ensureRuntimeState();
     const rawText = this.data.inputText.trim();
     if (!rawText || this.data.loading || this.data.streaming) return;
@@ -836,6 +925,8 @@ Page({
       this._showLoginRequired('使用 AI 求职助手需要先登录');
       return;
     }
+    const requestAuth = authSession.capture(wx);
+    this._streamAuth = requestAuth;
     this._lastRawText = rawText;
 
     // 检测简历意图，注入简历摘要到 API 消息（显示侧不带）
@@ -879,9 +970,10 @@ Page({
     this._currentTask = streamRequest(
       this._history,
       this._userContext,
-      (delta) => { this._queueDelta(delta); },
-      ()      => { this._flushAndFinalize(); },
+      (delta) => { if (this._isActiveStream(requestAuth)) this._queueDelta(delta); },
+      ()      => { if (this._isActiveStream(requestAuth)) this._flushAndFinalize(); },
       (err)   => {
+        if (!this._isActiveStream(requestAuth)) return;
         if (isUnauthorizedError(err)) {
           console.warn('[ai-assistant] login required:', err.message || err);
           this._handleAuthExpired();
@@ -893,13 +985,18 @@ Page({
           console.error('[ai-assistant]', err);
         }
         this._fallbackToChat(err);
-      }
+      },
+      requestAuth
     );
   },
 
   onStop() {
-    this._abortStream();
-    this._flushAndFinalize();
+    if (!this._ensurePageOwner()) return;
+    if (this._streamAuth && !authSession.isCurrent(this._streamAuth, wx)) {
+      this._finishStoppedStream();
+      return;
+    }
+    this._finishStoppedStream();
   },
 
   // ── Delta 节流批量合并（Perf fix: 50ms 内的 delta 合并为一次 setData）──
@@ -907,13 +1004,22 @@ Page({
   _queueDelta(delta) {
     this._pendingDelta += delta;
     if (this._flushTimer) return;
+    const requestAuth = this._streamAuth;
     this._flushTimer = setTimeout(() => {
       this._flushTimer = null;
+      if (!this._isActiveStream(requestAuth)) {
+        if (this._streamAuth === requestAuth) this._pendingDelta = '';
+        return;
+      }
       this._applyPendingDelta();
     }, 50);
   },
 
   _applyPendingDelta() {
+    if (this._streamAuth && !authSession.isCurrent(this._streamAuth, wx)) {
+      this._pendingDelta = '';
+      return;
+    }
     const batch = this._pendingDelta;
     this._pendingDelta = '';
     if (!batch) return;
@@ -983,6 +1089,8 @@ Page({
   },
 
   _fallbackToChat(err) {
+    const requestAuth = this._streamAuth;
+    if (!this._isActiveStream(requestAuth)) return;
     const idx = this._streamingIdx;
     const cur = idx >= 0 ? this.data.messages[idx] : null;
 
@@ -1009,18 +1117,21 @@ Page({
       body: { messages, temperature: 0.7 },
       timeout: 65000
     }).then((res) => {
+      if (!this._isActiveStream(requestAuth)) return;
       const content = extractChatContent(res).trim();
       if (!content) throw new Error(res && (res.message || res.error) || 'AI 返回为空');
       this._finishWithFallbackContent(content);
     }).catch((fallbackErr) => {
+      if (!this._isActiveStream(requestAuth)) return;
       console.error('[ai-assistant:fallback]', fallbackErr);
       this._flushAndFinalize(friendlyError(fallbackErr || err), true);
     });
   },
 
   _handleAuthExpired() {
+    if (!this._isActiveStream(this._streamAuth)) return;
     try {
-      wx.removeStorageSync('token');
+      authSession.clearToken(wx);
       wx.removeStorageSync('userProfile');
       const app = getApp();
       if (app && app.globalData) {
@@ -1028,6 +1139,7 @@ Page({
         if (typeof app.refreshGlobalData === 'function') app.refreshGlobalData();
       }
     } catch (e) {}
+    this._streamAuth = null;
     this._flushAndFinalize('登录状态已过期，请重新登录后点击「重新发送」。', true);
     this._showLoginRequired('登录状态已过期，请重新登录后继续使用 AI 求职助手');
   },
@@ -1132,11 +1244,12 @@ Page({
 
   _abortStream() {
     this._ensureRuntimeState();
-    if (this._currentTask) {
-      try { this._currentTask.abort(); } catch (e) {}
-      this._currentTask = null;
-    }
+    const task = this._currentTask;
+    this._currentTask = null;
+    this._streamAuth = null;
+    if (task) { try { task.abort(); } catch (e) {} }
     if (this._flushTimer) { clearTimeout(this._flushTimer); this._flushTimer = null; }
+    this._pendingDelta = '';
   },
 
   openAiCareer() {

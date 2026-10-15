@@ -183,6 +183,10 @@ function isNonResumeMetadata(value) {
     || /^(?:created|updated|timestamp|version)[_-]?(?:at|time)?\s*[:：]/i.test(text);
 }
 
+function isAttachmentPath(path) {
+  return /(?:^|\.)sourceAttachment(?:\.|$)/.test(String(path || ''));
+}
+
 function containsSensitivePersonalInfo(value) {
   const text = String(value || '');
   return /\b1[3-9]\d{9}\b/.test(text)
@@ -236,7 +240,7 @@ function polishFallbackText(value) {
 
 function defaultSuggestions(content, jdText) {
   return collectStringEntries(content)
-    .filter(item => item.text.length >= 8 && !isNonResumeMetadata(item.text))
+    .filter(item => item.text.length >= 8 && !isAttachmentPath(item.path) && !isNonResumeMetadata(item.text))
     .map(item => ({ ...item, after: polishFallbackText(item.text) }))
     .filter(item => item.after && normalizeComparableText(item.after) !== normalizeComparableText(item.text))
     .slice(0, 5)
@@ -254,7 +258,7 @@ function defaultSuggestions(content, jdText) {
 }
 
 function validateSuggestions(userId, content, suggestions) {
-  const sourceText = collectStrings(content).join(' ');
+  const sourceText = collectStringEntries(content).filter(item => !isAttachmentPath(item.path)).map(item => item.text).join(' ');
   return suggestions.map((raw, index) => {
     const suggestion = {
       id: cleanText(raw.id || `suggestion_${index + 1}`, 80),
@@ -269,7 +273,7 @@ function validateSuggestions(userId, content, suggestions) {
     if (normalizeComparableText(suggestion.before) === normalizeComparableText(suggestion.after)) {
       throw Object.assign(new Error(`第 ${index + 1} 条建议与原内容相同`), { status: 422, code: 'AI_SUGGESTION_UNCHANGED' });
     }
-    if (isNonResumeMetadata(suggestion.before)) {
+    if (isAttachmentPath(suggestion.path) || isNonResumeMetadata(suggestion.before)) {
       throw Object.assign(new Error(`第 ${index + 1} 条建议引用的是系统元数据，不是简历内容`), { status: 422, code: 'AI_SUGGESTION_INVALID_FIELD' });
     }
     if (!suggestion.before || !sourceText.includes(suggestion.before)) {
@@ -298,7 +302,7 @@ function replaceExact(value, before, after) {
   if (typeof value === 'string') return value === before ? after : value;
   if (Array.isArray(value)) return value.map(item => replaceExact(item, before, after));
   if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, replaceExact(item, before, after)]));
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, key === 'sourceAttachment' ? item : replaceExact(item, before, after)]));
   }
   return value;
 }
@@ -314,7 +318,7 @@ async function createChangeSet({ userId, resumeId, jobId = '', applicationId = n
     checked = validateSuggestions(userId, content, suggestions);
   } else {
     const resumeFields = collectStringEntries(content)
-      .filter(item => item.text.length >= 8 && !isNonResumeMetadata(item.text) && !containsSensitivePersonalInfo(item.text))
+      .filter(item => item.text.length >= 8 && !isAttachmentPath(item.path) && !isNonResumeMetadata(item.text) && !containsSensitivePersonalInfo(item.text))
       .slice(0, 40);
     const generated = await aiRuntime.generate({
       systemPrompt: '你是职引的专业简历优化助手。请针对求职价值、动作表达、结果呈现和可读性进行实质改写。只能改写 resumeFields 中已经存在的完整原文，不得新增经历、技能、学历、公司、日期、数字或任何未经证实的事实；不得返回与原文相同或仅改空格的内容；不得处理姓名、电话、邮箱、年龄、性别和系统时间戳。输出 JSON 数组，每项格式为 {"id":"suggestion_1","path":"原字段路径","before":"原文完整内容","after":"实质优化后的内容","reason":"具体修改原因","sourceExperienceIds":[],"addsFacts":false}。返回 1 到 5 条。',

@@ -61,6 +61,8 @@ page { min-height: 100%; background: #f4f8ff; }
 .zy-section-card > .zy-empty-card { margin-bottom: 0; border: 0; border-radius: 0; }
 .zy-empty-mark { display: flex; align-items: center; justify-content: center; width: 64rpx; height: 64rpx; margin-right: 16rpx; border-radius: 50%; background: #edf4ff; }.zy-empty-mark text { width: 19rpx; height: 19rpx; border: 3rpx solid #2f70f4; border-radius: 50%; }
 .zy-empty-title,.zy-empty-desc { display: block; }.zy-empty-title { color: #26334f; font-size: 27rpx; font-weight: 600; line-height: 36rpx; }.zy-empty-desc { margin-top: 3rpx; color: #667085; font-size: 24rpx; line-height: 34rpx; }.zy-empty-compact { min-height: 112rpx; }
+.zy-campus-error { justify-content: space-between; gap: 16rpx; }
+.zy-campus-retry { display: flex; flex: none; align-items: center; justify-content: center; min-width: 88rpx; min-height: 88rpx; padding: 0 20rpx; box-sizing: border-box; border-radius: 20rpx; color: #2f70f4; background: #edf4ff; font-size: 26rpx; font-weight: 600; }
 
 .zy-recommend-head { margin-top: 0; }
 .zy-job-card { display: flex; align-items: center; min-height: 126rpx; box-sizing: border-box; padding: 12rpx 20rpx; transition: opacity 160ms ease; }

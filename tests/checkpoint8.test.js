@@ -80,7 +80,7 @@ test('Checkpoint 8 keeps app.json, custom TabBar and navigation on the same five
   const navigation = read('utils/navigation.js');
   const tabs = app.tabBar.list.map(item => item.pagePath);
   assert.deepEqual(tabs, EXPECTED_TABS);
-  assert.deepEqual(app.tabBar.list.map(item => item.text), ['首页', '找岗位', 'AI求职', '资源', '我的']);
+  assert.deepEqual(app.tabBar.list.map(item => item.text), ['首页', '机会', 'AI求职', '资源', '我的']);
   EXPECTED_TABS.forEach(route => {
     assert.match(custom, new RegExp(route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     assert.match(navigation, new RegExp(('/' + route).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));

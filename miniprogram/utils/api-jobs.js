@@ -2,6 +2,7 @@
 // 职位搜索 + 薪资查询模块
 
 const { request, post, DETAIL_CACHE_TTL } = require('./api-client.js');
+const { CONTENT_API_BASE_URL } = require('./app-config.js');
 const feishuContent = require('./api-feishu-content.js');
 const { normalizeDataMeta } = require('./data-provenance.js');
 
@@ -36,6 +37,12 @@ function markFallbackResult(result, reason) {
   });
 }
 
+// Feishu manual jobs have no trusted country filter. Never present them as a
+// country-specific search result after the primary source fails.
+function allowsUnscopedFallback(country) {
+  return ['global', 'all'].includes(String(country || '').trim().toLowerCase());
+}
+
 // ── 职位搜索 ──
 
 function getJobs(data) {
@@ -51,19 +58,24 @@ function getJobs(data) {
 
   // 正式职位接口是搜索页主数据源；飞书人工职位仅作为并行兜底。
   // 不再串行等待飞书超时后才请求正式接口，避免搜索页长时间停留在 loading。
-  const fallback = feishuContent
-    .getFeishuJobs(Object.assign({}, data, { timeout: Math.min(data.timeout || 6000, 6000) }))
-    .catch(() => null);
+  const fallback = allowsUnscopedFallback(params.country)
+    ? feishuContent.getFeishuJobs(Object.assign({}, data, { timeout: Math.min(data.timeout || 6000, 6000) }))
+      .catch(() => null)
+    : null;
   return request({ path: '/api/jobs/search', params, timeout: data.timeout || 10000 })
     .then(usableJobResult)
-    .catch(() => fallback.then(usableJobResult).then(result => markFallbackResult(result, '正式职位接口暂不可用')));
+    .catch(error => fallback
+      ? fallback.then(usableJobResult).then(result => markFallbackResult(result, '正式职位接口暂不可用'))
+      : Promise.reject(error));
 }
 
 function getJobDetail(jobId) {
   return request({
     path: '/api/jobs/detail',
     params: { job_id: jobId },
-    cacheTTL: DETAIL_CACHE_TTL
+    cacheTTL: DETAIL_CACHE_TTL,
+    baseUrl: CONTENT_API_BASE_URL,
+    skipAuth: true
   });
 }
 
@@ -171,14 +183,21 @@ function getAggregatedJobs(data) {
   };
   if (data.date_posted) params.date_posted = data.date_posted;
   if (data.employment_types) params.employment_types = data.employment_types;
-  const fallback = feishuContent.getFeishuJobs(data || {}).catch(() => null);
+  // 公开聚合职位与账号服务分离：开发者工具无本机后端时仍能读线上公开职位。
+  // 飞书兜底仅在正式公开源失败后启动，避免额外请求和限流。
   return request({
     path: '/api/jobs/aggregate',
     params,
     timeout: 15000,
-    noCache: !!data.noCache
+    noCache: !!data.noCache,
+    baseUrl: CONTENT_API_BASE_URL,
+    skipAuth: true
   }).then(usableJobPage)
-    .catch(() => fallback.then(usableJobResult).then(result => markFallbackResult(result, '多源聚合接口暂不可用')));
+    .catch(error => allowsUnscopedFallback(params.country)
+      ? feishuContent.getFeishuJobs(data)
+        .then(usableJobResult)
+        .then(result => markFallbackResult(result, '多源聚合接口暂不可用'))
+      : Promise.reject(error));
 }
 
 // ── The Muse 精选职位（完全免费，科技/创业公司）──

@@ -7,6 +7,7 @@ const favUtil = require('../../../utils/favorites.js');
 const reminders = require('../../../utils/reminders.js');
 const ownerStorage = require('../../../utils/owner-storage.js');
 const unreadMessages = require('../../../utils/unread-messages.js');
+const authSession = require('../../../utils/auth-session.js');
 
 function removeStorageByPrefix(prefix) {
   try {
@@ -274,7 +275,7 @@ Page({
               clearLocalCareerData();
               clearLocalResumeData();
               clearLocalFavoriteData();
-              wx.removeStorageSync('token');
+              authSession.clearToken(wx);
               wx.removeStorageSync('userProfile');
               wx.showToast({ title: '账号已注销', icon: 'success' });
               setTimeout(() => wx.switchTab({ url: '/pages/index/index' }), 800);

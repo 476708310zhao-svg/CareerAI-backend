@@ -2,6 +2,7 @@
 const { QUESTIONS } = require('../../../utils/question-bank.js');
 const api = require('../../../utils/api.js');
 const notebook = require('../../../utils/interview-notebook.js');
+const ownerStorage = require('../../../utils/owner-storage.js');
 
 const sendChatToDeepSeek = api.sendChatToDeepSeek;
 const AI_CACHE_KEY = 'questionAiTrainingResults';
@@ -30,7 +31,7 @@ function extractAiContent(res) {
 
 function readAiCache() {
   try {
-    const cache = wx.getStorageSync(AI_CACHE_KEY);
+    const cache = ownerStorage.get(AI_CACHE_KEY, '', {});
     return cache && typeof cache === 'object' ? cache : {};
   } catch (e) {
     return {};
@@ -39,13 +40,13 @@ function readAiCache() {
 
 function writeAiCache(cache) {
   try {
-    wx.setStorageSync(AI_CACHE_KEY, cache || {});
+    ownerStorage.set(AI_CACHE_KEY, '', cache || {});
   } catch (e) {}
 }
 
 function getResumeContext() {
   try {
-    const resume = wx.getStorageSync('onlineResume') || {};
+    const resume = ownerStorage.get('onlineResume', '', {});
     const basic = resume.basicInfo || {};
     return [
       basic.title ? `目标方向：${basic.title}` : '',
@@ -171,16 +172,17 @@ Page({
 
   onLoad(options) {
     wx.hideLoading();
+    this._owner = ownerStorage.capture();
     const q = this.resolveQuestion(options);
     const catName = CAT_NAMES[q.category] || q.category || '';
     const tips = TIPS_MAP[q.category] || ['先理解题目本质，再组织语言', '答题结构清晰：定义→原理→应用→对比', '结合实际项目案例能显著加分'];
 
     // 收藏状态
-    const collected = wx.getStorageSync('collectedQuestions') || [];
+    const collected = ownerStorage.get('collectedQuestions', '', []);
     const isCollected = collected.some(id => id === q.id);
 
     // 已做状态
-    const done = wx.getStorageSync('doneQuestions') || [];
+    const done = ownerStorage.get('doneQuestions', '', []);
     const isDone = done.some(id => id === q.id);
     const note = notebook.getItem(q.id);
     const daily = notebook.getDailyPractice();
@@ -204,6 +206,26 @@ Page({
 
   onShow() {
     wx.hideLoading();
+    this._ensureOwner();
+  },
+
+  _ensureOwner() {
+    const owner = ownerStorage.capture();
+    if (this._owner === undefined) { this._owner = owner; return true; }
+    if (this._owner === owner) return true;
+    this._owner = owner;
+    const q = this.data.q || {};
+    const collected = ownerStorage.get('collectedQuestions', '', []);
+    const done = ownerStorage.get('doneQuestions', '', []);
+    const note = notebook.getItem(q.id);
+    const daily = notebook.getDailyPractice();
+    this.setData({
+      isCollected: collected.includes(q.id), isDone: done.includes(q.id),
+      notebookStatus: note ? note.status : '',
+      inDailyPractice: daily.some(item => String(item.id) === String(q.id)),
+      aiTraining: this.readCachedAiTraining(q.id)
+    });
+    return false;
   },
 
   readCachedAiTraining(id) {
@@ -276,8 +298,9 @@ Page({
 
   // 已做 / 取消已做
   toggleDone() {
+    if (!this._ensureOwner()) return;
     const q = this.data.q;
-    let done = wx.getStorageSync('doneQuestions') || [];
+    let done = ownerStorage.get('doneQuestions', '', []);
     let isDone;
 
     if (done.some(id => id === q.id)) {
@@ -290,14 +313,15 @@ Page({
       wx.showToast({ title: '已标记为完成', icon: 'success' });
     }
 
-    wx.setStorageSync('doneQuestions', done);
+    ownerStorage.set('doneQuestions', '', done);
     this.setData({ isDone });
   },
 
   // 收藏 / 取消收藏
   toggleCollect() {
+    if (!this._ensureOwner()) return;
     const q = this.data.q;
-    let collected = wx.getStorageSync('collectedQuestions') || [];
+    let collected = ownerStorage.get('collectedQuestions', '', []);
     let isCollected;
 
     if (collected.some(id => id === q.id)) {
@@ -310,11 +334,12 @@ Page({
       wx.showToast({ title: '收藏成功', icon: 'success' });
     }
 
-    wx.setStorageSync('collectedQuestions', collected);
+    ownerStorage.set('collectedQuestions', '', collected);
     this.setData({ isCollected });
   },
 
   markUnknown() {
+    if (!this._ensureOwner()) return;
     const q = this.data.q;
     if (!q || !q.id) return;
     const item = notebook.mark(q, 'unknown');
@@ -323,19 +348,21 @@ Page({
   },
 
   markMastered() {
+    if (!this._ensureOwner()) return;
     const q = this.data.q;
     if (!q || !q.id) return;
     const item = notebook.mark(q, 'mastered');
-    let done = wx.getStorageSync('doneQuestions') || [];
+    let done = ownerStorage.get('doneQuestions', '', []);
     if (!done.some(id => String(id) === String(q.id))) {
       done.unshift(q.id);
-      wx.setStorageSync('doneQuestions', done);
+      ownerStorage.set('doneQuestions', '', done);
     }
     this.setData({ notebookStatus: item.status, isDone: true });
     wx.showToast({ title: '已标记掌握', icon: 'success' });
   },
 
   addDailyPractice() {
+    if (!this._ensureOwner()) return;
     const q = this.data.q;
     if (!q || !q.id) return;
     notebook.addDailyPractice(q);
@@ -344,6 +371,8 @@ Page({
   },
 
   generateAiTraining(e) {
+    if (!this._ensureOwner()) return;
+    const owner = this._owner;
     const mode = e.currentTarget.dataset.mode || 'answer';
     const q = this.data.q;
     if (!q || !q.title || q.title === '题目加载失败') {
@@ -364,6 +393,7 @@ Page({
     });
 
     const finish = (content, fromFallback) => {
+      if (owner !== ownerStorage.capture()) { this._ensureOwner(); return; }
       const item = {
         mode,
         title: modeTitle(mode),
@@ -402,6 +432,7 @@ Page({
   },
 
   copyAiTraining() {
+    if (!this._ensureOwner()) return;
     const result = this.data.aiTraining && this.data.aiTraining.result;
     if (!result) {
       wx.showToast({ title: '请先生成训练稿', icon: 'none' });

@@ -2,6 +2,7 @@
 const config = require('../../../utils/app-config.js');
 const api = require('../../../utils/api.js');
 const v4Api = require('../../../utils/api-v4.js');
+const ownerStorage = require('../../../utils/owner-storage.js');
 const {
   PROFILE_SCHEMA,
   normalizeMultiValue,
@@ -397,7 +398,7 @@ Page({
 
   // ── 从简历自动读取 ──────────────────────────────────────────────────────
   _autoFillFromResume() {
-    const resume = wx.getStorageSync('onlineResume');
+    const resume = ownerStorage.get('onlineResume', '', null);
     if (!resume) return;
     const patch = {};
     if (resume.basicInfo) {

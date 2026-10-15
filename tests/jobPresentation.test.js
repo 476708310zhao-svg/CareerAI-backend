@@ -115,7 +115,8 @@ test('job search starts the production source immediately and closes stale loadi
   const apiJobs = read('utils/api-jobs.js');
   const searchJs = read('package-user/pages/search/search.js');
 
-  assert.match(apiJobs, /return request\(\{ path: '\/api\/jobs\/search'[\s\S]*?\.then\(usableJobResult\)[\s\S]*?\.catch\(\(\) => fallback\.then\(usableJobResult\)/);
+  assert.match(apiJobs, /return request\(\{ path: '\/api\/jobs\/search'[\s\S]*?\.then\(usableJobResult\)[\s\S]*?\.catch\(error => fallback/);
+  assert.match(apiJobs, /allowsUnscopedFallback\(params\.country\)/);
   assert.doesNotMatch(apiJobs, /const sources = \[/);
   assert.match(apiJobs, /markFallbackResult\(result, '正式职位接口暂不可用'\)/);
   assert.match(apiJobs, /getFeishuJobs[\s\S]*?\.catch\(\(\) => null\)/);

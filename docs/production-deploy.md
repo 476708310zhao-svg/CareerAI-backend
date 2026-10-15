@@ -168,6 +168,8 @@ Nginx 参考配置见项目根目录 `nginx.conf`。
 
 2026-10-14 线上核验记录：实际生效的 vhost 为 `/www/server/panel/vhost/nginx/jobapp.conf`，变更前的同目录备份为 `/www/server/panel/vhost/nginx/jobapp.conf.before-api-route-20261014`。该 vhost 的 `location ^~ /api/` 将普通 API 代理到 `127.0.0.1:4400`，与既有 `/api/v4/` 规则及指向 `3102` 的 Next.js 官网同时保留。`nginx -t` 通过并已 reload；公网 `/api/health/ready`、`/api/features`、`/api/campus` 均返回 200 JSON，畸形登录 POST 返回 400 JSON，官网首页返回 200 HTML。这些结果证明 API 请求不再被官网路由接管，但不代替真实微信登录验收。
 
+2026-10-14 管理后台 404 修复：同一 vhost 新增 HTTPS `location ^~ /admin/`，将登录页、后台静态资源及 `/admin/api/*` 转发到 `127.0.0.1:4400`；`/admin` 规范化跳转到 `/admin/`，HTTP 后台路径跳转 HTTPS。后台上传资源 `/uploads/` 也转发到 Node。变更前备份为 `/www/server/panel/vhost/nginx/jobapp.conf.before-admin-route-20261014-1640`。`nginx -t` 通过并 reload 后，公网 `/admin/`、`/admin/memberships.html`、后台 CSS/JS 均为 200；未登录 `/admin/api/memberships` 为预期的 401 JSON；`/api/health/ready` 与官网首页仍为 200。尚未使用真实管理员凭据测试登录和会员操作。与 Next.js 官网共用域名时必须保留这些高优先级后台路由，不可仅保留 `location /`。
+
 申请 SSL 后检查：
 
 ```bash

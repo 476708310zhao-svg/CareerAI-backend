@@ -78,7 +78,8 @@ function contentRequest(path, params, options) {
     params: params || {},
     timeout: (options && options.timeout) || DEFAULT_TIMEOUT,
     cacheTTL: options && options.noCache ? 0 : ((options && options.cacheTTL) || DEFAULT_CACHE_TTL),
-    noCache: !!(options && options.noCache)
+    noCache: !!(options && options.noCache),
+    skipAuth: true
   });
 }
 

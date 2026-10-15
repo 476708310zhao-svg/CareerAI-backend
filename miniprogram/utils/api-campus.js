@@ -2,6 +2,14 @@
 // 校招日历模块
 
 const { request, _write } = require('./api-client.js');
+const { CONTENT_API_BASE_URL } = require('./app-config.js');
+
+// 校招列表、筛选和详情均为公开只读信息。开发版也使用同一线上数据源，
+// 避免本机后端未启动时把连接失败误显示为“暂无动态”。
+const publicRead = options => request(Object.assign({}, options, {
+  baseUrl: CONTENT_API_BASE_URL,
+  skipAuth: true
+}));
 
 function getCampusList(params) {
   const {
@@ -10,7 +18,7 @@ function getCampusList(params) {
     industry = '', educationLevel = '', overseasFriendly = '', visa = '', deadlineWindow = '',
     sort = '', latestDay = '', latestDate = '', timeout = 10000
   } = params || {};
-  return request({
+  return publicRead({
     path: '/api/campus',
     params: {
       region, position_type: positionType, year, keyword,
@@ -27,11 +35,11 @@ function getCampusList(params) {
 }
 
 function getCampusMeta() {
-  return request({ path: '/api/campus/meta', params: {}, noCache: true, cacheTTL: 0 });
+  return publicRead({ path: '/api/campus/meta', params: {}, noCache: true, cacheTTL: 0 });
 }
 
 function getCampusDetail(id) {
-  return request({ path: `/api/campus/${id}` });
+  return publicRead({ path: `/api/campus/${id}` });
 }
 
 function getNotifyTemplates() {

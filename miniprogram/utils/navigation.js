@@ -5,6 +5,7 @@ const TAB_PAGES = new Set([
   '/pages/resources/resources',
   '/pages/profile/profile'
 ]);
+const ownerStorage = require('./owner-storage.js');
 
 const ROUTE_LOCK_MS = 850;
 const ROUTE_COMPLETE_GRACE_MS = 220;
@@ -186,7 +187,7 @@ function safeSwitchTab(url, options) {
 
 function openAiTab(context, options) {
   try {
-    wx.setStorageSync(AI_TAB_CONTEXT_KEY, Object.assign({}, context || {}));
+    ownerStorage.set(AI_TAB_CONTEXT_KEY, '', Object.assign({}, context || {}));
   } catch (error) {}
   return safeSwitchTab('/pages/ai-career/ai-career', options);
 }

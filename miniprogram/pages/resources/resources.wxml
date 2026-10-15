@@ -18,7 +18,7 @@
   <view class="featured-section" wx:if="{{!keyword}}">
     <view class="section-head"><view><text class="section-title">精选资源</text></view></view>
     <view class="feature-grid">
-      <view wx:for="{{featuredAssets}}" wx:key="id" class="feature-card feature-{{item.tone}}" data-id="{{item.id}}" bindtap="openAsset" hover-class="row-press" aria-role="button" aria-label="打开{{item.title}}；适用阶段：{{item.stage}}">
+      <view wx:for="{{featuredAssets}}" wx:key="id" class="feature-card feature-{{item.tone}}" data-id="{{item.id}}" bindtap="openAsset" hover-class="row-press" aria-role="button" aria-label="打开{{item.title}}">
         <view class="feature-icon"><image src="{{item.icon}}" mode="aspectFit" aria-hidden="true"/></view>
         <text class="feature-title">{{item.title}}</text>
         <image class="feature-arrow" src="/images/zhiyin-icons/chevron.svg" mode="aspectFit" aria-hidden="true"/>
@@ -29,9 +29,9 @@
   <view class="content-section">
     <view class="section-head"><view><text class="section-title">{{sectionTitle}}</text></view></view>
     <view class="asset-list" wx:if="{{listAssets.length}}">
-      <view wx:for="{{listAssets}}" wx:key="id" class="asset-card" data-id="{{item.id}}" bindtap="openAsset" hover-class="row-press" aria-role="button" aria-label="打开{{item.title}}；适用阶段：{{item.stage}}">
+      <view wx:for="{{listAssets}}" wx:key="id" class="asset-card" data-id="{{item.id}}" bindtap="openAsset" hover-class="row-press" aria-role="button" aria-label="打开{{item.title}}">
         <view class="asset-mark asset-{{item.tone}}"><image src="{{item.icon}}" mode="aspectFit" aria-hidden="true"/></view>
-        <view class="asset-copy"><text class="asset-title">{{item.title}}</text><text class="asset-stage">适用阶段：{{item.stage}}</text></view>
+        <view class="asset-copy"><text class="asset-title">{{item.title}}</text></view>
         <image class="asset-arrow" src="/images/zhiyin-icons/chevron.svg" mode="aspectFit" aria-hidden="true"/>
       </view>
     </view>
@@ -43,7 +43,7 @@
     </view>
     <view class="unavailable-card" wx:if="{{!keyword}}" aria-role="button" aria-disabled="true" aria-label="我的已购，资料购买与交付能力尚未接入">
       <view class="asset-mark asset-unavailable"><image src="/images/zhiyin-icons/bookmark.svg" mode="aspectFit" aria-hidden="true"/></view>
-      <view class="asset-copy"><text class="asset-title">我的已购</text><text class="asset-stage">资料购买与交付能力尚未接入</text></view>
+      <view class="asset-copy"><text class="asset-title">我的已购</text></view>
       <text class="unavailable-badge">未开放</text>
     </view>
   </view>

@@ -1,14 +1,13 @@
 const api = require('../../utils/api-resumes.js');
+const ownerStorage = require('../../utils/owner-storage.js');
 
 const LOCAL_ID = 'local_online_resume';
 
 function safeGetStorage(key, fallback) {
-  try {
-    const value = wx.getStorageSync(key);
-    return value || fallback;
-  } catch (e) {
-    return fallback;
-  }
+  // The historical unscoped onlineResume key has no verifiable owner.
+  // Never assign it to whichever account happens to be signed in now.
+  try { return ownerStorage.get(key, '', fallback) || fallback; }
+  catch (e) { return fallback; }
 }
 
 function hasToken() {

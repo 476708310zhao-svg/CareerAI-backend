@@ -189,7 +189,9 @@ test('resource hub shows every available asset without category tabs and keeps p
   assert.match(source, /\[item\.title, item\.desc\]\.concat\(item\.tags \|\| \[\]\)/);
   assert.match(source, /types:\s*\['algorithm', 'frontend', 'system'\]/);
   assert.match(source, /FEATURED_IDS\.includes\(item\.id\)/);
-  assert.match(wxml, /适用阶段/);
+  assert.doesNotMatch(wxml, /适用阶段/);
+  assert.doesNotMatch(wxml, /class="asset-stage"/);
+  assert.match(wxss, /\.asset-card\s*\{[^}]*min-height:\s*104rpx/);
   assert.match(wxml, /目标上下文/);
   assert.match(wxml, /不代表搜索筛选结果或已绑定申请/);
   assert.match(wxml, /aria-disabled="true"/);

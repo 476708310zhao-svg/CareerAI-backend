@@ -34,10 +34,17 @@ function experienceView(row) {
 }
 
 function resumeView(row) {
+  const currentContent = center.parseJson(row.data, {});
+  const firstVersion = currentContent.sourceAttachment ? null : db.prepare(
+    'SELECT content FROM resume_versions_v4 WHERE resume_id=? AND user_id=? ORDER BY version_no ASC LIMIT 1'
+  ).get(row.id, row.user_id);
+  const attachment = currentContent.sourceAttachment || center.parseJson(firstVersion && firstVersion.content, {}).sourceAttachment;
   return {
     id: row.id, name: row.name, language: row.language, resumeType: center.normalizeResumeType(row.resume_type),
     isDefault: !!row.is_default, archived: !!row.archived_at, targetRole: row.target_role || '',
     targetJobId: row.target_job_id || '', currentVersionId: row.current_version_id || null,
+    sourceAttachment: attachment && positiveId(attachment.id)
+      ? { id: Number(attachment.id), filename: String(attachment.filename || '') } : null,
     createdAt: row.created_at, updatedAt: row.updated_at
   };
 }
@@ -117,17 +124,31 @@ router.post('/', (req, res) => {
   const body = req.body || {};
   const name = center.cleanText(body.name, 80) || '新简历';
   const resumeType = center.normalizeResumeType(body.resumeType);
+  const content = body.content || {};
+  const attachmentId = content.sourceAttachment && positiveId(content.sourceAttachment.id);
+  if (content.sourceAttachment && !attachmentId) return res.status(400).json({ code: -1, message: '附件 ID 无效' });
+  const attachment = attachmentId ? db.prepare('SELECT id, original_name FROM resume_pdfs WHERE id=? AND user_id=?')
+    .get(attachmentId, req.user.userId) : null;
+  if (attachmentId && !attachment) return res.status(404).json({ code: -1, message: '附件不存在，请重新上传' });
+  const savedContent = attachment ? Object.assign({}, content, {
+    sourceAttachment: { id: attachment.id, filename: attachment.original_name, extractedAt: new Date().toISOString() }
+  }) : content;
   const isDefault = body.isDefault === true || !db.prepare("SELECT id FROM resumes WHERE user_id=? AND COALESCE(archived_at, '')='' LIMIT 1").get(req.user.userId);
   const tx = db.transaction(() => {
+    if (attachmentId) {
+      const existing = db.prepare("SELECT * FROM resumes WHERE user_id=? AND COALESCE(archived_at, '')='' ").all(req.user.userId)
+        .find(row => { const linked = resumeView(row).sourceAttachment; return linked && linked.id === attachmentId; });
+      if (existing) return { id: existing.id, existing: true };
+    }
     if (isDefault) db.prepare('UPDATE resumes SET is_default=0 WHERE user_id=?').run(req.user.userId);
     const result = db.prepare(`INSERT INTO resumes (user_id, name, language, data, is_default, target_role, target_job_id, resume_type, archived_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', datetime('now'))`)
-      .run(req.user.userId, name, center.cleanText(body.language || 'en', 10), JSON.stringify(body.content || {}), isDefault ? 1 : 0,
+      .run(req.user.userId, name, center.cleanText(body.language || 'en', 10), JSON.stringify(savedContent), isDefault ? 1 : 0,
         center.cleanText(body.targetRole, 120), center.cleanText(body.targetJobId, 120), resumeType);
     center.ensureCurrentVersion(req.user.userId, result.lastInsertRowid);
-    return result.lastInsertRowid;
+    return { id: result.lastInsertRowid, existing: false };
   });
-  const id = tx();
-  res.status(201).json({ code: 0, data: resumeView(db.prepare('SELECT * FROM resumes WHERE id=?').get(id)) });
+  const result = tx();
+  res.status(result.existing ? 200 : 201).json({ code: 0, data: resumeView(db.prepare('SELECT * FROM resumes WHERE id=?').get(result.id)) });
 });
 
 router.get('/:id/versions', (req, res) => {
