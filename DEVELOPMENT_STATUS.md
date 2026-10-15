@@ -189,6 +189,22 @@ Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成
 
 ## 当前文件占用
 
+- Codex 统一发布候选整合（2026-10-15，实施中）：占用本轮现有 29 个已修改文件、5 个未跟踪文件及本记录；先保存可恢复 Git stash 快照，再从全球职位源后继 `531a201` 建立统一发布分支。保留后继的职位路由与 Smoke 增强，合并本轮公开数据、资源页、简历与导航改动；仅做本地代码整合和测试，不提交、推送、部署或上传。登录/附件上传/数据库发布链路属于高风险，需用专项测试、全量发布检查和独立复核验证；不得执行生产数据库写入。
+
+- Codex 发布候选整合预检（2026-10-15，待集成）：本轮仅占用本记录此行，梳理 29 个已修改及 5 个未跟踪文件；全球职位源分支 `531a201` 是当前 `362d395` 的后继，应以其为最终基底。当前脏版本的 `routes/jobs.js`、`tests/smoke.test.js` 是已在后继提交中加强的旧实现，不应覆盖新版本；`tests/all.test.js` 新增两个专项测试注册须保留。当前工作区 `check:release` 375 通过/2 Windows 跳过，AI 质量和小程序检查通过，内容 0 错误/5 既有警告，`git diff --check` 通过；忽略规则涵盖环境文件、数据库、上传物和微信私有配置，未发现新文件含常见私钥/API Token 形态。三份未跟踪招聘脚本为一次性上线操作记录，含定向删除与切流逻辑，需评估是否纳入发布提交但不得作为本次统一发布入口。未切分支、提交、推送、部署或上传；待独立验证后确定同版发布方案。
+
+- Codex 公开数据可靠性修复（2026-10-15，代码完成）：修改 `miniprogram/utils/{app-config,api-client,api-campus,api-jobs}.js`、`miniprogram/pages/index/index.{js,wxml,wxss}`、新增 `tests/publicDataReliability.test.js` 并接入 `tests/all.test.js`。公开校招列表/筛选/详情与聚合岗位/详情从线上公开接口匿名读取，登录、简历和用户写入仍走开发环境本机服务；GET 缓存与限流按来源及鉴权范围隔离，匿名 401 不清除登录态。首页区分网络失败与真实空列表并支持立即重试，失败不缓存 5 分钟。线上公开接口只读抽样可返回数据；专项 6/6、全量 375 通过/2 Windows 跳过、`check:miniprogram` 与 `git diff --check` 通过。未运行微信开发者工具截图、未上传小程序、未提交/推送。
+
+- Codex 资源页副标题精简（2026-10-15，代码完成）：仅修改 `miniprogram/pages/resources/resources.{wxml,wxss}`、`design-system/zhiyin-career/pages/resources.md`、资源页相关的 `tests/{navigationConfig,frontendVisualCheckpoint}.test.js` 与本记录此行。按 Human 截图移除资源列表及“我的已购”的可见副标题，并按再次澄清彻底去除资源卡片中的“适用阶段”文案（包含无障碍名称），保留资源名称与 104rpx 触控行高。相关测试 43/43、`check:miniprogram`、`git diff --check` 通过；开发者工具 CLI 已以唯一项目路径成功编译预览，总包 2.1 MB，未上传正式版；自动化端口 9420 不可连接，未取得模拟器截图，视觉验收待完成；未提交或发布。
+
+- Codex Tab 文案调整（2026-10-14，已完成）：修改 `miniprogram/app.json`、`miniprogram/custom-tab-bar/index.js`、`tests/{checkpoint8,navigationConfig}.test.js`、`PRODUCT.md`、`design-system/zhiyin-career/pages/tabs-and-context-ai-pixel-spec.md` 与本记录；按 Human 审核要求仅将第二个 Tab 的“找岗位”改为“机会”，不更改页面标题、路由和业务逻辑。导航专项 41/41、`check:miniprogram` 与 `git diff --check` 通过；待开发者工具重新编译目视确认，未上传体验版或提交审核。
+
+- Codex 修正简历附件动作（2026-10-14，代码完成）：修改 `miniprogram/package-career/pages/resume-center/resume-center.{js,wxml}`、`tests/resumeAttachmentFirst.test.js`、本记录。把“导入简历”和“AI 优化”分开；从历史版本恢复旧服务缺失的附件关联；创建前服务端复查，失败时禁止盲目创建。旧重复记录只标记不删除。专项 7/7、`npm run check:release` 通过（369 通过、2 Windows 跳过）；未运行微信开发者工具真实交互、未部署生产，本地 4400 旧进程仍需手动重启以加载后端幂等保护。
+
+- Codex 附件优先简历中心（2026-10-14，代码完成）：修改 `miniprogram/package-career/pages/resume-center/`、`miniprogram/utils/api-v4.js`、`routes/v4/resumes.js`、`services/v4ResumeCenter.js`、`tests/resumeAttachmentFirst.test.js`、`tests/all.test.js`；接通 PDF 上传、解析、来源关联、AI 建议确认及浅色界面。扫描件不生成空简历；重复导入幂等；附件仅允许所属用户关联；AI 不改写附件元数据。专项 5/5、`npm run check:release` 通过（367 通过、2 Windows 跳过）；未做微信开发者工具真机/截图验收，未部署生产。本机 4400 旧服务重启受环境策略阻止，联调前需在原终端手动重启。
+
+- Codex 招聘接口开放（2026-10-14）：占用 `routes/jobs.js`、`tests/smoke.test.js`、`scripts/recruitment-{preflight,cutover,cleanup}.sh` 与本记录此行。官网岗位列表和地图接入 RemoteOK，并排除过期职位；职位详情支持实时 ID。隔离快照预检列表 10 条、地图 99 条、详情 200；官网候选版同 ID 200。生产先备份数据库、核验 PM2 PID/物理目录后切流，启用 `recruitment` 单一开关，公网列表 10 条、地图 99 条且过期 0 条，详情 200。后端全量 362 通过/2 Windows 跳过；无数据库迁移。发布版本：后端 `recruitment-20261014-1791949367110`，官网 `recruitment-20261014-1791949367110-site-v2`。切流前数据库备份已保存至服务端 `/var/lib/jobapp-server/backups/`，无效候选版及预检快照已清理。
+
 - Codex deploy_guard_impl（2026-10-14）：占用 `deploy.sh`、`scripts/backup-production.sh`、`scripts/verify-pm2-instance.js`、`tests/releaseEngineering.test.js` 与本记录此行；修复 PM2 JSON 静默输出，分别保留原始 `current` 链接与 PM2 实际物理版本，切流前复核旧 PID/4400 监听者。`current` 用同目录临时软链接及 `mv -Tf` 原子替换；切流期间的 EXIT/INT/TERM 守护可在失败或中断时分别恢复旧进程与旧链接，PM2 身份辅助脚本固定新版本绝对路径。Linux 隔离假 PM2 故障注入覆盖新进程启动失败、健康检查失败及 TERM，三种错位回滚均通过；临时测试目录已清理。本地/远端 `bash -n`、聚焦 7 通过/2 Windows 跳过、全量 362 通过/2 Windows 跳过、`check:release`、`git diff --check` 通过；未执行生产部署、提交或推送。
 
 - Codex CI 收口（2026-10-14）：占用 `tests/sprint4CareerCoach.test.js`、`tests/sprint5Networking.test.js` 与本记录；Linux CI 的两条旧资源页文案断言与当前已确认的资源分类不一致，只更新断言到当前产品结构，不变更业务实现。

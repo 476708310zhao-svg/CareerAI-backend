@@ -11,7 +11,7 @@ const EXPECTED_TABS = [
   'pages/resources/resources',
   'pages/profile/profile'
 ];
-const EXPECTED_TAB_LABELS = ['首页', '找岗位', 'AI求职', '资源', '我的'];
+const EXPECTED_TAB_LABELS = ['首页', '机会', 'AI求职', '资源', '我的'];
 
 function read(relativePath) {
   return fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
@@ -114,7 +114,7 @@ test('primary tabs remove redundant subtitle layers while preserving decision me
   assert.doesNotMatch(jobs, /campus-desc|result-sub/);
   assert.doesNotMatch(ai, /top-sub|drawer-tool-desc|recent-preview/);
   assert.doesNotMatch(resources, /section-sub|feature-desc|asset-desc/);
-  assert.match(resources, /class="asset-stage"/);
+  assert.doesNotMatch(resources, /class="asset-stage"/);
   assert.doesNotMatch(profile, /identity-desc|identity-hint|section-sub|asset-meta|record-meta|service-desc/);
   assert.match(homeStyles, /\.zy-home-head,[\s\S]*display:\s*none\s*!important/);
   assert.match(jobsStyles, /\.campus-desc,\.result-sub\{display:none!important\}/);
@@ -459,7 +459,7 @@ test('resource hub presents content assets and gated purchased state instead of 
   assert.match(resourceWxml, /目标上下文/);
   assert.match(resourceWxml, /不代表搜索筛选结果或已绑定申请/);
   assert.doesNotMatch(resourceWxml, /真实内容说明|class="truth-card"/);
-  assert.match(resourceWxml, /适用阶段/);
+  assert.doesNotMatch(resourceWxml, /适用阶段/);
   assert.match(resourceWxml, /aria-disabled="true"/);
   assert.doesNotMatch(resourceJs, /AI 求职规划|Offer 对比|Networking Copilot|薪酬查询/);
   assert.doesNotMatch(resourceWxml, /expert-card|AI 求职助手|workflow-nav/);

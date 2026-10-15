@@ -34,6 +34,7 @@ Page({
     loadingLatestJobs: false,
     campusDigest: [],
     loadingCampusDigest: false,
+    campusDigestError: false,
     jobsError: false,
     recommendTitle: '为您推荐',
     prefTags: [],
@@ -161,8 +162,10 @@ Page({
       this._latestJobRequestId = (this._latestJobRequestId || 0) + 1;
       this._campusDigestRequestId = (this._campusDigestRequestId || 0) + 1;
       this._campusDigestInFlight = false;
+      this._campusDigestFetchedAt = 0;
       this.setData({ recommendJobs: [], latestJobs: [], loadingLatestJobs: false,
-        loadingCampusDigest: false, todayTasks: [], todaySecondaryTasks: [],
+        campusDigest: [], loadingCampusDigest: false, campusDigestError: false,
+        todayTasks: [], todaySecondaryTasks: [],
         todayTaskStats: dailyTasks.getStats([]) });
     }
     const app = getApp();
@@ -472,11 +475,14 @@ Page({
     const requestId = (this._campusDigestRequestId || 0) + 1;
     this._campusDigestRequestId = requestId;
     this._campusDigestInFlight = true;
-    this.setData({ loadingCampusDigest: true });
+    this.setData({ loadingCampusDigest: true, campusDigestError: false });
     try {
       const res = await getCampusList({ sort: 'latest', deadlineWindow: 'open', page: 0, pageSize: 20 });
       if (!this.isHomeRequestCurrent(owner, requestId, '_campusDigestRequestId')) return;
-      if (!res || res.code !== 0 || !res.data) throw new Error('校招动态接口返回异常');
+      if (!res || res.code !== 0 || !res.data
+        || !(Array.isArray(res.data) || Array.isArray(res.data.list))) {
+        throw new Error('校招动态接口返回异常');
+      }
       const raw = Array.isArray(res.data) ? res.data : (res.data.list || []);
       const digest = this.rankCampusUpdates(raw.filter(item => item && item.id && item.deadlineWindow !== 'expired'))
         .sort((a, b) => Number(b.isUrgent) - Number(a.isUrgent) || b.updateTimestamp - a.updateTimestamp)
@@ -486,15 +492,19 @@ Page({
           digestMeta: item.isUrgent && item.deadlineText ? item.deadlineText : this.normalizeCampusUpdateSubtitle(item)
         }));
       this._campusDigestFetchedAt = Date.now();
-      this.setData({ campusDigest: digest, loadingCampusDigest: false });
+      this.setData({ campusDigest: digest, loadingCampusDigest: false, campusDigestError: false });
     } catch (error) {
       if (!this.isHomeRequestCurrent(owner, requestId, '_campusDigestRequestId')) return;
       console.warn('[fetchHomeCampusDigest] 获取校招动态失败:', error);
-      this._campusDigestFetchedAt = Date.now();
-      this.setData({ campusDigest: [], loadingCampusDigest: false });
+      this._campusDigestFetchedAt = 0;
+      this.setData({ campusDigest: [], loadingCampusDigest: false, campusDigestError: true });
     } finally {
       if (requestId === this._campusDigestRequestId) this._campusDigestInFlight = false;
     }
+  },
+
+  retryCampusDigest() {
+    return this.fetchHomeCampusDigest({ force: true });
   },
 
   // 偏好标签点击

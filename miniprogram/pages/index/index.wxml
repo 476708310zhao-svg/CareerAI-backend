@@ -64,7 +64,8 @@
       <text class="zy-campus-badge {{item.isUrgent ? 'is-urgent' : ''}}">{{item.digestLabel}}</text><image class="zy-row-arrow" src="/images/zhiyin-icons/chevron.svg" mode="aspectFit" aria-hidden="true" />
     </view>
     <view class="zy-loading-row" wx:if="{{!campusDigest.length && loadingCampusDigest}}">正在读取校招动态…</view>
-    <view class="zy-empty-card zy-empty-compact" wx:if="{{!campusDigest.length && !loadingCampusDigest}}"><view><text class="zy-empty-title">暂无可核实的校招更新</text><text class="zy-empty-desc">进入校招日历查看全部信息</text></view></view>
+    <view class="zy-empty-card zy-empty-compact zy-campus-error" wx:if="{{!campusDigest.length && !loadingCampusDigest && campusDigestError}}" aria-role="alert"><text class="zy-empty-title">求职动态暂时加载失败</text><view class="zy-campus-retry" bindtap="retryCampusDigest" hover-class="zy-row--pressed" aria-role="button" aria-label="重试加载求职动态">重试</view></view>
+    <view class="zy-empty-card zy-empty-compact" wx:elif="{{!campusDigest.length && !loadingCampusDigest}}"><view><text class="zy-empty-title">暂无可核实的校招更新</text><text class="zy-empty-desc">进入校招日历查看全部信息</text></view></view>
   </view>
   <view class="zy-home-tail"></view>
 </view>

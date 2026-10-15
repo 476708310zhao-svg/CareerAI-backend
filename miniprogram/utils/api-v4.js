@@ -1,6 +1,7 @@
 // V4 求职画像、岗位匹配与申请 CRM 接口。
 // 独立于旧版业务 API，方便页面渐进迁移并保留弱网回退。
 const client = require('./api-client.js');
+const config = require('./app-config.js');
 
 function get(path, params) {
   return client.request({ path, params: params || {}, noCache: true });
@@ -31,6 +32,30 @@ function updateApplicationTask(id, taskId, payload) {
 }
 
 function getResumeTemplates() { return get('/api/v4/resumes/templates'); }
+function getResumePdfs() { return get('/api/upload/resume-pdfs'); }
+function extractResumePdf(id) { return write('POST', '/api/upload/resume-pdf/' + encodeURIComponent(id) + '/extract'); }
+function uploadResumePdf(filePath, originalName) {
+  return new Promise((resolve, reject) => {
+    const token = wx.getStorageSync('token');
+    if (!token) return reject(new Error('请先登录后再上传简历'));
+    wx.uploadFile({
+      url: config.API_BASE_URL + '/api/upload/resume-pdf',
+      filePath,
+      name: 'file',
+      header: { Authorization: 'Bearer ' + token },
+      formData: { originalName },
+      success(res) {
+        let body;
+        try { body = JSON.parse(res.data); } catch (error) { return reject(new Error('上传响应异常，请稍后重试')); }
+        if (Number(res.statusCode) < 200 || Number(res.statusCode) >= 300 || body.code !== 0) {
+          return reject(new Error(body.message || '上传失败，请稍后重试'));
+        }
+        resolve(body);
+      },
+      fail() { reject(new Error('网络连接失败，请检查网络后重试')); }
+    });
+  });
+}
 function getCareerExperiences(params) { return get('/api/v4/resumes/experiences', params); }
 function createCareerExperience(payload) { return write('POST', '/api/v4/resumes/experiences', payload); }
 function updateCareerExperience(id, payload) { return write('PATCH', '/api/v4/resumes/experiences/' + encodeURIComponent(id), payload); }
@@ -130,6 +155,9 @@ module.exports = {
   addApplicationTask,
   updateApplicationTask,
   getResumeTemplates,
+  getResumePdfs,
+  extractResumePdf,
+  uploadResumePdf,
   getCareerExperiences,
   createCareerExperience,
   updateCareerExperience,

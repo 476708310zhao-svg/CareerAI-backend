@@ -1,7 +1,8 @@
 // utils/app-config.js
 // The mini program keeps no API secrets. Development builds use the local
-// backend so DevTools never depends on an incomplete production deployment.
-// Trial and release builds always stay on the HTTPS production API.
+// backend for account-specific requests and writes. Public read-only content
+// may opt into CONTENT_API_BASE_URL so DevTools works without a local server.
+// Trial and release builds use the HTTPS production API.
 
 const PROD_API_BASE_URL = 'https://api.zhiyincareer.com';
 const DEV_API_BASE_URL = 'http://127.0.0.1:4400';

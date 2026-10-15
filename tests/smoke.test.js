@@ -218,6 +218,17 @@ test('public jobs endpoint returns a list payload', async () => {
   if (body.data.list.length) assert.ok(body.data.list[0].dataMeta);
 });
 
+test('website job list and map do not surface stale archive jobs', async () => {
+  for (const path of ['/api/jobs?source=local&pageSize=50', '/api/jobs/map?pageSize=100']) {
+    const res = await fetch(`${BASE_URL}${path}`);
+    assert.equal(res.status, 200);
+    const body = await readJson(res);
+    assert.equal(body.code, 0);
+    assert.ok(Array.isArray(body.data.list));
+    assert.ok(body.data.list.every(job => ['fresh', 'aging'].includes(job.dataMeta?.freshness)));
+  }
+});
+
 test('job search fallback is explicit and never fabricates pagination records', async () => {
   const res = await fetch(`${BASE_URL}/api/jobs/search?query=Software%20Engineer&page=1&num_pages=1`);
   assert.equal(res.status, 200);

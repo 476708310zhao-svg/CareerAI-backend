@@ -13,7 +13,7 @@ const CACHE_TTL        = 30 * 60 * 1000;        // 默认缓存 30 分钟
 const DETAIL_CACHE_TTL =  6 * 60 * 60 * 1000;   // 详情缓存 6 小时
 const STALE_TTL        = 24 * 60 * 60 * 1000;   // 过期缓存保留 24 小时（限流兜底）
 
-let _rateLimitUntil = 0;
+const _rateLimitUntil = {};
 
 function _createNetworkError(err) {
   const detail = err && (err.errMsg || err.message || String(err));
@@ -73,13 +73,15 @@ function _getAuthHeader() {
 
 /**
  * 通用 GET 请求（含三层缓存）
- * @param {{ path: string, params?: object, cacheTTL?: number, timeout?: number }} options
+ * @param {{ path: string, params?: object, cacheTTL?: number, timeout?: number, baseUrl?: string, skipAuth?: boolean }} options
  */
 function request(options) {
   const now = Date.now();
   const requestData = options.params || options.data || {};
   const baseUrl = options.baseUrl || API_BASE;
-  const key = _cacheKey(baseUrl + options.path, requestData);
+  const authScope = options.skipAuth ? 'anonymous' : 'authenticated';
+  const key = _cacheKey(baseUrl + options.path + '|' + authScope, requestData);
+  const rateLimitKey = baseUrl + '|' + authScope;
   const ttl = typeof options.cacheTTL === 'number' ? options.cacheTTL : CACHE_TTL;
   const noCache = !!options.noCache || ttl <= 0;
   const softTimeout = options.timeout || 10000;
@@ -101,7 +103,7 @@ function request(options) {
   }
 
   // 层3：限流冷却期，返回过期缓存兜底
-  if (now < _rateLimitUntil) {
+  if (now < (_rateLimitUntil[rateLimitKey] || 0)) {
     const stale = _getStaleCache(key);
     if (stale) return Promise.resolve(stale);
     return Promise.resolve({ code: 429, data: [], _source: 'rateLimit' });
@@ -134,7 +136,7 @@ function request(options) {
       url: baseUrl + options.path,
       method: 'GET',
       data: requestData,
-      header: Object.assign({ 'Content-Type': 'application/json' }, _getAuthHeader()),
+      header: Object.assign({ 'Content-Type': 'application/json' }, options.skipAuth ? {} : _getAuthHeader()),
       timeout: wxTimeout,
       success: (res) => {
         if (done) return;
@@ -155,12 +157,14 @@ function request(options) {
           }
           finish(res.data);
         } else if (res.statusCode === 429) {
-          _rateLimitUntil = Date.now() + 2 * 60 * 1000;
+          _rateLimitUntil[rateLimitKey] = Date.now() + 2 * 60 * 1000;
           const stale = _getStaleCache(key);
           finish(stale || { code: 429, data: [], _source: 'rateLimit' });
         } else if (res.statusCode === 401) {
-          wx.removeStorageSync('token');
-          wx.removeStorageSync('userProfile');
+          if (!options.skipAuth) {
+            wx.removeStorageSync('token');
+            wx.removeStorageSync('userProfile');
+          }
           finish({ data: [], _source: 'unauthorized' });
         } else {
           console.warn('[API]', res.statusCode, options.path);
