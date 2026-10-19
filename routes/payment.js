@@ -24,6 +24,7 @@ const APP_ID     = process.env.WXPAY_APP_ID     || process.env.WX_APP_ID || '';
 const NOTIFY_URL = process.env.WXPAY_NOTIFY_URL || '';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const PAYMENT_ENABLED = String(process.env.PAYMENT_ENABLED || 'true').toLowerCase() !== 'false';
+const MEMBERSHIP_PAYMENT_ENABLED = String(process.env.MEMBERSHIP_PAYMENT_ENABLED || 'true').toLowerCase() !== 'false';
 const REAL_PAYMENT_LAUNCH_APPROVED = String(process.env.REAL_PAYMENT_LAUNCH_APPROVED || 'false').toLowerCase() === 'true';
 const PAYMENT_PROVIDER = String(process.env.PAYMENT_PROVIDER || process.env.PAYMENT_MODE || 'wxpay').toLowerCase();
 const USE_VIRTUAL_PAY = ['virtual', 'virtual-pay', 'wechat-virtual', 'wechat_virtual'].includes(PAYMENT_PROVIDER);
@@ -107,13 +108,15 @@ const PLANS = {
 };
 
 const REQUIRED_VIRTUAL_PLAN_IDS = Object.keys(PLANS).filter(id => !PLANS[id].optional);
+// Provider credentials are shared; membership SKUs are not prerequisites for assessment sales.
+const VIRTUAL_PAY_BASE_CONFIGURED = !!(VIRTUAL_PAY_OFFER_ID && VIRTUAL_PAY_APP_KEY);
 const VIRTUAL_PAY_CONFIGURED = !!(
-  VIRTUAL_PAY_OFFER_ID &&
-  VIRTUAL_PAY_APP_KEY &&
+  VIRTUAL_PAY_BASE_CONFIGURED &&
   REQUIRED_VIRTUAL_PLAN_IDS.every(id => PLANS[id].productId)
 );
 const ACTIVE_PAYMENT_CONFIGURED = REAL_PAYMENT_LAUNCH_APPROVED && (USE_VIRTUAL_PAY ? VIRTUAL_PAY_CONFIGURED : WXPAY_CONFIGURED);
 const IS_MOCK = PAYMENT_ENABLED && !ACTIVE_PAYMENT_CONFIGURED;
+const ASSESSMENT_ACTIVE_PAYMENT_CONFIGURED = REAL_PAYMENT_LAUNCH_APPROVED && (USE_VIRTUAL_PAY ? VIRTUAL_PAY_BASE_CONFIGURED : WXPAY_CONFIGURED);
 
 if (!PAYMENT_ENABLED) {
   console.warn('[Payment] 会员支付入口已关闭');
@@ -240,7 +243,7 @@ function getClientIp(req) {
 }
 
 function getPaymentReason() {
-  if (!PAYMENT_ENABLED) return '会员支付入口已关闭';
+  if (!PAYMENT_ENABLED || !MEMBERSHIP_PAYMENT_ENABLED) return '会员支付入口已关闭';
   if (!REAL_PAYMENT_LAUNCH_APPROVED) return '真实支付等待资质确认';
   if (USE_VIRTUAL_PAY) {
     if (!VIRTUAL_PAY_OFFER_ID) return '虚拟支付 Offer ID 未配置';
@@ -253,6 +256,7 @@ function getPaymentReason() {
 }
 
 function getAvailablePlanIds() {
+  if (!MEMBERSHIP_PAYMENT_ENABLED) return [];
   return Object.keys(PLANS)
     .filter(id => !USE_VIRTUAL_PAY || !!PLANS[id].productId)
     .map(id => parseInt(id, 10));
@@ -654,7 +658,7 @@ function buildVirtualPayParams(orderNo, userId, planId, plan) {
 
 // ── POST /api/payment/create-order ───────────────────────────────
 router.post('/create-order', authMiddleware, paymentLimiter, (req, res) => {
-  if (!PAYMENT_ENABLED) {
+  if (!PAYMENT_ENABLED || !MEMBERSHIP_PAYMENT_ENABLED) {
     return fail(res, '会员开通暂未开放', 503);
   }
 
@@ -841,14 +845,15 @@ router.get('/verify/:orderNo', authMiddleware, (req, res) => {
 
 // ── GET /api/payment/config ──────────────────────────────────────
 router.get('/config', (_req, res) => {
-  const available = PAYMENT_ENABLED && ACTIVE_PAYMENT_CONFIGURED;
+  const enabled = PAYMENT_ENABLED && MEMBERSHIP_PAYMENT_ENABLED;
+  const available = enabled && ACTIVE_PAYMENT_CONFIGURED;
   ok(res, {
-    enabled: PAYMENT_ENABLED,
+    enabled,
     provider: USE_VIRTUAL_PAY ? 'virtual' : 'wxpay',
     configured: available,
-    wxpayConfigured: PAYMENT_ENABLED && WXPAY_CONFIGURED,
-    virtualConfigured: PAYMENT_ENABLED && VIRTUAL_PAY_CONFIGURED,
-    mock: PAYMENT_ENABLED && IS_MOCK && ALLOW_MOCK_PAYMENT,
+    wxpayConfigured: enabled && WXPAY_CONFIGURED,
+    virtualConfigured: enabled && VIRTUAL_PAY_CONFIGURED,
+    mock: enabled && IS_MOCK && ALLOW_MOCK_PAYMENT,
     available,
     availablePlanIds: getAvailablePlanIds(),
     trialConfigured: !USE_VIRTUAL_PAY || !!(PLANS[3] && PLANS[3].productId),
@@ -871,10 +876,14 @@ router.get('/orders', authMiddleware, (req, res) => {
 
 // Assessment orders reuse the same provider/signatures/callbacks without using membership plan ids.
 function getAssessmentPaymentAvailability(product) {
-  if (!PAYMENT_ENABLED || (IS_MOCK && !ALLOW_MOCK_PAYMENT)) return { available: false, code: 'PAYMENT_UNAVAILABLE', message: '资料购买暂未开放' };
-  if (!IS_MOCK && USE_VIRTUAL_PAY && !VIRTUAL_PAY_NOTIFY_TOKEN) return { available: false, code: 'PAYMENT_NOTIFICATION_UNCONFIGURED', message: '资料支付回调尚未完成配置' };
-  if (!IS_MOCK && USE_VIRTUAL_PAY && !product.virtualProductId) return { available: false, code: 'PRODUCT_PAYMENT_UNCONFIGURED', message: '该资料尚未配置支付商品' };
-  return { available: true };
+  if (!PAYMENT_ENABLED) return { available: false, code: 'PAYMENT_UNAVAILABLE', message: '资料购买暂未开放' };
+  if (!ASSESSMENT_ACTIVE_PAYMENT_CONFIGURED) {
+    if (ALLOW_MOCK_PAYMENT) return { available: true, provider: 'mock' };
+    return { available: false, code: 'PAYMENT_UNAVAILABLE', message: '资料购买暂未开放' };
+  }
+  if (USE_VIRTUAL_PAY && !VIRTUAL_PAY_NOTIFY_TOKEN) return { available: false, code: 'PAYMENT_NOTIFICATION_UNCONFIGURED', message: '资料支付回调尚未完成配置' };
+  if (USE_VIRTUAL_PAY && !product.virtualProductId) return { available: false, code: 'PRODUCT_PAYMENT_UNCONFIGURED', message: '该资料尚未配置支付商品' };
+  return { available: true, provider: USE_VIRTUAL_PAY ? 'virtual' : 'wxpay' };
 }
 router.getAssessmentPaymentAvailability = getAssessmentPaymentAvailability;
 router.createAssessmentPayment = async function createAssessmentPayment(req, product) {
@@ -883,7 +892,7 @@ router.createAssessmentPayment = async function createAssessmentPayment(req, pro
   if (paid) return { order: paid, alreadyPurchased: true, payment: null };
   const availability = getAssessmentPaymentAvailability(product);
   if (!availability.available) throw assessment.problem(availability.code, availability.message, 503);
-  const provider = IS_MOCK ? 'mock' : USE_VIRTUAL_PAY ? 'virtual' : 'wxpay';
+  const provider = availability.provider;
   const created = assessment.createOrder(req.user.userId, req.body, provider);
   const order = assessment.orderView(created.row);
   if (created.alreadyPurchased) return { order, alreadyPurchased: true, payment: null };
@@ -891,8 +900,8 @@ router.createAssessmentPayment = async function createAssessmentPayment(req, pro
   const plan = { name: order.title, price: order.amount, productId: snapshot.virtualProductId,
     kind: 'assessment', assessmentProductId: product.id };
   let payment;
-  if (IS_MOCK) payment = { provider: 'mock', mock: true, orderNo: order.orderNo, amount: order.amount };
-  else if (USE_VIRTUAL_PAY) payment = buildVirtualPayParams(order.orderNo, req.user.userId, -1, plan);
+  if (provider === 'mock') payment = { provider: 'mock', mock: true, orderNo: order.orderNo, amount: order.amount };
+  else if (provider === 'virtual') payment = buildVirtualPayParams(order.orderNo, req.user.userId, -1, plan);
   else {
     const openid = (db.prepare('SELECT openid FROM users WHERE id=?').get(req.user.userId) || {}).openid;
     if (!openid) throw assessment.problem('WECHAT_LOGIN_REQUIRED', '请使用微信登录后购买', 401);
