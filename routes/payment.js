@@ -353,6 +353,12 @@ function getVipExpireDate(userId, days) {
 
 function markOrderPaid(order, transactionId, paidAmount, extra) {
   if (!order) return { ok: false, status: 404, message: '订单不存在' };
+  const assessment = require('../services/assessmentCommerce');
+  if (assessment.isAssessmentOrder(order)) {
+    if (!extra || extra.provider !== order.provider) return { ok: false, status: 400, message: '支付渠道不匹配' };
+    return assessment.markPaid(order, transactionId, paidAmount, extra);
+  }
+  if (!['pending', 'paid'].includes(order.status)) return { ok: false, status: 409, message: '订单已关闭或退款' };
   const plan = PLANS[order.plan_id];
   if (!plan) return { ok: false, status: 400, message: '订单套餐不存在' };
   if (order.status === 'paid') {
@@ -431,8 +437,8 @@ function handleVirtualVerify(req, res) {
 function firstInt(params, names) {
   for (const name of names) {
     if (params[name] !== undefined && params[name] !== '') {
-      const value = parseInt(params[name], 10);
-      if (Number.isFinite(value)) return value;
+      const value = Number(params[name]);
+      if (Number.isSafeInteger(value)) return value;
     }
   }
   return NaN;
@@ -460,12 +466,13 @@ function parseMaybeJson(value) {
 }
 
 function getVirtualNotifySources(params) {
-  const payInfo = parseMaybeJson(firstString(params, [
+  const nested = names => names.map(name => params[name]).find(value => value !== undefined && value !== null && value !== '');
+  const payInfo = parseMaybeJson(nested([
     'WeChatPayInfo',
     'wechatPayInfo',
     'wechat_pay_info'
   ]));
-  const goodsInfo = parseMaybeJson(firstString(params, [
+  const goodsInfo = parseMaybeJson(nested([
     'GoodsInfo',
     'goodsInfo',
     'goods_info'
@@ -532,6 +539,14 @@ function handleVirtualNotify(req, res, params) {
 
   const order = db.prepare('SELECT * FROM orders WHERE order_no = ?').get(orderNo);
   if (!order) return respondVirtualNotify(res, 3, 'order not found');
+  if (Number(order.plan_id) === -1) {
+    if (!VIRTUAL_PAY_NOTIFY_TOKEN) return respondVirtualNotify(res, 5, 'notification verification unconfigured');
+    const assessmentRow = require('../services/assessmentCommerce').orderRow(orderNo);
+    const snapshot = commerce.parseJson(assessmentRow.snapshot, {});
+    const notifiedProduct = firstStringFromSources(notifySources, ['ProductId','productId','product_id','GoodsId','goodsId']);
+    const quantity = firstIntFromSources(notifySources, ['BuyQuantity','buyQuantity','buy_quantity','Quantity','quantity','GoodsNum','goods_num']);
+    if (notifiedProduct !== snapshot.virtualProductId || quantity !== 1) return respondVirtualNotify(res, 5, 'product or quantity mismatch');
+  }
 
   const user = db.prepare('SELECT openid FROM users WHERE id = ?').get(order.user_id);
   if (params.OpenId && user && user.openid && params.OpenId !== user.openid) {
@@ -569,6 +584,7 @@ function handleVirtualNotify(req, res, params) {
     'transaction_id'
   ]);
   const result = markOrderPaid(order, transactionId, paidAmount, {
+    provider: 'virtual',
     wxOrderId,
     rawNotify: JSON.stringify(params)
   });
@@ -591,7 +607,7 @@ function buildVirtualPayParams(orderNo, userId, planId, plan) {
     throw error;
   }
 
-  const attach = `vip:${userId}:${planId}`;
+  const attach = plan.kind === 'assessment' ? `assessment:${userId}:${plan.assessmentProductId}` : `vip:${userId}:${planId}`;
   const signDataObj = {
     offerId: VIRTUAL_PAY_OFFER_ID,
     buyQuantity: 1,
@@ -731,7 +747,7 @@ router.post('/notify', express.raw({ type: ['text/xml', 'application/xml', 'text
   }
 
   const expected = signMD5(params, API_KEY);
-  if (params.sign !== expected) {
+  if (!API_KEY || params.sign !== expected) {
     console.warn('[WXPay Notify] 签名验证失败');
     return res.send(objToXml({ return_code: 'FAIL', return_msg: '签名验证失败' }));
   }
@@ -739,10 +755,14 @@ router.post('/notify', express.raw({ type: ['text/xml', 'application/xml', 'text
   if (params.result_code === 'SUCCESS') {
     const orderNo       = params.out_trade_no;
     const transactionId = params.transaction_id;
-    const paidAmount    = parseInt(params.total_fee, 10);
+    const paidAmount    = Number(params.total_fee);
     const order = db.prepare('SELECT * FROM orders WHERE order_no = ?').get(orderNo);
+    if (order && Number(order.plan_id) === -1 && (params.return_code !== 'SUCCESS' || params.appid !== APP_ID || params.mch_id !== MCH_ID)) {
+      return res.send(objToXml({ return_code: 'FAIL', return_msg: '支付商户信息不匹配' }));
+    }
 
     const result = markOrderPaid(order, transactionId, paidAmount, {
+      provider: 'wxpay',
       rawNotify: JSON.stringify(params)
     });
     if (!result.ok) {
@@ -772,7 +792,7 @@ router.post('/mock-confirm', authMiddleware, (req, res) => {
   const order = db.prepare('SELECT * FROM orders WHERE order_no = ? AND user_id = ?').get(orderNo, userId);
   if (!order) return fail(res, '订单不存在', 404);
 
-  const result = markOrderPaid(order, `MOCK_${orderNo}`, order.amount, {});
+  const result = markOrderPaid(order, `MOCK_${orderNo}`, order.amount, { provider: 'mock' });
   if (!result.ok) return fail(res, result.message, result.status || 500);
 
   ok(res, { success: true, already: !!result.already, expireDate: result.expireDate, planName: order.plan_name,
@@ -802,6 +822,8 @@ router.get('/verify/:orderNo', authMiddleware, (req, res) => {
   if (!order) return fail(res, '订单不存在', 404);
 
   if (order.status === 'paid') {
+    if (Number(order.plan_id) === -1) return ok(res, { status: 'paid', provider: order.provider,
+      planName: order.plan_name, grantType: 'assessment', isMember: false });
     const grant = orderGrant(orderNo);
     return ok(res, {
       status: 'paid',
@@ -847,4 +869,43 @@ router.get('/orders', authMiddleware, (req, res) => {
   ok(res, { orders });
 });
 
+// Assessment orders reuse the same provider/signatures/callbacks without using membership plan ids.
+function getAssessmentPaymentAvailability(product) {
+  if (!PAYMENT_ENABLED || (IS_MOCK && !ALLOW_MOCK_PAYMENT)) return { available: false, code: 'PAYMENT_UNAVAILABLE', message: '资料购买暂未开放' };
+  if (!IS_MOCK && USE_VIRTUAL_PAY && !VIRTUAL_PAY_NOTIFY_TOKEN) return { available: false, code: 'PAYMENT_NOTIFICATION_UNCONFIGURED', message: '资料支付回调尚未完成配置' };
+  if (!IS_MOCK && USE_VIRTUAL_PAY && !product.virtualProductId) return { available: false, code: 'PRODUCT_PAYMENT_UNCONFIGURED', message: '该资料尚未配置支付商品' };
+  return { available: true };
+}
+router.getAssessmentPaymentAvailability = getAssessmentPaymentAvailability;
+router.createAssessmentPayment = async function createAssessmentPayment(req, product) {
+  const assessment = require('../services/assessmentCommerce');
+  const paid = assessment.listOrders({productId:product.id,ownedOnly:1}, req.user.userId).items.find(item => ['paid','payment_review'].includes(item.status));
+  if (paid) return { order: paid, alreadyPurchased: true, payment: null };
+  const availability = getAssessmentPaymentAvailability(product);
+  if (!availability.available) throw assessment.problem(availability.code, availability.message, 503);
+  const provider = IS_MOCK ? 'mock' : USE_VIRTUAL_PAY ? 'virtual' : 'wxpay';
+  const created = assessment.createOrder(req.user.userId, req.body, provider);
+  const order = assessment.orderView(created.row);
+  if (created.alreadyPurchased) return { order, alreadyPurchased: true, payment: null };
+  const snapshot = commerce.parseJson(created.row.snapshot, {});
+  const plan = { name: order.title, price: order.amount, productId: snapshot.virtualProductId,
+    kind: 'assessment', assessmentProductId: product.id };
+  let payment;
+  if (IS_MOCK) payment = { provider: 'mock', mock: true, orderNo: order.orderNo, amount: order.amount };
+  else if (USE_VIRTUAL_PAY) payment = buildVirtualPayParams(order.orderNo, req.user.userId, -1, plan);
+  else {
+    const openid = (db.prepare('SELECT openid FROM users WHERE id=?').get(req.user.userId) || {}).openid;
+    if (!openid) throw assessment.problem('WECHAT_LOGIN_REQUIRED', '请使用微信登录后购买', 401);
+    const nonce = genNonce();
+    const params = { appid: APP_ID, mch_id: MCH_ID, nonce_str: nonce, body: `职引-${plan.name}`,
+      out_trade_no: order.orderNo, total_fee: plan.price, spbill_create_ip: getClientIp(req), notify_url: NOTIFY_URL, trade_type: 'JSAPI', openid };
+    params.sign = signMD5(params, API_KEY);
+    const result = await callUnifiedOrder(params);
+    if (result.return_code !== 'SUCCESS' || result.result_code !== 'SUCCESS' || !result.prepay_id) throw assessment.problem('PAYMENT_PROVIDER_ERROR', '支付服务暂不可用，请重试', 502);
+    db.prepare('UPDATE orders SET prepay_id=? WHERE order_no=?').run(result.prepay_id, order.orderNo);
+    const payParams = { appId: APP_ID, timeStamp: Math.floor(Date.now()/1000).toString(), nonceStr: nonce, package: `prepay_id=${result.prepay_id}`, signType: 'MD5' };
+    payment = { ...payParams, paySign: signMD5(payParams,API_KEY), provider: 'wxpay', paymentProvider: 'wxpay', mock: false, orderNo: order.orderNo, amount: order.amount };
+  }
+  return { order, reused: !!created.reused, alreadyPurchased: false, payment };
+};
 module.exports = router;

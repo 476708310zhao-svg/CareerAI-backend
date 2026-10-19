@@ -106,7 +106,7 @@ function requestRefund(userId, payload = {}) {
   const orderNo = clean(payload.orderNo, 80);
   const reason = clean(payload.reason, 500);
   if (!reason) throw problem('REFUND_REASON_REQUIRED', '请填写退款原因');
-  const order = db.prepare("SELECT * FROM orders WHERE order_no=? AND user_id=? AND status='paid'").get(orderNo, userId);
+  const order = db.prepare("SELECT * FROM orders WHERE order_no=? AND user_id=? AND (status='paid' OR (plan_id=-1 AND status='payment_review'))").get(orderNo, userId);
   if (!order) throw problem('REFUND_ORDER_NOT_FOUND', '仅已支付且未退款的本人订单可以申请退款', 404);
   const existing = db.prepare("SELECT * FROM payment_refunds_v4 WHERE order_no=? AND user_id=? AND status!='rejected' ORDER BY id DESC LIMIT 1").get(orderNo, userId);
   if (existing) throw problem('REFUND_ALREADY_REQUESTED', '该订单已有退款申请', 409);
@@ -123,6 +123,10 @@ function requestRefund(userId, payload = {}) {
 }
 
 function productCodeForOrder(order) {
+  if (order && Number(order.plan_id) === -1) {
+    const detail = db.prepare('SELECT product_id FROM assessment_order_details WHERE order_no=?').get(order.order_no);
+    return detail ? `assessment:${detail.product_id}` : 'assessment';
+  }
   const product = productById(order && order.plan_id);
   return product ? product.planCode : '';
 }
@@ -163,7 +167,8 @@ function decideRefund(refundNo, payload = {}, actorId = '') {
       planCode: productCodeForOrder(order), amountDelta: status === 'completed' ? -Number(refund.amount) : 0,
       actorType: 'admin', actorId, metadata: { externalReference: clean(payload.externalReference, 160), note: clean(payload.note, 500) } });
     if (status === 'completed') {
-      db.prepare("UPDATE orders SET status='refunded' WHERE order_no=? AND status='paid'").run(refund.order_no);
+      db.prepare("UPDATE orders SET status='refunded' WHERE order_no=? AND (status='paid' OR (plan_id=-1 AND status='payment_review'))").run(refund.order_no);
+      if (Number(order.plan_id) === -1) require('./assessmentCommerce').revokeDelivery(refund.order_no);
       db.prepare("UPDATE entitlement_grants_v4 SET status='revoked',revoked_at=datetime('now'),updated_at=datetime('now') WHERE order_no=? AND status='active'").run(refund.order_no);
       db.prepare("UPDATE user_subscriptions_v4 SET status='cancelled',updated_at=datetime('now') WHERE order_no=? AND status='active'").run(refund.order_no);
       recordLedger({ idempotencyKey: `entitlement-revoked:${refund.refund_no}`, eventType: 'entitlement_revoked',
@@ -204,9 +209,12 @@ function evaluateAlerts() {
   }
   const callbacks = Number((db.prepare("SELECT COUNT(*) AS count FROM commerce_ledger_v4 WHERE event_type='payment_callback_rejected' AND created_at>=datetime('now','-15 minute')").get() || {}).count || 0);
   if (callbacks >= 3) findings.push({ fingerprint: 'payment:callback-rejected:15m', category: 'payment_callback', severity: 'critical', message: '支付回调连续被拒绝', evidence: { count: callbacks, threshold: 3 } });
+  const paymentReviews=Number((db.prepare("SELECT COUNT(*) AS count FROM orders WHERE plan_id=-1 AND status='payment_review'").get()||{}).count||0);
+  if(paymentReviews>0) findings.push({fingerprint:'assessment:payment-review',category:'payment_callback',severity:'critical',message:'测评资料关闭订单收到款项，需人工核对退款',evidence:{count:paymentReviews}});
   const anomalies = Number((db.prepare(`SELECT COUNT(*) AS count FROM orders o WHERE o.status='paid' AND o.paid_at>=datetime('now','-1 day')
     AND (NOT EXISTS (SELECT 1 FROM commerce_ledger_v4 l WHERE l.order_no=o.order_no AND l.event_type='payment_confirmed')
-      OR NOT EXISTS (SELECT 1 FROM entitlement_grants_v4 g WHERE g.order_no=o.order_no))`).get() || {}).count || 0);
+      OR (o.plan_id<>-1 AND NOT EXISTS (SELECT 1 FROM entitlement_grants_v4 g WHERE g.order_no=o.order_no))
+      ${tableExists('assessment_deliveries') ? "OR (o.plan_id=-1 AND NOT EXISTS (SELECT 1 FROM assessment_deliveries d WHERE d.order_no=o.order_no AND d.status='ready'))" : ''})`).get() || {}).count || 0);
   if (anomalies > 0) findings.push({ fingerprint: 'entitlement:paid-without-ledger', category: 'entitlement', severity: 'critical', message: '存在已支付但缺少权益账本的订单', evidence: { count: anomalies } });
   const transaction = db.transaction(() => {
     findings.forEach(upsertAlert);

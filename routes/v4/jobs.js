@@ -166,7 +166,7 @@ router.get('/:id/detail', authMiddleware, (req, res) => {
   const sponsor = getSponsorProfile(job);
   const profile = getProfile(req.user.userId);
   const match = profile && profile.completion >= 40 ? buildJobMatch(job, profile, sponsor) : null;
-  const companyResult = companyService.listCompanies({ keyword: job.company, page: 1, pageSize: 5 });
+  const companyResult = companyService.listCompanies({ keyword: job.company, page: 1, pageSize: 5 }, { publicOnly: true });
   const companies = companyResult && companyResult.list ? companyResult.list : [];
   const company = companies.find(item => String(item.displayName || item.name || '').toLowerCase() === String(job.company).toLowerCase()) || companies[0] || null;
   const application = db.prepare(`

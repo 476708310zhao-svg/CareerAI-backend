@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>测评资料 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/assessment-products.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="admin-shell assessment-admin">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer"><div class="admin-name" id="adminUsername"></div><button class="nav-item" onclick="logout()"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i><span>退出登录</span></button></div>
+  </aside>
+  <main class="main">
+    <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
+    <div class="content">
+      <div class="page-header"><div><h1>测评资料</h1><p class="sub">维护商品、首页三家公司推荐与网盘交付订单</p></div><button class="btn btn-primary" id="addProduct">新增商品</button></div>
+      <div class="tab-bar" role="tablist" aria-label="测评资料管理">
+        <button class="tab-btn active" id="tab-products" role="tab" aria-selected="true" aria-controls="panel-products" data-tab="products">资料商品</button>
+        <button class="tab-btn" id="tab-home" role="tab" aria-selected="false" aria-controls="panel-home" data-tab="home">首页推荐</button>
+        <button class="tab-btn" id="tab-orders" role="tab" aria-selected="false" aria-controls="panel-orders" data-tab="orders">购买订单</button>
+        <button class="tab-btn" id="tab-instructions" role="tab" aria-selected="false" aria-controls="panel-instructions" data-tab="instructions">统一说明</button>
+      </div>
+      <p id="pageNotice" class="assessment-notice" role="status" hidden></p>
+      <section id="panel-instructions" role="tabpanel" aria-labelledby="tab-instructions" hidden>
+        <form id="instructionsForm" class="assessment-panel">
+          <h2>所有测评资料共用的购买说明</h2>
+          <p class="assessment-help">只需设置一次，自动用于所有商品详情和新订单。请填写真实服务规则，不包含网盘链接或提取码。修改后待付款订单将关闭，用户需重新确认；已支付订单继续保留原购买说明。</p>
+          <p id="instructionsStatus" role="status" class="assessment-help">正在等待加载统一说明。</p>
+          <fieldset id="instructionsFields"><legend>统一说明文案</legend>
+            <div class="form-row"><div class="form-group"><label for="shared_usageInstructions">使用说明 *</label><textarea id="shared_usageInstructions" rows="7" maxlength="20000" required></textarea></div><div class="form-group"><label for="shared_claimInstructions">领取说明 *</label><textarea id="shared_claimInstructions" rows="7" maxlength="20000" required></textarea></div></div>
+            <div class="form-row"><div class="form-group"><label for="shared_updateInstructions">更新说明 *</label><textarea id="shared_updateInstructions" rows="7" maxlength="20000" required></textarea></div><div class="form-group"><label for="shared_afterSalesInstructions">售后说明 *</label><textarea id="shared_afterSalesInstructions" rows="7" maxlength="20000" required></textarea></div></div>
+          </fieldset>
+          <p id="instructionsError" class="assessment-error" role="alert" hidden></p>
+          <div class="assessment-actions"><button class="btn btn-outline" id="reloadInstructions" type="button">重新加载</button><button class="btn btn-primary" id="saveInstructions" type="submit" disabled>保存统一说明</button></div>
+        </form>
+      </section>
+      <section id="panel-products" role="tabpanel" aria-labelledby="tab-products">
+        <form class="toolbar" id="productSearch"><label class="sr-only" for="productKeyword">搜索资料商品</label><input id="productKeyword" placeholder="搜索商品名称"><label class="sr-only" for="productStatus">商品状态</label><select id="productStatus"><option value="">全部状态</option><option value="draft">草稿</option><option value="active">在售</option><option value="inactive">下架</option></select><button class="btn btn-outline" type="submit">搜索</button></form>
+        <div class="table-card"><div class="table-wrap"><table><thead><tr><th>商品</th><th>关联公司</th><th>售价</th><th>状态 / 排序</th><th>更新时间</th><th>操作</th></tr></thead><tbody id="productRows"></tbody></table></div><div class="pagination" id="productPagination"></div></div>
+      </section>
+      <section id="panel-home" role="tabpanel" aria-labelledby="tab-home" hidden>
+        <form id="homeForm" class="assessment-panel">
+          <div class="assessment-section-header"><div><h2>首页热门测评资料</h2><p class="assessment-help">最多展示 3 家不同公司，每家公司选择一份在售且关联该公司的商品。</p></div><label class="assessment-switch"><input id="homeEnabled" type="checkbox">启用首页模块</label></div>
+          <div id="homeRecommendations"></div>
+          <div class="assessment-actions"><button class="btn btn-outline" id="addHomeItem" type="button">添加推荐公司</button><button class="btn btn-primary" id="saveHome" type="submit">保存首页推荐</button></div>
+          <p class="assessment-help">关闭仅隐藏首页模块；下架商品由服务端自动过滤，不影响有效已购订单领取。</p>
+        </form>
+      </section>
+      <section id="panel-orders" role="tabpanel" aria-labelledby="tab-orders" hidden>
+        <form class="toolbar" id="orderSearch"><label class="sr-only" for="orderKeyword">搜索订单</label><input id="orderKeyword" placeholder="订单号 / 商品"><label class="sr-only" for="orderUserId">用户 ID</label><input id="orderUserId" type="number" min="1" placeholder="用户 ID"><label class="sr-only" for="orderStatus">支付状态</label><select id="orderStatus"><option value="">全部支付状态</option><option value="paid">已支付</option><option value="pending">待支付</option><option value="payment_review">付款待人工核对</option><option value="refunded">已退款</option><option value="cancelled">已关闭</option></select><button class="btn btn-outline" type="submit">查询</button></form>
+        <div class="table-card"><div class="table-wrap"><table><thead><tr><th>订单 / 用户</th><th>商品</th><th>实付金额</th><th>支付 / 交付状态</th><th>付款 / 领取期限</th><th>操作</th></tr></thead><tbody id="orderRows"></tbody></table></div><div class="pagination" id="orderPagination"></div></div>
+        <p class="assessment-help">订单状态以服务端收款结果为准。修正网盘链接请编辑对应商品，有效已购订单将使用更新后的链接。</p>
+      </section>
+      <section id="productEditor" class="assessment-panel" aria-labelledby="editorTitle" hidden>
+        <div class="assessment-section-header"><div><h2 id="editorTitle">新增商品</h2><p class="assessment-help">先保存草稿，确认商品介绍和交付配置后再上架。</p></div><button class="btn btn-outline" id="closeEditor" type="button">返回商品列表</button></div>
+        <form id="productForm">
+          <fieldset><legend>商品展示</legend>
+            <div class="form-row"><div class="form-group"><label for="f_title">商品名称 *</label><input id="f_title" maxlength="120" required></div><div class="form-group"><label for="f_seasonLabel">招聘季 / 适用届别</label><input id="f_seasonLabel" maxlength="80" placeholder="例如：2027 届秋招"></div></div>
+            <div class="form-row"><div class="form-group"><label for="f_coverUrl">封面图片 URL *</label><input id="f_coverUrl" maxlength="2000" required placeholder="https://... 或 /uploads/..."></div><div class="form-group"><label for="f_priceCents">售价（分）</label><input id="f_priceCents" type="number" value="900" readonly aria-describedby="pricePreview"><p id="pricePreview" class="assessment-help">统一售价 ¥9.00，服务端固定为 900 分</p></div></div>
+            <div class="form-group"><label for="f_summary">商品简介 *</label><textarea id="f_summary" rows="2" maxlength="200" required></textarea></div>
+            <div class="form-row"><div class="form-group"><label for="f_description">详细介绍 *</label><textarea id="f_description" rows="7" required></textarea><p class="assessment-help">填写纯文本，勿包含网盘链接和提取码。</p></div><div class="form-group"><label for="f_catalogText">资料目录 *</label><textarea id="f_catalogText" rows="7" required placeholder="每行一项"></textarea></div></div>
+            <div class="form-group"><label for="f_sampleImages">示例图 URL（每行一张）</label><textarea id="f_sampleImages" rows="3" placeholder="https://..."></textarea></div>
+            <div class="form-group"><label for="companyKeyword">关联公司（可多选）</label><div class="assessment-picker-search"><input id="companyKeyword" placeholder="输入公司名后搜索"><button type="button" class="btn btn-outline" id="searchCompanies">搜索公司</button></div><div id="selectedCompanies" class="assessment-selected" aria-live="polite"></div><div id="companyResults" class="assessment-company-results"></div><button class="btn btn-outline btn-sm" id="moreCompanies" type="button" hidden>加载更多公司</button><p class="assessment-help">只能选择已有公司；通用资料可不关联公司。</p></div>
+          </fieldset>
+          <fieldset><legend>领取期限与来源</legend><p class="assessment-help">使用、领取、更新及售后说明统一在“统一说明”页签配置，此处无需重复填写。统一说明未配置完整时，只能保存草稿或下架。</p><div class="form-row"><div class="form-group"><label for="f_claimDays">付款后可领取天数</label><input id="f_claimDays" type="number" min="1" max="36500" step="1" value="365"><p class="assessment-help">留空表示无领取到期日，请在领取说明中明确告知用户。</p></div><div class="form-group"><label for="f_sourceDescription">资料来源说明 *</label><textarea id="f_sourceDescription" required></textarea></div></div></fieldset>
+          <fieldset class="assessment-private"><legend>网盘交付配置（仅后台与本人已付款领取可见）</legend><p class="assessment-help">链接修正会同步给有效已购订单。更换为实质不同的资料包时，请新建商品。</p><div class="form-row"><div class="form-group"><label for="f_driveName">网盘名称 *</label><input id="f_driveName" maxlength="80" required placeholder="例如：百度网盘"></div><div class="form-group"><label for="f_extractionCode">提取码</label><input id="f_extractionCode" maxlength="80" autocomplete="off"></div></div><div class="form-group"><label for="f_driveUrl">网盘链接 *</label><input id="f_driveUrl" type="url" required autocomplete="off" placeholder="https://..."></div><div class="form-group"><label for="f_virtualProductId">虚拟支付商品 ID（按支付配置填写）</label><input id="f_virtualProductId" maxlength="120" autocomplete="off"></div></fieldset>
+          <fieldset><legend>商品管理</legend><div class="form-row"><div class="form-group"><label for="f_status">状态</label><select id="f_status"><option value="draft">草稿</option><option value="active">在售</option><option value="inactive">下架</option></select></div><div class="form-group"><label for="f_sortOrder">排序</label><input id="f_sortOrder" type="number" step="1" value="0"><p class="assessment-help">数值越小越靠前。</p></div></div></fieldset>
+          <p id="editorError" class="assessment-error" role="alert" hidden></p><div class="assessment-actions"><button class="btn btn-outline" id="cancelEditor" type="button">取消</button><button class="btn btn-primary" id="saveProduct" type="submit">保存商品</button></div>
+        </form>
+      </section>
+    </div>
+  </main>
+</div>
+<dialog id="refundDialog" class="assessment-dialog" aria-labelledby="refundTitle"><form id="refundForm"><h2 id="refundTitle">记录人工退款完成</h2><p id="refundOrder"></p><p class="assessment-help">请先在支付渠道完成退款，再填写真实退款凭证。记录后订单将不可领取资料。</p><div class="form-group"><label for="refundReference">退款凭证 / 外部流水号 *</label><input id="refundReference" maxlength="160" required autocomplete="off"></div><div class="form-group"><label for="refundReason">退款原因 *</label><textarea id="refundReason" required maxlength="500"></textarea></div><p id="refundError" class="assessment-error" role="alert" hidden></p><div class="assessment-actions"><button class="btn btn-outline" id="cancelRefund" type="button">取消</button><button class="btn btn-danger" id="saveRefund" type="submit">确认退款已完成</button></div></form></dialog>
+<script src="js/config.js"></script><script src="js/common.js"></script><script src="js/assessment-products.js"></script>
+</body>
+</html>

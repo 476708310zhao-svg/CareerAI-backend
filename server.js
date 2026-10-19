@@ -128,6 +128,7 @@ app.use('/api/share',        shareRoutes);
 app.use('/api/career-assets', careerAssetRoutes);
 app.use('/api/analytics',    analyticsRoutes);
 app.use('/api/v4',           v4Routes);
+app.use('/api/v4',           require('./routes/assessment'));
 app.use('/api/jobs',         requireRecruitment, jobRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/experiences',  experienceRoutes);
@@ -159,6 +160,7 @@ app.use('/api/aggregate',    requireRecruitment, aggregateRoutes);
 app.use('/api/oa',           oaRoutes);
 app.use('/api/apply',        requireRecruitment, applyRoutes);
 app.use('/admin/api/v4',    v4AdminRoutes);
+app.use('/admin/api/v4',    require('./routes/admin-assessment'));
 app.use('/admin',           adminRoutes);
 
 // 管理后台静态文件（需放在 adminRoutes 之后，避免 /admin/api/* 被静态文件拦截）

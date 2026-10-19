@@ -1,0 +1,10 @@
+{
+  "sourceNamespace": "feishu:MNFTb8Dbmac4uHslZ2wc91vLnFe:assessment",
+  "companies": [
+    {"companyName":"京东","companySlug":"jd-com","allowedCompanyNames":["京东集团","京东"],"virtualProductId":"assessment_jd","priceCents":900,"coverUrl":"https://api.zhiyincareer.com/uploads/assessment-products/20261019-094a/jd.png"},
+    {"companyName":"美团","companySlug":"meituan","allowedCompanyNames":["美团公司","美团"],"virtualProductId":"assessment_meituan","priceCents":900,"coverUrl":"https://api.zhiyincareer.com/uploads/assessment-products/20261019-094a/meituan.png"},
+    {"companyName":"百度","companySlug":"baidu","allowedCompanyNames":["百度"],"virtualProductId":"assessment_baidu","priceCents":900,"coverUrl":"https://api.zhiyincareer.com/uploads/assessment-products/20261019-094a/baidu.png"},
+    {"companyName":"拼多多","companySlug":"pinduoduo","allowedCompanyNames":["拼多多"],"virtualProductId":"assessment_pdd","priceCents":900,"coverUrl":"https://api.zhiyincareer.com/uploads/assessment-products/20261019-094a/pdd.png"},
+    {"companyName":"小米","companySlug":"xiaomi-corporation","allowedCompanyNames":["小米集团","小米"],"virtualProductId":"assessment_xiaomi","priceCents":900,"coverUrl":"https://api.zhiyincareer.com/uploads/assessment-products/20261019-094a/xiaomi.png"}
+  ]
+}

@@ -292,6 +292,7 @@ const NAV_ITEMS = [
   { id: 'feedback', icon: 'fa-inbox', label: '反馈管理', href: 'feedback.html' },
   { id: 'users', icon: 'fa-users', label: '用户管理', href: 'users.html' },
   { id: 'memberships', icon: 'fa-crown', label: '会员权益', href: 'memberships.html' },
+  { id: 'assessmentProducts', permission: 'memberships', icon: 'fa-file-circle-check', label: '测评资料', href: 'assessment-products.html' },
   { id: 'resumes', icon: 'fa-id-card', label: '简历管理', href: 'resumes.html' },
   { id: 'admins', icon: 'fa-user-shield', label: '权限管理', href: 'admins.html' }
 ];

@@ -48,3 +48,8 @@ require('./adminLoginRateLimit.test');
 require('./loginGate.test');
 require('./ugcModeration.test');
 require('./smoke.test');
+require('./assessmentCommerce.test');
+require('./assessmentAdmin.test');
+require('./assessmentImport.test');
+require('./assessmentPaymentCapability.test');
+require('./assessmentCompanyVisibility.test');

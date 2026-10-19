@@ -60,6 +60,7 @@ function hasPermission(admin, permission) {
 }
 
 function permissionForAdminPath(path = '') {
+  if (/\/api\/v4\/assessment-(products|home|orders|companies|instructions)/.test(path)) return 'memberships';
   if (path.includes('/api/stats')) return 'dashboard';
   if (path.includes('/api/feature-flags')) return 'features';
   if (path.includes('/api/upload/banner') || path.includes('/api/banners')) return 'banners';

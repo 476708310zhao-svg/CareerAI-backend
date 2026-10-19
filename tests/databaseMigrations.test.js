@@ -43,7 +43,7 @@ function createRequiredBaselineTables(db) {
   }));
   requirements.forEach((columns, table) => {
     db.exec(`CREATE TABLE "${table}" (${Array.from(columns).map(column => (
-      column === 'id' ? '"id" INTEGER PRIMARY KEY' : `"${column}" TEXT`
+      column === 'id' ? '"id" INTEGER PRIMARY KEY' : column === 'amount' && table === 'orders' ? '"amount" INTEGER' : `"${column}" TEXT`
     )).join(', ')})`);
   });
   // These legacy V4 parents predate the versioned runner but are referenced by
@@ -51,6 +51,8 @@ function createRequiredBaselineTables(db) {
   // the real startup baseline instead of an intentionally minimal stub.
   db.exec('CREATE TABLE IF NOT EXISTS career_experience_library (id INTEGER PRIMARY KEY)');
   db.exec('CREATE TABLE IF NOT EXISTS job_reminders (id INTEGER PRIMARY KEY)');
+  // Production orders.order_no is UNIQUE; model that parent key for the new delivery FK.
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS fixture_orders_number ON orders(order_no)');
 }
 
 test('database migration baseline is recorded once and exposes status', () => withTempDir(directory => {
@@ -62,12 +64,12 @@ test('database migration baseline is recorded once and exposes status', () => wi
     const second = applyPendingMigrations(db);
     const status = getMigrationStatus(db);
 
-    assert.equal(first.appliedNow.length, 11);
+    assert.equal(first.appliedNow.length, readMigrations().length);
     assert.equal(second.appliedNow.length, 0);
-    assert.equal(status.applied.length, 11);
+    assert.equal(status.applied.length, readMigrations().length);
     assert.equal(status.pending.length, 0);
     assert.match(status.applied[0].checksum, /^[a-f0-9]{64}$/);
-    assert.equal(status.applied.at(-1).version, '0011');
+    assert.equal(status.applied.at(-1).version, '0015');
     assert.equal(
       db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('ai_conversations','ai_conversation_turns')").pluck().get(),
       2
@@ -117,7 +119,7 @@ test('database migration baseline is recorded once and exposes status', () => wi
   }
 }));
 
-test('database migration upgrades an existing 0001-0006 database through 0011 exactly once', () => withTempDir(directory => {
+test('database migration upgrades an existing 0001-0006 database through 0015 exactly once', () => withTempDir(directory => {
   const legacyMigrationsDir = path.join(directory, 'migrations-through-0006');
   copyMigrationsThrough(legacyMigrationsDir, '0006');
 
@@ -130,10 +132,10 @@ test('database migration upgrades an existing 0001-0006 database through 0011 ex
     ]);
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0007', '0008', '0009', '0010', '0011']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0007', '0008', '0009', '0010', '0011', '0012', '0013', '0014', '0015']);
     assert.equal(
       db.prepare('SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1').pluck().get(),
-      '0011'
+      '0015'
     );
     assert.equal(
       db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('ai_conversations','ai_conversation_turns')").pluck().get(),
@@ -157,7 +159,7 @@ test('database migration upgrades an existing 0001-0007 database with nullable b
     db.prepare('INSERT INTO application_history (id, application_id, user_id) VALUES (?, ?, ?)').run('1', '11', '21');
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0008', '0009', '0010', '0011']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0008', '0009', '0010', '0011', '0012', '0013', '0014', '0015']);
     assert.deepEqual(
       db.prepare('SELECT batch_id AS batchId, batch_size AS batchSize FROM application_history WHERE id=?').get('1'),
       { batchId: null, batchSize: null }
@@ -172,7 +174,7 @@ test('database migration upgrades an existing 0001-0007 database with nullable b
   }
 }));
 
-test('database migration upgrades an existing 0001-0008 AI conversation schema through 0011 exactly once', () => withTempDir(directory => {
+test('database migration upgrades an existing 0001-0008 AI conversation schema through 0015 exactly once', () => withTempDir(directory => {
   const previousMigrationsDir = path.join(directory, 'migrations-through-0008');
   copyMigrationsThrough(previousMigrationsDir, '0008');
 
@@ -195,7 +197,7 @@ test('database migration upgrades an existing 0001-0008 AI conversation schema t
     `).run(conversationId, 'legacy-request', 'Legacy question', 'Legacy answer', 'completed').lastInsertRowid;
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0009', '0010', '0011']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0009', '0010', '0011', '0012', '0013', '0014', '0015']);
     assert.deepEqual(
       db.prepare(`
         SELECT request_fingerprint AS requestFingerprint,
@@ -246,7 +248,7 @@ test('database migration upgrades an existing 0001-0009 database with an idempot
     assert.throws(() => assertAssistantConfirmationSchema(db), /migration 0010 is required/);
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0010', '0011']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0010', '0011', '0012', '0013', '0014', '0015']);
     assert.doesNotThrow(() => assertAssistantConfirmationSchema(db));
     assert.deepEqual(
       db.prepare('PRAGMA foreign_key_list(ai_assistant_confirmations)').all()
@@ -320,7 +322,7 @@ test('database migration 0011 preserves material drafts and expands only the sup
     db.prepare("INSERT INTO sqlite_sequence(name,seq) VALUES ('interview_notebook',900),('ai_application_material_drafts',800)").run();
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0011']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0011', '0012', '0013', '0014', '0015']);
     assert.deepEqual(
       db.prepare("SELECT name,seq FROM sqlite_sequence WHERE name IN ('interview_notebook','ai_application_material_drafts') ORDER BY name").all(),
       [{ name:'ai_application_material_drafts', seq:800 }, { name:'interview_notebook', seq:900 }]
@@ -368,6 +370,101 @@ test('database migration 0011 preserves material drafts and expands only the sup
   } finally {
     db.close();
   }
+}));
+
+test('database migration 0012 preserves existing orders and creates no fake products or home recommendations', () => withTempDir(directory => {
+  const previousDir=path.join(directory,'through-0011');copyMigrationsThrough(previousDir,'0011');
+  const db=new Database(path.join(directory,'assessment-upgrade.db'));
+  try {
+    createRequiredBaselineTables(db);applyPendingMigrations(db,{migrationsDir:previousDir});
+    db.prepare('INSERT INTO users(id,openid) VALUES (1,?)').run('assessment-migration-owner');
+    db.prepare('INSERT INTO orders(id,order_no,user_id,provider) VALUES (1,?,1,?)').run('EXISTING-ORDER','wxpay');
+    const before=db.prepare('SELECT * FROM orders WHERE id=1').get();
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(m=>m.version),['0012','0013','0014','0015']);
+    assert.deepEqual(db.prepare('SELECT * FROM orders WHERE id=1').get(),before);
+    for(const name of ['assessment_products','assessment_product_companies','assessment_home_config','assessment_order_details','assessment_deliveries','assessment_product_audit']) assert.equal(db.prepare(`SELECT COUNT(*) FROM ${name}`).pluck().get(),0);
+    assert.equal(applyPendingMigrations(db).appliedNow.length,0);
+    assert.equal(db.pragma('integrity_check',{simple:true}),'ok');
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
+  } finally {db.close();}
+}));
+
+test('database migration 0013 fixes catalogue at nine yuan and closes only legacy assessment pending orders', () => withTempDir(directory => {
+  const previousDir=path.join(directory,'through-0012');copyMigrationsThrough(previousDir,'0012');
+  const targetDir=path.join(directory,'through-0013');copyMigrationsThrough(targetDir,'0013');
+  const db=new Database(path.join(directory,'assessment-fixed-price.db'));
+  try {
+    createRequiredBaselineTables(db);applyPendingMigrations(db,{migrationsDir:previousDir});
+    db.prepare('INSERT INTO users(id,openid) VALUES (1,?)').run('nine-yuan-migration-owner');
+    for(const [index,status] of ['active','draft','inactive'].entries()) db.prepare('INSERT INTO assessment_products(id,title,cover_url,summary,price_cents,status) VALUES (?,?,?,?,?,?)').run(index+1,'原有资料 '+index,'https://example.test/cover.png','原简介',index===1?900:1990,status);
+    const cases=[['OLD-PENDING','pending',1990],['NINE-PENDING','pending',900],['OLD-PAID','paid',1990],['OLD-REFUNDED','refunded',1990],['MEMBERSHIP-PENDING','pending',1990]];
+    for(const [index,[orderNo,status,amount]] of cases.entries()) {
+      db.prepare('INSERT INTO orders(id,order_no,user_id,provider,status,amount) VALUES (?,?,1,?,?,?)').run(index+1,orderNo,'wxpay',status,amount);
+      if(orderNo!=='MEMBERSHIP-PENDING') db.prepare('INSERT INTO assessment_order_details(order_no,product_id,user_id,snapshot,idempotency_key) VALUES (?,1,1,?,?)').run(orderNo,JSON.stringify({title:'历史标题',priceCents:amount,claimDays:365}),'legacy-'+index);
+    }
+    db.prepare("INSERT INTO assessment_deliveries(order_no,status,expires_at) VALUES ('OLD-PAID','ready','2027-01-01')").run();
+    db.prepare("INSERT INTO commerce_ledger_v4(idempotency_key,event_type,user_id,order_no,amount_delta) VALUES ('legacy-payment','payment_confirmed',1,'OLD-PAID',1990)").run();
+    const originals={paid:db.prepare("SELECT * FROM orders WHERE order_no='OLD-PAID'").get(),refunded:db.prepare("SELECT * FROM orders WHERE order_no='OLD-REFUNDED'").get(),details:db.prepare('SELECT * FROM assessment_order_details ORDER BY order_no').all(),deliveries:db.prepare('SELECT * FROM assessment_deliveries').all(),ledger:db.prepare('SELECT * FROM commerce_ledger_v4').all()};
+    assert.deepEqual(applyPendingMigrations(db,{migrationsDir:targetDir}).appliedNow.map(m=>m.version),['0013']);
+    assert.deepEqual(db.prepare('SELECT price_cents FROM assessment_products ORDER BY id').all().map(r=>r.price_cents),[900,900,900]);
+    assert.equal(db.prepare("SELECT status FROM orders WHERE order_no='OLD-PENDING'").pluck().get(),'cancelled');
+    for(const orderNo of ['NINE-PENDING','MEMBERSHIP-PENDING']) assert.equal(db.prepare('SELECT status FROM orders WHERE order_no=?').pluck().get(orderNo),'pending');
+    assert.equal(Number(db.prepare("SELECT amount FROM orders WHERE order_no='OLD-PENDING'").pluck().get()),1990);
+    assert.deepEqual(db.prepare("SELECT * FROM orders WHERE order_no='OLD-PAID'").get(),originals.paid);
+    assert.deepEqual(db.prepare("SELECT * FROM orders WHERE order_no='OLD-REFUNDED'").get(),originals.refunded);
+    assert.deepEqual(db.prepare('SELECT * FROM assessment_order_details ORDER BY order_no').all(),originals.details);
+    assert.deepEqual(db.prepare('SELECT * FROM assessment_deliveries').all(),originals.deliveries);
+    assert.deepEqual(db.prepare('SELECT * FROM commerce_ledger_v4').all(),originals.ledger);
+    assert.equal(applyPendingMigrations(db,{migrationsDir:targetDir}).appliedNow.length,0);
+    assert.equal(db.pragma('integrity_check',{simple:true}),'ok');
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
+  } finally {db.close();}
+}));
+
+test('database migration 0014 starts shared copy empty, closes only assessment pending and retains paid terms', () => withTempDir(directory=>{
+  const previousDir=path.join(directory,'through-0013');copyMigrationsThrough(previousDir,'0013');
+  const db=new Database(path.join(directory,'shared-instructions.db'));
+  try {
+    createRequiredBaselineTables(db);applyPendingMigrations(db,{migrationsDir:previousDir});
+    db.prepare('INSERT INTO users(id,openid) VALUES (1,?)').run('shared-migration-owner');
+    db.prepare('INSERT INTO assessment_products(id,title,cover_url,summary,price_cents,usage_instructions) VALUES (1,?,?,?,?,?)').run('旧资料','https://example.test/c.png','摘要',900,'旧商品使用说明');
+    for(const [index,[number,status]] of [['SHARED-PENDING','pending'],['SHARED-PAID','paid'],['MEMBER-PENDING','pending']].entries()) {
+      db.prepare('INSERT INTO orders(id,order_no,user_id,provider,status,amount) VALUES (?,?,1,?,?,900)').run(index+1,number,'mock',status);
+      if(index<2) db.prepare('INSERT INTO assessment_order_details(order_no,product_id,user_id,snapshot,idempotency_key) VALUES (?,1,1,?,?)').run(number,JSON.stringify({usageInstructions:'购买时说明',priceCents:900}),'shared-'+index);
+    }
+    const before=db.prepare("SELECT * FROM assessment_order_details WHERE order_no='SHARED-PAID'").get();
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item=>item.version),['0014','0015']);
+    const shared=db.prepare('SELECT * FROM assessment_shared_instructions WHERE id=1').get();
+    assert.equal(shared.version,0);
+    for(const key of ['usage_instructions','claim_instructions','update_instructions','after_sales_instructions'])assert.equal(shared[key],'');
+    assert.equal(db.prepare("SELECT status FROM orders WHERE order_no='SHARED-PENDING'").pluck().get(),'cancelled');
+    assert.equal(db.prepare("SELECT status FROM orders WHERE order_no='MEMBER-PENDING'").pluck().get(),'pending');
+    assert.equal(db.prepare("SELECT status FROM orders WHERE order_no='SHARED-PAID'").pluck().get(),'paid');
+    assert.deepEqual(db.prepare("SELECT * FROM assessment_order_details WHERE order_no='SHARED-PAID'").get(),before);
+    assert.equal(db.prepare('SELECT usage_instructions FROM assessment_products WHERE id=1').pluck().get(),'旧商品使用说明');
+    assert.equal(applyPendingMigrations(db).appliedNow.length,0);
+    assert.equal(db.pragma('integrity_check',{simple:true}),'ok');assert.deepEqual(db.pragma('foreign_key_check'),[]);
+  }finally{db.close();}
+}));
+
+test('database migration 0015 creates private unique source ownership without altering existing products', () => withTempDir(directory => {
+  const previousDir=path.join(directory,'through-0014');copyMigrationsThrough(previousDir,'0014');
+  const db=new Database(path.join(directory,'assessment-source-ownership.db'));
+  try {
+    createRequiredBaselineTables(db);applyPendingMigrations(db,{migrationsDir:previousDir});
+    db.prepare('INSERT INTO assessment_products(id,title,cover_url,summary,price_cents) VALUES (1,?,?,?,900),(2,?,?,?,900)').run('旧商品','https://example.test/old.png','旧摘要','第二商品','https://example.test/two.png','第二摘要');
+    const products=db.prepare('SELECT * FROM assessment_products ORDER BY id').all();
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item=>item.version),['0015']);
+    assert.equal(db.prepare('SELECT COUNT(*) FROM assessment_import_sources').pluck().get(),0);
+    assert.deepEqual(db.prepare('SELECT * FROM assessment_products ORDER BY id').all(),products);
+    const insert=db.prepare('INSERT INTO assessment_import_sources(source_namespace,source_record_id,product_id,source_fingerprint,managed_fingerprint,imported_by) VALUES (?,?,?,?,?,?)');
+    insert.run('feishu:test','record-one',1,'source-hash','product-hash','test');
+    assert.throws(()=>insert.run('feishu:test','record-one',2,'source-hash','product-hash','test'),/UNIQUE constraint/);
+    assert.throws(()=>insert.run('feishu:other','record-two',1,'source-hash','product-hash','test'),/UNIQUE constraint/);
+    assert.equal(db.prepare('SELECT content_needs_review FROM assessment_import_sources').pluck().get(),1);
+    assert.equal(applyPendingMigrations(db).appliedNow.length,0);
+    assert.equal(db.pragma('integrity_check',{simple:true}),'ok');assert.deepEqual(db.pragma('foreign_key_check'),[]);
+  } finally {db.close();}
 }));
 
 test('database migration baseline refuses an incomplete schema', () => withTempDir(directory => {

@@ -99,8 +99,7 @@ function hasProfilePayload(body = {}) {
   ].some(key => Object.prototype.hasOwnProperty.call(body, key));
 }
 
-function unlinkResumeFiles(userId) {
-  const rows = db.prepare('SELECT filename FROM resume_pdfs WHERE user_id=?').all(userId);
+function unlinkResumeFiles(rows) {
   rows.forEach(row => {
     const filename = path.basename(row.filename || '');
     if (!filename) return;
@@ -109,8 +108,8 @@ function unlinkResumeFiles(userId) {
   return rows.length;
 }
 
-function deletePersonalData(userId) {
-  const removedPdfFiles = unlinkResumeFiles(userId);
+function deletePersonalData(userId, options = {}) {
+  const resumeFiles = db.prepare('SELECT filename FROM resume_pdfs WHERE user_id=?').all(userId);
   const run = db.transaction(() => {
     const summary = {};
     const del = (key, sql, params = [userId]) => {
@@ -146,10 +145,14 @@ function deletePersonalData(userId) {
       SET user_id=NULL, user_name='已注销用户', user_avatar='', is_anonymous=1
       WHERE user_id=?
     `).run(userId).changes;
-    summary.resumePdfFiles = removedPdfFiles;
+    if (options.deleteAccount) summary.account = db.prepare('DELETE FROM users WHERE id=?').run(userId).changes;
+    summary.resumePdfFiles = resumeFiles.length;
     return summary;
   });
-  return run();
+  const summary = run();
+  // File removal follows a successful database transaction; rollback must preserve files too.
+  unlinkResumeFiles(resumeFiles);
+  return summary;
 }
 
 router.get('/profile-schema', (_req, res) => {
@@ -423,8 +426,7 @@ router.delete('/me/data', authMiddleware, (req, res) => {
 // ─── 隐私合规：注销账号 ─────────────────────────────────────────────────────
 router.delete('/me', authMiddleware, (req, res) => {
   try {
-    const summary = deletePersonalData(req.user.userId);
-    db.prepare('DELETE FROM users WHERE id=?').run(req.user.userId);
+    const summary = deletePersonalData(req.user.userId, { deleteAccount: true });
     res.json({ code: 0, message: '账号已注销', data: summary });
   } catch (error) {
     console.error('[delete account error]', error);

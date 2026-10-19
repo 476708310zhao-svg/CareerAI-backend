@@ -8,6 +8,10 @@ const {
 } = require('../utils/jobData');
 
 const seedCompanies = require(path.join(__dirname, '../data/companies.seed.json'));
+const ASSESSMENT_IMPORT_SOURCE = 'assessment-feishu-import';
+// Only assessment-imported placeholders need this new publication boundary.
+// Preserve the historical visibility of all other company sources/statuses.
+const PUBLIC_COMPANY_WHERE = "NOT (COALESCE(c.source_primary, '') = 'assessment-feishu-import' AND COALESCE(c.data_status, '') <> 'published')";
 
 function slugify(value) {
   return String(value || '')
@@ -199,13 +203,15 @@ function ensureSeedCompanies() {
   if (count === 0) importSeedCompanies();
 }
 
-function listCompanies(options = {}) {
+function listCompanies(options = {}, visibility = {}) {
   ensureSeedCompanies();
   const page = Math.max(parseInt(options.page || 1, 10), 1);
   const pageSize = Math.min(Math.max(parseInt(options.pageSize || 20, 10), 1), 100);
   const offset = (page - 1) * pageSize;
   const where = [];
   const params = [];
+
+  if (visibility.publicOnly === true) where.push(PUBLIC_COMPANY_WHERE);
 
   if (options.keyword) {
     const kw = `%${options.keyword}%`;
@@ -243,9 +249,10 @@ function listCompanies(options = {}) {
   };
 }
 
-function getCompanyById(id) {
+function getCompanyById(id, visibility = {}) {
   ensureSeedCompanies();
-  const row = db.prepare('SELECT * FROM companies WHERE id = ?').get(id);
+  const publicWhere = visibility.publicOnly === true ? ` AND ${PUBLIC_COMPANY_WHERE}` : '';
+  const row = db.prepare(`SELECT c.* FROM companies c WHERE c.id = ?${publicWhere}`).get(id);
   if (!row) return null;
   const names = matchNames(row);
   const placeholders = names.map(() => '?').join(',');
@@ -338,7 +345,8 @@ function updateCompany(id, body) {
     description_en: body.description_en ?? existing.description_en,
     tags: Array.isArray(body.tags) ? body.tags : String(body.tags || ja(existing.tags).join(',')).split(',').map(s => s.trim()).filter(Boolean),
     aliases: Array.isArray(body.aliases) ? body.aliases : String(body.aliases || '').split(',').map(s => s.trim()).filter(Boolean),
-    source_primary: 'admin',
+    source_primary: existing.source_primary === ASSESSMENT_IMPORT_SOURCE && body.data_status !== 'published'
+      ? ASSESSMENT_IMPORT_SOURCE : 'admin',
     data_status: body.data_status || existing.data_status
   });
   upsertCompany(updated);
