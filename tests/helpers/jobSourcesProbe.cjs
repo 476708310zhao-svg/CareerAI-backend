@@ -2,12 +2,17 @@
 
 const isolatedRuntime = require('./isolatedTestRuntime.cjs');
 const scenario = process.argv[2] || 'normal';
+const normalScenario = scenario === 'normal' || scenario === 'normal-with-japan';
+// Keep market sampling deterministic without freezing clocks used by deadlines,
+// source pacing, cache expiry, and job freshness. This module is process-local.
+const sampleCountries = scenario === 'normal-with-japan' ? ['jp', 'ae'] : ['us', 'gb'];
+require('../../utils/jobGeography').globalSampleCountries = () => [...sampleCountries];
 isolatedRuntime.install();
 Object.assign(process.env, {
   RAPID_API_KEY: 'mock_rapid_key_abcdefghijklmnopqrstuvwxyz',
   ADZUNA_APP_ID: '', ADZUNA_APP_KEY: '', THE_MUSE_API_KEY: '',
   LIVE_JOBS_ENABLED: 'true', DISABLE_FREE_JOB_SOURCES: 'false',
-  JSEARCH_DAILY_REQUEST_BUDGET: scenario === 'normal' ? '10' : '6'
+  JSEARCH_DAILY_REQUEST_BUDGET: normalScenario ? '10' : '6'
 });
 isolatedRuntime.prepare();
 
@@ -48,29 +53,36 @@ async function main() {
   });
   try {
     const base = `http://127.0.0.1:${server.address().port}`;
+    const stageCalls = {};
+    async function requestStage(stage, route) {
+      const before = calls.length;
+      const response = await (await fetch(`${base}${route}`)).json();
+      stageCalls[stage] = calls.slice(before);
+      return response;
+    }
     const startedAt = Date.now();
-    const map = await (await fetch(`${base}/api/jobs/map?country=global&pageSize=20`)).json();
+    const map = await requestStage('map', '/api/jobs/map?country=global&pageSize=20');
     const mapElapsedMs = Date.now() - startedAt;
     const secondMap = scenario === 'limited'
-      ? await (await fetch(`${base}/api/jobs/map?country=global&pageSize=20`)).json()
+      ? await requestStage('secondMap', '/api/jobs/map?country=global&pageSize=20')
       : null;
-    const japan = scenario === 'normal'
-      ? await (await fetch(`${base}/api/jobs?country=jp&pageSize=20`)).json()
+    const japan = normalScenario
+      ? await requestStage('japan', '/api/jobs?country=jp&pageSize=20')
       : null;
-    const globalList = scenario === 'normal'
-      ? await (await fetch(`${base}/api/jobs?country=global&pageSize=20`)).json()
+    const globalList = normalScenario
+      ? await requestStage('globalList', '/api/jobs?country=global&pageSize=20')
       : null;
-    const globalAggregate = scenario === 'normal'
-      ? await (await fetch(`${base}/api/jobs/aggregate?country=global&query=Engineer&pageSize=20`)).json()
+    const globalAggregate = normalScenario
+      ? await requestStage('globalAggregate', '/api/jobs/aggregate?country=global&query=Engineer&pageSize=20')
       : null;
-    const aggregate = scenario === 'normal'
-      ? await (await fetch(`${base}/api/jobs/aggregate?country=jp&query=Engineer&pageSize=20`)).json()
+    const aggregate = normalScenario
+      ? await requestStage('aggregate', '/api/jobs/aggregate?country=jp&query=Engineer&pageSize=20')
       : null;
-    const search = scenario === 'normal'
-      ? await (await fetch(`${base}/api/jobs/search?country=jp&query=Engineer`)).json()
+    const search = normalScenario
+      ? await requestStage('search', '/api/jobs/search?country=jp&query=Engineer')
       : null;
     console.log(`PROBE_RESULT:${JSON.stringify({
-      calls, mapElapsedMs, map: {
+      calls, stageCalls, mapElapsedMs, map: {
         source: map.data.source,
         coverage: map.meta.coverage,
         jobs: map.data.list.map(job => ({ id: job.id, source: job.source }))
