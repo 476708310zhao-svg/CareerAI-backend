@@ -16,6 +16,7 @@ Page({
     list: [],
     skeletonRows: [1, 2, 3, 4, 5, 6],
     loading: false,
+    loadError: false,
     page: 1,
     hasMore: true
   },
@@ -30,7 +31,7 @@ Page({
   switchTab(e) {
     const tab = e.currentTarget.dataset.tab;
     if (tab === this.data.currentTab && this.data.list.length > 0) return;
-    this.setData({ currentTab: tab, list: [], page: 1, hasMore: true });
+    this.setData({ currentTab: tab, list: [], page: 1, hasMore: true, loadError: false });
     this.loadCompanies(1);
   },
 
@@ -40,7 +41,7 @@ Page({
 
     this._lastCompanyRequestKey = requestKey;
     const seq = ++this._companyRequestSeq;
-    this.setData({ loading: true });
+    this.setData({ loading: true, loadError: false });
 
     getCompanies({
       industry: this.data.currentTab,
@@ -63,13 +64,18 @@ Page({
         list: page === 1 ? list : this.data.list.concat(list),
         page,
         hasMore: page < (data.totalPages || 1),
-        loading: false
+        loading: false,
+        loadError: false
       });
     }).catch(() => {
       if (seq !== this._companyRequestSeq) return;
-      this.setData({ loading: false, hasMore: false });
-      wx.showToast({ title: '公司列表加载失败', icon: 'none' });
+      this.setData({ loading: false, hasMore: false, loadError: this.data.list.length === 0 });
+      if (this.data.list.length > 0) wx.showToast({ title: '公司列表加载失败', icon: 'none' });
     });
+  },
+
+  retryCompanies() {
+    this.loadCompanies(1);
   },
 
   onReachBottom() {

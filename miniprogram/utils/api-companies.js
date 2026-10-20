@@ -1,5 +1,11 @@
 const { request, DETAIL_CACHE_TTL } = require('./api-client.js');
+const { CONTENT_API_BASE_URL } = require('./app-config.js');
 const { normalizeLogoUrl } = require('./assets.js');
+
+const publicRead = options => request(Object.assign({}, options, {
+  baseUrl: CONTENT_API_BASE_URL,
+  skipAuth: true
+}));
 
 function normalizeLogo(url) {
   return normalizeLogoUrl(url);
@@ -23,14 +29,15 @@ function requestCompanies(data) {
   const params = Object.assign({}, data || {});
   delete params.includeFeishu;
   delete params.skipFeishu;
-  return request({
+  return publicRead({
     path: '/api/companies',
     params,
     cacheTTL: 30 * 60 * 1000
   }).then(res => {
-    if (res && res.data && Array.isArray(res.data.list)) {
-      res.data.list = res.data.list.map(normalizeCompany);
+    if (!res || res.code !== 0 || !res.data || !Array.isArray(res.data.list)) {
+      throw new Error('公司列表暂时无法加载');
     }
+    res.data.list = res.data.list.map(normalizeCompany);
     return res;
   });
 }
@@ -42,7 +49,7 @@ function getCompanies(data) {
 function getCompanyDetail(id, name) {
   const params = {};
   if (name) params.name = name;
-  return request({
+  return publicRead({
     path: `/api/companies/${id}`,
     params,
     cacheTTL: DETAIL_CACHE_TTL

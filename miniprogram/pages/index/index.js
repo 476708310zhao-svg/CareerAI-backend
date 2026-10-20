@@ -16,6 +16,7 @@ const { markCachedDataMeta, normalizeDataMeta, summaryText } = require('../../ut
 const apiV4 = require('../../utils/api-v4.js');
 const ownerStorage = require('../../utils/owner-storage.js');
 const unreadMessages = require('../../utils/unread-messages.js');
+const assessmentResources = require('../../utils/api-assessment-resources.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 // TabBar 页面路径列表，用于判断跳转方式
 Page({
@@ -26,6 +27,8 @@ Page({
     recruitmentEnabled: true,
     homeRecommendationsEnabled: false,
     membershipEnabled: false,
+    assessmentProducts: [],
+    assessmentPreview: false,
 
     // 4. 推荐职位
     recommendJobs: [],
@@ -33,6 +36,8 @@ Page({
     loadingJobs: true,
     loadingLatestJobs: false,
     campusDigest: [],
+    campusDigestTotal: 0,
+    campusDigestDateLabel: '',
     loadingCampusDigest: false,
     campusDigestError: false,
     jobsError: false,
@@ -109,6 +114,7 @@ Page({
       if (recruitmentEnabled) this.fetchLatestJobs();
     }
     this.fetchHomeCampusDigest();
+    this.fetchAssessmentProducts();
   },
 
   applyRecruitmentState(enabled) {
@@ -164,7 +170,8 @@ Page({
       this._campusDigestInFlight = false;
       this._campusDigestFetchedAt = 0;
       this.setData({ recommendJobs: [], latestJobs: [], loadingLatestJobs: false,
-        campusDigest: [], loadingCampusDigest: false, campusDigestError: false,
+        campusDigest: [], campusDigestTotal: 0, campusDigestDateLabel: '',
+        loadingCampusDigest: false, campusDigestError: false,
         todayTasks: [], todaySecondaryTasks: [],
         todayTaskStats: dailyTasks.getStats([]) });
     }
@@ -186,6 +193,47 @@ Page({
     if (this.data.recruitmentEnabled && !this.data.homeRecommendationsEnabled
       && !this.data.loadingLatestJobs && !(this.data.latestJobs || []).length) this.fetchLatestJobs();
     this.fetchHomeCampusDigest();
+    this.fetchAssessmentProducts();
+  },
+
+  async fetchAssessmentProducts() {
+    const request = this._assessmentRequest = (this._assessmentRequest || 0) + 1;
+    try {
+      const result = await assessmentResources.home();
+      if (this._unloaded || !this._visible || request !== this._assessmentRequest) return;
+      const seenCompanies = new Set();
+      const seenProducts = new Set();
+      const items = result.enabled === true ? (result.items || []).filter(item => {
+        const company = String(item.companyId || '');
+        const product = String(item.productId || '');
+        if (!company || !product || seenCompanies.has(company) || seenProducts.has(product)) return false;
+        seenCompanies.add(company); seenProducts.add(product); return true;
+      }).slice(0, 3).map(item => Object.assign({}, item, { priceText: assessmentResources.price(item.priceCents),
+        companyLogo: assessmentResources.imageUrl(item.companyLogo),
+        metaText: [item.seasonLabel, item.summary].filter(Boolean).join(' · ') })) : [];
+      this.setData({ assessmentProducts: items, assessmentPreview: result.preview === true });
+      if (items.length && !result.preview) {
+        assessmentResources.track('home_assessment_module_view', { source: 'home_assessment' });
+        items.forEach(item => assessmentResources.track('home_assessment_product_view', {
+          productId: item.productId, companyId: item.companyId, position: item.position, source: 'home_assessment' }));
+      }
+    } catch (error) {
+      if (!this._unloaded && request === this._assessmentRequest) this.setData({ assessmentProducts: [], assessmentPreview: false });
+    }
+  },
+  openAssessmentProduct(event) {
+    const item = this.data.assessmentProducts[event.currentTarget.dataset.index];
+    if (!item) return;
+    if (!item.preview) assessmentResources.track('home_assessment_product_click', { productId: item.productId,
+      companyId: item.companyId, position: item.position, source: 'home_assessment' });
+    navigation.safeNavigateTo(assessmentResources.detailUrl(item.productId, 'home_assessment', item.companyId, item.position));
+  },
+  openAllAssessmentProducts() {
+    if (!this.data.assessmentPreview) assessmentResources.track('home_assessment_view_all', { source: 'home_assessment' });
+    navigation.safeNavigateTo(assessmentResources.listUrl('home_assessment'));
+  },
+  onAssessmentLogoError(event) {
+    this.setData({ ['assessmentProducts[' + event.currentTarget.dataset.index + '].companyLogo']: '' });
   },
 
   syncPageChrome() {
@@ -219,12 +267,14 @@ Page({
     if (this.data.homeRecommendationsEnabled) this.fetchRecommendJobs({ force: true });
     else if (this.data.recruitmentEnabled) this.fetchLatestJobs({ force: true });
     this.fetchHomeCampusDigest({ force: true });
+    this.fetchAssessmentProducts();
     setTimeout(() => wx.stopPullDownRefresh(), 800);
   },
 
   onUnload() {
     this._unloaded = true;
     this._visible = false;
+    this._assessmentRequest = (this._assessmentRequest || 0) + 1;
     this._todayTaskRequestId = (this._todayTaskRequestId || 0) + 1;
     this._workbenchReportRequestId = (this._workbenchReportRequestId || 0) + 1;
     this._recommendRequestId = (this._recommendRequestId || 0) + 1;
@@ -458,7 +508,7 @@ Page({
           return true;
         })
         .sort((a, b) => timestamp(b.postedAtRaw) - timestamp(a.postedAtRaw))
-        .slice(0, 2);
+        .slice(0, 3);
       this.setData({ latestJobs: this.withCompanyLogos(jobs), loadingLatestJobs: false });
     } catch (error) {
       if (!this.isHomeRequestCurrent(owner, requestId, '_latestJobRequestId')) return;
@@ -477,7 +527,7 @@ Page({
     this._campusDigestInFlight = true;
     this.setData({ loadingCampusDigest: true, campusDigestError: false });
     try {
-      const res = await getCampusList({ sort: 'latest', deadlineWindow: 'open', page: 0, pageSize: 20 });
+      const res = await getCampusList({ sort: 'latest', latestDay: '1', deadlineWindow: 'open', page: 0, pageSize: 3 });
       if (!this.isHomeRequestCurrent(owner, requestId, '_campusDigestRequestId')) return;
       if (!res || res.code !== 0 || !res.data
         || !(Array.isArray(res.data) || Array.isArray(res.data.list))) {
@@ -485,19 +535,24 @@ Page({
       }
       const raw = Array.isArray(res.data) ? res.data : (res.data.list || []);
       const digest = this.rankCampusUpdates(raw.filter(item => item && item.id && item.deadlineWindow !== 'expired'))
-        .sort((a, b) => Number(b.isUrgent) - Number(a.isUrgent) || b.updateTimestamp - a.updateTimestamp)
-        .slice(0, 2)
+        .slice(0, 3)
         .map(item => Object.assign({}, item, {
-          digestLabel: item.isUrgent ? '即将截止' : '校招机会',
-          digestMeta: item.isUrgent && item.deadlineText ? item.deadlineText : this.normalizeCampusUpdateSubtitle(item)
+          digestMeta: this.normalizeCampusUpdateSubtitle(item)
         }));
+      const latestDate = String(res.data.latestDate || (digest[0] && digest[0].businessDate) || '');
       this._campusDigestFetchedAt = Date.now();
-      this.setData({ campusDigest: digest, loadingCampusDigest: false, campusDigestError: false });
+      this.setData({
+        campusDigest: digest,
+        campusDigestTotal: Number(res.data.total) || digest.length,
+        campusDigestDateLabel: latestDate ? this.formatCampusBusinessDateText(latestDate) : '',
+        loadingCampusDigest: false,
+        campusDigestError: false
+      });
     } catch (error) {
       if (!this.isHomeRequestCurrent(owner, requestId, '_campusDigestRequestId')) return;
       console.warn('[fetchHomeCampusDigest] 获取校招动态失败:', error);
       this._campusDigestFetchedAt = 0;
-      this.setData({ campusDigest: [], loadingCampusDigest: false, campusDigestError: true });
+      this.setData({ campusDigest: [], campusDigestTotal: 0, campusDigestDateLabel: '', loadingCampusDigest: false, campusDigestError: true });
     } finally {
       if (requestId === this._campusDigestRequestId) this._campusDigestInFlight = false;
     }
@@ -678,14 +733,15 @@ Page({
       startDate: item.startDate || item.start_date,
       recruitYear: item.recruitYear || item.recruit_year
     });
+    const isUrgent = deadline.isSoon && deadline.text !== '尽快投递';
     const businessDate = this.getCampusBusinessDateKey(item);
     const updatedText = this.formatCampusBusinessDateText(businessDate);
     const updateTimestamp = timestamp(item.updatedAt || item.updated_at || item.createdAt || item.created_at || businessDate || '');
     const recentScore = businessDate ? 40 : 12;
     const hotScore = item.isHot ? 26 : 0;
-    const deadlineScore = deadline.isSoon ? 30 : 0;
+    const deadlineScore = isUrgent ? 30 : 0;
     const companyName = item.company || '校招机会';
-    const positionTitle = item.positionName || item.positionType || '校招岗位';
+    const positionTitle = item.positionName || item.position_name || item.positionType || item.position_type || '校招岗位';
     const title = this.buildCampusUpdateTitle(companyName, positionTitle);
     const dataMeta = normalizeDataMeta(item.dataMeta, {
       domain: 'campus', source: item.source || '',
@@ -696,6 +752,7 @@ Page({
       id: item.id,
       title,
       company: companyName,
+      positionTitle,
       companyLogo: item.companyLogo || item.company_logo || this.buildCompanyLogo(companyName),
       companyInitial: String(companyName || '校').slice(0, 1).toUpperCase(),
       industry: item.industry || '',
@@ -725,10 +782,10 @@ Page({
       cityText,
       deadlineText: deadline.text,
       updatedText,
-      badgeText: item.isHot ? '热门企业' : (deadline.isSoon ? '即将截止' : '新更新'),
+      badgeText: isUrgent ? '即将截止' : (item.isHot ? '热门企业' : '新更新'),
       tagText: item.industry || item.positionType || item.recruitType || '校招',
       applyUrl: item.applyUrl || item.apply_url || '',
-      isUrgent: deadline.isSoon,
+      isUrgent,
       homeScore: recentScore + hotScore + deadlineScore + (item.viewCount || 0) / 1000
     };
   },
@@ -970,8 +1027,7 @@ Page({
 
     const primaryTaskId = nextTask ? String(nextTask.id || '') : '';
     const todaySecondaryTasks = (this.data.todayTasks || [])
-      .filter(item => !item.done && String(item.id || '') !== primaryTaskId)
-      .slice(0, 2);
+      .filter(item => String(item.id || '') !== primaryTaskId);
 
     this.setData({
       todaySecondaryTasks,
@@ -989,7 +1045,7 @@ Page({
   },
 
   loadTodayTasks() {
-    const tasks = dailyTasks.buildTasks().slice(0, 3);
+    const tasks = dailyTasks.buildTasks();
     this.setData({
       todayTasks: tasks,
       todayTaskStats: dailyTasks.getStats(tasks)
@@ -1045,8 +1101,7 @@ Page({
         };
       }).sort((left, right) => (left.done - right.done)
         || ((priorityRank[left.priority] === undefined ? 9 : priorityRank[left.priority])
-          - (priorityRank[right.priority] === undefined ? 9 : priorityRank[right.priority])))
-        .slice(0, 3);
+          - (priorityRank[right.priority] === undefined ? 9 : priorityRank[right.priority])));
       this.setData({
         todayTasks: merged,
         todayTaskStats: dailyTasks.getStats(merged)
@@ -1165,12 +1220,14 @@ Page({
   },
 
   onCampusLogoError(e) {
-    const id = e.detail && e.detail.id;
+    const id = (e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.id)
+      || (e.detail && e.detail.id);
     if (!id) return;
     const clearLogo = item => item && String(item.id) === String(id)
-      ? Object.assign({}, item, { companyLogo: '' })
+      ? Object.assign({}, item, { companyLogo: '', logoFailed: true })
       : item;
     this.setData({
+      campusDigest: (this.data.campusDigest || []).map(clearLogo),
       campusFeatured: clearLogo(this.data.campusFeatured),
       campusUpdates: (this.data.campusUpdates || []).map(clearLogo),
       campusLatestUpdates: (this.data.campusLatestUpdates || []).map(clearLogo)

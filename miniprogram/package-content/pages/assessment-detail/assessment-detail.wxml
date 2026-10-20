@@ -1,0 +1,75 @@
+<view class="assessment-page detail-page">
+  <view class="a-state" wx:if="{{loading}}"><text class="a-note">正在读取资料介绍…</text></view>
+  <view class="a-state" wx:elif="{{error}}" aria-role="alert"><text class="a-title">暂时无法查看资料</text><text class="a-note">{{error}}</text><button class="a-button" bindtap="load">重新加载</button></view>
+  <block wx:elif="{{product}}">
+    <view class="detail-preview-note" wx:if="{{product.preview}}">开发预览 · 示例资料，暂不可购买</view>
+
+    <view class="detail-cover assessment-cover tone-{{product.coverTone}}" aria-hidden="true">
+      <view class="detail-cover-copy">
+        <text class="detail-cover-eyebrow">校招测评 · 学习参考</text>
+        <text class="detail-cover-company">{{product.coverCompany}}</text>
+        <text class="detail-cover-season">{{product.seasonLabel || '校招备考资料'}}</text>
+      </view>
+      <view class="detail-cover-stack">
+        <view class="detail-cover-sheet detail-cover-sheet-back"></view>
+        <view class="detail-cover-sheet detail-cover-sheet-front"><view></view><view></view><view></view></view>
+      </view>
+    </view>
+
+    <view class="detail-overview">
+      <text class="detail-title">{{product.title}}</text>
+      <view class="detail-meta">
+        <text class="detail-meta-pill">{{product.companyNames}}</text>
+        <text class="detail-meta-pill detail-meta-season" wx:if="{{product.seasonLabel}}">{{product.seasonLabel}}</text>
+      </view>
+      <view class="detail-overview-price">
+        <text class="detail-price-label">资料价格</text>
+        <text class="a-price detail-price">{{product.priceLabel}}</text>
+      </view>
+      <text class="detail-summary" wx:if="{{product.summary}}">{{product.summary}}</text>
+    </view>
+
+    <view class="a-section detail-section" wx:if="{{product.description}}">
+      <view class="detail-section-heading"><view class="detail-section-mark"></view><text class="a-section-title">资料介绍</text></view>
+      <text class="a-text detail-body-text" selectable>{{product.description}}</text>
+    </view>
+
+    <view class="a-section detail-section" wx:if="{{product.catalogText}}">
+      <view class="detail-section-heading"><view class="detail-section-mark"></view><text class="a-section-title">资料目录</text></view>
+      <view class="detail-inset"><text class="a-text detail-body-text" selectable>{{product.catalogText}}</text></view>
+    </view>
+
+    <view class="a-section detail-section" wx:if="{{product.sampleImages.length}}">
+      <view class="detail-section-heading"><view class="detail-section-mark"></view><text class="a-section-title">资料示例</text></view>
+      <image wx:for="{{product.sampleImages}}" wx:key="*this" class="sample-image" src="{{item}}" mode="widthFix" data-index="{{index}}" bindtap="previewImage" aria-role="button" aria-label="查看资料示例图"/>
+    </view>
+
+    <view class="a-section detail-section">
+      <view class="detail-section-heading"><view class="detail-section-mark"></view><text class="a-section-title">{{product.preview ? '开发预览说明' : '付款后如何使用'}}</text></view>
+      <view class="detail-inset" wx:if="{{!product.preview}}"><text class="a-text detail-body-text">付款后领取网盘链接和提取码，请在对应网盘查看或保存。</text></view>
+      <text class="detail-info-line" wx:if="{{product.claimInstructions}}">{{product.claimInstructions}}</text>
+      <text class="detail-info-line" wx:if="{{product.claimDays}}">领取有效期：付款后 {{product.claimDays}} 天，以订单记录为准。</text>
+      <text class="detail-info-line" wx:if="{{product.usageInstructions}}">{{product.usageInstructions}}</text>
+    </view>
+
+    <view class="a-section detail-section" wx:if="{{product.updateInstructions || product.afterSalesInstructions || product.sourceDescription}}">
+      <view class="detail-section-heading"><view class="detail-section-mark"></view><text class="a-section-title">更新与售后说明</text></view>
+      <text class="detail-info-line" wx:if="{{product.updateInstructions}}">{{product.updateInstructions}}</text>
+      <text class="detail-info-line" wx:if="{{product.afterSalesInstructions}}">{{product.afterSalesInstructions}}</text>
+      <text class="detail-info-line" wx:if="{{product.sourceDescription}}">{{product.sourceDescription}}</text>
+    </view>
+
+    <view class="detail-status detail-status-warning" wx:if="{{purchaseError}}" aria-role="alert">{{purchaseError}}。点击底部按钮重新核实。</view>
+    <view class="detail-status detail-status-warning" wx:if="{{purchaseState === 'expired'}}"><text class="detail-status-title">已购买，领取期限已结束</text><text class="detail-status-copy">请进入订单查看记录。如需帮助，可在订单页联系客服。</text></view>
+    <view class="detail-status detail-status-warning" wx:elif="{{purchaseState === 'review'}}"><text class="detail-status-title">款项已收到，订单待核对</text><text class="detail-status-copy">请进入订单联系客服处理，无需再次付款。</text></view>
+    <view class="detail-status detail-status-success" wx:elif="{{purchaseState === 'waiting'}}">资料已购买，请进入订单查看领取进度。</view>
+    <view wx:if="{{!product.preview}}" class="detail-purchases" bindtap="openPurchases" aria-role="button" aria-label="查看我的已购资料"><text>查看我的已购</text><text class="detail-purchases-arrow" aria-hidden="true">›</text></view>
+
+    <view class="a-spacer detail-spacer"></view>
+    <view class="detail-footer">
+      <view class="detail-footer-price"><text class="detail-footer-label">{{purchasedOrderNo ? '购买状态' : '资料价格'}}</text><text class="a-price">{{purchasedOrderNo ? '已购买' : product.priceLabel}}</text></view>
+      <button class="a-button" bindtap="purchase" loading="{{paying || purchaseChecking}}" disabled="{{product.preview || paying || purchaseChecking || (!canBuy && !purchasedOrderNo && !purchaseError)}}">{{product.preview ? '开发预览·暂不可购买' : paying ? '正在处理…' : purchaseChecking ? '核实购买记录…' : purchaseError ? '重新核实购买记录' : purchasedOrderNo ? (purchaseState === 'ready' ? '领取资料' : '查看订单') : canBuy ? '立即购买' : '暂未开放购买'}}</button>
+    </view>
+  </block>
+  <c-login-popup show="{{authPromptVisible}}" subtitle="{{authPromptSubtitle}}" bindclose="closeAuthPrompt" bindsuccess="onAuthPromptSuccess"/>
+</view>

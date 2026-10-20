@@ -423,6 +423,15 @@ page {
   word-break: break-word;
 }
 
+.description-expand {
+  margin-top: 22rpx;
+  padding: 14rpx 0;
+  color: #175cd3;
+  font-size: 25rpx;
+  font-weight: 750;
+  text-align: center;
+}
+
 .timeline-row {
   align-items: flex-start;
   gap: 16rpx;

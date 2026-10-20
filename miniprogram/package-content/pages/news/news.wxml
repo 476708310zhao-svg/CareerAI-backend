@@ -10,8 +10,6 @@
         <text>{{refreshing ? '更新中' : '刷新'}}</text>
       </view>
     </view>
-    <text class="subtitle">精选校招、签证、简历、面试和行业趋势，进入页面立即可读，后台自动更新。</text>
-
     <view class="search-card">
       <text class="search-icon">⌕</text>
       <input
@@ -27,8 +25,8 @@
     </view>
 
     <view class="meta-row">
-      <text>{{displayList.length}} 条内容</text>
-      <text>更新 {{lastUpdatedText}}</text>
+      <text>{{(loading || refreshing) && !displayList.length ? '正在加载' : displayList.length + ' 条内容'}}</text>
+      <text wx:if="{{displayList.length > 0}}">更新 {{lastUpdatedText}}</text>
     </view>
   </view>
 
@@ -87,10 +85,11 @@
       </block>
     </view>
 
-    <view wx:if="{{displayList.length === 0}}" class="empty-wrap">
-      <text class="empty-title">{{isSearching ? '没有找到相关快讯' : '暂无该分类内容'}}</text>
-      <text class="empty-desc">可以换个关键词，或切回“全部”查看推荐内容。</text>
-      <view class="empty-btn" bindtap="clearSearch">查看全部</view>
+    <view wx:if="{{displayList.length === 0 && !loading && !refreshing}}" class="empty-wrap">
+      <text class="empty-title">{{loadError ? '快讯暂时无法加载' : isSearching ? '没有找到相关快讯' : '暂无该分类内容'}}</text>
+      <text class="empty-desc">{{loadError ? '请检查网络连接后重试。' : '可以换个关键词，或切回“全部”查看推荐内容。'}}</text>
+      <view class="empty-btn" wx:if="{{loadError}}" bindtap="onPullDownRefresh">重新加载</view>
+      <view class="empty-btn" wx:else bindtap="clearSearch">查看全部</view>
     </view>
 
     <view class="list-end" wx:if="{{displayList.length > 0}}">已展示全部快讯</view>

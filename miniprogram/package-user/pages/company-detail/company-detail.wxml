@@ -32,6 +32,13 @@
     </view>
   </view>
 
+  <view class="section-card company-assessment" wx:if="{{assessmentProducts.length}}">
+    <view class="company-assessment-head"><text class="section-title">测评资料</text><view class="company-assessment-all" wx:if="{{assessmentTotal > 3}}" bindtap="openAllAssessmentProducts" aria-role="button" aria-label="查看当前公司的全部测评资料">查看全部</view></view>
+    <view class="company-assessment-row" wx:for="{{assessmentProducts}}" wx:key="productId" data-id="{{item.productId}}" bindtap="openAssessmentProduct" hover-class="company-assessment-pressed" aria-role="button" aria-label="{{item.title}}，{{item.priceText}}元">
+      <image class="company-assessment-cover" src="{{item.coverUrl || '/images/zhiyin-icons/document.svg'}}" mode="aspectFit" data-index="{{index}}" binderror="onAssessmentCoverError"/>
+      <view class="company-assessment-copy"><text class="company-assessment-title">{{item.title}}</text><text class="company-assessment-summary">{{item.summary}}</text><text class="company-assessment-price">¥{{item.priceText}}</text></view><image class="company-assessment-arrow" src="/images/zhiyin-icons/chevron.svg" mode="aspectFit" aria-hidden="true"/>
+    </view>
+  </view>
   <view class="company-intel">
     <view class="intel-head">
       <text class="intel-kicker">Company Intelligence</text>

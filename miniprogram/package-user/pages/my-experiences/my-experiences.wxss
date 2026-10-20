@@ -623,3 +623,25 @@ page,
   width: 92rpx;
   height: 92rpx;
 }
+
+/* 面经列表聚焦内容与明确的本机保存动作。 */
+.experience-hero { margin: 18rpx 24rpx 12rpx; padding: 24rpx 26rpx; border-radius: 24rpx; background: #fff; box-shadow: none; }
+.hero-title { margin-top: 0; font-size: 34rpx; font-weight: 750; line-height: 46rpx; }
+.hero-sub { margin-top: 4rpx; font-size: 23rpx; line-height: 34rpx; }
+.hero-count { width: auto; height: auto; min-width: 100rpx; padding: 12rpx 16rpx; border-radius: 16rpx; color: #315ee8; background: #edf3ff; box-shadow: none; }
+.count-num { font-size: 30rpx; }
+.count-label { margin-top: 3rpx; font-size: 20rpx; }
+.experience-actions { display: flex; gap: 14rpx; margin: 0 24rpx 16rpx; }
+.experience-primary, .experience-secondary { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 80rpx; border-radius: 18rpx; font-size: 25rpx; font-weight: 700; }
+.experience-primary { background: #315ee8; color: #fff; }
+.experience-secondary { border: 1rpx solid #c9d8f8; background: #edf3ff; color: #315ee8; }
+.experience-primary:active, .experience-secondary:active { opacity: .72; }
+.header-fixed { box-shadow: none; border: 1rpx solid #e2e8f3; }
+.list-container { padding-bottom: 32rpx; }
+.article-card { box-shadow: none; }
+.post-date { color: #667085; }
+.more-action { display: flex; align-items: center; justify-content: center; min-width: 88rpx; min-height: 72rpx; color: #315ee8; font-size: 30rpx; }
+.empty-state { margin-top: 18rpx; padding: 64rpx 30rpx; box-shadow: none; }
+.empty-main { margin-top: 0; font-weight: 700; }
+.empty-btn { min-height: 80rpx; box-sizing: border-box; border-radius: 18rpx; box-shadow: none; }
+.empty-btn.primary { background: #315ee8; }

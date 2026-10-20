@@ -188,7 +188,9 @@ for (const relative of ['pages/ai-career/ai-career.js', 'package-ai/pages/ai-ass
       '../../utils/auth-session.js': authSession,
       '../../../utils/auth-session.js': authSession,
       '../../utils/owner-storage.js': { key: () => 'ai-cache' },
-      '../../../utils/owner-storage.js': { key: () => 'ai-cache' }
+      '../../../utils/owner-storage.js': { key: () => 'ai-cache' },
+      '../../utils/ai-chat-sessions.js': makeChatSessions({ value: 'A' }),
+      '../../../utils/ai-chat-sessions.js': makeChatSessions({ value: 'A' })
     }, value => { page = value; });
     page.data = Object.assign({}, page.data, { inputText: 'hello', messages: [], loading: false, streaming: false });
     let updates = 0;
@@ -210,6 +212,32 @@ for (const relative of ['pages/ai-career/ai-career.js', 'package-ai/pages/ai-ass
     wx.requests[0].success({ statusCode: 200, data: { choices: [{ message: { content: 'old answer' } }] } });
     assert.equal(updates, baseline + 1);
   });
+}
+
+function makeChatSessions(ownerRef) {
+  const records = new Map();
+  const active = new Map();
+  let sequence = 0;
+  const ownerRecords = () => records.get(ownerRef.value) || [];
+  return {
+    createId: () => `chat-${++sequence}`,
+    activeId: () => active.get(ownerRef.value) || '',
+    setActive: id => active.set(ownerRef.value, id),
+    get: id => ownerRecords().find(item => item.id === id) || null,
+    list: () => ownerRecords().map(({ id, title, updatedAt }) => ({ id, title, updatedAt })),
+    save(id, messages) {
+      if (!messages.some(item => item.role === 'user')) return null;
+      const record = { id, title: 'A chat', updatedAt: Date.now(), messages };
+      records.set(ownerRef.value, [record].concat(ownerRecords().filter(item => item.id !== id)));
+      active.set(ownerRef.value, id);
+      return record;
+    },
+    remove(id) {
+      records.set(ownerRef.value, ownerRecords().filter(item => item.id !== id));
+      return true;
+    },
+    rename: () => true
+  };
 }
 
 function loadAiPage(relative, wx, ownerRef, overrides = {}) {
@@ -234,6 +262,8 @@ function loadAiPage(relative, wx, ownerRef, overrides = {}) {
     '../../../utils/auth-session.js': authSession,
     '../../utils/owner-storage.js': { key: () => 'ai-cache', capture: () => ownerRef.value, get: (key, suffix, fallback) => wx.storage.get(`${key}:${ownerRef.value}`) || fallback },
     '../../../utils/owner-storage.js': { key: () => 'ai-cache', capture: () => ownerRef.value, get: (key, suffix, fallback) => wx.storage.get(`${key}:${ownerRef.value}`) || fallback },
+    '../../utils/ai-chat-sessions.js': makeChatSessions(ownerRef),
+    '../../../utils/ai-chat-sessions.js': makeChatSessions(ownerRef),
     '../../utils/job-progress.js': { getList: () => [] },
     '../../../utils/job-progress.js': { getList: () => [] },
     '../../utils/application-materials.js': applicationMaterials,
@@ -256,6 +286,41 @@ function loadAiPage(relative, wx, ownerRef, overrides = {}) {
 }
 
 for (const relative of ['pages/ai-career/ai-career.js', 'package-ai/pages/ai-assistant/ai-assistant.js']) {
+  test(`${relative} starts a new chat without losing the previous conversation`, () => {
+    const wx = makeWx();
+    const owner = { value: 'A' };
+    const page = loadAiPage(relative, wx, owner);
+    page._restoreOrInit();
+    page.setData({ messages: [
+      { id: 1, role: 'user', content: '产品经理求职准备', ts: 1 },
+      { id: 2, role: 'ai', content: '先整理项目经历。', ts: 2 }
+    ] });
+    page.onNewChat();
+    assert.equal(page.data.recentChats.length, 1);
+    assert.equal(page.data.messages.some(item => item.content === '产品经理求职准备'), false);
+    page.onSelectChat({ currentTarget: { dataset: { id: page.data.recentChats[0].id } } });
+    assert.equal(page.data.messages[0].content, '产品经理求职准备');
+    assert.equal(page.data.messages[1].content, '先整理项目经历。');
+  });
+
+  test(`${relative} regenerates only the latest answer without duplicating the question`, () => {
+    const wx = makeWx();
+    const owner = { value: 'A' };
+    const page = loadAiPage(relative, wx, owner);
+    page._restoreOrInit();
+    page.setData({
+      messages: [
+        { id: 1, role: 'user', content: '帮我准备面试', ts: 1 },
+        { id: 2, role: 'ai', content: '先整理 STAR 案例。', ts: 2 }
+      ],
+      latestAiIdx: 1
+    });
+    page.onRegenerateAnswer({ currentTarget: { dataset: { index: 1 } } });
+    assert.equal(wx.requests.length, 1);
+    assert.equal(page.data.messages.filter(item => item.role === 'user').length, 1);
+    assert.equal(page.data.messages[0].content, '帮我准备面试');
+  });
+
   for (const partial of [false, true]) {
     test(`${relative} stops ${partial ? 'partial' : 'empty'} stream without fallback`, () => {
       const wx = makeWx();

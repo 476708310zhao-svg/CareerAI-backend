@@ -39,6 +39,23 @@ page,
   display: block;
 }
 
+/* 设置页只展示可实际操作的项目，风险操作集中在数据管理。 */
+.container { padding-bottom: calc(56rpx + env(safe-area-inset-bottom)); }
+.settings-hero { display: block; padding: 24rpx 26rpx; border-radius: 24rpx; background: #fff; box-shadow: none; }
+.hero-title { margin-top: 0; font-size: 34rpx; font-weight: 750; line-height: 46rpx; }
+.hero-sub { width: auto; margin-top: 4rpx; font-size: 23rpx; line-height: 34rpx; }
+.setting-section { margin-top: 24rpx; }
+.section-head { margin-bottom: 12rpx; }
+.section-title { font-size: 28rpx; font-weight: 700; }
+.section-sub { margin-top: 4rpx; }
+.setting-card { border-radius: 24rpx; box-shadow: none; }
+.setting-row { min-height: 104rpx; padding: 20rpx 24rpx; }
+.setting-title { font-weight: 650; }
+.setting-desc { margin-top: 4rpx; }
+.danger-title { color: #b42332; }
+.status-card { margin-top: 22rpx; padding: 20rpx 24rpx; border-radius: 18rpx; background: #edf3ff; }
+.status-desc { margin: 0; color: #526176; text-align: left; }
+
 .hero-kicker {
   color: #2563eb;
   font-size: 20rpx;

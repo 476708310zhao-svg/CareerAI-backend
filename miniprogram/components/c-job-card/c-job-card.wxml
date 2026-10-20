@@ -1,20 +1,24 @@
-<view class="job-card {{view.deadlineClosed ? 'job-card--closed' : ''}}" bindtap="openJob" hover-class="job-card--pressed" aria-role="button" aria-label="{{view.accessibilityLabel}}">
+<view class="job-card {{view.deadlineClosed ? 'job-card--closed' : ''}} {{compact ? 'job-card--compact' : ''}}" bindtap="openJob" hover-class="job-card--pressed" aria-role="button" aria-label="{{view.accessibilityLabel}}">
   <view class="job-card__logo-wrap">
     <c-company-logo logo="{{view.logo}}" name="{{view.company}}" fallback="{{view.companyInitial}}" size="sm" lazy-load="{{true}}" custom-class="job-card__logo"></c-company-logo>
   </view>
   <view class="job-card__body">
     <view class="job-card__headline">
-      <text class="job-card__title">{{view.title}}</text>
-      <text class="job-card__salary">{{view.salary}}</text>
+      <text class="job-card__company">{{view.company}}</text>
       <text wx:if="{{showMatch}}" class="job-card__related">与你相关</text>
     </view>
-    <text class="job-card__company">{{view.company}}{{view.location ? ' · ' + view.location : ''}}</text>
-    <view class="job-card__tags" wx:if="{{view.attributeTags.length || view.skills.length}}">
-      <text class="job-card__tag" wx:for="{{view.attributeTags}}" wx:key="*this">{{item}}</text>
-      <text class="job-card__tag" wx:for="{{view.skills}}" wx:for-item="skill" wx:key="*this">{{skill}}</text>
+    <text class="job-card__title">{{view.title}}</text>
+    <view class="job-card__details" wx:if="{{view.location || view.salary && view.salary !== '薪资面议'}}">
+      <text wx:if="{{view.location}}" class="job-card__location">{{view.location}}</text>
+      <text wx:if="{{view.salary && view.salary !== '薪资面议'}}" class="job-card__salary">{{view.salary}}</text>
+    </view>
+    <view class="job-card__tags" wx:if="{{view.attributeTags.length || view.skills.length || compact && view.deadlineText}}">
+      <block wx:for="{{view.attributeTags}}" wx:key="*this"><text wx:if="{{!compact || index < 1}}" class="job-card__tag">{{item}}</text></block>
+      <block wx:for="{{view.skills}}" wx:for-item="skill" wx:key="*this"><text wx:if="{{!compact || index < (view.attributeTags.length ? 1 : 2)}}" class="job-card__tag">{{skill}}</text></block>
+      <text wx:if="{{compact && view.deadlineText}}" class="job-card__tag job-card__tag--{{view.deadlineTone}}">{{view.deadlineText}}</text>
     </view>
     <text wx:if="{{showMatch && !view.matchEvidence.length}}" class="job-card__evidence-empty">暂无可验证匹配依据</text>
-    <text class="job-card__deadline job-card__deadline--{{view.deadlineTone}}">{{view.deadlineText || view.postedText}}</text>
+    <text wx:if="{{!compact}}" class="job-card__deadline job-card__deadline--{{view.deadlineTone}}">{{view.deadlineText || view.postedText}}</text>
     <text class="job-card__provenance">{{view.sourceSummary}}</text>
   </view>
   <view class="job-card__bookmark {{view.isSaved ? 'is-saved' : ''}}" catchtap="toggleFavorite" aria-role="button" aria-label="{{view.isSaved ? '取消收藏岗位' : '收藏岗位'}}" aria-pressed="{{view.isSaved}}"><image src="{{view.isSaved ? '/images/zhiyin-icons/bookmark-active.svg' : '/images/zhiyin-icons/bookmark.svg'}}" mode="aspectFit" aria-hidden="true"/></view>

@@ -118,23 +118,38 @@ test('login converts a misrouted production 404 into an actionable service messa
   assert.equal(resourceError.message, '申请记录不存在');
 });
 
-test('develop builds use the isolated local API while trial and release stay on production HTTPS', () => {
+test('all previews use production HTTPS unless DevTools explicitly selects a running local API', () => {
   const source = read('utils/app-config.js');
-  const loadConfig = envVersion => {
+  const loadConfig = (envVersion, platform, devApiMode = '') => {
     const context = {
       module: { exports: {} },
       exports: {},
-      wx: { getAccountInfoSync: () => ({ miniProgram: { envVersion } }) }
+      wx: {
+        getAccountInfoSync: () => ({ miniProgram: { envVersion } }),
+        getDeviceInfo: () => ({ platform }),
+        getStorageSync: key => key === 'devApiMode' ? devApiMode : ''
+      }
     };
     vm.runInNewContext(source, context, { filename: 'app-config.js' });
     return context.module.exports;
   };
 
-  const develop = loadConfig('develop');
+  const simulator = loadConfig('develop', 'devtools');
+  const localSimulator = loadConfig('develop', 'devtools', 'local');
+  const phone = loadConfig('develop', 'ios');
+  const phoneWithLocalFlag = loadConfig('develop', 'ios', 'local');
+  const android = loadConfig('develop', 'android');
+  const unknownDevice = loadConfig('develop');
   const trial = loadConfig('trial');
   const release = loadConfig('release');
-  assert.equal(develop.API_BASE_URL, 'http://127.0.0.1:4400');
-  assert.equal(develop.ANALYTICS_ENABLED, false);
+  assert.equal(simulator.API_BASE_URL, 'https://api.zhiyincareer.com');
+  assert.equal(localSimulator.API_BASE_URL, 'http://127.0.0.1:4400');
+  assert.equal(phone.API_BASE_URL, 'https://api.zhiyincareer.com');
+  assert.equal(phoneWithLocalFlag.API_BASE_URL, 'https://api.zhiyincareer.com');
+  assert.equal(android.API_BASE_URL, 'https://api.zhiyincareer.com');
+  assert.equal(unknownDevice.API_BASE_URL, 'https://api.zhiyincareer.com');
+  assert.equal(phone.ANALYTICS_ENABLED, false);
+  assert.equal(simulator.ANALYTICS_ENABLED, false);
   assert.equal(trial.API_BASE_URL, 'https://api.zhiyincareer.com');
   assert.equal(trial.ANALYTICS_ENABLED, true);
   assert.equal(release.API_BASE_URL, 'https://api.zhiyincareer.com');

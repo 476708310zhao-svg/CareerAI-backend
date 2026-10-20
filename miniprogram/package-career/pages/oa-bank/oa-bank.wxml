@@ -1,7 +1,56 @@
 <view class="page">
-  <view class="hero">
-    <text class="hero-title">OA Copilot</text>
-    <text class="hero-sub">按岗位训练、计时复盘，结果仅基于本人确认记录</text>
+  <view class="oa-header">
+    <text class="oa-kicker">笔试准备</text>
+    <text class="oa-title">OA 题库</text>
+    <text class="oa-subtitle">选一个题型，马上开始练习</text>
+  </view>
+
+  <view class="oa-tabs" aria-role="tablist">
+    <view class="oa-tab {{activeTab === 'practice' ? 'is-active' : ''}}" bindtap="openPracticeTab" aria-role="tab" aria-selected="{{activeTab === 'practice'}}">刷题练习</view>
+    <view class="oa-tab {{activeTab === 'records' ? 'is-active' : ''}}" bindtap="openRecordTab" aria-role="tab" aria-selected="{{activeTab === 'records'}}">训练记录</view>
+  </view>
+
+  <block wx:if="{{activeTab === 'practice'}}">
+    <view class="practice-intro">
+      <view class="practice-intro-top"><text class="practice-intro-title">通用模拟题</text><text class="practice-count">{{practiceQuestions.length}} 题</text></view>
+      <text class="practice-intro-copy">包含数理、逻辑、言语、情景等题型；不是企业真题</text>
+    </view>
+    <scroll-view class="category-scroll" scroll-x enable-flex>
+      <view class="category-row">
+        <view wx:for="{{practiceCategories}}" wx:key="value" class="category-chip {{selectedType === item.value ? 'is-active' : ''}}" data-type="{{item.value}}" bindtap="selectPracticeType" aria-role="button" aria-pressed="{{selectedType === item.value}}">{{item.label}} <text>{{item.count}}</text></view>
+      </view>
+    </scroll-view>
+
+    <view class="practice-card" wx:if="{{!practiceFinished && practiceCurrent}}">
+      <view class="practice-card-top"><text>第 {{practiceIndex + 1}} / {{practiceQuestions.length}} 题</text><text>{{selectedTypeLabel}}</text></view>
+      <view class="practice-track"><view style="width: {{practiceProgress}}%"></view></view>
+      <text class="practice-stem">{{practiceCurrent.stem}}</text>
+      <view class="practice-choices">
+        <view wx:for="{{practiceCurrent.choices}}" wx:key="*this" wx:for-index="optionIndex" class="practice-choice {{practiceSelected === optionIndex ? 'is-selected' : ''}} {{practiceRevealed && practiceCurrent.answerIndex === optionIndex ? 'is-correct' : ''}} {{practiceRevealed && practiceSelected === optionIndex && !practiceResultCorrect ? 'is-wrong' : ''}}" data-index="{{optionIndex}}" bindtap="selectPracticeOption" aria-role="button" aria-pressed="{{practiceSelected === optionIndex}}" aria-label="选择{{optionLetters[optionIndex]}}，{{item}}">
+          <text class="choice-letter">{{optionLetters[optionIndex]}}</text><text class="choice-text">{{item}}</text>
+        </view>
+      </view>
+      <view class="practice-feedback {{practiceResultCorrect ? 'is-correct' : 'is-wrong'}}" wx:if="{{practiceRevealed}}">
+        <text class="feedback-title">{{practiceResultCorrect ? '回答正确' : '再记住这个知识点'}} · 正确答案 {{optionLetters[practiceCurrent.answerIndex]}}</text>
+        <text class="feedback-copy">{{practiceCurrent.explanation}}</text>
+      </view>
+      <view class="practice-action" wx:if="{{!practiceRevealed}}" bindtap="submitPracticeAnswer" hover-class="press" aria-role="button" aria-label="提交答案">提交答案</view>
+      <view class="practice-action" wx:else bindtap="nextPracticeQuestion" hover-class="press" aria-role="button" aria-label="{{practiceIndex + 1 === practiceQuestions.length ? '查看本组结果' : '下一题'}}">{{practiceIndex + 1 === practiceQuestions.length ? '查看本组结果' : '下一题'}}</view>
+    </view>
+
+    <view class="practice-finish" wx:if="{{practiceFinished}}">
+      <text class="finish-kicker">本组练习完成</text>
+      <text class="finish-score">答对 {{practiceCorrect}} / {{practiceQuestions.length}} 题</text>
+      <text class="finish-copy">这组通用模拟题的结果仅在本次打开期间显示，不计入个人 OA 成绩。</text>
+      <view class="practice-action" bindtap="restartPractice" hover-class="press" aria-role="button" aria-label="重新练习本组题目">再练一遍</view>
+    </view>
+    <text class="practice-footnote">已作答 {{practiceAnswered}} / {{practiceQuestions.length}} · 答对 {{practiceCorrect}} 题</text>
+  </block>
+
+  <block wx:else>
+  <view class="record-intro">
+    <text class="record-title">我的 OA 训练</text>
+    <text class="record-sub">按目标公司建计划，计时后记录真实练习结果</text>
     <view class="summary" wx:if="{{dashboard}}">
       <text>完成 {{dashboard.summary.completedSessions}} 次</text>
       <text>待复习 {{dashboard.summary.learningMistakes}} 题</text>
@@ -67,6 +116,7 @@
         <view class="small-button" bindtap="markMistake" data-id="{{item.id}}" data-status="{{item.status === 'learning' ? 'mastered' : 'learning'}}">{{item.status === 'learning' ? '已重练，标记掌握' : '重新加入练习'}}</view>
       </view>
     </view>
+  </block>
   </block>
 
   <view class="mask" wx:if="{{showPlanForm}}" bindtap="closePlanForm"></view>

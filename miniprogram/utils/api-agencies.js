@@ -2,12 +2,24 @@
 // 求职机构测评模块
 
 const { request, post, _write } = require('./api-client.js');
+const { CONTENT_API_BASE_URL } = require('./app-config.js');
 const feishuContent = require('./api-feishu-content.js');
+
+// 机构信息是公开内容；开发版也从可用的线上内容接口读取。
+const publicRead = options => request(Object.assign({}, options, {
+  baseUrl: CONTENT_API_BASE_URL,
+  skipAuth: true
+}));
 
 function requestAgencies(params) {
   const requestParams = Object.assign({}, params || {});
   delete requestParams.skipFeishu;
-  return request({ path: '/api/agencies', params: requestParams });
+  return publicRead({ path: '/api/agencies', params: requestParams }).then(res => {
+    if (!res || res.code !== 0 || !Array.isArray(res.data)) {
+      throw new Error('机构列表暂时无法加载');
+    }
+    return res;
+  });
 }
 
 function mergeAgencyResponse(baseRes, feishuRes) {
@@ -39,7 +51,7 @@ function getAgencies(params) {
 }
 
 function getAgencyDetail(id) {
-  return request({ path: `/api/agencies/${id}` }).then(res => {
+  return publicRead({ path: `/api/agencies/${id}` }).then(res => {
     if (!res || !res.data || Array.isArray(res.data)) throw new Error('empty agency detail');
     return res;
   }).catch(() => feishuContent.getFeishuAgencyDetail(id));
@@ -49,7 +61,7 @@ function getAgencyReviews(id, page, pageSize) {
   if (String(id || '').indexOf('rec') === 0) {
     return Promise.resolve({ code: 0, data: [], total: 0 });
   }
-  return request({ path: `/api/agencies/${id}/reviews`, params: { page, pageSize } });
+  return publicRead({ path: `/api/agencies/${id}/reviews`, params: { page, pageSize } });
 }
 
 function submitAgencyReview(id, data) {
@@ -73,7 +85,7 @@ function getAgenciesBatchInfo(ids) {
 }
 
 function getAgenciesCompare(ids) {
-  return request({ path: '/api/agencies/compare', params: { ids: ids.join(',') } });
+  return publicRead({ path: '/api/agencies/compare', params: { ids: ids.join(',') } });
 }
 
 module.exports = {

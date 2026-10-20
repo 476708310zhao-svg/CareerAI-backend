@@ -6,7 +6,7 @@ const DEFAULT_TITLE = localShareConfig.DEFAULT_SHARE.title;
 const DEFAULT_IMAGE = localShareConfig.DEFAULT_SHARE.imageUrl;
 const SHARE_CACHE_KEY = 'share_config_cache_v2';
 const SHARE_CACHE_TTL = 30 * 60 * 1000;
-const API_BASE = config.API_BASE_URL;
+const API_BASE = config.CONTENT_API_BASE_URL || config.API_BASE_URL;
 const ASSET_BASE = config.ASSET_BASE_URL || API_BASE;
 
 let shareConfigCache = {

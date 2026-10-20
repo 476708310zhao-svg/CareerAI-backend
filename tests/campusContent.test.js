@@ -56,8 +56,9 @@ test('home shows a compact campus digest while campus API requests stay fresh', 
   const homeMarkup = fs.readFileSync(path.join(ROOT, 'miniprogram/pages/index/index.wxml'), 'utf8');
 
   assert.match(apiSource, /_fresh:\s*Date\.now\(\)/);
-  assert.match(homeSource, /getCampusList\(\{ sort: 'latest', deadlineWindow: 'open'/);
+  assert.match(homeSource, /getCampusList\(\{ sort: 'latest', latestDay: '1', deadlineWindow: 'open'/);
   assert.match(homeMarkup, /campusDigest/);
+  assert.match(homeMarkup, /每日最新校招/);
   assert.doesNotMatch(homeSource, /fetchCampusUpdates|loadCachedCampusUpdates|HOME_CAMPUS_CACHE_KEY/);
 });
 
@@ -169,7 +170,7 @@ test('home campus cards use normalized deadlines and preserve context for legacy
       if (name.endsWith('/date-time.js')) return require('../miniprogram/utils/date-time');
       if (name.endsWith('/campus-deadline.js')) return { campusDeadlineMeta: (value, context) => {
         calls.push({ value, context });
-        return { text: '04-30截止', isSoon: false };
+        return value ? { text: '04-30截止', isSoon: false } : { text: '尽快投递', isSoon: true };
       } };
       if (name.endsWith('/data-provenance.js')) return require('../miniprogram/utils/data-provenance');
       return {};
@@ -186,4 +187,7 @@ test('home campus cards use normalized deadlines and preserve context for legacy
   assert.equal(calls[1].value, '4.30');
   assert.equal(calls[1].context.startDate, '2026-10-01');
   assert.equal(calls[1].context.recruitYear, 2026);
+  const noDeadline = page.formatCampusUpdateItem({ ...item, deadlineDateNormalized: '', deadlineDate: '' });
+  assert.equal(noDeadline.isUrgent, false);
+  assert.equal(noDeadline.badgeText, '新更新');
 });

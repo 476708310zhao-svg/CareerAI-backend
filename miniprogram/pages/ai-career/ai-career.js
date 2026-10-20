@@ -5,6 +5,7 @@ const progress = require('../../utils/job-progress.js');
 const appMaterials = require('../../utils/ai-application-materials.js');
 const resumeVersions = require('../../utils/ai-resume-versions.js');
 const ownerStorage = require('../../utils/owner-storage.js');
+const chatSessions = require('../../utils/ai-chat-sessions.js');
 const authSession = require('../../utils/auth-session.js');
 
 const API_BASE    = config.API_BASE_URL;
@@ -19,7 +20,6 @@ const currentPageOwner = () => {
 const ownedResume = () => {
   try { return ownerStorage.get ? ownerStorage.get('onlineResume', '', {}) || {} : {}; } catch (e) { return {}; }
 };
-const MAX_CACHE   = 30;
 const TIME_GAP_MS = 5 * 60 * 1000;
 const CURSOR      = '▋';
 const TAB_PAGES   = new Set(['/pages/index/index', '/pages/jobs/jobs', '/pages/ai-career/ai-career', '/pages/resources/resources', '/pages/profile/profile']);
@@ -58,7 +58,7 @@ function appendWithTimestamp(msgs, newMsg) {
 // Bug1 fix: 直接写 displayText 字符串，不用 getter（setData 序列化会丢失 getter）
 function makeWelcome() {
   const ts   = Date.now();
-  const text = '你好，我是职引 AI。\n\n你可以直接告诉我正在处理的求职问题。我会结合你的简历、目标岗位和申请进度，和你一步一步完成。';
+  const text = '你好，我是职引 AI。告诉我正在处理的岗位、简历或面试问题，我会结合你的求职进度给出下一步。';
   return {
     id: ts, role: 'ai', ts,
     content:     text,
@@ -278,6 +278,7 @@ Page({
     latestAiIdx: 0,
     freshChat:   true,
     statusBarHeight: 44,
+    drawerTopInset: 92,
     safeBottom:  0,
     tabBarOffset: 78,
     keyboardHeight: 0,
@@ -287,23 +288,26 @@ Page({
     contextApplicationId: '',
     composerPlaceholder: '输入求职问题或具体目标',
     sidebarOpen: false,
+    toolPanelOpen: false,
+    contextInfoOpen: false,
+    chatSearch: '',
     showMoreTools: false,
     showLoginPopup: false,
     loginSubtitle: '登录后可使用 AI 求职助手、保存答案和同步求职记录',
     starterPrompts: [
-      { title: '帮我制定今天的求职行动清单', prompt: '请结合我的求职目标，帮我制定今天可以完成的行动清单，并按优先级排序。' },
-      { title: '分析我与目标岗位的差距', prompt: '请先询问我的目标岗位和背景，再分析我的优势、差距和下一步。' },
-      { title: '准备下一场面试的回答框架', prompt: '请帮我准备下一场面试，先问我岗位、公司和面试类型，再给出回答框架。' }
+      { title: '安排今天的求职任务', prompt: '请结合我的求职目标，帮我制定今天可以完成的行动清单，并按优先级排序。' },
+      { title: '分析目标岗位差距', prompt: '请先询问我的目标岗位和背景，再分析我的优势、差距和下一步。' },
+      { title: '准备下一场面试', prompt: '请帮我准备下一场面试，先问我岗位、公司和面试类型，再给出回答框架。' }
     ],
     assistantTools: [
       { iconSrc: '/images/zhiyin-icons/spark.svg', title: '求职问答', desc: '把问题整理成可执行的下一步', prompt: '我现在想做一次求职路径梳理，请先问我 3 个关键信息。' },
       { iconSrc: '/images/zhiyin-icons/company.svg', title: '网申助手', desc: '生成 Why company/role 等草稿', action: 'application' },
+      { iconSrc: '/images/zhiyin-icons/document.svg', title: '简历优化', desc: '润色经历与匹配 ATS', url: '/package-career/pages/resume-center/resume-center' },
       { iconSrc: '/images/zhiyin-icons/person.svg', title: '模拟面试', desc: '生成问题、追问和复盘', url: '/package-ai/pages/interview-setup/interview-setup' },
       { iconSrc: '/images/zhiyin-icons/clock.svg', title: '语音复盘', desc: '分析回答结构和表达清晰度', url: '/package-ai/pages/audio-review/audio-review' },
       { iconSrc: '/images/zhiyin-icons/target.svg', title: '项目复盘', desc: '把项目经历打磨成面试素材', url: '/package-ai/pages/project-review/project-review' },
-      { iconSrc: '/images/zhiyin-icons/document.svg', title: '简历优化', desc: '润色经历与匹配 ATS', url: '/package-career/pages/resume-center/resume-center' },
       { iconSrc: '/images/zhiyin-icons/calendar.svg', title: '求职规划', desc: '生成阶段路线图', url: '/package-career/pages/career-planner/career-planner' },
-      { iconSrc: '/images/zhiyin-icons/clock.svg', title: 'AI 历史', desc: '查看历史对话和报告', url: '/package-ai/pages/ai-history/ai-history' }
+      { iconSrc: '/images/zhiyin-icons/clock.svg', title: '练习记录', desc: '查看面试和语音练习记录', url: '/package-ai/pages/ai-history/ai-history' }
     ],
     recentChats: [],
     showApplicationPanel: false,
@@ -346,8 +350,13 @@ Page({
     const safeBottom = info.safeArea && info.screenHeight
       ? Math.max(0, info.screenHeight - info.safeArea.bottom)
       : (info.safeAreaInsets ? info.safeAreaInsets.bottom : 0);
+    const menuRect = typeof wx.getMenuButtonBoundingClientRect === 'function'
+      ? wx.getMenuButtonBoundingClientRect() : null;
+    const statusBarHeight = info.statusBarHeight || 44;
+    const drawerTopInset = Math.max(statusBarHeight + 48, menuRect && menuRect.bottom ? menuRect.bottom + 12 : 0);
     this.setData({
-      statusBarHeight: info.statusBarHeight || 44,
+      statusBarHeight,
+      drawerTopInset,
       safeBottom
     });
     this._buildUserContext();
@@ -365,11 +374,12 @@ Page({
     this._consumePendingTabContext();
     const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
     if (tabBar && typeof tabBar.setSelected === 'function') tabBar.setSelected(2);
-    if (tabBar && typeof tabBar.setHidden === 'function' && !this.data.keyboardHeight) tabBar.setHidden(false);
+    this._syncOverlayTabBar();
     this.loadAssistantResumeContext();
   },
 
   onUnload() {
+    this._saveCache(this.data.messages);
     this._abortStream();
   },
 
@@ -389,6 +399,7 @@ Page({
       scrollId: '', contextActive: false, contextLabel: '', contextSource: '',
       contextApplicationId: '', composerPlaceholder: '输入求职问题或具体目标',
       sidebarOpen: false, showMoreTools: false, showLoginPopup: false,
+      toolPanelOpen: false, contextInfoOpen: false, chatSearch: '',
       recentChats: [], showApplicationPanel: false, applicationJobs: [],
       selectedApplicationJobId: '', selectedQuestionType: 'why_company',
       assistantResume: null, assistantResumeName: '', hasAssistantResume: false,
@@ -400,6 +411,7 @@ Page({
       applicationSavedMaterials: [], applicationJdText: '', applicationGenerating: false
     });
     this._buildUserContext();
+    this._restoreOrInit();
     return false;
   },
 
@@ -419,7 +431,7 @@ Page({
     const item = selection || resumeVersions.localSelection();
     this._userContext = Object.assign({}, this._userContext || {}, {
       hasResume: !!item.hasResume,
-      targetJob: item.currentTargetRole || (this._userContext && this._userContext.targetJob) || ''
+      targetJob: (this.data.contextActive && this._userContext && this._userContext.targetJob) || item.currentTargetRole || (this._userContext && this._userContext.targetJob) || ''
     });
     this.setData({
       assistantResume: item.currentResume || null,
@@ -539,6 +551,7 @@ Page({
       if (context) ownerStorage.remove(PENDING_TAB_CONTEXT_KEY, '');
     } catch (error) {}
     if (!context || typeof context !== 'object') return;
+    if ((this.data.messages || []).some(message => message.role === 'user')) this._startNewChat();
     this._buildUserContext();
     this._applyRouteContext(context);
     if (context.action === 'application') {
@@ -581,7 +594,25 @@ Page({
     this._history = [];
     this._streamingIdx = -1;
     this._lastRawText = '';
-    try { wx.removeStorageSync(cacheKey()); } catch (e) {}
+    const routeContextActive = !!this.data.contextActive;
+    let stored = routeContextActive ? null : chatSessions.get(chatSessions.activeId());
+    if (!stored && !routeContextActive) {
+      try {
+        const legacy = wx.getStorageSync(cacheKey());
+        if (Array.isArray(legacy) && legacy.some(message => message && message.role === 'user')) {
+          stored = chatSessions.save(chatSessions.createId(), legacy, {});
+          wx.removeStorageSync(cacheKey());
+        }
+      } catch (error) {}
+    }
+    if (stored) {
+      try { wx.removeStorageSync(cacheKey()); } catch (error) {}
+      this._openStoredChat(stored);
+      return;
+    }
+    try { wx.removeStorageSync(cacheKey()); } catch (error) {}
+    this._activeSessionId = chatSessions.createId();
+    chatSessions.setActive(this._activeSessionId);
     const welcome = makeWelcome();
     this.setData({
       messages: [welcome],
@@ -593,6 +624,56 @@ Page({
       inputText: '',
       inputLen: 0
     });
+    this._refreshChats();
+  },
+
+  _openStoredChat(record) {
+    this._activeSessionId = record.id;
+    chatSessions.setActive(record.id);
+    const messages = (record.messages || []).map(message => ({
+      ...message,
+      displayText: message.content,
+      htmlContent: message.role === 'ai' ? mdToHtml(message.content) : '',
+      isStreaming: false
+    }));
+    const context = record.context || {};
+    this._buildUserContext();
+    if (context.active) {
+      this._userContext = Object.assign({}, this._userContext, {
+        currentPage: context.source,
+        applicationId: context.applicationId,
+        company: context.company,
+        targetJob: context.targetJob || this._userContext.targetJob
+      });
+    }
+    this._history = messages.filter(message => !message.isWelcome && !message.isError && message.content)
+      .map(message => ({ role: message.role === 'ai' ? 'assistant' : 'user', content: message.content })).slice(-20);
+    const latestAiIdx = messages.reduce((found, message, index) => message.role === 'ai' ? index : found, 0);
+    this.setData({
+      messages: messages.length ? messages : [makeWelcome()], latestAiIdx,
+      freshChat: !messages.some(message => message.role === 'user'),
+      contextActive: !!context.active, contextLabel: context.label || '',
+      contextSource: context.source || '', contextApplicationId: context.applicationId || '',
+      composerPlaceholder: context.active ? '围绕当前任务继续提问…' : '输入求职问题或具体目标',
+      sidebarOpen: false, toolPanelOpen: false, contextInfoOpen: false, chatSearch: '',
+      inputText: '', inputLen: 0, loading: false, streaming: false, scrollId: ''
+    });
+    this._refreshChats();
+    wx.nextTick(() => this._scrollTo());
+  },
+
+  _refreshChats() {
+    const today = new Date().toDateString();
+    const yesterday = new Date(Date.now() - 86400000).toDateString();
+    let lastGroup = '';
+    const recentChats = chatSessions.list(this.data.chatSearch).map(item => {
+      const day = new Date(item.updatedAt).toDateString();
+      const groupLabel = day === today ? '今天' : day === yesterday ? '昨天' : '更早';
+      const showGroup = groupLabel !== lastGroup;
+      lastGroup = groupLabel;
+      return { ...item, groupLabel, showGroup, active: item.id === this._activeSessionId };
+    });
+    this.setData({ recentChats });
   },
 
   // ── 输入 ──────────────────────────────────────────────────
@@ -606,8 +687,7 @@ Page({
     const height = Math.max(0, Number(e.detail && e.detail.height) || 0);
     if (height === this.data.keyboardHeight) return;
     this.setData({ keyboardHeight: height });
-    const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
-    if (tabBar && typeof tabBar.setHidden === 'function') tabBar.setHidden(height > 0);
+    this._syncOverlayTabBar();
     setTimeout(() => this._scrollTo(), height ? 80 : 0);
   },
 
@@ -655,6 +735,7 @@ Page({
       [`messages[${idx}].isStreaming`]: false,
       loading: false, streaming: false
     });
+    this._saveCache(this.data.messages);
   },
 
   _showLoginRequired(subtitle) {
@@ -688,17 +769,20 @@ Page({
     if (this.data.loading || this.data.streaming) return;
     const action = e.currentTarget.dataset.action;
     if (action === 'application') {
+      this.setData({ toolPanelOpen: false });
       this.openApplicationAssistant();
       return;
     }
     const url = e.currentTarget.dataset.url;
     if (url) {
-      this.setData({ sidebarOpen: false });
+      this.setData({ sidebarOpen: false, toolPanelOpen: false });
+      this._syncOverlayTabBar();
       this._openToolUrl(url);
       return;
     }
-    this.setData({ sidebarOpen: false, inputText: e.currentTarget.dataset.text || '' });
-    wx.nextTick(() => this.sendMessage());
+    const inputText = e.currentTarget.dataset.text || '';
+    this.setData({ sidebarOpen: false, toolPanelOpen: false, inputText, inputLen: inputText.length });
+    this._syncOverlayTabBar();
   },
 
   openApplicationAssistant() {
@@ -716,11 +800,13 @@ Page({
       applicationGenerating: false,
       applicationSavedMaterials: appMaterials.readMaterials().slice(0, 3)
     });
+    this._syncOverlayTabBar();
     this.loadApplicationResumeVersions();
   },
 
   closeApplicationAssistant() {
     this.setData({ showApplicationPanel: false });
+    this._syncOverlayTabBar();
   },
 
   selectApplicationJob(e) {
@@ -844,11 +930,74 @@ Page({
     wx.navigateTo({ url });
   },
 
+  _syncOverlayTabBar() {
+    const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
+    if (tabBar && typeof tabBar.setHidden === 'function') {
+      tabBar.setHidden(!!(this.data.keyboardHeight || this.data.sidebarOpen || this.data.toolPanelOpen || this.data.contextInfoOpen || this.data.showApplicationPanel));
+    }
+  },
+
   toggleSidebar() {
     const sidebarOpen = !this.data.sidebarOpen;
-    const patch = { sidebarOpen };
-    if (sidebarOpen) patch.showMoreTools = false;
+    const patch = { sidebarOpen, toolPanelOpen: false, contextInfoOpen: false };
     this.setData(patch);
+    this._syncOverlayTabBar();
+    if (sidebarOpen && this.data.keyboardHeight > 0 && typeof wx.hideKeyboard === 'function') wx.hideKeyboard();
+  },
+
+  toggleToolPanel() {
+    if (this.data.loading || this.data.streaming) return;
+    this.setData({ toolPanelOpen: !this.data.toolPanelOpen, sidebarOpen: false, contextInfoOpen: false });
+    this._syncOverlayTabBar();
+    if (this.data.toolPanelOpen && this.data.keyboardHeight > 0 && typeof wx.hideKeyboard === 'function') wx.hideKeyboard();
+  },
+
+  toggleContextInfo() {
+    this.setData({ contextInfoOpen: !this.data.contextInfoOpen, sidebarOpen: false, toolPanelOpen: false });
+    this._syncOverlayTabBar();
+  },
+
+  clearChatContext() {
+    this._buildUserContext();
+    this.setData({ contextActive: false, contextLabel: '', contextSource: '', contextApplicationId: '', contextInfoOpen: false, composerPlaceholder: '输入求职问题或具体目标' });
+    this._saveCache(this.data.messages);
+    this._syncOverlayTabBar();
+  },
+
+  onSearchChats(e) {
+    this.setData({ chatSearch: e.detail.value || '' });
+    this._refreshChats();
+  },
+
+  onSelectChat(e) {
+    const record = chatSessions.get(e.currentTarget.dataset.id);
+    if (!record) return;
+    this._saveCache(this.data.messages);
+    this._abortStream();
+    this._streamingIdx = -1;
+    this._openStoredChat(record);
+    this._syncOverlayTabBar();
+  },
+
+  onChatOptions(e) {
+    const id = e.currentTarget.dataset.id;
+    const record = chatSessions.get(id);
+    if (!record || typeof wx.showActionSheet !== 'function') return;
+    wx.showActionSheet({ itemList: ['重命名', '删除对话'], success: result => {
+      if (result.tapIndex === 0 && typeof wx.showModal === 'function') {
+        wx.showModal({ title: '重命名对话', editable: true, placeholderText: record.title, success: choice => {
+          if (choice.confirm && chatSessions.rename(id, choice.content)) this._refreshChats();
+        } });
+      }
+      if (result.tapIndex === 1 && typeof wx.showModal === 'function') {
+        wx.showModal({ title: '删除对话？', content: '删除后无法恢复。', confirmColor: '#d94e45', success: choice => {
+          if (!choice.confirm) return;
+          chatSessions.remove(id);
+          if (id === this._activeSessionId) this._startNewChat(true);
+          else this._refreshChats();
+        } });
+      }
+    } });
   },
 
   toggleMoreTools() {
@@ -856,14 +1005,21 @@ Page({
   },
 
   onNewChat() {
+    this._startNewChat();
+  },
+
+  _startNewChat(skipSave) {
+    if (!skipSave) this._saveCache(this.data.messages);
     this._abortStream();
     this._history = [];
     this._streamingIdx = -1;
     this._lastRawText = '';
-    try { wx.removeStorageSync(cacheKey()); } catch (e) {}
+    this._activeSessionId = chatSessions.createId();
+    chatSessions.setActive(this._activeSessionId);
+    this._buildUserContext();
     const welcome = makeWelcome();
     this.setData({
-      sidebarOpen: false,
+      sidebarOpen: false, toolPanelOpen: false, contextInfoOpen: false, chatSearch: '',
       messages: [welcome],
       latestAiIdx: 0,
       freshChat: true,
@@ -871,8 +1027,12 @@ Page({
       loading: false,
       streaming: false,
       inputText: '',
-      inputLen: 0
+      inputLen: 0,
+      contextActive: false, contextLabel: '', contextSource: '', contextApplicationId: '',
+      composerPlaceholder: '输入求职问题或具体目标'
     });
+    this._refreshChats();
+    this._syncOverlayTabBar();
   },
 
   onSuggestion(e) {
@@ -889,6 +1049,23 @@ Page({
       data: content,
       success: () => wx.showToast({ title: '已复制', icon: 'success' })
     });
+  },
+
+  onRegenerateAnswer(e) {
+    if (this.data.loading || this.data.streaming) return;
+    const answerIndex = Number(e.currentTarget.dataset.index);
+    if (answerIndex !== this.data.latestAiIdx) return;
+    const messages = this.data.messages || [];
+    let userIndex = answerIndex - 1;
+    while (userIndex >= 0 && messages[userIndex].role !== 'user') userIndex -= 1;
+    if (userIndex < 0) return;
+    const question = String(messages[userIndex].content || '').trim();
+    if (!question) return;
+    const remaining = messages.slice(0, userIndex);
+    this._history = remaining.filter(message => !message.isWelcome && !message.isError && message.content)
+      .map(message => ({ role: message.role === 'ai' ? 'assistant' : 'user', content: message.content })).slice(-20);
+    this.setData({ messages: remaining, inputText: question, inputLen: question.length, latestAiIdx: remaining.length - 1 });
+    this.sendMessage();
   },
 
   onSaveAnswer(e) {
@@ -961,6 +1138,7 @@ Page({
       loading: true, streaming: false,
       latestAiIdx: streamIdx
     });
+    this._saveCache(msgs);
     wx.nextTick(() => this._scrollTo());
 
     // 更新 API 历史（含简历摘要）
@@ -1203,23 +1381,12 @@ Page({
 
   onClear() {
     wx.showModal({
-      title: '清空对话',
-      content: '确定清空所有对话记录吗？',
+      title: '删除当前对话？',
+      content: '删除后无法恢复。',
       success: ({ confirm }) => {
         if (!confirm) return;
-        this._abortStream();
-        this._history = [];
-        this._streamingIdx = -1;
-        this._lastRawText  = '';
-        try { wx.removeStorageSync(cacheKey()); } catch (e) {}
-        const welcome = makeWelcome();
-        this.setData({
-          messages: [welcome], latestAiIdx: 0,
-          freshChat: true,
-          scrollId: '',
-          loading: false, streaming: false,
-          inputText: '', inputLen: 0
-        });
+        chatSessions.remove(this._activeSessionId);
+        this._startNewChat(true);
       }
     });
   },
@@ -1270,11 +1437,15 @@ Page({
   },
 
   _saveCache(msgs) {
+    if (!this._activeSessionId || this._pageOwner !== currentPageOwner()) return;
     try {
-      const toSave = msgs
-        .filter(m => !m.isStreaming)
-        .map(m => ({ ...m, displayText: m.content, isStreaming: false }));
-      wx.setStorageSync(cacheKey(), toSave.slice(-MAX_CACHE));
-    } catch (e) {}
+      chatSessions.save(this._activeSessionId, msgs, {
+        active: this.data.contextActive, label: this.data.contextLabel,
+        source: this.data.contextSource, applicationId: this.data.contextApplicationId,
+        company: this._userContext && this._userContext.company,
+        targetJob: this._userContext && this._userContext.targetJob
+      });
+      this._refreshChats();
+    } catch (error) {}
   }
 });

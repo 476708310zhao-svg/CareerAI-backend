@@ -75,6 +75,9 @@ Page({
     // 预设选项
     statusOptions: PROFILE_SCHEMA.options.statusOptions,
     degreeOptions: PROFILE_SCHEMA.options.degreeOptions,
+    degreeIndex: 0,
+    degreeDisplay: '',
+    showMore: false,
     gradYearPickerValue: String(CURRENT_YEAR),
     gradYearStart: '1970-01-01',
     gradYearEnd: `${CURRENT_YEAR + 20}-12-31`,
@@ -125,6 +128,7 @@ Page({
       // 尝试从简历自动填充
       this._autoFillFromResume();
     }
+    this._syncDegreeSelection();
     this._loadProfileSchema();
     this._loadRemoteProfile().then(() => this._loadV4Profile());
     this._refreshLocationOptions();
@@ -150,6 +154,7 @@ Page({
         workAuthOptions: options.workAuthOptions || this.data.workAuthOptions,
         skillPresets: options.skillOptions || this.data.skillPresets,
       }, () => {
+        this._syncDegreeSelection();
         this._refreshLocationOptions();
         this._refreshIndustryOptions();
         this._refreshJobTypeOptions();
@@ -165,6 +170,7 @@ Page({
       if (!user || typeof api.persistUserSession !== 'function') return;
       const profile = api.persistUserSession(user);
       this.setData({ userInfo: this._normalizeUserInfo({ ...this.data.userInfo, ...profile }) }, () => {
+        this._syncDegreeSelection();
         this._refreshLocationOptions();
         this._refreshIndustryOptions();
         this._refreshJobTypeOptions();
@@ -191,6 +197,7 @@ Page({
         projectsText: (profile.projects || []).join('\n'),
         completeness: Number(profile.completion) || 0,
       }, () => {
+        this._syncDegreeSelection();
         this._refreshLocationOptions();
         this._refreshIndustryOptions();
         this._refreshJobTypeOptions();
@@ -221,6 +228,32 @@ Page({
       jobTypes: this._normalizeMultiValue(normalized.jobTypes),
       skills: this._normalizeMultiValue(normalized.skills),
     };
+  },
+
+  _syncDegreeSelection() {
+    const degree = this.data.userInfo.degree || '';
+    const options = this.data.degreeOptions || [];
+    const index = options.findIndex(item => item.value === degree);
+    this.setData({
+      degreeIndex: index < 0 ? 0 : index,
+      degreeDisplay: index < 0 ? degree : options[index].label,
+    });
+  },
+
+  onDegreeChange(e) {
+    const index = Number(e.detail.value);
+    const option = (this.data.degreeOptions || [])[index];
+    if (!option) return;
+    this.setData({
+      'userInfo.degree': option.value,
+      degreeIndex: index,
+      degreeDisplay: option.label,
+    });
+    this._calcCompleteness();
+  },
+
+  toggleMore() {
+    this.setData({ showMore: !this.data.showMore });
   },
 
   _refreshLocationOptions() {

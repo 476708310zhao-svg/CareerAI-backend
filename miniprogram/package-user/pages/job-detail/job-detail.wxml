@@ -114,10 +114,11 @@
 
     <view class="section-card" wx:if="{{jobView.descriptionBlocks.length}}">
       <view class="section-heading-row"><text class="section-title">职位描述</text></view>
-      <view class="content-block {{item.bullet ? 'content-block--bullet' : ''}}" wx:for="{{jobView.descriptionBlocks}}" wx:key="text">
+      <view class="content-block {{item.bullet ? 'content-block--bullet' : ''}}" wx:for="{{descriptionExpanded ? jobView.descriptionBlocks : jobView.descriptionPreviewBlocks}}" wx:key="text">
         <text class="content-dot" wx:if="{{item.bullet}}"></text>
         <text class="content-text" user-select>{{item.text}}</text>
       </view>
+      <view class="description-expand" wx:if="{{jobView.hasMoreDescription}}" bindtap="toggleDescription">{{descriptionExpanded ? '收起职位描述' : '展开完整职位描述'}}</view>
     </view>
 
     <view class="section-card" wx:if="{{jobView.requirementBlocks.length}}">

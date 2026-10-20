@@ -239,6 +239,7 @@ Page({
 
   // ========== AI 生成面经 ==========
   aiGenerateExp() {
+    if (this.data.aiLoading) return;
     wx.showModal({
       title: 'AI 生成面经',
       placeholderText: '输入公司名称，如：Google',

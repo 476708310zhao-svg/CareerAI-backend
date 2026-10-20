@@ -98,7 +98,8 @@ Page({
     page: 1,
     pageSize: 15,
     hasMore: true,
-    loading: false
+    loading: false,
+    loadError: false
   },
 
   onLoad() {
@@ -141,7 +142,8 @@ Page({
         total: cached.total || cached.list.length,
         page: 2,
         hasMore: cached.hasMore !== false,
-        loading: false
+        loading: false,
+        loadError: false
       });
       return true;
     } catch (e) {
@@ -153,7 +155,7 @@ Page({
     if (this.data.loading) return;
     const page = reset ? 1 : this.data.page;
 
-    this.setData({ loading: true });
+    this.setData({ loading: true, loadError: false });
 
     const params = { page, pageSize: this.data.pageSize };
     if (this.data.currentRegion !== '全部地区') params.region = this.data.currentRegion;
@@ -169,7 +171,8 @@ Page({
         total: res.total,
         page: page + 1,
         hasMore: newList.length < res.total,
-        loading: false
+        loading: false,
+        loadError: false
       });
       if (reset) {
         try {
@@ -189,9 +192,9 @@ Page({
           region: this.data.currentRegion,
           keyword: this.data.keyword
         }).map(_enrichItem);
-        this.setData({ list: fallback, total: fallback.length, hasMore: false, loading: false });
+        this.setData({ list: fallback, total: fallback.length, hasMore: false, loading: false, loadError: false });
       } else {
-        this.setData({ loading: false });
+        this.setData({ loading: false, loadError: this.data.list.length === 0 });
       }
       cb && cb();
     });
@@ -200,6 +203,10 @@ Page({
   loadMore() {
     if (!this.data.hasMore || this.data.loading) return;
     this.loadList(false);
+  },
+
+  retryLoad() {
+    this.loadList(true);
   },
 
   onReachBottom() {

@@ -1,0 +1,38 @@
+<view class="assessment-page">
+  <text wx:if="{{preview}}" class="a-note">开发预览·示例资料，暂不可购买</text>
+  <view class="a-toolbar">
+    <view class="a-search-shell">
+      <image class="a-search-icon" src="/images/zhiyin-icons/search-muted.svg" mode="aspectFit" aria-hidden="true"/>
+      <input class="a-search" value="{{keyword}}" placeholder="搜索资料或公司" confirm-type="search" maxlength="100" bindinput="onKeyword" bindconfirm="load" aria-label="搜索资料或公司"/>
+      <view class="a-search-submit" bindtap="load" hover-class="a-pressed" aria-role="button" aria-label="搜索资料">搜索</view>
+    </view>
+    <view class="a-purchases-link" bindtap="openPurchases" hover-class="a-pressed" aria-role="button" aria-label="查看我的已购资料">我的已购</view>
+  </view>
+  <view class="a-state" wx:if="{{loading}}"><text class="a-note">正在读取资料…</text></view>
+  <view class="a-state" wx:elif="{{error}}" aria-role="alert"><text class="a-title">资料加载失败</text><text class="a-note">{{error}}</text><button class="a-button" bindtap="load">重新加载</button></view>
+  <view class="a-list" wx:elif="{{items.length}}">
+    <view wx:for="{{items}}" wx:key="productId" class="a-row" data-id="{{item.productId}}" bindtap="openProduct" hover-class="a-pressed" aria-role="button" aria-label="{{item.title}}，{{item.preview ? '示例价' : ''}}{{item.priceText}}元{{item.purchased ? '，' + item.ownershipLabel : ''}}">
+      <view class="a-row-main">
+        <view class="a-cover assessment-cover tone-{{item.coverTone}}" aria-hidden="true">
+          <view class="cover-glow"></view>
+          <text class="cover-eyebrow">校招测评</text>
+          <text class="cover-company">{{item.coverCompany}}</text>
+          <view class="cover-paper"><view></view><view></view><view></view></view>
+          <text class="cover-foot">备考资料</text>
+        </view>
+        <view class="a-copy">
+          <view class="a-title-line"><text class="a-title">{{item.title}}</text><image class="a-arrow" src="/images/zhiyin-icons/chevron.svg" mode="aspectFit" aria-hidden="true"/></view>
+          <text class="a-company">{{item.companyNames || item.companyName || '通用资料'}}{{item.seasonLabel ? ' · ' + item.seasonLabel : ''}}</text>
+          <text class="a-summary">{{item.summary}}</text>
+        </view>
+      </view>
+      <view class="a-row-bottom">
+        <view class="a-badges"><text class="a-type">测评资料</text><text class="a-purchased" wx:if="{{item.purchased}}">{{item.ownershipLabel}}</text></view>
+        <text class="a-price">{{item.priceLabel}}</text>
+      </view>
+    </view>
+  </view>
+  <view class="a-state" wx:else><text class="a-title">{{keyword ? '没有找到匹配的资料' : '资料正在整理中'}}</text><text class="a-note">{{keyword ? '试试公司名称或更简短的关键词。' : '稍后再来看看。'}}</text><button wx:if="{{keyword}}" class="a-button a-secondary" bindtap="clearSearch">清空搜索</button></view>
+  <text class="a-note" wx:if="{{moreError}}" aria-role="alert">{{moreError}}</text>
+  <button wx:if="{{hasMore}}" class="a-button a-secondary" bindtap="loadMore" loading="{{loadingMore}}" disabled="{{loadingMore}}">{{loadingMore ? '正在加载…' : moreError ? '重试加载更多' : '加载更多资料'}}</button>
+</view>

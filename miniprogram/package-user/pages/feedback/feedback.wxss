@@ -419,3 +419,16 @@ page,
 .submit-wrap {
   margin-top: 8rpx;
 }
+
+/* 与个人中心一致的轻量表单，失败时把反馈留在当前页。 */
+.feedback-hero { padding: 24rpx 26rpx; border-radius: 24rpx; background: #fff; box-shadow: none; }
+.hero-title { margin-top: 0; color: #1d2939; font-size: 34rpx; font-weight: 750; line-height: 46rpx; }
+.hero-sub { width: auto; margin-top: 4rpx; color: #667085; font-size: 23rpx; line-height: 34rpx; }
+.support-card, .form-section { box-shadow: none; }
+.support-card { padding: 22rpx 24rpx; }
+.support-contact-btn { height: 80rpx; min-width: 150rpx; border-radius: 16rpx; background: #edf3ff; color: #315ee8; line-height: 80rpx; }
+.type-card { min-height: 108rpx; padding: 18rpx; }
+.type-title { font-weight: 700; }
+.type-desc { font-size: 22rpx; }
+.input { min-height: 88rpx; }
+.feedback-error { margin: 16rpx 0; padding: 20rpx 24rpx; border-radius: 16rpx; background: #fff1f2; color: #a62032; font-size: 24rpx; line-height: 38rpx; }

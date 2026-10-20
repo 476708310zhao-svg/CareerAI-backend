@@ -4,12 +4,16 @@
 .job-card--closed{opacity:.64}
 .job-card__logo-wrap{display:flex;align-items:flex-start;justify-content:center;flex:0 0 92rpx;width:92rpx;height:92rpx;border:1rpx solid #dbe7fb;border-radius:18rpx;background:#fff;overflow:hidden}
 .job-card__logo{width:92rpx!important;height:92rpx!important;border-radius:18rpx!important;box-shadow:none!important}
-.job-card__body{flex:1;min-width:0;margin-left:28rpx;padding-right:48rpx}
-.job-card__headline{display:flex;align-items:center;gap:12rpx;min-width:0}
-.job-card__title{overflow:hidden;color:#11182c;font-size:30rpx;font-weight:600;line-height:42rpx;text-overflow:ellipsis;white-space:nowrap}
+.job-card__body{flex:1;min-width:0;margin-left:22rpx;padding-right:48rpx}
+.job-card__headline{display:flex;align-items:center;gap:10rpx;min-width:0}
+.job-card__title{display:block;overflow:hidden;margin-top:5rpx;color:#11182c;font-size:29rpx;font-weight:700;line-height:40rpx;text-overflow:ellipsis;white-space:nowrap}
 .job-card__related{flex-shrink:0;padding:4rpx 13rpx;border-radius:8rpx;color:#1266f1;background:#eaf3ff;font-size:24rpx;font-weight:600;line-height:30rpx}
-.job-card__company{display:block;overflow:hidden;margin-top:3rpx;color:#6f83aa;font-size:25rpx;line-height:36rpx;text-overflow:ellipsis;white-space:nowrap}
-.job-card__tags{display:flex;gap:10rpx;overflow:hidden;margin-top:12rpx;white-space:nowrap}
+.job-card__company{display:block;flex:1;min-width:0;overflow:hidden;color:#475467;font-size:25rpx;font-weight:650;line-height:34rpx;text-overflow:ellipsis;white-space:nowrap}
+.job-card__details{display:flex;align-items:center;gap:10rpx;min-width:0;margin-top:7rpx;overflow:hidden}
+.job-card__location,.job-card__salary{overflow:hidden;max-width:54%;padding:3rpx 10rpx;border-radius:8rpx;font-size:24rpx;line-height:30rpx;text-overflow:ellipsis;white-space:nowrap}
+.job-card__location{color:#6941c6;background:#f2ecff}
+.job-card__salary{color:#087a55;background:#e9f8f1;font-weight:700}
+.job-card__tags{display:flex;gap:10rpx;overflow:hidden;margin-top:9rpx;white-space:nowrap}
 .job-card__tag{flex-shrink:0;padding:5rpx 14rpx;border-radius:8rpx;color:#5875a5;background:#f1f6fd;font-size:24rpx;line-height:30rpx}
 .job-card__tag:nth-child(n+4){display:none}
 .job-card__deadline{display:block;margin-top:11rpx;color:#6680b1;font-size:24rpx;line-height:34rpx}
@@ -17,5 +21,16 @@
 .job-card__deadline--closed{color:#8a94a8}
 .job-card__bookmark{display:flex;position:absolute;top:20rpx;right:18rpx;align-items:center;justify-content:center;width:56rpx;height:56rpx}
 .job-card__bookmark image{display:block;width:38rpx;height:38rpx}
+.job-card--compact{min-height:184rpx;margin-bottom:14rpx;padding:20rpx;border-radius:24rpx;box-shadow:none}
+.job-card--compact .job-card__logo-wrap{flex-basis:76rpx;width:76rpx;height:76rpx;border-radius:16rpx}
+.job-card--compact .job-card__logo{width:76rpx!important;height:76rpx!important;border-radius:16rpx!important}
+.job-card--compact .job-card__body{margin-left:18rpx;padding-right:66rpx}
+.job-card--compact .job-card__company{line-height:34rpx}
+.job-card--compact .job-card__tags{gap:8rpx;margin-top:8rpx}
+.job-card--compact .job-card__tag{padding:2rpx 10rpx;line-height:28rpx}
+.job-card__tag--urgent{color:#b54708;background:#fff3e8}
+.job-card__tag--closed{color:#667085;background:#f2f4f7}
+.job-card--compact .job-card__bookmark{top:0;right:0;width:88rpx;height:88rpx}
+.job-card--compact .job-card__bookmark image{width:34rpx;height:34rpx}
 .job-card__evidence-empty{display:none}
-.job-card__salary,.job-card__provenance{display:none}
+.job-card__provenance{display:none}

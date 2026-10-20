@@ -1,0 +1,16 @@
+<view class="assessment-page">
+  <view class="a-state" wx:if="{{!loggedIn}}"><text class="a-title">登录后领取资料</text><button class="a-button" bindtap="login">登录查看订单</button></view>
+  <view class="a-state" wx:elif="{{loading}}"><text class="a-note">正在核实订单…</text></view>
+  <view class="a-state" wx:elif="{{error}}" aria-role="alert"><text class="a-title">暂时无法读取订单</text><text class="a-note">{{error}}</text><button class="a-button" bindtap="load">重新加载</button><button class="a-button a-secondary" bindtap="openPurchases">我的已购</button></view>
+  <block wx:elif="{{order}}">
+    <text class="order-status">{{statusLabel}}</text><text class="a-heading">{{order.title}}</text>
+    <view class="a-section"><text class="order-line">订单号：{{order.orderNo}}</text><text class="order-line">实付金额：¥{{order.priceText}}</text><text class="order-line" wx:if="{{order.paidAt}}">付款时间：{{order.paidAt}}</text><text class="order-line" wx:if="{{order.expiresAt}}">领取有效期至：{{order.expiresAt}}</text></view>
+    <view class="a-section" wx:if="{{delivery}}"><text class="a-section-title">{{delivery.driveName || '网盘资料'}}</text><text class="delivery-link" selectable>{{delivery.link}}</text><text class="a-text" wx:if="{{delivery.extractionCode}}" selectable>提取码：{{delivery.extractionCode}}</text><text class="a-note">{{delivery.usageInstructions}}</text><button class="a-button" bindtap="copyDelivery" loading="{{copying}}" disabled="{{copying}}">复制链接和提取码</button><text class="a-note">复制后打开对应网盘 App 或浏览器，粘贴链接查看或保存资料。</text></view>
+    <view class="a-section" wx:elif="{{order.status === 'paid'}}"><text class="a-title">领取信息暂时无法读取</text><text class="a-note">{{deliveryError || '正在读取网盘资料…'}}</text><button class="a-button" bindtap="load">重新领取</button></view>
+    <view class="a-section" wx:elif="{{order.status === 'payment_review'}}"><text class="a-title">款项已收到，订单需人工核对</text><text class="a-note">请联系客服处理，无需再次付款。核对期间暂不开放资料领取。</text><button class="a-button" bindtap="contactSupport">联系客服处理</button><button class="a-button a-secondary" bindtap="load">刷新处理结果</button></view>
+    <view class="a-section" wx:elif="{{order.status === 'pending'}}"><text class="a-title">{{confirming ? '正在等待服务端确认付款…' : '尚未收到付款确认'}}</text><text class="a-note">如已付款，可稍后刷新核实。尚未付款可返回资料详情继续购买。</text><button class="a-button" bindtap="load" loading="{{confirming}}">刷新订单状态</button><button class="a-button a-secondary" bindtap="openProduct">返回资料详情</button></view>
+    <view class="a-section" wx:else><text class="a-note">当前订单不可领取资料。需要重新购买时，请查看商品详情。</text><button class="a-button a-secondary" bindtap="openProduct">查看资料详情</button></view>
+    <view class="a-link" bindtap="contactSupport" aria-role="button" aria-label="链接失效或订单问题，联系客服">链接失效或订单问题？联系客服</view><view class="a-link" bindtap="openPurchases" aria-role="button" aria-label="返回我的已购">返回我的已购</view>
+  </block>
+  <c-login-popup show="{{authPromptVisible}}" subtitle="{{authPromptSubtitle}}" bindclose="closeAuthPrompt" bindsuccess="onAuthPromptSuccess"/>
+</view>

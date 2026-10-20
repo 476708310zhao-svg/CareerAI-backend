@@ -1,6 +1,7 @@
 // Sprint 6 OA Copilot：所有成绩、耗时与错题都由用户本人记录并确认。
 const v4Api = require('../../../utils/api-v4.js');
 const loginGate = require('../../../behaviors/login-gate.js');
+const practiceBank = require('./oa-practice-bank.js');
 
 const EMPTY_PLAN = { company: '', role: '', targetDate: '', weeklyMinutes: '180', focusTypes: [] };
 const EMPTY_RESULT = { totalQuestions: '', correctCount: '', prompt: '', userAnswer: '', correctAnswer: '', notes: '' };
@@ -13,6 +14,12 @@ Page({
   behaviors: [loginGate],
 
   data: {
+    activeTab: 'practice', selectedType: 'all', selectedTypeLabel: '全部题型',
+    practiceCategories: practiceBank.TYPES.map(type => Object.assign({}, type, { count: practiceBank.forType(type.value).length })),
+    practiceQuestions: practiceBank.QUESTIONS, practiceCurrent: practiceBank.QUESTIONS[0],
+    practiceIndex: 0, practiceSelected: -1, practiceRevealed: false, practiceFinished: false,
+    practiceAnswered: 0, practiceCorrect: 0, practiceProgress: 0, practiceResultCorrect: false,
+    optionLetters: ['A', 'B', 'C', 'D'],
     loading: false, dashboard: null, plans: [], capabilities: [], mistakes: [], questionTypes: [],
     activeSession: null, elapsedSeconds: 0, elapsedText: '00:00', showPlanForm: false,
     planForm: Object.assign({}, EMPTY_PLAN), showResultForm: false,
@@ -20,10 +27,70 @@ Page({
     loadError: '', loadErrorAction: 'retry'
   },
 
-  onLoad() { this.loadOrPromptLogin(); },
-  onShow() { if (this.data.dashboard) this.loadDashboard(); },
+  onLoad(options = {}) {
+    this._practiceAnswers = {};
+    if (options.tab === 'records') this.openRecordTab();
+  },
+  onShow() { if (this.data.activeTab === 'records' && this.data.dashboard) this.loadDashboard(); },
   onUnload() { this.stopTimer(); },
-  onPullDownRefresh() { this.loadDashboard().finally(() => wx.stopPullDownRefresh()); },
+  onPullDownRefresh() {
+    if (this.data.activeTab === 'records') this.loadDashboard().finally(() => wx.stopPullDownRefresh());
+    else wx.stopPullDownRefresh();
+  },
+
+  openPracticeTab() { this.setData({ activeTab: 'practice' }); },
+  openRecordTab() {
+    this.setData({ activeTab: 'records' });
+    this.loadOrPromptLogin();
+  },
+  selectPracticeType(e) {
+    const type = e.currentTarget.dataset.type;
+    const category = practiceBank.TYPES.find(item => item.value === type);
+    if (!category) return;
+    const questions = practiceBank.forType(type);
+    const firstUnanswered = questions.findIndex(question => !Object.prototype.hasOwnProperty.call(this._practiceAnswers || {}, question.id));
+    const index = firstUnanswered < 0 ? 0 : firstUnanswered;
+    this.setData({ selectedType: type, selectedTypeLabel: category.label === '全部' ? '全部题型' : category.label,
+      practiceQuestions: questions, practiceFinished: firstUnanswered < 0, practiceIndex: index });
+    this.showPracticeQuestion(index);
+  },
+  showPracticeQuestion(index) {
+    const questions = this.data.practiceQuestions;
+    const question = questions[index];
+    const answers = this._practiceAnswers || {};
+    const saved = question && answers[question.id];
+    const answered = questions.filter(item => Object.prototype.hasOwnProperty.call(answers, item.id));
+    const correct = answered.filter(item => practiceBank.isCorrect(item, answers[item.id])).length;
+    this.setData({ practiceCurrent: question || null, practiceIndex: index,
+      practiceSelected: saved === undefined ? -1 : saved, practiceRevealed: saved !== undefined,
+      practiceResultCorrect: saved !== undefined && practiceBank.isCorrect(question, saved),
+      practiceAnswered: answered.length, practiceCorrect: correct,
+      practiceProgress: questions.length ? Math.round(answered.length / questions.length * 100) : 0 });
+  },
+  selectPracticeOption(e) {
+    if (this.data.practiceRevealed) return;
+    const index = Number(e.currentTarget.dataset.index);
+    if (index >= 0 && index < this.data.practiceCurrent.choices.length) this.setData({ practiceSelected: index });
+  },
+  submitPracticeAnswer() {
+    const question = this.data.practiceCurrent;
+    const selected = this.data.practiceSelected;
+    if (!question || selected < 0) { wx.showToast({ title: '请先选择一个答案', icon: 'none' }); return; }
+    if (this.data.practiceRevealed) return;
+    this._practiceAnswers[question.id] = selected;
+    this.showPracticeQuestion(this.data.practiceIndex);
+  },
+  nextPracticeQuestion() {
+    const next = this.data.practiceIndex + 1;
+    if (next >= this.data.practiceQuestions.length) { this.setData({ practiceFinished: true }); return; }
+    this.showPracticeQuestion(next);
+  },
+  restartPractice() {
+    const questions = this.data.practiceQuestions;
+    questions.forEach(question => { delete this._practiceAnswers[question.id]; });
+    this.setData({ practiceFinished: false });
+    this.showPracticeQuestion(0);
+  },
 
   loadOrPromptLogin() {
     const subtitle = '登录后可创建 OA 训练计划、记录练习结果和同步错题本';

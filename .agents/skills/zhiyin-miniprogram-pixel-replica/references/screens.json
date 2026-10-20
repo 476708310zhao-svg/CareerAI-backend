@@ -18,7 +18,7 @@
       "navigation": "switchTab",
       "baseline": "assets/home-approved.png",
       "baselineContentStatus": "outdated-after-approved-home-density-expansion",
-      "baselineContentNote": "The approved PNG predates the current quick actions, two latest-job rows and campus digest. Keep the PNG and strict thresholds unchanged; this screen cannot claim pixel parity until the expanded composition is approved.",
+      "baselineContentNote": "The approved PNG predates the merged Today and progress card, current quick actions, three latest-job rows and campus digest with colored status labels. Keep the PNG and strict thresholds unchanged; this screen cannot claim pixel parity until the expanded composition is approved.",
       "masks": [
         { "x": 8, "y": 54, "width": 56, "height": 58, "reason": "variable user avatar" }
       ],
@@ -39,6 +39,7 @@
           "todayInterviews": 1,
           "advice": ""
         },
+        "todayTaskStats": { "total": 3, "done": 0, "pending": 3, "percent": 0 },
         "todaySecondaryTasks": [
           {
             "id": "visual-interview",
@@ -70,6 +71,7 @@
             "company": "字节跳动",
             "city": "上海",
             "type": "实习",
+            "postedAt": "今天",
             "companyInitial": "字",
             "logoSrc": "",
             "logoFailed": true,
@@ -81,17 +83,38 @@
             "company": "腾讯",
             "city": "深圳",
             "type": "全职",
+            "postedAt": "昨天",
             "companyInitial": "腾",
             "logoSrc": "",
             "logoFailed": true,
             "sourceSummary": "Adzuna · 近期更新"
+          },
+          {
+            "id": "visual-job-3",
+            "title": "软件工程师",
+            "company": "某科技公司",
+            "city": "北京",
+            "type": "全职",
+            "postedAt": "2天前",
+            "companyInitial": "科",
+            "logoSrc": "",
+            "logoFailed": true,
+            "sourceSummary": "JSearch · 近期更新"
           }
         ],
         "campusDigest": [
           {
             "id": "visual-campus-1",
             "title": "某科技公司校招",
-            "digestMeta": "10 月 25 日截止",
+            "company": "某科技公司",
+            "positionTitle": "产品经理校招",
+            "companyInitial": "科",
+            "digestMeta": "2027届 · 秋招 · 上海",
+            "badgeText": "即将截止",
+            "updatedText": "2天前更新",
+            "tagText": "互联网",
+            "deadlineText": "4天后截止",
+            "isUrgent": true,
             "digestLabel": "即将截止",
             "sourceSummary": "飞书校招日历 · 近期更新",
             "isUrgent": true

@@ -15,7 +15,7 @@ image {
 .profile-page {
   width: 100%;
   min-height: 100vh;
-  padding: 20rpx 22rpx 0;
+  padding: 24rpx 28rpx 0;
   overflow-x: hidden;
   background:
     radial-gradient(circle at 12% 0, rgba(47, 112, 244, .065), transparent 28%),
@@ -25,8 +25,12 @@ image {
 .profile-identity {
   display: flex;
   align-items: center;
-  min-height: 124rpx;
-  padding: 12rpx 8rpx 18rpx;
+  min-height: 136rpx;
+  padding: 16rpx 20rpx;
+  border: 1rpx solid #e2e8f3;
+  border-radius: 28rpx;
+  background: #fff;
+  box-shadow: 0 10rpx 28rpx rgba(49,94,232,.055);
   transition: opacity 160ms ease;
 }
 
@@ -126,6 +130,7 @@ image {
   align-items: center;
   justify-content: space-between;
   min-height: 116rpx;
+  margin-top: 24rpx;
   padding: 21rpx 22rpx;
   overflow: hidden;
   border: 1rpx solid rgba(234, 179, 8, .16);
@@ -149,8 +154,8 @@ image {
 }
 
 .vip-banner.is-active {
-  border-color: rgba(16, 185, 129, .22);
-  background: linear-gradient(135deg, #0d413a 0%, #047857 62%, #10b981 100%);
+  border-color: #ccebdd;
+  background: linear-gradient(115deg, #f3fff8 0%, #e5f8ee 100%);
 }
 
 .vip-copy,
@@ -226,11 +231,11 @@ image {
 
 .vip-banner.is-active .vip-title,
 .vip-banner.is-active .vip-description {
-  color: #ffffff;
+  color: #145f47;
 }
 
 .vip-banner.is-active .vip-action {
-  color: #047857;
+  color: #087a55;
   background: #ffffff;
 }
 
@@ -243,7 +248,7 @@ image {
 }
 
 .records-card {
-  margin-top: 26rpx;
+  margin-top: 24rpx;
   padding: 26rpx 18rpx 30rpx;
 }
 
@@ -324,7 +329,7 @@ image {
 }
 
 .service-card {
-  margin-top: 26rpx;
+  margin-top: 24rpx;
   padding: 0 24rpx;
   overflow: hidden;
 }

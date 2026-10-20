@@ -13,7 +13,8 @@ Page({
     typeIndex: 0,
     content: '',
     contact: '',
-    submitting: false
+    submitting: false,
+    submitError: ''
   },
 
   onTypeChange(e) {
@@ -47,7 +48,7 @@ Page({
       return;
     }
 
-    this.setData({ submitting: true });
+    this.setData({ submitting: true, submitError: '' });
 
     const payload = {
       type: this.data.types[this.data.typeIndex],
@@ -62,17 +63,12 @@ Page({
           wx.showToast({ title: '感谢您的反馈', icon: 'success' });
           setTimeout(() => wx.navigateBack(), 1500);
         } else {
-          wx.showToast({ title: (res && res.message) || '提交失败，请重试', icon: 'none' });
+          this.setData({ submitError: (res && res.message) || '提交失败，请检查后重试。' });
         }
       })
       .catch(() => {
-        // 网络失败：降级存本地
-        this.setData({ submitting: false });
-        const feedbacks = wx.getStorageSync('userFeedbacks') || [];
-        feedbacks.unshift({ ...payload, time: new Date().toISOString() });
-        wx.setStorageSync('userFeedbacks', feedbacks);
-        wx.showToast({ title: '网络异常，已保存到本地', icon: 'none' });
-        setTimeout(() => wx.navigateBack(), 1500);
+        // 保留当前输入供用户重试，不将未提交的反馈误标为已送达。
+        this.setData({ submitting: false, submitError: '网络异常，反馈尚未提交。请稍后重试。' });
       });
   }
 });

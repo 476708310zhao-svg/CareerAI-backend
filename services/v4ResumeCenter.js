@@ -325,6 +325,8 @@ async function createChangeSet({ userId, resumeId, jobId = '', applicationId = n
       userPrompt: JSON.stringify({ resumeFields, jd: cleanText(jdText, 8000) }),
       temperature: 0.2,
       maxTokens: 2400,
+      timeoutMs: 35000,
+      retries: 0,
       fallback: () => defaultSuggestions(content, jdText),
       validate: value => {
         if (!Array.isArray(value) || !value.length || value.length > 5) return false;

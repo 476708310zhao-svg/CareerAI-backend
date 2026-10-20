@@ -209,7 +209,10 @@ test('home puts one honest primary action first while contextual AI stays in the
   const tabWxml = read('custom-tab-bar/index.wxml');
   const tabWxss = read('custom-tab-bar/index.wxss');
   assert.equal((home.match(/class="zy-main-action"/g) || []).length, 1);
-  assert.ok(home.indexOf('class="zy-main-action"') < home.indexOf('今天还要做'));
+  assert.ok(home.indexOf('zy-today-card') < home.indexOf('申请进度'));
+  assert.doesNotMatch(home, /今日重点|今天还要做/);
+  assert.match(home, /class="zy-progress-summary"/);
+  assert.doesNotMatch(home, /class="zy-signal-card"|class="zy-today-more"/);
   assert.doesNotMatch(home, /\sautoplay(?:\s|>)/);
   assert.doesNotMatch(home, /home-core-tools|home-career-insights|banner-wrap|membership-benefit-banner/);
   assert.match(tabWxml, /class="ai-float"/);
@@ -226,7 +229,8 @@ test('home puts one honest primary action first while contextual AI stays in the
   assert.match(homeJs, /'暂时没有待处理事项'/);
   assert.doesNotMatch(homeJs, /'今日任务已完成'|Math\.max\(1, Number\(taskStats\.pending/);
   assert.match(homeJs, /String\(item\.id \|\| ''\) !== primaryTaskId/);
-  assert.match(homeJs, /\.slice\(0, 2\)/);
+  assert.match(home, /wx:for="\{\{todaySecondaryTasks\}\}"/);
+  assert.match(homeJs, /const tasks = dailyTasks\.buildTasks\(\);/);
 });
 
 test('home-private caches and delayed responses are owner-scoped', () => {

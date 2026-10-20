@@ -1,5 +1,17 @@
 /* pages/company-detail/company-detail.wxss */
 page { background: var(--bg-raised); }
+.company-assessment-head { display: flex; align-items: center; justify-content: space-between; }
+.company-assessment-all { display: flex; align-items: center; min-height: 88rpx; color: var(--zy-brand); font-size: 25rpx; }
+.company-assessment-row { display: flex; align-items: center; gap: 16rpx; min-height: 134rpx; padding: 18rpx 0; box-sizing: border-box; }
+.company-assessment-row + .company-assessment-row { border-top: 1rpx solid var(--zy-line); }
+.company-assessment-cover { width: 74rpx; height: 90rpx; flex: none; border-radius: 12rpx; background: var(--zy-brand-soft); }
+.company-assessment-copy { flex: 1; min-width: 0; }
+.company-assessment-title,.company-assessment-summary { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 27rpx; line-height: 38rpx; }
+.company-assessment-title { font-weight: 600; }
+.company-assessment-summary { color: var(--zy-muted); font-size: 24rpx; }
+.company-assessment-price { display: block; color: var(--zy-brand); font-weight: 700; font-size: 27rpx; line-height: 36rpx; }
+.company-assessment-arrow { width: 28rpx; height: 28rpx; flex: none; }
+.company-assessment-pressed { opacity: .72; }
 
 /* 公司头部 */
 .company-header {

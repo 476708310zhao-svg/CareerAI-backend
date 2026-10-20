@@ -46,6 +46,26 @@ test('public campus reads use production content API anonymously; reminder write
   assert.equal(writes[0].skipAuth, undefined);
 });
 
+test('company list and detail use the public content API and reject failed reads', async () => {
+  const reads = [];
+  let response = { code: 0, data: { list: [{ id: 1, name: 'Company' }], total: 1 } };
+  const api = load('utils/api-companies.js', {
+    './api-client.js': {
+      request: async options => { reads.push(options); return response; },
+      DETAIL_CACHE_TTL: 1000
+    },
+    './app-config.js': { CONTENT_API_BASE_URL: 'https://api.zhiyincareer.com' },
+    './assets.js': { normalizeLogoUrl: value => value }
+  });
+  assert.equal((await api.getCompanies({ page: 1 })).data.list.length, 1);
+  response = { code: 0, data: { id: 1, name: 'Company' } };
+  assert.equal((await api.getCompanyDetail(1)).data.id, 1);
+  assert.deepEqual(Array.from(reads, item => item.path), ['/api/companies', '/api/companies/1']);
+  assert.ok(reads.every(item => item.baseUrl === 'https://api.zhiyincareer.com' && item.skipAuth === true));
+  response = { data: [], _source: 'networkError' };
+  await assert.rejects(api.getCompanies({ page: 1 }), /公司列表暂时无法加载/);
+});
+
 test('public aggregate jobs and detail use production anonymously without eager Feishu traffic', async () => {
   const reads = []; let fallbackCalls = 0;
   const api = load('utils/api-jobs.js', {

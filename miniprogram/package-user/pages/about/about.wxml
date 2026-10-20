@@ -6,9 +6,7 @@
       <view class="brand-logo">
         <image class="brand-logo-img" src="/images/home-active.png" mode="aspectFit"></image>
       </view>
-      <view class="version-chip">v{{version}}</view>
     </view>
-    <text class="hero-kicker">CAREER AI WORKSPACE</text>
     <text class="hero-title">职引</text>
     <text class="hero-desc">面向留学生的 AI 求职工作台，把岗位筛选、简历优化、面试准备和网申跟进整理成清晰的下一步。</text>
     <view class="hero-tags">
@@ -18,17 +16,8 @@
     </view>
   </view>
 
-  <view class="stats-row">
-    <block wx:for="{{stats}}" wx:key="label">
-      <view class="stat-item">
-        <text class="stat-value">{{item.value}}</text>
-        <text class="stat-label">{{item.label}}</text>
-      </view>
-    </block>
-  </view>
-
   <view class="mission-section">
-    <text class="section-kicker">OUR MISSION</text>
+    <text class="section-kicker">我们的方向</text>
     <text class="mission-title">让求职从信息收集，变成可执行的行动系统。</text>
     <text class="mission-text">我们希望帮助海外留学生更高效地理解岗位、准备面试、跟进网申，并把每一次准备沉淀成可复用的求职资产。</text>
   </view>
@@ -65,27 +54,11 @@
     </block>
   </view>
 
-  <view class="section-head">
-    <text class="section-title">我们在意</text>
-    <text class="section-sub">产品会继续围绕这些方向打磨</text>
-  </view>
-  <view class="value-list">
-    <block wx:for="{{values}}" wx:key="title">
-      <view class="value-item">
-        <view class="value-dot"></view>
-        <view class="value-copy">
-          <text class="value-title">{{item.title}}</text>
-          <text class="value-desc">{{item.desc}}</text>
-        </view>
-      </view>
-    </block>
-  </view>
-
   <view class="contact-section">
     <view class="contact-main">
       <text class="contact-label">联系我们</text>
       <text class="contact-title">在线客服与邮箱反馈</text>
-      <text class="contact-desc">产品建议、合作沟通或问题反馈都可以通过微信客服或邮箱联系。</text>
+      <text class="contact-desc">产品建议、合作或使用问题，可以通过微信客服或邮箱联系。</text>
     </view>
     <view class="contact-actions">
       <button

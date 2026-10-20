@@ -77,14 +77,11 @@ Page({
   behaviors: [loginGate],
 
   data: {
-    version: '1.0.0',
-    pushEnabled: true,
-    darkMode: false,
     cacheSize: '0KB'
   },
 
   onLoad() {
-    this.loadSettings();
+    this.calcCacheSize();
   },
 
   loginOnComputer() {
@@ -107,15 +104,6 @@ Page({
     this.calcCacheSize();
   },
 
-  loadSettings() {
-    const settings = wx.getStorageSync('appSettings') || {};
-    this.setData({
-      pushEnabled: settings.pushEnabled !== false,
-      darkMode: settings.darkMode === true
-    });
-    this.calcCacheSize();
-  },
-
   calcCacheSize() {
     try {
       const info = wx.getStorageInfoSync();
@@ -124,27 +112,6 @@ Page({
     } catch (e) {
       this.setData({ cacheSize: '未知' });
     }
-  },
-
-  togglePush(e) {
-    this.setData({ pushEnabled: e.detail.value }, () => {
-      this.saveSettings();
-      wx.showToast({ title: this.data.pushEnabled ? '已开启推送' : '已关闭推送', icon: 'none' });
-    });
-  },
-
-  toggleDarkMode(e) {
-    this.setData({ darkMode: e.detail.value }, () => {
-      this.saveSettings();
-      wx.showToast({ title: '将在下次启动时生效', icon: 'none' });
-    });
-  },
-
-  saveSettings() {
-    wx.setStorageSync('appSettings', {
-      pushEnabled: this.data.pushEnabled,
-      darkMode: this.data.darkMode
-    });
   },
 
   clearCache() {
@@ -171,6 +138,7 @@ Page({
   goToFeedback() { wx.navigateTo({ url: '/package-user/pages/feedback/feedback' }); },
   goToAbout() { wx.navigateTo({ url: '/package-user/pages/about/about' }); },
   goToPrivacy() { wx.navigateTo({ url: '/pages/privacy/privacy' }); },
+  goToMessages() { wx.navigateTo({ url: '/package-user/pages/messages/messages' }); },
 
   openWechatPrivacy() {
     if (!wx.openPrivacyContract) {

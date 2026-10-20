@@ -53,16 +53,27 @@ function unique(values) {
 }
 
 function stripHtml(value) {
-  return String(value || '')
+  let decoded = String(value || '');
+  // 招聘源会把整段 HTML 再转义一到两次，先解码才能移除标签。
+  for (let pass = 0; pass < 3; pass += 1) {
+    const next = decoded.replace(/&(#(?:x[0-9a-f]+|\d+)|amp|lt|gt|quot|apos|nbsp|ndash|mdash|bull);/gi, (match, entity) => {
+      const named = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', ndash: '–', mdash: '—', bull: '•' };
+      if (entity[0] !== '#') return named[entity.toLowerCase()] || match;
+      const code = entity[1].toLowerCase() === 'x' ? parseInt(entity.slice(2), 16) : parseInt(entity.slice(1), 10);
+      return code > 0 && code <= 0x10ffff && !(code >= 0xd800 && code <= 0xdfff)
+        ? String.fromCodePoint(code) : match;
+    });
+    if (next === decoded) break;
+    decoded = next;
+  }
+  return decoded
+    .replace(/<!--[^]*?-->/g, '')
+    .replace(/<\s*(script|style)[^>]*>[^]*?<\s*\/\s*\1\s*>/gi, '')
     .replace(/<\s*br\s*\/?>/gi, '\n')
-    .replace(/<\s*\/p\s*>/gi, '\n')
+    .replace(/<\s*\/(?:p|div|h[1-6]|ul|ol)\s*>/gi, '\n')
     .replace(/<\s*li[^>]*>/gi, '\n• ')
     .replace(/<\s*\/li\s*>/gi, '')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
+    .replace(/<\/?[a-z][^>]*>/gi, '')
     .replace(/\r/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
@@ -79,6 +90,23 @@ function contentBlocks(value) {
     const bullet = /^[•·\-*]\s*/.test(line);
     return { text: line.replace(/^[•·\-*]\s*/, ''), bullet };
   });
+}
+
+function previewBlocks(blocks, maxCharacters = 420, maxBlocks = 4) {
+  const preview = [];
+  let remaining = maxCharacters;
+  for (const block of blocks) {
+    if (preview.length >= maxBlocks || remaining <= 0) break;
+    const text = block.text;
+    if (text.length <= remaining) {
+      preview.push(block);
+      remaining -= text.length;
+    } else {
+      preview.push({ text: text.slice(0, remaining).trimEnd() + '…', bullet: block.bullet });
+      break;
+    }
+  }
+  return preview;
 }
 
 function salaryText(source) {
@@ -252,6 +280,8 @@ function matchEvidence(source) {
 
 function presentJob(source) {
   const job = source || {};
+  const descriptionBlocks = contentBlocks(first(job, ['description', 'rawDescription', 'jobDescription', 'job_description']));
+  const descriptionPreviewBlocks = previewBlocks(descriptionBlocks);
   const dataMeta = normalizeDataMeta(job.dataMeta, {
     domain: 'job',
     source: first(job, ['source', '_source']),
@@ -300,7 +330,10 @@ function presentJob(source) {
     progressStatusText: state.progressStatusText,
     appliedText: applied ? (progressStatus || '已投递') : '',
     hasApplyLink: !!clean(first(job, ['applyLink', 'applyUrl', 'officialApplyUrl', 'sourceUrl'])),
-    descriptionBlocks: contentBlocks(first(job, ['description', 'rawDescription', 'jobDescription', 'job_description'])),
+    descriptionBlocks,
+    descriptionPreviewBlocks,
+    hasMoreDescription: descriptionPreviewBlocks.length < descriptionBlocks.length
+      || descriptionPreviewBlocks.some((block, index) => block.text !== descriptionBlocks[index].text),
     requirementBlocks: requirementValues(job),
     dataMeta,
     sourceLabel: dataMeta.sourceLabel,

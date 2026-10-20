@@ -175,7 +175,7 @@ test('home owns the progress entry and AI owns the third Tab', () => {
   assert.equal(app.tabBar.list[2].pagePath, 'pages/ai-career/ai-career');
   assert.equal(app.tabBar.list[2].text, 'AI求职');
   assert.equal(app.tabBar.list.some(item => item.pagePath === 'pages/applications/applications'), false);
-  assert.match(homeWxml, /申请进度[\s\S]*data-url="\/pages\/applications\/applications"/);
+  assert.match(homeWxml, /class="zy-progress-summary"[^>]*data-url="\/pages\/applications\/applications"[\s\S]*申请进度/);
   assert.match(progressWxml, /class="secondary-nav"/);
   assert.match(progressWxml, /bindtap="goBack"/);
   assert.match(progressJs, /goBack\(\)[\s\S]*safeNavigateBack/);
@@ -273,11 +273,13 @@ test('home keeps one highest-priority action and the raised center AI inherits p
   assert.match(customWxss, /\.ai-float-core[\s\S]*top:\s*-30rpx[\s\S]*left:\s*50%[\s\S]*transform:\s*translateX\(-50%\)/);
   assert.doesNotMatch(customWxml, /ai-tab-label/);
   assert.equal((homeWxml.match(/class="zy-main-action"/g) || []).length, 1);
-  assert.ok(homeWxml.indexOf('class="zy-main-action"') < homeWxml.indexOf('今天还要做'));
+  assert.ok(homeWxml.indexOf('zy-today-card') < homeWxml.indexOf('申请进度'));
+  assert.doesNotMatch(homeWxml, /今日重点|今天还要做/);
   assert.doesNotMatch(homeWxml, /\sautoplay(?:\s|>)/);
   assert.doesNotMatch(homeWxml, /today-task-card|todayTaskPreview|banner-wrap|membership-benefit-banner/);
   assert.doesNotMatch(homeWxml, /zy-progress-card|zy-progress-item|求职进展/);
-  assert.match(homeWxml, /todaySecondaryTasks/);
+  assert.match(homeWxml, /class="zy-progress-summary"/);
+  assert.doesNotMatch(homeWxml, /class="zy-signal-card"|class="zy-today-more"/);
   assert.match(homeJs, /title = nextTask\.title/);
   assert.match(homeJs, /buildPrimaryTaskMeta\(nextTask, applications\)/);
   assert.match(homeJs, /String\(item\.id \|\| ''\) !== primaryTaskId/);
@@ -293,8 +295,8 @@ test('contextual AI shows inherited application context and remains directly rea
   assert.match(assistantJs, /_applyRouteContext\(options\)/);
   assert.match(assistantJs, /contextApplicationId/);
   assert.match(assistantJs, /currentPage/);
-  assert.match(assistantWxml, /AI 帮我推进/);
-  assert.match(assistantWxml, /当前上下文：\{\{contextLabel\}\}/);
+  assert.match(assistantWxml, /AI 求职助手/);
+  assert.match(assistantWxml, /查看当前任务上下文：\{\{contextLabel\}\}/);
   assert.match(assistantWxml, /placeholder="\{\{composerPlaceholder\}\}"/);
   assert.match(detailWxml, /bindtap="openContextAi"/);
   assert.match(detailWxml, /让 AI 帮我推进这条申请/);
@@ -439,7 +441,7 @@ test('daily brief follows the home workbench visual language without the legacy 
   assert.doesNotMatch(dailyWxss, /#064E3B|#065F46/);
 });
 
-test('resource hub presents content assets and gated purchased state instead of a tool hall', () => {
+test('resource hub presents content assets and purchased assessment resource entry', () => {
   const resourceWxml = read('pages/resources/resources.wxml');
   const resourceJs = read('pages/resources/resources.js');
   const resourceWxss = read('pages/resources/resources.wxss');
@@ -452,7 +454,7 @@ test('resource hub presents content assets and gated purchased state instead of 
   assert.match(resourceJs, /公司资料库/);
   assert.match(resourceJs, /我的收藏/);
   assert.match(resourceWxml, /我的已购/);
-  assert.match(resourceWxml, /资料购买与交付能力尚未接入/);
+  assert.match(resourceJs, /assessmentResources\.purchasesUrl\(\)/);
   assert.equal(resourceJson.navigationStyle, 'custom');
   assert.doesNotMatch(resourceWxml, /category-scroll|type-scroll/);
   assert.match(resourceWxml, /搜索题库、面经或公司资料/);
@@ -460,7 +462,7 @@ test('resource hub presents content assets and gated purchased state instead of 
   assert.match(resourceWxml, /不代表搜索筛选结果或已绑定申请/);
   assert.doesNotMatch(resourceWxml, /真实内容说明|class="truth-card"/);
   assert.doesNotMatch(resourceWxml, /适用阶段/);
-  assert.match(resourceWxml, /aria-disabled="true"/);
+  assert.match(resourceWxml, /bindtap="openPurchases"[^>]*aria-label="查看我的已购测评资料"/);
   assert.doesNotMatch(resourceJs, /AI 求职规划|Offer 对比|Networking Copilot|薪酬查询/);
   assert.doesNotMatch(resourceWxml, /expert-card|AI 求职助手|workflow-nav/);
   assert.match(resourceWxss, /\.asset-list\s*\{/);
@@ -480,7 +482,8 @@ test('home only loads visible campus digest through the unified API', () => {
   assert.doesNotMatch(homeJs, /buildNewsFeed|getNews|HOME_NEWS_CACHE_KEY/);
   assert.doesNotMatch(homeWxml, /home-campus-updates/);
   assert.match(homeWxml, /campusDigest/);
-  assert.match(homeJs, /getCampusList\(\{ sort: 'latest', deadlineWindow: 'open'/);
+  assert.match(homeJs, /getCampusList\(\{ sort: 'latest', latestDay: '1', deadlineWindow: 'open'/);
+  assert.match(homeWxml, /每日最新校招/);
   assert.doesNotMatch(homeJs, /getFeishuCampusList|HOME_CAMPUS_CACHE|fetchCampusUpdates|loadCachedCampusUpdates/);
   assert.doesNotMatch(campusJs, /getFeishuCampusList/);
   assert.match(campusJs, /api\.getCampusList/);

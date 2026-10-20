@@ -5,12 +5,16 @@ const { formatSalaryRange } = require('../../../utils/util.js');
 const safePage = require('../../behaviors/safe-page');
 const { getGlassdoorOverview, getGlassdoorReviews } = require('../../../utils/api-news.js');
 const featureFlags = require('../../../utils/feature-flags.js');
+const assessmentResources = require('../../../utils/api-assessment-resources.js');
+const navigation = require('../../../utils/navigation.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
 
 Page({
   behaviors: [safePage],
   data: {
     companyId: '',
+    assessmentProducts: [],
+    assessmentTotal: 0,
     company: null,
     currentTab: 0,
     recruitmentEnabled: true,
@@ -40,7 +44,33 @@ Page({
       currentTab: recruitmentEnabled ? 0 : 1
     });
     this.loadCompanyDetail(id, name);
+    this._assessmentAlive = true;
+    if (id) this.loadAssessmentProducts(id);
   },
+
+  onShow() {
+    this._assessmentAlive = true;
+    if (this.data.companyId) this.loadAssessmentProducts(this.data.companyId);
+  },
+  onHide() { this._assessmentAlive = false; this._assessmentRequest = (this._assessmentRequest || 0) + 1; },
+  onUnload() { this._unmounted = true; this._assessmentAlive = false; this._assessmentRequest = (this._assessmentRequest || 0) + 1; },
+  async loadAssessmentProducts(companyId) {
+    const request = this._assessmentRequest = (this._assessmentRequest || 0) + 1;
+    try {
+      const result = await assessmentResources.list({ companyId });
+      if (!this._assessmentAlive || request !== this._assessmentRequest) return;
+      this.setData({ assessmentProducts: (result.items || []).slice(0, 3).map(assessmentResources.productView), assessmentTotal: result.total || 0 });
+    } catch (error) {
+      if (this._assessmentAlive && request === this._assessmentRequest) this.setData({ assessmentProducts: [], assessmentTotal: 0 });
+    }
+  },
+  openAssessmentProduct(event) {
+    const productId = event.currentTarget.dataset.id;
+    assessmentResources.track('assessment_product_click', { productId, companyId: this.data.companyId, source: 'company' });
+    navigation.safeNavigateTo(assessmentResources.detailUrl(productId, 'company', this.data.companyId));
+  },
+  openAllAssessmentProducts() { navigation.safeNavigateTo(assessmentResources.listUrl('company', this.data.companyId)); },
+  onAssessmentCoverError(event) { this.setData({ ['assessmentProducts[' + event.currentTarget.dataset.index + '].coverUrl']: '' }); },
 
   getCompanyInitial(name) {
     const text = String(name || 'C').trim();
@@ -83,7 +113,8 @@ Page({
       }));
       company.salaries = company.salaries || [];
 
-      this.setData({ company, loading: false });
+      this.setData({ company, companyId: String(company.id), loading: false });
+      if (this._assessmentAlive) this.loadAssessmentProducts(company.id);
       wx.setNavigationBarTitle({ title: company.name });
       if (!company.description) this.fetchAICompanyIntro(company.name);
       if (this.data.recruitmentEnabled && !company.jobs.length) this.fetchCompanyJobs(company.name);

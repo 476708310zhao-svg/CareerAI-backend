@@ -425,3 +425,27 @@ page {
   font-size: 22rpx;
   line-height: 1.9;
 }
+
+/* 关于页收敛成产品说明和真实可用的联系入口。 */
+.about-page { padding: 20rpx 24rpx calc(48rpx + env(safe-area-inset-bottom)); }
+.brand-hero, .mission-section, .feature-card, .process-list, .contact-section { border-radius: 24rpx; box-shadow: none; }
+.brand-hero { padding: 26rpx; background: #fff; }
+.brand-logo { width: 80rpx; height: 80rpx; border-radius: 18rpx; background: #edf3ff; box-shadow: none; }
+.brand-logo-img { width: 48rpx; height: 48rpx; }
+.hero-title { margin-top: 16rpx; font-size: 38rpx; font-weight: 750; }
+.hero-desc { margin-top: 10rpx; font-size: 25rpx; line-height: 1.55; }
+.hero-tag { height: 48rpx; font-size: 22rpx; }
+.mission-section { margin-top: 16rpx; }
+.section-kicker { font-size: 22rpx; }
+.mission-title { font-size: 29rpx; font-weight: 700; }
+.mission-text { line-height: 1.58; }
+.section-head { margin-top: 28rpx; }
+.section-title { font-size: 29rpx; font-weight: 700; }
+.feature-card { min-height: 194rpx; }
+.feature-title, .process-title { font-weight: 700; }
+.contact-section { display: block; }
+.contact-title { white-space: normal; }
+.contact-actions { flex-direction: row; flex-wrap: wrap; margin-top: 22rpx; }
+.customer-button, .copy-button { min-height: 80rpx; height: auto; min-width: 180rpx; border-radius: 16rpx; box-shadow: none; }
+.customer-button { background: #315ee8; line-height: 80rpx; }
+.copy-button { background: #edf3ff; color: #315ee8; }

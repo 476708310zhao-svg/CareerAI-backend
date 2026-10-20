@@ -2,13 +2,8 @@
 <view class="container">
   <view class="feedback-hero">
     <view>
-      <text class="hero-kicker">FEEDBACK</text>
       <text class="hero-title">意见反馈</text>
-      <text class="hero-sub">告诉我们你遇到的问题或建议，我们会持续优化求职体验。</text>
-    </view>
-    <view class="hero-badge">
-      <text class="badge-num">24h</text>
-      <text class="badge-label">内查看</text>
+      <text class="hero-sub">描述问题或建议，帮助我们定位和改进。</text>
     </view>
   </view>
 
@@ -35,7 +30,6 @@
     <view class="type-grid">
       <block wx:for="{{typeOptions}}" wx:key="label">
         <view class="type-card {{typeIndex === index ? 'active' : ''}}" bindtap="selectType" data-index="{{index}}">
-          <text class="type-icon">{{item.icon}}</text>
           <view class="type-body">
             <text class="type-title">{{item.label}}</text>
             <text class="type-desc">{{item.desc}}</text>
@@ -65,16 +59,7 @@
     <input class="input" placeholder="邮箱或微信号，方便我们联系您" value="{{contact}}" bindinput="onContactInput" />
   </view>
 
-  <view class="promise-card">
-    <view class="promise-item">
-      <text class="promise-dot"></text>
-      <text>反馈会优先进入产品优化清单</text>
-    </view>
-    <view class="promise-item">
-      <text class="promise-dot"></text>
-      <text>网络异常时会自动保存到本地</text>
-    </view>
-  </view>
+  <view class="feedback-error" wx:if="{{submitError}}" aria-role="alert">{{submitError}}</view>
 
   <view class="submit-wrap">
     <c-button class="submit-btn" bindtap="submitFeedback" disabled="{{submitting}}" loading="{{submitting}}">

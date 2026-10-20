@@ -3,9 +3,8 @@
 
   <view class="favorites-hero">
     <view>
-      <text class="hero-kicker">COLLECTIONS</text>
-      <text class="hero-title">收藏夹</text>
-      <text class="hero-sub">{{recruitmentEnabled ? '集中管理职位、公司、面经和校招信息，方便后续筛选与投递。' : '集中管理公司、面经、机构和校招收藏，方便后续筛选与回看。'}}</text>
+      <text class="hero-title">我的收藏</text>
+      <text class="hero-sub">按类别查找已收藏的内容</text>
     </view>
     <view class="hero-count">
       <text class="count-num">{{totalFavorites}}</text>
@@ -159,16 +158,10 @@
     </block>
 
     <view wx:if="{{currentList.length === 0}}" class="fav-empty">
-      <view class="empty-icon">{{currentEmpty.emoji}}</view>
       <text class="empty-title">{{currentEmpty.title}}</text>
       <text class="empty-desc">{{currentEmpty.desc}}</text>
       <view class="empty-actions">
         <view class="empty-primary" bindtap="browseCurrent">{{currentEmpty.btn}}</view>
-        <view wx:if="{{recruitmentEnabled}}" class="empty-secondary" bindtap="goToJobs">查看岗位推荐</view>
-      </view>
-      <view class="empty-tips">
-        <view class="tip-item">收藏后可按时间排序</view>
-        <view class="tip-item">支持批量删除整理</view>
       </view>
     </view>
 

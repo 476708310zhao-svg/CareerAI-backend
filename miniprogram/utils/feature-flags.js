@@ -164,7 +164,7 @@ function refreshFeatureFlags(options) {
 
   const refresh = new Promise(resolve => {
     wx.request({
-      url: config.API_BASE_URL + '/api/features',
+      url: (config.CONTENT_API_BASE_URL || config.API_BASE_URL) + '/api/features',
       method: 'GET',
       timeout: 5000,
       success: res => {

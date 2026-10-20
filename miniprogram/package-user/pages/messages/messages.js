@@ -11,6 +11,7 @@ Page({
     messages: [],
     filteredMessages: [],
     loading: false,
+    syncError: false,
     quickActions: [
       { title: '查看网申进度', desc: '跟进待初筛、面试中、Offer 状态', type: 'applications' },
       { title: '开始 AI 面试', desc: '生成练习记录和能力反馈', type: 'interview' }
@@ -45,9 +46,8 @@ Page({
     }
 
     this.setData({ loading: true });
-    const { type } = this._currentType();
-
-    getMessages(type)
+    // 一次读取全部消息，分类只在本页筛选；总数与未读数始终代表全部消息。
+    getMessages()
       .then((res) => {
         this.setData({ loading: false });
         if (res && res.code === 0) {
@@ -59,33 +59,34 @@ Page({
             isRead: m.isRead, createdAt: this._formatTime(m.createdAt),
             icon: this._typeIcon(m.type)
           }));
-          this.setData({ messages });
+          this.setData({ messages, syncError: false });
           this.filterMessages();
           this.updateMessageStats(messages);
           this._syncTabBarBadge(unreadCount);
           unreadMessages.set(unreadCount);
           getApp().globalData.unreadCount = unreadCount;
         } else {
-          this._loadLocalFallback();
+          this._loadLocalFallback(true);
         }
       })
       .catch(() => {
         this.setData({ loading: false });
-        this._loadLocalFallback();
+        this._loadLocalFallback(true);
       });
   },
 
-  // 降级：未登录或网络失败时读本地 Storage
-  _loadLocalFallback() {
-    const messages = (wx.getStorageSync('userMessages') || []).map(m => ({
+  // 未登录可读本机旧消息；登录态同步失败时不展示未绑定账号的旧记录。
+  _loadLocalFallback(syncError = false) {
+    // 登录态同步失败时不能展示未绑定账号的旧本机消息。
+    const messages = (syncError ? [] : (wx.getStorageSync('userMessages') || [])).map(m => ({
       ...m, icon: m.icon || this._typeIcon(m.type)
     }));
     messages.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    this.setData({ messages, loading: false });
+    this.setData({ messages, loading: false, syncError });
     this.filterMessages();
     const unread = messages.filter(m => !m.isRead).length;
     this.updateMessageStats(messages);
-    this._syncTabBarBadge(unread);
+    if (!syncError) this._syncTabBarBadge(unread);
   },
 
   // ─── Tab 与筛选 ──────────────────────────────────────────────────────────────
@@ -116,8 +117,7 @@ Page({
   },
 
   switchTab(e) {
-    this.setData({ currentTab: e.currentTarget.dataset.index });
-    this.loadMessages();
+    this.setData({ currentTab: Number(e.currentTarget.dataset.index) }, () => this.filterMessages());
   },
 
   // ─── 点击消息：标记已读 + 跳转 ──────────────────────────────────────────────
@@ -139,6 +139,8 @@ Page({
       const token = wx.getStorageSync('token');
       if (token) {
         markMessageRead(msg.id).catch(() => {});
+      } else {
+        wx.setStorageSync('userMessages', messages);
       }
     }
 
@@ -162,26 +164,10 @@ Page({
 
     if (token) {
       markAllMessagesRead().catch(() => {});
+    } else {
+      wx.setStorageSync('userMessages', messages);
     }
     wx.showToast({ title: '已全部标记已读', icon: 'none' });
-  },
-
-  // ─── 清空消息（仅清本地显示，不删后端数据）──────────────────────────────────
-  clearMessages() {
-    wx.showModal({
-      title: '清空消息',
-      content: '确定要清空所有消息吗？',
-      success: (res) => {
-        if (res.confirm) {
-          this.setData({ messages: [], filteredMessages: [] });
-          this.updateMessageStats([]);
-          wx.removeStorageSync('userMessages');
-          unreadMessages.set(0);
-          this._syncTabBarBadge(0);
-          wx.showToast({ title: '已清空', icon: 'success' });
-        }
-      }
-    });
   },
 
   goApplications() {

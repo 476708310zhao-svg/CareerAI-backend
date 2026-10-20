@@ -55,6 +55,10 @@
     {
       "root": "package-content",
       "pages": [
+        "pages/assessment-list/assessment-list",
+        "pages/assessment-detail/assessment-detail",
+        "pages/assessment-purchases/assessment-purchases",
+        "pages/assessment-order/assessment-order",
         "pages/experience-detail/experience-detail",
         "pages/question-detail/question-detail",
         "pages/star-library/star-library",

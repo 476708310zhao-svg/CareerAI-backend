@@ -28,10 +28,15 @@
 
   <view class="content-section">
     <view class="section-head"><view><text class="section-title">{{sectionTitle}}</text></view></view>
-    <view class="asset-list" wx:if="{{listAssets.length}}">
+    <view class="asset-list" wx:if="{{listAssets.length || !keyword}}">
       <view wx:for="{{listAssets}}" wx:key="id" class="asset-card" data-id="{{item.id}}" bindtap="openAsset" hover-class="row-press" aria-role="button" aria-label="打开{{item.title}}">
         <view class="asset-mark asset-{{item.tone}}"><image src="{{item.icon}}" mode="aspectFit" aria-hidden="true"/></view>
         <view class="asset-copy"><text class="asset-title">{{item.title}}</text></view>
+        <image class="asset-arrow" src="/images/zhiyin-icons/chevron.svg" mode="aspectFit" aria-hidden="true"/>
+      </view>
+      <view class="asset-card" wx:if="{{!keyword}}" bindtap="openPurchases" hover-class="row-press" aria-role="button" aria-label="查看我的已购测评资料">
+        <view class="asset-mark asset-violet"><image src="/images/zhiyin-icons/bookmark.svg" mode="aspectFit" aria-hidden="true"/></view>
+        <view class="asset-copy"><text class="asset-title">我的已购</text></view>
         <image class="asset-arrow" src="/images/zhiyin-icons/chevron.svg" mode="aspectFit" aria-hidden="true"/>
       </view>
     </view>
@@ -40,11 +45,6 @@
       <text class="empty-title">{{emptyTitle}}</text>
       <text class="empty-desc">{{emptyDesc}}</text>
       <view class="clear-button" bindtap="clearFilters" hover-class="chip-press" aria-role="button" aria-label="清除资源筛选">清除筛选</view>
-    </view>
-    <view class="unavailable-card" wx:if="{{!keyword}}" aria-role="button" aria-disabled="true" aria-label="我的已购，资料购买与交付能力尚未接入">
-      <view class="asset-mark asset-unavailable"><image src="/images/zhiyin-icons/bookmark.svg" mode="aspectFit" aria-hidden="true"/></view>
-      <view class="asset-copy"><text class="asset-title">我的已购</text></view>
-      <text class="unavailable-badge">未开放</text>
     </view>
   </view>
 

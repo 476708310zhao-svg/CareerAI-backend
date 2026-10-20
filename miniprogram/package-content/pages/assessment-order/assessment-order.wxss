@@ -1,0 +1,4 @@
+@import "../../assessment-shared.wxss";
+.order-status { display: block; margin: 12rpx 0 24rpx; color: var(--zy-brand, #315ee8); font-size: 36rpx; font-weight: 700; line-height: 48rpx; }
+.order-line { display: block; margin: 10rpx 0; font-size: 25rpx; line-height: 38rpx; color: var(--zy-ink-2, #354052); overflow-wrap: anywhere; }
+.delivery-link { display: block; margin: 20rpx 0; padding: 20rpx; border-radius: 16rpx; background: #f4f8ff; font-size: 27rpx; line-height: 42rpx; color: #2448bd; overflow-wrap: anywhere; }

@@ -74,6 +74,20 @@ test('HTML job descriptions become readable text blocks without markup', () => {
   assert.equal(blocks.some(item => /<[^>]+>/.test(item.text)), false);
 });
 
+test('encoded recruitment HTML is cleaned and long descriptions start collapsed', () => {
+  const encoded = '<p><span>At Curtins, we&#39;re hiring.</span></p>'
+    + '<p class=&quot;MsoNormal&quot;><span>Graduate Transport Planner &amp; mobility</span></p>';
+  assert.deepEqual(contentBlocks(encoded).map(item => item.text), [
+    "At Curtins, we're hiring.",
+    'Graduate Transport Planner & mobility'
+  ]);
+  assert.deepEqual(contentBlocks('&amp;lt;p&amp;gt;Build&#39;s role&amp;lt;/p&amp;gt;').map(item => item.text), ["Build's role"]);
+  const longView = presentJob({ description: '<p>' + 'Job duties. '.repeat(60) + '</p><p>Qualifications</p>' });
+  assert.equal(longView.hasMoreDescription, true);
+  assert.ok(longView.descriptionPreviewBlocks[0].text.length <= 421);
+  assert.equal(longView.descriptionBlocks[1].text, 'Qualifications');
+});
+
 test('job lists share one card component and detail follows the decision order', () => {
   const jobsWxml = read('pages/jobs/jobs.wxml');
   const searchWxml = read('package-user/pages/search/search.wxml');
@@ -81,11 +95,15 @@ test('job lists share one card component and detail follows the decision order',
   const detailWxml = read('package-user/pages/job-detail/job-detail.wxml');
 
   assert.match(jobsWxml, /<c-job-card[\s\S]*bind:favorite="toggleSave"/);
+  assert.match(jobsWxml, /<c-job-card[^>]*compact="\{\{true\}\}"/);
+  assert.doesNotMatch(jobsWxml, /quick-chip|推荐岗位|control-row/);
   assert.match(searchWxml, /<c-job-card[\s\S]*bind:favorite="toggleJobFavorite"/);
   assert.match(cardWxml, /job-card__headline[\s\S]*job-card__title[\s\S]*job-card__salary/);
   assert.match(cardWxml, /attributeTags/);
   assert.match(cardWxml, /view\.skills/);
   assert.match(cardWxml, /job-card__deadline/);
+  assert.match(cardWxml, /compact && view\.deadlineText[\s\S]*job-card__tag--\{\{view\.deadlineTone\}\}/);
+  assert.match(cardWxml, /wx:if="\{\{!compact\}\}" class="job-card__deadline/);
   assert.match(cardWxml, /catchtap="toggleFavorite"/);
 
   const orderedMarkers = [

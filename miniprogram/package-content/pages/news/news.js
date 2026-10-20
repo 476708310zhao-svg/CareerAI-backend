@@ -29,8 +29,9 @@ Page({
     // 快讯数据
     allNews: [],
     displayList: [],
-    loading: false,
+    loading: true,
     refreshing: false,
+    loadError: false,
     lastUpdatedText: '刚刚',
 
     // 搜索
@@ -98,7 +99,7 @@ Page({
   // ======== 从后端拉取新闻，失败降级 mock ========
   loadNews(options = {}) {
     const lang = this.data.currentLang !== 'all' ? this.data.currentLang : 'zh';
-    if (!options.silent) this.setData({ loading: true });
+    this.setData(options.silent ? { loadError: false } : { loading: true, loadError: false });
     getNews({ tab: 'all', lang, limit: 60 })
       .then((res) => {
         const articles = res && res.articles;
@@ -109,6 +110,7 @@ Page({
             allNews,
             loading: false,
             refreshing: false,
+            loadError: false,
             lastUpdatedText: this.getTimeLabel(0)
           });
           try {
@@ -118,12 +120,12 @@ Page({
           this._applyFilter(this.data.currentTab, this.data.searchKeyword);
         } else {
           if (!this.data.allNews.length && demoData.enabled()) this.buildAllNews();
-          this.setData({ loading: false, refreshing: false });
+          this.setData({ loading: false, refreshing: false, loadError: false });
         }
       })
       .catch(() => {
         if (!this.data.allNews.length && demoData.enabled()) this.buildAllNews();
-        this.setData({ loading: false, refreshing: false });
+        this.setData({ loading: false, refreshing: false, loadError: !this.data.allNews.length });
       });
   },
 

@@ -40,6 +40,7 @@ Page({
     companyProfile: null,
     companyView: null,
     companyExpanded: false,
+    descriptionExpanded: false,
     similarJobs: [],
     v4Application: null,
     jobTrust: null,
@@ -281,9 +282,11 @@ Page({
     const companyProfile = patch && Object.prototype.hasOwnProperty.call(patch, 'companyProfile')
       ? patch.companyProfile
       : this.data.companyProfile;
+    const sameJob = this.data.job && String(this.data.job.id) === String(job.id);
     this.setData(Object.assign({
       job,
       jobView: presentJob(displaySource),
+      descriptionExpanded: sameJob ? this.data.descriptionExpanded : false,
       companyView: this.buildCompanyView(companyProfile, job),
       similarJobs: this.buildSimilarJobs(job),
       isApplied,
@@ -398,6 +401,10 @@ Page({
     // 2. 仅替换行首的 • 或 - 列表符号，避免破坏连字符单词（如 Full-time、Node.js）
     formatted = formatted.replace(/^[ \t]*[•\-][ \t]*/gm, ' • ');
     return formatted.trim();
+  },
+
+  toggleDescription: function() {
+    this.setData({ descriptionExpanded: !this.data.descriptionExpanded });
   },
 
   // 模拟数据

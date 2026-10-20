@@ -1,5 +1,5 @@
 page{background:#f4f8ff;color:#11182c}
-.jobs-page{min-height:100vh;padding-left:16rpx;padding-right:16rpx;background:radial-gradient(circle at 78% 8%,rgba(217,233,255,.6),transparent 33%),linear-gradient(180deg,#f8fbff 0%,#eef6ff 100%);box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+.jobs-page{min-height:100vh;padding-left:28rpx;padding-right:28rpx;background:linear-gradient(180deg,#f8fbff 0%,#eef6ff 100%);box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
 .search-line{display:flex;gap:12rpx}
 .search-box{display:flex;align-items:center;flex:1;height:74rpx;padding:0 24rpx;border:1rpx solid #dbe7f8;border-radius:24rpx;background:rgba(255,255,255,.94);box-shadow:0 9rpx 28rpx rgba(82,112,173,.04);box-sizing:border-box}
 .search-symbol{display:block;flex:0 0 32rpx;width:32rpx;height:32rpx;margin-right:14rpx}
@@ -10,10 +10,6 @@ page{background:#f4f8ff;color:#11182c}
 .filter-button{display:flex;align-items:center;justify-content:center;gap:10rpx;width:122rpx;height:74rpx;border:1rpx solid #dbe7f8;border-radius:24rpx;background:rgba(255,255,255,.94);font-size:25rpx;font-weight:500}
 .filter-button.active{color:#1765ef;border-color:#9ec0ff}
 .filter-symbol{display:block;width:30rpx;height:30rpx}
-.chip-scroll{margin-top:20rpx;white-space:nowrap}
-.chip-row{display:flex;gap:12rpx;padding:2rpx 2rpx}
-.quick-chip{flex-shrink:0;padding:13rpx 25rpx;border:1rpx solid rgba(255,255,255,.95);border-radius:999rpx;color:#6980aa;background:rgba(255,255,255,.62);font-size:24rpx;line-height:32rpx}
-.quick-chip.active{color:#1265ef;background:#e4efff;font-weight:600}
 .campus-entry{display:flex;align-items:center;min-height:104rpx;margin-top:24rpx;padding:14rpx 24rpx;border-radius:28rpx;background:rgba(255,255,255,.96);box-shadow:0 14rpx 38rpx rgba(63,101,170,.05);box-sizing:border-box}
 .campus-mark{display:flex;align-items:center;justify-content:center;width:68rpx;height:68rpx;border-radius:50%;color:#1f6cf4;background:#eaf3ff}
 .campus-mark image{display:block;width:36rpx;height:36rpx}
@@ -21,9 +17,10 @@ page{background:#f4f8ff;color:#11182c}
 .campus-title{font-size:29rpx;font-weight:600}
 .campus-action{color:#6e83aa;font-size:24rpx}
 .campus-arrow{display:block;width:30rpx;height:30rpx;margin-left:10rpx}
-.control-row{display:flex;align-items:center;justify-content:space-between;margin:26rpx 4rpx 14rpx}
-.result-title{display:block;font-size:34rpx;font-weight:700;line-height:46rpx}
-.job-list{padding-bottom:10rpx}
+.job-list{margin-top:26rpx;padding-bottom:10rpx}
+.job-list-head{display:flex;align-items:baseline;justify-content:space-between;gap:12rpx;margin:0 4rpx 14rpx}
+.job-list-title{color:#111827;font-size:31rpx;font-weight:700;line-height:42rpx}
+.job-list-count{color:#667085;font-size:24rpx;line-height:32rpx;white-space:nowrap}
 .source-notice,.profile-notice{margin:0 0 16rpx;padding:18rpx 22rpx;border-radius:18rpx;color:#60759c;background:#edf4ff;font-size:24rpx}
 .profile-notice{display:flex;align-items:center;justify-content:space-between}
 .notice-title,.notice-desc{display:block}
@@ -38,9 +35,9 @@ page{background:#f4f8ff;color:#11182c}
 .primary-action,.secondary-action{display:flex;align-items:center;justify-content:center;flex:1;min-height:82rpx;border-radius:20rpx;font-size:25rpx;font-weight:600}
 .primary-action{color:#fff;background:#2468ed}
 .secondary-action{color:#2468ed;border:1rpx solid #aac6fb;background:#fff}
-.skeleton-card{display:flex;min-height:190rpx;margin-bottom:20rpx;padding:26rpx;border-radius:28rpx;background:#fff}
-.skeleton-logo{width:92rpx;height:92rpx;border-radius:18rpx}
-.skeleton-copy{flex:1;margin-left:26rpx}
+.skeleton-card{display:flex;min-height:164rpx;margin-bottom:14rpx;padding:18rpx 20rpx;border-radius:24rpx;background:#fff}
+.skeleton-logo{width:76rpx;height:76rpx;border-radius:16rpx}
+.skeleton-copy{flex:1;margin-left:18rpx}
 .skeleton-title{width:65%;height:30rpx;margin-top:8rpx;border-radius:8rpx}
 .skeleton-line{width:86%;height:24rpx;margin-top:24rpx;border-radius:8rpx}
 .shimmer{background:linear-gradient(90deg,#eef3fa 25%,#f8fbff 50%,#eef3fa 75%);background-size:200% 100%;animation:shimmer 1.3s linear 2}
@@ -66,7 +63,7 @@ page{background:#f4f8ff;color:#11182c}
 .search-box{min-height:88rpx}
 .clear-button,.panel-close{min-height:88rpx}
 .filter-button{min-height:88rpx}
-.quick-chip,.history-chip,.filter-chip{display:flex;align-items:center;min-height:88rpx;box-sizing:border-box}
+.history-chip,.filter-chip{display:flex;align-items:center;min-height:88rpx;box-sizing:border-box}
 .history-clear{min-height:88rpx}
 .match-button{min-height:88rpx}
 .notice-action{display:flex;align-items:center;min-height:88rpx}

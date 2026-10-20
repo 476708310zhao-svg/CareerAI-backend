@@ -7,8 +7,8 @@ function get(path, params) {
   return client.request({ path, params: params || {}, noCache: true });
 }
 
-function write(method, path, body) {
-  return client._write({ method, path, body: body || {}, timeout: 20000 });
+function write(method, path, body, timeout = 20000) {
+  return client._write({ method, path, body: body || {}, timeout });
 }
 
 function getProfile() { return get('/api/v4/profile'); }
@@ -71,7 +71,7 @@ function getResumeVersions(id) { return get('/api/v4/resumes/' + encodeURICompon
 function createResumeVersion(id, payload) { return write('POST', '/api/v4/resumes/' + encodeURIComponent(id) + '/versions', payload); }
 function compareResumeVersions(id, from, to) { return get('/api/v4/resumes/' + encodeURIComponent(id) + '/versions/compare', { from, to }); }
 function restoreResumeVersion(id, versionId, payload) { return write('POST', '/api/v4/resumes/' + encodeURIComponent(id) + '/versions/' + encodeURIComponent(versionId) + '/restore', payload); }
-function createResumeChangeSet(id, payload) { return write('POST', '/api/v4/resumes/' + encodeURIComponent(id) + '/ai-change-sets', payload); }
+function createResumeChangeSet(id, payload) { return write('POST', '/api/v4/resumes/' + encodeURIComponent(id) + '/ai-change-sets', payload, 50000); }
 function confirmResumeChangeSet(id, payload) { return write('POST', '/api/v4/resumes/ai-change-sets/' + encodeURIComponent(id) + '/confirm', payload); }
 function rejectResumeChangeSet(id, payload) { return write('POST', '/api/v4/resumes/ai-change-sets/' + encodeURIComponent(id) + '/reject', payload); }
 function getMaterialQuota() { return get('/api/v4/materials/quota'); }

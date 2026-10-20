@@ -1,5 +1,6 @@
 const api = require('../../../utils/api-v4.js');
 const ownerStorage = require('../../../utils/owner-storage.js');
+const appConfig = require('../../../utils/app-config.js');
 
 const TYPE_LABELS = {
   education: '教育', experience: '工作', project: '项目', skill: '技能', award: '奖项'
@@ -17,6 +18,10 @@ Page({
     attachmentStage: '',
     attachmentError: '',
     busyAttachmentId: null,
+    optimizing: false,
+    optimizingResumeId: null,
+    optimizationError: '',
+    optimizationDiagnostic: '',
     resumes: [],
     experiences: [],
     currentResume: null,
@@ -148,7 +153,7 @@ Page({
     });
   },
   optimizeAttachment(e) {
-    if (this.data.attachmentBusy) return;
+    if (this.data.attachmentBusy || this.data.loading || this._optimizingResume) return;
     const id = Number(e.currentTarget.dataset.id);
     const attachment = this.data.attachments.find(item => Number(item.id) === id);
     if (!attachment) return;
@@ -215,6 +220,10 @@ Page({
   },
 
   selectResume(e) {
+    if (this._optimizingResume) {
+      wx.showToast({ title: '正在生成建议，请稍候', icon: 'none' });
+      return;
+    }
     const item = this.data.resumes.find(row => String(row.id) === String(e.currentTarget.dataset.id));
     if (item) {
       this._restoreRequestGeneration = (this._restoreRequestGeneration || 0) + 1;
@@ -337,9 +346,10 @@ Page({
     const owner = ownerStorage.capture();
     const generation = this._proposalRequestGeneration = (this._proposalRequestGeneration || 0) + 1;
     const selectedResumeId = this.data.currentResume.id;
-    this.setData({ loading: true });
+    const startedAt = Date.now();
+    this.setData({ loading: true, optimizing: true, optimizingResumeId: selectedResumeId, optimizationError: '', optimizationDiagnostic: '', attachmentError: '' });
     const context = this.data.optimizationContext || {};
-    api.createResumeChangeSet(this.data.currentResume.id, {
+    return api.createResumeChangeSet(this.data.currentResume.id, {
       jobId: context.jobId || '',
       applicationId: context.applicationId || null,
       jdText: context.jdText || ''
@@ -356,12 +366,31 @@ Page({
       }
       const decisions = {};
       (proposal.suggestions || []).forEach(item => { decisions[item.id] = 'reject'; });
-      this.setData({ proposal, decisions, manualMode: false, manualJson: JSON.stringify(proposal.sourceContent || {}, null, 2), loading: false });
+      this.setData({ proposal, decisions, manualMode: false, manualJson: JSON.stringify(proposal.sourceContent || {}, null, 2), loading: false, optimizing: false, optimizingResumeId: null });
     }).catch(err => {
       if (this._unloaded || generation !== this._proposalRequestGeneration || !ownerStorage.isCurrent(owner)) return;
-      this.setData({ loading: false });
-      this.setData({ attachmentError: err.message || '生成失败，请补充简历内容后重试。' });
-      wx.showToast({ title: '优化失败，请查看提示', icon: 'none' });
+      const isTimeout = /超时|timeout/i.test(String(err && err.message || ''));
+      const rawDetail = String(err && err.detail || '');
+      const isNetworkFailure = err && err.code === 'NETWORK_ERROR' && !isTimeout;
+      let message = (err && err.message) || '生成失败，请补充简历内容后重试。';
+      if (isTimeout) message = '生成建议超时，请稍后重试。原简历没有被修改。';
+      else if (isNetworkFailure && /domain|合法域名/i.test(rawDetail)) {
+        message = '小程序无法请求当前接口域名，请联系管理员检查 request 合法域名配置。';
+      } else if (isNetworkFailure && /ssl|tls|cert|证书/i.test(rawDetail)) {
+        message = '安全连接建立失败，请联系管理员检查接口证书。';
+      } else if (isNetworkFailure) {
+        message = '简历优化请求的连接中断了，请稍后重试。原简历没有被修改。';
+      }
+      const safeDetail = rawDetail.replace(/(Bearer\s+)\S+/ig, '$1[hidden]')
+        .replace(/([?&](?:token|key|auth)=)[^&\s]+/ig, '$1[hidden]').slice(0, 120);
+      const diagnostic = appConfig.MINI_PROGRAM_ENV_VERSION === 'develop' && isNetworkFailure
+        ? `调试信息：${err.code}，${Math.round((Date.now() - startedAt) / 1000)} 秒，${safeDetail || 'wx.request fail'}` : '';
+      this.setData({ loading: false, optimizing: false, optimizingResumeId: null, optimizationError: message, optimizationDiagnostic: diagnostic });
+      if (typeof wx.showModal === 'function') {
+        wx.showModal({ title: '优化未完成', content: diagnostic ? `${message}\n${diagnostic}` : message, showCancel: false, confirmText: '知道了' });
+      } else {
+        wx.showToast({ title: '优化未完成，请查看提示', icon: 'none' });
+      }
     }).finally(() => { this._optimizingResume = false; });
   },
 

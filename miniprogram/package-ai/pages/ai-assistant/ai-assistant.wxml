@@ -11,66 +11,55 @@
     <view class="top-title">
       <text class="top-icon">AI</text>
       <view class="top-copy">
-        <text class="top-name">{{contextActive ? 'AI 帮我推进' : 'AI 求职助手'}}</text>
+        <text class="top-name">AI 求职助手</text>
         <text class="top-sub">{{contextActive ? '已连接当前求职任务' : '把问题变成一个可执行的下一步'}}</text>
       </view>
     </view>
-    <view class="new-chat-btn" bindtap="toggleSidebar" hover-class="btn-hover" aria-role="button" aria-label="打开 AI 工具与历史">
-      <view class="new-chat-bubble"></view><text class="new-chat-icon">+</text>
+    <view class="header-new" bindtap="onNewChat" aria-role="button" aria-label="新建对话">✎</view>
+    <view class="new-chat-btn" bindtap="toggleSidebar" hover-class="btn-hover" aria-role="button" aria-label="打开历史对话">
+      <text class="new-chat-icon">☰</text>
     </view>
   </view>
 
-  <view wx:if="{{contextActive}}" class="context-bar" aria-role="status" aria-label="当前上下文：{{contextLabel}}">
-    <text class="context-caption">当前上下文</text><view class="context-divider"></view><text class="context-text">{{contextLabel}}</text><view class="context-switch" bindtap="toggleSidebar"><text>切换</text><text class="context-arrow">›</text></view>
-  </view>
-
-  <view wx:if="{{sidebarOpen}}" class="drawer-mask" bindtap="toggleSidebar"></view>
-  <view class="drawer {{sidebarOpen ? 'open' : ''}}" style="padding-top: {{statusBarHeight}}px;">
-    <scroll-view scroll-y enhanced show-scrollbar="{{false}}" class="drawer-scroll">
-      <view class="drawer-brand">
-        <view class="drawer-logo">AI</view>
-        <view class="drawer-title-wrap">
-          <text class="drawer-title">求职助手</text>
-        </view>
-      </view>
-      <view class="drawer-new" bindtap="onNewChat" hover-class="card-hover">
-        <text class="drawer-new-icon">+</text>
-        <text>新对话</text>
-      </view>
-      <view class="drawer-section-title">AI 工具</view>
-      <block wx:for="{{assistantTools}}" wx:key="title">
-        <view
-          wx:if="{{index < 4 || showMoreTools}}"
-          class="drawer-tool"
-          bindtap="onToolAction"
-          data-action="{{item.action}}"
-          data-text="{{item.prompt}}"
-          data-url="{{item.url}}"
-          hover-class="card-hover"
-        >
-          <view class="drawer-tool-icon">{{item.icon}}</view>
-          <view class="drawer-tool-copy">
-            <text class="drawer-tool-title">{{item.title}}</text>
-            <text class="drawer-tool-desc">{{item.desc}}</text>
-          </view>
-        </view>
-      </block>
-      <view wx:if="{{assistantTools.length > 4}}" class="drawer-more" bindtap="toggleMoreTools" hover-class="card-hover">
-        <text>{{showMoreTools ? '收起' : '更多'}}</text>
-        <text class="drawer-more-count" wx:if="{{!showMoreTools}}">其余 {{assistantTools.length - 4}} 个功能</text>
-      </view>
-      <view class="drawer-section-title recent-title">最近对话</view>
+  <view wx:if="{{sidebarOpen}}" class="drawer-mask" bindtap="toggleSidebar" aria-hidden="true"></view>
+  <view class="drawer {{sidebarOpen ? 'open' : ''}}" style="padding-top: {{drawerTopInset}}px; padding-bottom: {{safeBottom + 16}}px;" aria-role="dialog" aria-label="历史对话" aria-hidden="{{!sidebarOpen}}">
+    <view class="drawer-brand"><text class="drawer-title">AI 求职助手</text><view class="drawer-close" bindtap="toggleSidebar" hover-class="btn-hover" aria-role="button" aria-label="关闭历史侧栏">×</view></view>
+    <view class="drawer-new" bindtap="onNewChat" hover-class="card-hover" aria-role="button" aria-label="新建 AI 对话"><text class="drawer-new-icon">✎</text><text>新对话</text></view>
+    <view class="drawer-search"><text class="drawer-search-icon">⌕</text><input value="{{chatSearch}}" bindinput="onSearchChats" placeholder="搜索对话" aria-label="搜索历史对话"/></view>
+    <scroll-view wx:if="{{recentChats.length > 0}}" scroll-y enhanced show-scrollbar="{{false}}" class="drawer-scroll">
       <block wx:for="{{recentChats}}" wx:key="id">
-        <view class="recent-chat" bindtap="toggleSidebar" hover-class="card-hover">
-          <view class="recent-dot"></view>
-          <view class="recent-copy">
-            <text class="recent-name">{{item.title}}</text>
-            <text class="recent-preview">{{item.preview}}</text>
-          </view>
-          <text class="recent-time">{{item.time}}</text>
+        <view wx:if="{{item.showGroup}}" class="drawer-section-title">{{item.groupLabel}}</view>
+        <view class="recent-chat {{item.active ? 'active' : ''}}" bindtap="onSelectChat" data-id="{{item.id}}" hover-class="card-hover" aria-role="button" aria-label="打开对话：{{item.title}}" aria-selected="{{item.active}}">
+          <text class="recent-icon">◯</text><text class="recent-name">{{item.title}}</text>
+          <view class="recent-options" catchtap="onChatOptions" data-id="{{item.id}}" aria-role="button" aria-label="管理对话：{{item.title}}">···</view>
         </view>
       </block>
     </scroll-view>
+    <view wx:else class="drawer-empty">
+      <view class="drawer-empty-icon"><image src="/images/zhiyin-icons/spark.svg" mode="aspectFit" aria-hidden="true" /></view>
+      <text class="drawer-empty-title">{{chatSearch ? '没有找到对话' : '还没有历史对话'}}</text>
+      <text class="drawer-empty-desc">{{chatSearch ? '试试其他关键词' : '发送第一条消息后，对话会保存在这里。'}}</text>
+    </view>
+  </view>
+
+  <view wx:if="{{toolPanelOpen}}" class="tool-mask" bindtap="toggleToolPanel" aria-hidden="true"></view>
+  <view wx:if="{{toolPanelOpen}}" class="tool-panel" aria-role="dialog" aria-label="求职工具">
+    <view class="tool-panel-head"><text>求职工具</text><view bindtap="toggleToolPanel" aria-role="button" aria-label="关闭求职工具">×</view></view>
+    <scroll-view scroll-y class="tool-panel-scroll">
+      <block wx:for="{{assistantTools}}" wx:key="title">
+        <text wx:if="{{index===0 || index===3 || index===6}}" class="tool-group-label">{{index===0 ? '对话与材料' : index===3 ? '面试练习' : '规划与记录'}}</text>
+        <view class="tool-item" bindtap="onToolAction" data-action="{{item.action}}" data-text="{{item.prompt}}" data-url="{{item.url}}" aria-role="button" aria-label="{{item.title}}，{{item.prompt ? '填入提问' : '打开功能页'}}">
+          <view class="tool-icon">{{item.icon}}</view><view class="tool-copy"><text class="tool-name">{{item.title}}</text><text class="tool-desc">{{item.desc}}</text></view><text class="tool-action">{{item.prompt ? '填入' : '打开'}}</text>
+        </view>
+      </block>
+    </scroll-view>
+  </view>
+
+  <view wx:if="{{contextInfoOpen}}" class="tool-mask" bindtap="toggleContextInfo" aria-hidden="true"></view>
+  <view wx:if="{{contextInfoOpen}}" class="context-panel" aria-role="dialog" aria-label="当前对话上下文">
+    <view class="tool-panel-head"><text>当前对话上下文</text><view bindtap="toggleContextInfo" aria-role="button" aria-label="关闭上下文详情">×</view></view>
+    <text class="context-panel-name">{{contextLabel || '通用求职'}}</text><text class="context-panel-desc">{{hasAssistantResume ? '相关问题可使用当前简历资料；发送前可移除任务上下文。' : '本次对话会结合当前求职任务回答。'}}</text>
+    <view class="context-remove" bindtap="clearChatContext" aria-role="button" aria-label="移除当前任务上下文">移除当前任务</view>
   </view>
 
   <!-- 消息列表 -->
@@ -147,14 +136,14 @@
                 </view>
               </view>
               <view class="answer-action-grid">
-                <view class="answer-action-btn ux-result-action" bindtap="onCopyAnswer" data-index="{{index}}" hover-class="card-hover">
+                <view class="answer-action-btn ux-result-action" bindtap="onCopyAnswer" data-index="{{index}}" hover-class="card-hover" aria-role="button" aria-label="复制这条 AI 回答">
                   <text>复制</text>
                 </view>
-                <view class="answer-action-btn ux-result-action" bindtap="onSaveAnswer" data-index="{{index}}" hover-class="card-hover">
+                <view class="answer-action-btn ux-result-action" bindtap="onSaveAnswer" data-index="{{index}}" hover-class="card-hover" aria-role="button" aria-label="保存这条 AI 回答">
                   <text>保存</text>
                 </view>
-                <view class="answer-action-btn ux-result-action primary" bindtap="onContinueAsk" data-type="follow" hover-class="card-hover">
-                  <text>继续追问</text>
+                <view wx:if="{{index === latestAiIdx && !loading && !streaming}}" class="answer-action-btn ux-result-action primary" bindtap="onRegenerateAnswer" data-index="{{index}}" hover-class="card-hover" aria-role="button" aria-label="重新生成这条 AI 回答">
+                  <text>重试</text>
                 </view>
               </view>
               <view
@@ -171,6 +160,8 @@
                     bindtap="onSuggestion"
                     data-text="{{sug}}"
                     hover-class="chip-hover"
+                    aria-role="button"
+                    aria-label="发送追问：{{sug}}"
                   >{{sug}}</view>
                 </view>
               </view>
@@ -183,31 +174,16 @@
                 bindtap="onRetry"
                 data-text="{{item.retryText}}"
                 hover-class="btn-hover"
+                aria-role="button"
+                aria-label="重新发送上一条消息"
               >
                 <text class="retry-txt">↻ 重新发送</text>
               </view>
             </view>
 
-            <!-- 首条欢迎消息：核心功能入口 -->
-            <view wx:if="{{item.isWelcome && index === 0}}" class="suite-grid">
-              <view
-                wx:for="{{aiSuites}}"
-                wx:for-item="suite"
-                wx:key="title"
-                class="suite-card {{(loading || streaming) ? 'quick-disabled' : ''}}"
-                wx:if="{{index < 4}}"
-                bindtap="onToolAction"
-                data-action="{{suite.action}}"
-                data-url="{{suite.url}}"
-                data-text="{{suite.prompt}}"
-                hover-class="card-hover"
-              >
-                <view class="suite-icon">{{suite.icon}}</view>
-                <view class="suite-copy">
-                  <text class="suite-title">{{suite.title}}</text>
-                  <text class="suite-desc">{{suite.desc}}</text>
-                </view>
-              </view>
+            <view wx:if="{{item.isWelcome && index === 0}}" class="welcome-starters">
+              <text class="welcome-starters-label">你可以这样开始</text>
+              <view wx:for="{{starterPrompts}}" wx:key="title" class="welcome-starter" bindtap="onSuggestion" data-text="{{item.prompt}}" aria-role="button" aria-label="发送：{{item.title}}"><text>{{item.title}}</text><text>›</text></view>
             </view>
 
           </view>
@@ -219,11 +195,10 @@
     </view>
   </scroll-view>
 
-  <!-- 输入栏 -->
   <view class="input-bar {{keyboardHeight > 0 ? 'keyboard-open' : ''}}" style="bottom: {{keyboardHeight}}px; padding-bottom: {{keyboardHeight > 0 ? 18 : safeBottom + 18}}px;">
-    <view class="input-wrap">
-      <text class="input-leading">⌕</text>
-      <input
+    <view wx:if="{{contextActive}}" class="composer-context-chip" bindtap="toggleContextInfo" aria-role="button" aria-label="查看当前任务上下文：{{contextLabel}}"><text>◇ 当前任务 · {{contextLabel}}</text><text class="composer-context-open">›</text></view>
+    <view class="composer-shell">
+      <textarea
         class="input"
         placeholder="{{composerPlaceholder}}"
         placeholder-class="input-ph"
@@ -231,19 +206,16 @@
         bindinput="onInputChange"
         bindfocus="onInputFocus"
         bindblur="onInputBlur"
-        bindconfirm="onSend"
         bindkeyboardheightchange="onKeyboardHeight"
-        confirm-type="send"
-        confirm-hold="{{true}}"
-        maxlength="300"
+        auto-height="{{true}}"
+        maxlength="500"
         adjust-position="{{false}}"
         cursor-spacing="24"
-        hold-keyboard="{{true}}"
-      />
-    </view>
-    <view class="input-right">
-      <text wx:if="{{inputLen > 260}}" class="char-count {{inputLen >= 285 ? 'char-warn' : ''}}">{{inputLen}}/300</text>
-      <!-- 停止/发送统一按钮 -->
+      ></textarea>
+      <view class="composer-footer">
+      <view class="composer-tool" bindtap="toggleToolPanel" aria-role="button" aria-label="打开求职工具"><text class="composer-plus">＋</text><text>工具</text></view>
+      <view class="composer-spacer"></view>
+      <text wx:if="{{inputLen > 450}}" class="char-count {{inputLen >= 480 ? 'char-warn' : ''}}">{{inputLen}}/500</text>
       <view
         class="send-btn {{streaming ? 'stop-btn' : (inputText && !loading ? 'active' : 'inactive')}}"
         bindtap="onSendOrStop"
@@ -252,6 +224,7 @@
         aria-label="{{streaming ? '停止生成' : '发送消息'}}"
       >
         <text class="send-icon">{{streaming ? '■' : '↑'}}</text>
+      </view>
       </view>
     </view>
   </view>

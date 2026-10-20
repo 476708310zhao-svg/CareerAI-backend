@@ -6,3 +6,62 @@
 .state-copy{display:block;margin-top:10rpx;color:#6b7280;font-size:24rpx;line-height:36rpx}
 .state-action{display:flex;align-items:center;justify-content:center;min-width:220rpx;min-height:88rpx;box-sizing:border-box;margin-top:28rpx;padding:0 32rpx;border-radius:18rpx;color:#fff;background:#315ff4;font-size:25rpx;font-weight:700}
 .press{opacity:.72}
+
+/* OA 练习入口与资源中心使用同一套浅蓝底、白色卡片和蓝色主行动。 */
+.page { box-sizing: border-box; padding-bottom: 104rpx; background: #f3f7fe; color: #17213a; }
+.oa-header { padding: 34rpx 30rpx 22rpx; }
+.oa-kicker { display: block; color: #175cd3; font-size: 23rpx; font-weight: 700; line-height: 32rpx; }
+.oa-title { display: block; margin-top: 4rpx; color: #101a34; font-size: 42rpx; font-weight: 800; line-height: 56rpx; }
+.oa-subtitle { display: block; margin-top: 4rpx; color: #667085; font-size: 25rpx; line-height: 36rpx; }
+.oa-tabs { display: flex; gap: 8rpx; margin: 0 24rpx 18rpx; padding: 6rpx; border: 1rpx solid #e1e9f6; border-radius: 22rpx; background: #fff; }
+.oa-tab { display: flex; flex: 1; align-items: center; justify-content: center; min-height: 88rpx; border-radius: 17rpx; color: #667085; font-size: 27rpx; font-weight: 650; }
+.oa-tab.is-active { color: #175cd3; background: #eaf2ff; }
+.practice-intro { margin: 0 24rpx 16rpx; padding: 22rpx 24rpx; border: 1rpx solid #dce7f8; border-radius: 26rpx; background: #fff; box-shadow: 0 8rpx 26rpx rgba(46,91,169,.04); }
+.practice-intro-top { display: flex; align-items: center; justify-content: space-between; }
+.practice-intro-title { color: #17213a; font-size: 30rpx; font-weight: 750; line-height: 42rpx; }
+.practice-count { padding: 5rpx 12rpx; border-radius: 10rpx; color: #175cd3; background: #eaf2ff; font-size: 23rpx; font-weight: 700; }
+.practice-intro-copy { display: block; margin-top: 6rpx; color: #667085; font-size: 24rpx; line-height: 36rpx; }
+.category-scroll { width: 100%; margin-bottom: 16rpx; white-space: nowrap; }
+.category-row { display: flex; gap: 10rpx; padding: 0 24rpx 2rpx; }
+.category-chip { display: inline-flex; flex: none; align-items: center; justify-content: center; min-height: 80rpx; box-sizing: border-box; padding: 0 22rpx; border: 1rpx solid #dce6f5; border-radius: 18rpx; color: #475467; background: #fff; font-size: 24rpx; font-weight: 600; }
+.category-chip text { margin-left: 8rpx; color: #667085; }
+.category-chip.is-active { border-color: #b8d0fb; color: #175cd3; background: #eaf2ff; }
+.category-chip.is-active text { color: #175cd3; }
+.practice-card,.practice-finish { margin: 0 24rpx; padding: 26rpx 24rpx; border: 1rpx solid #e1e9f6; border-radius: 28rpx; background: #fff; box-shadow: 0 10rpx 30rpx rgba(46,91,169,.05); }
+.practice-card-top { display: flex; justify-content: space-between; gap: 16rpx; color: #667085; font-size: 24rpx; line-height: 34rpx; }
+.practice-card-top text:first-child { color: #175cd3; font-weight: 700; }
+.practice-track { height: 8rpx; margin-top: 16rpx; overflow: hidden; border-radius: 8rpx; background: #edf2fa; }
+.practice-track view { height: 100%; border-radius: 8rpx; background: #2f5ee8; transition: width 180ms ease; }
+.practice-stem { display: block; margin: 28rpx 0 24rpx; color: #101a34; font-size: 31rpx; font-weight: 700; line-height: 46rpx; }
+.practice-choices { display: flex; flex-direction: column; gap: 12rpx; }
+.practice-choice { display: flex; align-items: center; min-height: 96rpx; box-sizing: border-box; padding: 16rpx; border: 1rpx solid #e1e8f3; border-radius: 18rpx; background: #f9fbff; }
+.choice-letter { display: flex; flex: none; align-items: center; justify-content: center; width: 44rpx; height: 44rpx; margin-right: 14rpx; border-radius: 12rpx; color: #50627f; background: #eaf0f9; font-size: 23rpx; font-weight: 750; }
+.choice-text { flex: 1; color: #26334f; font-size: 26rpx; line-height: 38rpx; }
+.practice-choice.is-selected { border-color: #8fb4f8; background: #eef5ff; }
+.practice-choice.is-selected .choice-letter { color: #fff; background: #2f5ee8; }
+.practice-choice.is-correct { border-color: #9bd6be; background: #effaf4; }
+.practice-choice.is-correct .choice-letter { color: #fff; background: #159363; }
+.practice-choice.is-wrong { border-color: #f3b4ab; background: #fff3f1; }
+.practice-choice.is-wrong .choice-letter { color: #fff; background: #dc5647; }
+.practice-feedback { margin-top: 20rpx; padding: 18rpx 20rpx; border-radius: 16rpx; background: #effaf4; }
+.practice-feedback.is-wrong { background: #fff6eb; }
+.feedback-title { display: block; color: #147d57; font-size: 25rpx; font-weight: 700; line-height: 36rpx; }
+.practice-feedback.is-wrong .feedback-title { color: #975014; }
+.feedback-copy { display: block; margin-top: 6rpx; color: #475467; font-size: 24rpx; line-height: 36rpx; }
+.practice-action { display: flex; align-items: center; justify-content: center; min-height: 88rpx; margin-top: 24rpx; border-radius: 18rpx; color: #fff; background: #315ff4; font-size: 27rpx; font-weight: 700; }
+.practice-footnote { display: block; margin: 20rpx 24rpx 0; color: #667085; font-size: 24rpx; line-height: 36rpx; text-align: center; }
+.practice-finish { padding: 40rpx 28rpx; text-align: center; }
+.finish-kicker { display: block; color: #175cd3; font-size: 24rpx; font-weight: 700; }
+.finish-score { display: block; margin-top: 12rpx; color: #101a34; font-size: 38rpx; font-weight: 800; }
+.finish-copy { display: block; margin-top: 12rpx; color: #667085; font-size: 24rpx; line-height: 38rpx; }
+.record-intro { margin: 0 24rpx 16rpx; padding: 24rpx; border: 1rpx solid #dce7f8; border-radius: 26rpx; background: #fff; }
+.record-title { display: block; color: #101a34; font-size: 30rpx; font-weight: 750; line-height: 42rpx; }
+.record-sub { display: block; margin-top: 6rpx; color: #667085; font-size: 24rpx; line-height: 36rpx; }
+.summary { margin-top: 16rpx; color: #175cd3; font-weight: 700; }
+.notice { margin: 16rpx 24rpx; }
+.section { margin: 16rpx 24rpx; padding: 24rpx; border: 1rpx solid #e1e9f6; border-radius: 26rpx; background: #fff; }
+.section-head .section-title { margin-bottom: 0; }
+.section .capability:last-child { border-bottom: 0; }
+.small-button { display: flex; align-items: center; justify-content: center; min-height: 80rpx; box-sizing: border-box; }
+.sheet .button,.section .button,.timer-card .button { display: flex; align-items: center; justify-content: center; min-height: 88rpx; box-sizing: border-box; }
+@media (prefers-reduced-motion: reduce) { .practice-track view { transition: none; } }

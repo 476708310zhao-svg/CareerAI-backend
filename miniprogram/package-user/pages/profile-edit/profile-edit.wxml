@@ -1,26 +1,19 @@
 <!-- pages/profile-edit/profile-edit.wxml -->
 <view class="container">
 
-  <!-- Hero: 头像 + 进度 合并为一个卡片 -->
+  <!-- 简明的身份卡；完整度仍用于匹配计算，不作为填写门槛展示 -->
   <view class="hero-card">
-    <view class="hero-avatar-row" bindtap="changeAvatar">
+    <view class="hero-avatar-row" bindtap="changeAvatar" aria-role="button" aria-label="更换头像">
       <view class="avatar-wrapper">
         <image class="avatar" src="{{avatarPreview || userInfo.avatarUrl || '/images/default-avatar.png'}}" mode="aspectFill"/>
-        <view class="camera-badge">📷</view>
+        <view class="camera-badge">+</view>
       </view>
       <view class="hero-text">
         <text class="hero-name">{{userInfo.nickName || '点击设置昵称'}}</text>
-        <text class="hero-school">{{userInfo.school || userInfo.major || '完善信息，提升匹配度'}}</text>
+        <text class="hero-school">{{userInfo.school || userInfo.major || '可随时补充或修改资料'}}</text>
       </view>
     </view>
-    <view class="progress-wrap">
-      <text class="progress-label">资料完整度</text>
-      <view class="profile-progress">
-        <view class="profile-progress-fill" style="width: {{completeness}}%;"></view>
-      </view>
-      <text class="progress-tip">资料越完整，匹配的岗位和题目越精准</text>
-      <text class="progress-missing" wx:if="{{completionMissing.length}}">还需完善 {{completionMissing.length}} 项关键信息</text>
-    </view>
+    <text class="hero-help">先填写学校、学历和求职方向，其他信息可以稍后补充。</text>
   </view>
 
   <!-- 基本信息 -->
@@ -31,7 +24,6 @@
   <view class="form-card">
     <view class="form-item">
       <view class="label-wrap">
-        <text class="label-icon">👤</text>
         <text class="label">昵称</text>
       </view>
       <input class="input" type="nickname" value="{{userInfo.nickName}}" placeholder="点击可使用微信昵称" placeholder-style="color:#C4C9D4;" maxlength="20" data-field="nickName" bindinput="onInput" bindblur="onInput"/>
@@ -39,7 +31,6 @@
     <view class="form-divider"></view>
     <view class="form-item">
       <view class="label-wrap">
-        <text class="label-icon">🏫</text>
         <text class="label">学校</text>
       </view>
       <input class="input" value="{{userInfo.school}}" placeholder="请输入学校名称" placeholder-style="color:#C4C9D4;" maxlength="40" data-field="school" bindinput="onInput"/>
@@ -47,42 +38,25 @@
     <view class="form-divider"></view>
     <view class="form-item">
       <view class="label-wrap">
-        <text class="label-icon">📚</text>
         <text class="label">专业</text>
       </view>
       <input class="input" value="{{userInfo.major}}" placeholder="如：计算机科学 · 硕士" placeholder-style="color:#C4C9D4;" maxlength="40" data-field="major" bindinput="onInput"/>
     </view>
   </view>
 
-  <!-- 求职状态 -->
+  <!-- 学历 -->
   <view class="section-title">
     <view class="section-accent"></view>
-    <text>学历与状态</text>
+    <text>学历</text>
   </view>
   <view class="form-card pad">
     <text class="sub-label">最高学历</text>
-    <view class="chip-row wrap">
-      <block wx:for="{{degreeOptions}}" wx:key="value">
-        <view
-          class="chip {{userInfo.degree === item.value ? 'chip-active' : ''}}"
-          bindtap="selectSingle"
-          data-field="degree"
-          data-value="{{item.value}}"
-        >{{item.label}}</view>
-      </block>
-    </view>
-
-    <text class="sub-label mt">当前状态</text>
-    <view class="chip-row wrap">
-      <block wx:for="{{statusOptions}}" wx:key="value">
-        <view
-          class="chip {{userInfo.status === item.value ? 'chip-active' : ''}}"
-          bindtap="selectSingle"
-          data-field="status"
-          data-value="{{item.value}}"
-        >{{item.label}}</view>
-      </block>
-    </view>
+    <picker mode="selector" range="{{degreeOptions}}" range-key="label" value="{{degreeIndex}}" bindchange="onDegreeChange">
+      <view class="year-picker {{userInfo.degree ? 'has-value' : ''}}">
+        <text>{{degreeDisplay || '点击选择最高学历'}}</text>
+        <text class="year-picker-arrow">›</text>
+      </view>
+    </picker>
 
     <text class="sub-label mt">预计毕业年份</text>
     <picker
@@ -125,14 +99,49 @@
       <text class="select-trigger-icon">⌕</text>
     </view>
 
-    <text class="sub-label mt">常见地区</text>
+  </view>
+
+  <!-- 目标岗位 -->
+  <view class="section-title">
+    <view class="section-accent"></view>
+    <text>目标岗位</text>
+    <text class="section-note">最多5个</text>
+  </view>
+  <view class="form-card pad multi-select-card">
+    <!-- 已选岗位 -->
+    <view class="selection-summary" wx:if="{{userInfo.targetRoles.length > 0}}">
+      <view class="selected-tags">
+        <view class="selected-tag" wx:for="{{userInfo.targetRoles}}" wx:key="*this">
+          <text>{{item}}</text>
+          <text class="tag-remove" catchtap="removeRole" data-value="{{item}}">×</text>
+        </view>
+      </view>
+      <view class="compact-select-trigger" bindtap="openMultiSelector" data-field="targetRoles">
+        <text class="compact-select-icon">⌕</text>
+        <text>继续添加</text>
+      </view>
+    </view>
+
+    <view wx:if="{{!userInfo.targetRoles.length}}" class="select-trigger" bindtap="openMultiSelector" data-field="targetRoles">
+      <text>搜索标准岗位，未命中可补充</text>
+      <text class="select-trigger-icon">⌕</text>
+    </view>
+
+  </view>
+
+  <view class="more-toggle" bindtap="toggleMore" aria-role="button" aria-label="{{showMore ? '收起其他资料' : '展开其他资料'}}">
+    <view><text class="more-title">其他资料</text><text class="more-hint">行业、求职类型、签证、技能等按需填写</text></view>
+    <text class="more-arrow">{{showMore ? '收起⌃' : '展开⌄'}}</text>
+  </view>
+  <block wx:if="{{showMore}}">
+  <view class="section-title">
+    <view class="section-accent"></view>
+    <text>当前求职状态</text>
+  </view>
+  <view class="form-card pad">
     <view class="chip-row wrap">
-      <block wx:for="{{locationOptions}}" wx:key="label">
-        <view
-          class="chip {{item.selected ? 'chip-active' : ''}}"
-          bindtap="toggleLocation"
-          data-value="{{item.label}}"
-        >{{item.label}}</view>
+      <block wx:for="{{statusOptions}}" wx:key="value">
+        <view class="chip {{userInfo.status === item.value ? 'chip-active' : ''}}" bindtap="selectSingle" data-field="status" data-value="{{item.value}}">{{item.label}}</view>
       </block>
     </view>
   </view>
@@ -162,16 +171,6 @@
       <text class="select-trigger-icon">⌕</text>
     </view>
 
-    <text class="sub-label mt">常见行业</text>
-    <view class="chip-row wrap">
-      <block wx:for="{{industryOptions}}" wx:key="label">
-        <view
-          class="chip {{item.selected ? 'chip-active' : ''}}"
-          bindtap="toggleIndustry"
-          data-value="{{item.label}}"
-        >{{item.label}}</view>
-      </block>
-    </view>
   </view>
 
   <!-- 求职类型 -->
@@ -236,44 +235,6 @@
     </view>
   </view>
 
-  <!-- 目标岗位 -->
-  <view class="section-title">
-    <view class="section-accent"></view>
-    <text>目标岗位</text>
-    <text class="section-note">最多5个</text>
-  </view>
-  <view class="form-card pad multi-select-card">
-    <!-- 已选岗位 -->
-    <view class="selection-summary" wx:if="{{userInfo.targetRoles.length > 0}}">
-      <view class="selected-tags">
-        <view class="selected-tag" wx:for="{{userInfo.targetRoles}}" wx:key="*this">
-          <text>{{item}}</text>
-          <text class="tag-remove" catchtap="removeRole" data-value="{{item}}">×</text>
-        </view>
-      </view>
-      <view class="compact-select-trigger" bindtap="openMultiSelector" data-field="targetRoles">
-        <text class="compact-select-icon">⌕</text>
-        <text>继续添加</text>
-      </view>
-    </view>
-
-    <view wx:if="{{!userInfo.targetRoles.length}}" class="select-trigger" bindtap="openMultiSelector" data-field="targetRoles">
-      <text>搜索标准岗位，未命中可补充</text>
-      <text class="select-trigger-icon">⌕</text>
-    </view>
-
-    <text class="sub-label mt">常见岗位</text>
-    <view class="chip-row wrap">
-      <block wx:for="{{roleOptions}}" wx:key="label">
-        <view
-          class="chip {{item.selected ? 'chip-active' : ''}}"
-          bindtap="toggleRole"
-          data-value="{{item.label}}"
-        >{{item.label}}</view>
-      </block>
-    </view>
-  </view>
-
   <!-- 技能标签 -->
   <view class="section-title">
     <view class="section-accent"></view>
@@ -300,16 +261,6 @@
       <text class="select-trigger-icon">⌕</text>
     </view>
 
-    <text class="sub-label mt">常用技能</text>
-    <view class="chip-row wrap">
-      <block wx:for="{{skillOptions}}" wx:key="label">
-        <view
-          class="chip {{item.selected ? 'chip-active' : ''}}"
-          bindtap="toggleSkill"
-          data-value="{{item.label}}"
-        >{{item.label}}</view>
-      </block>
-    </view>
   </view>
 
   <view class="section-title">
@@ -321,8 +272,10 @@
     <textarea class="projects-textarea" value="{{projectsText}}" placeholder="例如：校园招聘数据分析平台（Python / SQL）" maxlength="1200" bindinput="onProjectsInput"></textarea>
   </view>
 
+  </block>
+
   <!-- 保存按钮 -->
-  <c-button class="save-btn" bindtap="handleSave">保存并应用匹配</c-button>
+  <c-button class="save-btn" bindtap="handleSave">保存资料</c-button>
 
   <view wx:if="{{selector.visible}}" class="selector-mask" catchtap="closeSelector"></view>
   <view wx:if="{{selector.visible}}" class="selector-sheet">

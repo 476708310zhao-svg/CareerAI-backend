@@ -190,6 +190,7 @@ page {
   font-size: 28rpx;
   color: var(--text-muted);
 }
+
 /* Unified homepage background */
 page,
 .page,
@@ -452,3 +453,22 @@ page,
   background: linear-gradient(135deg, #2563eb 0%, #18b6b0 100%);
   box-shadow: 0 12rpx 26rpx rgba(37,99,235,0.22);
 }
+
+/* 消息页只保留消息任务本身，统计与分类跟随同一份完整列表。 */
+.message-hero { margin: 18rpx 24rpx 8rpx; padding: 24rpx 26rpx; border-radius: 24rpx; background: #fff; box-shadow: none; }
+.hero-title { margin-top: 0; font-size: 34rpx; font-weight: 750; line-height: 46rpx; }
+.hero-sub { margin-top: 4rpx; font-size: 23rpx; line-height: 34rpx; }
+.hero-count { width: auto; height: auto; min-width: 100rpx; padding: 12rpx 16rpx; border-radius: 16rpx; color: #315ee8; background: #edf3ff; box-shadow: none; }
+.count-num { font-size: 30rpx; }
+.count-label { margin-top: 3rpx; font-size: 20rpx; }
+.tab-bar { margin-top: 12rpx; box-shadow: none; }
+.tab-item { min-height: 76rpx; box-sizing: border-box; padding: 14rpx 10rpx; font-size: 23rpx; }
+.read-all-btn { min-height: 76rpx; display: flex; align-items: center; padding: 0 4rpx; font-size: 23rpx; }
+.message-card { box-shadow: none; }
+.message-card.read { opacity: 1; background: #f9fbff; }
+.message-card.unread { border-left: 5rpx solid #315ee8; }
+.message-state, .message-warning { margin-bottom: 16rpx; padding: 22rpx 24rpx; border-radius: 18rpx; background: #fff; color: #667085; font-size: 24rpx; line-height: 36rpx; }
+.message-warning { display: flex; align-items: center; justify-content: space-between; background: #fff7e9; color: #895610; }
+.message-retry { display: flex; align-items: center; justify-content: center; min-width: 88rpx; min-height: 72rpx; margin-left: 18rpx; color: #315ee8; font-weight: 700; }
+.empty { margin-top: 18rpx; padding: 64rpx 32rpx; border: 1rpx solid #e2e8f3; border-radius: 24rpx; background: #fff; text-align: center; }
+.empty-text { color: #1d2939; font-weight: 700; }

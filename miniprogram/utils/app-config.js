@@ -1,8 +1,6 @@
 // utils/app-config.js
-// The mini program keeps no API secrets. Development builds use the local
-// backend for account-specific requests and writes. Public read-only content
-// may opt into CONTENT_API_BASE_URL so DevTools works without a local server.
-// Trial and release builds use the HTTPS production API.
+// The mini program keeps no API secrets. All previews use the HTTPS API by
+// default. DevTools can explicitly opt into a running local backend.
 
 const PROD_API_BASE_URL = 'https://api.zhiyincareer.com';
 const DEV_API_BASE_URL = 'http://127.0.0.1:4400';
@@ -18,18 +16,39 @@ function getMiniProgramEnvVersion() {
   return '';
 }
 
+function isDevToolsSimulator() {
+  try {
+    if (typeof wx === 'undefined') return false;
+    const info = typeof wx.getDeviceInfo === 'function'
+      ? wx.getDeviceInfo()
+      : (typeof wx.getSystemInfoSync === 'function' ? wx.getSystemInfoSync() : null);
+    return !!(info && info.platform === 'devtools');
+  } catch (error) {}
+  return false;
+}
+
 const MINI_PROGRAM_ENV_VERSION = getMiniProgramEnvVersion();
-// Development builds use a local API for real feature testing, but analytics
-// stays off by default. This prevents every page show from producing a noisy
-// connection error when the local backend is not running and keeps developer
-// navigation out of production metrics.
+// Formal builds and the local simulator use the real catalogue by default.
+// A developer may explicitly opt into read-only examples in local simulator storage.
+let ASSESSMENT_PREVIEW_ENABLED = false;
+try {
+  ASSESSMENT_PREVIEW_ENABLED = MINI_PROGRAM_ENV_VERSION === 'develop' && isDevToolsSimulator()
+    && wx.getStorageSync('assessmentPreviewMode') === 'readonly-examples';
+} catch (error) {}
+// Developer analytics stays off even when a physical device uses the production
+// API, so test navigation does not enter production metrics.
 const ANALYTICS_ENABLED = MINI_PROGRAM_ENV_VERSION !== 'develop';
 const baseUrls = {
   API_BASE_URL: PROD_API_BASE_URL,
   ASSET_BASE_URL: PROD_API_BASE_URL,
   CONTENT_API_BASE_URL: PROD_API_BASE_URL
 };
-if (MINI_PROGRAM_ENV_VERSION === 'develop') {
+let useLocalApi = false;
+try {
+  useLocalApi = MINI_PROGRAM_ENV_VERSION === 'develop' && isDevToolsSimulator()
+    && wx.getStorageSync('devApiMode') === 'local';
+} catch (error) {}
+if (useLocalApi) {
   baseUrls.API_BASE_URL = DEV_API_BASE_URL;
 }
 
@@ -37,6 +56,7 @@ module.exports = {
   ...baseUrls,
   FEISHU_CONTENT_API_BASE_URL,
   MINI_PROGRAM_ENV_VERSION,
+  ASSESSMENT_PREVIEW_ENABLED,
   ANALYTICS_ENABLED,
 
   // Public LeetCode endpoint.

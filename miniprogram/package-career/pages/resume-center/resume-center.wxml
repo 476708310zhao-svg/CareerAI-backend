@@ -1,7 +1,8 @@
 <view class="page">
+  <view class="resume-hero"><view><text class="resume-hero-title">我的简历</text><text class="resume-hero-sub">管理附件、在线版本和真实经历</text></view><text class="resume-hero-count">{{resumes.length}} 份在线简历</text></view>
   <view class="upload-card">
-    <view class="upload-heading">先上传附件简历</view>
-    <view class="upload-description">上传 PDF 后，AI 才能根据真实内容给出优化建议。</view>
+    <view class="upload-heading">导入已有简历</view>
+    <view class="upload-description">上传文字版 PDF，再根据真实内容生成可确认的优化建议。</view>
     <button class="upload-button" bindtap="chooseResumePdf" disabled="{{attachmentBusy}}">{{attachmentBusy ? '处理中…' : '上传 PDF 简历'}}</button>
     <view class="upload-hint">支持文字版 PDF，最大 10 MB · 原文件会保留</view>
     <view wx:if="{{attachmentStage}}" class="process-state">{{attachmentStage}}</view>
@@ -12,8 +13,13 @@
     <text class="target-kicker">正在为目标岗位优化</text>
     <text class="card-title">{{optimizationContext.company}} · {{optimizationContext.jobTitle}}</text>
   </view>
+  <view wx:if="{{optimizationError}}" class="optimization-error" aria-role="alert">
+    <text>{{optimizationError}}</text>
+    <text wx:if="{{optimizationDiagnostic}}" class="optimization-diagnostic">{{optimizationDiagnostic}}</text>
+  </view>
 
   <view class="section-heading"><text>附件简历</text><text class="section-count">{{attachments.length}} 份</text></view>
+  <view wx:if="{{loading}}" class="load-state">正在加载简历…</view>
   <view wx:if="{{!attachments.length && !loading}}" class="empty-attachment">还没有上传附件。上传后即可开始 AI 优化。</view>
   <view wx:for="{{attachments}}" wx:key="id" class="attachment-card">
     <view class="file-icon" aria-hidden="true">PDF</view>
@@ -23,11 +29,10 @@
       <text wx:if="{{item.linkedResumeId}}" class="attachment-ready">已生成可优化版本</text>
       <text wx:else class="attachment-waiting">尚未导入，请先建立原始版本</text>
     </view>
-    <button class="attachment-action" bindtap="optimizeAttachment" data-id="{{item.id}}" disabled="{{attachmentBusy || loading}}">{{busyAttachmentId === item.id ? '处理中' : (item.linkedResumeId ? 'AI 优化' : '导入简历')}}</button>
+    <button class="attachment-action {{optimizing && optimizingResumeId === item.linkedResumeId ? 'optimizing' : ''}}" bindtap="optimizeAttachment" data-id="{{item.id}}" disabled="{{attachmentBusy || loading}}">{{optimizing && optimizingResumeId === item.linkedResumeId ? '优化中…' : (busyAttachmentId === item.id ? '处理中' : (item.linkedResumeId ? 'AI 优化' : '导入简历'))}}</button>
   </view>
 
   <view class="section-heading online-heading"><text>在线简历</text><text class="section-link" bindtap="openCreate">手动新建</text></view>
-  <view class="section-subactions"><text bindtap="openExperience">添加真实经历</text><text class="subaction-divider">·</text><text bindtap="switchTab" data-tab="versions">查看历史版本</text></view>
 
   <view class="tabs">
     <view class="tab {{activeTab === 'resumes' ? 'active' : ''}}" bindtap="switchTab" data-tab="resumes">简历列表</view>
@@ -43,12 +48,13 @@
       </view>
       <view class="more" catchtap="resumeActions" data-id="{{item.id}}">•••</view>
     </view>
-    <view class="empty-online" wx:if="{{!resumes.length}}">上传附件后，这里会自动出现可编辑的在线版本。</view>
-    <button class="optimize" wx:if="{{currentResume}}" bindtap="optimizeResume" disabled="{{loading}}">{{optimizationContext ? '按目标岗位优化当前简历' : '优化选中的在线简历'}}</button>
+    <view class="empty-online" wx:if="{{!resumes.length}}">上传 PDF 或手动新建，建立第一份在线简历。</view>
+    <button class="optimize {{optimizing ? 'optimizing' : ''}}" wx:if="{{currentResume}}" bindtap="optimizeResume" disabled="{{loading}}">{{optimizing ? '正在生成建议…' : (optimizationContext ? '按目标岗位优化当前简历' : '优化选中的在线简历')}}</button>
     <button class="initialize" wx:if="{{currentResume && !currentResume.currentVersionId}}" bindtap="initializeResumeVersion">创建首个版本</button>
   </view>
 
   <view wx:if="{{activeTab === 'experiences'}}">
+    <view class="experience-add" bindtap="openExperience" aria-role="button">添加真实经历</view>
     <view wx:for="{{experiences}}" wx:key="id" class="card">
       <view class="card-main">
         <text class="type">{{item.typeLabel}}</text><text class="card-title">{{item.title}}</text>
@@ -67,6 +73,14 @@
   </view>
 
   <view class="privacy-note">AI 建议需逐条确认才会保存为新版本；原简历与附件不会被覆盖。</view>
+
+  <view wx:if="{{optimizing}}" class="optimization-progress" aria-role="status" aria-live="polite">
+    <view class="optimization-spinner" aria-hidden="true"></view>
+    <view class="optimization-progress-copy">
+      <text class="optimization-progress-title">正在生成优化建议</text>
+      <text class="optimization-progress-detail">通常需要几十秒，完成后请逐条确认。</text>
+    </view>
+  </view>
 
   <view wx:if="{{proposal}}" class="mask"></view>
   <view wx:if="{{proposal}}" class="sheet">

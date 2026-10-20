@@ -1,0 +1,11 @@
+<view class="assessment-page">
+  <text class="a-note">已购买的资料可以在这里再次领取。</text>
+  <view class="a-state" wx:if="{{!loggedIn}}"><text class="a-title">登录后查看我的资料</text><button class="a-button" bindtap="login">登录查看</button></view>
+  <view class="a-state" wx:elif="{{loading}}"><text class="a-note">正在读取已购记录…</text></view>
+  <view class="a-state" wx:elif="{{error}}" aria-role="alert"><text class="a-note">{{error}}</text><button class="a-button" bindtap="load">重新加载</button></view>
+  <view class="a-list" wx:elif="{{items.length}}"><view class="a-row" wx:for="{{items}}" wx:key="orderNo" data-order-no="{{item.orderNo}}" bindtap="openOrder" hover-class="a-pressed" aria-role="button" aria-label="{{item.title}}，{{item.statusLabel}}"><view class="a-copy"><text class="a-title">{{item.title}}</text><text class="a-summary">订单号 {{item.orderNo}}</text><view class="a-meta"><text class="a-price">¥{{item.priceText}}</text><text class="a-purchased">{{item.statusLabel}}</text></view></view><image class="a-arrow" src="/images/zhiyin-icons/chevron.svg" mode="aspectFit"/></view></view>
+  <view class="a-state" wx:else><text class="a-title">还没有已购资料</text><text class="a-note">查看资料介绍，选择适合自己的资料。</text><button class="a-button" bindtap="browse">浏览测评资料</button></view>
+  <text class="a-note" wx:if="{{moreError}}" aria-role="alert">{{moreError}}</text>
+  <button wx:if="{{loggedIn && hasMore}}" class="a-button a-secondary" bindtap="loadMore" loading="{{loadingMore}}" disabled="{{loadingMore}}">{{loadingMore ? '正在加载…' : moreError ? '重试加载更多' : '加载更多购买记录'}}</button>
+  <c-login-popup show="{{authPromptVisible}}" subtitle="{{authPromptSubtitle}}" bindclose="closeAuthPrompt" bindsuccess="onAuthPromptSuccess"/>
+</view>

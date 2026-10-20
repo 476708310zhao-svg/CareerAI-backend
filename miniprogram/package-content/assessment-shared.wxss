@@ -1,0 +1,39 @@
+page { min-height: 100%; background: var(--zy-bg, #f5f8ff); color: var(--zy-ink, #111827); }
+.assessment-page { min-height: 100vh; box-sizing: border-box; padding: 24rpx 28rpx 64rpx; }
+.a-heading { display: block; margin: 12rpx 0 10rpx; font-size: 38rpx; font-weight: 700; line-height: 52rpx; overflow-wrap: anywhere; }
+.a-note { display: block; color: var(--zy-muted, #667085); font-size: 25rpx; line-height: 38rpx; white-space: pre-wrap; overflow-wrap: anywhere; }
+.a-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16rpx; margin-bottom: 24rpx; }
+.a-link { display: flex; flex: none; align-items: center; justify-content: center; min-height: 88rpx; color: var(--zy-brand, #315ee8); font-size: 26rpx; }
+.a-search { flex: 1; min-width: 0; height: 88rpx; padding: 0 20rpx; border: 1rpx solid var(--zy-line, #e2e8f3); border-radius: 18rpx; background: #fff; font-size: 27rpx; box-sizing: border-box; }
+.a-list { overflow: hidden; border: 1rpx solid var(--zy-line, #e2e8f3); border-radius: 26rpx; background: #fff; }
+.a-row { display: flex; align-items: center; min-height: 152rpx; padding: 22rpx 20rpx; box-sizing: border-box; gap: 18rpx; }
+.a-row + .a-row { border-top: 1rpx solid var(--zy-line, #e2e8f3); }
+.a-cover { display: flex; flex: none; align-items: center; justify-content: center; width: 92rpx; height: 112rpx; overflow: hidden; border-radius: 14rpx; background: var(--zy-brand-soft, #edf2ff); }
+.a-cover image { width: 100%; height: 100%; }
+.a-cover .a-fallback { width: 48rpx; height: 48rpx; }
+.a-copy { flex: 1; min-width: 0; }
+.a-title { display: block; font-size: 28rpx; font-weight: 600; line-height: 40rpx; overflow-wrap: anywhere; }
+.a-summary { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; color: var(--zy-muted, #667085); font-size: 24rpx; line-height: 34rpx; margin-top: 5rpx; }
+.a-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 12rpx; margin-top: 10rpx; }
+.a-price { color: var(--zy-brand, #315ee8); font-size: 29rpx; font-weight: 700; font-variant-numeric: tabular-nums; }
+.a-purchased { color: #087a55; font-size: 24rpx; }
+.a-arrow { width: 28rpx; height: 28rpx; flex: none; }
+.a-state { padding: 72rpx 24rpx; text-align: center; }
+.a-state .a-title { margin-bottom: 12rpx; }
+.a-button { display: flex; align-items: center; justify-content: center; min-height: 88rpx; box-sizing: border-box; margin: 20rpx 0 0; padding: 16rpx 24rpx; border: 0; border-radius: 20rpx; background: var(--zy-brand, #315ee8); color: #fff; font-size: 28rpx; font-weight: 600; line-height: 38rpx; }
+.a-button::after { border: 0; }
+.a-button[disabled] { background: #dbe3f2; color: #475467; }
+.a-secondary { background: #edf2ff; color: var(--zy-brand, #315ee8); }
+.a-pressed { opacity: .72; }
+.a-section { margin: 24rpx 0; padding: 26rpx 24rpx; border: 1rpx solid var(--zy-line, #e2e8f3); border-radius: 26rpx; background: #fff; }
+.a-section-title { display: block; margin-bottom: 16rpx; font-size: 30rpx; font-weight: 700; line-height: 42rpx; }
+.a-text { display: block; color: var(--zy-ink-2, #354052); font-size: 27rpx; line-height: 44rpx; white-space: pre-wrap; overflow-wrap: anywhere; }
+.a-spacer { height: calc(160rpx + env(safe-area-inset-bottom)); }
+
+/* 商品封面使用原生图形和文字，列表与详情按各自比例绘制，避免放大 200px 原图。 */
+.assessment-cover { --cover-strong: #4169df; --cover-deep: #234cb8; --cover-pale: #eaf0ff; --cover-border: #cad8fb; position: relative; overflow: hidden; }
+.assessment-cover.tone-xiaomi { --cover-strong: #e66d27; --cover-deep: #af4513; --cover-pale: #fff0e3; --cover-border: #f7d3b7; }
+.assessment-cover.tone-pdd { --cover-strong: #d44368; --cover-deep: #a5264e; --cover-pale: #fff0f4; --cover-border: #f5ceda; }
+.assessment-cover.tone-baidu { --cover-strong: #3b78d8; --cover-deep: #1e4da8; --cover-pale: #eaf3ff; --cover-border: #cbdcf9; }
+.assessment-cover.tone-meituan { --cover-strong: #d69a1f; --cover-deep: #95630c; --cover-pale: #fff7df; --cover-border: #eedda9; }
+.assessment-cover.tone-jd { --cover-strong: #d64150; --cover-deep: #a92a3b; --cover-pale: #fff0f0; --cover-border: #f2cdd1; }

@@ -104,6 +104,15 @@
   padding: 40rpx 0;
 }
 
+.retry-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 88rpx;
+  margin: 16rpx auto 0;
+  color: var(--color-brand, #2563eb);
+}
+
 /* 2026 list performance polish */
 .page {
   background: var(--color-bg, #ffffff);

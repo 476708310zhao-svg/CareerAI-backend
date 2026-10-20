@@ -1,0 +1,35 @@
+@import "../../assessment-shared.wxss";
+
+.assessment-page { padding-top: 20rpx; }
+.a-toolbar { gap: 12rpx; margin-bottom: 20rpx; }
+.a-search-shell { display: flex; flex: 1; align-items: center; min-width: 0; min-height: 88rpx; padding: 0 10rpx 0 18rpx; border: 1rpx solid #dce6f5; border-radius: 22rpx; background: #fff; box-shadow: 0 6rpx 20rpx rgba(47, 94, 176, .04); }
+.a-search-icon { flex: none; width: 32rpx; height: 32rpx; margin-right: 10rpx; }
+.a-search { flex: 1; min-width: 0; height: 86rpx; padding: 0; border: 0; border-radius: 0; background: transparent; font-size: 25rpx; }
+.a-search-submit { display: flex; flex: none; align-items: center; justify-content: center; min-width: 76rpx; min-height: 88rpx; padding: 0 8rpx; color: #175cd3; font-size: 24rpx; font-weight: 700; }
+.a-purchases-link { display: flex; flex: none; align-items: center; justify-content: center; min-height: 88rpx; padding: 0 14rpx; border: 1rpx solid #dce6f5; border-radius: 22rpx; color: #175cd3; background: #fff; font-size: 24rpx; font-weight: 700; white-space: nowrap; }
+
+.a-list { overflow: visible; border: 0; border-radius: 0; background: transparent; }
+.a-row { display: block; min-height: 208rpx; padding: 20rpx; border: 1rpx solid #e0e8f5; border-radius: 24rpx; background: #fff; box-shadow: 0 8rpx 24rpx rgba(47, 94, 176, .045); }
+.a-row + .a-row { margin-top: 14rpx; border-top: 1rpx solid #e0e8f5; }
+.a-row-main { display: flex; align-items: flex-start; gap: 18rpx; }
+.a-cover { display: flex; flex-direction: column; width: 124rpx; height: 160rpx; padding: 12rpx 10rpx; border: 1rpx solid var(--cover-border); border-radius: 16rpx; background: linear-gradient(155deg, #fff 0%, var(--cover-pale) 100%); }
+.cover-glow { position: absolute; top: -32rpx; right: -34rpx; width: 86rpx; height: 86rpx; border: 10rpx solid rgba(255,255,255,.52); border-radius: 50%; }
+.cover-eyebrow,.cover-company,.cover-foot,.cover-paper { position: relative; z-index: 1; }
+.cover-eyebrow { color: var(--cover-deep); font-size: 19rpx; font-weight: 700; line-height: 26rpx; white-space: nowrap; }
+.cover-company { display: block; overflow: hidden; margin-top: 3rpx; color: var(--cover-deep); font-size: 29rpx; font-weight: 800; line-height: 38rpx; text-overflow: ellipsis; white-space: nowrap; }
+.cover-paper { display: flex; flex-direction: column; justify-content: center; gap: 5rpx; width: 52rpx; height: 40rpx; margin-top: 9rpx; padding: 0 8rpx; border: 1rpx solid var(--cover-border); border-radius: 6rpx; background: rgba(255,255,255,.85); transform: rotate(-7deg); }
+.cover-paper view { width: 100%; height: 3rpx; border-radius: 3rpx; background: var(--cover-strong); opacity: .58; }
+.cover-paper view:last-child { width: 60%; }
+.cover-foot { margin-top: auto; color: var(--cover-deep); font-size: 18rpx; font-weight: 650; line-height: 24rpx; white-space: nowrap; }
+.a-copy { flex: 1; min-width: 0; }
+.a-title-line { display: flex; align-items: flex-start; gap: 8rpx; }
+.a-title { display: -webkit-box; flex: 1; min-width: 0; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: #14213d; font-size: 28rpx; font-weight: 700; line-height: 38rpx; }
+.a-arrow { width: 24rpx; height: 24rpx; margin-top: 8rpx; opacity: .65; }
+.a-company { display: block; overflow: hidden; margin-top: 6rpx; color: #52627c; font-size: 24rpx; line-height: 34rpx; text-overflow: ellipsis; white-space: nowrap; }
+.a-summary { margin-top: 8rpx; color: #667085; font-size: 24rpx; line-height: 34rpx; }
+.a-row-bottom { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; margin-top: 16rpx; padding-top: 14rpx; border-top: 1rpx solid #eef1f6; }
+.a-badges { display: flex; align-items: center; flex-wrap: wrap; gap: 8rpx; min-width: 0; }
+.a-type,.a-purchased { padding: 5rpx 10rpx; border-radius: 9rpx; font-size: 22rpx; font-weight: 650; line-height: 30rpx; white-space: nowrap; }
+.a-type { color: #315ee8; background: #edf3ff; }
+.a-purchased { color: #087a55; background: #eaf8f1; }
+.a-price { flex: none; margin-left: auto; color: #175cd3; font-size: 32rpx; font-weight: 800; line-height: 42rpx; white-space: nowrap; }

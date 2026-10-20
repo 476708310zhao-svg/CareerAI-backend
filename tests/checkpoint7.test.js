@@ -134,8 +134,8 @@ test('Checkpoint 7 keeps one AI entry and clears owner-scoped local assets on pr
   assert.match(resourceJs, /笔试题库/);
   assert.match(resourceJs, /面试经验/);
   assert.match(resourceWxml, /我的已购/);
-  assert.match(resourceWxml, /资料购买与交付能力尚未接入/);
-  assert.match(resourceWxml, /aria-disabled="true"/);
+  assert.match(resourceWxml, /bindtap="openPurchases"/);
+  assert.match(resourceJs, /assessmentResources\.purchasesUrl\(\)/);
   assert.doesNotMatch(resourceWxml, /category-scroll|type-scroll|bindtap="selectCategory"/);
   assert.match(resourceJs, /company: this\.data\.company/);
   assert.match(resourceJs, /role: this\.data\.role/);

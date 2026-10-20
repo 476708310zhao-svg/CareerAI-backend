@@ -14,7 +14,9 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const db = require('../db/database');
 const router = require('../routes/v4/resumes');
-const { defaultSuggestions, validateSuggestions } = require('../services/v4ResumeCenter');
+const resumeCenter = require('../services/v4ResumeCenter');
+const aiRuntime = require('../services/v4AiRuntime');
+const { defaultSuggestions, validateSuggestions } = resumeCenter;
 
 test('PDF-backed resume is owner-scoped, linked, and idempotent', async () => {
   const owner = db.prepare('INSERT INTO users (openid) VALUES (?)').run('attachment-owner').lastInsertRowid;
@@ -181,4 +183,80 @@ test('old backend list labels existing imports and AI action does not create ano
   page.optimizeAttachment({ currentTarget: { dataset: { id: 7 } } });
   assert.equal(optimized, 1);
   assert.equal(created, 0);
+});
+
+test('resume optimization shows progress immediately and explains a timeout without changing the selected resume', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'miniprogram/package-career/pages/resume-center/resume-center.js'), 'utf8');
+  let page;
+  let rejectRequest;
+  const dialogs = [];
+  const api = {
+    createResumeChangeSet: () => new Promise((resolve, reject) => { rejectRequest = reject; })
+  };
+  vm.runInNewContext(source, {
+    Page: config => { page = config; },
+    require: id => id.includes('api-v4') ? api
+      : id.includes('app-config') ? { MINI_PROGRAM_ENV_VERSION: 'develop' }
+        : { capture: () => 'owner', isCurrent: () => true },
+    wx: { showModal: options => dialogs.push(options), showToast() {} }
+  });
+  page.data.currentResume = { id: 19, currentVersionId: 28 };
+  page.data.resumes = [page.data.currentResume, { id: 20, currentVersionId: 29 }];
+  page.setData = function (changes) { Object.assign(this.data, changes); };
+  const action = page.optimizeResume();
+  assert.equal(page.data.optimizing, true);
+  assert.equal(page.data.optimizingResumeId, 19);
+  assert.equal(page.data.loading, true);
+  page.selectResume({ currentTarget: { dataset: { id: 20 } } });
+  assert.equal(page.data.currentResume.id, 19);
+  rejectRequest(new Error('请求超时，请稍后重试'));
+  await action;
+  assert.equal(page.data.optimizing, false);
+  assert.equal(page.data.loading, false);
+  assert.match(page.data.optimizationError, /超时.*原简历没有被修改/);
+  assert.equal(dialogs[0].title, '优化未完成');
+  assert.equal(page.data.currentResume.id, 19);
+
+  const retry = page.optimizeResume();
+  const networkError = new Error('网络连接失败，请检查网络后重试');
+  networkError.code = 'NETWORK_ERROR';
+  networkError.detail = 'request:fail connection reset';
+  rejectRequest(networkError);
+  await retry;
+  assert.match(page.data.optimizationError, /连接中断/);
+  assert.match(page.data.optimizationDiagnostic, /NETWORK_ERROR，\d+ 秒，request:fail connection reset/);
+  assert.match(dialogs[1].content, /request:fail connection reset/);
+});
+
+test('resume optimization uses a dedicated request deadline and a bounded model attempt', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'miniprogram/utils/api-v4.js'), 'utf8');
+  const writes = [];
+  const sandbox = { module: { exports: {} }, require: id => id.includes('api-client')
+    ? { _write: options => { writes.push(options); return Promise.resolve({ code: 0 }); } }
+    : {} };
+  vm.runInNewContext(source, sandbox);
+  await sandbox.module.exports.createResumeChangeSet(19, { jdText: '真实目标岗位' });
+  await sandbox.module.exports.createV4Resume({ name: '简历' });
+  assert.equal(writes[0].timeout, 50000);
+  assert.equal(writes[1].timeout, 20000);
+
+  const owner = db.prepare('INSERT INTO users (openid) VALUES (?)').run('resume-timeout-owner').lastInsertRowid;
+  const resumeId = Number(db.prepare("INSERT INTO resumes (user_id,name,data,is_default,resume_type,archived_at,updated_at) VALUES (?,?,?,0,'general','',datetime('now'))")
+    .run(owner, '超时测试简历', JSON.stringify({ summary: '本人负责用户增长项目，并且完成数据分析' })).lastInsertRowid);
+  const beforeVersionId = resumeCenter.ensureCurrentVersion(owner, resumeId).version.id;
+  const originalGenerate = aiRuntime.generate;
+  let generationOptions;
+  aiRuntime.generate = async options => {
+    generationOptions = options;
+    return { value: options.fallback(), model: 'fallback-rules', degraded: true, source: 'fallback' };
+  };
+  try {
+    const proposal = await resumeCenter.createChangeSet({ userId: owner, resumeId });
+    assert.equal(generationOptions.timeoutMs, 35000);
+    assert.equal(generationOptions.retries, 0);
+    assert.equal(proposal.sourceVersionId, beforeVersionId);
+    assert.equal(resumeCenter.ensureCurrentVersion(owner, resumeId).version.id, beforeVersionId);
+  } finally {
+    aiRuntime.generate = originalGenerate;
+  }
 });
