@@ -31,6 +31,7 @@ require('./applicationWorkbench.test');
 require('./applicationWorkflow.test');
 require('./aiConversations.test');
 require('./aiChatSessions.test');
+require('./aiAssistantStreaming.test');
 require('./checkpoint6.test');
 require('./checkpoint7.test');
 require('./checkpoint8.test');

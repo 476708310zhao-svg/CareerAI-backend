@@ -328,6 +328,8 @@ Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成
 
 ## 当前文件占用
 
+- Codex（2026-10-20，AI 求职助手流式问答修复，已完成并释放）：调整 `miniprogram/pages/ai-career/ai-career.js`、`miniprogram/package-ai/pages/ai-assistant/ai-assistant.js`、新增 `tests/aiAssistantStreaming.test.js`、登记至 `tests/all.test.js` 与本记录。将微信分块监听注册到 RequestTask，使回答在请求结束前显示；补齐跨分块 UTF-8 中文解码，保留原有错误回退。专项 8/8；`check:release` 557 项中 555 通过、0 失败、2 项既有 Windows 跳过，AI 质量与小程序检查通过，数据 0 错误/7 项既有提示。公网 readiness 200，但仅检查 AI 配置就绪，未实际代用户调用线上问答；未做微信真机预览或小程序上传发布，也未改 AI 服务配置、鉴权和生产部署。
+
 - Codex（2026-10-20，今日求职计划移除待办副标题，已完成并释放）：调整 `miniprogram/pages/index/index.{wxml,wxss}`、`tests/frontendVisualCheckpoint.test.js` 与本记录。移除“优先处理”和次要待办描述，收紧待办行距；保留任务标题、状态、跳转和任务数据。首页/导航专项 45/45、`check:miniprogram` 和差异格式检查通过；未在微信开发者工具或真机预览，未发布。
 
 - Codex（2026-10-20，首页校招区标题与查看全部样式，已完成并释放）：调整 `miniprogram/pages/index/index.{wxml,wxss}` 与本记录。删除标题下的更新说明，右侧统一为其他首页卡片的“查看全部”文本、箭头和样式，保留跳转及校招列表数据。首页/导航专项 45/45、`check:miniprogram` 和差异格式检查通过；未在微信开发者工具或真机预览，未发布。

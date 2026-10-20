@@ -186,6 +186,25 @@ function streamRequest(messages, userContext, onDelta, onDone, onError, requestA
   let sseBuffer = '';
   let hasErrored = false;
   let receivedText = '';
+  let utf8Tail = new Uint8Array(0);
+  const decodeStreamChunk = (data) => {
+    if (typeof data === 'string') return data;
+    if (!data) return '';
+    const incoming = new Uint8Array(data);
+    const bytes = new Uint8Array(utf8Tail.length + incoming.length);
+    bytes.set(utf8Tail);
+    bytes.set(incoming, utf8Tail.length);
+    let cut = bytes.length;
+    let lead = cut - 1;
+    while (lead >= 0 && (bytes[lead] & 0xc0) === 0x80) lead -= 1;
+    if (lead >= 0) {
+      const first = bytes[lead];
+      const width = first >= 0xf0 ? 4 : first >= 0xe0 ? 3 : first >= 0xc0 ? 2 : 1;
+      if (cut - lead < width) cut = lead;
+    }
+    utf8Tail = bytes.slice(cut);
+    return cut ? decodeChunkData(bytes.slice(0, cut).buffer) : '';
+  };
   const authHeader = requestAuth && requestAuth.token
     ? { Authorization: 'Bearer ' + requestAuth.token } : {};
 
@@ -214,24 +233,13 @@ function streamRequest(messages, userContext, onDelta, onDone, onError, requestA
     if (data !== null) handleSseData(data);
   };
 
-  return wx.request({
+  const requestTask = wx.request({
     url: API_BASE + '/api/ai/assistant',
     method: 'POST',
     data: { messages, userContext },
     header: Object.assign({ 'Content-Type': 'application/json' }, authHeader),
     enableChunked: true,
-
-    onChunkReceived(res) {
-      const chunk = decodeChunkData(res.data);
-      if (!chunk) return;
-      sseBuffer += chunk;
-      const lines = sseBuffer.split('\n');
-      sseBuffer = lines.pop();
-      for (const line of lines) {
-        handleSseLine(line);
-        if (hasErrored) return;
-      }
-    },
+    dataType: 'text',
     success(res) {
       if (hasErrored) return;
       if (res && res.statusCode && res.statusCode >= 400) {
@@ -262,6 +270,21 @@ function streamRequest(messages, userContext, onDelta, onDone, onError, requestA
     },
     fail(err)  { hasErrored = true; onError(err); }
   });
+  // 微信把分块监听挂在 RequestTask 上，放进 wx.request 参数不会触发。
+  if (requestTask && typeof requestTask.onChunkReceived === 'function') {
+    requestTask.onChunkReceived((res) => {
+      const chunk = decodeStreamChunk(res.data);
+      if (!chunk) return;
+      sseBuffer += chunk;
+      const lines = sseBuffer.split('\n');
+      sseBuffer = lines.pop();
+      for (const line of lines) {
+        handleSseLine(line);
+        if (hasErrored) return;
+      }
+    });
+  }
+  return requestTask;
 }
 
 // ─── Page ────────────────────────────────────────────────────
