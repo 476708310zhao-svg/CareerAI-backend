@@ -53,11 +53,10 @@ Page({
         if (res && res.code === 0) {
           const { list, unreadCount } = res.data;
           // 将后端字段映射为页面字段
-          const messages = list.map(m => ({
+          const messages = list.map(m => this._presentMessage({
             id: m.id, type: m.type,
             title: m.title, content: m.content,
             isRead: m.isRead, createdAt: this._formatTime(m.createdAt),
-            icon: this._typeIcon(m.type)
           }));
           this.setData({ messages, syncError: false });
           this.filterMessages();
@@ -78,9 +77,7 @@ Page({
   // 未登录可读本机旧消息；登录态同步失败时不展示未绑定账号的旧记录。
   _loadLocalFallback(syncError = false) {
     // 登录态同步失败时不能展示未绑定账号的旧本机消息。
-    const messages = (syncError ? [] : (wx.getStorageSync('userMessages') || [])).map(m => ({
-      ...m, icon: m.icon || this._typeIcon(m.type)
-    }));
+    const messages = (syncError ? [] : (wx.getStorageSync('userMessages') || [])).map(m => this._presentMessage(m));
     messages.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     this.setData({ messages, loading: false, syncError });
     this.filterMessages();
@@ -98,7 +95,7 @@ Page({
   filterMessages() {
     const { type } = this._currentType();
     const filtered = type
-      ? this.data.messages.filter(m => m.type === type)
+      ? this.data.messages.filter(m => this._matchesType(m, type))
       : this.data.messages;
     this.setData({ filteredMessages: filtered });
   },
@@ -108,7 +105,7 @@ Page({
       messages.length,
       messages.filter(m => m.type === 'application').length,
       messages.filter(m => m.type === 'interaction').length,
-      messages.filter(m => m.type === 'system').length
+      messages.filter(m => this._matchesType(m, 'system')).length
     ];
     this.setData({
       tabCounts: counts,
@@ -192,13 +189,35 @@ Page({
     getApp().setUnreadCount(count);
   },
 
+  _matchesType(message, type) {
+    return message.type === type || (type === 'system' && message.type === 'payment');
+  },
+
+  _presentMessage(message) {
+    const typeLabels = {
+      application: '申请通知',
+      interaction: '互动消息',
+      system: '系统通知',
+      payment: '支付通知'
+    };
+    const content = String(message.content || '');
+    const displayContent = content.replace(/^requestVirtualPayment\.fail\s*[:：]?\s*/i, '').trim();
+    return {
+      ...message,
+      icon: message.icon || this._typeIcon(message.type),
+      typeLabel: typeLabels[message.type] || '服务通知',
+      displayContent: displayContent || content
+    };
+  },
+
   _typeIcon(type) {
     const map = {
       application: '/images/application.png',
       interaction: '/images/experience-active.png',
-      system:      '/images/home-active.png'
+      system:      '/images/zhiyin-icons/message.svg',
+      payment:     '/images/profile-vip.png'
     };
-    return map[type] || '/images/home-active.png';
+    return map[type] || '/images/zhiyin-icons/message.svg';
   },
 
   _formatTime(str) {

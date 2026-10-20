@@ -35,10 +35,11 @@ test('message categories use one complete list for totals and do not reload on t
     { id: 1, type: 'application', title: '申请', content: '更新', isRead: false, createdAt: '2026-10-19' },
     { id: 2, type: 'interaction', title: '互动', content: '回复', isRead: true, createdAt: '2026-10-19' },
     { id: 3, type: 'system', title: '系统', content: '通知', isRead: false, createdAt: '2026-10-19' },
+    { id: 4, type: 'payment', title: '会员支付未完成', content: 'requestVirtualPayment.fail 暂不支持非中国大陆地区苹果账号支付。', isRead: false, createdAt: '2026-10-19' },
   ];
   const page = loadPage('package-user/pages/messages/messages.js', {
     '../../../utils/api-messages.js': {
-      getMessages: type => { requested.push(type); return Promise.resolve({ code: 0, data: { list: rows, unreadCount: 2 } }); },
+      getMessages: type => { requested.push(type); return Promise.resolve({ code: 0, data: { list: rows, unreadCount: 3 } }); },
       markMessageRead() {}, markAllMessagesRead() {},
     },
     '../../../utils/unread-messages.js': { set() {} },
@@ -49,14 +50,20 @@ test('message categories use one complete list for totals and do not reload on t
   page.loadMessages();
   await settle();
   assert.deepEqual(requested, [undefined]);
-  assert.deepEqual(Array.from(page.data.tabCounts), [3, 1, 1, 1]);
-  assert.equal(page.data.unreadTotal, 2);
+  assert.deepEqual(Array.from(page.data.tabCounts), [4, 1, 1, 2]);
+  assert.equal(page.data.unreadTotal, 3);
   page.switchTab({ currentTarget: { dataset: { index: 1 } } });
   assert.equal(page.data.filteredMessages.length, 1);
   assert.equal(page.data.filteredMessages[0].type, 'application');
-  assert.equal(page.data.unreadTotal, 2);
+  assert.equal(page.data.unreadTotal, 3);
   assert.equal(requested.length, 1);
-  assert.deepEqual(badge, [2]);
+  page.switchTab({ currentTarget: { dataset: { index: 3 } } });
+  assert.deepEqual(Array.from(page.data.filteredMessages, message => message.type), ['system', 'payment']);
+  const payment = page.data.filteredMessages[1];
+  assert.equal(payment.typeLabel, '支付通知');
+  assert.equal(payment.displayContent, '暂不支持非中国大陆地区苹果账号支付。');
+  assert.match(payment.content, /^requestVirtualPayment\.fail/);
+  assert.deepEqual(badge, [3]);
 });
 
 test('message sync failure does not expose an unscoped local message', async () => {

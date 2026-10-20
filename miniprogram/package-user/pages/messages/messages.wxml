@@ -1,26 +1,22 @@
 <!-- pages/messages/messages.wxml -->
 <view class="container">
 
-  <view class="message-hero">
-    <view>
-      <text class="hero-title">消息通知</text>
-      <text class="hero-sub">查看申请、互动和系统消息</text>
+  <view class="message-summary">
+    <view class="summary-copy">
+      <text class="summary-eyebrow">消息中心</text>
+      <text class="summary-title">{{syncError ? '消息暂未同步' : (unreadTotal > 0 ? '还有 ' + unreadTotal + ' 条未读' : '消息已全部读完')}}</text>
     </view>
-    <view class="hero-count">
-      <text class="count-num">{{syncError ? '—' : unreadTotal}}</text>
-      <text class="count-label">{{syncError ? '未同步' : '未读'}}</text>
-    </view>
+    <view class="read-all-btn" wx:if="{{unreadTotal > 0 && !syncError}}" bindtap="markAllRead" aria-role="button" aria-label="将全部消息标记为已读">全部已读</view>
   </view>
 
-  <!-- Tab 栏 -->
+  <!-- 分类筛选 -->
   <view class="tab-bar">
     <block wx:for="{{tabs}}" wx:key="*this">
-      <view class="tab-item {{currentTab === index ? 'active' : ''}}" bindtap="switchTab" data-index="{{index}}">
-        <text>{{item}}</text>
-        <text class="tab-count">{{syncError ? '—' : (tabCounts[index] || 0)}}</text>
+      <view class="tab-item {{currentTab === index ? 'active' : ''}}" bindtap="switchTab" data-index="{{index}}" aria-role="button" aria-label="{{item}}，{{syncError ? '暂未同步' : (tabCounts[index] || 0) + '条消息'}}">
+        <text class="tab-label">{{item}}</text>
+        <text class="tab-count" wx:if="{{!syncError && tabCounts[index] > 0}}">{{tabCounts[index]}}</text>
       </view>
     </block>
-    <view class="read-all-btn" wx:if="{{unreadTotal > 0}}" bindtap="markAllRead">全部已读</view>
   </view>
 
   <!-- 消息列表 -->
@@ -28,32 +24,28 @@
     <view class="message-state" wx:if="{{loading}}">正在加载消息…</view>
     <view class="message-warning" wx:if="{{syncError}}"><text>暂时无法同步消息。</text><text class="message-retry" bindtap="loadMessages" aria-role="button">重试</text></view>
     <block wx:for="{{filteredMessages}}" wx:key="id">
-      <view class="message-card {{item.isRead ? 'read' : 'unread'}}" bindtap="tapMessage" data-index="{{index}}">
-        <!-- 未读红点 -->
-        <view class="unread-dot" wx:if="{{!item.isRead}}"></view>
-
-        <!-- 图标 -->
-        <view class="msg-icon-wrap">
-          <image class="msg-icon-img" src="{{item.icon}}" mode="aspectFit" lazy-load></image>
+      <view class="message-card {{item.isRead ? 'read' : 'unread'}} type-{{item.type}}" bindtap="tapMessage" data-index="{{index}}" aria-role="button" aria-label="{{item.typeLabel}}，{{item.title}}，{{item.isRead ? '已读' : '未读'}}">
+        <view class="msg-header">
+          <view class="msg-icon-wrap"><image class="msg-icon-img" src="{{item.icon}}" mode="aspectFit" lazy-load></image></view>
+          <text class="msg-type">{{item.typeLabel}}</text>
+          <text class="msg-time">{{item.createdAt}}</text>
+          <view class="unread-dot" wx:if="{{!item.isRead}}"></view>
         </view>
-
-        <!-- 内容 -->
-        <view class="msg-body">
-          <view class="msg-top">
-            <text class="msg-title">{{item.title}}</text>
-            <text class="msg-time">{{item.createdAt}}</text>
-          </view>
-          <text class="msg-content">{{item.content}}</text>
+        <text class="msg-title">{{item.title}}</text>
+        <text class="msg-content">{{item.displayContent}}</text>
+        <view class="msg-footer" wx:if="{{item.type === 'application' || item.type === 'interaction'}}">
+          <text>查看相关内容</text><text class="msg-chevron">›</text>
         </view>
       </view>
     </block>
 
     <!-- 空状态 -->
     <view wx:if="{{!loading && filteredMessages.length === 0}}" class="empty">
-      <text class="empty-text">{{syncError ? '消息暂不可用' : '暂无消息'}}</text>
-      <text class="empty-sub">{{syncError ? '请检查网络后重试。' : '新的申请、互动与系统消息会出现在这里。'}}</text>
-      <view class="empty-actions">
-        <view class="empty-action primary" bindtap="goApplications">查看网申</view>
+      <view class="empty-icon-wrap"><image class="empty-icon" src="/images/zhiyin-icons/message.svg" mode="aspectFit"></image></view>
+      <text class="empty-text">{{syncError ? '消息暂不可用' : (currentTab === 0 ? '暂无消息' : '该分类暂无消息')}}</text>
+      <text class="empty-sub">{{syncError ? '请检查网络后重试。' : (currentTab === 0 ? '新的申请、互动与系统消息会出现在这里。' : '有新通知时会出现在这里。')}}</text>
+      <view class="empty-actions" wx:if="{{!syncError && (currentTab === 0 || currentTab === 1)}}">
+        <view class="empty-action" bindtap="goApplications" aria-role="button" aria-label="查看网申进度">查看网申</view>
       </view>
     </view>
   </view>

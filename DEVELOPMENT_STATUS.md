@@ -328,6 +328,8 @@ Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成
 
 ## 当前文件占用
 
+- Codex（2026-10-20，消息通知页视觉与分类优化，已完成并释放）：调整 `miniprogram/package-user/pages/messages/messages.{js,wxml,wxss}`、`tests/profileDetailPages.test.js` 与本记录。顶部改为未读摘要与“全部已读”，四分类保持完整点击区域；白色消息卡分层展示类别、日期、标题、完整正文和可跳转状态，空状态与页面背景统一。支付消息计入系统分类，仅展示层清理已知接口错误前缀，原始消息与已读/跳转行为不变。页面与导航专项 31/31、`check:miniprogram`、JS 语法及差异格式检查通过；未在微信开发者工具或真机预览，未上传或发布，未改支付、后端通知或生产数据。
+
 - Codex（2026-10-20，AI 求职助手流式问答修复，已完成并释放）：调整 `miniprogram/pages/ai-career/ai-career.js`、`miniprogram/package-ai/pages/ai-assistant/ai-assistant.js`、新增 `tests/aiAssistantStreaming.test.js`、登记至 `tests/all.test.js` 与本记录。将微信分块监听注册到 RequestTask，使回答在请求结束前显示；补齐跨分块 UTF-8 中文解码，保留原有错误回退。专项 8/8；`check:release` 557 项中 555 通过、0 失败、2 项既有 Windows 跳过，AI 质量与小程序检查通过，数据 0 错误/7 项既有提示。公网 readiness 200，但仅检查 AI 配置就绪，未实际代用户调用线上问答；未做微信真机预览或小程序上传发布，也未改 AI 服务配置、鉴权和生产部署。
 
 - Codex（2026-10-20，今日求职计划移除待办副标题，已完成并释放）：调整 `miniprogram/pages/index/index.{wxml,wxss}`、`tests/frontendVisualCheckpoint.test.js` 与本记录。移除“优先处理”和次要待办描述，收紧待办行距；保留任务标题、状态、跳转和任务数据。首页/导航专项 45/45、`check:miniprogram` 和差异格式检查通过；未在微信开发者工具或真机预览，未发布。
