@@ -2,6 +2,8 @@
 
 日期：2026-10-19。基线：`c5bd1887b9b418abfc18d341e30904f573b2defc`。
 
+当前结果：后端与管理后台已部署，生产0012–0015迁移、5份真实资料草稿导入及独立验收已完成；商品仍未上架，收款、首页主推及小程序发布均未开放。下文选取流程中的“后续/准备”描述保留为执行前历史，以末尾实际结果为准。本次收尾只改本地文档，不改已部署不可变代码，也未再次暂存、提交或推送。
+
 ## 本次授权与不变边界
 
 Human 明确允许“备份核验后，升级生产数据库、部署测评后台，并导入这 5 份资料草稿”。执行目标为既有 `api.zhiyincareer.com` 后端，生产数据库 `/var/lib/jobapp-server/db/jobapp.db`，代码版本目录 `/www/wwwroot/zhiyincareer-main/releases/`。
@@ -43,4 +45,51 @@ Human 明确允许“备份核验后，升级生产数据库、部署测评后�
 
 ## 执行状态
 
-准备中：本文件建立时尚未生成候选提交、上传版本、变更生产数据库、切流或导入。完成各步骤后由实际执行者追加证据；本记录不预填成功结果。
+已完成本次获批的后端部署、生产迁移和草稿导入。管理入口：[测评资料后台](https://api.zhiyincareer.com/admin/assessment-products.html)。以下记录为实际执行及独立只读验收证据，不代表商品上架、真实支付验收或小程序发布。
+
+### 版本与精确门禁
+
+- 两项提交均已推送：测试修复 `2d3931831db4e2462909bb34a7ad05e6da935888`；测评后端 `93afc1340a301269b13b94d2ccae7e49eaa8363b`，精确树 `107448fc00abc6a25983eb106d23cae86aa05d79`。
+- `current` 对应 `/www/wwwroot/zhiyincareer-main/releases/assessment-20261019-107448fc00abc6a25983eb106d23cae86aa05d79-lf`；主进程 PID2199936。规范LF归档SHA256为 `1824e5429d6f2a091063955a0b161e23140b2d3f2306e3de1c110440b7b57e4a`，2044个Git文件字节均与提交一致。旧6c候选及非规范换行候选标记HOLD，不可部署；未重写迁移SQL，只有规范LF版本对应上述提交。
+- 精确 Linux 候选和标准部署门禁均为498/498通过、0失败/0跳过；AI7/7、外部请求0；Acceptance29通过、0失败、1条既有提示。独立只读验收、质量及反模式三项复核均通过；旧候选失败及 dirty 工作区测试仍仅为历史证据。
+- 提交前后2064项文件哈希保护核验通过，其他小程序、AI、资讯、职位等未提交工作保留，不随本次后端提交发布。
+
+### 实际维护顺序
+
+在线完整备份后，第一维护窗口停止旧主进程、确认无其他数据库写入者、核验静默备份，再仅迁移0012–0015；约6秒后旧版恢复健康，此时尚未创建拼多多草稿。随后标准部署新后台。第二维护窗口停止新主进程、核验部署后备份及CLI备份，事务导入5份草稿并初始化共享说明；约4秒后新版恢复健康。两个数值不是全程对外中断测量，不能相加声称总停机10秒。
+
+### 已验证备份
+
+下列SQLite备份均按相应执行门禁校验；路径与哈希仅用于本地运维记录，未公开业务数据。
+
+| 检查点 | 绝对路径 | SHA-256 |
+|---|---|---|
+| 迁移前在线完整备份中的DB | `/www/backups/zhiyincareer/jobapp-server_20261019_152130.w3KZtS/jobapp.db` | `62e96c98d2ede93b00d2f6fba20c898caf70566ed1dd0aaf00f1a5b14b6bf65c` |
+| 第一窗口静默迁移前 | `/www/backups/zhiyincareer/assessment-migrate-20261019.eTvAKH/quiesced-before-migration.db` | `bd7a31dfd74a24fe0587b29912c9a3994f3ff32d336e1449fc909346ca1f4603` |
+| 标准部署在线完整备份中的DB | `/www/backups/zhiyincareer/jobapp-server_20261019_152535.gr6Zl3/jobapp.db` | `74469ac5c6e87ebfa68b9ee9a17e1091837b41d8431a7eb2bfcee77997cd8186` |
+| 第二窗口部署后导入前 | `/www/backups/zhiyincareer/assessment-import-20261019.ag7aTh/quiesced-postdeploy-before-import.db` | `db1325962ce28aa9a66a1b12dd1feb39d1a4b4f64e67a320d37bbff533a882fc` |
+| CLI验证的独立导入前备份 | `/www/backups/zhiyincareer/assessment-import-20261019.ag7aTh/cli-verified-before-import.db` | `efb6863d23581e432c4c417f032257e32b8bde55d2f2e1074e2a1305897385aa` |
+
+私有输入 `/var/lib/jobapp-server/private-imports/assessment-20261019.N7VULf/source.json`，12953字节，SHA256 `272d916c7e2126a4da40ffcd020372c84e1c3dcc0b908d30a526135ff23daac3`；受控父目录0700、文件0600。真实分享地址、提取码、密钥和源内容未放入Git、静态资源或此文档。
+
+### 导入与线上验收
+
+- schema15项、pending=0、integrity=ok、外键错误0。源表40行，35行无资料跳过；京东、美团、百度、拼多多、小米5份草稿各900分，对应SKU正确，领取天数null、内容待审标记1，来源绑定及指纹5项一致。复用4家原公司，仅新增拼多多公司77；原76家公司行内容不变。
+- 用户四段共享说明与原文精确一致，版本1、完整配置且只初始化一次；生产只读重规划为unchanged5，无重复导入。未对用户资料网盘内容、版权及可下载性作额外保证，仍需运营核验后另行上架。
+- 公网readiness正常；后台HTML/CSS/JS为200，匿名私有及管理接口为401；公开商品0、5份详情404、拼多多公司404，公开公司仍76家；首页关闭。
+- `PAYMENT_ENABLED` 明确为false，`REAL_PAYMENT_LAUNCH_APPROVED`、`COMMERCE_ROLLOUT_APPROVED` 未设置并使用默认false，三项门禁实效保持关闭。未创建真实付款、未上架或设置首页主推、未上传/提审微信小程序。
+- 生产环境SHA256 `c7042d5596df290257ff947af7bd4ceda422c218fc12e95e636b7326a825eb8a`、Nginx SHA256 `b5dbf762f721770fde5d374ae496d2a983a83c6fdf00c6a4dea3242c24b7cfdc` 未改变。操作方确认明确PM2写入仅停止/重启`jobapp-server`、既有部署脚本生成的`jobapp-server-candidate-$$`管理及健康恢复后的`pm2 save`；未全局停止/重启/删除，未操作其他具名应用，未修改cron/crond、Nginx或环境内容。`pm2 save`会保存全局当前观察到的状态，可能连同同期其他应用变化一起持久化，不能据此保证全服务器或其他项目状态不变；不推断其他PM2漂移原因，也不擅自恢复其他进程。
+
+### 历史数据保护与回滚边界
+
+六项财务表在迁移、导入及独立验收保持原行数和规范行哈希：
+
+| 表 | 行数 | SHA-256 |
+|---|---:|---|
+| `orders` | 19 | `d233c81bc5cc92eb8efdb0652c4b25ac55681ae3fef75e358a26df19922cbf69` |
+| `membership_plans_v4` | 8 | `eff33462a3d4b0db74e36d7620712c453e1e5b4a7c94ec0d15c6b528c0e83881` |
+| `commerce_ledger_v4`、`payment_refunds_v4`、`entitlement_grants_v4`、`commerce_alerts_v4` | 各0 | `4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945` |
+
+不声称全部85表未变：未修改的既有 `db/database.js` 启动逻辑将15353条校招记录的空/null `updated_at` 补为 `created_at`，仅该列变化；健康流量也会产生 `api_performance` 指标记录。这些观测与六表财务保护证据分开记录，不把数据库文件哈希变化误判为财务变化。
+
+恢复写入后不使用旧备份覆盖运行库。草稿导入后，代码回滚目标也必须保留公司草稿过滤；不能回滚到会暴露拼多多草稿的旧版本。任何独立数据库恢复需另行停止写入并确认范围。本次收尾只更新本地两份记录，不向已部署不可变目录追加文件。

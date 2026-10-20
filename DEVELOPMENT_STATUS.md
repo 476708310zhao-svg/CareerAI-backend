@@ -10,6 +10,65 @@
 
 ## 当前批次
 
+### 2026-10-19 小程序主入口信息层级与视觉升级（代码完成）
+
+- 文件归属（本轮完成并释放）：Codex；本记录、`miniprogram/app.wxss`、机会/AI 求职/资源/我的主入口样式与资源、机会 WXML、`miniprogram/components/c-job-card/*` 及两份视觉/导航专项测试。首页保留前一批已完成的今日计划、每日校招和最新机会排版。本轮未碰支付、招聘接口与运行数据，也未覆盖其他工作区改动。
+- 目标：沿用已确认的蓝白浅色、白色卡片和语义色，将首屏行动、公司与职位、资源用途和个人记录分层；保持原有页面跳转及数据合同。
+- 已完成：岗位卡公司/职位独立两行，地点与有来源的薪资分开显示；机会页补当前展示数量；资源卡补用途/阶段说明；“我的”身份信息回到白色卡片，会员已开通态改为浅色；AI 对话的关键说明文字增大；通用旧灰底与旧按钮色统一到现有蓝白 token。数据、导航和交互处理函数保持不变。
+- 验证：视觉/导航/测评相关专项 76/76；`check:release` 全量 545 项中 543 通过、0 失败、2 项既有 Windows 跳过，AI 质量 7/7、小程序静态与包体通过、数据内容 0 错误/5 既有提示；WXSS 机械检查无发现，`git diff --check` 通过。尚未取得微信开发者工具 390×844 截图或真机视觉确认；未提交、上传、提审或发布。
+
+### 2026-10-19 测评购买后端已部署并开放资料收款（真实9元支付待Human验收）
+
+- 执行交接：Codex assessment_checkout_production_execute 现独占本记录及 `docs/ASSESSMENT_CHECKOUT_DEPLOY_20261019.md`。root 已确认 fresh 质量、反模式及 Linux 精确门禁504/504，并明确批准标准生产部署、健康后仅开放资料收款。最终提交 `43a312edc31f56d81e90ffb88df646f3742c14cf` 对应 tree `07c5583de9f79e205af7a8d2296ad4c1cd327d32`，只含四文件。
+- 已完成在线完整备份 `/www/backups/zhiyincareer/jobapp-server_20261019_162208.n996Lw`：DB SHA256 `dd3a86b5e69b7d52c299984d55b75d2d7c152fe93e764fa5faaeba8e82195fae`，目录0700、六个备份产物0600，integrity=ok/FK=0/schema15/pending0；财务六表与原基线完全一致，旧current/PID2199936、env及Nginx哈希稳定。正式新release已从规范LF归档提取，2044个blob逐字节校验通过、依赖就绪。当前正在支付关闭下运行标准 `deploy.sh`，不预填切流、收款或真实付款结果。
+- 实际结果：标准 `deploy.sh` 完成，正式目录 `assessment-checkout-20261019-07c5583de9f79e205af7a8d2296ad4c1cd327d32-lf` 已切为current；标准门禁504/504、0失败/0跳过，tracked2044个文件部署后字节仍一致。关闭支付的部署后内外readiness、财务六表、旧env/Nginx哈希均核验通过后，单独备份原env并仅修改 `MEMBERSHIP_PAYMENT_ENABLED=false`、`PAYMENT_ENABLED=true`、`REAL_PAYMENT_LAUNCH_APPROVED=true`；COMMERCE审批及其他配置值不变。只重启具名jobapp-server，激活PID2238810，实际进程三flag一致，生产env0600、新SHA256 `df2e0e4e8bc7c899414f4a9b62c97bf0c76a89f9ad2c6275e16a9115b5154ba1`。
+- 当前内外接口：五份active商品900分、purchaseEnabled=true，首页开启且三项；会员enabled/available/configured/mock全false、availablePlanIds=[]，未登录已购/交付/管理商品均401，内外readiness=true。已交独立production_verify只读终验；不预填其签核或真实付款结果。未创建真实订单、未向生产发合成回调、未代付款/退款，未操作小程序上传/提审/发布；下一步Human亲自支付9元后再核对订单、真实通知和领取。
+- 独立生产核验最终通过：current/PID、2044文件字节、仅三flag且其他env不变、schema与财务六表原基线、五商品可买/会员关闭、私有401及内外readiness均PASS。尚无本轮实单，真实9元回调与领取待Human亲自付款；执行者已完成并释放两份记录的文件占用，不再生产写入。
+
+- Human 明确要求“继续做后端部署和真实支付验收”；小程序上传、提审与正式发布由 Human 自行执行，本轮禁止代操作。
+- 文件归属（候选准备完成并释放）：Codex assessment_checkout_release_prepare 本轮仅修改本记录与 `docs/ASSESSMENT_CHECKOUT_DEPLOY_20261019.md`，并在 `.git/` 下生成候选索引/清单/归档。候选基线 `93afc1340a301269b13b94d2ccae7e49eaa8363b`，只选 `routes/payment.js`、`tests/assessmentPaymentCapability.test.js`、`.env.example` 和购买修复说明；现有未提交小程序、职位及其他业务改动均保留，不进入后端包。
+- 高风险与门禁：资料收款开启不能同时打开会员/场景包；部署前先独立复核精确 tree，并以独立 DB/数据/上传目录在 Linux 运行 Release/Acceptance，禁止候选连接生产库或真实收费接口。真实支付需要用户亲自确认付款，合成回调不算真实验收；生产配置和切流另由 root 受控执行。
+- 本阶段不提交/推送、不切流、不修改生产环境或支付开关；远程暂存写入须先报送路径及方案并获 root 确认。
+- root 已批准新建独立远程暂存目录及 Linux 隔离门禁。Human 随后明确“直接开放全部用户购买资料，我自己支付9元验收”；不新增测试账号白名单，仍保持会员/场景包关闭，执行切流与开关待 root 完整门禁后交执行者。本轮回滚必须先关闭全局支付再回旧代码，防止旧代码忽略会员独立开关。
+- 候选 tree `07c5583de9f79e205af7a8d2296ad4c1cd327d32`；LF归档SHA256 `71e639e9cae510ff6bc9a65dcc26d219b49d12eab909ed5f021ce23e5d5d60f0`。新Linux暂存目录 `assessment-checkout-preflight-20261019-07c5583de9f79e205af7a8d2296ad4c1cd327d32-lf` 测试前后2044 Git文件字节一致，无真实.env/根运行DB；独立隔离全量504/504（0失败/0跳过），AI7/7外部0，小程序197.1KB/主包1.05MB，数据0错误/5既有提示，Acceptance29通过/0失败/1既有提示/0跳过。fresh verification 独立SSH读取完整日志、逐项SHA和隔离路径后签核。隔离内部包含合成Mock情景，不是真实收费验收。
+- 默认index保持空且字节SHA256 `919128801190c789fefb0acf278b0457357b5765c24fa41d420097b95915d483`；2074项原文件保护发现本人两份记录及其他线程并发首页/视觉四文件变化，仅记录未覆盖或回滚。候选仅四文件，不包含同期UI变化。此阶段未提交/推送、切流、修改生产env、开启支付或代发布小程序；远程证据目录 `/tmp/jobapp-assessment-checkout-check.kNnbVJ`，后续执行需 root 和fresh完整门禁通过。
+
+### 2026-10-19 测评资料购买能力独立于会员 SKU（本地实现及独立专项完成，未部署收款）
+
+- 文件归属（完成释放）：Codex assessment_checkout_implementation；仅 `routes/payment.js`、`tests/assessmentPaymentCapability.test.js`、`.env.example`、`docs/ASSESSMENT_RESOURCE_RELEASE_20261019.md` 与本记录。保留全部现有脏改动，不修改真实环境、运行数据库、生产配置或小程序 UI，不提交、推送、部署、上传、提审或发布。
+- 高风险：资料真实虚拟支付不能被未配置的会员 SKU 误判为 Mock；资料配置缺失不能静默降级，不能因此打开会员销售或绕过全局 kill switch/真实支付审批。仅拆分内部能力判断与资料 provider 选择，不改微信支付参数和验签协议。
+- 验证计划：隔离临时库覆盖全部会员 SKU 为空时资料真实 900 分下单与会员失败关闭、Mock 确认拒绝真实订单且订单/账本不变、签名回调/金额/SKU/数量/幂等校验、本人交付、停售/全局关闭后的历史领取及退款撤权；相关专项和独立全量发布门禁。所有测试不调用真实收费接口。
+- 已实现：拆分基础 Provider 配置和资料真实渠道选择；资料真实 Provider 就绪后不会因会员缺 SKU 改走 Mock，缺本品 SKU/通知 Token 时也不降级。全局支付开关和真实支付审批仍有效，无协议改动。
+- root 后续批准追加：生产现有会员 SKU 也非空，仅解除全局门禁可能同时打开会员；新增 `MEMBERSHIP_PAYMENT_ENABLED` 独立关闭会员/场景新销售，代码默认 true 保持兼容、示例推荐 false。关闭时服务端在任何写入前拒绝，配置接口反映关闭；资料与历史已付回调/领取不受该新开关影响。只修改示例，不修改真实环境；另增全 SKU 已配但会员开关关闭的隔离回归。
+- 专项验证：`node --test tests/assessmentPaymentCapability.test.js tests/assessmentCommerce.test.js tests/sprint7Commerce.test.js` 45/45通过、0失败/0跳过；能力矩阵16场景、独立真实virtual合成闭环、会员销售关闭时七种套餐拒绝且订单/账本不变、默认兼容均通过。两份 JS 语法及五文件差异格式检查通过，仅既有换行提示。独立 full `check:release` 将由 fresh verification 执行，本条不预填结果；未触碰环境配置、运行/生产数据库、真实支付或小程序发布。实现范围完成，交由 root/fresh 审查，后续仅本记录待补独立结果。
+- fresh 首轮反馈与本轮修复：完整套件父进程设置的可选会员 SKU 被能力测试子进程继承，导致“无会员 SKU”断言多出 trial；仅修测试 baseline 显式清空四个可选 SKU，并在“全部 SKU 已配/默认兼容”场景显式配置，未放宽断言或改运行逻辑。复跑专项45/45通过（0失败/0跳过）；既有 dirty `screens.json` 的 `maxGlobalShift=3` 与视觉测试期望2冲突仍保留不改，完整发布门禁尚未通过，需 fresh 再验证。本条为获 root 明确授权后的 fixture 修复记录。
+- 最终独立结果：质量与反模式检查通过；fresh 在父进程注入四个可选 SKU 的污染条件下复验购买专项45/45通过（0失败/0跳过，3.44秒），AI7/7/外部请求0、小程序结构与包体积、数据检查均通过（数据0错误/5既有提示）。支付运行源码与首次冻结哈希一致，真实 `.env` 与主DB哈希始终未变。首轮全量527项/523通过/2失败/2跳过的证据保留；本轮购买fixture已修复并独立复验，但未重跑全量，既有视觉配置冲突仍在，不能声明完整发布门禁通过。仅交付本地代码，未部署、开启真实收款或代发布小程序。
+
+### 2026-10-19 首页测评资料价格右上对齐（完成）
+
+- 文件归属（完成释放）：Codex；仅调整 `miniprogram/pages/index/index.wxml`、`index.wxss` 的测评条目布局，补充 `tests/assessmentFrontend.test.js` 局部回归及本记录。保留其他已有改动，不修改数据、支付或其他首页模块，不上传、提审或发布。
+- 布局：价格与标题置于同一行右侧，不压缩价格；长标题省略，摘要仍独立显示，保留原整行点击与无障碍标签。
+- 验证：测评前端专项20/20通过；小程序结构与包体积检查通过；布局/最终机械扫描无发现，指定文件差异格式检查通过。仅源码与专项验证，未执行微信真机视觉或真实E2E验收，未提交推送或发布。
+
+### 2026-10-19 测评资料小程序本地功能准备（精确验证完成，Human 自行发布）
+
+- 文件归属（本阶段完成释放）：Codex mini_release_scope 维护本记录、新增 `docs/ASSESSMENT_MINIPROGRAM_RELEASE_20261019.md` 及 `.git/assessment-mini-release-20261019/` 私有候选/备份辅助材料；未修改其他功能或支付门禁。Human 最新明确只上线功能，小程序上传、提审、正式发布由自己操作，因此相关代发布及提交推送计划全部取消。
+- 高风险与验证：上传只能来自唯一主项目根；共享文件逐 hunk 分离，保留 AI/简历/资讯/岗位等无关脏改动。根内受控覆盖前需记录全部受影响文件原始字节及 SHA-256，以排他锁和覆盖前哈希保护阻止并发写入；测试/上传后在 finally 恢复并逐字节核验，不创建外部可运行副本。精确 tree、独立门禁和微信阶段必须如实分别记录，不把上传等同审核通过或发布。
+- 本地精确候选 tree `2a5d7c6d90fd6e5f5a9d9f66f724f5f050d2098a`（基线 `93afc134`、36文件测评最小闭包）通过独立质量审查和唯一主根内 `check:release`：525项、523通过、0失败、2项既有Windows跳过，AI7/7/外部请求0，小程序媒体197.1KB、主包估算1.06MB，数据0错误/5既有提示。该结果是本地精确候选验证，不表示小程序已上传或正式发布。
+- 根内临时覆盖结束后1688项原文件SHA-256全部恢复，`.git/index`、`.env`、主DB字节不变，冲突0；保留898项差异原字节私有备份。D盘官方CLI仅查询登录、关闭当前项目以避免混入、恢复后按root授权重新打开同一项目；未preview、upload、提审、发布、提交推送、改变安全设置或开启收费。
+
+### 2026-10-19 测评后台已部署、生产迁移及 5 份真实资料草稿已导入（收款与上架保持关闭）
+
+- 本条为当前实际结果，优先于下方同日“准备中/未上线/待验收”等历史阶段记录；旧记录保留，不代表此次后端部署尚未完成。Codex assessment_backend_release_prepare 仅占用本状态与生产发布记录做本地收尾，不暂存、提交、推送，不再操作生产代码、数据库或其他功能。
+- 已分开提交并推送：纯测试稳定性修复 `2d3931831db4e2462909bb34a7ad05e6da935888`；测评后端/管理后台 `93afc1340a301269b13b94d2ccae7e49eaa8363b`，精确树 `107448fc00abc6a25983eb106d23cae86aa05d79`。当前版本为 `/www/wwwroot/zhiyincareer-main/releases/assessment-20261019-107448fc00abc6a25983eb106d23cae86aa05d79-lf`，主进程 PID2199936；2044个Git文件字节与提交一致。旧6c候选及非规范换行候选为HOLD，不可部署，未重写迁移SQL。
+- 精确 Linux 候选与标准部署均通过498/498测试、0失败/0跳过；AI7/7、外部请求0；Acceptance29通过/0失败/1条既有提示。独立只读验收、质量及反模式三项审查均通过；不能沿用更早 dirty 主工作区的530项结果替代这份精确版本证据。
+- 实际顺序：在线完整备份→第一维护窗口仅迁移0012–0015（约6秒）→旧版恢复健康→标准部署新后台→第二维护窗口备份并导入（约4秒）→新版恢复健康。两窗口耗时不是全程对外中断测量，未声称总停机10秒。
+- 生产 schema 共15项、pending=0、integrity=ok、外键错误0。京东、美团、百度、拼多多、小米5份均为草稿、900分、领取期限null、目录待审、对应SKU正确；复用4家原公司，仅新增拼多多公司77且公开不可见；共享四段文案与用户原文一致、版本1，只初始化一次。源表40行、跳过35空资料，生产只读重规划 unchanged5。
+- 公网 readiness正常；管理后台静态资源200，未登录私有/管理接口401；测评公开商品0、五份商品详情404、拼多多公司404，原公开公司76家，首页关闭。`PAYMENT_ENABLED=false`；另两项审批标志未设置、按默认false，三项收费门禁实效关闭。未上架商品、未开启首页卡片、未上传/提审小程序、未真实付款。
+- 历史财务六表校验保持：19笔订单、8项会员计划及四个空账本/退款/权益/告警表不变；原76家公司行内容完全不变。不可声称全85表不变：既有未修改的启动逻辑对15353条校招记录仅将空/null的`updated_at`补为`created_at`，健康探针亦会产生性能记录。
+- 生产环境SHA256 `c7042d5596df290257ff947af7bd4ceda422c218fc12e95e636b7326a825eb8a`、Nginx SHA256 `b5dbf762f721770fde5d374ae496d2a983a83c6fdf00c6a4dea3242c24b7cfdc` 前后不变。五份验证备份、私有源权限及校验详情见 `docs/ASSESSMENT_PRODUCTION_RELEASE_20261019.md`。操作方确认只明确控制`jobapp-server`及既有部署脚本生成的候选，未修改cron、未操作其他具名应用或全局停止/重启/删除；常规`pm2 save`会保存全局当时观察到的状态，不保证其他项目不变，不把同期其他PM2变化归因于本发布或擅自恢复其他进程。
+- 工作区保护：提交前后2064项文件哈希核验，其他小程序/AI/资讯/职位等 dirty 改动保留，未混入后端发布。草稿导入后回滚代码必须保留公司草稿过滤；恢复写入后不得用旧DB备份覆盖运行库。本条收尾文档仅本地更新，未加入已部署不可变版本。
+
 ### 2026-10-19 测评导入新增公司草稿的公开可见性修复（代码及专项完成，待独立候选验收）
 
 - 文件归属（本修复完成并释放）：Codex assessment_import_company_privacy；`services/companyService.js`、`routes/companies.js`、`routes/v4/jobs.js` 的公司查询一行、新增 `tests/assessmentCompanyVisibility.test.js`、导入说明与本记录。测试总入口由发布准备负责人后续登记。
@@ -268,6 +327,46 @@ Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成
 | P2 | 超长 WXSS 精简清理 | Codex | 小程序 `pages/salary/salary.wxss`、`pages/applications/applications.wxss`、`pages/jobs/jobs.wxss`、`pages/index/index.wxss`、`pages/experiences/experiences.wxss`、`pages/resume/resume.wxss`、`pages/agencies/agencies.wxss`、`pages/project-builder/project-builder.wxss`、`pages/ai-assistant/ai-assistant.wxss`、`pages/profile/profile.wxss`、`pages/career-planner/career-planner.wxss` | 已完成首批 |
 
 ## 当前文件占用
+
+- Codex（2026-10-20，今日求职计划移除待办副标题，已完成并释放）：调整 `miniprogram/pages/index/index.{wxml,wxss}`、`tests/frontendVisualCheckpoint.test.js` 与本记录。移除“优先处理”和次要待办描述，收紧待办行距；保留任务标题、状态、跳转和任务数据。首页/导航专项 45/45、`check:miniprogram` 和差异格式检查通过；未在微信开发者工具或真机预览，未发布。
+
+- Codex（2026-10-20，首页校招区标题与查看全部样式，已完成并释放）：调整 `miniprogram/pages/index/index.{wxml,wxss}` 与本记录。删除标题下的更新说明，右侧统一为其他首页卡片的“查看全部”文本、箭头和样式，保留跳转及校招列表数据。首页/导航专项 45/45、`check:miniprogram` 和差异格式检查通过；未在微信开发者工具或真机预览，未发布。
+
+- Codex（2026-10-20，修复微信代码质量主包冗余 JS，已完成并释放）：将 `miniprogram/utils/oa-practice-bank.js` 移到 `miniprogram/package-career/pages/oa-bank/oa-practice-bank.js`，更新同目录 OA 页引用与 `tests/oaPracticeBank.test.js`。题目与交互不变，主包已无该文件或旧引用。OA 专项 3/3、`check:miniprogram`、JS 语法和差异格式检查通过；未运行微信开发者工具质量复扫，未预览或发布。
+
+- Codex（2026-10-19，“我的”七个详情入口升级，已完成并释放）：调整 `miniprogram/package-career/pages/resume-center/resume-center.{wxml,wxss}`、`miniprogram/package-user/pages/{favorites,messages,my-experiences,feedback,about,settings}/*.{js,wxml,wxss}` 中本轮涉及的页面、`tests/profileDetailPages.test.js`、`tests/all.test.js` 与本记录。统一蓝白卡片、信息层级、操作与空状态；消息总数与分类数改为基于完整列表，失败时给出重试并隐藏不准确数字；面经操作可点击且明确本机保存；反馈失败保留输入并提示重试；设置移除不生效的外观与推送开关。简历上传与服务端数据删除请求及确认逻辑未改，消息已读接口行为保持原样。页面、导航及消息相关专项 88/88、`check:miniprogram`、JS 语法与差异格式检查通过；未在微信开发者工具或真机预览，未上传或发布。
+
+- Codex（2026-10-19，编辑资料表单减负，已完成并释放）：调整 `miniprogram/package-user/pages/profile-edit/profile-edit.{js,wxml,wxss}` 与本记录。取消首屏“缺少多项”进度施压，压缩身份卡；学历改为单行选择器，首屏保留基础资料、毕业年份、目标地区和目标岗位；常见选项仍可在搜索弹层选择，行业、求职类型、签证、技能及项目等字段归入默认收起的“其他资料”。原有值、保存/同步和头像上传链路保持不变，不改后端或生产数据。导航/资料隔离专项 34/34、小程序静态、JS 语法及差异格式检查通过；未在微信开发者工具或真机预览，未上传或发布。
+
+- Codex（2026-10-19，测评资料详情页整体排版，已完成并释放）：调整 `miniprogram/package-content/pages/assessment-detail/assessment-detail.{wxml,wxss}` 与本记录。封面下的标题、公司届别、价格和摘要归入白色商品卡；介绍、目录、示例、领取及售后分区，订单状态改为提示卡，底部价格与主操作重新对齐。保留全部商品字段、购买/已购状态、领取入口和示例图预览，不改支付逻辑、商品数据或生产环境。测评页面/预览专项 29/29 与 `check:miniprogram` 通过；未在微信开发者工具或真机预览，未上传或发布。
+
+- Codex（2026-10-19，测评资料列表/详情封面重新设计，已完成并释放）：调整 `miniprogram/package-content/pages/assessment-list/assessment-list.{wxml,wxss}`、`miniprogram/package-content/pages/assessment-detail/assessment-detail.{wxml,wxss}`、`miniprogram/package-content/assessment-shared.wxss`、`miniprogram/utils/api-assessment-resources.js`、`tests/assessmentFrontend.test.js` 与本记录。生产商品原图仅 200×200；列表改为 124×160rpx 竖版原生图形，详情改为全宽×340rpx 横版图形，按公司显示五种配色与清晰原生文字，避免原图放大裁切。保留原 `coverUrl` 数据供其它入口使用，不改商品、支付或生产数据。测评专项 51/51、小程序静态、JS 语法与差异格式检查通过；未在微信开发者工具或真机预览，未上传或发布。
+
+- Codex（2026-10-19，测评资料列表卡片排版，已完成并释放）：调整 `miniprogram/package-content/pages/assessment-list/assessment-list.{wxml,wxss}` 与本记录；资料列表改为独立白色卡片，封面放大并完整显示，标题、公司届别、说明及价格分层，搜索和“我的已购”点击区域分开。保留原搜索、分页、已购状态及详情跳转。相关专项 28/28、小程序静态与差异格式检查通过；未在微信开发者工具或真机预览，未上传或发布。
+
+- Codex（2026-10-19，我的页面会员权益卡片间距，已完成并释放）：调整 `miniprogram/pages/profile/profile.wxss` 与本记录；个人资料卡与会员卡之间补齐 24rpx 间距，与会员卡到“我的记录”保持一致。相关专项 45/45、小程序静态与差异格式检查通过；未在微信开发者工具或真机预览，未上传或发布。
+
+- Codex（2026-10-19，OA 页面改为直接刷题，已完成并释放）：调整 `miniprogram/package-career/pages/oa-bank/oa-bank.{js,wxml,wxss}`、`miniprogram/pages/resources/resources.js`，新增 `miniprogram/utils/oa-practice-bank.js`、`tests/oaPracticeBank.test.js` 与本记录。首页可免登录直接练习 21 道原创通用模拟题（7 类各 3 题）、提交看解析、换题和重练；原训练计划、计时及本人记录保留在“训练记录”次级标签，模拟题成绩只在当前页面会话显示，不混入用户确认的服务端统计。资源入口描述同步修正。相关专项 64/64、小程序静态、JS 语法与差异格式检查通过；未在微信开发者工具或真机预览，未上传或发布。
+
+- Codex（2026-10-19，资源中心“我的已购”卡片统一，已完成并释放）：调整 `miniprogram/pages/resources/resources.wxml`、`tests/frontendVisualCheckpoint.test.js` 与本记录；把“我的已购”放入“更多资源”的同一个白色列表卡，图标改用与“我的收藏”相同的可用态和行样式。相关专项 45/45、小程序静态与差异格式检查通过；未在微信开发者工具或真机预览，未上传或发布。
+
+- Codex（2026-10-19，申请进度数字同行右对齐，已完成并释放）：调整 `miniprogram/pages/index/index.wxss`、`tests/frontendVisualCheckpoint.test.js` 与本记录；三项进度标签与数字同行，数字放在各自色块右端。相关专项 58/58、小程序静态与差异格式检查通过；未在微信开发者工具或真机预览，未上传或发布。
+
+- Codex（2026-10-19，今日计划重复标题与申请进度对齐，已完成并释放）：调整 `miniprogram/pages/index/index.{wxml,wxss}`、`tests/frontendVisualCheckpoint.test.js` 与本记录；删除“今天有 X 项待办”重复行，将“申请进度”标题左对齐，保留右侧“查看全部”。相关专项 58/58、小程序静态与差异格式检查通过；未在微信开发者工具或真机预览，未上传或发布。
+
+- Codex（2026-10-19，资源中心恢复标题式卡片，已完成并释放）：撤销上一轮在 `miniprogram/pages/resources/resources.{wxml,wxss}` 新增的精选资源阶段文案、更多资源说明及卡片增高/加大间距；保留可进入“我的已购”的功能入口。同步调整两份视觉/导航断言，专项 78/78、小程序静态与差异格式检查通过。未取得微信开发者工具或真机截图，未上传或发布。
+
+- Codex（2026-10-19，今日计划卡片按最新截图调整，已完成并释放）：修改 `miniprogram/pages/index/index.{js,wxml,wxss}`、`tests/frontendVisualCheckpoint.test.js`、`tests/checkpoint8.test.js` 与本记录。移除顶部重复任务说明；申请进度标题居中，保留右侧查看全部；主按钮可点区域仍为 88rpx，蓝色可视部分缩至 68rpx；本地和同步任务不再只取前三项，首要任务下逐条显示其余事项完整标题、说明与完成状态。保留原数据隔离、状态更新和导航语义。相关专项 106/106、小程序静态与 JS/差异格式检查通过，WXSS 机械扫描无发现；未取得微信开发者工具或真机截图，未上传或发布。
+
+- Codex（2026-10-19，今日计划与申请进度合并）：已完成 `miniprogram/pages/index/index.{wxml,wxss}`、首页/导航回归测试和视觉夹具本轮调整，文件占用已释放。参考线上旧卡片把原来两张卡合为一张：待办数与简短说明、可进入申请进度的三项统计、单条今日建议及紧凑主操作；首页不再逐条铺开两个次要待办。任务与进度数据及原导航逻辑继续复用。相关测试 56/56、小程序静态、JSON 与差异格式检查通过；尚未微信开发者工具或真机视觉验收，未提交或发布。
+
+- Codex（2026-10-19，每日校招白色卡片外框）：已恢复首页每日校招整个模块的白底、边框、圆角与轻阴影，标题和岗位列表同处一张卡片内；保留公司/职位双行与彩色标签。`tests/frontendVisualCheckpoint.test.js` 增加外框回归检查，专项 15/15、小程序静态与差异格式检查通过；未做微信开发者工具或真机视觉验收，未提交或发布，文件占用已释放。
+
+- Codex（2026-10-19，首页卡片视觉层级优化）：已完成 `miniprogram/pages/index/index.{js,wxml,wxss}`、首页/校招专项测试和视觉夹具本轮调整，文件占用已释放。每日校招参照线上样式采用区块标题加白色列表卡，保留公司与职位各一行，增加真实状态、行业和截止标签；最新机会改为公司、岗位、类型/地点和来源分层；今日任务、进度、常用功能及资料价格增加语义色。缺失明确截止日期不再误标“即将截止”。相关测试 68/68、小程序静态、JS 语法、JSON 和差异格式检查通过；旧首页 PNG 基准仍标记过时，未做微信开发者工具/真机视觉验收，未提交或发布。
+
+- Codex（2026-10-19，首页最新机会展示 3 个岗位）：已完成 `miniprogram/pages/index/index.{js,wxml}`、首页视觉测试及视觉夹具的数量调整，文件占用已释放。最新机会从公开数据取最近 3 条有效岗位，页面最多展示 3 行；“为你推荐”已有 3 条数据时现在也展示完整 3 行。专项测试 15/15、小程序静态、JS 语法、JSON 与差异格式检查通过；未在微信开发者工具重新编译或发布。
+
+- Codex（2026-10-19，职位详情描述显示）：已完成 `miniprogram/utils/job-presenter.js`、`miniprogram/package-user/pages/job-detail/job-detail.{js,wxml,wxss}` 和 `tests/jobPresentation.test.js` 的本轮修复，文件占用已释放。招聘源多层 HTML 实体解码并转为可读段落；长描述默认展示摘要，支持展开完整原文。专项测试 6/6、小程序静态检查、JS 语法和差异格式检查通过；尚未在微信开发者工具重新编译做真机视觉确认，未提交或发布。
 
 - Codex 后端 review 修复（2026-10-19）：继续占用本次 assessment 后端/0012/专项测试/实施文档，必要扩展 `routes/users.js` 的账号注销数据库事务。风险：账号注销不得被历史订单阻断或先提交部分删除；已注销用户旧 token 不得领取；关闭订单迟到收款必须记账待人工核对且不发链接。验证：隔离数据库覆盖 pending/paid/refunded 注销、注销失败回滚、旧 token、合法迟到回调及凭据退款，禁止生产写入。
 
