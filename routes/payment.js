@@ -204,8 +204,10 @@ function genOrderNo(userId) {
 
 function xmlToObj(xml) {
   const obj = {};
-  String(xml || '').replace(/<(\w+)>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/\1>/g, (_, k, v) => {
-    obj[k] = v;
+  const body = String(xml || '').trim().replace(/^<\?xml[^>]*\?>\s*/i, '')
+    .replace(/^<xml(?:\s[^>]*)?>([\s\S]*)<\/xml>$/i, '$1');
+  body.replace(/<(\w+)>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([\s\S]*?))<\/\1>/g, (_, k, cdata, value) => {
+    obj[k] = cdata === undefined ? value : cdata;
   });
   return obj;
 }
@@ -506,14 +508,18 @@ function firstIntFromSources(sources, names) {
   return NaN;
 }
 
-function respondVirtualNotify(res, errCode, errMsg) {
-  res.json({ ErrCode: errCode, ErrMsg: errMsg || (errCode === 0 ? 'OK' : 'FAIL') });
+function respondVirtualNotify(req, res, errCode, errMsg) {
+  const response = { ErrCode: errCode, ErrMsg: errMsg || (errCode === 0 ? 'OK' : 'FAIL') };
+  if (/\bxml\b/i.test(req.headers['content-type'] || '')) {
+    return res.type('application/xml').send(objToXml(response));
+  }
+  return res.json(response);
 }
 
 function handleVirtualNotify(req, res, params) {
   if (!verifyMessageSignature(req)) {
     console.warn('[VirtualPay Notify] 消息签名验证失败');
-    return respondVirtualNotify(res, 1, 'signature invalid');
+    return respondVirtualNotify(req, res, 1, 'signature invalid');
   }
 
   const event = params.Event || params.event || '';
@@ -533,32 +539,35 @@ function handleVirtualNotify(req, res, params) {
   }));
   if (event === 'xpay_complaint_notify') {
     console.warn('[VirtualPay Complaint]', params.MchOrderId || '', params.ComplaintId || '');
-    return respondVirtualNotify(res, 0, 'OK');
+    return respondVirtualNotify(req, res, 0, 'OK');
   }
   if (event && event !== 'xpay_goods_deliver_notify') {
-    return respondVirtualNotify(res, 0, 'OK');
+    return respondVirtualNotify(req, res, 0, 'OK');
   }
 
-  if (!orderNo) return respondVirtualNotify(res, 2, 'missing order');
+  if (!orderNo) return respondVirtualNotify(req, res, 2, 'missing order');
 
   const order = db.prepare('SELECT * FROM orders WHERE order_no = ?').get(orderNo);
-  if (!order) return respondVirtualNotify(res, 3, 'order not found');
+  if (!order) return respondVirtualNotify(req, res, 3, 'order not found');
   if (Number(order.plan_id) === -1) {
-    if (!VIRTUAL_PAY_NOTIFY_TOKEN) return respondVirtualNotify(res, 5, 'notification verification unconfigured');
+    if (!VIRTUAL_PAY_NOTIFY_TOKEN) return respondVirtualNotify(req, res, 5, 'notification verification unconfigured');
     const assessmentRow = require('../services/assessmentCommerce').orderRow(orderNo);
     const snapshot = commerce.parseJson(assessmentRow.snapshot, {});
     const notifiedProduct = firstStringFromSources(notifySources, ['ProductId','productId','product_id','GoodsId','goodsId']);
     const quantity = firstIntFromSources(notifySources, ['BuyQuantity','buyQuantity','buy_quantity','Quantity','quantity','GoodsNum','goods_num']);
-    if (notifiedProduct !== snapshot.virtualProductId || quantity !== 1) return respondVirtualNotify(res, 5, 'product or quantity mismatch');
+    if (notifiedProduct !== snapshot.virtualProductId || quantity !== 1) return respondVirtualNotify(req, res, 5, 'product or quantity mismatch');
   }
 
   const user = db.prepare('SELECT openid FROM users WHERE id = ?').get(order.user_id);
   if (params.OpenId && user && user.openid && params.OpenId !== user.openid) {
     console.warn('[VirtualPay Notify] openid 不匹配', orderNo);
-    return respondVirtualNotify(res, 4, 'openid mismatch');
+    return respondVirtualNotify(req, res, 4, 'openid mismatch');
   }
 
   const paidAmount = firstIntFromSources(notifySources, [
+    'ActualPrice',
+    'actualPrice',
+    'actual_price',
     'PayAmount',
     'payAmount',
     'pay_amount',
@@ -575,11 +584,17 @@ function handleVirtualNotify(req, res, params) {
     'TransactionId',
     'transactionId',
     'transaction_id',
+    'MchOrderNo',
+    'mchOrderNo',
+    'mch_order_no',
     'WxOrderId',
     'wxOrderId',
     'wx_order_id'
   ]);
   const wxOrderId = firstStringFromSources(notifySources, [
+    'MchOrderNo',
+    'mchOrderNo',
+    'mch_order_no',
     'WxOrderId',
     'wxOrderId',
     'wx_order_id',
@@ -596,10 +611,10 @@ function handleVirtualNotify(req, res, params) {
     commerce.recordLedger({ idempotencyKey: `payment-callback-rejected:${orderNo}:${Date.now()}`,
       eventType: 'payment_callback_rejected', userId: order.user_id, orderNo,
       planCode: (productById(order.plan_id) || {}).planCode || '', metadata: { reason: result.message } });
-    return respondVirtualNotify(res, 5, result.message);
+    return respondVirtualNotify(req, res, 5, result.message);
   }
 
-  respondVirtualNotify(res, 0, 'OK');
+  respondVirtualNotify(req, res, 0, 'OK');
 }
 
 function buildVirtualPayParams(orderNo, userId, planId, plan) {

@@ -42,6 +42,11 @@ jobs:
             nvm use 20
             RELEASE_DIR=/www/wwwroot/zhiyincareer-main/releases/${{ github.run_id }}-${{ github.sha }}
             cd "$RELEASE_DIR"
+            EXPECTED_CURRENT=/www/wwwroot/zhiyincareer-main/releases/assessment-checkout-20261019-07c5583de9f79e205af7a8d2296ad4c1cd327d32-lf
+            if [ "$(readlink -f /www/wwwroot/zhiyincareer-main/current)" != "$EXPECTED_CURRENT" ]; then
+              echo "❌ 线上版本与已核验基线不符，停止发布" >&2
+              exit 1
+            fi
             chmod +x deploy.sh scripts/run-campus-sync.sh scripts/run-reminder-dispatch.sh scripts/backup-production.sh
             APP_DATA_DIR=/var/lib/jobapp-server BACKUP_DIR=/www/backups/zhiyincareer NGINX_CONFIG_PATH="$PRODUCTION_NGINX_CONFIG_PATH" bash scripts/backup-production.sh
             bash deploy.sh
