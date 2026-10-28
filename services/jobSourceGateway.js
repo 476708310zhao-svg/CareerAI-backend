@@ -62,6 +62,7 @@ function createJobSourceGateway(options = {}) {
 
   async function request(source, key, fetcher, policy = {}) {
     const config = { ...(SOURCE_POLICIES[source] || {}), ...policy };
+    const requestCost = positiveInteger(config.requestCost, 1);
     const cacheKey = `${source}:${key}`;
     const cached = cache.get(cacheKey);
     if (cached && cached.expiresAt > now()) return cached.value;
@@ -89,7 +90,7 @@ function createJobSourceGateway(options = {}) {
           state.requestsToday = 0;
           state.budgetWarned = false;
         }
-        if (config.dailyBudget && state.requestsToday >= config.dailyBudget) {
+        if (config.dailyBudget && state.requestsToday + requestCost > config.dailyBudget) {
           if (!state.budgetWarned) {
             console.warn(`[jobs/source] ${source} daily request budget reached`);
             state.budgetWarned = true;
@@ -98,7 +99,7 @@ function createJobSourceGateway(options = {}) {
         }
         if (state.nextRequestAt > now()) await sleep(state.nextRequestAt - now());
         state.nextRequestAt = now() + (config.minIntervalMs || 0);
-        state.requestsToday += 1;
+        state.requestsToday += requestCost;
 
         try {
           const value = await fetcher();

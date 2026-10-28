@@ -6,6 +6,12 @@
 
 小程序源码目录：仓库根目录下的 `miniprogram/`。
 
+## 2026-10-28 JSearch v5 独立发布候选
+
+- 文件归属：Codex；本隔离 Git worktree 从线上已部署提交 `a02a82d` 建立，仅占用 `routes/jobs.js`、`services/jobSourceGateway.js`、两个对应专项测试及模拟上游、`.github/workflows/deploy.yml` 与本节；主工作区未提交改动不纳入。
+- 变更：适配 `/search-v2`、`data.jobs`、游标分页、上游等待时间与免费套餐按页数计入预算。部署工作流先只读验证线上基线和生产 JSearch Key；验证失败时不上传或切流。
+- 验证：专项 10/10；真实本地候选接口返回 19 条美国 JSearch 岗位且未降级；`npm run check:release` 507 项中 505 通过、0 失败、2 项既有 Windows 跳过，AI 质量和小程序检查通过，内容 0 错误/5 项既有提示。生产 Key 与上线结果待工作流核验。
+
 禁止在个人机器旧副本、Junction 别名或仓库外复制目录中开发、预览、部署或提交。
 
 ## 当前批次

@@ -64,6 +64,13 @@ test('a 429 on the first global market request suppresses the queued second call
   assert.equal(result.secondMap.source, 'live');
 });
 
+test('JSearch v5 cursor loads the requested second page through search-v2', () => {
+  const result = probe('pagination');
+  assert.equal(result.source, 'jsearch');
+  assert.deepEqual(result.jobs, ['js_page_2']);
+  assert.deepEqual(result.calls.map(call => call.cursor), ['', 'next-page']);
+});
+
 test('a slow country provider does not hold the map beyond its soft deadline', () => {
   const result = probe('slow');
   assert.ok(result.mapElapsedMs < 11_000, `map took ${result.mapElapsedMs} ms`);

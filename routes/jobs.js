@@ -53,17 +53,40 @@ const externalJobCache = new Map();
 const _shouldLogSourceError = error => !['cooldown', 'budget_exhausted'].includes(error?.reason);
 const countryNamesZh = new Intl.DisplayNames(['zh-CN'], { type: 'region' });
 
-async function _requestJSearch(endpoint, params, timeout = 7000, policy = {}) {
-  return sourceGateway.request('jsearch', JSON.stringify([endpoint, params]), async () => {
-    const result = await axios.get(`${RAPID_BASE}/${endpoint}`, { params, headers: RAPID_HEADERS, timeout });
+async function _requestJSearch(endpoint, params, timeout = 15000, policy = {}) {
+  if (endpoint === 'search' && Number(params.page) > 1 && !params.cursor) {
+    let cursor = '';
+    let result;
+    for (let currentPage = 1; currentPage <= Number(params.page); currentPage++) {
+      result = await _requestJSearch('search', { ...params, page: 1, num_pages: 1, cursor: cursor || undefined }, timeout, policy);
+      cursor = result.data.cursor;
+      if (currentPage < Number(params.page) && !cursor) {
+        return { ...result, data: { ...result.data, data: [] } };
+      }
+    }
+    return result;
+  }
+  const requestEndpoint = endpoint === 'search' ? 'search-v2' : endpoint;
+  const requestParams = endpoint === 'search' ? { ...params } : params;
+  if (endpoint === 'search') {
+    delete requestParams.page;
+    if (!requestParams.cursor) delete requestParams.cursor;
+  }
+  const requestCost = endpoint === 'search' ? Math.min(20, Math.max(1, parseInt(requestParams.num_pages, 10) || 1)) : 1;
+  return sourceGateway.request('jsearch', JSON.stringify([requestEndpoint, requestParams]), async () => {
+    const result = await axios.get(`${RAPID_BASE}/${requestEndpoint}`, { params: requestParams, headers: RAPID_HEADERS, timeout });
     if (result.data?.status === 'ERROR') {
       throw { response: { status: Number(result.data.error?.code) || 502, headers: result.headers } };
     }
-    if (['search', 'job-details'].includes(endpoint) && !Array.isArray(result.data?.data)) {
+    if (endpoint === 'search') {
+      if (!Array.isArray(result.data?.data?.jobs)) throw new Error('invalid JSearch payload');
+      return { ...result, data: { ...result.data, cursor: result.data.data.cursor || '', data: result.data.data.jobs } };
+    }
+    if (endpoint === 'job-details' && !Array.isArray(result.data?.data)) {
       throw new Error('invalid JSearch payload');
     }
     return result;
-  }, policy);
+  }, { ...policy, requestCost });
 }
 
 async function _requestAdzuna(country, page, params, timeout = 8000, policy = {}) {
@@ -342,7 +365,7 @@ async function _fetchSearchJobsForWeb(query, page, country, policy = {}) {
   if (country !== 'global' && _isValidRapidKey(process.env.RAPID_API_KEY)) {
     try {
       const result = await _requestJSearch('search',
-        { query: searchQuery, page, num_pages: 1, country, date_posted: 'week' }, 5000, policy);
+        { query: searchQuery, page, num_pages: 1, country, date_posted: 'week' }, 12000, policy);
       const data = Array.isArray(result.data?.data) ? result.data.data : [];
       if (data.length) return data.map(job => ({ ...job, _source: 'jsearch', _requestedCountry: country }));
     } catch (err) {
@@ -401,7 +424,7 @@ async function _fetchLiveWebJobs(query) {
   const marketCountries = country === 'global' ? globalSampleCountries() : [country];
   const [searchBatches, museJobs, remoteJobs] = await Promise.all([
     Promise.all(marketCountries.map(code => _withSoftDeadline(
-      _fetchSearchJobsForWeb(keyword, page, code), 6_000, []))),
+      _fetchSearchJobsForWeb(keyword, page, code), 14_000, []))),
     _withSoftDeadline(_fetchMuseJobsForWeb(keyword, page, country), 6_000, []),
     _fetchRemoteJobsForWeb(keyword, 20, country)
   ]);
@@ -682,7 +705,7 @@ router.get('/search', jobsLimiter, async (req, res) => {
       const params = { query, country, page, num_pages: 1 };
       if (_normalizeDatePosted(req.query.date_posted)) params.date_posted = _normalizeDatePosted(req.query.date_posted);
       if (req.query.employment_types) params.employment_types = String(req.query.employment_types).slice(0, 80);
-      const result = await _requestJSearch('search', params, 5000);
+      const result = await _requestJSearch('search', params, 15000);
       const payload = result.data || {};
       const data = (Array.isArray(payload.data) ? payload.data : []).map(job => _withRawJobMeta(job, 'jsearch'));
       return res.json({ ...payload, data, _source: 'jsearch', dataMeta: _collectionMeta(data) });
@@ -908,7 +931,7 @@ router.get('/aggregate', jobsLimiter, async (req, res) => {
 
   try {
     const [searchJobs, museJobs, remoteJobs] = await Promise.all([
-      _withSoftDeadline(_fetchSearchFresh(), 10_000, []),
+      _withSoftDeadline(_fetchSearchFresh(), 18_000, []),
       _fetchMuseFresh(),
       _fetchRemoteOKFresh()
     ]);

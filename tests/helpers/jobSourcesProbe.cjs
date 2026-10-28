@@ -20,18 +20,25 @@ const axios = require('axios');
 const express = require('express');
 const calls = [];
 const now = new Date().toISOString();
+const jsearchResponse = (jobs, cursor = '') => ({ data: { status: 'OK', data: { jobs, cursor } } });
 
 axios.get = async (url, options = {}) => {
   if (url.includes('jsearch.p.rapidapi.com/search')) {
-    calls.push({ source: 'jsearch', country: options.params.country, query: options.params.query });
+    if (url !== 'https://jsearch.p.rapidapi.com/search-v2') throw new Error(`Outdated JSearch endpoint: ${url}`);
+    calls.push({ source: 'jsearch', country: options.params.country, query: options.params.query, cursor: options.params.cursor || '' });
     if (scenario === 'limited') throw { response: { status: 429, headers: { 'retry-after': '3600' } } };
     if (scenario === 'slow') return new Promise(() => {});
     const country = options.params.country;
-    return { data: { status: 'OK', data: [{
+    if (scenario === 'pagination') return jsearchResponse([{
+      job_id: options.params.cursor ? 'js_page_2' : 'js_page_1',
+      job_title: options.params.cursor ? 'Engineer Page Two' : 'Engineer Page One',
+      employer_name: 'Page Co', job_country: country, job_posted_at_datetime_utc: now
+    }], options.params.cursor ? '' : 'next-page');
+    return jsearchResponse([{
       job_id: `js_${country}`, job_title: `Engineer ${country}`,
       employer_name: 'Market Co', job_city: country, job_country: country,
       job_posted_at_datetime_utc: now, job_apply_link: 'https://example.com/apply'
-    }] } };
+    }]);
   }
   if (url === 'https://remoteok.com/api') {
     calls.push({ source: 'remoteok' });
@@ -59,6 +66,12 @@ async function main() {
       const response = await (await fetch(`${base}${route}`)).json();
       stageCalls[stage] = calls.slice(before);
       return response;
+    }
+    if (scenario === 'pagination') {
+      const search = await requestStage('search', '/api/jobs/search?country=us&query=Engineer&page=2');
+      console.log(`PROBE_RESULT:${JSON.stringify({ calls, source: search._source,
+        jobs: search.data.map(job => job.job_id) })}`);
+      return;
     }
     const startedAt = Date.now();
     const map = await requestStage('map', '/api/jobs/map?country=global&pageSize=20');
