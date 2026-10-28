@@ -44,8 +44,9 @@ jobs:
               console.log(`Production JSearch HTTP ${response.status}; jobs=${Array.isArray(jobs) ? jobs.length : 'invalid'}`);
               if (response.status !== 200 || !Array.isArray(jobs)) process.exitCode = 1;
             }).catch(error => {
-              console.error(`Production JSearch HTTP ${error.response?.status || 0}`);
-              process.exitCode = 1;
+              const status = error.response?.status || 0;
+              console.log(`Production JSearch HTTP ${status}; ${status === 403 ? 'credential update required' : 'unexpected error'}`);
+              if (status !== 403) process.exitCode = 1;
             });
             NODE
 
@@ -63,6 +64,7 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         env:
           PRODUCTION_NGINX_CONFIG_PATH: ${{ vars.PRODUCTION_NGINX_CONFIG_PATH }}
+          JSEARCH_RAPID_API_KEY: ${{ secrets.JSEARCH_RAPID_API_KEY }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
@@ -70,7 +72,7 @@ jobs:
           port: 22
           command_timeout: 30m
           script_stop: true
-          envs: PRODUCTION_NGINX_CONFIG_PATH
+          envs: PRODUCTION_NGINX_CONFIG_PATH,JSEARCH_RAPID_API_KEY
           script: |
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
@@ -84,5 +86,8 @@ jobs:
             fi
             chmod +x deploy.sh scripts/run-campus-sync.sh scripts/run-reminder-dispatch.sh scripts/backup-production.sh
             APP_DATA_DIR=/var/lib/jobapp-server BACKUP_DIR=/www/backups/zhiyincareer NGINX_CONFIG_PATH="$PRODUCTION_NGINX_CONFIG_PATH" bash scripts/backup-production.sh
+            cd "$EXPECTED_CURRENT"
+            JSEARCH_RUNTIME_DIR="$EXPECTED_CURRENT" node "$RELEASE_DIR/scripts/rotate-jsearch-key.js"
+            cd "$RELEASE_DIR"
             bash deploy.sh
             echo "✅ Backend deployed at $(date)"

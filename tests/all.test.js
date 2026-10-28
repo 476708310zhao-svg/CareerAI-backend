@@ -21,6 +21,7 @@ require('./coreEntityRefs.test');
 require('./funnelAnalytics.test');
 require('./dataProvenance.test');
 require('./jobSourceGateway.test');
+require('./jsearchKeyRotation.test');
 require('./jobGeography.test');
 require('./jobSourcesIntegration.test');
 require('./careerPlanGenerator.test');
