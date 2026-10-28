@@ -9,8 +9,9 @@
 ## 2026-10-28 JSearch v5 独立发布候选
 
 - 文件归属：Codex；本隔离 Git worktree 从线上已部署提交 `a02a82d` 建立，仅占用 `routes/jobs.js`、`services/jobSourceGateway.js`、两个对应专项测试及模拟上游、`.github/workflows/deploy.yml` 与本节；主工作区未提交改动不纳入。
-- 变更：适配 `/search-v2`、`data.jobs`、游标分页、上游等待时间与免费套餐按页数计入预算。部署工作流先只读验证线上基线和生产 JSearch Key；验证失败时不上传或切流。
+- 变更：适配 `/search-v2`、`data.jobs`、游标分页、上游等待时间与免费套餐按页数计入预算。部署工作流先只读验证线上基线和生产 JSearch Key；若旧 Key 返回 403，先备份共享生产配置，再用 `production` 环境中的 `JSEARCH_RAPID_API_KEY` 验证新 Key 为 200，原子替换共享 `.env` 中唯一的 `RAPID_API_KEY`，任何失败均在切流前停止且不在日志打印 Key。
 - 验证：专项 10/10；真实本地候选接口返回 19 条美国 JSearch 岗位且未降级；`npm run check:release` 507 项中 505 通过、0 失败、2 项既有 Windows 跳过，AI 质量和小程序检查通过，内容 0 错误/5 项既有提示。生产 Key 与上线结果待工作流核验。
+- 生产凭据更新增量验证：密钥轮换脚本使用合成值覆盖成功原子更新与上游响应无效时保持原文件，2/2 通过；加入测试总入口后的 `check:release` 509 项中 507 通过、0 失败、2 项既有跳过。旧生产 Key 在只读工作流中返回 403，未上传或切流；等待在 GitHub `production` 环境配置新密钥后再发布。
 
 禁止在个人机器旧副本、Junction 别名或仓库外复制目录中开发、预览、部署或提交。
 
