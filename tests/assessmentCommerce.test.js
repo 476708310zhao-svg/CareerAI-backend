@@ -322,6 +322,32 @@ test('assessment virtual callback verifies signature, stored provider, product, 
   assert.equal(service.orderRow(reserved.order_no).status,'paid');
 });
 
+test('assessment virtual callback accepts WeChat actual-price payload and mirrors XML response',async()=>{
+  const row=product([],{virtualProductId:'wechat-notify-sku'}),owner=user();
+  const reserved=service.createOrder(owner,payload(row),'virtual').row;
+  const crypto=require('node:crypto'),timestamp=String(Math.floor(Date.now()/1000)),nonce='wechat-notify';
+  const signature=crypto.createHash('sha1').update(['assessment-test-notify',timestamp,nonce].sort().join('')).digest('hex');
+  const path='/signed-payment/virtual-notify?'+new URLSearchParams({signature,timestamp,nonce});
+  const info={MchOrderNo:'wechat-merchant-'+stamp,TransactionId:'wechat-transaction-'+stamp};
+  const goods={ProductId:'wechat-notify-sku',Quantity:1,ActualPrice:900,OrigPrice:900};
+  const notification={Event:'xpay_goods_deliver_notify',OutTradeNo:reserved.order_no,
+    OpenId:db.prepare('SELECT openid FROM users WHERE id=?').get(owner).openid,WeChatPayInfo:info,GoodsInfo:goods};
+  assert.notEqual((await http(path,{method:'POST',body:{...notification,GoodsInfo:{...goods,ActualPrice:800}}})).body.ErrCode,0);
+  assert.equal(service.orderRow(reserved.order_no).status,'pending');
+  const xml='<xml>'+Object.entries(notification).map(([key,value])=>`<${key}><![CDATA[${typeof value==='object'?JSON.stringify(value):value}]]></${key}>`).join('')+'</xml>';
+  const response=await fetch(base+path,{method:'POST',headers:{'Content-Type':'text/xml'},body:xml});
+  assert.equal(response.status,200);
+  assert.match(response.headers.get('content-type'),/xml/);
+  assert.match(await response.text(),/<ErrCode><!\[CDATA\[0\]\]><\/ErrCode>/);
+  const paid=service.orderRow(reserved.order_no);
+  assert.equal(paid.status,'paid');
+  assert.equal(paid.transaction_id,info.TransactionId);
+  assert.equal(paid.wx_order_id,info.MchOrderNo);
+  const again=await fetch(base+path,{method:'POST',headers:{'Content-Type':'text/xml'},body:xml});
+  assert.match(await again.text(),/<ErrCode><!\[CDATA\[0\]\]><\/ErrCode>/);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM commerce_ledger_v4 WHERE order_no=? AND event_type='payment_confirmed'").get(reserved.order_no).n,1);
+});
+
 test('assessment wxpay callback validates provider signature, merchant, amount and refund late delivery',async()=>{
   const row=product(),owner=user(),reserved=service.createOrder(owner,payload(row),'wxpay').row;
   const crypto=require('node:crypto');
