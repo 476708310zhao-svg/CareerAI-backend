@@ -27,7 +27,7 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             nvm use 20
-            EXPECTED_CURRENT=/www/wwwroot/zhiyincareer-main/releases/40289255405-a02a82d291d21e850f45fd27604e2483e6a547c6
+            EXPECTED_CURRENT=/www/wwwroot/zhiyincareer-main/releases/40652587413-61044dd3b7d24f58d592ac1ea42582a019f9587d
             [ "$(readlink -f /www/wwwroot/zhiyincareer-main/current)" = "$EXPECTED_CURRENT" ] || { echo "Production baseline changed" >&2; exit 1; }
             cd "$EXPECTED_CURRENT"
             node - <<'NODE'
@@ -79,7 +79,7 @@ jobs:
             nvm use 20
             RELEASE_DIR=/www/wwwroot/zhiyincareer-main/releases/${{ github.run_id }}-${{ github.sha }}
             cd "$RELEASE_DIR"
-            EXPECTED_CURRENT=/www/wwwroot/zhiyincareer-main/releases/40289255405-a02a82d291d21e850f45fd27604e2483e6a547c6
+            EXPECTED_CURRENT=/www/wwwroot/zhiyincareer-main/releases/40652587413-61044dd3b7d24f58d592ac1ea42582a019f9587d
             if [ "$(readlink -f /www/wwwroot/zhiyincareer-main/current)" != "$EXPECTED_CURRENT" ]; then
               echo "❌ 线上版本与已核验基线不符，停止发布" >&2
               exit 1
