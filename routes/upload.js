@@ -369,6 +369,18 @@ router.get('/resume-pdfs', authMiddleware, (req, res) => {
   res.json({ code: 0, data: rows });
 });
 
+router.get('/resume-pdf/:id/file', authMiddleware, (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ code: -1, message: '附件 ID 无效' });
+  const row = db.prepare('SELECT filename FROM resume_pdfs WHERE id=? AND user_id=?').get(id, req.user.userId);
+  if (!row) return res.status(404).json({ code: -1, message: '附件不存在' });
+  const pdfPath = path.join(UPLOAD_DIR, 'resumes', path.basename(row.filename));
+  if (!fs.existsSync(pdfPath)) return res.status(404).json({ code: -1, message: 'PDF 文件不存在' });
+  res.set('Cache-Control', 'private, no-store');
+  res.type('application/pdf');
+  res.sendFile(pdfPath);
+});
+
 router.post('/resume-pdf/:id/extract', authMiddleware, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const row = db.prepare('SELECT * FROM resume_pdfs WHERE id=? AND user_id=?').get(id, req.user.userId);

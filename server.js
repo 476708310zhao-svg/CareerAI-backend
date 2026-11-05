@@ -77,6 +77,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
 app.use('/images', express.static(path.join(__dirname, 'miniprogram', 'images'), {
   maxAge: '7d'
 }));
+app.use('/uploads/resumes', (req, res) => res.status(404).end());
 app.use('/uploads', express.static(UPLOAD_DIR, {
   maxAge: '7d',
   immutable: true

@@ -13,8 +13,37 @@ const vm = require('node:vm');
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const db = require('../db/database');
+const { UPLOAD_DIR } = require('../utils/paths');
 const router = require('../routes/v4/resumes');
 const { defaultSuggestions, validateSuggestions } = require('../services/v4ResumeCenter');
+
+test('PDF original is owner-only and its public upload URL is blocked', async t => {
+  const owner = db.prepare('INSERT INTO users (openid) VALUES (?)').run('pdf-file-owner').lastInsertRowid;
+  const other = db.prepare('INSERT INTO users (openid) VALUES (?)').run('pdf-file-other').lastInsertRowid;
+  const filename = `preview-${Date.now()}.pdf`;
+  const pdfPath = path.join(UPLOAD_DIR, 'resumes', filename);
+  fs.mkdirSync(path.dirname(pdfPath), { recursive: true });
+  const bytes = Buffer.from('%PDF-1.4\npreview');
+  fs.writeFileSync(pdfPath, bytes);
+  t.after(() => fs.rmSync(pdfPath, { force: true }));
+  const id = db.prepare('INSERT INTO resume_pdfs (user_id, filename, original_name, file_url, file_size) VALUES (?, ?, ?, ?, ?)')
+    .run(owner, filename, '原始.pdf', `/uploads/resumes/${filename}`, bytes.length).lastInsertRowid;
+  const app = require('../server').app;
+  const server = isolatedRuntime.trackServer(app.listen(0, '127.0.0.1'));
+  await new Promise(resolve => server.once('listening', resolve));
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const fileUrl = `${origin}/api/upload/resume-pdf/${id}/file`;
+  const auth = userId => ({ Authorization: 'Bearer ' + jwt.sign({ userId, openid: String(userId) }, process.env.JWT_SECRET) });
+  assert.equal((await fetch(fileUrl)).status, 401);
+  assert.equal((await fetch(fileUrl, { headers: auth(other) })).status, 404);
+  const response = await fetch(fileUrl, { headers: auth(owner) });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'application/pdf');
+  assert.equal(response.headers.get('cache-control'), 'private, no-store');
+  assert.deepEqual(Buffer.from(await response.arrayBuffer()), bytes);
+  assert.equal((await fetch(`${origin}/uploads/resumes/${filename}`)).status, 404);
+  await new Promise(resolve => server.close(resolve));
+});
 
 test('PDF-backed resume is owner-scoped, linked, and idempotent', async () => {
   const owner = db.prepare('INSERT INTO users (openid) VALUES (?)').run('attachment-owner').lastInsertRowid;
