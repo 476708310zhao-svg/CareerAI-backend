@@ -16,6 +16,8 @@ const db = require('../db/database');
 const { UPLOAD_DIR } = require('../utils/paths');
 const router = require('../routes/v4/resumes');
 const { defaultSuggestions, validateSuggestions } = require('../services/v4ResumeCenter');
+const resumeCenter = require('../services/v4ResumeCenter');
+const aiRuntime = require('../services/v4AiRuntime');
 
 test('PDF original is owner-only and its public upload URL is blocked', async t => {
   const owner = db.prepare('INSERT INTO users (openid) VALUES (?)').run('pdf-file-owner').lastInsertRowid;
@@ -210,4 +212,53 @@ test('old backend list labels existing imports and AI action does not create ano
   page.optimizeAttachment({ currentTarget: { dataset: { id: 7 } } });
   assert.equal(optimized, 1);
   assert.equal(created, 0);
+});
+
+test('degraded resume advice validates the original quote after transport redaction', async () => {
+  const owner = db.prepare('INSERT INTO users (openid) VALUES (?)').run('resume-quote-hotfix').lastInsertRowid;
+  const content = { summary: '本人负责用户增长项目，并且完成数据分析' };
+  const resumeId = Number(db.prepare("INSERT INTO resumes (user_id,name,data,is_default,resume_type,archived_at,updated_at) VALUES (?,?,?,0,'general','',datetime('now'))")
+    .run(owner, '引用校验简历', JSON.stringify(content)).lastInsertRowid);
+  resumeCenter.ensureCurrentVersion(owner, resumeId);
+  const originalGenerate = aiRuntime.generate;
+  let optionsSeen;
+  aiRuntime.generate = async options => {
+    optionsSeen = options;
+    const redacted = options.fallback().map(item => ({ ...item, before: '[redacted]' }));
+    return { value: redacted, model: 'fallback-rules', degraded: true, source: 'fallback' };
+  };
+  try {
+    const proposal = await resumeCenter.createChangeSet({ userId: owner, resumeId });
+    assert.equal(optionsSeen.timeoutMs, 35000);
+    assert.equal(optionsSeen.retries, 0);
+    assert.equal(proposal.suggestions[0].before, content.summary);
+    assert.notEqual(proposal.suggestions[0].after, content.summary);
+  } finally {
+    aiRuntime.generate = originalGenerate;
+  }
+});
+
+test('live resume advice keeps the quote validated before transport redaction', async () => {
+  const owner = db.prepare('INSERT INTO users (openid) VALUES (?)').run('resume-live-quote-hotfix').lastInsertRowid;
+  const content = { summary: '本人负责用户增长项目，并且完成数据分析' };
+  const resumeId = Number(db.prepare("INSERT INTO resumes (user_id,name,data,is_default,resume_type,archived_at,updated_at) VALUES (?,?,?,0,'general','',datetime('now'))")
+    .run(owner, '正常 AI 引用简历', JSON.stringify(content)).lastInsertRowid);
+  resumeCenter.ensureCurrentVersion(owner, resumeId);
+  const originalGenerate = aiRuntime.generate;
+  aiRuntime.generate = async options => {
+    const suggestion = {
+      id: 'live_1', path: 'summary', before: content.summary,
+      after: '负责用户增长项目，完成数据分析', reason: '压缩冗余表达',
+      sourceExperienceIds: [], addsFacts: false
+    };
+    assert.equal(options.validate([suggestion]), true);
+    return { value: [{ ...suggestion, before: '[redacted]' }], model: 'test-model', degraded: false, source: 'live' };
+  };
+  try {
+    const proposal = await resumeCenter.createChangeSet({ userId: owner, resumeId });
+    assert.equal(proposal.suggestions[0].before, content.summary);
+    assert.equal(proposal.suggestions[0].after, '负责用户增长项目，完成数据分析');
+  } finally {
+    aiRuntime.generate = originalGenerate;
+  }
 });
