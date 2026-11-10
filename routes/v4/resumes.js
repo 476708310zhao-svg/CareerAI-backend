@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../../db/database');
 const { authMiddleware } = require('../../middleware/auth');
-const { consumeDailyLimit, getQuotaStatus } = require('../../utils/aiQuota');
+const { consumeDailyLimit, refundDailyLimit, todayKey, getQuotaStatus } = require('../../utils/aiQuota');
 const center = require('../../services/v4ResumeCenter');
 const analytics = require('../../services/v4Analytics');
 const { applicationRefs, canonicalJobId, mergeCoreRefs, withCoreRefs } = require('../../utils/coreEntityRefs');
@@ -14,7 +14,8 @@ function fail(res, error) {
   const status = error.status || 500;
   return res.status(error.status || 500).json({
     code: error.code || -1,
-    message: status >= 500 ? '简历服务暂时不可用' : (error.message || '请求失败'),
+    message: error.code === 'AI_MODEL_UNAVAILABLE' ? 'AI 模型暂时未能生成可靠建议，请稍后重试。原简历未修改。'
+      : status >= 500 ? '简历服务暂时不可用' : (error.message || '请求失败'),
     data: status < 500 && error.details ? { details: error.details } : undefined
   });
 }
@@ -306,7 +307,8 @@ router.post('/:id/ai-change-sets', async (req, res) => {
   const jobId = requestedJobId || applicationJobId;
   const applicationSnapshot = center.parseJson(application && application.job_snapshot, {});
   const jdText = center.cleanText(body.jdText || applicationSnapshot.description || applicationSnapshot.jd || '', 8000);
-  if (!consumeDailyLimit(req, res, 'resume_optimize')) return;
+  const usageDay = todayKey();
+  if (!consumeDailyLimit(req, res, 'resume_optimize', usageDay)) return;
   try {
     const data = await center.createChangeSet({ userId: req.user.userId, resumeId, jobId,
       applicationId, suggestions: body.suggestions, jdText });
@@ -316,7 +318,10 @@ router.post('/:id/ai-change-sets', async (req, res) => {
       { resumeId, resumeVersionId: data.sourceVersionId, jobId: data.jobId, applicationId }
     ), '/api/v4/resumes/:id/ai-change-sets');
     res.status(201).json({ code: 0, data: Object.assign(data, { quota: getQuotaStatus(req.user.userId) }), message: 'AI 建议已生成，确认前不会修改简历' });
-  } catch (error) { fail(res, error); }
+  } catch (error) {
+    refundDailyLimit(req.user.userId, 'resume_optimize', usageDay);
+    fail(res, error);
+  }
 });
 
 router.get('/ai-change-sets/:changeSetId', (req, res) => {

@@ -322,26 +322,36 @@ async function createChangeSet({ userId, resumeId, jobId = '', applicationId = n
     checked = validateSuggestions(userId, content, suggestions);
   } else {
     const resumeFields = collectStringEntries(content)
-      .filter(item => item.text.length >= 8 && !isAttachmentPath(item.path) && !isNonResumeMetadata(item.text) && !containsSensitivePersonalInfo(item.text))
-      .slice(0, 40);
+      .filter(item => item.text.length >= 8 && item.text.length <= 600
+        && !isAttachmentPath(item.path) && !isNonResumeMetadata(item.text) && !containsSensitivePersonalInfo(item.text)
+        && (item.path === 'summary' || /(?:^|\.)(?:desc|description|details|achievement|highlights|summary)$/.test(item.path)))
+      .slice(0, 3);
+    if (!resumeFields.length) {
+      throw Object.assign(new Error('在线简历缺少可安全优化的工作或项目内容，请先检查导入结果并编辑在线简历'), {
+        status: 422, code: 'RESUME_CONTENT_INSUFFICIENT'
+      });
+    }
     const generated = await aiRuntime.generate({
-      systemPrompt: '你是职引的专业简历优化助手。请针对求职价值、动作表达、结果呈现和可读性进行实质改写。只能改写 resumeFields 中已经存在的完整原文，不得新增经历、技能、学历、公司、日期、数字或任何未经证实的事实；不得返回与原文相同或仅改空格的内容；不得处理姓名、电话、邮箱、年龄、性别和系统时间戳。输出 JSON 数组，每项格式为 {"id":"suggestion_1","path":"原字段路径","before":"原文完整内容","after":"实质优化后的内容","reason":"具体修改原因","sourceExperienceIds":[],"addsFacts":false}。返回 1 到 5 条。',
-      userPrompt: JSON.stringify({ resumeFields, jd: cleanText(jdText, 8000) }),
+      systemPrompt: '你是简历优化助手。只改写 resumeFields 中已有的完整原文，不新增经历、日期、数字或未经证实的事实，不处理个人隐私。返回 1 到 3 条 JSON 数组，每项包含 id、path、before、after、reason、sourceExperienceIds、addsFacts；before 必须与原字段完整一致，addsFacts 必须为 false。',
+      userPrompt: JSON.stringify({ resumeFields, jd: cleanText(jdText, 2400) }),
       temperature: 0.2,
-      maxTokens: 2400,
+      maxTokens: 1200,
       timeoutMs: 35000,
       retries: 0,
-      fallback: () => defaultSuggestions(content, jdText),
+      disableThinking: true,
+      fallback: () => [],
       validate: value => {
-        if (!Array.isArray(value) || !value.length || value.length > 5) return false;
+        if (!Array.isArray(value) || !value.length || value.length > 3) return false;
         validatedLiveSuggestions = validateSuggestions(userId, content, value);
         return true;
       }
     });
-    // Fallback transport redacts strings; validate the original local quote.
-    checked = generated.degraded
-      ? validateSuggestions(userId, content, defaultSuggestions(content, jdText))
-      : (validatedLiveSuggestions || validateSuggestions(userId, content, generated.value));
+    if (generated.degraded) {
+      throw Object.assign(new Error('AI 模型暂时未能生成可靠建议，请稍后重试'), {
+        status: 503, code: 'AI_MODEL_UNAVAILABLE', generation: aiRuntime.safeMetadata(generated)
+      });
+    }
+    checked = validatedLiveSuggestions || validateSuggestions(userId, content, generated.value);
     model = generated.model;
     generation = aiRuntime.safeMetadata(generated);
   }

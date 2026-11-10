@@ -43,6 +43,27 @@ test('v4 AI runtime uses a configured provider when the live flag is absent', as
   assert.equal(result.value.message, 'ok');
 });
 
+test('only an explicit Ark resume request disables deep thinking', async () => {
+  const payloads = [];
+  const runtime = createRuntime({ env: {}, getAiConfig: () => config(),
+    createChatCompletion: async payload => {
+      payloads.push(payload);
+      return { data: { choices: [{ message: { content: '{"message":"ok"}' } }] } };
+    } });
+  await runtime.generate({ disableThinking: true, fallback: () => ({}) });
+  await runtime.generate({ fallback: () => ({}) });
+  assert.deepEqual(payloads[0].thinking, { type: 'disabled' });
+  assert.equal(payloads[1].thinking, undefined);
+  const deepseekPayloads = [];
+  const deepseek = createRuntime({ env: {}, getAiConfig: () => config({ provider: 'deepseek' }),
+    createChatCompletion: async payload => {
+      deepseekPayloads.push(payload);
+      return { data: { choices: [{ message: { content: '{"message":"ok"}' } }] } };
+    } });
+  await deepseek.generate({ disableThinking: true, fallback: () => ({}) });
+  assert.equal(deepseekPayloads[0].thinking, undefined);
+});
+
 test('v4 AI runtime parses a live JSON response', async () => {
   const runtime = createRuntime({
     env: { V4_AI_LIVE_ENABLED: 'true' },

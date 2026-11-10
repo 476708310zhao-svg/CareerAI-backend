@@ -202,6 +202,7 @@ function createRuntime(dependencies = {}) {
           ],
           temperature: options.temperature === undefined ? 0.3 : Number(options.temperature),
           max_tokens: clampNumber(options.maxTokens, 1600, 100, 8000),
+          ...(options.disableThinking === true && status.provider === 'ark' ? { thinking: { type: 'disabled' } } : {}),
           stream: false
         }, {
           timeout: timeoutMs,

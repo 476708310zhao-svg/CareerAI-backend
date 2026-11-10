@@ -102,7 +102,7 @@ function getQuotaStatus(userId) {
   };
 }
 
-function consumeDailyLimit(req, res, feature) {
+function consumeDailyLimit(req, res, feature, usageDay) {
   const limit = DAILY_LIMITS[feature];
   if (!limit) return true;
 
@@ -110,7 +110,7 @@ function consumeDailyLimit(req, res, feature) {
   const user = getUser(userId);
   if (isVipUser(user)) return true;
 
-  const day = todayKey();
+  const day = usageDay || todayKey();
   const used = getUsage(userId, feature, day);
   if (used >= limit) {
     const label = FEATURE_LABELS[feature] || feature;
@@ -134,6 +134,15 @@ function consumeDailyLimit(req, res, feature) {
   return true;
 }
 
+function refundDailyLimit(userId, feature, usageDay) {
+  if (!DAILY_LIMITS[feature] || isVipUser(getUser(userId))) return false;
+  const result = db.prepare(`
+    UPDATE ai_usage SET count=count-1, updated_at=datetime('now')
+    WHERE user_id=? AND feature=? AND usage_date=? AND count>0
+  `).run(userId, feature, usageDay);
+  return result.changes === 1;
+}
+
 function requireVip(featureName) {
   return (req, res, next) => {
     const user = getUser(req.user && req.user.userId);
@@ -151,5 +160,7 @@ module.exports = {
   FEATURE_LABELS,
   getQuotaStatus,
   consumeDailyLimit,
+  refundDailyLimit,
+  todayKey,
   requireVip
 };

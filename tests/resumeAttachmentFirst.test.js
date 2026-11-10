@@ -214,9 +214,15 @@ test('old backend list labels existing imports and AI action does not create ano
   assert.equal(created, 0);
 });
 
-test('degraded resume advice validates the original quote after transport redaction', async () => {
+test('degraded resume advice returns an error instead of a misleading rule proposal', async () => {
   const owner = db.prepare('INSERT INTO users (openid) VALUES (?)').run('resume-quote-hotfix').lastInsertRowid;
-  const content = { summary: '本人负责用户增长项目，并且完成数据分析' };
+  const content = { summary: '本人负责用户增长项目，并且完成数据分析',
+    basicInfo: { phone: '13800138000' },
+    workExp: [
+      { company: '示例公司甲', desc: '负责客户调研，形成分析报告并协调产品改进' },
+      { company: '示例公司乙', desc: '跟进渠道运营，整理转化数据并复盘活动结果' },
+      { company: '示例公司丙', desc: '组织团队例会，推动跨部门任务按期完成' }
+    ] };
   const resumeId = Number(db.prepare("INSERT INTO resumes (user_id,name,data,is_default,resume_type,archived_at,updated_at) VALUES (?,?,?,0,'general','',datetime('now'))")
     .run(owner, '引用校验简历', JSON.stringify(content)).lastInsertRowid);
   resumeCenter.ensureCurrentVersion(owner, resumeId);
@@ -225,16 +231,60 @@ test('degraded resume advice validates the original quote after transport redact
   aiRuntime.generate = async options => {
     optionsSeen = options;
     const redacted = options.fallback().map(item => ({ ...item, before: '[redacted]' }));
-    return { value: redacted, model: 'fallback-rules', degraded: true, source: 'fallback' };
+    return { value: redacted, model: 'fallback-rules', degraded: true, source: 'fallback',
+      fallbackReason: 'ai_timeout', error: { code: 'AI_TIMEOUT' } };
   };
   try {
-    const proposal = await resumeCenter.createChangeSet({ userId: owner, resumeId });
+    await assert.rejects(resumeCenter.createChangeSet({ userId: owner, resumeId }), error => error.code === 'AI_MODEL_UNAVAILABLE');
     assert.equal(optionsSeen.timeoutMs, 35000);
     assert.equal(optionsSeen.retries, 0);
-    assert.equal(proposal.suggestions[0].before, content.summary);
-    assert.notEqual(proposal.suggestions[0].after, content.summary);
+    assert.equal(optionsSeen.disableThinking, true);
+    assert.equal(optionsSeen.maxTokens, 1200);
+    const fields = JSON.parse(optionsSeen.userPrompt).resumeFields;
+    assert.deepEqual(fields.map(field => field.path), ['summary', 'workExp[0].desc', 'workExp[1].desc']);
+    assert.equal(JSON.stringify(fields).includes('13800138000'), false);
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM resume_ai_change_sets WHERE resume_id=?').get(resumeId).count, 0);
   } finally {
     aiRuntime.generate = originalGenerate;
+  }
+});
+
+test('unusable PDF text and model failure do not spend a free resume optimization attempt', async () => {
+  const owner = db.prepare('INSERT INTO users (openid) VALUES (?)').run('resume-model-quota-owner').lastInsertRowid;
+  const createResume = (name, content) => {
+    const id = Number(db.prepare("INSERT INTO resumes (user_id,name,data,is_default,resume_type,archived_at,updated_at) VALUES (?,?,?,0,'general','',datetime('now'))")
+      .run(owner, name, JSON.stringify(content)).lastInsertRowid);
+    resumeCenter.ensureCurrentVersion(owner, id);
+    return id;
+  };
+  const privateOnly = createResume('仅隐私字段', { summary: '张三；联系电话：13800138000；31岁' });
+  const valid = createResume('可优化经历', { summary: '本人负责用户增长项目，并且完成数据分析' });
+  const app = express();
+  app.use(express.json());
+  app.use('/api/v4/resumes', router);
+  const server = isolatedRuntime.trackServer(app.listen(0, '127.0.0.1'));
+  await new Promise(resolve => server.once('listening', resolve));
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const send = id => fetch(`${origin}/api/v4/resumes/${id}/ai-change-sets`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + jwt.sign({ userId: owner, openid: String(owner) }, process.env.JWT_SECRET) },
+    body: '{}'
+  });
+  const noContent = await send(privateOnly);
+  assert.equal(noContent.status, 422);
+  assert.equal((await noContent.json()).code, 'RESUME_CONTENT_INSUFFICIENT');
+  const originalGenerate = aiRuntime.generate;
+  aiRuntime.generate = async () => ({ value: [], degraded: true, source: 'fallback',
+    fallbackReason: 'ai_timeout', error: { code: 'AI_TIMEOUT' } });
+  try {
+    const unavailable = await send(valid);
+    assert.equal(unavailable.status, 503);
+    assert.equal((await unavailable.json()).code, 'AI_MODEL_UNAVAILABLE');
+    const usage = db.prepare("SELECT COALESCE(SUM(count),0) AS count FROM ai_usage WHERE user_id=? AND feature='resume_optimize'").get(owner);
+    assert.equal(usage.count, 0);
+  } finally {
+    aiRuntime.generate = originalGenerate;
+    await new Promise(resolve => server.close(resolve));
   }
 });
 

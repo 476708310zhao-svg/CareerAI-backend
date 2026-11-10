@@ -27,7 +27,7 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             nvm use 20
-            EXPECTED_CURRENT=/www/wwwroot/zhiyincareer-main/releases/41993226032-85f42e22a0703715d2d58f14f3d9eb98afc0f81c
+            EXPECTED_CURRENT=/www/wwwroot/zhiyincareer-main/releases/42555985324-cf1c2e12775ad8bf3456df2bec17e131b1639920
             [ "$(readlink -f /www/wwwroot/zhiyincareer-main/current)" = "$EXPECTED_CURRENT" ] || { echo "Production baseline changed" >&2; exit 1; }
 
       - name: Upload immutable release
@@ -58,7 +58,7 @@ jobs:
             nvm use 20
             RELEASE_DIR=/www/wwwroot/zhiyincareer-main/releases/${{ github.run_id }}-${{ github.sha }}
             cd "$RELEASE_DIR"
-            EXPECTED_CURRENT=/www/wwwroot/zhiyincareer-main/releases/41993226032-85f42e22a0703715d2d58f14f3d9eb98afc0f81c
+            EXPECTED_CURRENT=/www/wwwroot/zhiyincareer-main/releases/42555985324-cf1c2e12775ad8bf3456df2bec17e131b1639920
             if [ "$(readlink -f /www/wwwroot/zhiyincareer-main/current)" != "$EXPECTED_CURRENT" ]; then
               echo "❌ 线上版本与已核验基线不符，停止发布" >&2
               exit 1
