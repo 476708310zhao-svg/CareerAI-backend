@@ -1,6 +1,7 @@
 const api = require('../../../utils/api-v4.js');
 const ownerStorage = require('../../../utils/owner-storage.js');
 const appConfig = require('../../../utils/app-config.js');
+const { scoreResumeContent } = require('../../utils/resume-review-score.js');
 
 const TYPE_LABELS = {
   education: '教育', experience: '工作', project: '项目', skill: '技能', award: '奖项'
