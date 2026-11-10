@@ -430,7 +430,8 @@ function syncRecordRemote(record) {
   }).catch(() => null);
 }
 
-function syncFromServer() {
+function syncFromServer(options) {
+  const strict = !!(options && options.strict);
   if (!hasToken()) return Promise.resolve(getList());
   const requestToken = readToken();
   const requestOwnerScope = currentOwnerScope();
@@ -444,8 +445,12 @@ function syncFromServer() {
     if (res && res.code === 0 && Array.isArray(res.data)) {
       return mergeRemoteList(res.data);
     }
+    if (strict) throw new Error('申请进度接口返回异常');
     return getList();
-  }).catch(() => currentOwnerScope() === requestOwnerScope ? getList() : []);
+  }).catch(error => {
+    if (strict) throw error;
+    return currentOwnerScope() === requestOwnerScope ? getList() : [];
+  });
 }
 
 function deleteRemote(id) {

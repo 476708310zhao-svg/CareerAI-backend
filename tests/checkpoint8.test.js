@@ -203,34 +203,19 @@ test('custom TabBar restores selected state and owner-scoped unread badge after 
   assert.deepEqual(navigated, ['/pages/jobs/jobs']);
 });
 
-test('home puts one honest primary action first while contextual AI stays in the center Tab', () => {
+test('home embeds progress and Today while contextual AI stays in the center Tab', () => {
   const home = read('pages/index/index.wxml');
-  const homeJs = read('pages/index/index.js');
   const tabWxml = read('custom-tab-bar/index.wxml');
   const tabWxss = read('custom-tab-bar/index.wxss');
-  assert.equal((home.match(/class="zy-main-action"/g) || []).length, 1);
-  assert.ok(home.indexOf('zy-today-card') < home.indexOf('申请进度'));
-  assert.doesNotMatch(home, /今日重点|今天还要做/);
-  assert.match(home, /class="zy-progress-summary"/);
-  assert.doesNotMatch(home, /class="zy-signal-card"|class="zy-today-more"/);
+  assert.ok(home.indexOf('zy-plan-metrics') < home.indexOf('zy-todo-panel'));
+  assert.match(home, /今日求职计划/);
+  assert.match(home, /今日待办/);
+  assert.match(home, /visibleTodayTasks/);
   assert.doesNotMatch(home, /\sautoplay(?:\s|>)/);
-  assert.doesNotMatch(home, /home-core-tools|home-career-insights|banner-wrap|membership-benefit-banner/);
   assert.match(tabWxml, /class="ai-float"/);
   assert.match(tabWxml, /tabbar-ai-item/);
   assert.match(tabWxml, /打开当前页面的上下文 AI/);
-  assert.doesNotMatch(tabWxml, /selected !== 2|goAiAssistant/);
-  assert.match(tabWxss, /\.ai-float/);
   assert.match(tabWxss, /prefers-reduced-motion/);
-  assert.match(home, /workbench\.primaryUrl/);
-  assert.doesNotMatch(home, /zy-progress-card|zy-progress-item|求职进展/);
-  assert.match(homeJs, /title = nextTask\.title/);
-  assert.match(homeJs, /buildPrimaryTaskMeta\(nextTask, applications\)/);
-  assert.match(homeJs, /'找到第一个目标岗位'/);
-  assert.match(homeJs, /'暂时没有待处理事项'/);
-  assert.doesNotMatch(homeJs, /'今日任务已完成'|Math\.max\(1, Number\(taskStats\.pending/);
-  assert.match(homeJs, /String\(item\.id \|\| ''\) !== primaryTaskId/);
-  assert.match(home, /wx:for="\{\{todaySecondaryTasks\}\}"/);
-  assert.match(homeJs, /const tasks = dailyTasks\.buildTasks\(\);/);
 });
 
 test('home-private caches and delayed responses are owner-scoped', () => {

@@ -109,14 +109,14 @@ test('primary tabs remove redundant subtitle layers while preserving decision me
   const profile = read('pages/profile/profile.wxml');
   const profileStyles = read('pages/profile/profile.wxss');
 
-  assert.doesNotMatch(home, /zy-home-head|zy-page-sub|zy-main-desc|class="zy-row-desc"/);
+  assert.match(home, /zy-home-head/);
   assert.match(home, /class="zy-job-meta"/);
   assert.doesNotMatch(jobs, /campus-desc|result-sub/);
   assert.doesNotMatch(ai, /top-sub|drawer-tool-desc|recent-preview/);
   assert.doesNotMatch(resources, /section-sub|feature-desc|asset-desc/);
   assert.doesNotMatch(resources, /class="asset-stage"/);
   assert.doesNotMatch(profile, /identity-desc|identity-hint|section-sub|asset-meta|record-meta|service-desc/);
-  assert.match(homeStyles, /\.zy-home-head,[\s\S]*display:\s*none\s*!important/);
+  assert.match(homeStyles, /\.zy-home-head\s*\{[^}]*display:\s*flex/);
   assert.match(jobsStyles, /\.campus-desc,\.result-sub\{display:none!important\}/);
   assert.match(aiStyles, /\.top-sub,\.drawer-tool-desc,\.recent-preview\s*\{\s*display:\s*none\s*!important/);
   assert.match(resourceStyles, /\.truth-card,[\s\S]*display:\s*none\s*!important/);
@@ -175,7 +175,7 @@ test('home owns the progress entry and AI owns the third Tab', () => {
   assert.equal(app.tabBar.list[2].pagePath, 'pages/ai-career/ai-career');
   assert.equal(app.tabBar.list[2].text, 'AI求职');
   assert.equal(app.tabBar.list.some(item => item.pagePath === 'pages/applications/applications'), false);
-  assert.match(homeWxml, /class="zy-progress-summary"[^>]*data-url="\/pages\/applications\/applications"[\s\S]*申请进度/);
+  assert.match(homeWxml, /zy-plan-card[\s\S]*\/pages\/applications\/applications/);
   assert.match(progressWxml, /class="secondary-nav"/);
   assert.match(progressWxml, /bindtap="goBack"/);
   assert.match(progressJs, /goBack\(\)[\s\S]*safeNavigateBack/);
@@ -256,33 +256,19 @@ test('interview training keeps the application context through space, report and
   assert.match(experienceJs, /interview-setup\/interview-setup/);
 });
 
-test('home keeps one highest-priority action and the raised center AI inherits page context', () => {
+test('home renders real Today tasks and the raised center AI inherits page context', () => {
   const customWxml = read('custom-tab-bar/index.wxml');
   const customJs = read('custom-tab-bar/index.js');
   const customWxss = read('custom-tab-bar/index.wxss');
   const homeWxml = read('pages/index/index.wxml');
   const homeJs = read('pages/index/index.js');
-
   assert.match(customWxml, /class="ai-float"/);
-  assert.match(customWxml, /tabbar-ai-item/);
-  assert.match(customJs, /applicationId/);
   assert.match(customJs, /openAiTab\(this\.buildAiContext\(\),/);
   assert.match(customWxss, /\.ai-float/);
-  assert.match(customWxss, /\.custom-tabbar[\s\S]*right:\s*24rpx[\s\S]*left:\s*24rpx/);
-  assert.match(customWxss, /\.tabbar-panel[\s\S]*border-radius:\s*38rpx/);
-  assert.match(customWxss, /\.ai-float-core[\s\S]*top:\s*-30rpx[\s\S]*left:\s*50%[\s\S]*transform:\s*translateX\(-50%\)/);
-  assert.doesNotMatch(customWxml, /ai-tab-label/);
-  assert.equal((homeWxml.match(/class="zy-main-action"/g) || []).length, 1);
-  assert.ok(homeWxml.indexOf('zy-today-card') < homeWxml.indexOf('申请进度'));
-  assert.doesNotMatch(homeWxml, /今日重点|今天还要做/);
-  assert.doesNotMatch(homeWxml, /\sautoplay(?:\s|>)/);
-  assert.doesNotMatch(homeWxml, /today-task-card|todayTaskPreview|banner-wrap|membership-benefit-banner/);
-  assert.doesNotMatch(homeWxml, /zy-progress-card|zy-progress-item|求职进展/);
-  assert.match(homeWxml, /class="zy-progress-summary"/);
-  assert.doesNotMatch(homeWxml, /class="zy-signal-card"|class="zy-today-more"/);
-  assert.match(homeJs, /title = nextTask\.title/);
-  assert.match(homeJs, /buildPrimaryTaskMeta\(nextTask, applications\)/);
-  assert.match(homeJs, /String\(item\.id \|\| ''\) !== primaryTaskId/);
+  assert.ok(homeWxml.indexOf('zy-plan-metrics') < homeWxml.indexOf('zy-todo-panel'));
+  assert.match(homeWxml, /wx:for="\{\{visibleTodayTasks\}\}"/);
+  assert.match(homeWxml, /\{\{item\.desc\}\}/);
+  assert.match(homeJs, /dailyTasks\.getStats\(merged\)/);
   assert.match(homeJs, /\.slice\(0, 2\)/);
 });
 

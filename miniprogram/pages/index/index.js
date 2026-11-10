@@ -6,7 +6,6 @@ const jdMatch = require('../../utils/jd-match.js');
 const dailyTasks = require('../../utils/daily-tasks.js');
 const { timestamp } = require('../../utils/date-time.js');
 const { campusDeadlineMeta } = require('../../utils/campus-deadline.js');
-const demoData = require('../../utils/demo-data.js');
 const matcher = require('../../utils/matcher.js');
 const { formatSalaryRange } = require('../../utils/util.js');
 const browseHistory = require('../../utils/browse-history.js');
@@ -17,11 +16,38 @@ const apiV4 = require('../../utils/api-v4.js');
 const ownerStorage = require('../../utils/owner-storage.js');
 const unreadMessages = require('../../utils/unread-messages.js');
 const assessmentResources = require('../../utils/api-assessment-resources.js');
-const ALLOW_DEMO_FALLBACK = demoData.enabled();
+const LATEST_FEED_TTL = 5 * 60000;
+const CAMPUS_FEED_TTL = 10 * 60000;
+const FEED_MAX_STALE = 6 * 60 * 60000;
+const shanghaiDay = now => new Date(now + 8 * 60 * 60000).toISOString().slice(0, 10);
+function isFeedRequestCurrent(page, owner, requestId, field) {
+  return !page._unloaded && ownerStorage.isCurrent(owner) && requestId === page[field];
+}
+function restoreHomeFeedCache(page) {
+  if (typeof ownerStorage.get !== 'function') return;
+  const now = Date.now();
+  const latest = ownerStorage.get('homeLatestJobs', '', null);
+  if (latest && Array.isArray(latest.items) && now - Number(latest.fetchedAt) < FEED_MAX_STALE
+    && now >= Number(latest.fetchedAt)) {
+    page._latestJobsFetchedAt = Number(latest.fetchedAt);
+    page._latestJobsKeyword = String(latest.keyword || '');
+    page.setData({ latestJobs: latest.items, loadingLatestJobs: false, latestJobsError: false });
+  }
+  const campus = ownerStorage.get('homeCampusDigest', '', null);
+  if (campus && Array.isArray(campus.items) && campus.day === shanghaiDay(now)
+    && now - Number(campus.fetchedAt) < FEED_MAX_STALE && now >= Number(campus.fetchedAt)) {
+    page._campusDigestFetchedAt = Number(campus.fetchedAt);
+    page._campusDigestDay = campus.day;
+    page.setData({ campusDigest: campus.items, campusDigestTotal: Number(campus.total) || campus.items.length,
+      campusDigestDateLabel: campus.dateLabel || '', loadingCampusDigest: false, campusDigestError: false });
+  }
+}
 // TabBar 页面路径列表，用于判断跳转方式
 Page({
   data: {
-    navTop: 64,
+    navTop: 28,
+    navHeight: 32,
+    brandMaxWidth: 220,
 
     skeletonRows: [1, 2, 3],
     recruitmentEnabled: true,
@@ -29,16 +55,25 @@ Page({
     membershipEnabled: false,
     assessmentProducts: [],
     assessmentPreview: false,
+    assessmentLoading: true,
+    assessmentError: false,
+    assessmentAvailable: false,
+    unreadCount: 0,
+    hasLogin: false,
+    visibleTodayTasks: [],
+    hasMoreTodayTasks: false,
+    showAllTodayTasks: false,
 
     // 4. 推荐职位
     recommendJobs: [],
     latestJobs: [],
     loadingJobs: true,
-    loadingLatestJobs: false,
+    loadingLatestJobs: true,
+    latestJobsError: false,
     campusDigest: [],
     campusDigestTotal: 0,
     campusDigestDateLabel: '',
-    loadingCampusDigest: false,
+    loadingCampusDigest: true,
     campusDigestError: false,
     jobsError: false,
     recommendTitle: '为您推荐',
@@ -63,12 +98,14 @@ Page({
     },
     progressSummary: {
       total: 0,
-      active: 0,
-      dueSoon: 0,
-      todayInterviews: 0,
+      active: '—',
+      dueSoon: '—',
+      todayInterviews: '—',
       advice: ''
     },
     todayTasks: [],
+    todayTasksLoading: false,
+    todayTasksError: false,
     todaySecondaryTasks: [],
     todayTaskStats: {
       total: 0,
@@ -87,6 +124,7 @@ Page({
     const recruitmentEnabled = !!flags.recruitment;
     const homeRecommendationsEnabled = recruitmentEnabled && !!flags.home_recommendations;
     this.applyFeatureState(flags);
+    if (typeof restoreHomeFeedCache === 'function') restoreHomeFeedCache(this);
     try {
       this.loadUserProfile();
       this.loadProgressSummary();
@@ -168,18 +206,30 @@ Page({
       this._latestJobRequestId = (this._latestJobRequestId || 0) + 1;
       this._campusDigestRequestId = (this._campusDigestRequestId || 0) + 1;
       this._campusDigestInFlight = false;
+      this._latestJobInFlight = false;
+      this._latestJobRequestKeyword = '';
+      this._latestJobsFetchedAt = 0;
+      this._latestJobsKeyword = '';
       this._campusDigestFetchedAt = 0;
+      this._campusDigestDay = '';
+      this._latestJobsRetryAt = 0;
+      this._campusDigestRetryAt = 0;
       this.setData({ recommendJobs: [], latestJobs: [], loadingLatestJobs: false,
+        latestJobsError: false,
         campusDigest: [], campusDigestTotal: 0, campusDigestDateLabel: '',
         loadingCampusDigest: false, campusDigestError: false,
-        todayTasks: [], todaySecondaryTasks: [],
+        todayTasks: [], visibleTodayTasks: [], hasMoreTodayTasks: false,
+        todayTasksLoading: false, todayTasksError: false,
+        showAllTodayTasks: false, todaySecondaryTasks: [],
         todayTaskStats: dailyTasks.getStats([]) });
+      if (typeof restoreHomeFeedCache === 'function') restoreHomeFeedCache(this);
     }
     const app = getApp();
     if (app && typeof app.syncCustomTabBar === 'function') app.syncCustomTabBar();
     this.loadUserProfile();
     this.loadProgressSummary();
     this.loadTodayTasks();
+    this.refreshProgressFromServer();
     this.loadWorkbenchSummary();
     this.syncWorkbenchReports();
     this.updateMessageBadge();
@@ -190,35 +240,38 @@ Page({
       this.loadCachedOrMockJobs();
       this.fetchRecommendJobs({ force: true });
     }
-    if (this.data.recruitmentEnabled && !this.data.homeRecommendationsEnabled
-      && !this.data.loadingLatestJobs && !(this.data.latestJobs || []).length) this.fetchLatestJobs();
+    if (this.data.recruitmentEnabled && !this.data.homeRecommendationsEnabled) this.fetchLatestJobs();
     this.fetchHomeCampusDigest();
     this.fetchAssessmentProducts();
   },
 
   async fetchAssessmentProducts() {
     const request = this._assessmentRequest = (this._assessmentRequest || 0) + 1;
+    this.setData({ assessmentLoading: true, assessmentError: false });
     try {
       const result = await assessmentResources.home();
       if (this._unloaded || !this._visible || request !== this._assessmentRequest) return;
       const seenCompanies = new Set();
       const seenProducts = new Set();
-      const items = result.enabled === true ? (result.items || []).filter(item => {
+      const available = result.enabled === true && result.preview !== true;
+      const items = available ? (result.items || []).filter(item => {
         const company = String(item.companyId || '');
         const product = String(item.productId || '');
         if (!company || !product || seenCompanies.has(company) || seenProducts.has(product)) return false;
         seenCompanies.add(company); seenProducts.add(product); return true;
-      }).slice(0, 3).map(item => Object.assign({}, item, { priceText: assessmentResources.price(item.priceCents),
+      }).slice(0, 2).map(item => Object.assign({}, item, { priceText: assessmentResources.price(item.priceCents),
         companyLogo: assessmentResources.imageUrl(item.companyLogo),
         metaText: [item.seasonLabel, item.summary].filter(Boolean).join(' · ') })) : [];
-      this.setData({ assessmentProducts: items, assessmentPreview: result.preview === true });
+      this.setData({ assessmentProducts: items, assessmentPreview: result.preview === true,
+        assessmentAvailable: available, assessmentLoading: false, assessmentError: false });
       if (items.length && !result.preview) {
         assessmentResources.track('home_assessment_module_view', { source: 'home_assessment' });
         items.forEach(item => assessmentResources.track('home_assessment_product_view', {
           productId: item.productId, companyId: item.companyId, position: item.position, source: 'home_assessment' }));
       }
     } catch (error) {
-      if (!this._unloaded && request === this._assessmentRequest) this.setData({ assessmentProducts: [], assessmentPreview: false });
+      if (!this._unloaded && request === this._assessmentRequest) this.setData({
+        assessmentProducts: [], assessmentPreview: false, assessmentLoading: false, assessmentError: true });
     }
   },
   openAssessmentProduct(event) {
@@ -235,6 +288,7 @@ Page({
   onAssessmentLogoError(event) {
     this.setData({ ['assessmentProducts[' + event.currentTarget.dataset.index + '].companyLogo']: '' });
   },
+  retryAssessmentProducts() { return this.fetchAssessmentProducts(); },
 
   syncPageChrome() {
     try {
@@ -289,17 +343,24 @@ Page({
   },
 
   measureNavigation() {
-    let navTop = 64;
+    let navTop = 28;
+    let navHeight = 32;
+    let brandMaxWidth = 220;
     try {
       const windowInfo = typeof wx.getWindowInfo === 'function' ? wx.getWindowInfo() : wx.getSystemInfoSync();
       const menu = typeof wx.getMenuButtonBoundingClientRect === 'function' ? wx.getMenuButtonBoundingClientRect() : null;
-      const statusBottom = (Number(windowInfo && windowInfo.statusBarHeight) || 20) + 44;
-      const menuBottom = Number(menu && menu.bottom) || 0;
-      navTop = Math.max(56, statusBottom, menuBottom ? menuBottom + 8 : 0);
+      const statusBottom = Number(windowInfo && windowInfo.statusBarHeight) || 20;
+      const windowWidth = Number(windowInfo && windowInfo.windowWidth) || 375;
+      const menuTop = Number(menu && menu.top) || 0;
+      const menuHeight = Number(menu && menu.height) || 0;
+      const menuLeft = Number(menu && menu.left) || 0;
+      navTop = Math.max(statusBottom + 2, menuTop || statusBottom + 4);
+      navHeight = Math.max(32, menuHeight || 36);
+      brandMaxWidth = Math.max(0, (menuLeft || windowWidth - 100) - windowWidth * 40 / 750 - 8);
     } catch (error) {
-      navTop = 64;
+      navTop = 28;
     }
-    this.setData({ navTop });
+    this.setData({ navTop, navHeight, brandMaxWidth });
   },
 
   onHide() {
@@ -307,10 +368,6 @@ Page({
     this._todayTaskRequestId = (this._todayTaskRequestId || 0) + 1;
     this._workbenchReportRequestId = (this._workbenchReportRequestId || 0) + 1;
     this._recommendRequestId = (this._recommendRequestId || 0) + 1;
-    this._latestJobRequestId = (this._latestJobRequestId || 0) + 1;
-    this._campusDigestRequestId = (this._campusDigestRequestId || 0) + 1;
-    this._campusDigestInFlight = false;
-    this.setData({ loadingLatestJobs: false, loadingCampusDigest: false });
     this._todayTaskSyncPromise = null;
     this._todayTaskSyncOwner = '';
     this._workbenchReportSyncing = false;
@@ -320,6 +377,14 @@ Page({
   isHomeRequestCurrent(owner, requestId, field) {
     return !this._unloaded && this._visible && ownerStorage.isCurrent(owner)
       && requestId === this[field];
+  },
+
+  isFeedRequestCurrent(owner, requestId, field) {
+    return isFeedRequestCurrent(this, owner, requestId, field);
+  },
+
+  loadHomeFeedCache() {
+    return restoreHomeFeedCache(this);
   },
 
   // 页面滚动监听：超过一定距离显示“回到顶部”按钮
@@ -357,7 +422,7 @@ Page({
     };
   },
 
-  // 优先加载缓存；开发兜底只在 ENABLE_DEMO_FALLBACK=true 时启用
+    // 首页只使用真实接口或其缓存。
   loadCachedOrMockJobs() {
     const cached = ownerStorage.get('cachedRecommendJobs', '', []);
     if (cached && cached.length >= 3) {
@@ -373,9 +438,6 @@ Page({
         jobsError: false
       });
       this.loadWorkbenchSummary();
-      return true;
-    } else if (ALLOW_DEMO_FALLBACK) {
-      this.loadMockJobs();
       return true;
     } else {
       this.setData({ loadingJobs: false });
@@ -434,7 +496,9 @@ Page({
   },
 
   updateMessageBadge() {
-    getApp().setUnreadCount(unreadMessages.get());
+    const count = unreadMessages.get();
+    this.setData({ unreadCount: count });
+    getApp().setUnreadCount(count);
   },
 
   // ======== 职位数据 ========
@@ -472,30 +536,35 @@ Page({
     } catch (error) {
       if (!this.isHomeRequestCurrent(owner, requestId, '_recommendRequestId')) return;
       console.warn('[fetchRecommendJobs] 获取推荐职位失败:', error);
-        // 只有在没有任何数据时才加载 Mock
-        if (ALLOW_DEMO_FALLBACK && this.data.recommendJobs.length === 0) {
-          this.loadMockJobs();
-        } else {
-          this.setData({
-            loadingJobs: false,
-            jobsError: this.data.recommendJobs.length === 0
-          });
-        }
+      this.setData({
+        loadingJobs: false,
+        jobsError: this.data.recommendJobs.length === 0
+      });
     }
   },
 
   async fetchLatestJobs(options) {
     if (!this.data.recruitmentEnabled || this.data.homeRecommendationsEnabled) return;
     const force = !!(options && options.force);
-    if (this.data.loadingLatestJobs && !force) return;
+    const keyword = (this.userKeywords && this.userKeywords[0]) || 'Software Engineer';
+    if (this._latestJobInFlight && !force && this._latestJobRequestKeyword === keyword) return;
+    if (this._latestJobsKeyword && this._latestJobsKeyword !== keyword) {
+      this._latestJobsFetchedAt = 0;
+      this.setData({ latestJobs: [] });
+    }
+    if (!force && this._latestJobsRetryAt && Date.now() < this._latestJobsRetryAt) return;
+    if (!force && this._latestJobsFetchedAt && this._latestJobsKeyword === keyword
+      && Date.now() - this._latestJobsFetchedAt < LATEST_FEED_TTL) return;
     const owner = ownerStorage.capture();
     const requestId = (this._latestJobRequestId || 0) + 1;
     this._latestJobRequestId = requestId;
-    this.setData({ loadingLatestJobs: true });
+    this._latestJobInFlight = true;
+    this._latestJobRequestKeyword = keyword;
+    this.setData({ loadingLatestJobs: true, latestJobsError: false });
     try {
-      const keyword = (this.userKeywords && this.userKeywords[0]) || 'Software Engineer';
-      const res = await getAggregatedJobs({ keyword, country: 'global', size: 20, page: 1, noCache: force });
-      if (!this.isHomeRequestCurrent(owner, requestId, '_latestJobRequestId')) return;
+      const res = await getAggregatedJobs({ keyword, country: 'global', size: 20, page: 1,
+        noCache: force, noStale: true, cacheTTL: LATEST_FEED_TTL, timeout: 8000 });
+      if (typeof isFeedRequestCurrent !== 'function' || !isFeedRequestCurrent(this, owner, requestId, '_latestJobRequestId')) return;
       const now = Date.now();
       const seen = new Set();
       const jobs = this.formatJobData(Array.isArray(res && res.data) ? res.data : [])
@@ -508,27 +577,46 @@ Page({
           return true;
         })
         .sort((a, b) => timestamp(b.postedAtRaw) - timestamp(a.postedAtRaw))
-        .slice(0, 3);
-      this.setData({ latestJobs: this.withCompanyLogos(jobs), loadingLatestJobs: false });
+        .slice(0, 2);
+      const items = this.withCompanyLogos(jobs);
+      this._latestJobsFetchedAt = Date.now();
+      this._latestJobsKeyword = keyword;
+      this._latestJobsRetryAt = 0;
+      this.setData({ latestJobs: items, loadingLatestJobs: false, latestJobsError: false });
+      if (typeof ownerStorage.set === 'function') {
+        try { ownerStorage.set('homeLatestJobs', '', { items, keyword, fetchedAt: this._latestJobsFetchedAt }); } catch (error) {}
+      }
     } catch (error) {
-      if (!this.isHomeRequestCurrent(owner, requestId, '_latestJobRequestId')) return;
+      if (typeof isFeedRequestCurrent !== 'function' || !isFeedRequestCurrent(this, owner, requestId, '_latestJobRequestId')) return;
       console.warn('[fetchLatestJobs] 获取最新岗位失败:', error);
-      this.setData({ latestJobs: [], loadingLatestJobs: false });
+      this._latestJobsRetryAt = this.data.latestJobs.length ? Date.now() + 60000 : 0;
+      this.setData({ loadingLatestJobs: false, latestJobsError: !this.data.latestJobs.length });
+    } finally {
+      if (requestId === this._latestJobRequestId) this._latestJobInFlight = false;
     }
   },
+
+  retryLatestJobs() { return this.fetchLatestJobs({ force: true }); },
 
   async fetchHomeCampusDigest(options) {
     const force = !!(options && options.force);
     if (this._campusDigestInFlight && !force) return;
-    if (!force && this._campusDigestFetchedAt && Date.now() - this._campusDigestFetchedAt < 5 * 60000) return;
+    const today = shanghaiDay(Date.now());
+    if (!force && this._campusDigestRetryAt && Date.now() < this._campusDigestRetryAt) return;
+    if (!force && this._campusDigestDay === today && this._campusDigestFetchedAt
+      && Date.now() - this._campusDigestFetchedAt < CAMPUS_FEED_TTL) return;
+    if (this._campusDigestDay && this._campusDigestDay !== today) {
+      this.setData({ campusDigest: [], campusDigestTotal: 0, campusDigestDateLabel: '' });
+    }
     const owner = ownerStorage.capture();
     const requestId = (this._campusDigestRequestId || 0) + 1;
     this._campusDigestRequestId = requestId;
     this._campusDigestInFlight = true;
     this.setData({ loadingCampusDigest: true, campusDigestError: false });
     try {
-      const res = await getCampusList({ sort: 'latest', latestDay: '1', deadlineWindow: 'open', page: 0, pageSize: 3 });
-      if (!this.isHomeRequestCurrent(owner, requestId, '_campusDigestRequestId')) return;
+      const res = await getCampusList({ sort: 'latest', latestDay: '1', deadlineWindow: 'open', page: 0, pageSize: 3,
+        noCache: force, noStale: true, cacheTTL: CAMPUS_FEED_TTL, timeout: 8000 });
+      if (typeof isFeedRequestCurrent !== 'function' || !isFeedRequestCurrent(this, owner, requestId, '_campusDigestRequestId')) return;
       if (!res || res.code !== 0 || !res.data
         || !(Array.isArray(res.data) || Array.isArray(res.data.list))) {
         throw new Error('校招动态接口返回异常');
@@ -541,18 +629,28 @@ Page({
         }));
       const latestDate = String(res.data.latestDate || (digest[0] && digest[0].businessDate) || '');
       this._campusDigestFetchedAt = Date.now();
+      this._campusDigestDay = today;
+      this._campusDigestRetryAt = 0;
+      const dateLabel = latestDate ? this.formatCampusBusinessDateText(latestDate) : '';
       this.setData({
         campusDigest: digest,
         campusDigestTotal: Number(res.data.total) || digest.length,
-        campusDigestDateLabel: latestDate ? this.formatCampusBusinessDateText(latestDate) : '',
+        campusDigestDateLabel: dateLabel,
         loadingCampusDigest: false,
         campusDigestError: false
       });
+      if (typeof ownerStorage.set === 'function') {
+        try { ownerStorage.set('homeCampusDigest', '', {
+          items: digest, total: Number(res.data.total) || digest.length, dateLabel,
+          day: today, fetchedAt: this._campusDigestFetchedAt
+        }); } catch (error) {}
+      }
     } catch (error) {
-      if (!this.isHomeRequestCurrent(owner, requestId, '_campusDigestRequestId')) return;
+      if (typeof isFeedRequestCurrent !== 'function' || !isFeedRequestCurrent(this, owner, requestId, '_campusDigestRequestId')) return;
       console.warn('[fetchHomeCampusDigest] 获取校招动态失败:', error);
-      this._campusDigestFetchedAt = 0;
-      this.setData({ campusDigest: [], campusDigestTotal: 0, campusDigestDateLabel: '', loadingCampusDigest: false, campusDigestError: true });
+      if (!this._campusDigestFetchedAt) this._campusDigestFetchedAt = 0;
+      this._campusDigestRetryAt = this.data.campusDigest.length ? Date.now() + 60000 : 0;
+      this.setData({ loadingCampusDigest: false, campusDigestError: !this.data.campusDigest.length });
     } finally {
       if (requestId === this._campusDigestRequestId) this._campusDigestInFlight = false;
     }
@@ -675,20 +773,6 @@ Page({
     if (days === 1) return '昨天';
     if (days < 7) return days + '天前';
     return Math.floor(days / 7) + '周前';
-  },
-
-  loadMockJobs() {
-    if (!ALLOW_DEMO_FALLBACK) {
-      this.setData({ loadingJobs: false });
-      return;
-    }
-    const RECOMMEND_JOBS = demoData.getList('RECOMMEND_JOBS');
-    this.setData({
-      loadingJobs: false,
-      jobsError: false,
-      recommendJobs: this.withCompanyLogos(RECOMMEND_JOBS).slice(0, 3)
-    });
-    this.loadWorkbenchSummary();
   },
 
   retryRecommendJobs() {
@@ -903,16 +987,50 @@ Page({
   },
 
   loadProgressSummary() {
+    let token = '';
+    try { token = wx.getStorageSync('token') || ''; } catch (error) {}
+    this.setData({ hasLogin: !!token });
+    if (!token) {
+      this.setData({ progressSummary: { total: null, active: '—', dueSoon: '—',
+        todayInterviews: '—', advice: '' } });
+      return;
+    }
     const stats = progress.getStats();
+    const records = progress.getList();
+    const verified = this._progressVerifiedOwner === ownerStorage.capture();
+    const unavailable = !verified && !records.length;
     this.setData({
       progressSummary: {
         total: stats.total,
-        active: stats.active,
-        dueSoon: stats.dueSoon,
-        todayInterviews: stats.todayInterviews,
+        active: unavailable ? '—' : records.filter(item =>
+          !progress.TERMINAL_STATUSES[item.status] && item.status !== 'collected').length,
+        dueSoon: unavailable ? '—' : progress.getUpcomingDeadlines(7).length,
+        todayInterviews: unavailable ? '—' : progress.getTodayInterviews().filter(item =>
+          !progress.TERMINAL_STATUSES[item.status]).length,
         advice: progress.buildDailyAdvice()
       }
     });
+  },
+
+  refreshProgressFromServer() {
+    if (!this.data.hasLogin) return;
+    const owner = ownerStorage.capture();
+    if (this._progressSyncPromise && this._progressSyncOwner === owner) return;
+    this._progressSyncOwner = owner;
+    const request = progress.syncFromServer({ strict: true }).then(() => {
+      if (this._unloaded || !this._visible || !ownerStorage.isCurrent(owner)) return;
+      this._progressVerifiedOwner = owner;
+      this.loadProgressSummary();
+      this.loadTodayTasks();
+    }).catch(() => {
+      if (!this._unloaded && this._visible && ownerStorage.isCurrent(owner)) this.loadProgressSummary();
+    }).finally(() => {
+      if (this._progressSyncPromise === request) {
+        this._progressSyncPromise = null;
+        this._progressSyncOwner = '';
+      }
+    });
+    this._progressSyncPromise = request;
   },
 
   readLatestAtsScore() {
@@ -1046,15 +1164,23 @@ Page({
 
   loadTodayTasks() {
     const tasks = dailyTasks.buildTasks();
+    const visibleTasks = this.data.showAllTodayTasks ? tasks : tasks.slice(0, 4);
     this.setData({
       todayTasks: tasks,
-      todayTaskStats: dailyTasks.getStats(tasks)
+      visibleTodayTasks: visibleTasks,
+      hasMoreTodayTasks: tasks.length > 4,
+      todayTaskStats: dailyTasks.getStats(tasks),
+      todayTasksError: false
     });
     let token = '';
     try { token = wx.getStorageSync('token') || ''; } catch (e) {}
-    if (!token) return Promise.resolve(tasks);
+    if (!token) {
+      this.setData({ todayTasksLoading: false });
+      return Promise.resolve(tasks);
+    }
     const owner = ownerStorage.capture();
     if (this._todayTaskSyncPromise && this._todayTaskSyncOwner === owner) return this._todayTaskSyncPromise;
+    this.setData({ todayTasksLoading: !tasks.length });
 
     const requestId = (this._todayTaskRequestId || 0) + 1;
     this._todayTaskRequestId = requestId;
@@ -1077,7 +1203,10 @@ Page({
     const syncPromise = apiV4.syncTodayTasks({ tasks: payload }).then(response => {
       if (!this.isHomeRequestCurrent(owner, requestId, '_todayTaskRequestId')) return this.data.todayTasks;
       const rows = response && Array.isArray(response.data) ? response.data : [];
-      if (!rows.length) return tasks;
+      if (!rows.length) {
+        this.setData({ todayTasksLoading: false, todayTasksError: false });
+        return tasks;
+      }
       const priorityRank = { high: 0, medium: 1, low: 2 };
       const merged = rows.map(row => {
         const localKey = row.localKey || '';
@@ -1104,13 +1233,20 @@ Page({
           - (priorityRank[right.priority] === undefined ? 9 : priorityRank[right.priority])));
       this.setData({
         todayTasks: merged,
-        todayTaskStats: dailyTasks.getStats(merged)
+        visibleTodayTasks: this.data.showAllTodayTasks ? merged : merged.slice(0, 4),
+        hasMoreTodayTasks: merged.length > 4,
+        todayTaskStats: dailyTasks.getStats(merged),
+        todayTasksLoading: false,
+        todayTasksError: false
       });
       this.loadWorkbenchSummary();
       this.flushPendingTodayTaskUpdates(owner);
       return merged;
     }).catch(error => {
       if (ownerStorage.isCurrent(owner)) console.warn('[index] Today 任务同步失败，继续使用本地任务:', error && error.message || error);
+      if (this.isHomeRequestCurrent(owner, requestId, '_todayTaskRequestId')) {
+        this.setData({ todayTasksLoading: false, todayTasksError: !tasks.length });
+      }
       return tasks;
     });
     const trackedPromise = syncPromise.finally(() => {
@@ -1121,6 +1257,10 @@ Page({
     });
     this._todayTaskSyncPromise = trackedPromise;
     return trackedPromise;
+  },
+
+  retryTodayTasks() {
+    return this.loadTodayTasks();
   },
 
   flushPendingTodayTaskUpdates(ownerScope) {
@@ -1192,6 +1332,13 @@ Page({
     if (!url) return;
     if (!featureFlags.allowNavigation(url)) return;
     navigation.safeNavigateTo(url);
+  },
+
+  toggleAllTodayTasks() {
+    const showAllTodayTasks = !this.data.showAllTodayTasks;
+    const tasks = this.data.todayTasks || [];
+    this.setData({ showAllTodayTasks,
+      visibleTodayTasks: showAllTodayTasks ? tasks : tasks.slice(0, 4) });
   },
 
   goToJobSearch() {

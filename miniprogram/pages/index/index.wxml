@@ -1,72 +1,103 @@
 <view class="zy-page" style="padding-top: {{navTop}}px;">
-  <view class="zy-search" bindtap="navigateToPage" data-url="/pages/jobs/jobs" hover-class="zy-row--pressed" aria-role="button" aria-label="搜索岗位、公司或关键词">
-    <image class="zy-search-icon" src="/images/zhiyin-icons/search-muted.svg" mode="aspectFit" aria-hidden="true" />
-    <text class="zy-search-text">搜索岗位、公司或关键词</text>
-  </view>
-
-  <view class="zy-section-card zy-today-card">
-    <text class="zy-today-eyebrow">今日求职计划</text>
-    <view class="zy-progress-summary" bindtap="navigateToPage" data-url="/pages/applications/applications" hover-class="zy-row--pressed" aria-role="button" aria-label="查看申请进度，{{progressSummary.active}}条进行中，{{progressSummary.dueSoon}}条即将截止，{{progressSummary.todayInterviews}}场今日面试">
-      <view class="zy-progress-caption"><text>申请进度</text><text>查看全部 ›</text></view>
-      <view class="zy-plan-metrics">
-        <view class="zy-plan-metric zy-plan-metric--active {{progressSummary.active ? '' : 'zy-plan-metric--empty'}}"><text class="zy-plan-metric-label">进行中</text><text class="zy-plan-metric-value">{{progressSummary.active}}</text></view>
-        <view class="zy-plan-metric zy-plan-metric--due {{progressSummary.dueSoon ? '' : 'zy-plan-metric--empty'}}"><text class="zy-plan-metric-label">即将截止</text><text class="zy-plan-metric-value">{{progressSummary.dueSoon}}</text></view>
-        <view class="zy-plan-metric zy-plan-metric--interview {{progressSummary.todayInterviews ? '' : 'zy-plan-metric--empty'}}"><text class="zy-plan-metric-label">今日面试</text><text class="zy-plan-metric-value">{{progressSummary.todayInterviews}}</text></view>
+  <view class="zy-top">
+    <view class="zy-home-head" style="min-height: {{navHeight}}px;">
+      <view class="zy-brand" style="max-width: {{brandMaxWidth}}px;">
+        <view class="zy-brand-word"><text class="zy-brand-name">职引</text><view class="zy-brand-swoosh" aria-hidden="true"></view></view>
+        <view class="zy-brand-divider" aria-hidden="true"></view>
+        <text class="zy-brand-sub">你的求职成长助手</text>
       </view>
     </view>
-    <view class="zy-todo-heading" wx:if="{{todayTasks.length}}"><text>今日待办</text><text>{{todayTaskStats.done}}/{{todayTaskStats.total}} 已完成</text></view>
-    <view class="zy-today-suggestion">
-      <view class="zy-suggestion-mark"><image src="/images/zhiyin-icons/document.svg" mode="aspectFit" aria-hidden="true" /></view>
-      <view class="zy-suggestion-copy"><text class="zy-suggestion-title">{{workbench.title}}</text></view>
-      <view class="zy-main-action" bindtap="navigateToPage" data-url="{{workbench.primaryUrl}}" hover-class="zy-row--pressed" aria-role="button" aria-label="{{workbench.primaryText}}：{{workbench.title}}"><view class="zy-main-action-visual"><text>{{workbench.primaryText}}</text><image class="zy-arrow" src="/images/zhiyin-icons/chevron-white.svg" mode="aspectFit" aria-hidden="true" /></view></view>
+
+    <view class="zy-search-line">
+      <view class="zy-search" bindtap="navigateToPage" data-url="/package-user/pages/search/search" hover-class="zy-row--pressed" aria-role="button" aria-label="搜索岗位、公司或关键词">
+        <image class="zy-search-icon" src="/images/zhiyin-icons/search-muted.svg" mode="aspectFit" aria-hidden="true" />
+        <text class="zy-search-text">搜索岗位 / 公司 / 关键词</text>
+      </view>
+      <view class="zy-head-actions">
+        <view class="zy-head-button" bindtap="navigateToPage" data-url="/package-user/pages/messages/messages" hover-class="zy-row--pressed" aria-role="button" aria-label="查看消息{{unreadCount ? '，有未读消息' : ''}}"><image src="/images/zhiyin-icons/bell.svg" mode="aspectFit" aria-hidden="true" /><view wx:if="{{unreadCount > 0}}" class="zy-unread-dot"></view></view>
+        <view class="zy-head-button" bindtap="navigateToPage" data-url="/pages/profile/profile" hover-class="zy-row--pressed" aria-role="button" aria-label="进入我的"><image src="/images/zhiyin-icons/person.svg" mode="aspectFit" aria-hidden="true" /></view>
+      </view>
     </view>
-    <view class="zy-todo-row {{item.done ? 'zy-todo-row--done' : ''}}" wx:for="{{todaySecondaryTasks}}" wx:key="id">
-      <view class="zy-todo-copy"><view class="zy-todo-title-line"><text class="zy-todo-title">{{item.title}}</text><text class="zy-todo-state">{{item.done ? '已完成' : '待处理'}}</text></view></view>
-      <view wx:if="{{item.url && !item.done}}" class="zy-todo-open" bindtap="openTodayTask" data-url="{{item.url}}" hover-class="zy-row--pressed" aria-role="button" aria-label="处理待办：{{item.title}}"><image src="/images/zhiyin-icons/chevron.svg" mode="aspectFit" aria-hidden="true" /></view>
+
+    <view class="zy-section-card zy-plan-card">
+      <view class="zy-plan-cover">
+        <image class="zy-plan-art" src="/images/zhiyin-icons/plan-checklist.svg" mode="aspectFit" aria-hidden="true" />
+        <view class="zy-plan-heading"><image class="zy-plan-head-icon" src="/images/zhiyin-icons/calendar-white.svg" mode="aspectFit" aria-hidden="true" /><text>今日求职计划</text></view>
+        <view class="zy-plan-metrics">
+          <view class="zy-plan-metric zy-plan-metric--active" bindtap="navigateToPage" data-url="{{hasLogin ? '/pages/applications/applications' : '/pages/profile/profile'}}" hover-class="zy-row--pressed" aria-role="button" aria-label="进行中{{progressSummary.active}}条，查看申请进度"><image src="/images/zhiyin-icons/plan-active.svg" mode="aspectFit" aria-hidden="true" /><text class="zy-plan-metric-label">进行中</text><text class="zy-plan-metric-value">{{progressSummary.active}}</text></view>
+          <view class="zy-plan-metric zy-plan-metric--due" bindtap="navigateToPage" data-url="{{hasLogin ? '/pages/applications/applications' : '/pages/profile/profile'}}" hover-class="zy-row--pressed" aria-role="button" aria-label="七天内截止{{progressSummary.dueSoon}}条，查看申请进度"><image src="/images/zhiyin-icons/clock.svg" mode="aspectFit" aria-hidden="true" /><text class="zy-plan-metric-label">即将截止</text><text class="zy-plan-metric-value">{{progressSummary.dueSoon}}</text></view>
+          <view class="zy-plan-metric zy-plan-metric--interview" bindtap="navigateToPage" data-url="{{hasLogin ? '/pages/applications/applications' : '/pages/profile/profile'}}" hover-class="zy-row--pressed" aria-role="button" aria-label="今日面试{{progressSummary.todayInterviews}}场，查看申请进度"><image src="/images/zhiyin-icons/plan-interview.svg" mode="aspectFit" aria-hidden="true" /><text class="zy-plan-metric-label">今日面试</text><text class="zy-plan-metric-value">{{progressSummary.todayInterviews}}</text></view>
+        </view>
+      </view>
+
+      <view class="zy-todo-panel">
+        <view class="zy-todo-header">
+          <text class="zy-todo-title">今日待办</text>
+          <view wx:if="{{hasLogin && todayTaskStats.total > 0}}" class="zy-todo-progress"><text>已完成 {{todayTaskStats.done}}/{{todayTaskStats.total}}</text><view class="zy-progress-track"><view class="zy-progress-fill" style="width: {{todayTaskStats.percent}}%;"></view></view></view>
+        </view>
+        <view wx:if="{{!hasLogin}}" class="zy-login-prompt"><text>登录后查看今日任务</text><view bindtap="navigateToPage" data-url="/pages/profile/profile" aria-role="button" aria-label="登录后查看今日任务">去登录</view></view>
+        <block wx:else>
+          <view wx:if="{{todayTasksLoading && !todayTasks.length}}" class="zy-todo-message">正在读取今日任务…</view>
+          <view wx:elif="{{todayTasksError && !todayTasks.length}}" class="zy-todo-message zy-todo-message--error"><text>今日任务加载失败</text><view bindtap="retryTodayTasks" hover-class="zy-row--pressed" aria-role="button" aria-label="重试加载今日任务">重试</view></view>
+          <view wx:elif="{{!todayTasks.length}}" class="zy-todo-message">暂无今日任务</view>
+          <view wx:for="{{visibleTodayTasks}}" wx:key="id" class="zy-action-row {{item.done ? 'zy-action-row--done' : ''}}">
+            <view class="zy-action-icon zy-action-icon--{{item.type}}"><image src="{{item.type === 'progress' ? '/images/zhiyin-icons/task-progress.svg' : (item.type === 'deadline' ? '/images/zhiyin-icons/clock.svg' : (item.type === 'practice' ? '/images/zhiyin-icons/task-practice.svg' : (item.type === 'interview' ? '/images/zhiyin-icons/plan-interview.svg' : (item.type === 'jobs' ? '/images/zhiyin-icons/task-search.svg' : '/images/zhiyin-icons/document.svg'))))}}" mode="aspectFit" aria-hidden="true" /></view>
+            <view class="zy-action-copy"><text class="zy-action-title">{{item.title}}</text><text class="zy-action-desc">{{item.desc}}</text></view>
+            <view class="zy-task-controls"><text wx:if="{{item.done}}" class="zy-task-state">已完成</text><view wx:if="{{item.url}}" class="zy-action-cta {{!item.done && index === 0 ? 'zy-action-cta--primary' : ''}}" bindtap="openTodayTask" data-url="{{item.url}}" hover-class="zy-row--pressed" aria-role="button" aria-label="{{item.done ? '查看任务：' : '处理任务：'}}{{item.title}}"><text class="zy-cta-pill">{{item.done ? '查看' : (index === 0 ? '开始处理' : '去完成')}} ›</text></view><text wx:else class="zy-task-unavailable">暂不可处理</text></view>
+          </view>
+          <view wx:if="{{hasMoreTodayTasks}}" class="zy-more-tasks" bindtap="toggleAllTodayTasks" hover-class="zy-row--pressed" aria-role="button" aria-label="{{showAllTodayTasks ? '收起任务' : '查看全部今日任务'}}">{{showAllTodayTasks ? '收起任务' : '查看全部今日任务'}} ›</view>
+        </block>
+      </view>
     </view>
   </view>
 
   <view class="zy-section-card zy-shortcuts-card">
-    <view class="zy-section-head"><text class="zy-section-title">常用功能</text></view>
+    <view class="zy-section-head"><text class="zy-section-title">常用工具</text></view>
     <view class="zy-shortcuts">
       <view class="zy-shortcut" bindtap="navigateToPage" data-url="/package-career/pages/resume-center/resume-center" hover-class="zy-row--pressed" aria-role="button" aria-label="简历优化"><view class="zy-shortcut-icon"><image src="/images/zhiyin-icons/document.svg" mode="aspectFit" aria-hidden="true" /></view><text>简历优化</text></view>
       <view class="zy-shortcut" bindtap="navigateToPage" data-url="/package-ai/pages/jd-match/jd-match?source=home" hover-class="zy-row--pressed" aria-role="button" aria-label="岗位匹配"><view class="zy-shortcut-icon"><image src="/images/zhiyin-icons/target.svg" mode="aspectFit" aria-hidden="true" /></view><text>岗位匹配</text></view>
       <view class="zy-shortcut" bindtap="navigateToPage" data-url="/package-ai/pages/interview-setup/interview-setup" hover-class="zy-row--pressed" aria-role="button" aria-label="模拟面试"><view class="zy-shortcut-icon"><image src="/images/zhiyin-icons/person.svg" mode="aspectFit" aria-hidden="true" /></view><text>模拟面试</text></view>
-      <view class="zy-shortcut" bindtap="navigateToPage" data-url="/pages/campus/campus" hover-class="zy-row--pressed" aria-role="button" aria-label="校招日历"><view class="zy-shortcut-icon"><image src="/images/zhiyin-icons/calendar.svg" mode="aspectFit" aria-hidden="true" /></view><text>校招日历</text></view>
+      <view class="zy-shortcut" bindtap="goToCampusList" hover-class="zy-row--pressed" aria-role="button" aria-label="校招日历"><view class="zy-shortcut-icon"><image src="/images/zhiyin-icons/calendar.svg" mode="aspectFit" aria-hidden="true" /></view><text>校招日历</text></view>
+      <view wx:if="{{assessmentAvailable || assessmentLoading}}" class="zy-shortcut" bindtap="openAllAssessmentProducts" hover-class="zy-row--pressed" aria-role="button" aria-label="测评资料"><view class="zy-shortcut-icon"><image src="/images/zhiyin-icons/target.svg" mode="aspectFit" aria-hidden="true" /></view><text>测评资料</text></view>
+      <view wx:else class="zy-shortcut zy-shortcut--disabled" aria-disabled="true"><view class="zy-shortcut-icon"><image src="/images/zhiyin-icons/target.svg" mode="aspectFit" aria-hidden="true" /></view><text>测评资料</text></view>
     </view>
   </view>
 
-  <block wx:if="{{recruitmentEnabled}}">
-    <view class="zy-section-card zy-recommend-section">
-      <view class="zy-section-head zy-recommend-head"><text class="zy-section-title">{{homeRecommendationsEnabled ? '为你推荐' : '最新机会'}}</text><view class="zy-text-action" bindtap="navigateToPage" data-url="/pages/jobs/jobs" hover-class="zy-row--pressed" aria-role="button" aria-label="查看全部岗位"><text>查看全部</text><image class="zy-inline-chevron" src="/images/zhiyin-icons/chevron.svg" mode="aspectFit" aria-hidden="true" /></view></view>
-      <block wx:for="{{homeRecommendationsEnabled ? recommendJobs : latestJobs}}" wx:key="id">
-      <view class="zy-job-card" wx:if="{{index < 3}}" bindtap="goToJobDetail" data-id="{{item.id}}" data-title="{{item.title}}" hover-class="zy-row--pressed" aria-role="button" aria-label="查看岗位 {{item.title}}，{{item.sourceSummary}}">
-        <view class="zy-company-mark"><image wx:if="{{item.logoSrc && !item.logoFailed}}" src="{{item.logoSrc}}" mode="aspectFit" data-index="{{index}}" data-list="{{homeRecommendationsEnabled ? 'recommend' : 'latest'}}" binderror="onJobLogoError" aria-hidden="true" /><image wx:else src="/images/zhiyin-icons/company.svg" mode="aspectFit" aria-hidden="true" /></view>
-        <view class="zy-row-copy"><view class="zy-job-top"><text class="zy-job-company">{{item.company}}</text><text class="zy-job-updated">{{item.postedAt}}</text></view><text class="zy-row-title">{{item.title}}</text><view class="zy-job-tags"><text class="zy-job-type" wx:if="{{item.type}}">{{item.type}}</text><text class="zy-job-location">{{item.city || '地点待确认'}}</text></view><text class="zy-job-source">{{item.sourceSummary}}</text></view><image class="zy-row-arrow" src="/images/zhiyin-icons/chevron.svg" mode="aspectFit" aria-hidden="true" />
+  <view wx:if="{{recruitmentEnabled}}" class="zy-section-card zy-feed-card">
+    <view class="zy-section-head"><text class="zy-section-title">{{homeRecommendationsEnabled ? '为你推荐' : '最新机会'}}</text><view class="zy-text-action" bindtap="viewMoreJobs" hover-class="zy-row--pressed" aria-role="button" aria-label="查看全部岗位">查看全部 ›</view></view>
+    <block wx:for="{{homeRecommendationsEnabled ? recommendJobs : latestJobs}}" wx:key="id">
+      <view wx:if="{{index < 2}}" class="zy-job-card" bindtap="goToJobDetail" data-id="{{item.id}}" data-title="{{item.title}}" hover-class="zy-row--pressed" aria-role="button" aria-label="查看岗位{{item.title}}，{{item.company}}">
+        <view class="zy-company-mark"><image wx:if="{{item.logoSrc && !item.logoFailed}}" src="{{item.logoSrc}}" mode="aspectFit" data-index="{{index}}" data-list="{{homeRecommendationsEnabled ? 'recommend' : 'latest'}}" binderror="onJobLogoError" aria-hidden="true" /><text wx:else>{{item.companyInitial || '职'}}</text></view>
+        <view class="zy-row-copy"><view class="zy-job-top"><text class="zy-job-company">{{item.company}}</text><text class="zy-job-updated">{{item.postedAt}}</text></view><text class="zy-row-title">{{item.title}}</text><text class="zy-job-meta">{{item.type}} · {{item.city}}</text></view><image class="zy-row-arrow" src="/images/zhiyin-icons/chevron.svg" mode="aspectFit" aria-hidden="true" />
       </view>
-      </block>
-      <view class="zy-loading-row" wx:if="{{!(homeRecommendationsEnabled ? recommendJobs.length : latestJobs.length) && (homeRecommendationsEnabled ? loadingJobs : loadingLatestJobs)}}">正在查找新机会…</view>
-      <view class="zy-empty-card zy-empty-compact" wx:if="{{!(homeRecommendationsEnabled ? recommendJobs.length : latestJobs.length) && !(homeRecommendationsEnabled ? loadingJobs : loadingLatestJobs)}}"><view><text class="zy-empty-title">暂时没有可核实的新岗位</text><text class="zy-empty-desc">去找岗位查看更多机会</text></view></view>
-    </view>
-  </block>
-  <view wx:if="{{assessmentProducts.length}}" class="zy-section-card zy-assessment-section">
-    <view class="zy-section-head"><text class="zy-section-title">{{assessmentPreview ? '测评资料（开发预览）' : '热门测评资料'}}</text><view class="zy-text-action" bindtap="openAllAssessmentProducts" hover-class="zy-row--pressed" aria-role="button" aria-label="查看全部测评资料"><text>查看全部</text><image class="zy-inline-chevron" src="/images/zhiyin-icons/chevron.svg" mode="aspectFit" aria-hidden="true"/></view></view>
-    <text wx:if="{{assessmentPreview}}" class="zy-job-meta">开发预览·示例资料，暂不可购买</text>
+    </block>
+    <view wx:if="{{!(homeRecommendationsEnabled ? recommendJobs.length : latestJobs.length) && (homeRecommendationsEnabled ? loadingJobs : loadingLatestJobs)}}" class="zy-skeleton-list" aria-label="正在加载最新机会"><view class="zy-skeleton-row"><view class="zy-skeleton-mark"></view><view class="zy-skeleton-copy"><view></view><view></view></view></view><view class="zy-skeleton-row"><view class="zy-skeleton-mark"></view><view class="zy-skeleton-copy"><view></view><view></view></view></view></view>
+    <view wx:if="{{homeRecommendationsEnabled && !recommendJobs.length && !loadingJobs && jobsError}}" class="zy-empty-card zy-campus-error" aria-role="alert"><text class="zy-empty-title">推荐机会加载失败</text><view class="zy-campus-retry" bindtap="retryRecommendJobs" aria-role="button" aria-label="重试加载推荐机会">重试</view></view>
+    <view wx:if="{{!homeRecommendationsEnabled && !latestJobs.length && !loadingLatestJobs && latestJobsError}}" class="zy-empty-card zy-campus-error" aria-role="alert"><text class="zy-empty-title">最新机会加载失败</text><view class="zy-campus-retry" bindtap="retryLatestJobs" aria-role="button" aria-label="重试加载最新机会">重试</view></view>
+    <view wx:if="{{!(homeRecommendationsEnabled ? recommendJobs.length : latestJobs.length) && !(homeRecommendationsEnabled ? loadingJobs : loadingLatestJobs) && !(homeRecommendationsEnabled ? jobsError : latestJobsError)}}" class="zy-empty-card"><text class="zy-empty-title">暂时没有可核实的新岗位</text><view class="zy-campus-retry" bindtap="viewMoreJobs" aria-role="button" aria-label="搜索更多岗位">去搜索</view></view>
+  </view>
+
+  <view wx:if="{{assessmentAvailable || assessmentLoading || assessmentError}}" class="zy-section-card zy-feed-card">
+    <view class="zy-section-head"><text class="zy-section-title">热门测评资料</text><view class="zy-text-action" bindtap="openAllAssessmentProducts" hover-class="zy-row--pressed" aria-role="button" aria-label="查看全部测评资料">查看全部 ›</view></view>
+    <view wx:if="{{assessmentLoading && !assessmentProducts.length}}" class="zy-skeleton-list" aria-label="正在加载测评资料"><view class="zy-skeleton-row"><view class="zy-skeleton-mark"></view><view class="zy-skeleton-copy"><view></view><view></view></view></view><view class="zy-skeleton-row"><view class="zy-skeleton-mark"></view><view class="zy-skeleton-copy"><view></view><view></view></view></view></view>
+    <view wx:elif="{{assessmentError && !assessmentProducts.length}}" class="zy-empty-card zy-campus-error" aria-role="alert"><text class="zy-empty-title">测评资料加载失败</text><view class="zy-campus-retry" bindtap="retryAssessmentProducts" aria-role="button" aria-label="重试加载测评资料">重试</view></view>
+    <view wx:elif="{{!assessmentProducts.length}}" class="zy-empty-card"><text class="zy-empty-title">暂无可购买的测评资料</text></view>
     <view wx:for="{{assessmentProducts}}" wx:key="productId" class="zy-assessment-row" bindtap="openAssessmentProduct" data-index="{{index}}" hover-class="zy-row--pressed" aria-role="button" aria-label="{{item.companyName}} {{item.title}}，{{item.priceText}}元">
-      <view class="zy-company-mark"><image wx:if="{{item.companyLogo}}" src="{{item.companyLogo}}" mode="aspectFit" data-index="{{index}}" binderror="onAssessmentLogoError" aria-hidden="true"/><image wx:else src="/images/zhiyin-icons/company.svg" mode="aspectFit" aria-hidden="true"/></view>
-      <view class="zy-row-copy"><view class="zy-assessment-row-top"><text class="zy-row-title">{{item.companyName}} · {{item.title}}</text><text class="zy-assessment-price">{{item.preview ? '示例价 ' : ''}}¥{{item.priceText}}</text></view><text class="zy-job-meta">{{item.metaText}}</text></view><image class="zy-row-arrow" src="/images/zhiyin-icons/chevron.svg" mode="aspectFit" aria-hidden="true"/>
+      <view class="zy-resource-mark"><image src="/images/zhiyin-icons/target.svg" mode="aspectFit" aria-hidden="true" /></view>
+      <view class="zy-row-copy"><text class="zy-row-title">{{item.companyName}} · {{item.title}}</text><text class="zy-job-meta">{{item.metaText}}</text></view><text class="zy-assessment-price">¥{{item.priceText}}</text>
     </view>
   </view>
+
   <view class="zy-section-card zy-campus-section">
-    <view class="zy-section-head"><view class="zy-campus-heading"><view class="zy-campus-heading-line"><text class="zy-section-title">每日最新校招</text><text class="zy-campus-live">持续更新</text></view></view><view class="zy-text-action" bindtap="goToCampusList" hover-class="zy-row--pressed" aria-role="button" aria-label="查看全部校招信息"><text>查看全部</text><image class="zy-inline-chevron" src="/images/zhiyin-icons/chevron.svg" mode="aspectFit" aria-hidden="true" /></view></view>
+    <view class="zy-section-head"><view class="zy-campus-heading-line"><text class="zy-section-title">每日最新校招</text><text class="zy-campus-live">持续更新</text></view><view class="zy-text-action" bindtap="goToCampusList" hover-class="zy-row--pressed" aria-role="button" aria-label="查看全部校招信息">查看全部 ›</view></view>
     <view class="zy-campus-list">
-    <view class="zy-campus-row {{item.isUrgent ? 'zy-campus-row--urgent' : ''}}" wx:for="{{campusDigest}}" wx:key="id" bindtap="goToCampusUpdateDetail" data-id="{{item.id}}" hover-class="zy-row--pressed" aria-role="button" aria-label="查看{{item.company}}，{{item.positionTitle}}，{{item.digestMeta}}，{{item.deadlineText}}">
-      <view class="zy-campus-icon"><image wx:if="{{item.companyLogo && !item.logoFailed}}" src="{{item.companyLogo}}" mode="aspectFit" data-id="{{item.id}}" binderror="onCampusLogoError" aria-hidden="true" /><text wx:else>{{item.companyInitial}}</text></view>
-      <view class="zy-row-copy"><view class="zy-campus-row-top"><text class="zy-campus-badge {{item.isUrgent ? 'zy-campus-badge--urgent' : (item.isHot ? 'zy-campus-badge--hot' : '')}}">{{item.badgeText}}</text><text class="zy-campus-updated">{{item.updatedText}}</text></view><text class="zy-campus-company">{{item.company}}</text><text class="zy-campus-position">{{item.positionTitle}}</text><text class="zy-campus-facts">{{item.digestMeta}}</text><view class="zy-campus-row-bottom"><text class="zy-campus-industry">{{item.tagText}}</text><text class="zy-campus-deadline {{item.isUrgent ? 'zy-campus-deadline--urgent' : ''}}">{{item.deadlineText}}</text><image class="zy-row-arrow" src="/images/zhiyin-icons/chevron.svg" mode="aspectFit" aria-hidden="true" /></view></view>
-    </view>
-    <view class="zy-loading-row" wx:if="{{!campusDigest.length && loadingCampusDigest}}">正在读取每日校招…</view>
-    <view class="zy-empty-card zy-empty-compact zy-campus-error" wx:if="{{!campusDigest.length && !loadingCampusDigest && campusDigestError}}" aria-role="alert"><text class="zy-empty-title">每日校招暂时加载失败</text><view class="zy-campus-retry" bindtap="retryCampusDigest" hover-class="zy-row--pressed" aria-role="button" aria-label="重试加载每日校招">重试</view></view>
-    <view class="zy-empty-card zy-empty-compact" wx:elif="{{!campusDigest.length && !loadingCampusDigest}}"><view><text class="zy-empty-title">暂无可核实的最新校招</text><text class="zy-empty-desc">进入校招日历查看全部信息</text></view></view>
+      <view wx:for="{{campusDigest}}" wx:key="id" class="zy-campus-row" bindtap="goToCampusUpdateDetail" data-id="{{item.id}}" hover-class="zy-row--pressed" aria-role="button" aria-label="查看{{item.company}}，{{item.positionTitle}}，{{item.digestMeta}}，{{item.deadlineText}}">
+        <view class="zy-campus-icon"><image wx:if="{{item.companyLogo && !item.logoFailed}}" src="{{item.companyLogo}}" mode="aspectFit" data-id="{{item.id}}" binderror="onCampusLogoError" aria-hidden="true" /><text wx:else>{{item.companyInitial}}</text></view>
+        <view class="zy-row-copy"><text class="zy-campus-company">{{item.company}}</text><text class="zy-campus-position">{{item.positionTitle}}</text><text class="zy-campus-facts">{{item.digestMeta}}</text></view><text class="zy-campus-deadline">{{item.deadlineText}}</text>
+      </view>
+      <view wx:if="{{!campusDigest.length && loadingCampusDigest}}" class="zy-skeleton-list" aria-label="正在加载每日校招"><view class="zy-skeleton-row"><view class="zy-skeleton-mark"></view><view class="zy-skeleton-copy"><view></view><view></view></view></view><view class="zy-skeleton-row"><view class="zy-skeleton-mark"></view><view class="zy-skeleton-copy"><view></view><view></view></view></view></view>
+      <view wx:if="{{!campusDigest.length && !loadingCampusDigest && campusDigestError}}" class="zy-empty-card zy-campus-error" aria-role="alert"><text class="zy-empty-title">每日校招加载失败</text><view class="zy-campus-retry" bindtap="retryCampusDigest" aria-role="button" aria-label="重试加载每日校招">重试</view></view>
+      <view wx:elif="{{!campusDigest.length && !loadingCampusDigest}}" class="zy-empty-card"><text class="zy-empty-title">暂无可核实的最新校招</text><view class="zy-campus-retry" bindtap="goToCampusList" aria-role="button" aria-label="查看校招日历">查看日历</view></view>
     </view>
   </view>
   <view class="zy-home-tail"></view>

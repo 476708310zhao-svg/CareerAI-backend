@@ -56,55 +56,37 @@ function colorFor(css, selector) {
   return color[1].slice(1);
 }
 
-test('home renders one honest primary action and never repeats it in Today', () => {
+test('home embeds live progress and tasks in one plan card', () => {
   const home = read('pages/index/index.wxml');
   const homeJs = read('pages/index/index.js');
   const homeCss = read('pages/index/index.wxss');
-  assert.equal((home.match(/class="zy-main-action"/g) || []).length, 1);
-  assert.doesNotMatch(home, /zy-progress-card|zy-progress-item|求职进展/);
-  assert.match(home, /class="zy-progress-summary"/);
-  assert.doesNotMatch(home, /class="zy-signal-card"|class="zy-today-more"/);
+  assert.ok(home.indexOf('zy-plan-card') < home.indexOf('zy-shortcuts-card'));
+  assert.ok(home.indexOf('zy-plan-metrics') < home.indexOf('zy-todo-panel'));
   assert.match(home, /今日求职计划/);
-  assert.doesNotMatch(home, /class="zy-today-title"/);
-  assert.doesNotMatch(home, /class="zy-today-subtitle"/);
-  assert.match(home, /wx:for="\{\{todaySecondaryTasks\}\}"/);
-  assert.doesNotMatch(home, /zy-suggestion-label|zy-todo-desc|\{\{item\.desc\}\}/);
-  assert.match(homeCss, /\.zy-progress-caption\s*\{[^}]*justify-content:\s*space-between;[^}]*text-align:\s*left;/);
-  assert.match(homeCss, /\.zy-plan-metric\s*\{[^}]*align-items:\s*center;[^}]*justify-content:\s*space-between;/);
-  assert.match(homeCss, /\.zy-plan-metric-value\s*\{[^}]*text-align:\s*right;/);
-  assert.match(homeCss, /\.zy-main-action-visual\s*\{[^}]*min-height:\s*68rpx/);
-  assert.doesNotMatch(home, /今日重点|今天还要做/);
-  assert.match(homeJs, /title = nextTask\.title/);
-  assert.match(homeJs, /String\(item\.id \|\| ''\) !== primaryTaskId/);
+  assert.match(home, /今日待办/);
+  assert.match(home, /class="zy-brand-divider"/);
+  assert.match(home, /class="zy-search-line"[\s\S]*class="zy-search"[\s\S]*class="zy-head-actions"/);
+  assert.match(home, /plan-checklist\.svg/);
+  assert.match(home, /calendar-white\.svg/);
+  assert.match(home, /wx:for="\{\{visibleTodayTasks\}\}"/);
+  assert.match(home, /\{\{item\.desc\}\}/);
+  assert.match(home, /todayTaskStats\.percent/);
+  assert.match(home, /bindtap="toggleAllTodayTasks"/);
   assert.match(homeJs, /const tasks = dailyTasks\.buildTasks\(\);/);
-  assert.doesNotMatch(homeJs.slice(homeJs.indexOf('const todaySecondaryTasks'), homeJs.indexOf('this.setData({', homeJs.indexOf('const todaySecondaryTasks'))), /\.slice\(/);
-  assert.doesNotMatch(homeJs, /title:\s*'今天有 3 项求职任务'/);
+  assert.match(homeJs, /dailyTasks\.getStats\(merged\)/);
+  assert.match(homeCss, /\.zy-home-tail\s*\{[^}]*safe-area-inset-bottom/);
+});
 
-  const progressRows = [{ id: 42, company: 'Acme', jobTitle: '产品经理', deadline: '2026-10-12' }];
-  const page = loadPage('pages/index/index.js', {
-    '../../utils/job-progress.js': { getStats: () => ({ total: 1, active: 1, byStatus: {} }), getList: () => progressRows },
-    '../../utils/daily-tasks.js': { getStats: tasks => ({ pending: tasks.filter(item => !item.done).length }) },
-    '../../utils/owner-storage.js': { get: () => ({}) },
-    '../../utils/feature-flags.js': { isRecruitmentUrl: () => false },
-    '../../utils/api.js': {}, '../../utils/jd-match.js': {}, '../../utils/date-time.js': {},
-    '../../utils/campus-deadline.js': {}, '../../utils/demo-data.js': { enabled: () => false },
-    '../../utils/matcher.js': {}, '../../utils/util.js': {}, '../../utils/assets.js': {},
-    '../../utils/navigation.js': {}, '../../utils/data-provenance.js': require('../miniprogram/utils/data-provenance.js'), '../../utils/api-v4.js': {},
-    '../../utils/favorites.js': {}, '../../utils/browse-history.js': {}, '../../utils/unread-messages.js': {}
+test('home brand uses the safe area beside the WeChat capsule', () => {
+  const page = loadPage('pages/index/index.js', {}, {
+    getWindowInfo: () => ({ statusBarHeight: 24, windowWidth: 375 }),
+    getMenuButtonBoundingClientRect: () => ({ top: 30, left: 285, height: 32 })
   });
-  page.readLatestAtsScore = () => 0;
-  page.data.todayTasks = [
-    { id: 'interview_42', title: '准备 Acme 面试', desc: '复盘 JD', url: '?applicationId=42', priority: 'high', done: false, type: 'interview' },
-    { id: 'resume', title: '检查简历', desc: '确认项目结果', url: '/resume', priority: 'medium', done: false },
-    { id: 'jobs', title: '查看岗位', desc: '查看真实岗位', url: '/jobs', priority: 'low', done: false },
-    { id: 'practice', title: '准备笔试', desc: '练习两道题', url: '/practice', priority: 'low', done: false },
-    { id: 'done', title: '已整理资料', desc: '材料已准备', url: '/resource', priority: 'low', done: true }
-  ];
-  page.loadWorkbenchSummary();
-  assert.equal(page.data.workbench.title, '准备 Acme 面试');
-  assert.match(page.data.workbench.meta, /Acme · 产品经理/);
-  assert.match(page.data.workbench.meta, /截止 2026-10-12/);
-  assert.deepEqual(Array.from(page.data.todaySecondaryTasks, item => item.id), ['resume', 'jobs', 'practice', 'done']);
+  page.measureNavigation();
+  assert.equal(page.data.navTop, 30);
+  assert.equal(page.data.navHeight, 32);
+  assert.ok(page.data.brandMaxWidth < 285 - 20);
+  assert.ok(page.data.brandMaxWidth > 200);
 });
 
 test('home keeps every local Today task before account sync', async () => {
@@ -141,6 +123,29 @@ test('home keeps every Today task returned by account sync', async () => {
   await page.loadTodayTasks();
   assert.deepEqual(Array.from(page.data.todayTasks, item => item.title), remoteTasks.map(item => item.title));
   assert.equal(page.data.todayTaskStats.pending, 5);
+});
+
+test('home distinguishes a failed Today read from a genuine empty day and retries', async () => {
+  let fail = true;
+  const page = loadPage('pages/index/index.js', {
+    '../../utils/daily-tasks.js': {
+      buildTasks: () => [],
+      getStats: () => ({ total: 0, done: 0, pending: 0, percent: 0 })
+    },
+    '../../utils/api-v4.js': { syncTodayTasks: async () => {
+      if (fail) throw new Error('network');
+      return { data: [] };
+    } },
+    '../../utils/owner-storage.js': { capture: () => 'owner', isCurrent: () => true }
+  }, { getStorageSync: key => key === 'token' ? 'test-token' : '' });
+  page.isHomeRequestCurrent = () => true;
+  await page.loadTodayTasks();
+  assert.equal(page.data.todayTasksError, true);
+  assert.equal(page.data.todayTasksLoading, false);
+  fail = false;
+  await page.retryTodayTasks();
+  assert.equal(page.data.todayTasksError, false);
+  assert.equal(page.data.todayTaskStats.total, 0);
 });
 
 test('home lifecycle only requests visible modules, without hidden banners or company modules', () => {
@@ -190,7 +195,7 @@ test('home opportunity and campus cards only use current public API records', as
 
   await page.fetchLatestJobs();
   assert.equal(jobQuery.country, 'global');
-  assert.deepEqual(Array.from(page.data.latestJobs, job => job.id), ['fresh-1', 'fresh-2', 'fresh-3']);
+  assert.deepEqual(Array.from(page.data.latestJobs, job => job.id), ['fresh-1', 'fresh-2']);
   assert.equal(page.data.latestJobs[0].sourceSummary, 'JSearch · 近期更新');
   await page.fetchHomeCampusDigest();
   assert.equal(campusQuery.latestDay, '1');
@@ -203,23 +208,17 @@ test('home opportunity and campus cards only use current public API records', as
   assert.equal(read('pages/index/index.wxml').includes('新更新'), false);
   assert.equal(read('pages/index/index.js').includes("latestDay: '1'"), true);
   const homeMarkup = read('pages/index/index.wxml');
-  assert.match(homeMarkup, /class="zy-job-card" wx:if="\{\{index < 3\}\}"/);
-  const campusStart = homeMarkup.indexOf('<view class="zy-campus-row ');
-  const campusEnd = homeMarkup.indexOf('<view class="zy-loading-row"', campusStart);
+  assert.match(homeMarkup, /wx:if="\{\{index < 2\}\}" class="zy-job-card"/);
+  const campusStart = homeMarkup.indexOf('class="zy-campus-row"');
+  const campusEnd = homeMarkup.indexOf('loadingCampusDigest', campusStart);
   const campusCard = homeMarkup.slice(campusStart, campusEnd);
   assert.ok(campusStart >= 0 && campusEnd > campusStart, 'homepage campus card must exist');
-  assert.match(campusCard, /zy-campus-badge[\s\S]*item\.badgeText/);
   assert.match(campusCard, /zy-campus-company">{{item\.company}}/);
   assert.match(campusCard, /zy-campus-position">{{item\.positionTitle}}/);
-  assert.ok(campusCard.indexOf('zy-campus-company') < campusCard.indexOf('zy-campus-position'));
   assert.match(campusCard, /zy-campus-facts">{{item\.digestMeta}}/);
-  assert.match(campusCard, /zy-campus-industry">{{item\.tagText}}/);
   assert.match(campusCard, /item\.deadlineText/);
   assert.doesNotMatch(campusCard, /sourceSummary|飞书校招日历/);
-  const campusFrameStyle = read('pages/index/index.wxss').match(/\.zy-campus-section\s*\{([^}]*)\}/);
-  assert.ok(campusFrameStyle, 'homepage campus section needs a card frame');
-  assert.match(campusFrameStyle[1], /border:\s*1rpx solid/);
-  assert.match(campusFrameStyle[1], /background:\s*#fff/);
+  assert.match(read('pages/index/index.wxss'), /\.zy-section-card\s*\{[^}]*background:\s*#fff/);
   const positionStyle = read('pages/index/index.wxss').match(/\.zy-campus-position\s*\{([^}]*)\}/);
   assert.ok(positionStyle, 'campus position style must exist');
   assert.match(positionStyle[1], /white-space:\s*nowrap/);
@@ -336,7 +335,7 @@ test('job cards keep scores internal and present only verifiable evidence', () =
 
 test('critical controls on all five pages and the tab bar meet 88rpx touch targets', () => {
   const cases = [
-    ['pages/index/index.wxss', ['.zy-main-action', '.zy-progress-summary']],
+    ['pages/index/index.wxss', ['.zy-search', '.zy-plan-metric', '.zy-action-cta', '.zy-shortcut']],
     ['pages/jobs/jobs.wxss', ['.search-box', '.clear-button,.panel-close', '.filter-button', '.history-chip,.filter-chip', '.history-clear', '.match-button', '.notice-action', '.campus-entry']],
     ['pages/applications/applications.wxss', ['.add-button', '.focus-row', '.filter', '.status-button', '.primary-button, .secondary-button', '.sheet-close', '.field-input']],
     ['pages/resources/resources.wxss', ['.search-row', '.search-input', '.feature-card', '.asset-card', '.clear-button']],
@@ -392,11 +391,15 @@ test('home and AI secondary copy meets 4.5:1 contrast without changing layout', 
   const home = read('pages/index/index.wxss');
   const ai = read('pages/ai-career/ai-career.wxss');
   expectMinTouch(home, '.zy-search');
-  expectMinTouch(home, '.zy-progress-summary');
+  expectMinTouch(home, '.zy-plan-metric');
   expectMinTouch(home, '.zy-text-action');
-  for (const selector of ['.zy-today-subtitle', '.zy-plan-metric-label', '.zy-text-action', '.zy-job-meta']) {
+  for (const selector of ['.zy-plan-metric-label', '.zy-text-action', '.zy-job-meta']) {
     assert.ok(contrastAgainstWhite(colorFor(home, selector)) >= 4.5, selector);
   }
+  const heroGradient = home.match(/\.zy-plan-cover\s*\{[^}]*linear-gradient\(110deg,(#[a-f\d]{6}) 0%,(#[a-f\d]{6}) 100%\)/i);
+  assert.ok(heroGradient, 'Today plan uses a blue gradient');
+  assert.match(home, /\.zy-plan-heading\s*\{[^}]*color:\s*#fff;/);
+  assert.ok(contrastAgainstWhite(heroGradient[1].slice(1)) >= 4.5);
   for (const selector of ['.ai-notice', '.composer-context', '.saved-material-meta']) {
     assert.ok(contrastAgainstWhite(colorFor(ai, selector)) >= 4.5, selector);
   }
@@ -458,9 +461,9 @@ test('interactive controls expose accessible names and selected or pressed state
 
 test('premium tab information architecture stays task-first and contextual', () => {
   const home = read('pages/index/index.wxml');
-  assert.ok(home.indexOf('zy-search') < home.indexOf('zy-main-action'));
-  assert.ok(home.indexOf('zy-progress-summary') < home.indexOf('zy-main-action'));
-  assert.ok(home.indexOf('zy-today-card') < home.indexOf('申请进度'));
+  assert.ok(home.indexOf('zy-search') < home.indexOf('zy-plan-card'));
+  assert.ok(home.indexOf('zy-plan-metrics') < home.indexOf('zy-todo-panel'));
+  assert.ok(home.indexOf('zy-plan-card') < home.indexOf('zy-shortcuts-card'));
   assert.doesNotMatch(home, /今日重点|今天还要做/);
 
   const jobs = read('pages/jobs/jobs.wxml');
@@ -502,4 +505,54 @@ test('premium tab information architecture stays task-first and contextual', () 
   assert.match(tabBar, /打开当前页面的上下文 AI/);
 
   assert.doesNotMatch([home, applications, resources, profile].join('\n'), /TODAY|PIPELINE|LIBRARY|NEXT ACTION|ASSETS|ACCOUNT/);
+});
+test('home summary distinguishes unverified empty cache from verified zero', async () => {
+  let strict;
+  const progress = {
+    TERMINAL_STATUSES: { rejected: true, closed: true, offer: true },
+    getStats: () => ({ total: 0, active: 0 }),
+    getList: () => [],
+    getUpcomingDeadlines: () => [],
+    getTodayInterviews: () => [],
+    buildDailyAdvice: () => '',
+    syncFromServer: options => { strict = options.strict; return Promise.resolve([]); }
+  };
+  const page = loadPage('pages/index/index.js', {
+    '../../utils/job-progress.js': progress,
+    '../../utils/demo-data.js': { enabled: () => false },
+    '../../utils/owner-storage.js': { capture: () => 'owner', isCurrent: () => true }
+  }, { getStorageSync: key => key === 'token' ? 'token' : '' });
+  page._visible = true;
+  page.loadTodayTasks = () => {};
+  page.loadProgressSummary();
+  assert.equal(page.data.progressSummary.active, '—');
+  page.refreshProgressFromServer();
+  await page._progressSyncPromise;
+  assert.equal(strict, true);
+  assert.equal(page.data.progressSummary.active, 0);
+  assert.equal(page.data.progressSummary.dueSoon, 0);
+  assert.equal(page.data.progressSummary.todayInterviews, 0);
+});
+
+test('home never displays assessment preview products as real goods', async () => {
+  let result = { enabled: true, preview: true, items: [
+    { productId: 'demo', companyId: 'demo', priceCents: 990 }
+  ] };
+  const page = loadPage('pages/index/index.js', {
+    '../../utils/demo-data.js': { enabled: () => false },
+    '../../utils/api-assessment-resources.js': {
+      home: async () => result, price: cents => (cents / 100).toFixed(2),
+      imageUrl: value => value || '', track: () => {}
+    }
+  });
+  page._visible = true;
+  await page.fetchAssessmentProducts();
+  assert.equal(page.data.assessmentProducts.length, 0);
+  assert.equal(page.data.assessmentAvailable, false);
+  result = { enabled: true, preview: false, items: [1, 2, 3].map(id => ({
+    productId: String(id), companyId: String(id), priceCents: 990
+  })) };
+  await page.fetchAssessmentProducts();
+  assert.equal(page.data.assessmentProducts.length, 2);
+  assert.equal(page.data.assessmentProducts[0].priceText, '9.90');
 });
