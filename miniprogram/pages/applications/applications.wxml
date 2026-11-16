@@ -9,7 +9,8 @@
     <view wx:if="{{highlights.length}}" class="focus-card"><view wx:for="{{highlights}}" wx:key="id" wx:if="{{index === 0}}" class="focus-row" data-id="{{item.id}}" bindtap="openApplication" hover-class="row-press" aria-role="button" aria-label="{{item.title}}，{{item.desc}}"><view class="focus-copy"><text class="focus-kicker"><text class="focus-target">◎</text> 建议下一步</text><text class="row-title">{{item.title}}</text><text class="row-desc">{{item.desc}}</text></view><view class="focus-art"><view class="paper-line one"></view><view class="paper-line two"></view><view class="focus-pen"></view></view><text class="focus-action">开始准备</text></view></view>
 
     <view class="summary-card">
-      <view class="summary-head"><view><text class="summary-title">申请概览</text><text class="summary-label">{{activeCount}} 条正在推进</text></view><text class="summary-state">共 {{total}} 条</text></view>
+      <view class="summary-head"><view><text class="summary-title">申请概览</text><text class="summary-label">{{activeCount}} 条正在推进（已加载）</text></view><text class="summary-state">已加载 {{total}} / {{boardTotal || total}} 条</text></view>
+      <text class="submission-guidance">这里显示手动维护的申请状态；是否完成企业官网最终提交，请进入申请详情查看本人确认记录。</text>
       <view class="funnel" aria-label="申请阶段概览">
         <view wx:for="{{funnel}}" wx:key="key" wx:if="{{index < 3}}" class="funnel-item tone-{{index}}"><text class="funnel-label"><text class="funnel-icon">{{index===0?'▤':(index===1?'◷':'♙')}}</text>{{item.label}}</text><text class="funnel-count">{{item.count}}</text></view>
       </view>
@@ -23,6 +24,7 @@
         <view class="next-action"><text class="next-label">下一步</text><text class="next-text">{{item.nextAction || '补充跟进计划'}}</text></view>
         <view class="card-meta"><view class="meta-copy"><text wx:if="{{item.interviewLabel}}" class="meta-pill interview">{{item.interviewLabel}}</text><text class="meta-pill {{item.deadlineTone}}">{{item.deadlineLabel}}</text></view><button class="status-button" size="mini" data-id="{{item.id}}" catchtap="quickStatus" loading="{{updatingId === '' + item.id}}" disabled="{{!!updatingId}}" aria-label="{{item.localOnly ? '编辑本机申请记录' : '更新申请状态'}}">{{item.localOnly ? '编辑记录' : '更新状态'}}</button></view>
       </view></view>
+      <view wx:if="{{hasMore}}" class="secondary-button" bindtap="loadMore" aria-role="button" aria-label="加载更多申请">{{loadingMore ? '加载中…' : '加载更多申请（已加载 ' + applications.length + ' / ' + boardTotal + '）'}}</view>
     </view>
   </block>
 

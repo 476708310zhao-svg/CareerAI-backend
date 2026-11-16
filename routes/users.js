@@ -437,7 +437,7 @@ router.delete('/me', authMiddleware, (req, res) => {
 // ─── 旧版简历兼容接口：已废弃，请使用 /api/resumes ───────────────────────────
 router.get('/resumes', authMiddleware, (req, res) => {
   markDeprecatedResumesApi(res);
-  const resumes = db.prepare('SELECT * FROM resumes WHERE user_id = ? ORDER BY updated_at DESC').all(req.user.userId);
+  const resumes = db.prepare("SELECT * FROM resumes WHERE user_id = ? AND COALESCE(archived_at, '') = '' ORDER BY updated_at DESC").all(req.user.userId);
   res.json({ code: 0, message: 'success', data: resumes.map(r => ({
     ...r, userId: r.user_id,
     education: ja(r.education), experience: ja(r.experience), skills: ja(r.skills)
@@ -449,7 +449,7 @@ router.get('/resumes/:id', authMiddleware, (req, res) => {
   markDeprecatedResumesApi(res);
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
-  const r = db.prepare('SELECT * FROM resumes WHERE id = ? AND user_id = ?').get(id, req.user.userId);
+  const r = db.prepare("SELECT * FROM resumes WHERE id = ? AND user_id = ? AND COALESCE(archived_at, '') = ''").get(id, req.user.userId);
   if (!r) return res.status(404).json({ code: -1, message: '简历不存在' });
   res.json({ code: 0, message: 'success', data: {
     ...r, userId: r.user_id,
@@ -484,7 +484,7 @@ router.put('/resumes/:id', authMiddleware, (req, res) => {
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
 
-    const existing = db.prepare('SELECT * FROM resumes WHERE id = ? AND user_id = ?').get(id, req.user.userId);
+    const existing = db.prepare("SELECT * FROM resumes WHERE id = ? AND user_id = ? AND COALESCE(archived_at, '') = ''").get(id, req.user.userId);
     if (!existing) return res.status(404).json({ code: -1, message: '简历不存在' });
 
     const { name, language, education, experience, skills } = req.body;

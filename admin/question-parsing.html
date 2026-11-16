@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PDF 辅助识题 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/question-parsing.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="admin-shell question-parsing-admin">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer"><div class="admin-name" id="adminUsername"></div><button class="nav-item" onclick="logout()"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i><span>退出登录</span></button></div>
+  </aside>
+  <main class="main">
+    <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
+    <div class="content">
+      <div class="page-header"><div><h1>PDF 辅助识题</h1><p class="sub">按来源权利和页级证据生成待审草稿，在原页旁逐题修订。</p></div></div>
+      <ol class="qp-steps" aria-label="PDF 识题进度"><li><strong>1 导入 PDF</strong></li><li><strong>2 核对处理授权</strong></li><li aria-current="step"><strong>3 自动识题</strong></li></ol>
+      <div class="qp-guard" role="note"><strong>仅限内部待审</strong><span>解析任务不会把题目加入题库或公开给学生。缺失、冲突或不可靠的答案仍需人工核对；草稿修改会留下审计记录。创建任务须先完成来源机器处理授权和资产校验、扫描。</span></div>
+
+      <section id="createPanel" class="qp-panel qp-create" aria-labelledby="createHeading">
+        <div class="qp-heading"><div><h2 id="createHeading">开始识题</h2><p>从授权页进入会自动填好来源和试卷名称。创建后页面会自动刷新处理进度。</p></div><div class="qp-actions"><a class="btn btn-outline btn-sm" href="question-assets.html">查看已导入 PDF</a><a class="btn btn-outline btn-sm" href="question-governance.html">查看来源授权</a></div></div>
+        <form id="createJobForm" class="qp-form" novalidate>
+          <div class="qp-fields">
+            <div class="form-group"><label for="sourceId">来源记录 ID *</label><input id="sourceId" type="number" min="1" step="1" inputmode="numeric" required></div>
+            <div class="form-group"><label for="paperVersion">试卷版本 *</label><input id="paperVersion" maxlength="120" placeholder="例如：2026 春季 A 卷" required></div>
+          </div>
+          <details class="qp-advanced"><summary>处理范围：默认中国、非商业</summary><div class="qp-advanced-fields"><div class="form-group"><label for="territory">处理地域 *</label><select id="territory"><option value="CN">中国</option></select></div><label class="qp-check"><input id="commercial" type="checkbox"> 商业处理用途</label></div></details>
+          <div class="qp-actions"><button id="createJob" class="btn btn-primary" type="submit">自动识题并生成待审草稿</button><p id="createError" class="qp-error" role="alert" tabindex="-1" hidden></p></div>
+        </form>
+      </section>
+
+      <div class="qp-workspace">
+        <section class="qp-panel qp-jobs" aria-labelledby="jobsHeading">
+          <div class="qp-heading"><div><h2 id="jobsHeading">解析任务</h2><p id="jobCount">读取中…</p></div><button id="refreshJobs" class="btn btn-outline btn-sm" type="button">刷新</button></div>
+          <p id="jobsError" class="qp-error" role="alert" tabindex="-1" hidden></p>
+          <div id="jobList" class="qp-list" aria-live="polite"></div>
+          <button id="moreJobs" class="btn btn-outline btn-sm" type="button" hidden>加载更多任务</button>
+        </section>
+        <div class="qp-detail-column">
+          <section id="jobDetailPanel" class="qp-panel" aria-labelledby="jobHeading" hidden>
+            <div class="qp-heading"><div><h2 id="jobHeading">任务详情</h2><p id="jobMeta"></p></div><button id="refreshJob" class="btn btn-outline btn-sm" type="button">刷新状态</button></div>
+            <p id="jobDetailError" class="qp-error" role="alert" tabindex="-1" hidden></p>
+            <div id="jobSummary" class="qp-summary"></div>
+            <div class="qp-actions"><button id="retryJob" class="btn btn-outline" type="button" hidden>重试处理</button><span id="jobActionNote" role="status"></span></div>
+            <div class="qp-heading qp-draft-heading"><div><h3>待审草稿</h3><p id="draftCount"></p></div><button id="refreshDrafts" class="btn btn-outline btn-sm" type="button">刷新草稿</button></div>
+            <div class="qp-review-toolbar"><label for="reviewFilter">核对队列</label><select id="reviewFilter" aria-label="筛选待审草稿"><option value="all">全部草稿</option><option value="priority">优先核对</option><option value="candidate">候选完整</option><option value="confirmed">已确认</option><option value="needs_repair">待修复</option><option value="excluded">已排除</option></select><span id="reviewCounts" role="status">读取中…</span></div>
+            <p class="qp-muted">“候选完整”只表示机器找到一致的候选，仍需对照原页核对题目和答案。</p>
+            <p id="draftsError" class="qp-error" role="alert" tabindex="-1" hidden></p>
+            <div id="draftList" class="qp-draft-list" aria-live="polite"></div>
+            <button id="moreDrafts" class="btn btn-outline btn-sm" type="button" hidden>加载更多草稿</button>
+            <div class="qp-bulk-review" id="bulkReviewPanel" hidden><h4>批量确认候选题</h4><p>请逐项核对题目与答案后勾选。默认不选中，最多 30 题；此操作只记录人工确认，不会发布。</p><div id="bulkReviewList"></div><label for="bulkReviewNote">本次核对说明</label><input id="bulkReviewNote" maxlength="500" placeholder="例如：已逐题对照原页和答案页"><button id="bulkConfirm" class="btn btn-outline btn-sm" type="button">确认选中的草稿</button><p id="bulkReviewError" class="qp-error" role="alert" hidden></p></div>
+            <div class="qp-bulk-review" id="promotionPanel" hidden><h4>已确认草稿批量建题</h4><p>只处理本页已人工确认且有解析的单选/多选题。逐项勾选，最多 30 题；生成的是内部题库草稿，不会自动审核、组题或公开。</p><div id="promotionList"></div><button id="promoteSelected" class="btn btn-outline btn-sm" type="button">将选中题目加入题库草稿</button><p id="promotionError" class="qp-error" role="alert" hidden></p><div id="promotionResult" role="status"></div></div>
+          </section>
+          <section id="draftDetailPanel" class="qp-panel" aria-labelledby="draftHeading" hidden>
+            <div class="qp-heading"><div><h2 id="draftHeading">逐题核对</h2><p id="draftMeta"></p></div><button id="refreshDraft" class="btn btn-outline btn-sm" type="button">刷新草稿</button></div>
+            <div class="qp-actions qp-review-navigation"><button id="previousDraft" class="btn btn-outline btn-sm" type="button">上一题 [</button><button id="nextDraft" class="btn btn-outline btn-sm" type="button">下一题 ]</button><span>输入框外可用 [ 和 ] 快速切题。</span></div>
+            <p id="draftDetailError" class="qp-error" role="alert" tabindex="-1" hidden></p>
+            <div id="draftWarnings" class="qp-warnings" role="note"></div>
+            <div class="qp-review-grid">
+              <section class="qp-source-panel" aria-labelledby="sourcePageHeading"><div class="qp-heading"><h3 id="sourcePageHeading">私有原页</h3><button id="togglePageZoom" class="btn btn-outline btn-sm" type="button" aria-pressed="false">放大原页</button></div><div id="sourcePagePicker" class="form-group" hidden><label for="sourcePageSelect">核对来源页</label><select id="sourcePageSelect" aria-label="选择待核对 PDF 页码"></select></div><p id="sourcePageMeta" class="qp-muted"></p><div id="sourcePageFrame" class="qp-page-frame"><img id="sourcePageImage" alt="授权 PDF 原页预览" hidden><p id="sourcePageFallback">选择草稿后读取原页预览。</p></div><h4>答案证据</h4><div id="evidenceList" class="qp-evidence"></div></section>
+              <section class="qp-editor-panel" aria-labelledby="editorHeading"><h3 id="editorHeading">题目字段</h3><p class="qp-muted">修改后仍为待审草稿，不能自动发布。</p><form id="draftForm" class="qp-form" novalidate>
+                <div class="form-group"><label for="draftStem">题干 *</label><textarea id="draftStem" rows="5" maxlength="5000" required></textarea></div>
+                <fieldset class="qp-fieldset"><legend>选项与答案</legend><p class="qp-muted">勾选经原页核实的正确选项；未找到答案时请保留未勾选并在修订说明中写明。</p><div id="draftOptions" class="qp-options"></div><div class="qp-actions qp-option-actions"><button id="addDraftOption" class="btn btn-outline btn-sm" type="button">增加选项</button><button id="removeDraftOption" class="btn btn-outline btn-sm" type="button">移除末项</button></div></fieldset>
+                <div class="form-group"><label for="draftExplanation">解析</label><textarea id="draftExplanation" rows="4" maxlength="5000"></textarea></div>
+                <div id="reviewNoteGroup" class="form-group"><label for="reviewNote">人工修订说明 *</label><textarea id="reviewNote" rows="3" maxlength="500" placeholder="记录核对的页码、答案证据或仍需处理的问题" required></textarea></div>
+                <div class="qp-actions"><button id="saveDraft" class="btn btn-primary" type="submit">保存草稿</button><button id="saveAndNextDraft" class="btn btn-outline" type="button">保存并看下一题</button><span id="saveNote" role="status"></span></div><p id="saveError" class="qp-error" role="alert" tabindex="-1" hidden></p>
+              </form></section>
+            </div>
+            <section class="qp-human-review"><h3>人工核对结论</h3><p id="humanReviewStatus" role="status">尚未人工确认</p><label for="humanReviewNote">核对说明 *</label><textarea id="humanReviewNote" rows="2" maxlength="500" placeholder="注明题目页、答案页及确认依据"></textarea><div class="qp-actions"><button id="confirmDraft" class="btn btn-primary" type="button">确认并看下一题</button><button id="repairDraft" class="btn btn-outline" type="button">标记待修复</button><button id="excludeDraft" class="btn btn-outline" type="button">排除此题</button></div><p id="humanReviewError" class="qp-error" role="alert" hidden></p></section>
+            <p class="qp-muted">核对并保存后，可将这题带入题库录入表单；PDF 来源与后续权利、内容审核仍会保留。</p><a id="draftToBank" class="btn btn-outline btn-sm" href="#" hidden>用已保存草稿填入题库</a>
+            <section class="qp-history" aria-labelledby="historyHeading"><h3 id="historyHeading">修订记录</h3><div id="editHistory" class="qp-list"></div></section>
+          </section>
+        </div>
+      </div>
+      <p id="actionNotice" class="qp-notice" role="status" hidden></p>
+    </div>
+  </main>
+</div>
+<script src="js/config.js"></script><script src="js/common.js"></script><script src="js/question-parsing.js"></script>
+</body>
+</html>

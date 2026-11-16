@@ -34,6 +34,7 @@
           <option value="功能建议">功能建议</option>
           <option value="问题反馈">问题反馈</option>
           <option value="内容纠错">内容纠错</option>
+          <option value="岗位信息纠错">岗位信息纠错</option>
           <option value="其他">其他</option>
         </select>
         <button class="btn btn-outline" onclick="load(1)"><i class="fa-solid fa-search"></i> 搜索</button>
@@ -41,7 +42,7 @@
 
       <div class="table-card">
         <div class="table-wrap"><table>
-          <thead><tr><th>ID</th><th>用户</th><th>类型</th><th>反馈内容</th><th>联系方式</th><th>状态</th><th>提交时间</th><th>操作</th></tr></thead>
+          <thead><tr><th>ID</th><th>用户</th><th>类型</th><th>反馈内容</th><th>联系方式</th><th>状态</th><th>处理耗时</th><th>提交时间</th><th>操作</th></tr></thead>
           <tbody id="tbody"></tbody>
         </table></div>
         <div class="pagination" id="pagi"></div>
@@ -59,6 +60,7 @@
         <div class="form-group"><label>类型</label><input type="text" id="f_type" disabled></div>
       </div>
       <div class="form-group"><label>反馈内容</label><textarea id="f_content" rows="5" disabled></textarea></div>
+      <div class="form-group" id="f_job_context"></div>
       <div class="form-row">
         <div class="form-group"><label>联系方式</label><input type="text" id="f_contact" disabled></div>
         <div class="form-group"><label>处理状态</label>
@@ -71,23 +73,40 @@
         </div>
       </div>
       <div class="form-group"><label>后台备注</label><textarea id="f_admin_note" rows="4" placeholder="记录处理方式、后续动作或关闭原因"></textarea></div>
+      <div id="f_timing" style="font-size:12px;color:#6b7280;margin:8px 0"></div>
+      <div class="form-group"><label>处理记录</label><div id="f_audit" style="font-size:12px;color:#6b7280;max-height:180px;overflow:auto">加载中</div></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal')">取消</button>
-      <button class="btn btn-primary" onclick="save()"><i class="fa-solid fa-floppy-disk"></i> 保存</button>
+      <button class="btn btn-primary" id="saveFeedbackButton" onclick="save()"><i class="fa-solid fa-floppy-disk"></i> 保存</button>
     </div>
   </div>
 </div>
 
 <script src="js/config.js"></script><script src="js/common.js"></script>
 <script>
-let page = 1, total = 0, editId = null, cache = [];
+let page = 1, total = 0, editId = null, cache = [], auditReady = false, reviewVersion = null;
 const statusMap = {
   open: { label: '待处理', cls: 'badge-red' },
   processing: { label: '处理中', cls: 'badge-amber' },
   resolved: { label: '已解决', cls: 'badge-green' },
   ignored: { label: '已忽略', cls: 'badge-gray' }
 };
+
+function jobFeedbackDetails(f) {
+  const context = f.jobFeedback;
+  if (!context) return '';
+  const target = context.localTarget;
+  const id = context.localJobId;
+  const deepLink = Number.isSafeInteger(id) && id > 0 && (target === 'verification' || target === 'deleted_audit')
+    ? `<a href="jobs.html?jobId=${id}&view=${target === 'verification' ? 'verification' : 'deleted-audit'}">${target === 'verification' ? '打开本地岗位核验' : '查看已删除岗位审计'}</a>`
+    : context.canReviewJobs === false
+      ? '<span style="color:#6b7280">当前账号无岗位管理权限，无法显示本地岗位入口</span>'
+      : context.localLookupUnavailable
+        ? '<span style="color:#6b7280">岗位数据暂不可用，反馈仍可处理；请稍后重试核对本地岗位</span>'
+      : '<span style="color:#6b7280">未匹配可处理的本地岗位；外部岗位需到原来源人工核查</span>';
+  return `<div style="font-size:12px;color:#6b7280;margin-top:6px">用户自报，需核实：${esc(context.reason)} · 岗位 ${esc(context.jobId)} · 来源 ${esc(context.source)} · ${deepLink}${target ? '<br>同 ID 本地岗位仅是候选；请核对标题、来源和原公告，防止外部数字 ID 撞号。' : ''}</div>`;
+}
 
 initPage('feedback', '反馈管理');
 load(1);
@@ -108,21 +127,23 @@ async function load(p) {
   const res = await GET(`/admin/api/feedbacks?${buildQuery(p)}`);
   if (!res || res.code !== 0) return;
   total = res.data.total;
+  auditReady = res.data.auditReady === true;
   cache = res.data.list || [];
   document.getElementById('tbody').innerHTML = cache.length ? cache.map(f => `
     <tr>
       <td>${f.id}</td>
       <td>${esc(f.nickname || ('用户 #' + (f.user_id || '-')))}</td>
       <td><span class="badge badge-blue">${esc(f.type || '其他')}</span></td>
-      <td style="max-width:360px"><strong>${esc(truncate(f.content, 72))}</strong>${f.admin_note ? `<div style="color:#6b7280;font-size:12px">备注：${esc(truncate(f.admin_note, 44))}</div>` : ''}</td>
+      <td style="max-width:360px"><strong>${esc(truncate(f.content, 72))}</strong>${jobFeedbackDetails(f)}${f.admin_note ? `<div style="color:#6b7280;font-size:12px">备注：${esc(truncate(f.admin_note, 44))}</div>` : ''}</td>
       <td>${esc(f.contact || '-')}</td>
       <td>${statusBadge(f.status)}</td>
+      <td><small>${esc(feedbackTimingText(f))}</small></td>
       <td>${fmtDate(f.created_at)}</td>
       <td><div class="td-actions">
         <button class="btn btn-outline btn-sm" onclick="openEdit(${f.id})"><i class="fa-solid fa-pen"></i></button>
         <button class="btn btn-danger btn-sm" onclick="del(${f.id})"><i class="fa-solid fa-trash"></i></button>
       </div></td>
-    </tr>`).join('') : '<tr class="empty-row"><td colspan="8">暂无反馈</td></tr>';
+    </tr>`).join('') : '<tr class="empty-row"><td colspan="9">暂无反馈</td></tr>';
   renderPagination('pagi', page, total, 20, 'load');
 }
 
@@ -131,24 +152,50 @@ function statusBadge(status) {
   return `<span class="badge ${item.cls}">${item.label}</span>`;
 }
 
-function openEdit(id) {
+function feedbackTimingText(f) {
+  const seconds = f.timing?.handlingSeconds;
+  if (!Number.isFinite(seconds)) return '历史处理时间未记录';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return `${f.timing.completedAt ? '处理耗时' : '距提交'} ${hours} 小时 ${minutes} 分钟`;
+}
+
+async function openEdit(id) {
   const f = cache.find(item => item.id === id);
   if (!f) return;
   editId = id;
+  reviewVersion = Number.isSafeInteger(f.review_version) ? f.review_version : null;
   document.getElementById('f_user').value = f.nickname || ('用户 #' + (f.user_id || '-'));
   document.getElementById('f_type').value = f.type || '其他';
   document.getElementById('f_content').value = f.content || '';
+  document.getElementById('f_job_context').innerHTML = jobFeedbackDetails(f);
   document.getElementById('f_contact').value = f.contact || '';
   document.getElementById('f_status').value = f.status || 'open';
   document.getElementById('f_admin_note').value = f.admin_note || '';
+  document.getElementById('f_timing').textContent = feedbackTimingText(f);
+  document.getElementById('saveFeedbackButton').disabled = !auditReady || reviewVersion === null;
+  document.getElementById('f_audit').textContent = auditReady ? '加载中' : '反馈审计迁移未就绪；当前禁止无审计更新';
   openModal('modal');
+  if (!auditReady) return;
+  const res = await GET(`/admin/api/feedbacks/${id}/audit?pageSize=20`);
+  if (editId !== id) return;
+  if (!res || res.code !== 0) {
+    document.getElementById('f_audit').textContent = '处理记录暂不可读，请稍后重试';
+    return;
+  }
+  const events = res.data.list || [];
+  document.getElementById('f_audit').innerHTML = events.length
+    ? events.map(item => `<div style="padding:5px 0;border-bottom:1px solid #e5e7eb">${esc(item.acted_at)} · ${esc(item.actor_name)} · ${esc(statusMap[item.from_status]?.label || item.from_status)} → ${esc(statusMap[item.to_status]?.label || item.to_status)}${item.to_note ? `<br>说明：${esc(item.to_note)}` : ''}</div>`).join('')
+    : '暂无可追溯的历史处理记录；迁移前的操作不在审计中';
+  if (res.data.total > events.length) document.getElementById('f_audit').innerHTML += '<div>仅显示最近 20 条记录</div>';
 }
 
 async function save() {
-  if (!editId) return;
+  if (!editId || reviewVersion === null || !auditReady) { toast('反馈审计未就绪，请刷新后重试', 'error'); return; }
   const body = {
     status: document.getElementById('f_status').value,
-    adminNote: document.getElementById('f_admin_note').value.trim()
+    adminNote: document.getElementById('f_admin_note').value.trim(),
+    expectedVersion: reviewVersion
   };
   const res = await PUT(`/admin/api/feedbacks/${editId}`, body);
   if (res && res.code === 0) {
@@ -156,12 +203,12 @@ async function save() {
     closeModal('modal');
     load(page);
   } else {
-    toast(res?.message || '保存失败', 'error');
+    toast('保存未完成，请刷新列表后重新核对处理记录', 'error');
   }
 }
 
 function del(id) {
-  confirm('确定删除这条反馈吗？', async () => {
+  confirm('确定永久删除这条反馈及其处理记录吗？', async () => {
     const res = await DELETE(`/admin/api/feedbacks/${id}`);
     if (res && res.code === 0) { toast('删除成功'); load(page); }
     else toast(res?.message || '删除失败', 'error');

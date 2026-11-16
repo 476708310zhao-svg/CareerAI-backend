@@ -1,10 +1,35 @@
 ﻿// pages/ats-optimize/ats-optimize.js
 const { analyzeAts }        = require('../../utils/api-ats.js');
-const { post, request }     = require('../../../utils/api-client.js');
+const resumeApi           = require('../../../utils/api-v4.js');
+const ownerStorage        = require('../../../utils/owner-storage.js');
 
 const PRIORITY_MAP = { high: '高', medium: '中', low: '低' };
 const PRIORITY_COLOR = { high: '#dc2626', medium: '#d97706', low: '#16a34a' };
 const SECTION_LABEL  = { summary: '个人简介', workExp: '工作经历', skills: '技能', projects: '项目经历', education: '教育背景' };
+
+function toAtsResume(content) {
+  const text = value => typeof value === 'string' ? value : '';
+  const entries = value => Array.isArray(value) ? value : [];
+  const experience = entries(content.workExp).length ? content.workExp : entries(content.experience);
+  const skills = Array.isArray(content.skills) ? content.skills : text(content.skills).split(/[,，、;；\n]/);
+  return {
+    basicInfo: {},
+    summary: text(content.summary),
+    skills: skills.map(item => typeof item === 'string' ? item : text(item && (item.name || item.title))).filter(Boolean),
+    workExp: entries(experience).map(item => ({
+      company: text(item && (item.company || item.organization)),
+      role: text(item && (item.role || item.title)),
+      desc: text(item && (item.desc || item.description || item.summary))
+    })),
+    education: entries(content.education).map(item => ({
+      school: text(item && item.school), degree: text(item && item.degree), major: text(item && item.major)
+    })),
+    projects: entries(content.projects).map(item => ({
+      name: text(item && (item.name || item.title)),
+      desc: text(item && (item.desc || item.description))
+    }))
+  };
+}
 
 Page({
   data: {
@@ -18,6 +43,8 @@ Page({
 
     // 简历来源
     serverResumes:  [],
+    resumesLoading: false,
+    resumeLoadError: '',
     selectedResumeId: null,
     selectedResumeName: '',
     resumeData:     null,
@@ -33,12 +60,26 @@ Page({
   },
 
   onLoad(options) {
+    this._ownerScope = ownerStorage.capture();
+    this._unloaded = false;
     this._loadPendingJd();
-    // 支持从简历页携带 resumeId 直接进入
-    if (options.resumeId) {
-      this._loadResumeById(parseInt(options.resumeId));
-    }
+    this._requestedResumeId = Number(options && options.resumeId) || null;
     this._loadServerResumes();
+  },
+  onShow() {
+    if (!this._ownerScope || ownerStorage.isCurrent(this._ownerScope)) return;
+    this._ownerScope = ownerStorage.capture();
+    this._resumeRequestGeneration = (this._resumeRequestGeneration || 0) + 1;
+    this._analysisGeneration = (this._analysisGeneration || 0) + 1;
+    this.setData({ serverResumes: [], selectedResumeId: null, selectedResumeName: '',
+      resumeData: null, resumeLoadError: '', result: null, step: 1 });
+    this._loadServerResumes();
+  },
+  onUnload() {
+    this._unloaded = true;
+    this._resumeListGeneration = (this._resumeListGeneration || 0) + 1;
+    this._resumeRequestGeneration = (this._resumeRequestGeneration || 0) + 1;
+    this._analysisGeneration = (this._analysisGeneration || 0) + 1;
   },
 
   _loadPendingJd() {
@@ -64,55 +105,94 @@ Page({
 
   // 简历加载
   async _loadServerResumes() {
+    const owner = this._ownerScope;
+    const generation = this._resumeListGeneration = (this._resumeListGeneration || 0) + 1;
+    this._resumeRequestGeneration = (this._resumeRequestGeneration || 0) + 1;
+    this.setData({ resumesLoading: true, resumeLoadError: '', resumeData: null });
     try {
-      const res = await request({ path: '/api/resumes', params: {}, cacheTTL: 0 });
-      if (res && res.code === 0) {
-        this.setData({ serverResumes: res.data || [] });
-        // 如果没有预选简历且只有一份，自动选中
-        if (!this.data.selectedResumeId && res.data && res.data.length === 1) {
-          this._loadResumeById(res.data[0].id);
-        }
+      const res = await resumeApi.getV4Resumes();
+      if (this._unloaded || generation !== this._resumeListGeneration) return;
+      if (!ownerStorage.isCurrent(owner)) {
+        this.setData({ serverResumes: [], selectedResumeId: null, selectedResumeName: '',
+          resumeData: null, resumesLoading: false });
+        return;
       }
-    } catch (e) {}
+      if (!res || res.code !== 0 || !Array.isArray(res.data)) throw new Error('在线简历读取失败，请检查网络后重试');
+      const resumes = res.data.filter(item => !item.archived);
+      this.setData({ serverResumes: resumes, resumesLoading: false });
+      const selected = resumes.find(item => Number(item.id) === Number(this._requestedResumeId))
+        || resumes.find(item => Number(item.id) === Number(this.data.selectedResumeId))
+        || resumes.find(item => item.isDefault) || resumes[0];
+      if (selected) await this._loadResumeById(selected.id);
+      else this.setData({ selectedResumeId: null, selectedResumeName: '', resumeData: null });
+    } catch (error) {
+      if (!this._unloaded && generation === this._resumeListGeneration && ownerStorage.isCurrent(owner)) {
+        this.setData({ serverResumes: [], resumeData: null, resumesLoading: false,
+          resumeLoadError: error.message || '在线简历读取失败，请重试' });
+      }
+    }
   },
 
   async _loadResumeById(id) {
+    const owner = this._ownerScope;
+    const generation = this._resumeRequestGeneration = (this._resumeRequestGeneration || 0) + 1;
+    this.setData({ resumeData: null, resumesLoading: true, resumeLoadError: '' });
     try {
-      const res = await request({ path: `/api/resumes/${id}`, params: {}, cacheTTL: 0 });
-      if (res && res.code === 0 && res.data) {
-        this.setData({
-          selectedResumeId:   res.data.id,
-          selectedResumeName: res.data.name || '我的简历',
-          resumeData:         res.data.data || {},
-        });
+      const selected = this.data.serverResumes.find(item => Number(item.id) === Number(id));
+      if (!selected) throw new Error('选中的在线简历已不存在，请重新选择');
+      const res = await resumeApi.getCurrentResumeVersion(id, selected.currentVersionId);
+      if (this._unloaded || generation !== this._resumeRequestGeneration) return;
+      if (!ownerStorage.isCurrent(owner)) {
+        this.setData({ serverResumes: [], selectedResumeId: null, selectedResumeName: '',
+          resumeData: null, resumesLoading: false });
+        return;
       }
-    } catch (e) {}
+      if (!res || res.code !== 0 || !Array.isArray(res.data)) throw new Error('简历内容读取失败，请重试');
+      const version = res.data.find(item => Number(item.id) === Number(selected.currentVersionId)) || res.data[0];
+      const content = version && version.content;
+      if (!content || !String(content.summary || '').trim()
+        && !['workExp', 'experience', 'projects', 'skills', 'education'].some(key => Array.isArray(content[key]) && content[key].length)) {
+        throw new Error('这份在线简历还没有可评分的内容，请先导入文字版 PDF 或完善简历');
+      }
+      this.setData({ selectedResumeId: selected.id, selectedResumeName: selected.name || '我的简历',
+        resumeData: content, resumesLoading: false });
+    } catch (error) {
+      if (!this._unloaded && generation === this._resumeRequestGeneration && ownerStorage.isCurrent(owner)) {
+        this.setData({ resumeData: null, resumesLoading: false,
+          resumeLoadError: error.message || '简历内容读取失败，请重试' });
+      }
+    }
   },
 
   onSelectResume(e) {
     const id = parseInt(e.currentTarget.dataset.id);
-    const name = e.currentTarget.dataset.name;
     if (this.data.selectedResumeId === id) return;
-    this.setData({ selectedResumeId: id, selectedResumeName: name, resumeData: null });
+    this.setData({ selectedResumeId: id, resumeData: null });
     this._loadResumeById(id);
   },
+  retryLoadResumes() { return this._loadServerResumes(); },
 
   // 开始分析
   async startAnalyze() {
+    if (this._unloaded || !ownerStorage.isCurrent(this._ownerScope)) return;
     const { jobDescription, resumeData, jobTitle } = this.data;
     if (!jobDescription || jobDescription.trim().length < 20) {
       wx.showToast({ title: '请粘贴完整的岗位描述', icon: 'none' });
       return;
     }
     if (!resumeData) {
-      wx.showToast({ title: '请先选择或完善简历', icon: 'none' });
+      wx.showToast({ title: this.data.resumesLoading ? '正在读取简历，请稍候' :
+        (this.data.resumeLoadError || '请先选择或完善简历'), icon: 'none' });
       return;
     }
 
+    const owner = this._ownerScope;
+    const generation = this._analysisGeneration = (this._analysisGeneration || 0) + 1;
     this.setData({ step: 2 });
 
     try {
-      const res = await analyzeAts({ resumeData, jobDescription, jobTitle });
+      const res = await analyzeAts({ resumeData: toAtsResume(resumeData), jobDescription, jobTitle });
+      if (this._unloaded || generation !== this._analysisGeneration || !ownerStorage.isCurrent(owner)) return;
       if (!res || res.code !== 0) {
         throw new Error(res && res.message ? res.message : '分析失败');
       }
@@ -142,10 +222,11 @@ Page({
 
       this.setData({ result, step: 3 });
     } catch (err) {
+      if (this._unloaded || generation !== this._analysisGeneration || !ownerStorage.isCurrent(owner)) return;
       const msg = err.message || '分析失败，请重试';
       wx.showModal({
         title: '分析失败',
-        content: msg.includes('次数') ? msg : '网络异常或 AI 超时，请重试',
+        content: msg === 'unauthorized' ? '登录已过期，请重新登录后重试' : msg.slice(0, 180),
         showCancel: false,
       });
       this.setData({ step: 1 });

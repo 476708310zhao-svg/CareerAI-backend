@@ -1,0 +1,26 @@
+<view class="page">
+  <view class="card"><text class="title">人工服务工单</text><text class="hint">这里只登记服务请求，不产生订单或费用。请勿填写账号密码、验证码。</text></view>
+  <view wx:if="{{authRequired}}" class="card">请先登录后使用。</view>
+  <view wx:else>
+    <view class="card" wx:if="{{consent}}">
+      <text class="title">申请服务</text>
+      <picker range="{{types}}" range-key="title" value="{{typeIndex}}" bindchange="chooseType"><view class="choice">服务类型：{{types[typeIndex].title}} ›</view></picker>
+      <text class="hint">{{consent.services[typeIndex].consentText}}</text>
+      <picker wx:if="{{typeIndex != 1}}" range="{{resumes}}" range-key="name" value="{{resumeIndex}}" bindchange="chooseResume"><view class="choice">选择本人简历：{{resumes[resumeIndex].name || '暂无简历'}} ›</view></picker>
+      <picker wx:if="{{typeIndex == 2}}" range="{{applications}}" range-key="jobTitle" value="{{applicationIndex}}" bindchange="chooseApplication"><view class="choice">选择申请：{{applications[applicationIndex].jobTitle || '暂无申请'}} ›</view></picker>
+      <checkbox-group wx:if="{{typeIndex == 1}}" bindchange="chooseScopes"><label class="choice"><checkbox value="job_preferences"/>求职偏好</label><label class="choice"><checkbox value="resume_content"/>所选简历</label><label class="choice"><checkbox value="application_details"/>所选申请</label></checkbox-group>
+      <picker wx:if="{{typeIndex == 1 && screeningResume}}" range="{{resumes}}" range-key="name" value="{{resumeIndex}}" bindchange="chooseResume"><view class="choice">选择简历：{{resumes[resumeIndex].name || '暂无简历'}} ›</view></picker>
+      <picker wx:if="{{typeIndex == 1 && screeningApplication}}" range="{{applications}}" range-key="jobTitle" value="{{applicationIndex}}" bindchange="chooseApplication"><view class="choice">选择申请：{{applications[applicationIndex].jobTitle || '暂无申请'}} ›</view></picker>
+      <textarea class="input" value="{{summary}}" maxlength="1000" placeholder="说明希望获得的帮助（不填密码或验证码）" bindinput="changeSummary"/>
+      <view class="choice">授权天数（1–90）<input type="number" value="{{durationDays}}" bindinput="changeDays"/></view>
+      <checkbox-group bindchange="changeAccepted"><label class="choice"><checkbox value="yes" checked="{{accepted}}"/>我已阅读并同意上方第 {{consent.version}} 版授权说明，可随时撤销</label></checkbox-group>
+      <button type="primary" loading="{{busy}}" disabled="{{busy}}" bindtap="submit">确认授权并创建工单</button>
+    </view>
+    <view class="card"><text class="title">我的工单</text><view wx:if="{{!requests.length}}" class="hint">暂无工单</view>
+      <view wx:for="{{requests}}" wx:key="id" class="request"><text>{{item.serviceTitle}} · {{item.status}}</text><text class="hint">授权至 {{item.expiresAt}}</text><button size="mini" data-id="{{item.id}}" bindtap="openRequest">查看审计与交付</button><button wx:if="{{!item.revoked}}" size="mini" data-id="{{item.id}}" bindtap="revoke">撤销授权</button></view>
+    </view>
+    <view wx:if="{{selected}}" class="card"><text class="title">工单 #{{selected.request.id}}</text><text class="hint">{{selected.request.serviceTitle}} · {{selected.request.status}}</text><text wx:if="{{selected.request.revoked}}" class="hint">授权已撤销或到期，资料已隐藏。</text><view wx:for="{{selected.events}}" wx:key="version" class="request">{{item.createdAt}} · {{item.eventType}} · {{item.toStatus}}</view><view wx:for="{{selected.deliveries}}" wx:key="id" class="request">交付：{{item.summary}}</view></view>
+    <button bindtap="refresh">刷新工单</button>
+  </view>
+  <view wx:if="{{error}}" class="error">{{error}}</view><view wx:if="{{notice}}" class="notice">{{notice}}</view>
+</view>

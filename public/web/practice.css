@@ -1,0 +1,47 @@
+.skip-link{position:absolute;z-index:30;top:-64px;left:16px;padding:10px 14px;background:#fff;color:var(--ink);border:2px solid var(--blue);border-radius:8px}
+.skip-link:focus{top:12px}
+#practice-view{font-size:16px;line-height:1.6}
+.practice-head{display:flex;justify-content:space-between;align-items:end;gap:16px}
+.practice-head .eyebrow{margin-top:0}
+.practice-head h3{font-size:clamp(22px,3vw,29px);line-height:1.25;margin:0 0 6px}
+.practice-head p:last-child{margin:0}
+.practice-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:22px 0 18px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.practice-tab{min-height:44px;border:1px solid transparent;border-radius:10px;background:transparent;color:#4d586b;padding:9px 16px;font:inherit;font-weight:700}
+.practice-tab:hover,.practice-tab.active{background:var(--blue-soft);color:#304fb9;border-color:#d5defc}
+.practice-tab:focus-visible,#practice-view button:focus-visible,#practice-view input:focus-visible{outline:3px solid #304fb9;outline-offset:2px}
+.practice-body{max-width:1040px}
+.practice-message,.practice-inline-error{padding:10px 14px;border-radius:10px;background:#fff0f0;color:#9a2929}
+.practice-section-title{font-size:17px;margin:22px 0 12px}
+.practice-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.practice-card{display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-height:166px}
+.practice-card h4{font-size:18px;line-height:1.35;margin:0;overflow-wrap:anywhere}
+.practice-card p{margin:0}
+.practice-card button{margin-top:auto}
+.practice-empty,.practice-notice{max-width:700px;line-height:1.7}
+.practice-meta{color:#306e55}
+.practice-progress-text{display:block;margin:0 0 8px;font-weight:700}
+.practice-progress{width:100%;height:10px;accent-color:var(--blue);margin-bottom:18px}
+.practice-question{padding:clamp(18px,3vw,30px)}
+.practice-type{display:inline-block;margin:0 0 8px;padding:3px 9px;border-radius:30px;background:var(--blue-soft);color:#304fb9;font-size:13px;font-weight:700}
+.practice-stem{font-size:clamp(19px,2.3vw,24px);line-height:1.55;margin:4px 0 24px;white-space:pre-wrap;overflow-wrap:anywhere}
+.practice-options{border:0;margin:0;padding:0;display:grid;gap:10px;min-width:0}
+.practice-options legend{font-weight:700;margin-bottom:10px}
+.practice-choice{display:flex;align-items:flex-start;gap:12px;min-height:52px;padding:13px 14px;border:1px solid #dce3ee;border-radius:12px;cursor:pointer;line-height:1.5;overflow-wrap:anywhere}
+.practice-choice:hover,.practice-choice:has(input:checked){border-color:#7894ed;background:#f2f5ff}
+.practice-choice:has(input:focus-visible){outline:3px solid #304fb9;outline-offset:2px}
+.practice-choice input{width:19px;height:19px;flex:0 0 auto;margin:2px 0 0;accent-color:var(--blue)}
+.practice-choice span{flex:1;white-space:pre-wrap}
+.practice-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+.practice-actions button,.practice-card button,.practice-step button{min-height:44px;padding:9px 14px}
+.practice-secondary{padding-top:16px;border-top:1px solid var(--line)}
+.practice-hint{margin-top:18px;color:#765720;background:#fff7e5;border-radius:8px;padding:9px 12px}
+.practice-result{padding:18px;border:1px solid #d8e4f8;border-radius:12px;background:#f8faff}
+.practice-result.correct{border-color:#b8e6d5;background:#f0faf6}
+.practice-result.incorrect{border-color:#f2d7c4;background:#fff8f3}
+.practice-result h5{font-size:17px;margin:0 0 8px}
+.practice-result p{margin:8px 0;overflow-wrap:anywhere}
+.practice-explanation{padding-top:10px;border-top:1px solid rgba(23,32,51,.1);white-space:pre-wrap}
+.practice-steps{display:grid;gap:8px}
+.practice-step{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+@media(max-width:640px){.practice-tabs{display:grid;grid-template-columns:repeat(2,1fr)}.practice-tab{text-align:center}.practice-grid{grid-template-columns:1fr}.practice-step{align-items:flex-start;flex-direction:column}.practice-step button{width:100%}.practice-actions button{flex:1 1 100%}}
+@media(prefers-reduced-motion:reduce){#practice-view *,#practice-view *::before,#practice-view *::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}

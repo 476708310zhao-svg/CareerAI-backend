@@ -9,9 +9,11 @@ const { sendToUser } = require('./notify');
 const { parseId } = require('../db/utils');
 const { formatApp } = require('../db/formatters');
 const { ja } = require('../db/utils');
-const { findJobById, findJobsByIds, toApplicationJob } = require('../utils/jobData');
+const { findJobById, findJobsByIds, toApplicationJob, isHeldLocalJobId } = require('../utils/jobData');
+const { withoutHeldJobLinks } = require('../utils/applicationLinkVisibility');
 const { applicationFeedbackData } = require('../utils/wechatTemplates');
 const analytics = require('../services/v4Analytics');
+const readiness = require('../services/v4ApplicationReadiness');
 const { applicationRefs, withCoreRefs } = require('../utils/coreEntityRefs');
 const { eventForApplicationStatus } = require('../utils/funnelAnalytics');
 
@@ -32,6 +34,13 @@ const PROGRESS_STATUS_TEXT = {
   rejected: '拒信',
   closed: '已结束'
 };
+
+router.use((req, res, next) => { if (req.method === 'GET') res.set('Cache-Control', 'no-store'); next(); });
+
+function publicApplication(row, view) {
+  if (!isHeldLocalJobId(row.source_job_id) && !isHeldLocalJobId(row.job_id)) return view;
+  return withoutHeldJobLinks(view);
+}
 
 function safeJson(value, fallback) {
   if (!value) return fallback;
@@ -68,12 +77,47 @@ function pickField(source, keys, fallback) {
   return fallback;
 }
 
+function resumeInputError(userId, body) {
+  const raw = pickField(body, ['resumeId', 'resume_id'], undefined);
+  if (raw === undefined || raw === null || raw === '' || raw === 0 || raw === '0') return null;
+  const id = Number(raw);
+  if (!Number.isSafeInteger(id) || id <= 0) return { status: 400, message: '简历 ID 无效' };
+  const owned = db.prepare('SELECT id FROM resumes WHERE id=? AND user_id=? AND COALESCE(archived_at,\'\')=\'\'')
+    .get(id, userId);
+  return owned ? null : { status: 404, message: '简历不存在或无权使用' };
+}
+
+function legacyResumeEditConflict(existing, body) {
+  const rawResumeId = pickField(body, ['resumeId', 'resume_id'], undefined);
+  const rawVersionId = pickField(body, ['resumeVersionId', 'resume_version_id'], undefined);
+  return (rawResumeId !== undefined && Number(rawResumeId || 0) !== Number(existing.resume_id || 0))
+    || (rawVersionId !== undefined && cleanText(rawVersionId, 120) !== cleanText(existing.resume_version_id, 120));
+}
+
+function newProgressVersion(userId, body) {
+  const raw = pickField(body, ['resumeVersionId', 'resume_version_id'], undefined);
+  if (raw === undefined || raw === null || raw === '') return { version: null };
+  const id = Number(raw);
+  if (!Number.isSafeInteger(id) || id <= 0) return { error: { status: 400, message: '简历版本 ID 无效' } };
+  const version = db.prepare(`SELECT v.id,v.resume_id FROM resume_versions_v4 v
+    JOIN resumes r ON r.id=v.resume_id AND r.user_id=v.user_id
+    WHERE v.id=? AND v.user_id=? AND COALESCE(r.archived_at,'')=''`).get(id, userId);
+  if (!version) return { error: { status: 404, message: '简历版本不存在或无权使用' } };
+  const rawResumeId = pickField(body, ['resumeId', 'resume_id'], undefined);
+  if (rawResumeId !== undefined && rawResumeId !== null && rawResumeId !== ''
+    && Number(rawResumeId) !== version.resume_id) {
+    return { error: { status: 400, message: '简历版本与所选简历不匹配' } };
+  }
+  return { version };
+}
+
 function progressRow(row) {
   const snapshot = safeJson(row.job_snapshot, {});
   const progressStatus = normalizeProgressStatus(row.progress_status || row.status);
   const sourceJobId = row.source_job_id || row.job_id || '';
-  return {
+  return publicApplication(row, {
     id: String(row.id),
+    historyId: Number(row.history_id ?? db.prepare('SELECT COALESCE(MAX(id),0) AS id FROM application_history WHERE application_id=? AND user_id=?').get(row.id, row.user_id).id),
     clientId: row.client_id || '',
     sourceJobId,
     jobId: row.job_id || '',
@@ -96,7 +140,7 @@ function progressRow(row) {
     jobSnapshot: snapshot,
     createdAt: row.applied_at || row.created_at || '',
     updatedAt: row.updated_at || ''
-  };
+  });
 }
 
 function trackProgressFunnel(userId, row, options = {}) {
@@ -203,7 +247,7 @@ router.get('/', authMiddleware, (req, res) => {
     const jobMap = findJobsByIds(localIds);
 
     const list = filtered.map(a => {
-      const app = formatApp(a);
+      const app = publicApplication(a, formatApp(a));
       if (!app.jobSnapshot || !app.jobSnapshot.title) {
         const j = toApplicationJob(jobMap[String(parseInt(a.job_id))]);
         if (j) app.job = j;
@@ -247,21 +291,44 @@ router.get('/progress', authMiddleware, (req, res) => {
 router.post('/progress', authMiddleware, (req, res) => {
   try {
     const existing = findProgressRecord(req.user.userId, req.body || {});
+    const body = req.body || {};
+    const suppliedStatus = Object.prototype.hasOwnProperty.call(body, 'status') ? body.status
+      : Object.prototype.hasOwnProperty.call(body, 'progressStatus') ? body.progressStatus : body.currentStatus;
+    if (existing && suppliedStatus !== undefined
+      && normalizeProgressStatus(suppliedStatus) !== normalizeProgressStatus(existing.progress_status || existing.status)) {
+      return res.status(428).json({ code: -1, message: '请在申请工作区刷新后更新状态，旧进度接口不再修改云端申请状态' });
+    }
+    if (existing && Object.prototype.hasOwnProperty.call(req.body || {}, 'status')
+      && normalizeProgressStatus(req.body.status) !== normalizeProgressStatus(existing.progress_status || existing.status)) {
+      return res.status(428).json({ code: -1, message: '请在申请工作区刷新后更新状态，旧进度接口不再修改云端申请状态' });
+    }
+    const resumeError = resumeInputError(req.user.userId, req.body || {});
+    if (resumeError) return res.status(resumeError.status).json({ code: -1, message: resumeError.message });
+    const creationVersion = existing ? { version: null } : newProgressVersion(req.user.userId, req.body || {});
+    if (creationVersion.error) return res.status(creationVersion.error.status)
+      .json({ code: -1, message: creationVersion.error.message });
+    if (existing && legacyResumeEditConflict(existing, req.body || {})) {
+      return res.status(409).json({ code: -1, message: '请在申请工作区使用简历版本专用接口更新绑定' });
+    }
     const payload = progressPayload(req.body || {}, existing);
+    if (!existing && creationVersion.version) {
+      payload.resumeId = creationVersion.version.resume_id;
+      payload.resumeVersionId = String(creationVersion.version.id);
+    }
     if (!payload.company || !payload.jobTitle) {
       return res.status(400).json({ code: -1, message: '请填写公司和岗位' });
     }
 
     if (existing) {
       const beforeStatus = normalizeProgressStatus(existing.progress_status || existing.status);
+      const preserveBinding = readiness.schemaAvailable();
       db.prepare(`
         UPDATE applications SET
           client_id=@clientId,
           job_id=@jobId,
           job_snapshot=@jobSnapshot,
-          resume_id=@resumeId,
-          status=@status,
-          status_text=@statusText,
+          ${preserveBinding ? '' : 'resume_id=@resumeId,'}
+          -- Legacy progress sync may edit descriptive fields but never the workflow state.
           applied_at=@appliedAt,
           source_type=@sourceType,
           source_job_id=@sourceJobId,
@@ -273,15 +340,13 @@ router.post('/progress', authMiddleware, (req, res) => {
           deadline=@deadline,
           interview_time=@interviewTime,
           notes=@notes,
-          resume_version_id=@resumeVersionId,
-          progress_status=@progressStatus,
+          ${preserveBinding ? '' : 'resume_version_id=@resumeVersionId,'}
           reminder_enabled=@reminderEnabled,
           reminder_lead_days=@reminderLeadDays,
           updated_at=datetime('now')
         WHERE id=@id AND user_id=@userId
       `).run(Object.assign({ id: existing.id, userId: req.user.userId }, payload));
       const row = db.prepare('SELECT * FROM applications WHERE id=?').get(existing.id);
-      trackProgressFunnel(req.user.userId, row, { beforeStatus, route: '/api/applications/progress' });
       return res.json({ code: 0, data: progressRow(row), message: '已更新' });
     }
 
@@ -311,16 +376,31 @@ router.put('/progress/:id', authMiddleware, (req, res) => {
   try {
     const existing = findProgressRecord(req.user.userId, Object.assign({}, req.body || {}, { id: req.params.id }));
     if (!existing) return res.status(404).json({ code: -1, message: '进度记录不存在' });
+    const body = req.body || {};
+    const suppliedStatus = Object.prototype.hasOwnProperty.call(body, 'status') ? body.status
+      : Object.prototype.hasOwnProperty.call(body, 'progressStatus') ? body.progressStatus : body.currentStatus;
+    if (suppliedStatus !== undefined
+      && normalizeProgressStatus(suppliedStatus) !== normalizeProgressStatus(existing.progress_status || existing.status)) {
+      return res.status(428).json({ code: -1, message: '请在申请工作区刷新后更新状态，旧进度接口不再修改云端申请状态' });
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'status')
+      && normalizeProgressStatus(req.body.status) !== normalizeProgressStatus(existing.progress_status || existing.status)) {
+      return res.status(428).json({ code: -1, message: '请在申请工作区刷新后更新状态，旧进度接口不再修改云端申请状态' });
+    }
+    const resumeError = resumeInputError(req.user.userId, req.body || {});
+    if (resumeError) return res.status(resumeError.status).json({ code: -1, message: resumeError.message });
+    if (legacyResumeEditConflict(existing, req.body || {})) {
+      return res.status(409).json({ code: -1, message: '请在申请工作区使用简历版本专用接口更新绑定' });
+    }
     const payload = progressPayload(Object.assign({}, req.body || {}, { id: req.params.id }), existing);
     const beforeStatus = normalizeProgressStatus(existing.progress_status || existing.status);
+    const preserveBinding = readiness.schemaAvailable();
     db.prepare(`
       UPDATE applications SET
         client_id=@clientId,
         job_id=@jobId,
         job_snapshot=@jobSnapshot,
-        resume_id=@resumeId,
-        status=@status,
-        status_text=@statusText,
+        ${preserveBinding ? '' : 'resume_id=@resumeId,'}
         applied_at=@appliedAt,
         source_type=@sourceType,
         source_job_id=@sourceJobId,
@@ -332,15 +412,13 @@ router.put('/progress/:id', authMiddleware, (req, res) => {
         deadline=@deadline,
         interview_time=@interviewTime,
         notes=@notes,
-        resume_version_id=@resumeVersionId,
-        progress_status=@progressStatus,
+        ${preserveBinding ? '' : 'resume_version_id=@resumeVersionId,'}
         reminder_enabled=@reminderEnabled,
         reminder_lead_days=@reminderLeadDays,
         updated_at=datetime('now')
       WHERE id=@id AND user_id=@userId
     `).run(Object.assign({ id: existing.id, userId: req.user.userId }, payload));
     const row = db.prepare('SELECT * FROM applications WHERE id=?').get(existing.id);
-    trackProgressFunnel(req.user.userId, row, { beforeStatus, route: '/api/applications/progress/:id' });
     res.json({ code: 0, data: progressRow(row), message: '已更新' });
   } catch (error) {
     console.error(error);
@@ -362,9 +440,9 @@ router.get('/:id', authMiddleware, (req, res) => {
   if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
   const a = db.prepare('SELECT * FROM applications WHERE id = ? AND user_id = ?').get(id, req.user.userId);
   if (!a) return res.status(404).json({ code: -1, message: '申请记录不存在' });
-  const app = formatApp(a);
+  const app = publicApplication(a, formatApp(a));
   const job = toApplicationJob(findJobById(a.job_id));
-  const resume = db.prepare('SELECT * FROM resumes WHERE id = ?').get(a.resume_id);
+  const resume = db.prepare('SELECT * FROM resumes WHERE id = ? AND user_id = ?').get(a.resume_id, req.user.userId);
   res.json({ code: 0, message: 'success', data: { ...app, job: job || null,
     resume: resume ? { ...resume, education: ja(resume.education), skills: ja(resume.skills) } : null } });
 });
@@ -374,6 +452,8 @@ router.post('/', authMiddleware, (req, res) => {
   try {
     const { jobId, resumeId, jobSnapshot } = req.body;
     if (!jobId) return res.status(400).json({ code: -1, message: '缺少 jobId' });
+    const resumeError = resumeInputError(req.user.userId, req.body || {});
+    if (resumeError) return res.status(resumeError.status).json({ code: -1, message: resumeError.message });
 
     const exists = db.prepare('SELECT id FROM applications WHERE user_id = ? AND job_id = ?').get(req.user.userId, String(jobId));
     if (exists) return res.status(400).json({ code: -1, message: '您已经投递过该职位' });
@@ -394,7 +474,7 @@ router.post('/', authMiddleware, (req, res) => {
       content: `已将「${snap.company || ''}${snap.company && snap.title ? ' · ' : ''}${snap.title || '职位'}」保存到投递看板，请通过官方招聘链接完成投递`,
     }).catch(() => {});
 
-    res.json({ code: 0, message: '投递记录已保存', data: formatApp(newApp) });
+    res.json({ code: 0, message: '投递记录已保存', data: publicApplication(newApp, formatApp(newApp)) });
   } catch (error) {
     console.error(error); res.status(500).json({ code: -1, message: '服务器内部错误' });
   }

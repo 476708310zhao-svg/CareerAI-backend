@@ -2,7 +2,7 @@
   <view class="resume-hero"><view><text class="resume-hero-title">我的简历</text><text class="resume-hero-sub">管理附件、在线版本和真实经历</text></view><text class="resume-hero-count">{{resumes.length}} 份在线简历</text></view>
   <view class="upload-card">
     <view class="upload-heading">导入已有简历</view>
-    <view class="upload-description">上传文字版 PDF，再根据真实内容生成可确认的优化建议。</view>
+    <view class="upload-description">上传文字版 PDF，自动生成在线简历并补齐资料中可识别的空白项。点击“评分与建议”可查看内容完整度和 AI 修改建议。</view>
     <button class="upload-button" bindtap="chooseResumePdf" disabled="{{attachmentBusy}}">{{attachmentBusy ? '处理中…' : '上传 PDF 简历'}}</button>
     <view class="upload-hint">支持文字版 PDF，最大 10 MB · 原文件会保留</view>
     <view wx:if="{{attachmentStage}}" class="process-state">{{attachmentStage}}</view>
@@ -13,23 +13,25 @@
     <text class="target-kicker">正在为目标岗位优化</text>
     <text class="card-title">{{optimizationContext.company}} · {{optimizationContext.jobTitle}}</text>
   </view>
-  <view wx:if="{{optimizationError}}" class="optimization-error" aria-role="alert">
+  <view wx:if="{{optimizationError && !showReview}}" class="optimization-error" aria-role="alert">
     <text>{{optimizationError}}</text>
     <text wx:if="{{optimizationDiagnostic}}" class="optimization-diagnostic">{{optimizationDiagnostic}}</text>
   </view>
 
   <view class="section-heading"><text>附件简历</text><text class="section-count">{{attachments.length}} 份</text></view>
-  <view wx:if="{{loading}}" class="load-state">正在加载简历…</view>
-  <view wx:if="{{!attachments.length && !loading}}" class="empty-attachment">还没有上传附件。上传后即可开始 AI 优化。</view>
+  <view wx:if="{{loading && !optimizing}}" class="load-state">正在加载简历…</view>
+  <view wx:if="{{!attachments.length && !loading}}" class="empty-attachment">还没有上传附件。上传后即可查看评分与修改建议。</view>
   <view wx:for="{{attachments}}" wx:key="id" class="attachment-card">
     <view class="file-icon" aria-hidden="true">PDF</view>
-    <view class="attachment-info">
+    <view class="attachment-info" bindtap="previewAttachment" data-id="{{item.id}}" aria-role="button" aria-label="查看原 PDF 简历">
       <text class="attachment-name">{{item.filename}}</text>
       <text class="attachment-meta">{{item.sizeLabel}} · {{item.dateLabel}}</text>
+      <text class="attachment-preview">查看原 PDF</text>
       <text wx:if="{{item.linkedResumeId}}" class="attachment-ready">已生成可优化版本</text>
       <text wx:else class="attachment-waiting">尚未导入，请先建立原始版本</text>
     </view>
-    <button class="attachment-action {{optimizing && optimizingResumeId === item.linkedResumeId ? 'optimizing' : ''}}" bindtap="optimizeAttachment" data-id="{{item.id}}" disabled="{{attachmentBusy || loading}}">{{optimizing && optimizingResumeId === item.linkedResumeId ? '优化中…' : (busyAttachmentId === item.id ? '处理中' : (item.linkedResumeId ? 'AI 优化' : '导入简历'))}}</button>
+    <button class="attachment-action {{optimizing && optimizingResumeId === item.linkedResumeId ? 'optimizing' : ''}}" bindtap="optimizeAttachment" data-id="{{item.id}}" disabled="{{attachmentBusy || loading || reviewLoading}}">{{optimizing && optimizingResumeId === item.linkedResumeId ? '分析中…' : (busyAttachmentId === item.id ? '处理中' : '评分与建议')}}</button>
+    <view class="attachment-manage" bindtap="manageAttachment" data-id="{{item.id}}" aria-role="button" aria-label="查看或管理附件">•••</view>
   </view>
 
   <view class="section-heading online-heading"><text>在线简历</text><text class="section-link" bindtap="openCreate">手动新建</text></view>
@@ -37,7 +39,6 @@
   <view class="tabs">
     <view class="tab {{activeTab === 'resumes' ? 'active' : ''}}" bindtap="switchTab" data-tab="resumes">简历列表</view>
     <view class="tab {{activeTab === 'experiences' ? 'active' : ''}}" bindtap="switchTab" data-tab="experiences">真实经历</view>
-    <view class="tab {{activeTab === 'versions' ? 'active' : ''}}" bindtap="switchTab" data-tab="versions">历史记录</view>
   </view>
 
   <view wx:if="{{activeTab === 'resumes'}}">
@@ -49,7 +50,8 @@
       <view class="more" catchtap="resumeActions" data-id="{{item.id}}">•••</view>
     </view>
     <view class="empty-online" wx:if="{{!resumes.length}}">上传 PDF 或手动新建，建立第一份在线简历。</view>
-    <button class="optimize {{optimizing ? 'optimizing' : ''}}" wx:if="{{currentResume}}" bindtap="optimizeResume" disabled="{{loading}}">{{optimizing ? '正在生成建议…' : (optimizationContext ? '按目标岗位优化当前简历' : '优化选中的在线简历')}}</button>
+    <button class="optimize {{optimizing ? 'optimizing' : ''}}" wx:if="{{currentResume}}" bindtap="reviewSelectedResume" disabled="{{loading || reviewLoading}}">{{optimizing ? '正在生成建议…' : '查看评分与修改建议'}}</button>
+    <view class="edit-online" wx:if="{{currentResume}}" bindtap="openResumeEditor" aria-role="button">编辑在线简历</view>
     <button class="initialize" wx:if="{{currentResume && !currentResume.currentVersionId}}" bindtap="initializeResumeVersion">创建首个版本</button>
   </view>
 
@@ -64,17 +66,9 @@
     </view>
   </view>
 
-  <view wx:if="{{activeTab === 'versions'}}">
-    <view class="empty" wx:if="{{!versions.length}}">从简历菜单选择“查看版本”</view>
-    <view wx:for="{{versions}}" wx:key="id" class="version-card">
-      <view><text class="card-title">V{{item.versionNo}} · {{item.changeSummary || '简历版本'}}</text><text class="meta">{{item.createdAt}}</text></view>
-      <view class="restore {{restoreBusy ? 'disabled' : ''}}" bindtap="restoreVersion" data-id="{{item.id}}">{{restoreBusy ? '恢复中…' : '恢复'}}</view>
-    </view>
-  </view>
-
   <view class="privacy-note">AI 建议需逐条确认才会保存为新版本；原简历与附件不会被覆盖。</view>
 
-  <view wx:if="{{optimizing}}" class="optimization-progress" aria-role="status" aria-live="polite">
+  <view wx:if="{{optimizing && !showReview}}" class="optimization-progress" aria-role="status" aria-live="polite">
     <view class="optimization-spinner" aria-hidden="true"></view>
     <view class="optimization-progress-copy">
       <text class="optimization-progress-title">正在生成优化建议</text>
@@ -82,23 +76,81 @@
     </view>
   </view>
 
-  <view wx:if="{{proposal}}" class="mask"></view>
-  <view wx:if="{{proposal}}" class="sheet">
-    <text class="sheet-title">逐条确认{{proposal.suggestionLabel}}</text>
-    <text class="sheet-note">模型 {{proposal.modelLabel}} · 提示词 {{proposal.promptVersion}}</text>
-    <text class="sheet-note">来源版本 ID {{proposal.sourceVersionId}} · 确认前原版本保持不变</text>
-    <text wx:if="{{proposal.generationNotice}}" class="generation-notice">{{proposal.generationNotice}}</text>
-    <scroll-view scroll-y class="suggestions">
-      <view wx:for="{{proposal.suggestions}}" wx:key="id" class="suggestion">
-        <text class="reason">{{item.reason}}</text>
-        <text class="before">原内容：{{item.before}}</text>
-        <text class="after">{{proposal.suggestionLabel}}：{{item.after}}</text>
-        <view class="decision {{decisions[item.id] === 'accept' ? 'accepted' : ''}}" bindtap="toggleSuggestion" data-id="{{item.id}}">{{decisions[item.id] === 'accept' ? '已接受' : '拒绝'}}</view>
+  <view wx:if="{{showTextPreview}}" class="mask" bindtap="closeTextPreview"></view>
+  <view wx:if="{{showTextPreview}}" class="pdf-preview-sheet">
+    <view class="pdf-preview-head"><text class="sheet-title">{{previewTitle}}</text><view bindtap="closeTextPreview" aria-role="button" aria-label="关闭简历文字预览">关闭</view></view>
+    <text class="sheet-note">以下是提取的文字；如需查看分页和原排版，请打开原 PDF。</text>
+    <scroll-view scroll-y class="pdf-preview-scroll"><text class="pdf-preview-text" selectable="true">{{previewText}}</text></scroll-view>
+  </view>
+
+  <view wx:if="{{showReview || proposal}}" class="mask"></view>
+  <view wx:if="{{showReview || proposal}}" class="sheet review-sheet">
+    <view class="review-head"><text class="sheet-title">简历评分与修改建议</text><text wx:if="{{!optimizing}}" bindtap="closeResumeReview">关闭</text></view>
+    <scroll-view scroll-y class="review-scroll">
+      <view wx:if="{{reviewLoading}}" class="load-state">正在读取在线简历…</view>
+      <view wx:if="{{reviewScore}}" class="review-score-card">
+        <view class="review-score-line"><text class="review-score-number">{{reviewScore.score}}</text><text class="review-score-unit">/100 · 内容完整度</text></view>
+        <text class="review-score-note">根据当前在线简历的字段完整度计算，不代表岗位匹配度或录用概率。</text>
+        <view wx:for="{{reviewScore.checks}}" wx:key="label" class="review-check"><text>{{item.label}}</text><text>{{item.points}}/{{item.max}}</text></view>
       </view>
-      <view class="manual-switch" bindtap="toggleManualMode">{{manualMode ? '返回逐条确认' : '手动编辑完整简历'}}</view>
-      <textarea wx:if="{{manualMode}}" class="manual-editor" value="{{manualJson}}" bindinput="onManualJsonInput" maxlength="30000" />
+      <view wx:if="{{reviewError || optimizationError}}" class="optimization-error">{{reviewError || optimizationError}}<text wx:if="{{optimizationDiagnostic}}" class="optimization-diagnostic">{{optimizationDiagnostic}}</text></view>
+      <view wx:if="{{optimizing}}" class="review-progress"><view class="optimization-spinner"></view><text>正在生成 AI 修改建议，完成后请逐条确认…</text></view>
+      <block wx:if="{{proposal}}">
+        <text class="review-advice-title">AI 修改建议</text>
+        <text class="sheet-note">只接受你认可的建议；确认后才会保存为新版本。</text>
+        <view wx:for="{{proposal.suggestions}}" wx:key="id" class="suggestion">
+          <text class="reason">{{item.reason}}</text>
+          <text class="before">原内容：{{item.before}}</text>
+          <text class="after">建议修改：{{item.after}}</text>
+          <view class="decision {{decisions[item.id] === 'accept' ? 'accepted' : ''}}" bindtap="toggleSuggestion" data-id="{{item.id}}">{{decisions[item.id] === 'accept' ? '已接受' : '拒绝'}}</view>
+        </view>
+      </block>
     </scroll-view>
-    <view class="sheet-actions"><view bindtap="rejectSuggestions">全部放弃</view><view class="primary" bindtap="confirmSuggestions">确认并保存新版本</view></view>
+    <view wx:if="{{proposal}}" class="sheet-actions"><view bindtap="rejectSuggestions">全部放弃</view><view class="primary" bindtap="confirmSuggestions">确认并保存新版本</view></view>
+    <view wx:elif="{{(reviewError || optimizationError) && !reviewLoading}}" class="sheet-actions"><view bindtap="closeResumeReview">关闭</view><view class="primary" bindtap="retryResumeReview">重试生成建议</view></view>
+  </view>
+
+  <view wx:if="{{showResumeEditor}}" class="mask"></view>
+  <view wx:if="{{showResumeEditor}}" class="sheet resume-editor-sheet">
+    <view class="resume-editor-head"><text class="sheet-title">编辑在线简历</text><text bindtap="closeResumeEditor">取消</text></view>
+    <text class="sheet-note">修改后保存为新版本，原 PDF 保留。请只填写真实、可核验的经历。</text>
+    <text wx:if="{{resumeEditorError}}" class="resume-editor-error">{{resumeEditorError}}</text>
+    <scroll-view scroll-y class="resume-editor-scroll">
+      <view wx:if="{{resumeEditorLoading}}" class="load-state">正在读取在线简历…</view>
+      <block wx:else>
+        <view class="resume-editor-section"><text class="resume-editor-label">个人概述</text><textarea class="resume-editor-textarea" value="{{resumeEditor.summary}}" data-field="summary" bindinput="onResumeEditorInput" maxlength="2000" placeholder="概括真实工作经验和求职优势" /></view>
+        <view class="resume-editor-section"><text class="resume-editor-label">技能</text><input class="resume-editor-input" value="{{resumeEditor.skillsText}}" data-field="skillsText" bindinput="onResumeEditorInput" placeholder="例如：数据分析、项目管理，用顿号分隔" /></view>
+        <view class="resume-editor-section"><text class="resume-editor-label">求职方向</text><input class="resume-editor-input" value="{{resumeEditor.targetRolesText}}" data-field="targetRolesText" bindinput="onResumeEditorInput" placeholder="目标岗位，用顿号分隔" /><input class="resume-editor-input" value="{{resumeEditor.targetCitiesText}}" data-field="targetCitiesText" bindinput="onResumeEditorInput" placeholder="目标城市，用顿号分隔" /></view>
+        <view class="resume-editor-section"><text class="resume-editor-label">工作经历</text>
+          <view wx:for="{{resumeEditor.workExp}}" wx:for-item="work" wx:for-index="workIndex" wx:key="id" class="resume-editor-entry">
+            <input class="resume-editor-input" value="{{work.company}}" data-section="workExp" data-index="{{workIndex}}" data-field="company" bindinput="onResumeEditorItemInput" placeholder="公司或组织" />
+            <input class="resume-editor-input" value="{{work.role}}" data-section="workExp" data-index="{{workIndex}}" data-field="role" bindinput="onResumeEditorItemInput" placeholder="职位" />
+            <input class="resume-editor-input" value="{{work.time}}" data-section="workExp" data-index="{{workIndex}}" data-field="time" bindinput="onResumeEditorItemInput" placeholder="起止时间" />
+            <textarea class="resume-editor-textarea" value="{{work.desc}}" data-section="workExp" data-index="{{workIndex}}" data-field="desc" bindinput="onResumeEditorItemInput" maxlength="3000" placeholder="工作内容和真实成果" />
+            <text class="resume-editor-remove" data-section="workExp" data-index="{{workIndex}}" bindtap="removeResumeEditorItem">删除这段经历</text>
+          </view><view class="resume-editor-add" data-section="workExp" bindtap="addResumeEditorItem">+ 添加工作经历</view>
+        </view>
+        <view class="resume-editor-section"><text class="resume-editor-label">教育经历</text>
+          <view wx:for="{{resumeEditor.education}}" wx:for-item="school" wx:for-index="schoolIndex" wx:key="id" class="resume-editor-entry">
+            <input class="resume-editor-input" value="{{school.school}}" data-section="education" data-index="{{schoolIndex}}" data-field="school" bindinput="onResumeEditorItemInput" placeholder="学校" />
+            <input class="resume-editor-input" value="{{school.degree}}" data-section="education" data-index="{{schoolIndex}}" data-field="degree" bindinput="onResumeEditorItemInput" placeholder="学历" />
+            <input class="resume-editor-input" value="{{school.major}}" data-section="education" data-index="{{schoolIndex}}" data-field="major" bindinput="onResumeEditorItemInput" placeholder="专业" />
+            <input class="resume-editor-input" value="{{school.time}}" data-section="education" data-index="{{schoolIndex}}" data-field="time" bindinput="onResumeEditorItemInput" placeholder="毕业或就读时间" />
+            <text class="resume-editor-remove" data-section="education" data-index="{{schoolIndex}}" bindtap="removeResumeEditorItem">删除这段教育经历</text>
+          </view><view class="resume-editor-add" data-section="education" bindtap="addResumeEditorItem">+ 添加教育经历</view>
+        </view>
+        <view class="resume-editor-section"><text class="resume-editor-label">项目经历</text>
+          <view wx:for="{{resumeEditor.projects}}" wx:for-item="project" wx:for-index="projectIndex" wx:key="id" class="resume-editor-entry">
+            <input class="resume-editor-input" value="{{project.name}}" data-section="projects" data-index="{{projectIndex}}" data-field="name" bindinput="onResumeEditorItemInput" placeholder="项目名称" />
+            <input class="resume-editor-input" value="{{project.role}}" data-section="projects" data-index="{{projectIndex}}" data-field="role" bindinput="onResumeEditorItemInput" placeholder="担任角色" />
+            <input class="resume-editor-input" value="{{project.time}}" data-section="projects" data-index="{{projectIndex}}" data-field="time" bindinput="onResumeEditorItemInput" placeholder="项目时间" />
+            <textarea class="resume-editor-textarea" value="{{project.desc}}" data-section="projects" data-index="{{projectIndex}}" data-field="desc" bindinput="onResumeEditorItemInput" maxlength="3000" placeholder="项目过程和真实成果" />
+            <text class="resume-editor-remove" data-section="projects" data-index="{{projectIndex}}" bindtap="removeResumeEditorItem">删除这个项目</text>
+          </view><view class="resume-editor-add" data-section="projects" bindtap="addResumeEditorItem">+ 添加项目经历</view>
+        </view>
+      </block>
+    </scroll-view>
+    <button class="resume-editor-save" bindtap="saveResumeEditor" disabled="{{resumeEditorSaving || resumeEditorLoading}}">{{resumeEditorSaving ? '保存中…' : '保存在线简历'}}</button>
   </view>
 
   <view wx:if="{{showCreate}}" class="mask" bindtap="closeCreate"></view>

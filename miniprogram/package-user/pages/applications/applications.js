@@ -129,7 +129,7 @@ Page({
     const localApps = wx.getStorageSync('localApplications') || [];
 
     if (wx.getStorageSync('token')) {
-      v4Api.getApplicationBoard().then(res => {
+      v4Api.getCompleteApplicationBoard().then(res => {
         const data = res && res.code === 0 ? res.data : null;
         if (!data || !data.groups) throw new Error('invalid V4 board');
         const cloudRows = Object.keys(data.groups).reduce((all, key) => all.concat(data.groups[key] || []), []);

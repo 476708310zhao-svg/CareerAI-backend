@@ -17,8 +17,9 @@ const { imageExtForMime, isAllowedImageMime, rejectInvalidImage } = require('../
 const adminJobsStore = require('../utils/adminJobsStore');
 const { parsePagination, paginateArray } = require('../utils/pagination');
 const adminAccounts = require('../utils/adminAccounts');
-const { ALL_ADMIN_PERMISSIONS, PERMISSION_LABELS } = require('../utils/adminPermissions');
+const { ALL_ADMIN_PERMISSIONS, PERMISSION_LABELS, hasPermission } = require('../utils/adminPermissions');
 const { UPLOAD_DIR, ensureDir } = require('../utils/paths');
+const { parseJobFeedbackContext } = require('../utils/jobFeedbackContext');
 const shareConfig = require('../utils/shareConfig');
 const featureFlags = require('../utils/featureFlags');
 const { USER_PROFILE_SCHEMA, buildUserProfile, normalizeProfilePayload } = require('../utils/userProfileStandard');
@@ -268,28 +269,99 @@ router.put('/api/feature-flags/:feature', adminAuth, (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 // 岗位管理（jobs.json）
 // ═══════════════════════════════════════════════════════════════
-router.get('/api/jobs', adminAuth, (req, res) => {
+function liveJobsAdmin(req, res, next) {
+  const account = adminAccounts.getAccount(req.admin && req.admin.id);
+  if (!account || !account.is_active || !hasPermission(account, 'jobs')) {
+    return res.status(403).json({ code: -1, message: '岗位管理权限已失效，请重新登录' });
+  }
+  req.liveJobsAdmin = { id: account.id, username: account.username };
+  next();
+}
+
+function sendJobsWriteError(res, err) {
+  if (err && (err.code === 'SQLITE_BUSY' || err.code === 'SQLITE_LOCKED')) {
+    res.set('Retry-After', '1');
+    return res.status(503).json({ code: -1, message: '岗位更新暂时繁忙，请稍后重试' });
+  }
+  if (err && err.statusCode === 409) {
+    return res.status(409).json({ code: -1, message: err.message });
+  }
+  if (err instanceof TypeError) {
+    return res.status(400).json({ code: -1, message: err.message });
+  }
+  return res.status(500).json({ code: -1, message: '岗位更新失败' });
+}
+
+router.get('/api/jobs', adminAuth, liveJobsAdmin, (req, res) => {
   const { keyword = '' } = req.query;
   const result = paginateArray(adminJobsStore.listJobs(keyword), req.query, { pageSize: 15 });
   res.json({ code: 0, data: { list: result.list, total: result.total } });
 });
 
-router.post('/api/jobs', adminAuth, (req, res) => {
-  const job = adminJobsStore.createJob(req.body);
-  res.json({ code: 0, message: '添加成功', data: job });
+router.post('/api/jobs', adminAuth, liveJobsAdmin, (req, res) => {
+  try {
+    const job = adminJobsStore.createJob(req.body);
+    res.json({ code: 0, message: '添加成功', data: job });
+  } catch (err) {
+    sendJobsWriteError(res, err);
+  }
 });
 
-router.put('/api/jobs/:id', adminAuth, (req, res) => {
-  const id = parseInt(req.params.id);
-  const job = adminJobsStore.updateJob(id, req.body);
+router.put('/api/jobs/:id', adminAuth, liveJobsAdmin, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  try {
+    const job = adminJobsStore.updateJob(id, req.body, req.liveJobsAdmin);
+    if (!job) return res.status(404).json({ code: -1, message: '职位不存在' });
+    res.json({ code: 0, message: '更新成功', data: job });
+  } catch (err) {
+    sendJobsWriteError(res, err);
+  }
+});
+
+router.get('/api/jobs/:id', adminAuth, liveJobsAdmin, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  const job = adminJobsStore.getJob(id);
   if (!job) return res.status(404).json({ code: -1, message: '职位不存在' });
-  res.json({ code: 0, message: '更新成功', data: job });
+  res.json({ code: 0, data: job });
 });
 
-router.delete('/api/jobs/:id', adminAuth, (req, res) => {
-  const id = parseInt(req.params.id);
-  if (!adminJobsStore.deleteJob(id)) return res.status(404).json({ code: -1, message: '职位不存在' });
-  res.json({ code: 0, message: '删除成功' });
+router.get('/api/jobs/:id/verification', adminAuth, liveJobsAdmin, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  const record = adminJobsStore.getJobVerification(id);
+  if (!record) return res.status(404).json({ code: -1, message: '职位不存在' });
+  res.json({ code: 0, data: record });
+});
+
+router.get('/api/jobs/:id/verification/audit', adminAuth, liveJobsAdmin, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  res.json({ code: 0, data: { jobId: id, audit: adminJobsStore.getJobAudit(id) } });
+});
+
+router.put('/api/jobs/:id/verification', adminAuth, liveJobsAdmin, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  try {
+    const record = adminJobsStore.updateJobVerification(id, req.body, req.liveJobsAdmin);
+    if (!record) return res.status(404).json({ code: -1, message: '职位不存在' });
+    res.json({ code: 0, message: '人工核验记录已保存', data: record });
+  } catch (err) {
+    sendJobsWriteError(res, err);
+  }
+});
+
+router.delete('/api/jobs/:id', adminAuth, liveJobsAdmin, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  try {
+    if (!adminJobsStore.deleteJob(id, req.liveJobsAdmin)) return res.status(404).json({ code: -1, message: '职位不存在' });
+    res.json({ code: 0, message: '删除成功' });
+  } catch (err) {
+    sendJobsWriteError(res, err);
+  }
 });
 
 // 公司管理
@@ -976,7 +1048,37 @@ router.delete('/api/announcements/:id', adminAuth, (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 // 用户反馈管理
 // ═══════════════════════════════════════════════════════════════
-router.get('/api/feedbacks', adminAuth, (req, res) => {
+function liveFeedbackAdmin(req, res, next) {
+  const account = adminAccounts.getAccount(req.admin?.id);
+  if (!account || !account.is_active || !hasPermission(req.admin, 'feedback') ||
+      !hasPermission(account, 'feedback')) {
+    return res.status(403).json({ code: -1, message: '没有反馈管理权限，请重新登录' });
+  }
+  req.liveFeedbackAdmin = account;
+  next();
+}
+
+function feedbackAuditReady() {
+  const versionColumn = db.pragma('table_info(feedbacks)').some(column => column.name === 'review_version');
+  const eventsTable = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='feedback_handling_events'").get();
+  return versionColumn && !!eventsTable;
+}
+
+function feedbackTimeMs(value) {
+  if (typeof value !== 'string' || !value) return NaN;
+  const iso = /^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/.test(value)
+    ? `${value.replace(' ', 'T')}Z` : value;
+  return Date.parse(iso);
+}
+
+function feedbackElapsedSeconds(createdAt, endAt) {
+  const start = feedbackTimeMs(createdAt);
+  const end = feedbackTimeMs(endAt);
+  return Number.isFinite(start) && Number.isFinite(end)
+    ? Math.max(0, Math.floor((end - start) / 1000)) : null;
+}
+
+router.get('/api/feedbacks', adminAuth, liveFeedbackAdmin, (req, res) => {
   const { keyword = '', status = '', type = '' } = req.query;
   const { pageSize, offset } = parsePagination(req.query, { pageSize: 20 });
   const where = [];
@@ -1000,34 +1102,135 @@ router.get('/api/feedbacks', adminAuth, (req, res) => {
     FROM feedbacks f LEFT JOIN users u ON u.id=f.user_id
     ${whereSql}
   `).get(...params).c;
-  const list = db.prepare(`
+  const rows = db.prepare(`
     SELECT f.*, u.nickname, u.avatar
     FROM feedbacks f LEFT JOIN users u ON u.id=f.user_id
     ${whereSql}
     ORDER BY f.created_at DESC, f.id DESC
     LIMIT ? OFFSET ?
   `).all(...params, Number(pageSize), offset);
-  res.json({ code: 0, data: { list, total } });
+  const account = adminAccounts.getAccount(req.admin && req.admin.id);
+  const canReviewJobs = !!(account && account.is_active && hasPermission(account, 'jobs') &&
+    hasPermission(req.admin, 'jobs'));
+  const parsed = rows.map(row => ({ row, context: parseJobFeedbackContext(row.type, row.content) }));
+  let targets = new Map();
+  let localLookupUnavailable = false;
+  if (canReviewJobs) {
+    const ids = parsed.filter(item => item.context?.source === 'unknown' && item.context.localJobId)
+      .map(item => item.context.localJobId);
+    if (ids.length) {
+      try { targets = adminJobsStore.localFeedbackTargets(ids); }
+      catch (error) {
+        localLookupUnavailable = true;
+        console.error('[admin feedback] local job lookup unavailable:', error?.code || error?.name || 'unknown');
+      }
+    }
+  }
+  const auditReady = feedbackAuditReady();
+  const lastAction = new Map();
+  if (auditReady && rows.length) {
+    const ids = rows.map(row => row.id);
+    const placeholders = ids.map(() => '?').join(',');
+    db.prepare(`SELECT feedback_id, acted_at FROM feedback_handling_events
+      WHERE id IN (SELECT MAX(id) FROM feedback_handling_events
+        WHERE feedback_id IN (${placeholders}) AND from_status NOT IN ('resolved','ignored')
+          AND to_status IN ('resolved','ignored') GROUP BY feedback_id)`)
+      .all(...ids).forEach(event => lastAction.set(event.feedback_id, event.acted_at));
+  }
+  const now = new Date().toISOString();
+  const list = parsed.map(({ row, context }) => {
+    const terminal = row.status === 'resolved' || row.status === 'ignored';
+    const completedAt = terminal ? lastAction.get(row.id) || null : null;
+    const handlingSeconds = terminal && !completedAt ? null
+      : feedbackElapsedSeconds(row.created_at, completedAt || now);
+    const timing = { handlingSeconds, completedAt,
+      historyAvailable: auditReady && (Number(row.review_version) || 0) > 0 };
+    if (!context) return { ...row, review_version: auditReady ? row.review_version : null,
+      timing, jobFeedback: null };
+    let localTarget = null;
+    // The source and ID come from user text. Only offer a local navigation target
+    // when the live account can manage jobs and the server finds the exact local ID.
+    if (canReviewJobs && context.source === 'unknown' && context.localJobId) {
+      localTarget = targets.get(context.localJobId) || null;
+    }
+    return { ...row, review_version: auditReady ? row.review_version : null, timing,
+      jobFeedback: { reason: context.reason, jobId: context.jobId,
+      source: context.source, canReviewJobs,
+      localLookupUnavailable: localLookupUnavailable && context.source === 'unknown' && !!context.localJobId,
+      localTarget,
+      localJobId: localTarget ? context.localJobId : null } };
+  });
+  res.json({ code: 0, data: { list, total, auditReady } });
 });
 
-router.put('/api/feedbacks/:id', adminAuth, (req, res) => {
+router.get('/api/feedbacks/:id/audit', adminAuth, liveFeedbackAdmin, (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
-  const status = String(req.body.status || 'open');
+  if (!feedbackAuditReady()) return res.status(503).json({ code: -1, message: '反馈审计迁移未就绪' });
+  const row = db.prepare('SELECT id, created_at, status, review_version FROM feedbacks WHERE id=?').get(id);
+  if (!row) return res.status(404).json({ code: -1, message: '反馈不存在' });
+  const { pageSize, offset } = parsePagination(req.query, { pageSize: 20, maxPageSize: 50 });
+  const total = db.prepare('SELECT COUNT(*) AS n FROM feedback_handling_events WHERE feedback_id=?').get(id).n;
+  const events = db.prepare(`SELECT id,version,from_status,to_status,from_note,to_note,actor_id,actor_name,acted_at
+    FROM feedback_handling_events WHERE feedback_id=? ORDER BY id DESC LIMIT ? OFFSET ?`)
+    .all(id, Number(pageSize), offset);
+  res.json({ code: 0, data: { list: events, total, reviewVersion: row.review_version,
+    historyAvailable: total > 0 } });
+});
+
+router.put('/api/feedbacks/:id', adminAuth, liveFeedbackAdmin, (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
+  if (!feedbackAuditReady()) return res.status(503).json({ code: -1, message: '反馈审计迁移未就绪，不能无审计更新' });
+  const status = req.body?.status;
   if (!['open', 'processing', 'resolved', 'ignored'].includes(status)) {
     return res.status(400).json({ code: -1, message: '状态无效' });
   }
-  const r = db.prepare(`
-    UPDATE feedbacks
-    SET status=?, admin_note=?, updated_at=datetime('now')
-    WHERE id=?
-  `).run(status, String(req.body.adminNote || req.body.admin_note || ''), id);
-  if (!r.changes) return res.status(404).json({ code: -1, message: '反馈不存在' });
-  const row = db.prepare('SELECT * FROM feedbacks WHERE id=?').get(id);
-  res.json({ code: 0, message: '反馈已更新', data: row });
+  const expectedVersion = req.body?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    return res.status(400).json({ code: -1, message: '请刷新反馈后重试' });
+  }
+  const rawNote = req.body?.adminNote ?? req.body?.admin_note ?? '';
+  if (typeof rawNote !== 'string' || rawNote.trim().length > 1000) {
+    return res.status(400).json({ code: -1, message: '处理说明不能超过 1000 字' });
+  }
+  const note = rawNote.trim();
+  try {
+    const result = db.transaction(() => {
+      const previous = db.prepare('SELECT * FROM feedbacks WHERE id=?').get(id);
+      if (!previous) return { missing: true };
+      if (previous.review_version !== expectedVersion) return { conflict: true };
+      if (previous.type === '岗位信息纠错' && ['resolved', 'ignored'].includes(status) && note.length < 10) {
+        return { invalidNote: true };
+      }
+      const oldStatus = previous.status || 'open';
+      const oldNote = previous.admin_note || '';
+      if (oldStatus === status && oldNote === note) return { row: previous };
+      const nextVersion = previous.review_version + 1;
+      const actedAt = new Date().toISOString();
+      db.prepare(`UPDATE feedbacks SET status=?, admin_note=?, review_version=?, updated_at=datetime('now')
+        WHERE id=?`).run(status, note, nextVersion, id);
+      db.prepare(`INSERT INTO feedback_handling_events
+        (feedback_id,version,from_status,to_status,from_note,to_note,actor_id,actor_name,acted_at)
+        VALUES (?,?,?,?,?,?,?,?,?)`).run(id, nextVersion, oldStatus, status, oldNote, note,
+        req.liveFeedbackAdmin.id, req.liveFeedbackAdmin.username, actedAt);
+      return { row: db.prepare('SELECT * FROM feedbacks WHERE id=?').get(id) };
+    }).immediate();
+    if (result.missing) return res.status(404).json({ code: -1, message: '反馈不存在' });
+    if (result.conflict) return res.status(409).json({ code: -1, message: '反馈已被其他管理员更新，请刷新后重试' });
+    if (result.invalidNote) return res.status(400).json({ code: -1, message: '岗位纠错关闭或忽略时须填写至少 10 字的处理说明' });
+    res.json({ code: 0, message: '反馈已更新', data: result.row });
+  } catch (error) {
+    if (error.code === 'SQLITE_BUSY' || error.code === 'SQLITE_LOCKED') {
+      res.set('Retry-After', '1');
+      return res.status(503).json({ code: -1, message: '反馈处理繁忙，请稍后重试' });
+    }
+    console.error('[admin feedback] audit update failed:', error.code || error.name || 'unknown');
+    return res.status(500).json({ code: -1, message: '反馈处理失败' });
+  }
 });
 
-router.delete('/api/feedbacks/:id', adminAuth, (req, res) => {
+router.delete('/api/feedbacks/:id', adminAuth, liveFeedbackAdmin, (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
   const r = db.prepare('DELETE FROM feedbacks WHERE id=?').run(id);
@@ -1140,7 +1343,7 @@ router.get('/api/users/:id', adminAuth, (req, res) => {
   delete user.openid;
   delete user.password;
   const profile = buildUserProfile(user);
-  const resumes = db.prepare('SELECT id, name, language, created_at, updated_at FROM resumes WHERE user_id = ?').all(id);
+  const resumes = db.prepare("SELECT id, name, language, created_at, updated_at FROM resumes WHERE user_id = ? AND COALESCE(archived_at, '') = ''").all(id);
   const appCount = db.prepare('SELECT COUNT(*) as c FROM applications WHERE user_id = ?').get(id).c;
   const expCount = db.prepare('SELECT COUNT(*) as c FROM experiences WHERE user_id = ?').get(id).c;
   res.json({
@@ -1195,7 +1398,9 @@ router.get('/api/resumes', adminAuth, (req, res) => {
   const { keyword = '' } = req.query;
   const { pageSize, offset } = parsePagination(req.query, { pageSize: 20 });
   const k = `%${keyword}%`;
-  const where = keyword ? 'WHERE r.name LIKE ? OR u.nickname LIKE ?' : '';
+  const where = keyword
+    ? "WHERE COALESCE(r.archived_at, '') = '' AND (r.name LIKE ? OR u.nickname LIKE ?)"
+    : "WHERE COALESCE(r.archived_at, '') = ''";
   const params = keyword ? [k, k] : [];
   const total = db.prepare(`SELECT COUNT(*) as c FROM resumes r LEFT JOIN users u ON u.id=r.user_id ${where}`).get(...params).c;
   const list  = db.prepare(`
@@ -1213,7 +1418,7 @@ router.get('/api/resumes/:id', adminAuth, (req, res) => {
   const resume = db.prepare(`
     SELECT r.*, u.nickname, u.avatar
     FROM resumes r LEFT JOIN users u ON u.id = r.user_id
-    WHERE r.id = ?
+    WHERE r.id = ? AND COALESCE(r.archived_at, '') = ''
   `).get(id);
   if (!resume) return res.status(404).json({ code: -1, message: '简历不存在' });
   res.json({ code: 0, data: resume });
@@ -1222,7 +1427,7 @@ router.get('/api/resumes/:id', adminAuth, (req, res) => {
 router.delete('/api/resumes/:id', adminAuth, (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ code: -1, message: '参数无效' });
-  const r = db.prepare('DELETE FROM resumes WHERE id = ?').run(id);
+  const r = db.prepare("UPDATE resumes SET archived_at = datetime('now'), is_default = 0, updated_at = datetime('now') WHERE id = ? AND COALESCE(archived_at, '') = ''").run(id);
   if (r.changes === 0) return res.status(404).json({ code: -1, message: '简历不存在' });
   res.json({ code: 0, message: '删除成功' });
 });

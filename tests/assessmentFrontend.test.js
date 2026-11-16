@@ -48,16 +48,15 @@ test('assessment list and detail use separate sharp cover compositions for small
   assert.match(detailCss, /\.detail-cover\s*\{[^}]*width:\s*100%;[^}]*height:\s*340rpx;/);
 });
 
-test('assessment home price stays on the right of the title above its summary', () => {
+test('assessment home keeps the real price beside the resource title', () => {
   const wxml = fs.readFileSync(path.join(ROOT, 'pages/index/index.wxml'), 'utf8');
   const css = fs.readFileSync(path.join(ROOT, 'pages/index/index.wxss'), 'utf8');
-  assert.match(wxml, /class="zy-assessment-row-top">\s*<text class="zy-row-title">[^<]+<\/text>\s*<text class="zy-assessment-price">[^<]+<\/text>\s*<\/view>\s*<text class="zy-job-meta">/);
-  assert.match(css, /\.zy-assessment-row-top\s*\{[^}]*display:\s*flex;[^}]*align-items:\s*baseline;/);
-  assert.match(css, /\.zy-assessment-row-top \.zy-row-title\s*\{[^}]*flex:\s*1;[^}]*min-width:\s*0;/);
-  assert.match(css, /\.zy-assessment-price\s*\{[^}]*flex:\s*none;[^}]*white-space:\s*nowrap;/);
+  assert.match(wxml, /class="zy-assessment-row"[^>]*[\s\S]*class="zy-row-title">\{\{item\.companyName\}\} · \{\{item\.title\}\}/);
+  assert.match(wxml, /class="zy-assessment-price">¥\{\{item\.priceText\}\}/);
+  assert.match(css, /\.zy-assessment-price\s*\{[^}]*flex:\s*none;/);
 });
 
-test('assessment home keeps backend order, only three distinct companies/products, and is independent of recruitment', async () => {
+test('assessment home keeps backend order, only two distinct companies/products, and is independent of recruitment', async () => {
   const events = [];
   const api = { home: async () => ({ enabled: true, items: [
     { companyId: 9, productId: 1, priceCents: 900 }, { companyId: 9, productId: 2 },
@@ -68,13 +67,12 @@ test('assessment home keeps backend order, only three distinct companies/product
   home._visible = true;
   home.data.recruitmentEnabled = false;
   await home.fetchAssessmentProducts();
-  assert.deepEqual(Array.from(home.data.assessmentProducts, item => item.productId), [1, 3, 4]);
+  assert.deepEqual(Array.from(home.data.assessmentProducts, item => item.productId), [1, 3]);
   assert.equal(home.data.assessmentProducts[0].priceText, '9.00');
-  assert.equal(events.length, 4);
+  assert.equal(events.length, 3);
   const wxml = fs.readFileSync(path.join(ROOT, 'pages/index/index.wxml'), 'utf8');
-  assert.ok(wxml.indexOf('zy-recommend-section') < wxml.indexOf('zy-assessment-section'));
-  assert.ok(wxml.indexOf('zy-assessment-section') < wxml.indexOf('zy-campus-section'));
-  assert.ok(wxml.lastIndexOf('</block>', wxml.indexOf('zy-assessment-section')) > wxml.indexOf('zy-recommend-section'));
+  assert.ok(wxml.indexOf('最新机会') < wxml.indexOf('热门测评资料'));
+  assert.ok(wxml.indexOf('热门测评资料') < wxml.indexOf('每日最新校招'));
 });
 
 test('assessment home ignores late requests and hides failed configuration', async () => {

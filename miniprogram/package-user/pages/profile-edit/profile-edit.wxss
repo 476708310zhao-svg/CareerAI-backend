@@ -47,6 +47,7 @@ page {
 }
 
 .hero-help { display: block; color: #526176; font-size: 24rpx; line-height: 36rpx; }
+.resume-import-link{display:flex;align-items:center;min-height:72rpx;margin-top:12rpx;color:#2853d4;font-size:25rpx;font-weight:600}
 
 .hero-text {
   flex: 1;

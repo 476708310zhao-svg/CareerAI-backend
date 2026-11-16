@@ -24,9 +24,21 @@ function product(companyIds=[], extra={}) {
 function payload(row,extra={}){return {productId:row.id,expectedPriceCents:row.priceCents,expectedInstructionsVersion:service.getInstructions().version,idempotencyKey:stamp+'-'+Math.random().toString(36).slice(2),...extra};}
 function reserve(row,userId,extra={}){return service.createOrder(userId,payload(row,extra),'mock');}
 function token(value){return jwt.sign(value,process.env.JWT_SECRET);}
+const adminAccounts = new Map();
+function adminToken(permissions) {
+  const key = JSON.stringify(permissions);
+  if (!adminAccounts.has(key)) {
+    const username = `assessment-admin-${adminAccounts.size}`;
+    const id = Number(db.prepare('INSERT INTO admin_accounts(username,password_hash,role,permissions,is_active) VALUES (?, ?, ?, ?, 1)')
+      .run(username, 'test-only', permissions.includes('*') ? 'super_admin' : 'operator', key).lastInsertRowid);
+    adminAccounts.set(key, { id, username });
+  }
+  const { id, username } = adminAccounts.get(key);
+  return token({ role: 'admin', id, sub: username, permissions });
+}
 async function http(path,{userId,admin,body,method='GET',authToken}={}){
   const headers={};if(body!==undefined)headers['Content-Type']='application/json';
-  const auth=authToken || (admin ? token({role:'admin',username:'test',permissions:admin}) : userId ? token({userId}) : '');
+  const auth=authToken || (admin ? adminToken(admin) : userId ? token({userId}) : '');
   if(auth)headers.Authorization='Bearer '+auth;
   const response=await fetch(base+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body)});
   return {response,body:await response.json()};
@@ -320,6 +332,32 @@ test('assessment virtual callback verifies signature, stored provider, product, 
   assert.equal((await http(path,{method:'POST',body:notification})).body.ErrCode,0);
   assert.equal((await http(path,{method:'POST',body:notification})).body.ErrCode,0);
   assert.equal(service.orderRow(reserved.order_no).status,'paid');
+});
+
+test('assessment virtual callback accepts WeChat actual-price payload and mirrors XML response',async()=>{
+  const row=product([],{virtualProductId:'wechat-notify-sku'}),owner=user();
+  const reserved=service.createOrder(owner,payload(row),'virtual').row;
+  const crypto=require('node:crypto'),timestamp=String(Math.floor(Date.now()/1000)),nonce='wechat-notify';
+  const signature=crypto.createHash('sha1').update(['assessment-test-notify',timestamp,nonce].sort().join('')).digest('hex');
+  const path='/signed-payment/virtual-notify?'+new URLSearchParams({signature,timestamp,nonce});
+  const info={MchOrderNo:'wechat-merchant-'+stamp,TransactionId:'wechat-transaction-'+stamp};
+  const goods={ProductId:'wechat-notify-sku',Quantity:1,ActualPrice:900,OrigPrice:900};
+  const notification={Event:'xpay_goods_deliver_notify',OutTradeNo:reserved.order_no,
+    OpenId:db.prepare('SELECT openid FROM users WHERE id=?').get(owner).openid,WeChatPayInfo:info,GoodsInfo:goods};
+  assert.notEqual((await http(path,{method:'POST',body:{...notification,GoodsInfo:{...goods,ActualPrice:800}}})).body.ErrCode,0);
+  assert.equal(service.orderRow(reserved.order_no).status,'pending');
+  const xml='<xml>'+Object.entries(notification).map(([key,value])=>`<${key}><![CDATA[${typeof value==='object'?JSON.stringify(value):value}]]></${key}>`).join('')+'</xml>';
+  const response=await fetch(base+path,{method:'POST',headers:{'Content-Type':'text/xml'},body:xml});
+  assert.equal(response.status,200);
+  assert.match(response.headers.get('content-type'),/xml/);
+  assert.match(await response.text(),/<ErrCode><!\[CDATA\[0\]\]><\/ErrCode>/);
+  const paid=service.orderRow(reserved.order_no);
+  assert.equal(paid.status,'paid');
+  assert.equal(paid.transaction_id,info.TransactionId);
+  assert.equal(paid.wx_order_id,info.MchOrderNo);
+  const again=await fetch(base+path,{method:'POST',headers:{'Content-Type':'text/xml'},body:xml});
+  assert.match(await again.text(),/<ErrCode><!\[CDATA\[0\]\]><\/ErrCode>/);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM commerce_ledger_v4 WHERE order_no=? AND event_type='payment_confirmed'").get(reserved.order_no).n,1);
 });
 
 test('assessment wxpay callback validates provider signature, merchant, amount and refund late delivery',async()=>{

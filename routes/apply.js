@@ -280,7 +280,7 @@ async function _submitLever({ slug, jobId, basicInfo, customAnswers, pdfPath, pd
 function _buildAutoFields(userId) {
   try {
     const resume = db.prepare(
-      'SELECT data FROM resumes WHERE user_id=? ORDER BY updated_at DESC LIMIT 1'
+      "SELECT data FROM resumes WHERE user_id=? AND COALESCE(archived_at, '')='' ORDER BY updated_at DESC LIMIT 1"
     ).get(userId);
     if (!resume || !resume.data) return {};
 

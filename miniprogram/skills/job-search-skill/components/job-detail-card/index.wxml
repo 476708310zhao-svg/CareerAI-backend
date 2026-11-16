@@ -18,12 +18,17 @@
   </view>
 
   <view class="tag-row" wx:if="{{job.visaTags && job.visaTags.length}}">
-    <text wx:for="{{job.visaTags}}" wx:key="*this" class="visa-tag">{{item}}</text>
+    <text wx:for="{{job.visaTags}}" wx:key="*this" class="visa-tag">{{item === 'E-Verify' ? 'E-Verify（非签证担保）' : item}}</text>
   </view>
+  <text wx:for="{{job.visaEvidence}}" wx:key="tag" class="evidence-line">{{item.tag}} · 岗位原文：{{item.quote}}</text>
+  <text class="evidence-line" wx:if="{{job.salaryRange && job.salaryEvidence}}">薪资依据：{{job.salaryEvidence}}</text>
 
   <text class="description">{{job.description}}</text>
+  <text class="evidence-line" wx:if="{{job.sourceReference}}">官方来源职位编号：{{job.sourceReference}}</text>
+  <button class="secondary-btn" wx:if="{{job.sourceUrl && !job.applyUrl}}" bindtap="copySourceUrl">复制官方职位列表地址</button>
 
   <button class="primary-btn" bindtap="openJobDetail">进入职引查看完整详情</button>
+  <button class="secondary-btn" bindtap="openMatch">用我的在线简历看匹配</button>
 </view>
 
 <view class="detail-card empty" wx:else>

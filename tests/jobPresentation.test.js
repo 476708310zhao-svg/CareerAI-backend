@@ -88,6 +88,21 @@ test('encoded recruitment HTML is cleaned and long descriptions start collapsed'
   assert.equal(longView.descriptionBlocks[1].text, 'Qualifications');
 });
 
+test('job descriptions repair misdecoded UTF-8 punctuation without changing ordinary text', () => {
+  const broken = 'Mento\u00e2\u20ac\u2122s coaching methodology. If you\u00e2\u0080\u0099re ready, apply.'
+    + ' Insights \u00e2\u0080\u0094 helping others. You are\u00e2\u0080\u00a6';
+  const blocks = contentBlocks('<p>' + broken + '</p>');
+  const expected = 'Mento’s coaching methodology. If you’re ready, apply.'
+    + ' Insights — helping others. You are…';
+  assert.deepEqual(blocks.map(item => item.text), [expected]);
+  assert.equal(presentJob({ description: broken }).descriptionBlocks[0].text,
+    expected);
+  assert.deepEqual(contentBlocks('A caf\u00c3\u00a9 role with \u00e2\u20ac\u0153good\u00e2\u20ac\u009d work.').map(item => item.text),
+    ['A café role with “good” work.']);
+  assert.deepEqual(contentBlocks('Mento’s coaching methodology. 中文描述正常。').map(item => item.text),
+    ['Mento’s coaching methodology. 中文描述正常。']);
+});
+
 test('job lists share one card component and detail follows the decision order', () => {
   const jobsWxml = read('pages/jobs/jobs.wxml');
   const searchWxml = read('package-user/pages/search/search.wxml');

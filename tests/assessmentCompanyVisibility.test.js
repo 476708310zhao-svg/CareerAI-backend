@@ -34,7 +34,9 @@ async function withHttp(run) {
   const server = runtime.trackServer(app.listen(0, '127.0.0.1'));
   await require('node:events').once(server, 'listening');
   const base = `http://127.0.0.1:${server.address().port}`;
-  const adminToken = jwt.sign({ role: 'admin', permissions: ['*'], username: 'visibility-test' }, process.env.JWT_SECRET);
+  const adminAccount = db.prepare('SELECT id FROM admin_accounts WHERE username=?').get('visibility-test');
+  const adminId = adminAccount?.id || Number(db.prepare("INSERT INTO admin_accounts(username,password_hash,role,permissions,is_active) VALUES ('visibility-test','test-only','super_admin','[\"*\"]',1)").run().lastInsertRowid);
+  const adminToken = jwt.sign({ role: 'admin', id: adminId, sub: 'visibility-test', permissions: ['*'] }, process.env.JWT_SECRET);
   async function request(url, { admin, token, body } = {}) {
     const headers = {};
     if (admin || token) headers.Authorization = `Bearer ${token || adminToken}`;

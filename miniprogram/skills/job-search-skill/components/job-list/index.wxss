@@ -20,6 +20,16 @@
   color: #64748b;
 }
 
+.coverage-note {
+  display: block;
+  margin: 0 0 10rpx;
+  color: #64748b;
+  font-size: 23rpx;
+  line-height: 1.5;
+}
+
+.coverage-note.partial { color: #9a6700; }
+
 .empty {
   padding: 28rpx;
   border: 1rpx solid #e5e7eb;
@@ -163,6 +173,16 @@
   margin-left: auto;
   color: #2b5ce6;
   font-weight: 700;
+}
+
+.view-all {
+  margin-top: 10rpx;
+  border: 1rpx solid #bfd2ff;
+  border-radius: 16rpx;
+  background: #eef4ff;
+  color: #2458d3;
+  font-size: 26rpx;
+  font-weight: 600;
 }
 
 @media (prefers-color-scheme: dark) {

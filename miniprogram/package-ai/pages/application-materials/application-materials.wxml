@@ -15,6 +15,28 @@
 
   <view wx:if="{{targetApplicationLabel}}" class="application-context">当前申请：{{targetApplicationLabel}}</view>
 
+  <view class="answer-draft-card">
+    <text class="answer-draft-title">网申问答草稿</text>
+    <text class="answer-draft-note">只依据申请绑定的简历版本和已确认材料，不会自动保存或提交。</text>
+    <textarea class="answer-question" value="{{answerQuestion}}" bindinput="onAnswerQuestionInput" maxlength="1000" placeholder="填写企业网申问题，例如：分享一次解决复杂问题的经历" />
+    <view class="answer-draft-action {{answerBusy ? 'disabled' : ''}}" bindtap="generateApplicationAnswer">{{answerBusy ? '生成中...' : '生成可编辑草稿'}}</view>
+    <view wx:if="{{answerSavedDrafts.length}}" class="answer-saved-list"><text class="answer-section-title">已保存草稿</text><view wx:for="{{answerSavedDrafts}}" wx:key="id" class="answer-saved-item" bindtap="openSavedApplicationAnswer" data-id="{{item.id}}">{{item.question}}</view></view>
+    <block wx:if="{{answerResult}}">
+      <textarea class="answer-content" value="{{answerContent}}" bindinput="onAnswerContentInput" maxlength="2000" />
+      <text class="answer-count">{{answerCharCount}} / {{answerResult.maxChars}}（按 Unicode 字符计）</text>
+      <view class="answer-evidence" wx:if="{{answerResult.evidence.length}}">
+        <text class="answer-section-title">可核对的依据</text>
+        <view wx:for="{{answerResult.evidence}}" wx:key="id" class="answer-evidence-item"><text>{{item.label}}</text><text>{{item.text}}</text></view>
+      </view>
+      <view class="answer-evidence unsupported" wx:if="{{answerResult.unsupportedClaims.length}}">
+        <text class="answer-section-title">需要你核实</text>
+        <view wx:for="{{answerResult.unsupportedClaims}}" wx:key="index" class="answer-evidence-item"><text>{{item.claim}}</text><text>{{item.reason}}</text></view>
+      </view>
+      <view class="answer-draft-action secondary" bindtap="copyApplicationAnswer">复制草稿</view>
+      <view class="answer-draft-action" bindtap="saveApplicationAnswerDraft">{{answerBusy ? '保存中...' : '保存到问答草稿区'}}</view>
+    </block>
+  </view>
+
   <view class="quick-row">
     <view class="quick-card">
       <text class="quick-num">{{stats.companyCount}}</text>

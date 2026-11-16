@@ -88,14 +88,26 @@ async function sendToUser(userId, { type = 'system', title, content, templateId,
     }
   }
 
+  if (options.skipWechat === true) {
+    result.wechat = { status: 'skipped', reason: options.wechatSkipReason || 'not_authorized' };
+    return result;
+  }
+
   // 2. 微信订阅消息（需要 templateId 且已有 openid）
-  if (process.env.NODE_ENV === 'test' || process.env.NOTIFY_EXTERNAL_DISABLED === '1') {
+  const testSender = typeof options.wechatSender === 'function' ? options.wechatSender : null;
+  if ((process.env.NODE_ENV === 'test' || process.env.NOTIFY_EXTERNAL_DISABLED === '1') && !testSender) {
     result.wechat = { status: 'skipped', reason: 'external_disabled' };
     return result;
   }
-  if (!templateId || !WX_APP_ID) {
+  if (!templateId || (!WX_APP_ID && !testSender)) {
     result.wechat = { status: 'skipped', reason: !templateId ? 'template_missing' : 'app_not_configured' };
     return result;
+  }
+  if (options.reminderDeliveryId) {
+    if (!hasConsumedTemplateAuthorization(userId, templateId, options.reminderDeliveryId)) {
+      result.wechat = { status: 'skipped', reason: 'not_authorized' };
+      return result;
+    }
   }
   const user = db.prepare('SELECT openid FROM users WHERE id = ?').get(userId);
   if (!user || !user.openid || user.openid.startsWith('dev_')) {
@@ -103,25 +115,26 @@ async function sendToUser(userId, { type = 'system', title, content, templateId,
     return result;
   }
 
-  const token = await getAccessToken();
+  const token = testSender ? 'mock-access-token' : await getAccessToken();
   if (!token) {
     result.wechat = { status: 'failed', reason: 'access_token_unavailable' };
     return result;
   }
 
   try {
-    const response = await axios.post(
-      `https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=${token}`,
-      {
+    const payload = {
         touser:           user.openid,
         template_id:      templateId,
         miniprogram_state: process.env.NODE_ENV === 'production' ? 'formal' : 'trial',
         lang:             'zh_CN',
         data:             wxData || {}
-      },
-      { timeout: 8000 }
-    );
-    if (response.data && Number(response.data.errcode) !== 0) {
+      };
+    const response = testSender
+      ? await testSender(payload)
+      : await axios.post(`https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=${token}`,
+        payload, { timeout: 8000 });
+    const responseData = response && (response.data || response);
+    if (responseData && Number(responseData.errcode || 0) !== 0) {
       result.wechat = { status: 'failed', reason: 'wechat_rejected' };
       return result;
     }
@@ -197,6 +210,7 @@ function reminderRow(row) {
     jobTitle: row.job_title || '',
     reminderDate: row.reminder_date || '',
     reminderTime: row.reminder_time || '',
+    deliveryChannel: row.delivery_channel || 'in_app',
     leadDays: safeJson(row.lead_days, []),
     enabled: !!row.enabled,
     sentKeys: safeJson(row.sent_keys, []),
@@ -204,6 +218,77 @@ function reminderRow(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
+}
+
+function configuredTemplateIds() {
+  return new Set(Object.values(TEMPLATES).filter(Boolean).map(String));
+}
+
+function recordTemplateAuthorization(userId, templateId, decision, source = 'miniprogram') {
+  const normalized = String(templateId || '').trim();
+  if (!configuredTemplateIds().has(normalized)) return { changed: false, reason: 'template_unavailable' };
+  if (!['accepted', 'rejected', 'revoked'].includes(decision)) return { changed: false, reason: 'invalid_decision' };
+  return db.transaction(() => {
+    const existing = db.prepare('SELECT remaining FROM notify_template_authorizations WHERE user_id=? AND template_id=?')
+      .get(userId, normalized);
+    const remaining = decision === 'accepted' ? Number(existing && existing.remaining || 0) + 1 : 0;
+    db.prepare(`INSERT INTO notify_template_authorizations(user_id,template_id,decision,remaining,source,updated_at)
+      VALUES(?,?,?,?,?,datetime('now')) ON CONFLICT(user_id,template_id) DO UPDATE SET
+      decision=excluded.decision,remaining=excluded.remaining,source=excluded.source,updated_at=datetime('now')`)
+      .run(userId, normalized, decision, remaining, source);
+    db.prepare(`INSERT INTO notify_template_authorization_events(user_id,template_id,decision,source)
+      VALUES(?,?,?,?)`).run(userId, normalized, decision, source);
+    return { changed: true, decision, remaining };
+  }).immediate();
+}
+
+function consumeTemplateAuthorization(userId, templateId, deliveryId) {
+  const normalized = String(templateId || '').trim();
+  if (!normalized || !configuredTemplateIds().has(normalized)) return false;
+  return db.transaction(() => {
+    const updated = db.prepare(`UPDATE notify_template_authorizations SET remaining=remaining-1,
+      updated_at=datetime('now') WHERE user_id=? AND template_id=? AND decision='accepted' AND remaining>0`)
+      .run(userId, normalized);
+    if (!updated.changes) return false;
+    db.prepare(`INSERT INTO notify_template_authorization_events(user_id,template_id,decision,source,delivery_id)
+      VALUES(?,?,'consumed','dispatch',?)`).run(userId, normalized, deliveryId || null);
+    return true;
+  }).immediate();
+}
+
+function deliveryChannelPlan(channel, authorized) {
+  if (channel === 'in_app') return { skipInApp: false, skipWechat: true, wechatSkipReason: 'channel_not_selected' };
+  if (channel === 'wechat') return { skipInApp: true, skipWechat: !authorized,
+    wechatSkipReason: authorized ? '' : 'not_authorized' };
+  return { skipInApp: false, skipWechat: !authorized,
+    wechatSkipReason: authorized ? '' : 'not_authorized' };
+}
+
+function reminderStillCurrent(row) {
+  const current = db.prepare(`SELECT * FROM job_reminders WHERE id=? AND user_id=? AND enabled=1`)
+    .get(row.id, row.user_id);
+  if (!current || current.reminder_date !== row.reminder_date) return false;
+  if (current.source_type === 'application') {
+    return Boolean(db.prepare('SELECT 1 FROM applications WHERE id=? AND user_id=? AND deadline=?')
+      .get(Number(current.target_id), current.user_id, current.reminder_date));
+  }
+  if (current.source_type === 'application_task') {
+    return Boolean(db.prepare(`SELECT 1 FROM application_tasks t JOIN applications a
+      ON a.id=t.application_id AND a.user_id=t.user_id WHERE t.id=? AND t.user_id=?
+      AND t.completed=0 AND substr(t.due_at,1,10)=substr(?,1,10)`)
+      .get(Number(current.target_id), current.user_id, current.reminder_date));
+  }
+  return true;
+}
+
+function hasConsumedTemplateAuthorization(userId, templateId, deliveryId) {
+  const normalized = String(templateId || '').trim();
+  if (!normalized || !configuredTemplateIds().has(normalized)) return false;
+  return Boolean(db.prepare(`SELECT 1 FROM notify_template_authorization_events e
+    JOIN notify_template_authorizations a ON a.user_id=e.user_id AND a.template_id=e.template_id
+    WHERE e.user_id=? AND e.template_id=? AND e.decision='consumed' AND e.delivery_id=?
+      AND a.decision='accepted' LIMIT 1`)
+    .get(userId, normalized, Number(deliveryId)));
 }
 
 function buildReminderMessageLegacy(row, leadDay) {
@@ -333,10 +418,55 @@ function buildReminderMessage(row, leadDay) {
 // POST /api/notify/subscribe
 // body: { templateIds: ['tplId1', 'tplId2'] }
 router.post('/subscribe', authMiddleware, (req, res) => {
-  // 这里只做记录（实际推送时后端直接查 openid），可扩展为存储订阅记录
-  const { templateIds = [] } = req.body;
-  console.log(`[notify] userId=${req.user.userId} 订阅了模板:`, templateIds);
-  res.json({ code: 0, message: '订阅记录成功' });
+  const input = Array.isArray(req.body && req.body.templateIds) ? req.body.templateIds : [];
+  if (!input.length || input.length > 20) return res.status(400).json({ code: -1, message: '模板授权记录无效' });
+  const results = [];
+  for (const item of input) {
+    const templateId = typeof item === 'string' ? item : item && item.templateId;
+    const raw = typeof item === 'string' ? 'accepted' : item && item.decision;
+    const decision = raw === 'accept' ? 'accepted' : raw === 'reject' ? 'rejected' : raw;
+    const recorded = recordTemplateAuthorization(req.user.userId, templateId, decision);
+    if (!recorded.changed) return res.status(400).json({ code: -1, message: '模板授权无效或模板未配置' });
+    results.push({ templateId, decision, remaining: recorded.remaining });
+  }
+  res.set('Cache-Control', 'no-store');
+  res.json({ code: 0, data: results, message: '模板授权状态已记录' });
+});
+
+router.get('/subscriptions', authMiddleware, (req, res) => {
+  const rows = db.prepare(`SELECT template_id AS templateId,decision,remaining,updated_at AS updatedAt
+    FROM notify_template_authorizations WHERE user_id=? ORDER BY updated_at DESC,template_id`)
+    .all(req.user.userId);
+  res.set('Cache-Control', 'no-store');
+  res.json({ code: 0, data: rows });
+});
+
+router.delete('/subscriptions/:templateId', authMiddleware, (req, res) => {
+  const result = recordTemplateAuthorization(req.user.userId, req.params.templateId, 'revoked', 'user');
+  if (!result.changed) return res.status(404).json({ code: -1, message: '模板授权不存在或模板未配置' });
+  res.json({ code: 0, message: '微信提醒授权已撤销' });
+});
+
+router.get('/reminder-receipts', authMiddleware, (req, res) => {
+  const applicationId = String(req.query.applicationId || '').trim();
+  const where = ['d.user_id=?'];
+  const params = [req.user.userId];
+  if (applicationId) {
+    where.push(`((r.source_type='application' AND r.target_id=?) OR
+      (r.source_type='application_task' AND EXISTS (SELECT 1 FROM application_tasks t
+        WHERE CAST(t.id AS TEXT)=r.target_id AND t.application_id=? AND t.user_id=?)))`);
+    params.push(applicationId, applicationId, req.user.userId);
+  }
+  const rows = db.prepare(`SELECT d.id,d.delivery_key AS deliveryKey,d.status,d.attempts,
+    d.wx_status AS wechatStatus,d.sent_at AS sentAt,d.last_error AS errorCode,
+    d.created_at AS createdAt,r.source_type AS sourceType,r.target_id AS targetId,
+    r.reminder_type AS reminderType,r.title,r.company,r.job_title AS jobTitle,
+    r.reminder_date AS reminderDate,r.delivery_channel AS deliveryChannel,
+    CASE WHEN d.in_app_message_id IS NOT NULL THEN 1 ELSE 0 END AS hasInAppMessage
+    FROM reminder_deliveries_v4 d JOIN job_reminders r ON r.id=d.reminder_id
+    WHERE ${where.join(' AND ')} ORDER BY d.id DESC LIMIT 100`).all(...params);
+  res.set('Cache-Control', 'no-store');
+  res.json({ code: 0, data: rows });
 });
 
 // ─── 通用求职提醒订阅 ───────────────────────────────────────────────────────
@@ -368,23 +498,57 @@ router.put('/reminders', authMiddleware, (req, res) => {
   const sourceType = String(body.sourceType || 'job');
   const targetId = String(body.targetId || '').trim();
   const reminderType = String(body.reminderType || 'deadline');
-  const reminderDate = normalizeReminderDate(body.reminderDate || body.deadline);
+  let reminderDate = normalizeReminderDate(body.reminderDate || body.deadline);
   const reminderTime = String(body.reminderTime || body.interviewTime || '');
+  const deliveryChannel = String(body.deliveryChannel || 'in_app');
   if (!targetId) return res.status(400).json({ code: -1, message: '缺少 targetId' });
-  if (!['deadline', 'interview', 'daily_brief', 'campus_deadline', 'campus_open'].includes(reminderType)) {
+  if (!['deadline', 'interview', 'daily_brief', 'campus_deadline', 'campus_open', 'task_due'].includes(reminderType)) {
     return res.status(400).json({ code: -1, message: '提醒类型无效' });
+  }
+  if (!['in_app', 'wechat', 'both'].includes(deliveryChannel)) {
+    return res.status(400).json({ code: -1, message: '提醒渠道无效' });
+  }
+  let title = String(body.title || '');
+  let company = String(body.company || '');
+  let jobTitle = String(body.jobTitle || body.positionName || '');
+  if (sourceType === 'application') {
+    const application = db.prepare(`SELECT id,deadline,company,job_title FROM applications WHERE id=? AND user_id=?`)
+      .get(Number(targetId), req.user.userId);
+    if (!application) return res.status(404).json({ code: -1, message: '申请记录不存在' });
+    reminderDate = normalizeReminderDate(application.deadline);
+    if (!reminderDate) return res.status(400).json({ code: -1, message: '请先设置申请截止日期' });
+    if (reminderType !== 'deadline') return res.status(400).json({ code: -1, message: '申请提醒类型无效' });
+    title = '申请截止提醒'; company = application.company || ''; jobTitle = application.job_title || '';
+  } else if (sourceType === 'application_task') {
+    const task = db.prepare(`SELECT t.id,t.title,t.due_at,t.completed,a.id AS application_id,
+      a.company,a.job_title FROM application_tasks t JOIN applications a
+      ON a.id=t.application_id AND a.user_id=t.user_id WHERE t.id=? AND t.user_id=?`)
+      .get(Number(targetId), req.user.userId);
+    if (!task) return res.status(404).json({ code: -1, message: '申请任务不存在' });
+    reminderDate = normalizeReminderDate(task.due_at);
+    if (!reminderDate || task.completed) return res.status(400).json({ code: -1, message: '任务无有效到期日或已完成' });
+    if (reminderType !== 'task_due') return res.status(400).json({ code: -1, message: '申请任务提醒类型无效' });
+    title = task.title || '申请任务提醒'; company = task.company || ''; jobTitle = task.job_title || '';
   }
   if (reminderType !== 'daily_brief' && !reminderDate) {
     return res.status(400).json({ code: -1, message: '请设置提醒日期' });
+  }
+  if (body.enabled !== false && deliveryChannel !== 'in_app') {
+    const templateId = reminderType === 'interview' ? (TEMPLATES.interview_done || TEMPLATES.system_notice) : TEMPLATES.system_notice;
+    const authorization = db.prepare(`SELECT remaining FROM notify_template_authorizations
+      WHERE user_id=? AND template_id=? AND decision='accepted'`).get(req.user.userId, templateId);
+    if (!authorization || Number(authorization.remaining) < 1) {
+      return res.status(409).json({ code: -1, message: '请先主动授权对应微信提醒模板，或选择站内提醒' });
+    }
   }
   const leadDays = normalizeLeadDays(body.leadDays || body.reminderLeadDays, reminderType);
   db.prepare(`
     INSERT INTO job_reminders
       (user_id, source_type, target_id, reminder_type, title, company, job_title,
-       reminder_date, reminder_time, lead_days, enabled, payload, updated_at)
+       reminder_date, reminder_time, lead_days, enabled, payload, delivery_channel, updated_at)
     VALUES
       (@userId, @sourceType, @targetId, @reminderType, @title, @company, @jobTitle,
-       @reminderDate, @reminderTime, @leadDays, @enabled, @payload, datetime('now'))
+       @reminderDate, @reminderTime, @leadDays, @enabled, @payload, @deliveryChannel, datetime('now'))
     ON CONFLICT(user_id, source_type, target_id, reminder_type) DO UPDATE SET
       title=excluded.title,
       company=excluded.company,
@@ -392,6 +556,7 @@ router.put('/reminders', authMiddleware, (req, res) => {
       reminder_date=excluded.reminder_date,
       reminder_time=excluded.reminder_time,
       lead_days=excluded.lead_days,
+      delivery_channel=excluded.delivery_channel,
       enabled=excluded.enabled,
       payload=excluded.payload,
       updated_at=datetime('now')
@@ -400,14 +565,15 @@ router.put('/reminders', authMiddleware, (req, res) => {
     sourceType,
     targetId,
     reminderType,
-    title: String(body.title || ''),
-    company: String(body.company || ''),
-    jobTitle: String(body.jobTitle || body.positionName || ''),
+    title,
+    company,
+    jobTitle,
     reminderDate: reminderType === 'daily_brief' ? (reminderDate || dateOnlyInShanghai()) : reminderDate,
     reminderTime,
     leadDays: JSON.stringify(leadDays),
     enabled: body.enabled === false ? 0 : 1,
-    payload: JSON.stringify(body.payload || {})
+    payload: JSON.stringify(body.payload || {}),
+    deliveryChannel
   });
   const row = db.prepare(`
     SELECT * FROM job_reminders
@@ -427,6 +593,10 @@ router.delete('/reminders/:sourceType/:targetId/:reminderType', authMiddleware, 
       SET enabled=0, updated_at=datetime('now')
       WHERE user_id=? AND source_type=? AND target_id=? AND reminder_type=?
     `).run(req.user.userId, req.params.sourceType, req.params.targetId, req.params.reminderType);
+    db.prepare(`UPDATE reminder_deliveries_v4 SET status='failed',lease_until='',last_error='reminder_disabled',
+      updated_at=datetime('now') WHERE user_id=? AND reminder_id IN (SELECT id FROM job_reminders
+      WHERE user_id=? AND source_type=? AND target_id=? AND reminder_type=?) AND status='pending'`)
+      .run(req.user.userId, req.user.userId, req.params.sourceType, req.params.targetId, req.params.reminderType);
     res.json({ code: 0, message: result.changes ? '提醒已关闭' : '提醒不存在' });
   } catch (error) {
     res.status(500).json({ code: -1, message: '关闭提醒失败' });
@@ -578,10 +748,31 @@ router.post('/reminders/dispatch', internalTaskAuth, async (req, res) => {
       }
       const claim = claimReminderDelivery(row, key);
       if (!claim.claimed) return { status: 'skipped', id: row.id, key, reason: claim.reason };
+      if (!reminderStillCurrent(row)) {
+        db.prepare(`UPDATE reminder_deliveries_v4 SET status='failed',lease_until='',attempts=MAX(0,attempts-1),
+          wx_status='skipped',last_error='reminder_changed',updated_at=datetime('now') WHERE id=?`)
+          .run(claim.delivery.id);
+        return { status: 'skipped', id: row.id, key, reason: 'reminder_changed' };
+      }
       const message = buildReminderMessage(row, leadDay);
       try {
-        const messageId = ensureDeliveryInAppMessage(claim.delivery.id, row.user_id, message);
-        const notifyResult = await sendToUser(row.user_id, message, { inAppMessageId: messageId });
+        const channel = row.delivery_channel || 'in_app';
+        let authorized = false;
+        if (channel !== 'in_app') {
+          authorized = consumeTemplateAuthorization(row.user_id, message.templateId, claim.delivery.id);
+        }
+        if (channel === 'wechat' && !authorized) {
+          db.prepare(`UPDATE reminder_deliveries_v4 SET status='pending',lease_until='',attempts=MAX(0,attempts-1),
+            wx_status='not_authorized',last_error='',updated_at=datetime('now') WHERE id=?`)
+            .run(claim.delivery.id);
+          return { status: 'skipped', id: row.id, key, reason: 'not_authorized' };
+        }
+        const messageId = channel === 'wechat' ? null : ensureDeliveryInAppMessage(claim.delivery.id, row.user_id, message);
+        const channelPlan = deliveryChannelPlan(channel, authorized);
+        const notifyResult = await sendToUser(row.user_id, message, {
+          inAppMessageId: messageId, ...channelPlan,
+          reminderDeliveryId: authorized ? claim.delivery.id : 0
+        });
         const completed = finishReminderDelivery(claim.delivery.id, row, key, notifyResult, '');
         return completed
           ? { status: 'sent', id: row.id, userId: row.user_id, key, type: message.type, wxStatus: notifyResult.wechat.status }
@@ -723,5 +914,11 @@ module.exports._test = {
   ensureDeliveryInAppMessage,
   finishReminderDelivery,
   runWithConcurrency,
-  boundedInt
+  boundedInt,
+  recordTemplateAuthorization,
+  consumeTemplateAuthorization,
+  hasConsumedTemplateAuthorization,
+  deliveryChannelPlan,
+  sendToUser,
+  TEMPLATES
 };

@@ -51,6 +51,11 @@
   </view>
 
   <view class="service-card">
+    <view class="service-row" bindtap="goToManualServices" hover-class="tap-soft" aria-role="button" aria-label="人工服务工单">
+      <view class="service-icon-wrap"><text>📋</text></view>
+      <text class="service-name">人工服务工单</text>
+      <text class="service-arrow" aria-hidden="true">›</text>
+    </view>
     <view class="service-row" bindtap="goToFeedback" hover-class="tap-soft" aria-role="button" aria-label="意见反馈">
       <view class="service-icon-wrap"><image class="service-icon" src="/images/profile-feedback.png" mode="aspectFit" aria-hidden="true" /></view>
       <text class="service-name">意见反馈</text>

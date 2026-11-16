@@ -2,6 +2,14 @@ page { min-height: 100%; background: #f4f8ff; color: #101a34; }
 .resource-page { min-height: 100vh; box-sizing: border-box; padding-right: 16rpx; padding-left: 16rpx; background: radial-gradient(circle at 84% 5%,rgba(90,174,255,.11),transparent 30%),linear-gradient(180deg,#f7faff 0%,#f2f7ff 100%); font-family: -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; }
 
 .resource-hero { min-height: 96rpx; }
+.practice-entry { display: flex; align-items: center; width: 100%; min-height: 112rpx; box-sizing: border-box; margin: 14rpx 0 0; padding: 18rpx 20rpx; border: 1rpx solid #dce8fb; border-radius: 24rpx; color: #17213a; background: #fff; box-shadow: 0 8rpx 24rpx rgba(60,101,175,.045); text-align: left; }
+.practice-entry::after { border: 0; }
+.practice-entry-copy { flex: 1; min-width: 0; }
+.practice-entry-title,.practice-entry-note,.practice-entry-hint { display: block; }
+.practice-entry-title { color: #17213a; font-size: 29rpx; font-weight: 650; line-height: 40rpx; }
+.practice-entry-note { margin-top: 3rpx; color: #315ee8; font-size: 25rpx; line-height: 35rpx; }
+.practice-entry-hint { margin-top: 3rpx; color: #667085; font-size: 24rpx; line-height: 34rpx; }
+.practice-entry-arrow { flex: none; width: 30rpx; height: 30rpx; margin-left: 12rpx; }
 .search-card,.search-row { display: flex; align-items: center; min-height: 88rpx; box-sizing: border-box; padding: 0 22rpx; border: 1rpx solid #dbe5f6; border-radius: 25rpx; background: rgba(255,255,255,.97); box-shadow: 0 8rpx 24rpx rgba(60,101,175,.045); }
 .search-row { min-height: 88rpx; }
 .search-icon { display: block; flex: none; width: 36rpx; height: 36rpx; margin-right: 12rpx; }

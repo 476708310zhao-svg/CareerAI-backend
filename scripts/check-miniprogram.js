@@ -335,6 +335,7 @@ function findOwningSubPackage(app, relPath) {
 
 function checkAgentSkillManifests() {
   const app = readJson(path.join(MINI_ROOT, 'app.json'));
+  const projectConfig = readJson(path.join(MINI_ROOT, 'project.config.json'));
   const ignoreRules = getPackIgnoreRules();
   const agent = app.agent || {};
   const declaredSkills = Array.isArray(agent.skills) ? agent.skills : [];
@@ -342,12 +343,18 @@ function checkAgentSkillManifests() {
   const skillsDir = path.join(MINI_ROOT, 'skills');
   const diskSkillPaths = fs.existsSync(skillsDir)
     ? fs.readdirSync(skillsDir, { withFileTypes: true })
-      .filter(entry => entry.isDirectory())
+      .filter(entry => entry.isDirectory() && entry.name !== 'pages')
       .map(entry => `skills/${entry.name}`)
     : [];
   const issues = [];
+  const cardComponents = new Map();
 
   if (!declaredSkills.length) return;
+
+  const includeRules = (projectConfig.packOptions && projectConfig.packOptions.include) || [];
+  if (!includeRules.some(rule => rule.type === 'folder' && normalizeAppPath(rule.value) === 'skills')) {
+    issues.push('project.config.json packOptions.include must include the skills folder');
+  }
 
   for (const diskSkillPath of diskSkillPaths) {
     if (!declaredPaths.has(diskSkillPath)) {
@@ -439,6 +446,8 @@ function checkAgentSkillManifests() {
       issues.push(`${skillPath}/mcp.json: missing apis`);
     }
 
+    const componentPaths = new Set((manifest.components || []).map(component => component.path).filter(Boolean));
+
     (manifest.apis || []).forEach((api, index) => {
       if (!api.name) {
         issues.push(`${skillPath}/mcp.json apis[${index}]: missing name`);
@@ -447,6 +456,10 @@ function checkAgentSkillManifests() {
       if (!api.description) issues.push(`${skillPath}/mcp.json apis[${index}]: missing description`);
       if (!api.inputSchema) issues.push(`${skillPath}/mcp.json apis[${index}]: missing inputSchema`);
       if (!api.outputSchema) issues.push(`${skillPath}/mcp.json apis[${index}]: missing outputSchema`);
+      const uiComponentPath = api._meta && api._meta.ui && api._meta.ui.componentPath;
+      if (uiComponentPath && !componentPaths.has(uiComponentPath)) {
+        issues.push(`${skillPath}/mcp.json apis[${index}]: component ${uiComponentPath} is not declared in components`);
+      }
 
       const apiFile = path.join(skillRoot, 'apis', `${api.name}.js`);
       if (!fs.existsSync(apiFile)) issues.push(`${skillPath}: missing apis/${api.name}.js`);
@@ -460,15 +473,42 @@ function checkAgentSkillManifests() {
       if (!component.path) {
         issues.push(`${skillPath}/mcp.json components[${index}]: missing path`);
       } else {
-        const componentJson = path.join(skillRoot, `${component.path}.json`);
-        if (!fs.existsSync(componentJson)) {
-          issues.push(`${skillPath}/mcp.json components[${index}]: missing component ${component.path}.json`);
+        if (component.name) cardComponents.set(component.name, `/${skillPath}/${component.path}`);
+        for (const extension of ['js', 'json', 'wxml', 'wxss']) {
+          const componentFile = path.join(skillRoot, `${component.path}.${extension}`);
+          if (!fs.existsSync(componentFile)) {
+            issues.push(`${skillPath}/mcp.json components[${index}]: missing component ${component.path}.${extension}`);
+          }
         }
       }
       if (!component.relatedPage) {
         issues.push(`${skillPath}/mcp.json components[${index}]: missing relatedPage`);
       }
     });
+  }
+
+  const holderPage = 'pages/component-holder/index';
+  const skillPackage = (app.subPackages || []).find(subPackage => subPackage.root === 'skills');
+  if (!skillPackage || !(skillPackage.pages || []).includes(holderPage)) {
+    issues.push(`skills/${holderPage}: must be registered in the independent skills subpackage`);
+  } else {
+    const holderRoot = path.join(skillsDir, holderPage);
+    const holderJsonPath = `${holderRoot}.json`;
+    const holderWxmlPath = `${holderRoot}.wxml`;
+    if (!fs.existsSync(holderJsonPath) || !fs.existsSync(holderWxmlPath)) {
+      issues.push(`skills/${holderPage}: missing component registration page files`);
+    } else {
+      const usingComponents = readJson(holderJsonPath).usingComponents || {};
+      const holderWxml = fs.readFileSync(holderWxmlPath, 'utf8');
+      for (const [name, componentPath] of cardComponents) {
+        if (usingComponents[name] !== componentPath) {
+          issues.push(`skills/${holderPage}: ${name} must point to ${componentPath}`);
+        }
+        if (!new RegExp(`<${escapeRegExp(name)}(?:\\s|/|>)`).test(holderWxml)) {
+          issues.push(`skills/${holderPage}: missing ${name} tag in WXML`);
+        }
+      }
+    }
   }
 
   if (issues.length) {

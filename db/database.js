@@ -1,5 +1,6 @@
 const Database = require('better-sqlite3');
 const { DB_PATH } = require('../utils/paths');
+const { needsLegacyBootstrap } = require('./legacyBootstrap');
 
 const db = new Database(DB_PATH);
 
@@ -8,6 +9,7 @@ db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
 // ─── 建表（不存在才创建）────────────────────────────────────────────────────
+if (needsLegacyBootstrap(db)) {
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -758,5 +760,7 @@ const jdMatchCols = db.pragma('table_info(jd_match_reports)').map(c => c.name);
     db.exec(`ALTER TABLE jd_match_reports ADD COLUMN ${name} ${ddl}`);
   }
 });
+
+}
 
 module.exports = db;

@@ -16,7 +16,7 @@ const {
 const GROUPS = [
   { key: 'all', label: '全部' },
   { key: 'preparing', label: '待投递' },
-  { key: 'applied', label: '已投递' },
+  { key: 'applied', label: '已投递状态' },
   { key: 'oa', label: 'OA' },
   { key: 'interview', label: '面试中' },
   { key: 'offer', label: 'Offer' },
@@ -50,6 +50,9 @@ Page({
     filters: GROUPS.map(item => Object.assign({}, item, { count: 0 })),
     applications: [],
     visibleApplications: [],
+    boardTotal: 0,
+    hasMore: false,
+    loadingMore: false,
     statistics: {},
     total: 0,
     activeCount: 0,
@@ -88,11 +91,16 @@ Page({
   },
 
   resetBoardState(extra) {
+    this._remoteApplications = [];
+    this._nextCursor = null;
     this.setData(Object.assign({
       loading: false,
       refreshing: false,
       applications: [],
       visibleApplications: [],
+      boardTotal: 0,
+      hasMore: false,
+      loadingMore: false,
       total: 0,
       activeCount: 0,
       statistics: {},
@@ -120,7 +128,7 @@ Page({
       }
       return false;
     };
-    const localApplications = progress.getList();
+    const localApplications = progress.getList().filter(item => !/^\d+$/.test(String(item.id)));
     if (!this.hasToken()) {
       if (localApplications.length) {
         this.renderApplications(mergeApplicationSources([], localApplications), '未登录，当前显示本机申请记录');
@@ -130,8 +138,10 @@ Page({
       return Promise.resolve();
     }
 
-    this.setData({ loading: true, loginRequired: false, error: '', syncNotice: '' });
-    const request = api.getApplicationBoard().then(response => {
+    this._remoteApplications = [];
+    this._nextCursor = null;
+    this.setData({ loading: true, loginRequired: false, error: '', syncNotice: '', hasMore: false, boardTotal: 0 });
+    const request = api.getApplicationBoard({ pageSize: 50 }).then(response => {
       if (!isCurrent()) return;
       const data = extractBoardData(response);
       if (!data) {
@@ -152,6 +162,9 @@ Page({
         (data.groups[group] || []).forEach(item => applications.push(Object.assign({}, item, { group })));
       });
       const merged = mergeApplicationSources(applications, localApplications);
+      this._remoteApplications = applications;
+      this._nextCursor = data.nextCursor || null;
+      this.setData({ boardTotal: data.total || 0, hasMore: !!data.hasMore });
       progress.mergeRemoteList(applications);
       const localCount = merged.filter(item => item.localOnly).length;
       this.renderApplications(merged, localCount ? `包含 ${localCount} 条本机申请记录` : '');
@@ -171,6 +184,31 @@ Page({
     this._loadingPromise = request;
     return request;
   },
+
+  loadMore() {
+    if (!this.data.hasMore || this.data.loadingMore || !this._nextCursor || !this.hasToken()) return;
+    const seq = this._boardSeq;
+    const token = wx.getStorageSync('token');
+    this.setData({ loadingMore: true });
+    return api.getApplicationBoard({ pageSize: 50, cursor: this._nextCursor }).then(response => {
+      if (seq !== this._boardSeq || token !== wx.getStorageSync('token')) return;
+      const data = extractBoardData(response);
+      if (!data) throw new Error('申请记录加载失败');
+      const page = [];
+      Object.keys(data.groups).forEach(group => (data.groups[group] || []).forEach(item => page.push(Object.assign({}, item, { group }))));
+      this._remoteApplications = (this._remoteApplications || []).concat(page);
+      this._nextCursor = data.nextCursor || null;
+      const merged = mergeApplicationSources(this._remoteApplications,
+        progress.getList().filter(item => !/^\d+$/.test(String(item.id))));
+      progress.mergeRemoteList(page);
+      this.renderApplications(merged, this.data.syncNotice);
+      this.setData({ boardTotal: data.total || 0, hasMore: !!data.hasMore });
+    }).catch(() => {
+      if (seq === this._boardSeq) wx.showToast({ title: '加载更多失败，请重试', icon: 'none' });
+    }).finally(() => { if (seq === this._boardSeq) this.setData({ loadingMore: false }); });
+  },
+
+  onReachBottom() { this.loadMore(); },
 
   renderApplications(applications, syncNotice) {
       const dashboard = buildApplicationWorkbench(applications, new Date());
@@ -242,7 +280,7 @@ Page({
         return;
       }
       const picked = await new Promise(resolve => wx.showActionSheet({
-        itemList: choices.map(item => LABELS[item.value] || item.label),
+        itemList: choices.map(item => item.value === 'applied' ? '已投递（仅更新状态）' : (LABELS[item.value] || item.label)),
         success: result => resolve(choices[result.tapIndex]), fail: () => resolve(null)
       }));
       if (!picked || wx.getStorageSync('token') !== token) return;
@@ -259,7 +297,7 @@ Page({
       wx.showToast({ title: '状态已更新', icon: 'success' });
     } catch (error) {
       if (wx.getStorageSync('token') !== token) return;
-      wx.showToast({ title: error.statusCode === 409 ? '状态已变化，请刷新后重试' : (error.message || '更新失败，请重试'), icon: 'none' });
+      wx.showToast({ title: (error.statusCode === 409 || error.statusCode === 428) ? '状态已变化，请刷新后重试' : (error.message || '更新失败，请重试'), icon: 'none' });
     } finally {
       this.setData({ updatingId: '' });
     }

@@ -46,6 +46,23 @@ test('public campus reads use production content API anonymously; reminder write
   assert.equal(writes[0].skipAuth, undefined);
 });
 
+test('home campus read uses one stable cache key and keeps manual refresh fresh', async () => {
+  const reads = [];
+  const api = load('utils/api-campus.js', {
+    './api-client.js': { request: async options => { reads.push(options); return { code: 0, data: { list: [] } }; } },
+    './app-config.js': { CONTENT_API_BASE_URL: 'https://api.zhiyincareer.com' }
+  });
+  await api.getCampusList({ latestDay: '1', noCache: false, noStale: true, cacheTTL: 600000 });
+  await api.getCampusList({ latestDay: '1', noCache: false, noStale: true, cacheTTL: 600000 });
+  assert.deepEqual(reads[0].params, reads[1].params);
+  assert.equal(reads[0].noCache, false);
+  assert.equal(reads[0].noStale, true);
+  assert.equal(reads[0].params._fresh, undefined);
+  await api.getCampusList({ latestDay: '1', noCache: true });
+  assert.equal(reads[2].noCache, true);
+  assert.ok(reads[2].params._fresh);
+});
+
 test('company list and detail use the public content API and reject failed reads', async () => {
   const reads = [];
   let response = { code: 0, data: { list: [{ id: 1, name: 'Company' }], total: 1 } };
@@ -178,6 +195,58 @@ test('home shows a retryable error rather than caching it as a genuine empty cam
   const wxss = fs.readFileSync(path.join(__dirname, '..', 'miniprogram/pages/index/index.wxss'), 'utf8');
   assert.match(wxml, /campusDigestError[\s\S]*?retryCampusDigest/);
   assert.match(wxss, /\.zy-campus-retry[^}]*min-height:\s*88rpx/);
+});
+
+test('home restores recent feeds immediately and finishes an in-flight campus refresh after tab switch', async () => {
+  const stored = new Map();
+  const now = Date.now();
+  const day = new Date(now + 8 * 60 * 60000).toISOString().slice(0, 10);
+  stored.set('homeLatestJobs', { items: [{ id: 'job-1', title: '工程师' }], keyword: 'Software Engineer', fetchedAt: now });
+  stored.set('homeCampusDigest', { items: [{ id: 7, company: '某企业' }], total: 1, dateLabel: '今日', day, fetchedAt: now });
+  let latestCalls = 0;
+  let campusCalls = 0;
+  let finishCampus;
+  const page = load('pages/index/index.js', {
+    '../../utils/api.js': {
+      getAggregatedJobs: async () => { latestCalls += 1; return { data: [] }; },
+      getCampusList: () => { campusCalls += 1; return new Promise(resolve => { finishCampus = resolve; }); }
+    },
+    '../../utils/owner-storage.js': {
+      capture: () => 'owner', isCurrent: () => true,
+      get: key => stored.get(key), set: (key, suffix, value) => stored.set(key, value)
+    },
+    '../../utils/demo-data.js': { enabled: () => false }
+  }, {}, true);
+  page._visible = true;
+  page.loadHomeFeedCache();
+  assert.equal(page.data.latestJobs[0].id, 'job-1');
+  assert.equal(page.data.campusDigest[0].id, 7);
+  await page.fetchLatestJobs();
+  await page.fetchHomeCampusDigest();
+  assert.equal(latestCalls, 0);
+  assert.equal(campusCalls, 0);
+  page.rankCampusUpdates = items => items;
+  page.normalizeCampusUpdateSubtitle = () => '近期更新';
+  page.formatCampusBusinessDateText = value => value;
+  const refresh = page.fetchHomeCampusDigest({ force: true });
+  page.onHide();
+  finishCampus({ code: 0, data: { list: [{ id: 8, company: '新企业' }], total: 1, latestDate: day } });
+  await refresh;
+  assert.equal(page.data.campusDigest[0].id, 8);
+  assert.equal(stored.get('homeCampusDigest').items[0].id, 8);
+});
+
+test('home onLoad restores feed cache even when a hot-reloaded page instance lacks the new method', () => {
+  const page = load('pages/index/index.js', {
+    '../../utils/owner-storage.js': { capture: () => 'owner', get: () => null, isCurrent: () => true },
+    '../../utils/feature-flags.js': { getCurrentFlags: () => ({ recruitment: true, home_recommendations: false }) },
+    '../../utils/demo-data.js': { enabled: () => false }
+  }, {}, true);
+  page.loadHomeFeedCache = undefined;
+  ['loadUserProfile', 'loadProgressSummary', 'loadTodayTasks', 'loadWorkbenchSummary',
+    'syncWorkbenchReports', 'fetchLatestJobs', 'fetchHomeCampusDigest', 'fetchAssessmentProducts']
+    .forEach(name => { page[name] = () => {}; });
+  assert.doesNotThrow(() => page.onLoad());
 });
 
 function deferred() {
@@ -313,6 +382,24 @@ test('non-idempotent POST is not automatically replayed after a network error', 
   await assert.rejects(client.post({ path: '/api/orders', body: { amount: 1 } }),
     error => error.code === 'NETWORK_ERROR');
   assert.equal(wx.sent.length, 1);
+});
+
+test('a hanging resume optimization write reaches its hard deadline and ignores late callbacks', async () => {
+  const wx = accountWx();
+  let aborted = 0;
+  wx.request = options => {
+    wx.sent.push(options);
+    return { abort() { aborted += 1; } };
+  };
+  const client = clientWithWx(wx);
+  const writing = client.post({ path: '/api/v4/resumes/19/ai-change-sets', body: {},
+    timeout: 50, hardTimeoutMs: 15 });
+  await assert.rejects(writing, error => error.code === 'REQUEST_TIMEOUT' && /超时/.test(error.message));
+  assert.equal(aborted, 1);
+  assert.equal(wx.sent.length, 1);
+  wx.sent[0].success({ statusCode: 401, data: {} });
+  assert.equal(wx.storage.get('token'), 'account-A-token');
+  assert.deepEqual(wx.removed, []);
 });
 
 test('opt-in idempotent retry is cancelled when account changes during backoff', async () => {

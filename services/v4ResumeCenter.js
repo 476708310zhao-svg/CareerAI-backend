@@ -1,6 +1,7 @@
 const db = require('../db/database');
 const membership = require('./v4Membership');
 const aiRuntime = require('./v4AiRuntime');
+const readiness = require('./v4ApplicationReadiness');
 
 const RESUME_TYPES = ['sde', 'ai_engineer', 'data', 'quant', 'general'];
 const EXPERIENCE_TYPES = ['education', 'experience', 'project', 'skill', 'award'];
@@ -258,7 +259,8 @@ function defaultSuggestions(content, jdText) {
 }
 
 function validateSuggestions(userId, content, suggestions) {
-  const sourceText = collectStringEntries(content).filter(item => !isAttachmentPath(item.path)).map(item => item.text).join(' ');
+  const fields = collectStringEntries(content).filter(item => !isAttachmentPath(item.path));
+  const sourceText = fields.map(item => item.text).join(' ');
   return suggestions.map((raw, index) => {
     const suggestion = {
       id: cleanText(raw.id || `suggestion_${index + 1}`, 80),
@@ -276,9 +278,11 @@ function validateSuggestions(userId, content, suggestions) {
     if (isAttachmentPath(suggestion.path) || isNonResumeMetadata(suggestion.before)) {
       throw Object.assign(new Error(`第 ${index + 1} 条建议引用的是系统元数据，不是简历内容`), { status: 422, code: 'AI_SUGGESTION_INVALID_FIELD' });
     }
-    if (!suggestion.before || !sourceText.includes(suggestion.before)) {
+    const field = fields.find(item => item.path === suggestion.path && normalizeComparableText(item.text) === normalizeComparableText(suggestion.before));
+    if (!field || (containsSensitivePersonalInfo(field.text) && containsSensitivePersonalInfo(suggestion.after))) {
       throw Object.assign(new Error(`第 ${index + 1} 条建议未准确引用原简历内容`), { status: 422, code: 'UNVERIFIED_FACT' });
     }
+    suggestion.before = field.text;
     let evidenceText = sourceText;
     if (suggestion.sourceExperienceIds.length) {
       const placeholders = suggestion.sourceExperienceIds.map(() => '?').join(',');
@@ -312,6 +316,7 @@ async function createChangeSet({ userId, resumeId, jobId = '', applicationId = n
   if (!owned) throw Object.assign(new Error('简历不存在'), { status: 404 });
   const content = parseJson(owned.version.content, {});
   let checked;
+  let validatedLiveSuggestions = null;
   let model = AI_MODEL;
   let generation = { source: 'client_provided', degraded: false, provider: '', model, attempts: 0, fallbackReason: '', errorCode: '' };
   if (Array.isArray(suggestions) && suggestions.length) {
@@ -330,11 +335,15 @@ async function createChangeSet({ userId, resumeId, jobId = '', applicationId = n
       fallback: () => defaultSuggestions(content, jdText),
       validate: value => {
         if (!Array.isArray(value) || !value.length || value.length > 5) return false;
-        validateSuggestions(userId, content, value);
+        validatedLiveSuggestions = validateSuggestions(userId, content, value);
         return true;
       }
     });
-    checked = validateSuggestions(userId, content, generated.value);
+    // The runtime redacts every string in a fallback result. Validate the local
+    // suggestions before that transport redaction can alter an exact quotation.
+    checked = generated.degraded
+      ? validateSuggestions(userId, content, defaultSuggestions(content, jdText))
+      : (validatedLiveSuggestions || validateSuggestions(userId, content, generated.value));
     model = generated.model;
     generation = aiRuntime.safeMetadata(generated);
   }
@@ -406,7 +415,9 @@ function confirmChangeSet({ userId, changeSetId, decisions = {}, manualContent }
       db.prepare("UPDATE resumes SET target_job_id=?, updated_at=datetime('now') WHERE id=? AND user_id=?")
         .run(row.job_id || '', row.resume_id, userId);
     }
-    if (row.application_id) {
+    // AI confirmation creates a new immutable resume version. It must not silently
+    // replace the version the user selected for an application after migration 0025.
+    if (row.application_id && !readiness.schemaAvailable()) {
       db.prepare("UPDATE applications SET resume_id=?, resume_version_id=?, updated_at=datetime('now') WHERE id=? AND user_id=?")
         .run(row.resume_id, String(version.id), row.application_id, userId);
     }

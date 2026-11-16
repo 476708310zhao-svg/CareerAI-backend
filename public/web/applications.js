@@ -88,7 +88,18 @@ window.createApplicationWorkbench = function ({ request, toast, openAI, setDetai
     shell(); $('application-results').innerHTML = '<p class="empty-state" role="status">正在加载申请…</p>';
     $('preview-bulk').disabled = true; $('refresh-applications').disabled = true;
     try {
-      const board = await request('/api/v4/applications/board');
+      const groups = { preparing: [], applied: [], interview: [], offer: [], closed: [] };
+      let board;
+      let cursor;
+      do {
+        const page = await request('/api/v4/applications/board?pageSize=50' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''));
+        if (generation !== state.generation) return;
+        if (!board) board = page;
+        Object.keys(groups).forEach(key => groups[key].push(...(page.groups[key] || [])));
+        cursor = page.hasMore ? page.nextCursor : null;
+        if (page.hasMore && !cursor) throw new Error('申请分页游标缺失');
+      } while (cursor);
+      board.groups = groups;
       if (generation !== state.generation) return;
       state.items = model.rows(board); state.statuses = board.statuses || []; state.selected.clear(); state.page = 1;
       shell(); renderRows();

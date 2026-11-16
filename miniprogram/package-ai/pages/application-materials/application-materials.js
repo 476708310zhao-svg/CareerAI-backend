@@ -70,7 +70,14 @@ Page({
     quota: null,
     generating: false,
     mutatingDraft: false,
-    initializingVersion: false
+    initializingVersion: false,
+    answerQuestion: '',
+    answerMaxChars: 500,
+    answerResult: null,
+    answerContent: '',
+    answerBusy: false,
+    answerSavedDrafts: [],
+    answerCharCount: 0
   },
 
   onLoad(options) {
@@ -144,7 +151,7 @@ Page({
   loadGeneratorOptions() {
     const owner = ownerStorage.capture();
     const requestId = this._optionsRequestId = (this._optionsRequestId || 0) + 1;
-    Promise.all([v4Api.getApplicationBoard(), v4Api.getV4Resumes(), v4Api.getMaterialQuota()]).then(([board, resumes, quota]) => {
+    Promise.all([v4Api.getCompleteApplicationBoard(), v4Api.getV4Resumes(), v4Api.getMaterialQuota()]).then(([board, resumes, quota]) => {
       if (this._unloaded || requestId !== this._optionsRequestId || !ownerStorage.isCurrent(owner)) return;
       const groups = board.data && board.data.groups || {};
       const applications = Object.keys(groups).reduce((all, key) => all.concat(groups[key] || []), []);
@@ -167,7 +174,10 @@ Page({
         applicationIndex,
         resumeIndex,
         targetApplicationLabel: target ? `${target.company || '目标公司'} · ${target.jobTitle || '目标岗位'}` : ''
-      }, () => this.loadResumeVersions(target && target.resumeVersionId));
+      }, () => {
+        this.loadResumeVersions(target && target.resumeVersionId);
+        this.loadApplicationAnswerDrafts(target && target.id);
+      });
     }).catch(() => {});
   },
 
@@ -185,7 +195,7 @@ Page({
       this.setData({ resumeVersions: [], resumeVersionIndex: 0 });
       return Promise.resolve([]);
     }
-    return v4Api.getResumeVersions(resume.id).then(res => {
+    return v4Api.getCompleteResumeVersions(resume.id).then(res => {
       if (this._unloaded || requestId !== this._resumeVersionsRequestId || !ownerStorage.isCurrent(owner)) return [];
       const versions = (res.data || []).map(item => Object.assign({}, item, {
         displayName: `V${item.versionNo} · ${item.changeSummary || '原始版本'}`
@@ -205,6 +215,7 @@ Page({
 
   closeGenerator() { this.setData({ showGenerator: false, generatedDraft: null, generatedContent: '' }); },
   onApplicationChange(e) {
+    this._answerRequestGeneration = (this._answerRequestGeneration || 0) + 1;
     const applicationIndex = Number(e.detail.value) || 0;
     const application = this.data.applications[applicationIndex];
     const linkedResumeIndex = application && application.resumeId
@@ -213,6 +224,10 @@ Page({
     const resumeIndex = linkedResumeIndex >= 0 ? linkedResumeIndex : this.data.resumeIndex;
     this.setData({
       applicationIndex,
+      answerBusy: false,
+      answerResult: null,
+      answerContent: '',
+      answerSavedDrafts: [],
       resumeIndex,
       targetApplicationLabel: application ? `${application.company || '目标公司'} · ${application.jobTitle || '目标岗位'}` : ''
     }, () => this.loadResumeVersions(application && application.resumeVersionId));
@@ -227,6 +242,82 @@ Page({
   onResumeVersionChange(e) { this.setData({ resumeVersionIndex: Number(e.detail.value) || 0 }); },
   onMaterialTypeChange(e) { this.setData({ materialTypeIndex: Number(e.detail.value) || 0 }); },
   onGeneratedInput(e) { this.setData({ generatedContent: e.detail.value }); },
+  onAnswerQuestionInput(e) { this.setData({ answerQuestion: String(e.detail.value || '').slice(0, 1000) }); },
+  onAnswerContentInput(e) {
+    const answerContent = String(e.detail.value || '');
+    this.setData({ answerContent, answerCharCount: Array.from(answerContent).length });
+  },
+
+  loadApplicationAnswerDrafts(applicationId) {
+    const requestId = this._answerListRequestId = (this._answerListRequestId || 0) + 1;
+    const owner = ownerStorage.capture();
+    if (!applicationId) return this.setData({ answerSavedDrafts: [] });
+    v4Api.getApplicationAnswerDrafts(applicationId).then(response => {
+      const selected = this.data.applications[this.data.applicationIndex] || {};
+      if (this._unloaded || requestId !== this._answerListRequestId || !ownerStorage.isCurrent(owner) || String(selected.id) !== String(applicationId)) return;
+      this.setData({ answerSavedDrafts: response.data || [] });
+    }).catch(() => {
+      if (!this._unloaded && requestId === this._answerListRequestId && ownerStorage.isCurrent(owner)) this.setData({ answerSavedDrafts: [] });
+    });
+  },
+
+  generateApplicationAnswer() {
+    if (this.data.answerBusy) return;
+    const application = this.data.applications[this.data.applicationIndex];
+    if (!application) return wx.showToast({ title: '请先选择申请记录', icon: 'none' });
+    if (!String(this.data.answerQuestion || '').trim()) return wx.showToast({ title: '请填写企业问题', icon: 'none' });
+    const owner = ownerStorage.capture();
+    const requestId = this._answerRequestGeneration = (this._answerRequestGeneration || 0) + 1;
+    const selectedApplicationId = String(application.id);
+    this.setData({ answerBusy: true, answerResult: null, answerContent: '' });
+    v4Api.generateApplicationAnswer({ applicationId: application.id, question: this.data.answerQuestion, maxChars: this.data.answerMaxChars }).then(response => {
+      const current = this.data.applications[this.data.applicationIndex] || {};
+      if (this._unloaded || requestId !== this._answerRequestGeneration || !ownerStorage.isCurrent(owner)
+        || String(current.id) !== selectedApplicationId) return;
+      const data = response.data || {};
+      const answerContent = String(data.draft || '');
+      this.setData({ answerResult: data, answerContent, answerCharCount: Array.from(answerContent).length,
+        answerSavedDrafts: [data].concat(this.data.answerSavedDrafts.filter(item => item.id !== data.id)), answerBusy: false });
+    }).catch(error => {
+      if (this._unloaded || requestId !== this._answerRequestGeneration || !ownerStorage.isCurrent(owner)) return;
+      this.setData({ answerBusy: false });
+      wx.showToast({ title: error.message || '生成失败', icon: 'none' });
+    });
+  },
+
+  copyApplicationAnswer() {
+    if (!this.data.answerContent) return;
+    wx.setClipboardData({ data: this.data.answerContent, success: () => wx.showToast({ title: '已复制草稿', icon: 'success' }) });
+  },
+
+  saveApplicationAnswerDraft() {
+    const draft = this.data.answerResult;
+    if (!draft || this.data.answerBusy || Array.from(this.data.answerContent || '').length > draft.maxChars) return;
+    const owner = ownerStorage.capture();
+    const requestId = this._answerRequestGeneration = (this._answerRequestGeneration || 0) + 1;
+    const applicationId = String(draft.applicationId);
+    this.setData({ answerBusy: true });
+    v4Api.updateApplicationAnswerDraft(draft.id, { expectedVersion: draft.version, content: this.data.answerContent }).then(response => {
+      const selected = this.data.applications[this.data.applicationIndex] || {};
+      if (this._unloaded || requestId !== this._answerRequestGeneration || !ownerStorage.isCurrent(owner) || String(selected.id) !== applicationId) return;
+      const saved = response.data;
+      this.setData({ answerResult: saved, answerContent: saved.draft, answerCharCount: Array.from(saved.draft).length,
+        answerSavedDrafts: [saved].concat(this.data.answerSavedDrafts.filter(item => item.id !== saved.id)), answerBusy: false });
+      wx.showToast({ title: '已保存到草稿区', icon: 'success' });
+    }).catch(error => {
+      if (!this._unloaded && requestId === this._answerRequestGeneration && ownerStorage.isCurrent(owner)) {
+        this.setData({ answerBusy: false }); wx.showToast({ title: error.message || '保存失败，请刷新核对', icon: 'none' });
+      }
+    });
+  },
+
+  openSavedApplicationAnswer(e) {
+    const id = Number(e.currentTarget.dataset.id);
+    const draft = this.data.answerSavedDrafts.find(item => Number(item.id) === id);
+    if (!draft) return;
+    this._answerRequestGeneration = (this._answerRequestGeneration || 0) + 1;
+    this.setData({ answerResult: draft, answerContent: draft.draft, answerCharCount: Array.from(draft.draft || '').length });
+  },
 
   initializeSelectedResumeVersion() {
     const resume = this.data.resumes[this.data.resumeIndex];

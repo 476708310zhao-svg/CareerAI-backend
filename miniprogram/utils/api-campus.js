@@ -16,7 +16,8 @@ function getCampusList(params) {
     region = '', positionType = '', year = '', keyword = '',
     recruitType = '', writtenTest = '', gradYear = '', page = 0, pageSize = 20,
     industry = '', educationLevel = '', overseasFriendly = '', visa = '', deadlineWindow = '',
-    sort = '', latestDay = '', latestDate = '', timeout = 10000
+    sort = '', latestDay = '', latestDate = '', timeout = 10000,
+    noCache = true, noStale = false, cacheTTL = 0
   } = params || {};
   return publicRead({
     path: '/api/campus',
@@ -26,10 +27,11 @@ function getCampusList(params) {
       education_level: educationLevel, overseas_friendly: overseasFriendly,
       visa, deadline_window: deadlineWindow, grad_year: gradYear,
       sort, latest_day: latestDay, latest_date: latestDate, page, pageSize,
-      _fresh: Date.now()
+      ...(noCache ? { _fresh: Date.now() } : {})
     },
-    noCache: true,
-    cacheTTL: 0,
+    noCache,
+    noStale,
+    cacheTTL,
     timeout
   });
 }

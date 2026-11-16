@@ -65,6 +65,21 @@
           <div><h3>岗位到申请漏斗</h3><div class="activity-list" id="v4Funnel"></div></div>
           <div><h3>监控与会员</h3><div class="activity-list" id="v4Health"></div></div>
         </div>
+        <div style="margin-top:16px">
+          <h3>用户确认已提交（独立事实口径）</h3>
+          <p>近 30 天曾确认按确认时间统计，撤回后仍保留历史次数；当前仍确认按每条保留申请的最新事实统计，包含更早的确认。已删除申请不计入。</p>
+          <div class="activity-list" id="v4SubmissionFacts"><div class="activity-item"><span>加载中</span><strong>...</strong></div></div>
+        </div>
+      </div>
+      <div class="chart-card" style="margin-top:18px">
+        <h3>岗位数据质量与来源趋势（后台内部）</h3>
+        <p>只统计来源可追溯、人工核验、近期可访问且截止日期明确的本地岗位。此视图是数据质量样本，不代表全网岗位热度、录用率或求职成功概率。</p>
+        <div class="stats-grid" id="jobQualityCards"><div class="stat-card"><div class="stat-label">加载中...</div></div></div>
+        <div class="dashboard-grid" style="margin-top:16px">
+          <div><h3>来源覆盖</h3><div class="activity-list" id="jobQualitySources"></div></div>
+          <div><h3>地区 / 类型样本</h3><div class="activity-list" id="jobQualitySegments"></div></div>
+        </div>
+        <div style="margin-top:16px"><h3>已确认申请（完整事实与岗位引用）</h3><div class="activity-list" id="jobQualityConversions"></div></div>
       </div>
     </div>
   </div>
@@ -126,6 +141,19 @@ async function loadV4Operations() {
     card('fa-crown', '有效会员', data.membership && data.membership.active || 0, '')
   ].join('');
   document.getElementById('v4Funnel').innerHTML = (data.funnel || []).map(item => `<div class="activity-item"><span>${item.event}</span><strong>${item.users}</strong></div>`).join('');
+  const confirmation = data.submissionConfirmation || {};
+  const factRows = !confirmation.available
+    ? [['确认事实指标', '待数据库迁移']]
+    : !confirmation.complete
+      ? [['确认事实指标', '待补写对账'], ['待补写事件', Number(confirmation.pendingEvents) || 0]]
+      : [
+          ['近 30 天曾确认用户', Number(confirmation.historicallyConfirmed30d?.users) || 0],
+          ['近 30 天曾确认申请', Number(confirmation.historicallyConfirmed30d?.applications) || 0],
+          ['当前仍确认申请', Number(confirmation.currentlyConfirmed?.applications) || 0],
+          ['重复分析事件（按事实去重）', Number(confirmation.duplicateEvents) || 0]
+        ];
+  document.getElementById('v4SubmissionFacts').innerHTML = factRows.map(([label,value]) =>
+    `<div class="activity-item"><span>${label}</span><strong>${value}</strong></div>`).join('');
   document.getElementById('v4Health').innerHTML = [
     ['24h 慢接口', (data.slowQueries || []).length],
     ['近期错误', (data.errors || []).length],
@@ -134,8 +162,52 @@ async function loadV4Operations() {
   ].map(([label,value]) => `<div class="activity-item"><span>${label}</span><strong>${value}</strong></div>`).join('');
 }
 
+function qualityRow(container, label, value) {
+  const row = document.createElement('div');
+  row.className = 'activity-item';
+  const title = document.createElement('span');
+  title.textContent = String(label ?? '未知');
+  const count = document.createElement('strong');
+  count.textContent = String(value ?? '不可用');
+  row.append(title, count);
+  container.append(row);
+}
+
+async function loadJobQuality() {
+  const res = await GET('/admin/api/v4/operations/jobs/quality');
+  const cards = document.getElementById('jobQualityCards');
+  const sources = document.getElementById('jobQualitySources');
+  const segments = document.getElementById('jobQualitySegments');
+  const conversions = document.getElementById('jobQualityConversions');
+  [sources, segments, conversions].forEach(node => { node.replaceChildren(); });
+  if (!res || res.code !== 0) {
+    cards.textContent = '岗位质量数据暂不可用';
+    qualityRow(conversions, '申请转化指标', '不可用');
+    return;
+  }
+  const data = res.data || {};
+  const quality = data.jobQuality || {};
+  const excluded = quality.exclusions || {};
+  cards.innerHTML = [
+    card('fa-briefcase', '合格岗位样本', quality.qualifiedLiveJobs ?? '不可用', `共读取 ${quality.totalSnapshotJobs || 0} 条本地记录`),
+    card('fa-clock', '近期更新', quality.freshnessCounts?.fresh ?? 0, `建议复核 ${quality.freshnessCounts?.aging ?? 0}`),
+    card('fa-circle-question', '截止未知剔除', excluded.deadlineUnknown ?? 0, `过期 ${excluded.deadlineExpired ?? 0}`),
+    card('fa-link-slash', '链接/核验剔除', (excluded.linkNotReachable || 0) + (excluded.unverified || 0), `回退 ${excluded.fallback || 0}`)
+  ].join('');
+  (quality.breakdown?.sources || []).forEach(item => qualityRow(sources, item.key, item.count));
+  (quality.breakdown?.regions || []).slice(0, 6).forEach(item => qualityRow(segments, `地区：${item.key}`, item.count));
+  (quality.breakdown?.jobTypes || []).slice(0, 6).forEach(item => qualityRow(segments, `类型：${item.key}`, item.count));
+  const conversion = data.submissionConversions || {};
+  qualityRow(conversions, '事实/分析覆盖', conversion.coverage && conversion.coverage.total
+    ? `${conversion.coverage.matched}/${conversion.coverage.total}（${conversion.coveragePercent ?? '—'}%）` : '暂无可验证样本');
+  qualityRow(conversions, '完整事实对应的已确认申请', conversion.available ? (conversion.applications ?? 0) : '不可用');
+  if (!conversion.available) qualityRow(conversions, '状态', conversion.reason || '对账未完成');
+  if (!quality.qualifiedLiveJobs) qualityRow(sources, '说明', '当前无符合严格口径的岗位样本');
+}
+
 loadStats();
 loadV4Operations();
+loadJobQuality();
 </script>
 </body>
 </html>

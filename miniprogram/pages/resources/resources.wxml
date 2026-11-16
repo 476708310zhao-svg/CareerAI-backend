@@ -5,6 +5,10 @@
       <input class="search-input" value="{{keyword}}" placeholder="搜索题库、面经或公司资料" placeholder-class="placeholder" bindinput="onKeyword" aria-label="搜索求职准备资源"/>
     </view>
   </view>
+  <button class="practice-entry" bindtap="openPractice" aria-label="打开在线刷题，已审核免费题集，服务端保存进度">
+    <view class="practice-entry-copy"><text class="practice-entry-title">在线刷题</text><text class="practice-entry-note">已审核免费题集 · 网页与小程序同步进度</text><text class="practice-entry-hint">下方 OA 笔试题库保留原有模拟练习</text></view>
+    <image class="practice-entry-arrow" src="/images/zhiyin-icons/chevron.svg" mode="aspectFit" aria-hidden="true"/>
+  </button>
 
   <view class="context-card" wx:if="{{company || role}}" aria-label="目标上下文">
     <view class="context-icon"><image src="/images/zhiyin-icons/target.svg" mode="aspectFit" aria-hidden="true"/></view>

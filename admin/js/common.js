@@ -284,22 +284,33 @@ const NAV_ITEMS = [
   { id: 'companies', icon: 'fa-building-user', label: '公司管理', href: 'companies.html' },
   { id: 'experiences', icon: 'fa-file-lines', label: '面经管理', href: 'experiences.html' },
   { id: 'questions', icon: 'fa-circle-question', label: '题库管理', href: 'questions.html' },
+  { id: 'questionAssets', icon: 'fa-file-pdf', label: 'PDF 制作刷题题集', href: 'question-assets.html' },
+  { id: 'questionGovernance', permissionsAny: ['questionAssets', 'questionRightsReview', 'questionContentReview'], icon: 'fa-file-shield', label: '素材权利审核', href: 'question-governance.html' },
+  { id: 'questionBank', permissionsAny: ['questionBankEdit', 'questionBankPublish', 'questionContentReview', 'questionRightsReview'], icon: 'fa-list-check', label: '人工题库与题集', href: 'question-bank.html' },
+  { id: 'questionParsing', permission: 'questionAssets', icon: 'fa-file-circle-question', label: 'PDF 辅助识题', href: 'question-parsing.html' },
   { id: 'starTemplates', icon: 'fa-star', label: 'STAR模板', href: 'star-templates.html' },
   { id: 'comments', icon: 'fa-comments', label: '评论管理', href: 'comments.html' },
   { id: 'campus', icon: 'fa-calendar-days', label: '校招日历', href: 'campus.html' },
   { id: 'agencies', icon: 'fa-building', label: '机构管理', href: 'agencies.html' },
   { id: 'announcements', icon: 'fa-newspaper', label: '资讯公告', href: 'announcements.html' },
   { id: 'feedback', icon: 'fa-inbox', label: '反馈管理', href: 'feedback.html' },
+  { id: 'manualServices', permission: 'manualServices', icon: 'fa-list-check', label: '人工服务工单', href: 'manual-services.html' },
   { id: 'users', icon: 'fa-users', label: '用户管理', href: 'users.html' },
   { id: 'memberships', icon: 'fa-crown', label: '会员权益', href: 'memberships.html' },
+  { id: 'commerceAudit', permission: 'memberships', icon: 'fa-receipt', label: '订单退款审计', href: 'commerce-audit.html' },
   { id: 'assessmentProducts', permission: 'memberships', icon: 'fa-file-circle-check', label: '测评资料', href: 'assessment-products.html' },
   { id: 'resumes', icon: 'fa-id-card', label: '简历管理', href: 'resumes.html' },
   { id: 'admins', icon: 'fa-user-shield', label: '权限管理', href: 'admins.html' }
 ];
 
 function renderNav(activeId) {
-  return NAV_ITEMS.filter(item => canAccess(item.permission || item.id)).map(item => `
-    <a class="nav-item ${item.id === activeId ? 'active' : ''}" href="${item.href}">
+  const hasPdfWorkflow = canAccess('questionAssets');
+  const linkedSteps = ['questionGovernance','questionBank','questionParsing'];
+  return NAV_ITEMS.filter(item => {
+    if (item.id === 'questionParsing' || (hasPdfWorkflow && linkedSteps.includes(item.id))) return false;
+    return item.permissionsAny ? item.permissionsAny.some(canAccess) : canAccess(item.permission || item.id);
+  }).map(item => `
+    <a class="nav-item ${item.id === activeId || (hasPdfWorkflow && item.id === 'questionAssets' && linkedSteps.includes(activeId)) ? 'active' : ''}" href="${item.href}">
       <i class="fa-solid ${item.icon}"></i>
       <span>${item.label}</span>
     </a>`).join('');
@@ -383,7 +394,10 @@ function renderLayout(activeId, pageTitle) {
 function initPage(activeId, pageTitle, renderFn) {
   if (!requireAuth()) return;
   const activeItem = NAV_ITEMS.find(item => item.id === activeId);
-  if (!canAccess(activeItem && activeItem.permission ? activeItem.permission : activeId)) {
+  const allowed = activeItem && activeItem.permissionsAny
+    ? activeItem.permissionsAny.some(canAccess)
+    : canAccess(activeItem && activeItem.permission ? activeItem.permission : activeId);
+  if (!allowed) {
     document.body.innerHTML = '<div style="padding:40px;font-family:Arial,sans-serif;color:#111827"><h2>没有访问权限</h2><p style="color:#6b7280">当前后台账号没有该模块权限，请联系超级管理员开通。</p><button onclick="history.back()" style="padding:10px 16px;border:0;border-radius:8px;background:#2563eb;color:#fff">返回</button></div>';
     markAdminReady();
     return;

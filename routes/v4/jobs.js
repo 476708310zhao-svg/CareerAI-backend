@@ -2,7 +2,7 @@ const express = require('express');
 const db = require('../../db/database');
 const { authMiddleware } = require('../../middleware/auth');
 const { ok, fail } = require('../../utils/response');
-const { findJobById, listJobs } = require('../../utils/jobData');
+const { findJobById, listBrowsableJobs, getJobVerification, isHeldVerification, isUnavailableLocalJob, isExpiredLocalJob } = require('../../utils/jobData');
 const { getProfile } = require('../../services/v4Profile');
 const { buildJobMatch } = require('../../services/v4JobMatch');
 const { getSponsorProfile } = require('../../services/v4Sponsor');
@@ -74,14 +74,34 @@ function jobDataMeta(job) {
     sourceLabel: job.sourceLabel,
     publishedAt: job.postedAt,
     updatedAt: job.updatedAt,
-    isExpired: job.deadline ? new Date(`${String(job.deadline).slice(0, 10)}T23:59:59+08:00`).getTime() < Date.now() : false,
+    isExpired: isLocalArchive ? isExpiredLocalJob(job)
+      : job.deadline ? new Date(`${String(job.deadline).slice(0, 10)}T23:59:59+08:00`).getTime() < Date.now() : false,
     isFallback: isLocalArchive,
     fallbackReason: isLocalArchive ? '当前精准匹配基于历史职位库' : ''
   });
 }
 
 function buildJobTrust(userId, job) {
-  return jobTrust.buildTrust(job, listJobs(), jobTrust.listObservations(userId, job.id));
+  return jobTrust.buildTrust(job, listBrowsableJobs(), jobTrust.listObservations(userId, job.id));
+}
+
+function buildPublicJobTrust(userId, job, verification) {
+  const trust = buildJobTrust(userId, job);
+  if (!isUnavailableLocalJob(job, verification)) return trust;
+  const manualHold = isHeldVerification(verification);
+  trust.score = Math.min(trust.score, 39);
+  trust.level = 'risk';
+  trust.label = manualHold ? '岗位已关闭或待复核' : '岗位截止日期已过';
+  trust.officialVerification = { ...trust.officialVerification, url: '',
+    status: manualHold ? 'admin_review_hold' : 'deadline_expired',
+    label: manualHold ? '岗位已关闭或待人工复核' : '岗位截止日期已过',
+    reason: '历史链接不能作为当前可申请入口' };
+  trust.observations = (trust.observations || []).map(item => ({ ...item, officialUrl: '' }));
+  trust.recommendation = manualHold ? '暂缓投递，等待人工复核或重新查找企业公告' : '截止日期已过，请重新核对企业公告';
+  trust.risks = [...new Set([...trust.risks, manualHold ? '管理员标记岗位已关闭或待复核' : '岗位截止日期已过'])];
+  trust.notice = manualHold ? '管理员关闭或待复核状态优先于历史评分；此分数不代表当前可申请'
+    : '截止日期已过；历史评分不代表当前可申请';
+  return trust;
 }
 
 router.get('/', authMiddleware, (req, res) => {
@@ -90,7 +110,7 @@ router.get('/', authMiddleware, (req, res) => {
   const keyword = String(req.query.keyword || '').trim().toLowerCase();
   const page = Math.max(1, Number(req.query.page) || 1);
   const pageSize = Math.min(50, Math.max(1, Number(req.query.pageSize) || 10));
-  let jobs = listJobs().map(job => {
+  let jobs = listBrowsableJobs().map(job => {
     const sponsor = getSponsorProfile(job);
     const match = buildJobMatch(job, profile, sponsor);
     return { ...job, dataMeta: jobDataMeta(job), sponsor, match: {
@@ -120,7 +140,7 @@ router.post('/matches/recalculate', authMiddleware, (req, res) => {
     return res.status(422).json({ code: -1, message: '请先完善求职画像', data: { completion: profile.completion } });
   }
   const requested = Array.isArray(req.body && req.body.jobIds) ? new Set(req.body.jobIds.map(String)) : null;
-  const jobs = listJobs().filter(job => !requested || requested.has(String(job.id))).slice(0, 100);
+  const jobs = listBrowsableJobs().filter(job => !requested || requested.has(String(job.id))).slice(0, 100);
   if (!jobs.length) return fail(res, '没有可计算的岗位', 400);
   const results = jobs.map(job => persistJobMatch(req.user.userId, job, profile, getSponsorProfile(job)));
   return ok(res, {
@@ -163,6 +183,8 @@ router.get('/:id/sponsor', (req, res) => {
 router.get('/:id/detail', authMiddleware, (req, res) => {
   const job = findJobById(req.params.id);
   if (!job) return fail(res, '职位不存在', 404);
+  const verification = getJobVerification(job.id);
+  const held = isUnavailableLocalJob(job, verification);
   const sponsor = getSponsorProfile(job);
   const profile = getProfile(req.user.userId);
   const match = profile && profile.completion >= 40 ? buildJobMatch(job, profile, sponsor) : null;
@@ -173,14 +195,21 @@ router.get('/:id/detail', authMiddleware, (req, res) => {
     SELECT *
     FROM applications WHERE user_id=? AND (job_id=? OR source_job_id=?) ORDER BY id DESC LIMIT 1
   `).get(req.user.userId, String(job.id), String(job.id));
+  const trust = buildPublicJobTrust(req.user.userId, job, verification);
   analytics.trackFunnel(req.user.userId, 'job_viewed', withCoreRefs(
     { jobId: String(job.id) },
     { userId: req.user.userId, jobId: String(job.id) },
     applicationRefs(application || {})
   ), '/api/v4/jobs/:id/detail');
   return ok(res, {
-    job: { ...job, deadline: job.deadline || '', officialApplyUrl: job.applyUrl || job.sourceUrl || '', dataMeta: jobDataMeta(job) },
-    trust: buildJobTrust(req.user.userId, job),
+    job: { ...job, deadline: job.deadline || '',
+      applyUrl: held ? '' : job.applyUrl || '',
+      sourceUrl: held ? '' : job.sourceUrl || '',
+      officialApplyUrl: held ? '' : job.applyUrl || job.sourceUrl || '',
+      applicationStatus: verification?.status || 'unverified', isApplyAvailable: !held,
+      applicationNotice: held ? (isHeldVerification(verification) ? '该岗位已关闭或待人工复核，暂不可申请' : '该岗位截止日期已过，暂不可申请，请以企业公告为准') : '',
+      dataMeta: jobDataMeta(job) },
+    trust,
     sponsor,
     match,
     company,
@@ -198,7 +227,7 @@ router.get('/:id/detail', authMiddleware, (req, res) => {
 router.get('/:id/trust', authMiddleware, (req, res) => {
   const job = findJobById(req.params.id);
   if (!job) return fail(res, '职位不存在', 404);
-  return ok(res, buildJobTrust(req.user.userId, job));
+  return ok(res, buildPublicJobTrust(req.user.userId, job, getJobVerification(job.id)));
 });
 
 router.post('/:id/trust/observations', authMiddleware, (req, res) => {
@@ -206,7 +235,7 @@ router.post('/:id/trust/observations', authMiddleware, (req, res) => {
   if (!job) return fail(res, '职位不存在', 404);
   try {
     jobTrust.recordObservation(req.user.userId, job, req.body);
-    return ok(res, buildJobTrust(req.user.userId, job), '官网核验记录已保存');
+    return ok(res, buildPublicJobTrust(req.user.userId, job, getJobVerification(job.id)), '官网核验记录已保存');
   } catch (error) {
     return res.status(error.status || 400).json({ code: error.code || -1, message: error.message || '核验记录保存失败', data: null });
   }

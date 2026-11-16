@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { hasPermission, permissionForAdminPath } = require('../utils/adminPermissions');
+const { getAccount } = require('../utils/adminAccounts');
 
 /**
  * 管理员鉴权中间件
@@ -13,9 +14,14 @@ function adminAuth(req, res, next) {
   try {
     const payload = jwt.verify(header.slice(7), process.env.JWT_SECRET);
     if (payload.role !== 'admin') throw new Error('not admin');
-    req.admin = payload;
+    const id = Number(payload.id);
+    const account = Number.isSafeInteger(id) && id > 0 ? getAccount(id) : null;
+    if (!account || !account.is_active || account.username !== payload.sub) {
+      return res.status(403).json({ code: 'ADMIN_INACTIVE', message: '管理账号已停用或不存在' });
+    }
+    req.admin = { ...payload, adminRole: account.role, permissions: account.permissions };
     const permission = permissionForAdminPath(req.originalUrl || req.path);
-    if (permission && !hasPermission(payload, permission)) {
+    if (permission && !hasPermission(req.admin, permission)) {
       return res.status(403).json({ code: -1, message: '没有该模块的管理权限' });
     }
     next();

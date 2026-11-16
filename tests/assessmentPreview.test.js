@@ -149,7 +149,7 @@ test('preview home and signed-in list render examples without purchase queries o
   const { api, calls, events } = adapter(configFor('develop', 'devtools', true), unavailable);
   const home = page('pages/index/index.js', api); home._visible = true;
   await home.fetchAssessmentProducts();
-  assert.equal(home.data.assessmentPreview, true); assert.equal(home.data.assessmentProducts.length, 3);
+  assert.equal(home.data.assessmentPreview, true); assert.equal(home.data.assessmentProducts.length, 0); assert.equal(home.data.assessmentAvailable, false);
   const list = page('package-content/pages/assessment-list/assessment-list.js', api); list._active = true;
   await list.load(); assert.equal(list.data.preview, true); assert.equal(list.data.items.length, 3);
   assert.equal(list.data.hasMore, false);

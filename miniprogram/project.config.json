@@ -31,7 +31,16 @@
         "type": "regexp"
       }
     ],
-    "include": []
+    "include": [
+      {
+        "value": "skills",
+        "type": "folder"
+      },
+      {
+        "value": "page-meta.json",
+        "type": "file"
+      }
+    ]
   },
   "setting": {
     "bundle": false,

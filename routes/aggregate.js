@@ -12,6 +12,7 @@ const { internalTaskAuth } = require('../middleware/internalAuth');
 const { buildDataMeta, summarizeDataMeta } = require('../utils/dataProvenance');
 
 // ── 建表 ──────────────────────────────────────────────────────────────────────
+if (require('../db/legacyBootstrap').needsLegacyBootstrap(db)) {
 db.exec(`
   CREATE TABLE IF NOT EXISTS aggregated_jobs (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,6 +49,7 @@ db.exec(`
     ran_at       TEXT DEFAULT (datetime('now'))
   );
 `);
+}
 
 // ── 签证赞助关键词检测 ─────────────────────────────────────────────────────────
 const SPONSOR_YES = [

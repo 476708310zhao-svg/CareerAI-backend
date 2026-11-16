@@ -66,4 +66,25 @@
       {{submitting ? '提交中...' : '提交反馈'}}
     </c-button>
   </view>
+
+  <view class="feedback-history" aria-label="我的反馈记录">
+    <view class="history-heading">
+      <view><text class="history-title">我的反馈</text><text class="history-sub">官网与小程序使用同一账号时，可查看同一批处理状态。</text></view>
+      <button class="history-refresh" bindtap="refreshHistory" disabled="{{historyLoading || historyAuthRequired}}">刷新</button>
+    </view>
+    <view class="history-state" wx:if="{{historyAuthRequired}}">{{historyError || '登录后可查看自己的反馈记录。'}}</view>
+    <view class="history-state" wx:elif="{{historyLoading && history.length === 0}}" role="status">正在加载反馈记录…</view>
+    <view class="history-state history-error" wx:elif="{{historyError}}" role="alert">
+      <text>{{historyError}}</text><button bindtap="retryHistory">重试</button>
+    </view>
+    <view class="history-state" wx:elif="{{history.length === 0}}">还没有反馈记录。提交后可在这里查看处理进度。</view>
+    <block wx:for="{{history}}" wx:key="id">
+      <view class="history-item">
+        <view class="history-item-head"><text class="history-type">{{item.type}}</text><text class="history-status status-{{item.status}}">{{item.statusLabel}}</text></view>
+        <text class="history-content">{{item.content}}</text>
+        <text class="history-meta">{{item.createdAt}}{{item.jobId ? ' · 岗位 ' + item.jobId : ''}}</text>
+      </view>
+    </block>
+    <button class="history-more" wx:if="{{nextCursor && !historyError}}" bindtap="loadMoreHistory" disabled="{{historyLoading}}">{{historyLoading ? '加载中…' : '加载更多'}}</button>
+  </view>
 </view>

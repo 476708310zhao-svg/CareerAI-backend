@@ -1,0 +1,9 @@
+<view class="holder-message">AI 卡片会在对话中展示</view>
+<block wx:if="{{showSkillCards}}">
+  <campus-list />
+  <deadline-list />
+  <interview-detail-card />
+  <interview-list />
+  <job-detail-card />
+  <job-list />
+</block>

@@ -9,12 +9,24 @@ const fs      = require('fs');
 const router  = express.Router();
 const { aiLimiter } = require('../middleware/rateLimit');
 const { authMiddleware } = require('../middleware/auth');
-const { UPLOAD_DIR, ensureDir } = require('../utils/paths');
+const { DATA_DIR, UPLOAD_DIR } = require('../utils/paths');
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const ASR_TIMEOUT_MS = 20000;
+
+// Speech recordings must never be placed below a directory served by Express.
+const PRIVATE_ASR_DIR = path.join(DATA_DIR, 'private-asr');
+fs.mkdirSync(PRIVATE_ASR_DIR, { recursive: true, mode: 0o700 });
+const privateReal = fs.realpathSync(PRIVATE_ASR_DIR);
+for (const exposed of [UPLOAD_DIR, path.join(__dirname, '..', 'public'), path.join(__dirname, '..', 'admin'), path.join(__dirname, '..', 'miniprogram')]) {
+  const relative = path.relative(fs.realpathSync(exposed), privateReal);
+  if (!relative || (relative !== '..' && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative))) {
+    throw new Error('ASR 临时目录不能位于公开静态目录内');
+  }
+}
 
 // ── 临时存储上传的音频文件 ──────────────────────────────────────
 const upload = multer({
-  dest: ensureDir(path.join(UPLOAD_DIR, 'asr_tmp')),
+  dest: PRIVATE_ASR_DIR,
   limits: { fileSize: 5 * 1024 * 1024 },  // 5MB
   fileFilter(_req, file, cb) {
     const ok = ['audio/mp3', 'audio/mpeg', 'audio/wav', 'audio/silk', 'audio/webm', 'application/octet-stream'].includes(file.mimetype);
@@ -103,7 +115,9 @@ function callTencentASR(audioBase64, engModelType) {
     const req = https.request(options, res => {
       let data = '';
       res.on('data', chunk => { data += chunk; });
+      res.on('error', error => { clearTimeout(deadline); reject(error); });
       res.on('end', () => {
+        clearTimeout(deadline);
         try {
           const json = JSON.parse(data);
           if (json.Response && json.Response.Result) {
@@ -118,7 +132,12 @@ function callTencentASR(audioBase64, engModelType) {
       });
     });
 
-    req.on('error', reject);
+    const deadline = setTimeout(() => {
+      const error = new Error('语音识别服务响应超时');
+      error.code = 'ASR_TIMEOUT';
+      req.destroy(error);
+    }, ASR_TIMEOUT_MS);
+    req.on('error', error => { clearTimeout(deadline); reject(error); });
     req.write(body);
     req.end();
   });
@@ -141,8 +160,8 @@ router.post('/transcribe', authMiddleware, aiLimiter, upload.single('audio'), as
     res.json({ success: true, text: result.text, mock: result.mock || false });
   } catch (err) {
     console.error('[ASR] transcribe error:', err.message);
-    const status = err.code === 'ASR_NOT_CONFIGURED' ? 503 : 500;
-    res.status(status).json({ code: err.code || 'ASR_TRANSCRIBE_FAILED', error: 'ASR 识别失败', detail: err.message });
+    const status = err.code === 'ASR_NOT_CONFIGURED' ? 503 : err.code === 'ASR_TIMEOUT' ? 504 : 500;
+    res.status(status).json({ code: err.code || 'ASR_TRANSCRIBE_FAILED', error: 'ASR 识别失败' });
   } finally {
     // Clean up temp file
     if (tmpPath) {

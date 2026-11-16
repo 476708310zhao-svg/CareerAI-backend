@@ -40,6 +40,11 @@
       </view>
     </view>
 
+    <view class="application-hold-card" wx:if="{{applicationHeld || applicationPending}}" role="alert">
+      <text class="application-hold-title">{{applicationPending ? '正在核对岗位' : (job.applicationStatus === 'closed' ? '申请已关闭' : '岗位待人工复核')}}</text>
+      <text class="application-hold-notice">{{applicationNotice}}</text>
+    </view>
+
     <view class="section-card company-summary-card" wx:if="{{companyView}}">
       <view class="company-summary-main">
         <c-company-logo
@@ -73,7 +78,7 @@
       <view class="trust-risks" wx:if="{{jobTrust.risks.length}}"><text class="trust-risk" wx:for="{{jobTrust.risks}}" wx:key="*this">提醒：{{item}}</text></view>
       <text class="trust-recommendation">建议：{{jobTrust.recommendation}}</text>
       <text class="trust-notice">{{jobTrust.notice}}</text>
-      <view class="trust-actions"><view class="trust-button secondary" bindtap="openOfficialForTrust">打开官网核对</view><view class="trust-button" bindtap="recordTrustObservation">{{trustObserving ? '记录中...' : '记录核验结果'}}</view></view>
+      <view class="trust-actions" wx:if="{{!applicationHeld && !applicationPending}}"><view class="trust-button secondary" bindtap="openOfficialForTrust">打开官网核对</view><view class="trust-button" bindtap="recordTrustObservation">{{trustObserving ? '记录中...' : '记录核验结果'}}</view></view>
     </view>
 
     <view class="section-card match-summary-card" wx:if="{{inlineMatch}}">
@@ -119,6 +124,13 @@
         <text class="content-text" user-select>{{item.text}}</text>
       </view>
       <view class="description-expand" wx:if="{{jobView.hasMoreDescription}}" bindtap="toggleDescription">{{descriptionExpanded ? '收起职位描述' : '展开完整职位描述'}}</view>
+    </view>
+
+    <view class="section-card" wx:if="{{job.sourceUrl && !job.applyLink}}">
+      <view class="section-heading-row"><text class="section-title">官方来源</text></view>
+      <text class="content-text" wx:if="{{job.sourceReference}}">职位编号：{{job.sourceReference}}</text>
+      <text class="content-text">此来源未提供直接申请网址，请在官方职位列表中按编号查找，并核对申请资格。</text>
+      <view class="description-expand" bindtap="copyOfficialSource">复制官方职位列表地址</view>
     </view>
 
     <view class="section-card" wx:if="{{jobView.requirementBlocks.length}}">
@@ -195,15 +207,19 @@
     </view>
     <view class="footer-match" bindtap="runJdMatch" hover-class="tap-muted"><text class="footer-ai">AI</text><text>匹配分析</text></view>
     <view class="footer-queue" bindtap="addToProgress" hover-class="tap-muted">{{isApplying ? '保存中…' : (inProgress && progressStatusText !== '已收藏' ? '查看进度' : '待投递')}}</view>
-    <view class="footer-apply {{jobView.deadlineClosed && !inProgress ? 'disabled' : ''}}" bindtap="applyJob" hover-class="footer-apply--pressed">{{jobView.applyButtonText}}</view>
+    <view class="footer-apply {{applicationHeld || applicationPending || (jobView.deadlineClosed && !inProgress) ? 'disabled' : ''}}" bindtap="applyJob" hover-class="footer-apply--pressed">{{jobView.applyButtonText}}</view>
   </view>
 
   <view class="match-mask" wx:if="{{showMatchPanel}}" bindtap="closeMatchPanel"></view>
   <view class="match-panel {{showMatchPanel ? 'show' : ''}}" wx:if="{{matchReport}}">
     <view class="match-header"><view><text class="match-kicker">JD MATCH</text><text class="match-title">简历匹配报告</text></view><text class="match-close" bindtap="closeMatchPanel">✕</text></view>
-    <view class="match-score-row">
+    <view class="match-score-row" wx:if="{{matchReport.score !== null}}">
       <view class="score-ring"><text class="score-num">{{matchReport.score}}</text><text class="score-label">分</text></view>
       <view class="match-score-copy"><text class="score-job">{{matchReport.company}} · {{matchReport.jobTitle}}</text><text class="score-risk">ATS 风险：{{matchReport.atsRisk}}</text><text class="score-risk" wx:if="{{matchReport.dimensions}}">资格 {{matchReport.dimensions.qualification}} · 技能 {{matchReport.dimensions.skills}} · 岗位/项目 {{matchReport.dimensions.roleAndProjects}}</text></view>
+    </view>
+    <view class="match-section" wx:if="{{matchReport.score === null && matchReport.evidence.keywordCoverage}}">
+      <text class="match-section-title">简历关键词覆盖 {{matchReport.evidence.keywordCoverage.percent}}%</text>
+      <text class="match-body">已在简历中找到 {{matchReport.evidence.keywordCoverage.matched}} / {{matchReport.evidence.keywordCoverage.total}} 项岗位关键词。此比例仅统计可核对的技能词，不代表录用概率。</text>
     </view>
     <view class="match-verdict" wx:if="{{matchReport.decision}}">
       <text class="match-tier">{{matchReport.tierLabel}}</text>
@@ -215,6 +231,21 @@
     <view class="match-section"><text class="match-section-title">简历暂未体现</text><view class="match-chip-row" wx:if="{{matchReport.missingKeywords.length}}"><text wx:for="{{matchReport.missingKeywords}}" wx:key="*this" class="match-chip missing">{{item}}</text></view><text wx:else class="match-empty">关键词覆盖不错，继续强化成果表达。</text></view>
     <view class="match-section"><text class="match-section-title">建议强化项目</text><text class="match-body">{{matchReport.projectSuggestion}}</text></view>
     <view class="match-section"><text class="match-section-title">优化建议</text><view wx:for="{{matchReport.suggestions}}" wx:key="*this" class="match-suggestion"><text class="suggestion-dot"></text><text class="suggestion-text">{{item}}</text></view></view>
+    <view class="match-section" wx:if="{{matchReport.evidence}}">
+      <text class="match-section-title">岗位与简历依据</text>
+      <text class="match-evidence-note">仅比较岗位原文与当前在线简历中可核对的表述；“未体现”不等于不具备。</text>
+      <view wx:for="{{matchReport.evidence.matches}}" wx:key="label" class="match-evidence-item">
+        <text class="match-evidence-label">匹配点 · {{item.label}}</text>
+        <text class="match-evidence-quote">岗位原文：{{item.jobQuote}}</text>
+        <text class="match-evidence-quote">{{item.resumeSource}}：{{item.resumeQuote}}</text>
+      </view>
+      <view wx:for="{{matchReport.evidence.gaps}}" wx:key="label" class="match-evidence-item">
+        <text class="match-evidence-label">简历未体现 · {{item.label}}</text>
+        <text class="match-evidence-quote">岗位原文：{{item.jobQuote}}</text>
+        <text class="match-evidence-note">{{item.note}}</text>
+      </view>
+      <view wx:for="{{matchReport.evidence.nextActions}}" wx:key="*this" class="match-suggestion"><text class="suggestion-dot"></text><text class="suggestion-text">下一步：{{item}}</text></view>
+    </view>
     <view class="match-actions"><view class="match-action secondary" bindtap="closeMatchPanel">稍后处理</view><view class="match-action primary" bindtap="goResumeOptimize">去优化简历</view></view>
   </view>
 

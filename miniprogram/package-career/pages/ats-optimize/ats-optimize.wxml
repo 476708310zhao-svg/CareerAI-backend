@@ -13,7 +13,12 @@
     <!-- 简历选择 -->
     <view class="card">
       <view class="card-title">选择简历</view>
-      <view wx:if="{{serverResumes.length === 0}}" class="empty-resume">
+      <view wx:if="{{resumesLoading}}" class="empty-resume">正在读取在线简历…</view>
+      <view wx:elif="{{resumeLoadError}}" class="empty-resume">
+        <text>{{resumeLoadError}}</text>
+        <text class="link" bindtap="retryLoadResumes">重新读取 ›</text>
+      </view>
+      <view wx:elif="{{serverResumes.length === 0}}" class="empty-resume">
         <text>暂无简历，</text>
         <text class="link" bindtap="goToResume">去完善简历 ›</text>
       </view>
@@ -27,7 +32,7 @@
           <view class="resume-icon">📄</view>
           <view class="resume-info">
             <text class="resume-name">{{item.name}}</text>
-            <text class="resume-date">{{item.updated_at}}</text>
+            <text class="resume-date">{{item.updatedAt}}</text>
           </view>
           <view wx:if="{{selectedResumeId === item.id}}" class="check-icon">✓</view>
         </view>

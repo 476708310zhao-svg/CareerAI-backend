@@ -138,6 +138,17 @@ Page({
     this._calcCompleteness();
   },
 
+  onShow() {
+    if (!this._resumeImportReturn) return;
+    this._resumeImportReturn = false;
+    this._loadRemoteProfile().then(() => this._loadV4Profile());
+  },
+
+  goImportResume() {
+    this._resumeImportReturn = true;
+    wx.navigateTo({ url: '/package-career/pages/resume-center/resume-center' });
+  },
+
   _loadProfileSchema() {
     if (typeof api.getUserProfileSchema !== 'function') return;
     api.getUserProfileSchema().then(res => {

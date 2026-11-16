@@ -243,7 +243,7 @@
   <!-- 底部操作栏 -->
   <view class="bottom-bar">
     <view class="btn-secondary" bindtap="retryInterview">再次面试</view>
-    <view wx:if="{{report.applicationId}}" class="btn-secondary application-save-btn {{savedToApplication ? 'is-saved' : ''}}" bindtap="saveToApplication">{{savingToApplication ? '保存中…' : (savedToApplication ? '已加入申请' : '加入当前申请')}}</view>
+    <view wx:if="{{report.applicationId}}" class="btn-secondary application-save-btn {{savedToApplication ? 'is-saved' : ''}}" bindtap="saveToApplication">{{savingToApplication ? '保存中…' : (savedToApplication ? '已关联摘要' : '关联摘要到当前申请')}}</view>
     <view class="btn-primary" bindtap="saveAsImage">保存图片</view>
   </view>
 

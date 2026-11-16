@@ -297,8 +297,17 @@ function buildResumeDraftFromText(text, filename) {
   ];
   const lower = joined.toLowerCase();
   const skills = skillKeywords.filter(skill => lower.includes(skill.toLowerCase())).slice(0, 20);
+  const explicitValues = pattern => {
+    const line = lines.find(item => pattern.test(item));
+    if (!line) return [];
+    const value = line.replace(pattern, '').trim();
+    return value.split(/[,，、;；|｜]/).map(item => item.trim()).filter(item => item && item.length <= 60).slice(0, 5);
+  };
+  const targetRoles = explicitValues(/^(?:求职意向|目标岗位|期望职位|target\s*(?:role|position)|desired\s*(?:role|position))\s*[:：-]\s*/i);
+  const targetCities = explicitValues(/^(?:目标城市|期望地点|工作地点|preferred\s*location|target\s*location)\s*[:：-]\s*/i);
   const summaryLines = lines
-    .filter(line => !line.includes('@') && !/linkedin|github/i.test(line))
+    .filter(line => !line.includes('@') && !/linkedin|github/i.test(line)
+      && !/\b1[3-9]\d{9}\b|(?:电话|手机|phone|mobile)\s*[:：]/i.test(line))
     .slice(0, 6);
 
   return {
@@ -316,6 +325,7 @@ function buildResumeDraftFromText(text, filename) {
     education: parseEducation(lines),
     skills,
     projects: parseProjects(lines),
+    jobPreference: { targetRoles, targetCities },
     sourceAttachment: {
       filename,
       extractedAt: new Date().toISOString()
@@ -364,9 +374,21 @@ router.post('/resume-pdf', authMiddleware, pdfUpload.single('file'), (req, res) 
 // GET /api/upload/resume-pdfs — 获取当前用户所有 PDF 简历
 router.get('/resume-pdfs', authMiddleware, (req, res) => {
   const rows = db.prepare(
-    'SELECT id, original_name, file_url, file_size, created_at FROM resume_pdfs WHERE user_id=? ORDER BY created_at DESC LIMIT 10'
+    'SELECT id, original_name, file_url, file_size, created_at FROM resume_pdfs WHERE user_id=? ORDER BY created_at DESC LIMIT 100'
   ).all(req.user.userId);
   res.json({ code: 0, data: rows });
+});
+
+router.get('/resume-pdf/:id/file', authMiddleware, (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ code: -1, message: '附件 ID 无效' });
+  const row = db.prepare('SELECT filename, original_name FROM resume_pdfs WHERE id=? AND user_id=?').get(id, req.user.userId);
+  if (!row) return res.status(404).json({ code: -1, message: '附件不存在' });
+  const pdfPath = path.join(UPLOAD_DIR, 'resumes', path.basename(row.filename));
+  if (!fs.existsSync(pdfPath)) return res.status(404).json({ code: -1, message: 'PDF 文件不存在' });
+  res.set('Cache-Control', 'private, no-store');
+  res.type('application/pdf');
+  res.sendFile(pdfPath);
 });
 
 router.post('/resume-pdf/:id/extract', authMiddleware, async (req, res) => {
@@ -412,6 +434,15 @@ router.delete('/resume-pdf/:id', authMiddleware, (req, res) => {
   const id  = parseInt(req.params.id, 10);
   const row = db.prepare('SELECT * FROM resume_pdfs WHERE id=? AND user_id=?').get(id, req.user.userId);
   if (!row) return res.status(404).json({ code: -1, message: '文件不存在' });
+  const activeResumes = db.prepare("SELECT id, data FROM resumes WHERE user_id=? AND COALESCE(archived_at, '')='' ").all(req.user.userId);
+  const linked = activeResumes.some(resume => {
+    try {
+      if (Number(JSON.parse(resume.data || '{}').sourceAttachment?.id) === id) return true;
+      const versions = db.prepare('SELECT content FROM resume_versions_v4 WHERE resume_id=? AND user_id=?').all(resume.id, req.user.userId);
+      return versions.some(version => Number(JSON.parse(version.content || '{}').sourceAttachment?.id) === id);
+    } catch (error) { return false; }
+  });
+  if (linked) return res.status(409).json({ code: -1, message: '附件已关联在线简历，请先归档对应在线简历' });
   fs.unlink(path.join(UPLOAD_DIR, 'resumes', row.filename), () => {});
   db.prepare('DELETE FROM resume_pdfs WHERE id=?').run(id);
   res.json({ code: 0, message: '已删除' });
@@ -426,3 +457,4 @@ router.use((err, req, res, next) => {
 });
 
 module.exports = router;
+module.exports.buildResumeDraftFromText = buildResumeDraftFromText;

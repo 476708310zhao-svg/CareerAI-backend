@@ -64,26 +64,25 @@
 
 .ai-float-core {
   position: absolute;
-  top: -30rpx;
+  top: -18rpx;
   left: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 92rpx;
-  height: 92rpx;
+  width: 88rpx;
+  height: 88rpx;
   box-sizing: border-box;
-  flex-direction: column;
-  border: 3rpx solid rgba(255, 255, 255, .88);
-  border-radius: 50%;
-  background: linear-gradient(145deg, #67c8ff 0%, #315ee8 68%, #2448bd 100%);
-  box-shadow: 0 12rpx 30rpx rgba(49, 94, 232, .26), 0 0 0 10rpx rgba(232, 241, 255, .9);
+  border: 2rpx solid rgba(255, 255, 255, .78);
+  border-radius: 26rpx;
+  background: linear-gradient(135deg, #249eff 0%, #385bff 50%, #a64ff5 100%);
+  box-shadow: 0 7rpx 18rpx rgba(70, 83, 220, .2);
   transform: translateX(-50%);
   transition: opacity 160ms ease, transform 160ms ease;
 }
 
 .tabbar-ai-item.tabbar-item-hover .ai-float-core { opacity: .82; transform: translateX(-50%) scale(.96); }
-.ai-spark { display: block; width: 24rpx; height: 24rpx; margin-bottom: -1rpx; }
-.ai-float-text { position: relative; color: #fff; font-size: 22rpx; font-weight: 700; line-height: 28rpx; }
+.ai-spark { position: absolute; top: 10rpx; right: 10rpx; display: block; width: 18rpx; height: 18rpx; }
+.ai-float-text { position: relative; top: 3rpx; color: #fff; font-size: 42rpx; font-weight: 800; line-height: 50rpx; letter-spacing: -1rpx; }
 
 @media (prefers-reduced-motion: reduce) {
   .tabbar-item,

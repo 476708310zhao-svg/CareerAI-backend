@@ -108,7 +108,7 @@ function _getAuthHeader(context) {
 
 /**
  * 通用 GET 请求（含三层缓存）
- * @param {{ path: string, params?: object, cacheTTL?: number, timeout?: number, baseUrl?: string, skipAuth?: boolean }} options
+ * @param {{ path: string, params?: object, cacheTTL?: number, noCache?: boolean, noStale?: boolean, timeout?: number, baseUrl?: string, skipAuth?: boolean }} options
  */
 function request(options) {
   const now = Date.now();
@@ -140,7 +140,7 @@ function request(options) {
 
   // 层3：限流冷却期，返回过期缓存兜底
   if (now < (_rateLimitUntil[rateLimitKey] || 0)) {
-    const stale = _getStaleCache(key, auth.skipAuth);
+    const stale = options.noStale ? null : _getStaleCache(key, auth.skipAuth);
     if (stale) return Promise.resolve(stale);
     return Promise.resolve({ code: 429, data: [], _source: 'rateLimit' });
   }
@@ -162,7 +162,7 @@ function request(options) {
     };
 
     timer = setTimeout(() => {
-      const stale = _getStaleCache(key, auth.skipAuth);
+      const stale = options.noStale ? null : _getStaleCache(key, auth.skipAuth);
       finish(stale || { data: [], _source: 'timeout' });
       if (task && typeof task.abort === 'function') {
         try { task.abort(); } catch (e) {}
@@ -201,7 +201,7 @@ function request(options) {
           finish(res.data);
         } else if (res.statusCode === 429) {
           _rateLimitUntil[rateLimitKey] = Date.now() + 2 * 60 * 1000;
-          const stale = _getStaleCache(key, auth.skipAuth);
+          const stale = options.noStale ? null : _getStaleCache(key, auth.skipAuth);
           finish(stale || { code: 429, data: [], _source: 'rateLimit' });
         } else if (res.statusCode === 401) {
           _clearSessionIfCurrent(auth);
@@ -214,7 +214,7 @@ function request(options) {
       fail: (err) => {
         if (done) return;
         console.warn('[API] fail:', err.errMsg || err.message || err);
-        const stale = _getStaleCache(key, auth.skipAuth);
+        const stale = options.noStale ? null : _getStaleCache(key, auth.skipAuth);
         finish(stale || { data: [], _source: 'networkError' });
       }
     });
@@ -228,7 +228,7 @@ function request(options) {
  * 写请求（POST / PUT / DELETE，不走缓存）
  * 写请求默认不重试：网络错误时服务端可能已经完成非幂等操作。
  * 仅明确声明 retryOnNetworkError 的幂等调用可重试一次，且始终绑定原登录身份。
- * @param {{ method?: string, path: string, body?: object, timeout?: number, skipAuth?: boolean }} options
+ * @param {{ method?: string, path: string, body?: object, timeout?: number, hardTimeoutMs?: number, skipAuth?: boolean }} options
  */
 function _write(options, _retried, originalAuth) {
   return new Promise((resolve, reject) => {
@@ -236,37 +236,60 @@ function _write(options, _retried, originalAuth) {
     const auth = originalAuth || _authContext(options.skipAuth);
     if (!_sameIdentity(auth)) return reject(_authChangedError());
     const header = Object.assign({ 'Content-Type': 'application/json' }, _getAuthHeader(auth));
+    let settled = false;
+    let deadlineTimer = null;
+    let task = null;
+    const finish = (error, value) => {
+      if (settled) return;
+      settled = true;
+      if (deadlineTimer) clearTimeout(deadlineTimer);
+      if (error) reject(error);
+      else resolve(value);
+    };
 
-    wx.request({
+    task = wx.request({
       url: baseUrl + options.path,
       method: options.method || 'POST',
       data: options.body || options.data || {},
       header,
       timeout: options.timeout || 60000,
       success: (res) => {
-        if (!_sameIdentity(auth)) return reject(_authChangedError());
+        if (settled) return;
+        if (!_sameIdentity(auth)) return finish(_authChangedError());
         if (_isSuccessStatus(res.statusCode)) {
-          resolve(res.data === undefined ? { code: 0 } : res.data);
+          finish(null, res.data === undefined ? { code: 0 } : res.data);
         } else if (res.statusCode === 401) {
           _clearSessionIfCurrent(auth);
-          reject(new Error('unauthorized'));
+          finish(new Error('unauthorized'));
         } else {
-          reject(_createHttpError(res));
+          finish(_createHttpError(res));
         }
       },
       fail: (err) => {
-        if (!_sameIdentity(auth)) return reject(_authChangedError());
+        if (settled) return;
+        if (!_sameIdentity(auth)) return finish(_authChangedError());
         if (!_retried && options.retryOnNetworkError === true) {
           // 网络错误重试一次，延迟 1s
           setTimeout(() => {
-            if (!_sameIdentity(auth)) return reject(_authChangedError());
-            _write(options, true, auth).then(resolve).catch(reject);
+            if (settled) return;
+            if (!_sameIdentity(auth)) return finish(_authChangedError());
+            _write(options, true, auth).then(value => finish(null, value)).catch(finish);
           }, 1000);
         } else {
-          reject(_createNetworkError(err));
+          finish(_createNetworkError(err));
         }
       }
     });
+    if (!settled && Number(options.hardTimeoutMs) > 0) {
+      deadlineTimer = setTimeout(() => {
+        const error = new Error('请求超时，请稍后重试');
+        error.code = 'REQUEST_TIMEOUT';
+        finish(error);
+        if (task && typeof task.abort === 'function') {
+          try { task.abort(); } catch (e) {}
+        }
+      }, Number(options.hardTimeoutMs));
+    }
   });
 }
 

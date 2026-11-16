@@ -55,6 +55,7 @@ Page({
     navigation.safeNavigateTo(item.url + (query ? `${item.url.includes('?') ? '&' : '?'}${query}` : ''));
   },
   clearFilters() { this.setData({ keyword: '' }, () => this.applyFilters()); },
+  openPractice() { navigation.safeNavigateTo('/package-content/pages/practice-home/practice-home'); },
   openPurchases() { navigation.safeNavigateTo(assessmentResources.purchasesUrl()); },
   onShareAppMessage() { return { title: '职引资源中心｜题库、面经与公司内容', path: '/pages/resources/resources' }; }
 });

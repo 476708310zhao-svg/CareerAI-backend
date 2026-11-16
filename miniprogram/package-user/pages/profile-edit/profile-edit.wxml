@@ -13,7 +13,8 @@
         <text class="hero-school">{{userInfo.school || userInfo.major || '可随时补充或修改资料'}}</text>
       </view>
     </view>
-    <text class="hero-help">先填写学校、学历和求职方向，其他信息可以稍后补充。</text>
+    <text class="hero-help">上传文字版 PDF 可自动补齐学校、学历、技能和简历中写明的求职方向。</text>
+    <view class="resume-import-link" bindtap="goImportResume" aria-role="button">从 PDF 简历导入资料 ›</view>
   </view>
 
   <!-- 基本信息 -->

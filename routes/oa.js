@@ -12,6 +12,7 @@ const { authMiddleware } = require('../middleware/auth');
 const { parseId }        = require('../db/utils');
 
 // ── 建表 ──────────────────────────────────────────────────────────────────────
+if (require('../db/legacyBootstrap').needsLegacyBootstrap(db)) {
 db.exec(`
   CREATE TABLE IF NOT EXISTS oa_questions (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,6 +35,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_oa_user   ON oa_questions(user_id);
   CREATE INDEX IF NOT EXISTS idx_oa_status ON oa_questions(status);
 `);
+}
 
 // ── 列表 ─────────────────────────────────────────────────────────────────────
 router.get('/', authMiddleware, (req, res) => {

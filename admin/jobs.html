@@ -23,15 +23,24 @@
       <div class="toolbar">
         <input type="text" id="kw" placeholder="搜索职位名称、公司..." onkeydown="if(event.key==='Enter')load(1)">
         <button class="btn btn-outline" onclick="load(1)"><i class="fa-solid fa-search"></i> 搜索</button>
+        <input type="number" id="auditJobId" min="1" placeholder="已删除岗位 ID" style="max-width:150px">
+        <button class="btn btn-outline" onclick="loadDeletedAudit()">查删除审计</button>
       </div>
       <div class="table-card">
         <div class="table-wrap"><table>
-          <thead><tr><th>ID</th><th>职位</th><th>公司</th><th>地区</th><th>薪资</th><th>类型</th><th>签证</th><th>发布日期</th><th>操作</th></tr></thead>
+          <thead><tr><th>ID</th><th>职位</th><th>公司</th><th>地区</th><th>薪资</th><th>类型</th><th>签证</th><th>发布日期</th><th>人工核验</th><th>申请链接检查</th><th>操作</th></tr></thead>
           <tbody id="tbody"></tbody>
         </table></div>
         <div class="pagination" id="pagi"></div>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="deletedAuditModal" onclick="if(event.target===this)closeModal('deletedAuditModal')">
+  <div class="modal-box" style="max-width:700px">
+    <div class="modal-header"><h3>岗位删除审计</h3><button class="modal-close" onclick="closeModal('deletedAuditModal')">×</button></div>
+    <div class="modal-body" id="deletedAuditList"></div>
   </div>
 </div>
 
@@ -61,6 +70,10 @@
         <div class="form-group"><label>Logo URL</label><input type="text" id="f_logo" placeholder="https://..."></div>
       </div>
       <div class="form-group"><label>职位描述</label><textarea id="f_description" rows="3"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>公开申请 URL</label><input type="url" id="f_applyUrl" placeholder="https://企业申请页面"></div>
+        <div class="form-group"><label>公开截止日期</label><input type="date" id="f_deadline"></div>
+      </div>
       <div class="form-check">
         <input type="checkbox" id="f_visa"><label for="f_visa">提供签证担保</label>
       </div>
@@ -72,11 +85,54 @@
   </div>
 </div>
 
+<!-- 人工核验 Modal；记录当时人工查看结果，不代表链接实时健康。 -->
+<div class="modal-overlay" id="verificationModal" onclick="if(event.target===this)closeModal('verificationModal')">
+  <div class="modal-box" style="max-width:700px">
+    <div class="modal-header"><h3>岗位人工核验</h3><button class="modal-close" onclick="closeModal('verificationModal')">×</button></div>
+    <div class="modal-body">
+      <p style="color:#6b7280;font-size:13px">“可申请”只表示管理员在核验时间看到可申请，不保证当前链接仍有效。标记可申请前，请先在“编辑岗位”中同步公开申请 URL 和截止日期。</p>
+      <div class="form-row">
+        <div class="form-group"><label>原始公告 URL</label><input type="url" id="v_announcementUrl" placeholder="https://..."></div>
+        <div class="form-group"><label>企业申请 URL</label><input type="url" id="v_employerApplyUrl" placeholder="https://..."></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>截止日期（未知留空）</label><input type="date" id="v_deadline"></div>
+        <div class="form-group"><label>人工核验状态</label><select id="v_status"><option value="unverified">未核验</option><option value="open">核验时可申请</option><option value="closed">核验时已关闭</option><option value="review_needed">待复核</option></select></div>
+      </div>
+      <div class="form-group"><label>核验说明</label><textarea id="v_note" rows="3" maxlength="1000"></textarea></div>
+      <div id="v_last" style="color:#6b7280;font-size:13px"></div>
+      <div style="margin-top:14px;font-weight:600">核验记录</div><div id="v_audit" style="max-height:160px;overflow:auto;font-size:13px;color:#6b7280"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('verificationModal')">取消</button><button class="btn btn-primary" onclick="saveVerification()">保存人工核验</button></div>
+  </div>
+</div>
+
 <script src="js/config.js"></script><script src="js/common.js"></script>
 <script>
-let page = 1, total = 0, editId = null;
+let page = 1, total = 0, editId = null, verificationId = null, verificationVersion = 0;
+const verificationLabels = { unverified:'未核验', open:'核验时可申请', closed:'核验时已关闭', review_needed:'待复核' };
+const linkHealthLabels = { reachable:'链接可访问', needs_review:'疑似失效，需人工复核',
+  inconclusive:'结果不确定，需人工核对', blocked:'安全限制，需人工核对' };
+function linkHealthText(health) {
+  if (!health) return '未检查';
+  const evidence = health.statusCode ? ` · HTTP ${health.statusCode}` : '';
+  return `${linkHealthLabels[health.outcome] || '未检查'}${evidence} · ${health.checkedAt || ''}`;
+}
 initPage('jobs', '岗位管理');
-load(1);
+if (document.getElementById('kw')) load(1).then(openDeepLinkedJob);
+
+function openDeepLinkedJob() {
+  const params = new URLSearchParams(location.search);
+  const rawId = params.get('jobId') || '';
+  if (!/^[1-9]\d{0,9}$/.test(rawId)) return;
+  const id = Number(rawId);
+  if (!Number.isSafeInteger(id) || id > 2147483647) return;
+  if (params.get('view') === 'verification') openVerification(id);
+  if (params.get('view') === 'deleted-audit') {
+    document.getElementById('auditJobId').value = String(id);
+    loadDeletedAudit();
+  }
+}
 
 async function load(p) {
   page = p;
@@ -95,17 +151,20 @@ async function load(p) {
       <td><span class="badge ${j.jobType==='实习'?'badge-amber':'badge-blue'}">${esc(j.jobType||'全职')}</span></td>
       <td>${j.visaSponsored?'<span class="badge badge-green">✓</span>':'-'}</td>
       <td>${fmtDate(j.postedAt)}</td>
+      <td>${esc(verificationLabels[j.verification?.status] || '未核验')}${j.verification?.availabilityHold ? '<br><small>暂停展示</small>' : ''}${j.verification?.verifiedAt ? `<br><small>${esc(j.verification.verifiedAt.slice(0,10))}</small>` : ''}</td>
+      <td><small>${esc(linkHealthText(j.linkHealth))}</small></td>
       <td><div class="td-actions">
         <button class="btn btn-outline btn-sm" onclick="openEdit(${j.id})"><i class="fa-solid fa-pen"></i></button>
+        <button class="btn btn-outline btn-sm" onclick="openVerification(${j.id})">核验</button>
         <button class="btn btn-danger btn-sm" onclick="del(${j.id})"><i class="fa-solid fa-trash"></i></button>
       </div></td>
-    </tr>`).join('') : '<tr class="empty-row"><td colspan="9">暂无数据</td></tr>';
+    </tr>`).join('') : '<tr class="empty-row"><td colspan="11">暂无数据</td></tr>';
   renderPagination('pagi', page, total, 15, 'load');
 }
 
 function openAdd() {
   editId = null; document.getElementById('modalTitle').textContent = '新增岗位';
-  ['f_title','f_company','f_location','f_salary','f_industry','f_logo','f_description'].forEach(id => document.getElementById(id).value = '');
+  ['f_title','f_company','f_location','f_salary','f_industry','f_logo','f_description','f_applyUrl','f_deadline'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('f_region').value = '美国';
   document.getElementById('f_jobType').value = '全职';
   document.getElementById('f_visa').checked = false;
@@ -113,8 +172,8 @@ function openAdd() {
 }
 
 async function openEdit(id) {
-  const res = await GET(`/admin/api/jobs?page=1&pageSize=1000`);
-  const j = res && res.data.list.find(x => x.id === id);
+  const res = await GET(`/admin/api/jobs/${id}`);
+  const j = res && res.data;
   if (!j) return;
   editId = id; document.getElementById('modalTitle').textContent = '编辑岗位';
   document.getElementById('f_title').value = j.title || '';
@@ -126,6 +185,8 @@ async function openEdit(id) {
   document.getElementById('f_industry').value = j.industry || '';
   document.getElementById('f_logo').value = j.companyLogo || '';
   document.getElementById('f_description').value = j.description || '';
+  document.getElementById('f_applyUrl').value = j.applyUrl || '';
+  document.getElementById('f_deadline').value = j.deadline || '';
   document.getElementById('f_visa').checked = !!j.visaSponsored;
   openModal('modal');
 }
@@ -141,6 +202,8 @@ async function save() {
     industry: document.getElementById('f_industry').value.trim(),
     companyLogo: document.getElementById('f_logo').value.trim(),
     description: document.getElementById('f_description').value.trim(),
+    applyUrl: document.getElementById('f_applyUrl').value.trim(),
+    deadline: document.getElementById('f_deadline').value,
     visaSponsored: document.getElementById('f_visa').checked,
     requirements: []
   };
@@ -148,6 +211,51 @@ async function save() {
   const res = editId ? await PUT(`/admin/api/jobs/${editId}`, body) : await POST('/admin/api/jobs', body);
   if (res && res.code === 0) { toast(editId ? '更新成功' : '添加成功'); closeModal('modal'); load(page); }
   else toast(res?.message || '操作失败', 'error');
+}
+
+async function openVerification(id) {
+  const res = await GET(`/admin/api/jobs/${id}/verification`);
+  if (!res || res.code !== 0) return;
+  verificationId = id;
+  const record = res.data.verification;
+  verificationVersion = record.version;
+  ['announcementUrl','employerApplyUrl','deadline','note'].forEach(key => {
+    document.getElementById(`v_${key}`).value = record[key] || '';
+  });
+  document.getElementById('v_status').value = record.status;
+  document.getElementById('v_last').textContent = record.verifiedAt
+    ? `上次人工核验：${record.verifiedAt} · ${record.verifiedBy?.username || '未知管理员'}` : '尚无有效人工核验时间';
+  if (record.availabilityHold) document.getElementById('v_last').textContent += ' · 当前暂停公开展示，需明确核验可申请后恢复';
+  document.getElementById('v_last').textContent += ` · 申请链接检查：${linkHealthText(res.data.linkHealth)}`;
+  document.getElementById('v_audit').innerHTML = res.data.audit.length
+    ? res.data.audit.slice().reverse().map(item => `<div>${esc(item.at)} · ${esc(item.actor?.username || '未知管理员')} · ${esc(item.action)} · ${esc(verificationLabels[item.after?.status] || '已删除')}</div>`).join('')
+    : '<div>暂无记录</div>';
+  openModal('verificationModal');
+}
+
+async function saveVerification() {
+  if (!verificationId) return;
+  const body = { expectedVersion: verificationVersion,
+    status: document.getElementById('v_status').value,
+    announcementUrl: document.getElementById('v_announcementUrl').value.trim(),
+    employerApplyUrl: document.getElementById('v_employerApplyUrl').value.trim(),
+    deadline: document.getElementById('v_deadline').value || null,
+    note: document.getElementById('v_note').value.trim() };
+  const res = await PUT(`/admin/api/jobs/${verificationId}/verification`, body);
+  if (res && res.code === 0) { toast('人工核验已记录'); closeModal('verificationModal'); load(page); }
+  else { toast(res?.message || '保存失败，请刷新后重试', 'error'); }
+}
+
+async function loadDeletedAudit() {
+  const id = Number(document.getElementById('auditJobId').value);
+  if (!Number.isSafeInteger(id) || id < 1) { toast('请输入有效岗位 ID', 'error'); return; }
+  const res = await GET(`/admin/api/jobs/${id}/verification/audit`);
+  if (!res || res.code !== 0) return;
+  const rows = res.data.audit;
+  document.getElementById('deletedAuditList').innerHTML = rows.length
+    ? rows.slice().reverse().map(item => `<div style="padding:8px 0;border-bottom:1px solid #e5e7eb">${esc(item.at)} · ${esc(item.actor?.username || '未知管理员')} · ${esc(item.action)} · ${esc(item.jobSnapshot?.title || '')} · ${esc(verificationLabels[item.after?.status] || (item.action === 'job_deleted' ? '已删除' : ''))}</div>`).join('')
+    : '<div>该 ID 暂无审计记录</div>';
+  openModal('deletedAuditModal');
 }
 
 function del(id) {

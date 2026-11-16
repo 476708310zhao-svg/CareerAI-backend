@@ -79,6 +79,149 @@ test('reminder delivery lease prevents duplicates and retries without another in
   }
 });
 
+test('reminder WeChat grants are exact-template one-shot and rejection clears outstanding consent', async () => {
+  const notify = require('../routes/notify')._test;
+  const stamp = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const userId = Number(db.prepare('INSERT INTO users (openid,nickname) VALUES (?,?)')
+    .run(`s8_consent_${stamp}`, 'Sprint 8 Consent').lastInsertRowid);
+  const templateId = notify.TEMPLATES.system_notice;
+  try {
+    assert.equal(notify.recordTemplateAuthorization(userId, 'unconfigured-template', 'accepted').changed, false);
+    assert.equal(notify.recordTemplateAuthorization(userId, templateId, 'accepted').remaining, 1);
+    assert.equal(notify.consumeTemplateAuthorization(userId, 'other-template', 901), false);
+    assert.equal(notify.consumeTemplateAuthorization(userId, templateId, 901), true);
+    assert.equal(notify.hasConsumedTemplateAuthorization(userId, templateId, 901), true);
+    assert.equal(notify.hasConsumedTemplateAuthorization(userId + 100000, templateId, 901), false);
+    assert.equal(notify.consumeTemplateAuthorization(userId, templateId, 902), false);
+    assert.equal(db.prepare('SELECT remaining FROM notify_template_authorizations WHERE user_id=? AND template_id=?')
+      .get(userId, templateId).remaining, 0);
+    assert.equal(notify.recordTemplateAuthorization(userId, templateId, 'accepted').remaining, 1);
+    assert.equal(notify.recordTemplateAuthorization(userId, templateId, 'rejected').remaining, 0);
+    assert.equal(notify.consumeTemplateAuthorization(userId, templateId, 903), false);
+    assert.equal(notify.recordTemplateAuthorization(userId, templateId, 'accepted').remaining, 1);
+    assert.equal(notify.recordTemplateAuthorization(userId, templateId, 'revoked').remaining, 0);
+    assert.equal(notify.consumeTemplateAuthorization(userId, templateId, 904), false);
+    const senderCalls = [];
+    const sender = async payload => { senderCalls.push(payload.template_id); return { errcode: 0 }; };
+    const inAppOnly = notify.deliveryChannelPlan('in_app', false);
+    const deniedBoth = notify.deliveryChannelPlan('both', false);
+    assert.equal(inAppOnly.skipWechat, true);
+    assert.equal(deniedBoth.skipWechat, true);
+    await notify.sendToUser(userId, { title: 'In app', content: 'Only', templateId }, { ...inAppOnly, skipInApp: true, wechatSender: sender });
+    await notify.sendToUser(userId, { title: 'Denied', content: 'No grant', templateId }, { ...deniedBoth, skipInApp: true, wechatSender: sender });
+    assert.deepEqual(senderCalls, []);
+    assert.equal(notify.recordTemplateAuthorization(userId, templateId, 'accepted').remaining, 1);
+    assert.equal(notify.consumeTemplateAuthorization(userId, templateId, 905), true);
+    const authorizedBoth = notify.deliveryChannelPlan('both', true);
+    await notify.sendToUser(userId, { title: 'Authorized', content: 'One shot', templateId },
+      { ...authorizedBoth, skipInApp: true, reminderDeliveryId: 905, wechatSender: sender });
+    assert.deepEqual(senderCalls, [templateId]);
+    assert.equal(notify.consumeTemplateAuthorization(userId, templateId, 905), false,
+      'a retry must not consume the same one-shot consent twice');
+  } finally {
+    db.prepare('DELETE FROM notify_template_authorization_events WHERE user_id=?').run(userId);
+    db.prepare('DELETE FROM notify_template_authorizations WHERE user_id=?').run(userId);
+    db.prepare('DELETE FROM messages WHERE user_id=?').run(userId);
+    db.prepare('DELETE FROM users WHERE id=?').run(userId);
+  }
+});
+
+test('application deadline and task changes update and invalidate only owned reminders', () => {
+  const sync = require('../services/reminderSync');
+  const stamp = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const userId = Number(db.prepare('INSERT INTO users (openid,nickname) VALUES (?,?)')
+    .run(`s8_reminder_sync_${stamp}`, 'Sprint 8 Reminder Sync').lastInsertRowid);
+  const applicationId = Number(db.prepare(`INSERT INTO applications(user_id,job_id,company,job_title,deadline)
+    VALUES(?,?,?,?,'2031-02-10')`).run(userId, `reminder_sync_${stamp}`, 'Company', 'Role').lastInsertRowid);
+  const taskId = Number(db.prepare(`INSERT INTO application_tasks(application_id,user_id,title,due_at)
+    VALUES(?,?,?,'2031-02-08')`).run(applicationId, userId, 'Interview prep').lastInsertRowid);
+  try {
+    const applicationReminder = Number(db.prepare(`INSERT INTO job_reminders(user_id,source_type,target_id,reminder_type,
+      reminder_date,enabled,delivery_channel) VALUES(?,'application',?,'deadline','2031-02-10',1,'in_app')`)
+      .run(userId, String(applicationId)).lastInsertRowid);
+    const taskReminder = Number(db.prepare(`INSERT INTO job_reminders(user_id,source_type,target_id,reminder_type,
+      reminder_date,enabled,delivery_channel) VALUES(?,'application_task',?,'task_due','2031-02-08',1,'in_app')`)
+      .run(userId, String(taskId)).lastInsertRowid);
+    sync.syncApplicationDeadline(userId, applicationId, '2031-02-12');
+    sync.syncApplicationTask(userId, taskId, '2031-02-09', false);
+    assert.equal(db.prepare('SELECT reminder_date FROM job_reminders WHERE id=?').pluck().get(applicationReminder), '2031-02-12');
+    assert.equal(db.prepare('SELECT reminder_date FROM job_reminders WHERE id=?').pluck().get(taskReminder), '2031-02-09');
+    sync.syncApplicationTask(userId, taskId, '2031-02-09', true);
+    assert.equal(db.prepare('SELECT enabled FROM job_reminders WHERE id=?').pluck().get(taskReminder), 0);
+    sync.syncApplicationDeadline(userId + 100000, applicationId, '2031-03-01');
+    assert.equal(db.prepare('SELECT reminder_date FROM job_reminders WHERE id=?').pluck().get(applicationReminder), '2031-02-12');
+  } finally {
+    db.prepare('DELETE FROM job_reminders WHERE user_id=?').run(userId);
+    db.prepare('DELETE FROM application_tasks WHERE user_id=?').run(userId);
+    db.prepare('DELETE FROM applications WHERE user_id=?').run(userId);
+    db.prepare('DELETE FROM users WHERE id=?').run(userId);
+  }
+});
+
+test('reminder consent, owner-only receipts, and application/task reminder writes are enforced over HTTP', async () => {
+  const express = require('express');
+  const jwt = require('jsonwebtoken');
+  const route = require('../routes/notify').router;
+  const stamp = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const userId = Number(db.prepare('INSERT INTO users (openid,nickname) VALUES (?,?)')
+    .run(`s8_receipt_${stamp}`, 'Reminder Owner').lastInsertRowid);
+  const otherId = Number(db.prepare('INSERT INTO users (openid,nickname) VALUES (?,?)')
+    .run(`s8_receipt_other_${stamp}`, 'Reminder Other').lastInsertRowid);
+  const applicationId = Number(db.prepare(`INSERT INTO applications(user_id,job_id,company,job_title,deadline)
+    VALUES(?,?,?,?,'2032-05-11')`).run(userId, `receipt_${stamp}`, 'Company', 'Role').lastInsertRowid);
+  const foreignApplicationId = Number(db.prepare(`INSERT INTO applications(user_id,job_id,company,job_title,deadline)
+    VALUES(?,?,?,?,'2032-05-11')`).run(otherId, `receipt_other_${stamp}`, 'Other', 'Role').lastInsertRowid);
+  const taskId = Number(db.prepare(`INSERT INTO application_tasks(application_id,user_id,title,due_at)
+    VALUES(?,?,?,'2032-05-09')`).run(applicationId, userId, 'Task').lastInsertRowid);
+  const app = express(); app.use(express.json()); app.use('/api/notify', route);
+  const server = await new Promise(resolve => { const listening = app.listen(0, '127.0.0.1', () => resolve(listening)); });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const call = async (path, method, body, actor) => {
+    const response = await fetch(`${base}${path}`, { method, headers: {
+      'Content-Type': 'application/json', Authorization: `Bearer ${jwt.sign({ userId: actor }, process.env.JWT_SECRET)}`
+    }, body: body === undefined ? undefined : JSON.stringify(body) });
+    return { status: response.status, body: await response.json() };
+  };
+  try {
+    const templateId = notifyTest.TEMPLATES.system_notice;
+    assert.equal((await call('/api/notify/subscribe', 'POST', { templateIds: [{ templateId, decision: 'accepted' }] }, userId)).status, 200);
+    assert.equal((await call('/api/notify/subscribe', 'POST', { templateIds: [{ templateId: 'forged-template', decision: 'accepted' }] }, userId)).status, 400);
+    assert.equal((await call('/api/notify/subscriptions', 'GET', undefined, userId)).body.data[0].templateId, templateId);
+    assert.equal((await call('/api/notify/subscriptions', 'GET', undefined, otherId)).body.data.length, 0);
+    assert.equal((await call('/api/notify/reminders', 'PUT', {
+      sourceType: 'application', targetId: String(foreignApplicationId), reminderType: 'deadline',
+      deliveryChannel: 'in_app'
+    }, userId)).status, 404);
+    assert.equal((await call('/api/notify/reminders', 'PUT', {
+      sourceType: 'application', targetId: String(applicationId), reminderType: 'deadline', deliveryChannel: 'in_app'
+    }, userId)).status, 200);
+    assert.equal((await call('/api/notify/reminders', 'PUT', {
+      sourceType: 'application_task', targetId: String(taskId), reminderType: 'task_due', deliveryChannel: 'in_app'
+    }, userId)).status, 200);
+    const appReminder = db.prepare(`SELECT id FROM job_reminders WHERE user_id=? AND source_type='application' AND target_id=?`)
+      .get(userId, String(applicationId));
+    const taskReminder = db.prepare(`SELECT id FROM job_reminders WHERE user_id=? AND source_type='application_task' AND target_id=?`)
+      .get(userId, String(taskId));
+    db.prepare(`INSERT INTO reminder_deliveries_v4(reminder_id,delivery_key,user_id,status,wx_status,sent_at)
+      VALUES(?,?,?,'sent','skipped','2032-05-08T00:00:00.000Z')`).run(appReminder.id, `app_${stamp}`, userId);
+    db.prepare(`INSERT INTO reminder_deliveries_v4(reminder_id,delivery_key,user_id,status,wx_status,sent_at)
+      VALUES(?,?,?,'sent','skipped','2032-05-08T00:00:00.000Z')`).run(taskReminder.id, `task_${stamp}`, userId);
+    const ownerReceipts = await call(`/api/notify/reminder-receipts?applicationId=${applicationId}`, 'GET', undefined, userId);
+    assert.equal(ownerReceipts.status, 200);
+    assert.equal(ownerReceipts.body.data.length, 2);
+    assert.equal((await call(`/api/notify/reminder-receipts?applicationId=${applicationId}`, 'GET', undefined, otherId)).body.data.length, 0);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+    db.prepare('DELETE FROM notify_template_authorization_events WHERE user_id IN (?,?)').run(userId, otherId);
+    db.prepare('DELETE FROM notify_template_authorizations WHERE user_id IN (?,?)').run(userId, otherId);
+    db.prepare('DELETE FROM reminder_deliveries_v4 WHERE user_id IN (?,?)').run(userId, otherId);
+    db.prepare('DELETE FROM job_reminders WHERE user_id IN (?,?)').run(userId, otherId);
+    db.prepare('DELETE FROM application_tasks WHERE user_id IN (?,?)').run(userId, otherId);
+    db.prepare('DELETE FROM applications WHERE user_id IN (?,?)').run(userId, otherId);
+    db.prepare('DELETE FROM users WHERE id IN (?,?)').run(userId, otherId);
+  }
+});
+
 test('reminder workers respect the configured concurrency limit', async () => {
   let active = 0;
   let maximum = 0;

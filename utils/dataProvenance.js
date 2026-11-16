@@ -3,6 +3,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const SOURCE_CATALOG = Object.freeze({
   jsearch: { label: 'JSearch', type: 'aggregator' },
   adzuna: { label: 'Adzuna', type: 'aggregator' },
+  hk_csb: { label: '香港政府公开职位', type: 'official_board' },
+  cn_official: { label: '企业官网公开职位', type: 'official_board' },
   remoteok: { label: 'RemoteOK', type: 'job_board' },
   themuse: { label: 'The Muse', type: 'job_board' },
   linkedin: { label: 'LinkedIn', type: 'job_board' },

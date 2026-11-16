@@ -3,6 +3,8 @@ const db = require('../../db/database');
 const { authMiddleware } = require('../../middleware/auth');
 const { consumeDailyLimit, getQuotaStatus } = require('../../utils/aiQuota');
 const center = require('../../services/v4ResumeCenter');
+const { syncResumeProfile } = require('../../services/resumeProfileSync');
+const readiness = require('../../services/v4ApplicationReadiness');
 const analytics = require('../../services/v4Analytics');
 const { applicationRefs, canonicalJobId, mergeCoreRefs, withCoreRefs } = require('../../utils/coreEntityRefs');
 
@@ -151,11 +153,36 @@ router.post('/', (req, res) => {
   res.status(result.existing ? 200 : 201).json({ code: 0, data: resumeView(db.prepare('SELECT * FROM resumes WHERE id=?').get(result.id)) });
 });
 
+router.post('/:id/sync-profile', (req, res) => {
+  const resumeId = positiveId(req.params.id);
+  if (!resumeId) return res.status(400).json({ code: -1, message: '简历 ID 无效' });
+  try { return res.json({ code: 0, data: syncResumeProfile(req.user.userId, resumeId), message: '已同步可确认的简历资料' }); }
+  catch (error) { return fail(res, error); }
+});
+
 router.get('/:id/versions', (req, res) => {
   const resumeId = positiveId(req.params.id);
   if (!resumeId) return res.status(400).json({ code: -1, message: '简历 ID 无效' });
   const owned = db.prepare('SELECT id FROM resumes WHERE id=? AND user_id=?').get(resumeId, req.user.userId);
   if (!owned) return res.status(404).json({ code: -1, message: '简历不存在' });
+  if (req.query.pageSize !== undefined || req.query.cursor !== undefined) {
+    const pageSize = Number(req.query.pageSize);
+    if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100) {
+      return res.status(400).json({ code: -1, message: 'pageSize 须为 1-100' });
+    }
+    const cursor = req.query.cursor === undefined ? null : positiveId(req.query.cursor);
+    if (req.query.cursor !== undefined && !cursor) return res.status(400).json({ code: -1, message: 'cursor 无效' });
+    const rows = db.prepare(`SELECT id,resume_id,version_no,name,resume_type,source_version_id,
+      change_set_id,change_summary,created_by,created_at FROM resume_versions_v4
+      WHERE resume_id=? AND user_id=? AND (? IS NULL OR version_no<?)
+      ORDER BY version_no DESC LIMIT ?`).all(resumeId, req.user.userId, cursor, cursor, pageSize + 1);
+    const hasMore = rows.length > pageSize;
+    const page = rows.slice(0, pageSize);
+    return res.json({ code: 0, data: { list: page.map(row => {
+      const { content, ...summary } = center.versionView(row);
+      return summary;
+    }), hasMore, nextCursor: hasMore ? page.at(-1).version_no : null } });
+  }
   const rows = db.prepare('SELECT * FROM resume_versions_v4 WHERE resume_id=? AND user_id=? ORDER BY version_no DESC').all(resumeId, req.user.userId);
   res.json({ code: 0, data: rows.map(center.versionView) });
 });
@@ -190,6 +217,16 @@ router.get('/:id/versions/compare', (req, res) => {
   const right = db.prepare('SELECT * FROM resume_versions_v4 WHERE id=? AND resume_id=? AND user_id=?').get(toId, resumeId, req.user.userId);
   if (!left || !right) return res.status(404).json({ code: -1, message: '对比版本不存在' });
   res.json({ code: 0, data: { from: center.versionView(left), to: center.versionView(right), changes: center.compareContent(center.parseJson(left.content, {}), center.parseJson(right.content, {})) } });
+});
+
+router.get('/:id/versions/:versionId', (req, res) => {
+  const resumeId = positiveId(req.params.id);
+  const versionId = positiveId(req.params.versionId);
+  if (!resumeId || !versionId) return res.status(400).json({ code: -1, message: '简历或版本 ID 无效' });
+  const row = db.prepare(`SELECT v.* FROM resume_versions_v4 v JOIN resumes r ON r.id=v.resume_id
+    WHERE v.id=? AND v.resume_id=? AND v.user_id=? AND r.user_id=?`).get(versionId, resumeId, req.user.userId, req.user.userId);
+  if (!row) return res.status(404).json({ code: -1, message: '简历版本不存在' });
+  return res.json({ code: 0, data: center.versionView(row) });
 });
 
 router.post('/:id/versions/:versionId/restore', (req, res) => {
@@ -270,7 +307,10 @@ router.post('/:id/links', (req, res) => {
   if (!jobId && !applicationId) return res.status(400).json({ code: -1, message: '目标岗位或申请记录至少填写一项' });
   db.prepare('INSERT OR IGNORE INTO resume_job_links (resume_id, user_id, job_id, application_id) VALUES (?, ?, ?, ?)')
     .run(resume.id, req.user.userId, jobId, applicationId);
-  if (applicationId) db.prepare('UPDATE applications SET resume_id=?, resume_version_id=? WHERE id=? AND user_id=?')
+  // A link expresses relevance, not the user's choice of a version for this application.
+  // Before migration 0025 keep the prior behavior for existing clients; afterward
+  // only the CAS-protected /applications/:id/resume-selection endpoint may bind it.
+  if (applicationId && !readiness.schemaAvailable()) db.prepare('UPDATE applications SET resume_id=?, resume_version_id=? WHERE id=? AND user_id=?')
     .run(resume.id, center.ensureCurrentVersion(req.user.userId, resume.id).version.id, applicationId, req.user.userId);
   const links = db.prepare('SELECT id, job_id AS jobId, application_id AS applicationId, created_at AS createdAt FROM resume_job_links WHERE resume_id=? AND user_id=?').all(resume.id, req.user.userId)
     .map(link => {

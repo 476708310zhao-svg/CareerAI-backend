@@ -30,7 +30,7 @@ test('application workflow and workspace backend pass in an isolated process', (
     });
     const output = `${result.stdout || ''}${result.stderr || ''}${result.error || ''}`;
     assert.equal(result.status, 0, output);
-    assert.match(result.stdout, /tests 21/);
+    assert.match(result.stdout, /tests 22/);
     assert.match(result.stdout, /fail 0/);
   } finally {
     validateRoot();

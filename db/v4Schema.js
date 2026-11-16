@@ -1,6 +1,8 @@
 const db = require('./database');
+const { needsLegacyBootstrap } = require('./legacyBootstrap');
 
 function ensureV4Schema() {
+  if (!needsLegacyBootstrap(db)) return;
   db.exec(`
     CREATE TABLE IF NOT EXISTS user_profiles (
       user_id             INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,

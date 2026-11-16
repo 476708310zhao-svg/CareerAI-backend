@@ -9,6 +9,23 @@ const { applicationState } = require('../miniprogram/utils/application-state');
 const { presentJob } = require('../miniprogram/utils/job-presenter');
 const { buildApplicationWorkbench } = require('../miniprogram/utils/application-workbench');
 
+test('VIP pricing stays hidden until a saleable plan has a server supplied price', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../miniprogram/package-user/pages/vip/vip.js'), 'utf8');
+  const context = { Page() {}, require() { return {}; } };
+  vm.runInNewContext(`${source}\nglobalThis.getPlansForTest = getPlansByConfig;`, context);
+  const plansFor = context.getPlansForTest;
+  assert.equal(plansFor(null).length, 0);
+  assert.equal(plansFor({ available: false, availablePlanIds: [0], planPrices: { 0: 4000 } }).length, 0);
+  assert.equal(plansFor({ available: true, availablePlanIds: [0] }).length, 0);
+  const plans = plansFor({ available: true, availablePlanIds: [0], planPrices: { 0: 4000, 1: 10000 } });
+  assert.equal(plans.length, 1);
+  assert.equal(plans[0].id, 0);
+  assert.equal(plans[0].price, '40.00');
+  const wxml = fs.readFileSync(path.join(__dirname, '../miniprogram/package-user/pages/vip/vip.wxml'), 'utf8');
+  assert.match(wxml, /class="pricing-panel" wx:if="\{\{paymentAvailable && plans\.length\}\}"/);
+  assert.match(wxml, /class="member-footer" wx:if="\{\{paymentAvailable && plans\.length\}\}"/);
+});
+
 const ok = data => ({ code: 0, data });
 function deferred() {
   let resolve, reject;
@@ -34,6 +51,7 @@ function load(relative, mocks, wx, pageMode = false) {
   let page;
   const context = {
     module: { exports: {} }, wx, setTimeout, clearTimeout,
+    Date: mocks.__Date || Date,
     console: { warn() {}, log() {} },
     Page: value => { page = value; },
     getApp: () => ({ syncCustomTabBar() {} }),
@@ -63,14 +81,110 @@ function queueHarness(api) {
 
 function detailHarness(api) {
   const f = fixture();
+  let authRevision = 0;
   const page = load('package-user/pages/application-detail/application-detail.js', {
-    '../../../utils/api-v4.js': api,
-    '../../../utils/job-progress.js': { currentOwnerScope: () => String(f.storage.ownerScope || f.storage.token || '') }
+    '../../../utils/api-v4.js': { ...api, getApplicationWorkspace: api.getApplicationWorkspace || api.getApplicationDetail,
+      getApplicationInterviewReports: api.getApplicationInterviewReports || (async () => ({ code: 0, data: { reports: [] } })) },
+    '../../../utils/job-progress.js': { currentOwnerScope: () => String(f.storage.ownerScope || f.storage.token || '') },
+    '../../../utils/auth-session.js': { revision: () => authRevision }
   }, f.wx, true);
   page.data.id = '41';
   const input = (field, value) => page.onPlanInput({ currentTarget: { dataset: { field } }, detail: { value } });
-  return { ...f, page, input };
+  return { ...f, page, input, changeAuthRevision: () => { authRevision += 1; } };
 }
+
+test('confirmed applications keep the user checklist editable while resume binding stays frozen', async () => {
+  let item = null;
+  const posted = [];
+  const app = { id: 41, status: 'applied', resumeVersionId: 12, resumeSelectionVersion: 3, resumeSelectionAvailable: true,
+    submissionConfirmation: { available: true, confirmed: true, eventId: 7 } };
+  const h = detailHarness({
+    getApplicationWorkspace: async () => ok({ application: app,
+      resumeOptions: [{ resumeId: 1, resumeName: '主简历', versionId: 12, versionNo: 2 }],
+      materialChecklist: { available: true, unavailableReason: null, items: item ? [item] : [] } }),
+    saveApplicationResumeSelection: () => assert.fail('confirmed resume binding must be frozen'),
+    addApplicationChecklistItem: async (_id, body) => {
+      posted.push(body);
+      if (posted.length === 1) throw new Error('timeout');
+      item = { id: 99, label: body.label, state: 'needed', version: 1 };
+      return ok({ item, changed: true });
+    }
+  });
+  await h.page.loadDetail();
+  assert.equal(h.page.data.resumeCanEdit, false);
+  assert.equal(h.page.data.checklistCanEdit, true);
+  h.page.onResumeChoiceChange({ detail: { value: 0 } });
+  h.page.saveResumeSelection();
+  h.page.onChecklistLabelInput({ detail: { value: '成绩单' } });
+  await h.page.addChecklistItem();
+  assert.match(h.page.data.checklistError, /timeout/);
+  assert.equal(h.page.data.checklistLabel, '成绩单');
+  await h.page.addChecklistItem();
+  assert.equal(posted.length, 2);
+  assert.equal(posted[0].clientKey, posted[1].clientKey);
+  assert.equal(h.page.data.checklistItems[0].label, '成绩单');
+  assert.equal(h.page.data.checklistLabel, '');
+});
+
+test('status history pages are cursor-loaded and do not duplicate timeline rows', async () => {
+  const requests = [];
+  const h = detailHarness({ getApplicationHistory: async (id, params) => {
+    requests.push({ id, params });
+    return ok({ list: [{ id: 1, toStatus: 'preparing' }, { id: 2, toStatus: 'applied' }], hasMore: false, nextCursor: null });
+  } });
+  h.page.data.history = [{ id: 2, toStatus: 'applied' }];
+  h.page.data.historyHasMore = true;
+  h.page.data.historyNextCursor = 3;
+  await h.page.loadMoreHistory();
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].id, '41');
+  assert.equal(requests[0].params.beforeId, 3);
+  assert.equal(requests[0].params.limit, 50);
+  assert.deepEqual(h.page.data.history.map(item => item.id), [2, 1]);
+  assert.equal(h.page.data.historyHasMore, false);
+  assert.equal(h.page.data.historyNextCursor, null);
+});
+
+test('A→B→A ignores a late resume selection result and clears private readiness data', async () => {
+  const pending = deferred();
+  const h = detailHarness({ saveApplicationResumeSelection: () => pending.promise });
+  h.page.data.application = { id: 41, resumeVersionId: 12, resumeSelectionVersion: 2, resumeSelectionAvailable: true };
+  h.page.data.resumeChoices = [{ versionId: null }, { versionId: 12 }, { versionId: 13 }];
+  h.page.data.resumeChoiceIndex = 2;
+  h.page.data.resumeCanEdit = true;
+  h.page.data.checklistItems = [{ id: 1, label: '私人材料', state: 'needed', version: 1 }];
+  const saving = h.page.saveResumeSelection();
+  h.storage.token = 'account-b'; h.changeAuthRevision();
+  h.storage.token = 'test-user'; h.changeAuthRevision();
+  h.page.clearStaleAccount();
+  pending.resolve(ok({ changed: true, resumeVersionId: 13, resumeSelectionVersion: 3 }));
+  await saving;
+  assert.equal(h.page.data.application, null);
+  assert.equal(h.page.data.checklistItems.length, 0);
+  assert.equal(h.toasts.length, 0);
+});
+
+test('readiness writes stay disabled before migration and never toast success when refresh fails', async () => {
+  let writes = 0;
+  let failRefresh = false;
+  const h = detailHarness({
+    getApplicationWorkspace: async () => failRefresh ? Promise.reject(new Error('refresh offline')) : ok({
+      application: { id: 41, resumeVersionId: null, resumeSelectionVersion: 0, resumeSelectionAvailable: false },
+      materialChecklist: { available: false, unavailableReason: 'migration_pending', items: [] }
+    }),
+    addApplicationChecklistItem: async (_id, body) => { writes += 1; return ok({ item: { id: 1, label: body.label }, changed: true }); }
+  });
+  await h.page.loadDetail();
+  h.page.onChecklistLabelInput({ detail: { value: '作品集' } });
+  h.page.addChecklistItem();
+  assert.equal(writes, 0);
+  h.page.data.checklistCanEdit = true;
+  failRefresh = true;
+  await h.page.addChecklistItem();
+  assert.equal(writes, 1);
+  assert.equal(h.toasts.length, 0);
+  assert.match(h.page.data.checklistError, /刷新失败/);
+});
 
 function campusFavoritesHarness(options = {}) {
   const f = fixture(), links = [], writes = [];
@@ -450,6 +564,117 @@ test('application detail uses an explicit forward status action and never auto-w
   assert.equal(h.page.data.primaryAction.status, undefined);
 });
 
+test('final submission confirmation is separate from applied status and retries with the same client key', async () => {
+  const writes = [];
+  const h = detailHarness({
+    confirmApplicationSubmission: async (id, payload) => {
+      writes.push({ id, payload });
+      if (writes.length === 1) throw new Error('network timeout');
+      return ok({ changed: true, submissionConfirmation: { available: true, confirmed: true, eventId: 1, confirmedAt: '2026-10-30T03:00:00Z' } });
+    },
+    getApplicationDetail: async () => ok({ application: { id: 41, status: 'applied', historyId: 3, submissionConfirmation: { available: true, confirmed: true, eventId: 1, confirmedAt: '2026-10-30T03:00:00Z' } } })
+  });
+  h.page.data.application = { id: 41, status: 'preparing', historyId: 2, submissionConfirmation: { available: true, confirmed: false, eventId: 0, confirmedAt: null } };
+  h.page.chooseSubmissionIntent({ currentTarget: { dataset: { action: 'confirm' } } });
+  h.page.setSubmissionAcknowledged({ detail: { value: ['yes'] } });
+  await h.page.submitSubmissionIntent();
+  assert.equal(h.page.data.application.status, 'preparing');
+  assert.match(h.page.data.submissionError, /network timeout/);
+  assert.equal(h.page.data.submissionIntent, 'confirm');
+  await h.page.submitSubmissionIntent();
+  assert.equal(writes.length, 2);
+  assert.equal(writes[0].id, '41');
+  assert.equal(writes[0].payload.clientKey, writes[1].payload.clientKey);
+  assert.match(writes[0].payload.clientKey, /^[A-Za-z0-9_-]{8,80}$/);
+  assert.equal(writes[0].payload.expectedState.status, 'preparing');
+  assert.equal(writes[0].payload.expectedState.historyId, 2);
+  assert.equal(writes[0].payload.expectedSubmissionEventId, 0);
+  assert.equal(writes[0].payload.channel, 'miniprogram');
+  assert.equal(h.page.data.application.status, 'applied');
+  assert.equal(h.page.data.application.submissionConfirmation.confirmed, true);
+  assert.equal(h.page.data.submissionIntent, '');
+});
+
+test('old applied state and unavailable confirmation cannot claim final submission', async () => {
+  const h = detailHarness({ confirmApplicationSubmission: () => assert.fail('unavailable confirmation must not write') });
+  h.page.data.application = { id: 41, status: 'applied', historyId: 5, submissionConfirmation: { available: false, confirmed: false, eventId: 0, confirmedAt: null } };
+  h.page.chooseSubmissionIntent({ currentTarget: { dataset: { action: 'confirm' } } });
+  assert.equal(h.page.data.submissionIntent, '');
+  await h.page.submitSubmissionIntent();
+  assert.equal(h.page.data.application.submissionConfirmation.confirmed, false);
+});
+
+test('archived application keeps a real confirmation visible but disables new actions', async () => {
+  const h = detailHarness({
+    getApplicationDetail: async () => ok({ application: { id: 41, status: 'withdrawn', historyId: 9, submissionConfirmation: { available: false, unavailableReason: 'archived', confirmed: true, eventId: 3, confirmedAt: '2026-10-30T03:00:00Z' } } }),
+    revokeApplicationSubmission: () => assert.fail('archived confirmation must be read only')
+  });
+  await h.page.loadDetail();
+  assert.equal(h.page.data.application.submissionConfirmation.confirmed, true);
+  assert.ok(h.page.data.submissionConfirmedAt);
+  assert.match(h.page.data.submissionUnavailableText, /归档/);
+  h.page.chooseSubmissionIntent({ currentTarget: { dataset: { action: 'revoke' } } });
+  assert.equal(h.page.data.submissionIntent, '');
+});
+
+test('refreshing a changed confirmation invalidates an old acknowledgment and retry key', async () => {
+  const h = detailHarness({ getApplicationDetail: async () => ok({ application: { id: 41, status: 'applied', historyId: 3, submissionConfirmation: { available: true, confirmed: true, eventId: 1, confirmedAt: '2026-10-30T03:00:00Z' } } }) });
+  h.page.data.application = { id: 41, status: 'preparing', historyId: 2, submissionConfirmation: { available: true, confirmed: false, eventId: 0, confirmedAt: null } };
+  h.page.chooseSubmissionIntent({ currentTarget: { dataset: { action: 'confirm' } } });
+  h.page.setSubmissionAcknowledged({ detail: { value: ['yes'] } });
+  h.page._submissionPending = { action: 'confirm', clientKey: 'pending_key_123' };
+  await h.page.loadDetail();
+  assert.equal(h.page.data.submissionIntent, '');
+  assert.equal(h.page.data.submissionAcknowledged, false);
+  assert.equal(h.page._submissionPending, null);
+});
+
+test('revoking an erroneous confirmation leaves the application status intact', async () => {
+  let submitted;
+  const h = detailHarness({
+    revokeApplicationSubmission: async (id, payload) => { submitted = payload; return ok({ changed: true, submissionConfirmation: { available: true, confirmed: false, eventId: 2, confirmedAt: null } }); },
+    getApplicationDetail: async () => ok({ application: { id: 41, status: 'applied', historyId: 5, submissionConfirmation: { available: true, confirmed: false, eventId: 2, confirmedAt: null } } })
+  });
+  h.page.data.application = { id: 41, status: 'applied', historyId: 5, submissionConfirmation: { available: true, confirmed: true, eventId: 1, confirmedAt: '2026-10-30T03:00:00Z' } };
+  h.page.chooseSubmissionIntent({ currentTarget: { dataset: { action: 'revoke' } } });
+  h.page.setSubmissionAcknowledged({ detail: { value: ['yes'] } });
+  await h.page.submitSubmissionIntent();
+  assert.equal(submitted.expectedSubmissionEventId, 1);
+  assert.equal(submitted.expectedState.status, 'applied');
+  assert.equal(h.page.data.application.status, 'applied');
+  assert.equal(h.page.data.application.submissionConfirmation.confirmed, false);
+});
+
+test('a successful HTTP response with a newer opposite confirmation does not claim success', async () => {
+  const h = detailHarness({
+    confirmApplicationSubmission: async () => ok({ changed: false, submissionConfirmation: { available: true, confirmed: false, eventId: 2, confirmedAt: null } }),
+    getApplicationDetail: async () => ok({ application: { id: 41, status: 'applied', historyId: 3, submissionConfirmation: { available: true, confirmed: false, eventId: 2, confirmedAt: null } } })
+  });
+  h.page.data.application = { id: 41, status: 'preparing', historyId: 2, submissionConfirmation: { available: true, confirmed: false, eventId: 0, confirmedAt: null } };
+  h.page.chooseSubmissionIntent({ currentTarget: { dataset: { action: 'confirm' } } });
+  h.page.setSubmissionAcknowledged({ detail: { value: ['yes'] } });
+  await h.page.submitSubmissionIntent();
+  assert.equal(h.page.data.application.submissionConfirmation.confirmed, false);
+  assert.match(h.page.data.submissionError, /其他端变化/);
+  assert.equal(h.toasts.some(item => item.title === '已记录最终提交'), false);
+});
+
+test('A to B to A switch discards a delayed submission response and its retry key', async () => {
+  const wait = deferred();
+  const h = detailHarness({ confirmApplicationSubmission: () => wait.promise });
+  h.page.data.application = { id: 41, status: 'preparing', historyId: 2, submissionConfirmation: { available: true, confirmed: false, eventId: 0, confirmedAt: null } };
+  h.page.chooseSubmissionIntent({ currentTarget: { dataset: { action: 'confirm' } } });
+  h.page.setSubmissionAcknowledged({ detail: { value: ['yes'] } });
+  const submitting = h.page.submitSubmissionIntent();
+  h.storage.token = 'other-user'; h.changeAuthRevision();
+  h.storage.token = 'test-user'; h.changeAuthRevision();
+  wait.resolve(ok({ changed: true, submissionConfirmation: { available: true, confirmed: true, eventId: 1, confirmedAt: '2026-10-30T03:00:00Z' } }));
+  await submitting;
+  assert.equal(h.page.data.application, null);
+  assert.equal(h.page._submissionPending, null);
+  assert.equal(h.toasts.some(item => item.title === '已记录最终提交'), false);
+});
+
 test('application detail refreshes for a new owner and ignores stale task and navigation responses', async () => {
   const task = deferred();
   const spaces = deferred();
@@ -778,6 +1003,24 @@ test('failed board loads are errors, and slower previous loads cannot replace re
   assert.equal(another.page.data.applications[0].id, 2);
 });
 
+test('application workbench loads the next bounded page without losing earlier rows', async () => {
+  const calls = [];
+  const h = boardPage({ getApplicationBoard: async params => {
+    calls.push(params);
+    return params.cursor
+      ? ok({ groups: { preparing: [], applied: [{ id: 2, status: 'applied' }] }, total: 2, hasMore: false })
+      : ok({ groups: { preparing: [{ id: 1, status: 'preparing' }], applied: [] }, total: 2,
+        hasMore: true, nextCursor: 'next-page' });
+  } });
+  await h.page.loadBoard();
+  assert.equal(h.page.data.hasMore, true);
+  assert.equal(h.page.data.boardTotal, 2);
+  await h.page.loadMore();
+  assert.deepEqual(Array.from(h.page.data.applications, item => item.id).sort(), [1, 2]);
+  assert.equal(h.page.data.hasMore, false);
+  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [{ pageSize: 50 }, { pageSize: 50, cursor: 'next-page' }]);
+});
+
 test('manual creation retains its draft and stable job id on uncertain failure', async () => {
   const ids = [];
   const h = boardPage({ createApplication: async payload => { ids.push(payload.jobId); throw new Error('network'); } });
@@ -801,6 +1044,26 @@ test('a 401 during board loading exits loading and shows login instead of stale 
   assert.equal(h.page.data.loading, false);
   assert.equal(h.page.data.loginRequired, true);
   assert.equal(h.page.data.applications.length, 0);
+});
+
+test('Hong Kong public jobs keep source lookup details and do not gain US OPT claims', () => {
+  const f = fixture();
+  const page = load('pages/jobs/jobs.js', {
+    '../../utils/api.js': { normalizeCompanyLogo: () => '' },
+    '../../utils/demo-data.js': { enabled: () => false },
+    '../../behaviors/login-gate.js': {}
+  }, f.wx, true);
+  const [job] = page.formatJobData([{
+    job_id: 'hkcsb_7001', job_title: 'Data Analyst', employer_name: 'HK Department',
+    job_city: 'Hong Kong', job_country: 'HK', job_description: 'Work authorisation required. Analyse data.',
+    job_salary_string: 'HK$30,000 per month', job_source_reference: '7001',
+    job_source_url: 'https://csboa2.csb.gov.hk/csboa/jve/JVE_001_text.action', _source: 'hk_csb'
+  }]);
+  assert.equal(job.optFriendly, false);
+  assert.equal(job.salary, 'HK$30,000 per month');
+  assert.equal(job.sourceReference, '7001');
+  assert.match(job.sourceUrl, /csboa2\.csb\.gov\.hk/);
+  assert.equal(job.applyLink, '');
 });
 
 test('job list rejects stale searches and exposes a retry after a failed page without losing rows', async () => {
@@ -968,6 +1231,323 @@ test('copying an apply link saves preparing once and never submits a resume or m
   assert.equal(page.data.isApplying, false);
 });
 
+test('job detail clears stale apply links and blocks held applications across legacy response races', async () => {
+  const f = fixture();
+  const legacy = deferred();
+  let queued = 0;
+  f.storage.jobDetailSnapshot_held = { id: 'held', title: 'Engineer', company: 'Test', applyLink: 'https://old.example/apply' };
+  f.storage.tempJobDetail = { id: 'held', applyLink: 'https://old.example/apply' };
+  f.storage.cachedJobsList = { items: [{ id: 'held', applyLink: 'https://old.example/apply' }] };
+  const page = load('package-user/pages/job-detail/job-detail.js', {
+    '../../../utils/api.js': { getJobDetail: () => legacy.promise, normalizeCompanyLogo: value => value },
+    '../../../utils/api-v4.js': { getJobDetail: async () => ok({
+      job: { id: 'held', title: 'Engineer', company: 'Test', isApplyAvailable: false,
+        applicationStatus: 'closed', applicationNotice: '人工核验已关闭',
+        applyUrl: '', officialApplyUrl: '', sourceUrl: '' },
+      trust: { officialVerification: { url: '', status: 'admin_review_hold' } }
+    }) },
+    '../../../utils/demo-data.js': { enabled: () => false },
+    '../../../utils/job-progress.js': { getByJobId: () => null },
+    '../../../utils/browse-history.js': { add() {} },
+    '../../../utils/analytics.js': { track() {} }, '../../../behaviors/login-gate.js': {},
+    '../../../utils/application-queue.js': { queueJob: async () => { queued++; return {}; } }
+  }, f.wx, true);
+  page.data.jobId = 'held';
+  page.fetchJobDetail('held');
+  assert.equal(page.data.job.applyLink, 'https://old.example/apply');
+  page.loadV4Detail('held');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(page.data.applicationHeld, true);
+  assert.equal(page.data.job.applyLink, '');
+  assert.equal(page.data.jobView.applyButtonText, '申请已关闭');
+  assert.equal(page.data.applicationNotice, '人工核验已关闭');
+  assert.equal(f.storage.jobDetailSnapshot_held.applyLink, '');
+  assert.equal(f.storage.tempJobDetail.applyLink, '');
+  assert.equal(f.storage.cachedJobsList.items[0].applyLink, '');
+  legacy.resolve({ data: { job_id: 'held', job_title: 'Engineer', employer_name: 'Test',
+    job_apply_link: 'https://old.example/apply', application_status: 'unverified',
+    is_apply_available: true } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(page.data.job.applyLink, '');
+  assert.equal(page.data.job.applicationStatus, 'closed');
+  assert.equal(f.storage.jobApplicationHold_held.applicationStatus, 'closed');
+  page.applyJob();
+  page.openOfficialForTrust();
+  await page.doOneClickApply();
+  assert.equal(page.data.showApplyModal, false);
+  assert.equal(queued, 0);
+  assert.deepEqual(f.copied, []);
+  assert.ok(f.toasts.some(item => item.title === '人工核验已关闭'));
+  assert.equal(page.getJobSnapshot('held').applyLink, '');
+});
+
+test('job detail retains unverified apply behavior and reopens after an explicit available response', async () => {
+  const f = fixture();
+  let status = 'review_needed';
+  let queued = 0;
+  const page = load('package-user/pages/job-detail/job-detail.js', {
+    '../../../utils/api.js': { normalizeCompanyLogo: value => value },
+    '../../../utils/api-v4.js': { getJobDetail: async () => ok({ job: {
+      id: 'review', title: 'Engineer', company: 'Test',
+      isApplyAvailable: status === 'unverified', applicationStatus: status,
+      applicationNotice: status === 'review_needed' ? '等待人工复核' : '',
+      applyUrl: status === 'unverified' ? 'https://official.example/apply' : ''
+    } }) },
+    '../../../utils/demo-data.js': { enabled: () => false },
+    '../../../utils/job-progress.js': { getByJobId: () => null },
+    '../../../utils/browse-history.js': { add() {} },
+    '../../../utils/analytics.js': { track() {} }, '../../../behaviors/login-gate.js': {},
+    '../../../utils/application-queue.js': { queueJob: async () => { queued++; return { id: 1, status: 'preparing' }; } }
+  }, f.wx, true);
+  page.data.jobId = 'review';
+  page.loadV4Detail('review');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(page.data.jobView.applyButtonText, '待人工复核');
+  assert.equal(page.data.job.applyLink, '');
+  status = 'unverified';
+  page.loadV4Detail('review');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(page.data.applicationHeld, false);
+  assert.equal(page.data.applicationNotice, '');
+  assert.equal(page.data.job.applyLink, 'https://official.example/apply');
+  assert.equal(f.storage.jobApplicationHold_review, null);
+  await page.doOneClickApply();
+  assert.equal(queued, 1);
+  assert.deepEqual(f.copied, ['https://official.example/apply']);
+});
+
+test('an expired local job keeps its manual status but blocks cached links and labels the deadline', async () => {
+  const f = fixture();
+  let queued = 0;
+  f.storage.jobDetailSnapshot_12 = { id: '12', title: 'Old role', company: 'Test',
+    source: 'local', applyLink: 'https://old.example/apply' };
+  const page = load('package-user/pages/job-detail/job-detail.js', {
+    '../../../utils/api.js': { normalizeCompanyLogo: value => value },
+    '../../../utils/api-v4.js': { getJobDetail: async () => ok({ job: {
+      id: '12', title: 'Old role', company: 'Test', source: 'local',
+      deadline: '2020-01-01', isApplyAvailable: false,
+      applicationStatus: 'open', applicationNotice: '该岗位截止日期已过，暂不可申请',
+      applyUrl: '', officialApplyUrl: '', sourceUrl: ''
+    } }) },
+    '../../../utils/demo-data.js': { enabled: () => false },
+    '../../../utils/job-progress.js': { getByJobId: () => null },
+    '../../../utils/browse-history.js': { add() {} },
+    '../../../utils/analytics.js': { track() {} }, '../../../behaviors/login-gate.js': {},
+    '../../../utils/application-queue.js': { queueJob: async () => { queued++; return {}; } }
+  }, f.wx, true);
+  page.data.jobId = '12';
+  page.loadV4Detail('12');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(page.data.job.applicationStatus, 'open');
+  assert.equal(page.data.applicationHeld, true);
+  assert.equal(page.data.jobView.applyButtonText, '截止已过');
+  page.refreshProgressState('12');
+  assert.equal(page.data.jobView.applyButtonText, '截止已过');
+  assert.equal(page.data.job.applyLink, '');
+  assert.equal(f.storage.jobApplicationHold_12.isApplyAvailable, false);
+  assert.equal(f.storage.jobDetailSnapshot_12.applyLink, '');
+  assert.equal(page.getJobSnapshot('12').applyLink, '');
+  await page.doOneClickApply();
+  assert.equal(queued, 0);
+  assert.deepEqual(f.copied, []);
+});
+
+test('a held local deadline uses Shanghai day when device-local presentation disagrees', () => {
+  const f = fixture();
+  // Simulate a device day that still appears open while Shanghai has crossed the deadline.
+  const page = load('package-user/pages/job-detail/job-detail.js', {
+    '../../../utils/api.js': {}, '../../../utils/api-v4.js': {},
+    '../../../utils/date-time.js': { shanghaiDayDistance: () => -1 },
+    '../../../utils/demo-data.js': { enabled: () => false },
+    '../../../utils/job-progress.js': { getByJobId: () => null },
+    '../../../utils/analytics.js': { track() {} }, '../../../behaviors/login-gate.js': {}
+  }, f.wx, true);
+  page.data.jobId = '12';
+  page.commitJob({ id: '12', source: 'local', title: 'Engineer', company: 'Test',
+    deadline: '2099-12-31', isApplyAvailable: true, applicationStatus: 'open',
+    applyLink: 'https://old.example/apply' });
+  assert.equal(page.data.applicationHeld, true);
+  assert.equal(page.data.job.applyLink, '');
+  assert.equal(page.data.jobView.deadlineClosed, true);
+  assert.equal(page.data.jobView.deadlineText, '已截止');
+  assert.equal(page.data.jobView.applyButtonText, '截止已过');
+  page.refreshProgressState('12');
+  assert.equal(page.data.jobView.applyButtonText, '截止已过');
+});
+
+test('a zoned local deadline closes at its exact instant without changing manual status', () => {
+  const deadline = '2099-12-31T12:00:00+08:00';
+  function pageAt(epoch) {
+    class FixedDate extends Date {
+      constructor(...args) { super(...(args.length ? args : [epoch])); }
+      static now() { return epoch; }
+    }
+    const f = fixture();
+    const page = load('package-user/pages/job-detail/job-detail.js', {
+      __Date: FixedDate,
+      '../../../utils/api.js': {}, '../../../utils/api-v4.js': {},
+      '../../../utils/demo-data.js': { enabled: () => false },
+      '../../../utils/job-progress.js': { getByJobId: () => null },
+      '../../../utils/analytics.js': { track() {} }, '../../../behaviors/login-gate.js': {}
+    }, f.wx, true);
+    page.data.jobId = '12';
+    page.commitJob({ id: '12', source: 'local', title: 'Engineer', company: 'Test', deadline,
+      isApplyAvailable: true, applicationStatus: 'open', applyLink: 'https://old.example/apply' });
+    return page;
+  }
+  const instant = Date.parse(deadline);
+  const before = pageAt(instant - 1);
+  assert.equal(before.data.applicationHeld, false);
+  assert.equal(before.data.job.applyLink, 'https://old.example/apply');
+  const expired = pageAt(instant);
+  assert.equal(expired.data.applicationHeld, true);
+  assert.equal(expired.data.job.applicationStatus, 'open');
+  assert.equal(expired.data.job.applyLink, '');
+  assert.equal(expired.data.jobView.deadlineText, '已截止');
+});
+
+test('a review hold arriving while saving prevents copying an already captured apply link', async () => {
+  const f = fixture();
+  const saving = deferred();
+  const page = load('package-user/pages/job-detail/job-detail.js', {
+    '../../../utils/api.js': {}, '../../../utils/api-v4.js': {},
+    '../../../utils/demo-data.js': { enabled: () => false },
+    '../../../utils/job-progress.js': { getByJobId: () => null },
+    '../../../utils/analytics.js': { track() {} }, '../../../behaviors/login-gate.js': {},
+    '../../../utils/application-queue.js': { queueJob: () => saving.promise }
+  }, f.wx, true);
+  page.data.job = { id: 'pending', title: 'Engineer', company: 'Test', applyLink: 'https://old.example/apply' };
+  page.data.jobView = presentJob(page.data.job);
+  const applying = page.doOneClickApply();
+  page.commitJob({ id: 'pending', title: 'Engineer', company: 'Test',
+    applyLink: '', isApplyAvailable: false, applicationStatus: 'review_needed',
+    applicationNotice: '等待人工复核' });
+  saving.resolve({ id: 1, status: 'preparing' });
+  await applying;
+  assert.deepEqual(f.copied, []);
+  assert.equal(page.data.showApplyModal, false);
+  assert.equal(page.data.isApplying, false);
+});
+
+test('anonymous local detail requires a fresh status and maps closed, review and reopened links', async () => {
+  const f = fixture();
+  f.storage.token = '';
+  f.storage.jobDetailSnapshot_1 = { id: '1', title: 'Cached role', company: 'Test',
+    applyLink: 'https://old.example/apply', source: 'local_fallback' };
+  let current = deferred(), v4Calls = 0, queued = 0;
+  const page = load('package-user/pages/job-detail/job-detail.js', {
+    '../../../utils/api.js': { getJobDetail: () => current.promise, normalizeCompanyLogo: value => value },
+    '../../../utils/api-v4.js': { getJobDetail: () => { v4Calls++; return Promise.resolve({ code: -1 }); } },
+    '../../../utils/demo-data.js': { enabled: () => false },
+    '../../../utils/feature-flags.js': { guardRecruitmentPage: () => true },
+    '../../../utils/job-progress.js': { getByJobId: () => null, currentOwnerScope: () => '' },
+    '../../../utils/favorites.js': { isFavorited: () => false, prepareOwner() {} },
+    '../../../utils/browse-history.js': { add() {} },
+    '../../../utils/analytics.js': { track() {} }, '../../../behaviors/login-gate.js': {},
+    '../../../utils/application-queue.js': { queueJob: async () => { queued++; return {}; } }
+  }, f.wx, true);
+  page.onLoad({ id: '1' });
+  assert.equal(v4Calls, 0);
+  assert.equal(page.data.applicationPending, true);
+  assert.equal(page.data.job.applyLink, '');
+  assert.equal(page.data.jobView.applyButtonText, '核对中');
+  page.applyJob();
+  await page.doOneClickApply();
+  assert.equal(queued, 0);
+  const raw = (status, available, url) => ({ data: [{ job_id: '1', job_title: 'Engineer',
+    employer_name: 'Test', job_apply_link: url, _local: true, deadline: '2026-12-31',
+    application_status: status, is_apply_available: available,
+    application_notice: available ? '' : '人工核验：' + status }] });
+  current.resolve(raw('closed', false, ''));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(page.data.applicationPending, false);
+  assert.equal(page.data.applicationHeld, true);
+  assert.equal(page.data.job.applicationStatus, 'closed');
+  assert.equal(page.data.jobView.applyButtonText, '申请已关闭');
+  assert.equal(page.data.job.deadline, '2026-12-31');
+  assert.equal(f.storage.jobDetailSnapshot_1.applyLink, '');
+  current = deferred(); page.fetchJobDetail('1');
+  current.resolve(raw('review_needed', false, ''));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(page.data.job.applicationStatus, 'review_needed');
+  assert.equal(page.data.jobView.applyButtonText, '待人工复核');
+  assert.equal(page.data.applicationNotice, '人工核验：review_needed');
+  current = deferred(); page.fetchJobDetail('1');
+  current.resolve(raw('unverified', true, 'https://official.example/apply'));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(page.data.applicationHeld, false);
+  assert.equal(page.data.applicationPending, false);
+  assert.equal(page.data.job.applyLink, 'https://official.example/apply');
+  assert.equal(f.storage.jobApplicationHold_1, null);
+  assert.equal(page.data.jobView.applyButtonText, '前往投递');
+  current = deferred();
+  page._hasShown = true;
+  page.onShow();
+  assert.equal(page.data.applicationPending, true);
+  assert.equal(page.data.job.applyLink, '');
+  current.resolve(raw('closed', false, ''));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(page.data.applicationHeld, true);
+  assert.equal(page.data.job.applyLink, '');
+});
+
+test('local detail without a fresh application status never opens a cached apply link', async () => {
+  const f = fixture();
+  f.storage.token = '';
+  f.storage.jobDetailSnapshot_2 = { id: '2', title: 'Old role', company: 'Test',
+    applyLink: 'https://old.example/apply' };
+  const page = load('package-user/pages/job-detail/job-detail.js', {
+    '../../../utils/api.js': { getJobDetail: async () => ({ data: [{ job_id: '2', job_title: 'Old role',
+      employer_name: 'Test', job_apply_link: 'https://old.example/apply', _local: true }] }), normalizeCompanyLogo: value => value },
+    '../../../utils/api-v4.js': {},
+    '../../../utils/demo-data.js': { enabled: () => false },
+    '../../../utils/job-progress.js': { getByJobId: () => null },
+    '../../../utils/browse-history.js': { add() {} },
+    '../../../utils/analytics.js': { track() {} }, '../../../behaviors/login-gate.js': {},
+    '../../../utils/application-queue.js': { queueJob: async () => ({}) }
+  }, f.wx, true);
+  page.fetchJobDetail('2');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(page.data.applicationPending, true);
+  assert.equal(page.data.job.applyLink, '');
+  assert.equal(page.data.jobView.applyButtonText, '核对中');
+  const external = page.buildSnapshotDetail({ id: '3', title: 'External role', company: 'Test',
+    source: 'jsearch', applyLink: 'https://external.example/apply' });
+  assert.equal(external.applicationVerificationPending, false);
+  assert.equal(external.applyLink, 'https://external.example/apply');
+});
+
+test('job detail API opts out of fresh and stale caches', async () => {
+  const f = fixture();
+  let fail = false;
+  f.wx.request = options => {
+    setImmediate(() => fail
+      ? options.fail({ errMsg: 'network fail' })
+      : options.success({ statusCode: 200, data: { data: [{ job_id: '1', job_apply_link: 'https://old.example' }] } }));
+    return { abort() {} };
+  };
+  const client = load('utils/api-client.js', {
+    './app-config.js': { API_BASE_URL: 'https://example.test' },
+    './auth-session.js': { revision: () => 0 }
+  }, f.wx);
+  const first = await client.request({ path: '/api/jobs/detail', params: { job_id: '1' }, skipAuth: true, cacheTTL: 1 });
+  assert.equal(first.data[0].job_apply_link, 'https://old.example');
+  fail = true;
+  const second = await client.request({ path: '/api/jobs/detail', params: { job_id: '1' },
+    skipAuth: true, noCache: true, noStale: true });
+  assert.equal(second._source, 'networkError');
+  const calls = [];
+  const jobs = load('utils/api-jobs.js', {
+    './api-client.js': { request: options => { calls.push(options); return Promise.resolve({ data: [] }); } },
+    './app-config.js': { CONTENT_API_BASE_URL: 'https://example.test' },
+    './api-feishu-content.js': {},
+    './data-provenance.js': { normalizeDataMeta: value => value }
+  }, f.wx);
+  await jobs.getJobDetail('1');
+  assert.equal(calls[0].noCache, true);
+  assert.equal(calls[0].noStale, true);
+});
+
 test('an in-progress closed job opens progress instead of showing the deadline warning', () => {
   const f = fixture(), routes = [];
   const page = load('package-user/pages/job-detail/job-detail.js', {
@@ -1044,4 +1624,42 @@ test('legacy progress keeps numeric cloud applications read-only and routes them
   assert.match(source, /if \(record\.remoteManaged\) return this\.openManagedApplication\(record\)/);
   assert.match(source, /application-detail\/application-detail\?id=/);
   assert.doesNotMatch(source, /remoteManaged[\s\S]{0,300}progress\.update/);
+});
+
+test('application materials ask uses bound application, guards stale owner responses and saves with CAS', async () => {
+  const f = fixture();
+  f.storage.token = 'owner-1';
+  const generated = deferred();
+  let sent;
+  let saved;
+  const page = load('package-ai/pages/application-materials/application-materials.js', {
+    '../../utils/application-materials.js': { QUESTION_TYPES: [], readMaterials: () => [], getStats: () => ({ total: 0, byType: {} }), fetchRemoteMaterials: async () => [] },
+    '../../../utils/api-v4.js': {
+      generateApplicationAnswer: payload => { sent = payload; return generated.promise; },
+      updateApplicationAnswerDraft: async (id, payload) => { saved = { id, payload }; return ok({ id, version: 2, applicationId: 9, draft: payload.content, maxChars: 100, evidence: [], evidenceRefs: [], unsupportedClaims: [] }); }
+    },
+    '../../../utils/owner-storage.js': { capture: () => 'owner-1', isCurrent: owner => owner === f.storage.token }
+  }, f.wx, true);
+  page._unloaded = false;
+  page.data.applications = [{ id: 9 }, { id: 10 }];
+  page.data.resumes = [];
+  page.data.applicationIndex = 0;
+  page.data.answerQuestion = 'Describe one project';
+  page.generateApplicationAnswer();
+  assert.equal(sent.applicationId, 9);
+  assert.equal(sent.question, 'Describe one project');
+  assert.equal(sent.maxChars, 500);
+  page.onApplicationChange({ detail: { value: 1 } });
+  generated.resolve(ok({ id: 1, version: 1, applicationId: 9, draft: 'stale answer', maxChars: 500, evidence: [], evidenceRefs: [], unsupportedClaims: [] }));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(page.data.answerResult, null, 'late result for a different selected application is discarded');
+
+  page.data.applicationIndex = 0;
+  page.data.answerResult = { id: 1, version: 1, applicationId: 9, maxChars: 100 };
+  page.data.answerContent = '编辑后的答案🧭';
+  page.saveApplicationAnswerDraft();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(saved.id, 1);
+  assert.equal(saved.payload.expectedVersion, 1);
+  assert.equal(page.data.answerResult.version, 2);
 });

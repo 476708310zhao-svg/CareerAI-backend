@@ -225,6 +225,7 @@ curl -fsS https://api.zhiyincareer.com/api/health/ready
 - `DB_PATH` 指向 `/var/lib/jobapp-server/db/jobapp.db`
 - `UPLOAD_DIR` 指向 `/var/lib/jobapp-server/uploads`
 - `DATA_DIR` 指向 `/var/lib/jobapp-server/data`
+- 若运行多个后端进程，逐一核实所有写实例运行本版代码、在同一主机的可靠本地文件系统上运行，且 `DB_PATH` 和 `DATA_DIR` 指向同一份数据库与岗位文件；管理员岗位写入的跨进程互斥依赖这些条件。核验一次并发管理员更新后，检查岗位版本、核验记录和审计均保留。跨主机部署须先将岗位写入迁移到共享事务数据库。
 - 虚拟支付发货通知地址是 HTTPS，推荐 `https://api.zhiyincareer.com/api/payment/virtual-notify`
 - 未补齐虚拟支付参数前，`PAYMENT_ENABLED=false`
 - 开通虚拟支付后，`/api/payment/config` 返回 `data.provider=virtual`、`data.available=true` 且 `data.mock=false`

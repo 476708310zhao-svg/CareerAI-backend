@@ -1,7 +1,7 @@
 // utils/api-jobs.js
 // 职位搜索 + 薪资查询模块
 
-const { request, post, DETAIL_CACHE_TTL } = require('./api-client.js');
+const { request, post } = require('./api-client.js');
 const { CONTENT_API_BASE_URL } = require('./app-config.js');
 const feishuContent = require('./api-feishu-content.js');
 const { normalizeDataMeta } = require('./data-provenance.js');
@@ -73,7 +73,8 @@ function getJobDetail(jobId) {
   return request({
     path: '/api/jobs/detail',
     params: { job_id: jobId },
-    cacheTTL: DETAIL_CACHE_TTL,
+    noCache: true,
+    noStale: true,
     baseUrl: CONTENT_API_BASE_URL,
     skipAuth: true
   });
@@ -190,6 +191,8 @@ function getAggregatedJobs(data) {
     params,
     timeout: 15000,
     noCache: !!data.noCache,
+    noStale: !!data.noStale,
+    cacheTTL: data.cacheTTL,
     baseUrl: CONTENT_API_BASE_URL,
     skipAuth: true
   }).then(usableJobPage)
@@ -198,6 +201,11 @@ function getAggregatedJobs(data) {
         .then(usableJobResult)
         .then(result => markFallbackResult(result, '多源聚合接口暂不可用'))
       : Promise.reject(error));
+}
+
+function getOfficialBoards() {
+  return request({ path: '/api/jobs/official-boards', params: {}, timeout: 8000,
+    baseUrl: CONTENT_API_BASE_URL, skipAuth: true });
 }
 
 // ── The Muse 精选职位（完全免费，科技/创业公司）──
@@ -261,7 +269,7 @@ function getCronLogs() {
 }
 
 module.exports = {
-  getJobs, getAggregatedJobs, getJobDetail, searchCompanyJobs, fetchBatchJobs, fetchTrendingJobs,
+  getJobs, getAggregatedJobs, getOfficialBoards, getJobDetail, searchCompanyJobs, fetchBatchJobs, fetchTrendingJobs,
   getRemoteJobs, getFeaturedJobs, getLinkedInJobs, getIndeedJobs,
   getEstimatedSalary, getCompanyJobSalary, fetchUserSalaryStats, submitSalaryReport,
   getBigtechJobs, getBigtechStats, refreshBigtechJobs, getCronLogs,

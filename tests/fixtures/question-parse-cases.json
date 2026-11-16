@@ -1,0 +1,52 @@
+{
+  "description": "仅供解析器单元测试的原创合成文本，不包含真实企业试题或版权第三方资料",
+  "schemaVersion": "1.0",
+  "cases": [
+    {
+      "id": "CASE01_INLINE_ANSWER",
+      "sourceType": "DIGITAL_PDF_TEXT_SIMULATION",
+      "pages": [{"page": 1, "text": "一、单选题\n1. 2+3等于多少？\nA. 4\nB. 5\nC. 6\nD. 7\n答案：B\n解析：2加3等于5。"}],
+      "expected": {"questionCount": 1, "type": "SINGLE_CHOICE", "answerOptionIds": ["B"], "answerPage": 1, "requiresHumanReview": true}
+    },
+    {
+      "id": "CASE02_END_ANSWER_KEY",
+      "sourceType": "DIGITAL_PDF_TEXT_SIMULATION",
+      "pages": [
+        {"page": 1, "text": "二、单项选择题\n1. 一天有多少小时？\nA. 12 B. 18 C. 24 D. 48\n2. 一周有多少天？\nA. 5 B. 6 C. 7 D. 8"},
+        {"page": 8, "text": "二、单项选择题 答案汇总\n1.C 2.C"}
+      ],
+      "expected": {"questionCount": 2, "answerMap": {"1": ["C"], "2": ["C"]}, "answerEvidencePage": 8, "requiresHumanReview": true}
+    },
+    {
+      "id": "CASE03_DUPLICATED_NUMBER_SECTIONS",
+      "sourceType": "DIGITAL_PDF_TEXT_SIMULATION",
+      "pages": [
+        {"page": 1, "text": "第一部分 单选\n1. 1+1等于几？ A.1 B.2 C.3 D.4\n第二部分 判断\n1. 地球是行星。A. 对 B. 错"},
+        {"page": 4, "text": "答案 第一部分 1.B；第二部分 1.A"}
+      ],
+      "expected": {"questionCount": 2, "answerMapBySection": {"第一部分|1": ["B"], "第二部分|1": ["A"]}, "requiresHumanReview": true}
+    },
+    {
+      "id": "CASE04_MISSING_ANSWER",
+      "sourceType": "DIGITAL_PDF_TEXT_SIMULATION",
+      "pages": [{"page": 1, "text": "1. 10与4的差是多少？ A.5 B.6 C.7 D.8"}],
+      "expected": {"questionCount": 1, "answerStatus": "UNVERIFIED", "publishable": false}
+    },
+    {
+      "id": "CASE05_CONFLICT_ANSWER",
+      "sourceType": "DIGITAL_PDF_TEXT_SIMULATION",
+      "pages": [
+        {"page": 1, "text": "1. 3*3等于几？ A.6 B.8 C.9 D.10\n答案：C"},
+        {"page": 3, "text": "答案表\n1.B"}
+      ],
+      "expected": {"questionCount": 1, "answerStatus": "ANSWER_UNCERTAIN", "publishable": false}
+    },
+    {
+      "id": "CASE06_RIGHTS_PENDING",
+      "sourceType": "DIGITAL_PDF_TEXT_SIMULATION",
+      "pages": [{"page": 1, "text": "1. 3+4等于几？ A.7 B.8 C.9 D.10 答案：A"}],
+      "rights": {"purchaseReceipt": true, "processAllowed": false, "publicDisplayAllowed": false},
+      "expected": {"jobStatus": "WAIT_RIGHTS", "publishable": false}
+    }
+  ]
+}

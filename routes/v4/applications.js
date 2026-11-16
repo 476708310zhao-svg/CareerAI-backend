@@ -1,17 +1,22 @@
 const express = require('express');
 const db = require('../../db/database');
+const reminderSync = require('../../services/reminderSync');
 const { authMiddleware } = require('../../middleware/auth');
 const { ok, fail } = require('../../utils/response');
-const { findJobById } = require('../../utils/jobData');
+const { findJobById, isHeldLocalJobId } = require('../../utils/jobData');
+const { withoutHeldJobLinks } = require('../../utils/applicationLinkVisibility');
 const { getProfile } = require('../../services/v4Profile');
 const { getSponsorProfile } = require('../../services/v4Sponsor');
 const { persistJobMatch } = require('../../services/v4JobMatchStore');
 const workflow = require('../../services/v4ApplicationWorkflow');
+const submission = require('../../services/v4ApplicationSubmission');
+const readiness = require('../../services/v4ApplicationReadiness');
+const interviewReports = require('../../services/v4ApplicationInterviewReports');
 const { applicationView, buildDetail, workspace } = require('../../services/v4ApplicationWorkspace');
 const analytics = require('../../services/v4Analytics');
 const { applicationRefs, withCoreRefs } = require('../../utils/coreEntityRefs');
 const {
-  STATUS_TEXT, V4_TO_PROGRESS, broadStatus, boardGroup
+  STATUS_TEXT, V4_TO_PROGRESS, LEGACY_TO_V4, broadStatus, boardGroup
 } = require('../../utils/applicationStatus');
 
 const router = express.Router();
@@ -37,6 +42,27 @@ function validWebUrl(value) {
   if (!value) return true;
   try { return ['http:', 'https:'].includes(new URL(value).protocol); }
   catch (error) { return false; }
+}
+
+function isHeldLocalJobReference(...jobIds) {
+  // Client supplied source markers cannot prove a colliding numeric ID is external.
+  // External providers should namespace IDs (for example, jsearch_123).
+  return jobIds.some(isHeldLocalJobId);
+}
+
+function presentApplication(row, view = applicationView(row)) {
+  if (!isHeldLocalJobReference(row.source_job_id, row.job_id)) return view;
+  return withoutHeldJobLinks(view);
+}
+
+function presentApplicationDetail(row, detail) {
+  const confirmation = submission.read(row.user_id, row.id);
+  return { ...detail, materialChecklist: readiness.checklistView(row.user_id, row), application: {
+    ...presentApplication(row, detail.application),
+    ...readiness.selectionView(row),
+    submissionConfirmation: row.archived_at && confirmation.available
+      ? { ...confirmation, available: false, unavailableReason: 'archived' } : confirmation
+  } };
 }
 
 function positiveId(value) {
@@ -81,12 +107,76 @@ function activeOwnedApplication(id, userId) {
 
 router.get('/board', authMiddleware, (req, res) => {
   const keyword = cleanText(req.query.keyword, 120).toLowerCase();
+  // Existing clients receive the complete board. New clients opt in to bounded
+  // keyset pages while counts remain for the complete filtered board.
+  if (req.query.pageSize !== undefined || req.query.cursor !== undefined) {
+    const pageSize = Number(req.query.pageSize);
+    if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100) return fail(res, 'pageSize 须为 1-100', 400);
+    let cursor = null;
+    if (req.query.cursor !== undefined) {
+      try {
+        if (typeof req.query.cursor !== 'string' || req.query.cursor.length > 256) throw new Error('invalid cursor');
+        cursor = JSON.parse(Buffer.from(req.query.cursor, 'base64url').toString('utf8'));
+        if (!cursor || typeof cursor.d !== 'string' || typeof cursor.u !== 'string' ||
+          !Number.isSafeInteger(cursor.id) || cursor.id < 1) throw new Error('invalid cursor');
+      } catch (_) { return fail(res, 'cursor 无效', 400); }
+    }
+    const sqlValue = value => `'${String(value).replace(/'/g, "''")}'`;
+    const knownStatuses = Object.keys(STATUS_TEXT).map(sqlValue).join(',');
+    const legacyCase = column => `CASE ${column} ${Object.entries(LEGACY_TO_V4)
+      .map(([from, to]) => `WHEN ${sqlValue(from)} THEN ${sqlValue(to)}`).join(' ')} ELSE NULL END`;
+    const statusSql = `CASE WHEN a.v4_status IN (${knownStatuses}) THEN a.v4_status
+      ELSE COALESCE(${legacyCase('a.progress_status')}, ${legacyCase('a.status')}, 'interested') END`;
+    const groupSql = `CASE WHEN ${statusSql} IN ('interested','preparing') THEN 'preparing'
+      WHEN ${statusSql} IN ('applied','oa') THEN 'applied'
+      WHEN ${statusSql} IN ('phone_screen','interview_1','interview_2','final') THEN 'interview'
+      WHEN ${statusSql}='offer' THEN 'offer' ELSE 'closed' END`;
+    const sortDeadline = "CASE WHEN a.deadline!='' THEN a.deadline ELSE '9999-12-31' END";
+    const sortUpdated = "COALESCE(a.updated_at,'')";
+    const snapshotField = field => `CASE WHEN json_valid(a.job_snapshot) THEN json_extract(a.job_snapshot,'$.${field}') ELSE NULL END`;
+    const searchSql = ['company', 'job_title', 'city'].map((field, index) => {
+      const fallback = snapshotField(['company', 'title', 'location'][index]);
+      return `COALESCE(NULLIF(a.${field},''),${fallback},'')`;
+    }).join(" || ' ' || ");
+    const where = ["a.user_id=?", "COALESCE(a.archived_at,'')=''"];
+    const params = [req.user.userId];
+    if (keyword) { where.push(`instr(lower(${searchSql}),?)>0`); params.push(keyword); }
+    if (req.query.status) {
+      if (typeof req.query.status !== 'string' || !STATUS_TEXT[req.query.status]) return fail(res, 'status 无效', 400);
+      where.push(`${statusSql}=?`); params.push(req.query.status);
+    }
+    const baseWhere = where.join(' AND ');
+    const counts = db.prepare(`SELECT ${groupSql} AS board_group, COUNT(*) AS count FROM applications a
+      WHERE ${baseWhere} GROUP BY board_group`).all(...params);
+    const statistics = { preparing: 0, applied: 0, interview: 0, offer: 0, closed: 0 };
+    counts.forEach(row => { statistics[row.board_group] = row.count; });
+    const total = Object.values(statistics).reduce((sum, count) => sum + count, 0);
+    if (cursor) {
+      where.push(`(${sortDeadline}>? OR (${sortDeadline}=? AND ${sortUpdated}<?)
+        OR (${sortDeadline}=? AND ${sortUpdated}=? AND a.id<?))`);
+      params.push(cursor.d, cursor.d, cursor.u, cursor.d, cursor.u, cursor.id);
+    }
+    const rows = db.prepare(`SELECT a.*, (SELECT COALESCE(MAX(h.id),0) FROM application_history h
+      WHERE h.application_id=a.id AND h.user_id=a.user_id) AS history_id
+      FROM applications a WHERE ${where.join(' AND ')}
+      ORDER BY ${sortDeadline} ASC, ${sortUpdated} DESC, a.id DESC LIMIT ?`).all(...params, pageSize + 1);
+    const hasMore = rows.length > pageSize;
+    const page = rows.slice(0, pageSize);
+    const groups = { preparing: [], applied: [], interview: [], offer: [], closed: [] };
+    page.map(row => presentApplication(row)).forEach(item => groups[boardGroup(item.status)].push(item));
+    const last = page.at(-1);
+    const nextCursor = hasMore && last ? Buffer.from(JSON.stringify({
+      d: last.deadline ? last.deadline : '9999-12-31', u: last.updated_at || '', id: last.id
+    })).toString('base64url') : null;
+    return ok(res, { groups, statistics, total, nextCursor, hasMore, pageSize,
+      statuses: Object.entries(STATUS_TEXT).map(([value, label]) => ({ value, label })) });
+  }
   const rows = db.prepare(`
     SELECT applications.*, (SELECT COALESCE(MAX(h.id),0) FROM application_history h WHERE h.application_id=applications.id AND h.user_id=applications.user_id) AS history_id FROM applications WHERE user_id=? AND COALESCE(archived_at, '')=''
     ORDER BY CASE WHEN deadline!='' THEN deadline ELSE '9999-12-31' END ASC,
              updated_at DESC, id DESC
   `).all(req.user.userId);
-  const list = rows.map(applicationView).filter(item => {
+  const list = rows.map(row => presentApplication(row)).filter(item => {
     const text = `${item.company} ${item.jobTitle} ${item.city}`.toLowerCase();
     return (!keyword || text.includes(keyword)) && (!req.query.status || item.status === req.query.status);
   });
@@ -112,6 +202,9 @@ router.post('/', authMiddleware, (req, res) => {
   }
   const jobId = cleanText(body.jobId, 200);
   if (!jobId) return fail(res, '缺少 jobId', 400);
+  if (isHeldLocalJobReference(jobId)) {
+    return fail(res, '该岗位已关闭或待人工复核，暂不可加入当前申请', 409);
+  }
   const job = findJobById(jobId);
   const snapshot = suppliedSnapshot || job || {};
   const jobLink = cleanText(snapshot.applyUrl || snapshot.sourceUrl, 1000);
@@ -155,13 +248,17 @@ router.post('/', authMiddleware, (req, res) => {
     { applicationId: created.applicationId, jobId },
     applicationRefs(row)
   ), '/api/v4/applications');
-  return ok(res, applicationView(row), '已加入申请看板');
+  return ok(res, presentApplication(row), '已加入申请看板');
 });
 
 router.post('/:id/official-apply', authMiddleware, (req, res) => {
   const row = activeOwnedApplication(req.params.id, req.user.userId);
   if (!row) return fail(res, '申请记录不存在', 404);
   const snapshot = parseJson(row.job_snapshot, {});
+  res.set('Cache-Control', 'no-store');
+  if (isHeldLocalJobReference(row.source_job_id, row.job_id)) {
+    return fail(res, '该岗位已关闭或待人工复核，历史链接不可作为当前申请入口', 409);
+  }
   const url = row.job_link || snapshot.applyUrl || snapshot.sourceUrl || '';
   analytics.track(req.user.userId, 'official_apply_clicked', withCoreRefs(
     { applicationId: row.id, jobId: row.source_job_id || row.job_id },
@@ -170,17 +267,83 @@ router.post('/:id/official-apply', authMiddleware, (req, res) => {
   return ok(res, { url });
 });
 
+function submissionError(res, err) {
+  if (err && err.isApplicationSubmissionError === true
+    && Number.isInteger(err.status) && err.status >= 400 && err.status < 600) {
+    return res.status(err.status).json({ code: -1, message: err.message });
+  }
+  throw err;
+}
+
+router.post('/:id/submission-confirmation', authMiddleware, (req, res) => {
+  try {
+    const id = positiveId(req.params.id);
+    if (!id) return fail(res, '申请记录 ID 无效', 400);
+    return ok(res, submission.change(req.user.userId, id, 'confirmed', bodyOf(req)), '提交确认已记录');
+  } catch (err) { return submissionError(res, err); }
+});
+
+router.post('/:id/submission-confirmation/revoke', authMiddleware, (req, res) => {
+  try {
+    const id = positiveId(req.params.id);
+    if (!id) return fail(res, '申请记录 ID 无效', 400);
+    return ok(res, submission.change(req.user.userId, id, 'revoked', bodyOf(req)), '提交确认已撤回');
+  } catch (err) { return submissionError(res, err); }
+});
+
+function readinessError(res, err) {
+  if (err && err.isApplicationReadinessError === true
+    && Number.isInteger(err.status) && err.status >= 400 && err.status < 600) {
+    return res.status(err.status).json({ code: -1, message: err.message });
+  }
+  throw err;
+}
+
+router.put('/:id/resume-selection', authMiddleware, (req, res) => {
+  try {
+    const id = positiveId(req.params.id);
+    if (!id) return fail(res, '申请记录 ID 无效', 400);
+    return ok(res, readiness.selectResume(req.user.userId, id, bodyOf(req)), '申请简历版本已更新');
+  } catch (err) { return readinessError(res, err); }
+});
+
+router.post('/:id/material-checklist', authMiddleware, (req, res) => {
+  try {
+    const id = positiveId(req.params.id);
+    if (!id) return fail(res, '申请记录 ID 无效', 400);
+    return ok(res, readiness.createItem(req.user.userId, id, bodyOf(req)), '材料项已添加');
+  } catch (err) { return readinessError(res, err); }
+});
+
+router.patch('/:id/material-checklist/:itemId', authMiddleware, (req, res) => {
+  try {
+    const id = positiveId(req.params.id);
+    const itemId = positiveId(req.params.itemId);
+    if (!id || !itemId) return fail(res, '申请或材料项 ID 无效', 400);
+    return ok(res, readiness.updateItem(req.user.userId, id, itemId, bodyOf(req)), '材料项已更新');
+  } catch (err) { return readinessError(res, err); }
+});
+
+router.delete('/:id/material-checklist/:itemId', authMiddleware, (req, res) => {
+  try {
+    const id = positiveId(req.params.id);
+    const itemId = positiveId(req.params.itemId);
+    if (!id || !itemId) return fail(res, '申请或材料项 ID 无效', 400);
+    return ok(res, readiness.deleteItem(req.user.userId, id, itemId, bodyOf(req)), '材料项已移除');
+  } catch (err) { return readinessError(res, err); }
+});
+
 router.get('/:id/detail', authMiddleware, (req, res) => {
   const row = readableOwnedApplication(req.params.id, req.user.userId);
   if (!row) return fail(res, '申请记录不存在', 404);
-  return ok(res, buildDetail(req.user.userId, row));
+  return ok(res, presentApplicationDetail(row, buildDetail(req.user.userId, row)));
 });
 
 router.get('/:id/workspace', authMiddleware, (req, res) => {
   const row = readableOwnedApplication(req.params.id, req.user.userId);
   if (!row) return fail(res, '申请记录不存在', 404);
   res.set('Cache-Control', 'no-store');
-  return ok(res, workspace(req.user.userId, row));
+  return ok(res, presentApplicationDetail(row, workspace(req.user.userId, row)));
 });
 
 function workflowError(res, err) {
@@ -210,54 +373,41 @@ router.patch('/:id', authMiddleware, (req, res) => {
   const row = activeOwnedApplication(req.params.id, req.user.userId);
   if (!row) return fail(res, '申请记录不存在', 404);
   const body = bodyOf(req);
-  const supportedFields = ['deadline', 'interviewTime', 'notes', 'resumeVersionId', 'nextAction', 'coverLetter'];
+  if (Object.prototype.hasOwnProperty.call(body, 'resumeVersionId')) {
+    return fail(res, '请使用简历版本专用接口，并携带当前选择版本', 400);
+  }
+  const supportedFields = ['deadline', 'interviewTime', 'notes', 'nextAction', 'coverLetter'];
   const requestedFields = Object.keys(body);
   if (!requestedFields.length || requestedFields.some(key => !supportedFields.includes(key))) {
     return fail(res, '请提供要更新的申请内容', 400);
   }
   const value = (key, current, max) => Object.prototype.hasOwnProperty.call(body, key) ? cleanText(body[key], max) : current || '';
-  let resumeId = row.resume_id || null;
-  let resumeVersionId = row.resume_version_id || '';
-  if (Object.prototype.hasOwnProperty.call(body, 'resumeVersionId')) {
-    const requested = String(body.resumeVersionId || '').trim();
-    if (requested) {
-      const selected = db.prepare(`SELECT v.id,v.resume_id FROM resume_versions_v4 v
-        JOIN resumes r ON r.id=v.resume_id AND r.user_id=v.user_id
-        WHERE v.id=? AND v.user_id=? AND COALESCE(r.archived_at,'')=''`).get(Number(requested), req.user.userId);
-      if (!selected) return fail(res, '简历版本不存在或无权使用', 404);
-      resumeId = selected.resume_id;
-      resumeVersionId = String(selected.id);
-    } else {
-      resumeId = null;
-      resumeVersionId = '';
-    }
-  }
   const nextValues = {
     deadline: value('deadline', row.deadline, 40),
     interviewTime: value('interviewTime', row.interview_time, 80),
     notes: value('notes', row.notes, 2000),
-    resumeVersionId,
-    resumeId,
     nextAction: value('nextAction', row.next_action, 300),
     coverLetter: value('coverLetter', row.cover_letter, 10000)
   };
   const unchanged = nextValues.deadline === (row.deadline || '')
     && nextValues.interviewTime === (row.interview_time || '')
     && nextValues.notes === (row.notes || '')
-    && String(nextValues.resumeVersionId || '') === String(row.resume_version_id || '')
-    && Number(nextValues.resumeId || 0) === Number(row.resume_id || 0)
     && nextValues.nextAction === (row.next_action || '')
     && nextValues.coverLetter === (row.cover_letter || '');
-  if (unchanged) return ok(res, applicationView(row), '申请详情未变化');
+  if (unchanged) return ok(res, presentApplication(row), '申请详情未变化');
   db.prepare(`
-    UPDATE applications SET deadline=?, interview_time=?, notes=?, resume_version_id=?,
-      resume_id=?, next_action=?, cover_letter=?, updated_at=datetime('now') WHERE id=? AND user_id=?
+    UPDATE applications SET deadline=?, interview_time=?, notes=?,
+      next_action=?, cover_letter=?, updated_at=datetime('now') WHERE id=? AND user_id=?
   `).run(
-    nextValues.deadline, nextValues.interviewTime, nextValues.notes, nextValues.resumeVersionId,
-    nextValues.resumeId, nextValues.nextAction, nextValues.coverLetter,
+    nextValues.deadline, nextValues.interviewTime, nextValues.notes,
+    nextValues.nextAction, nextValues.coverLetter,
     row.id, req.user.userId
   );
-  return ok(res, applicationView(activeOwnedApplication(row.id, req.user.userId)), '申请详情已更新');
+  if (nextValues.deadline !== (row.deadline || '')) {
+    reminderSync.syncApplicationDeadline(req.user.userId, row.id, nextValues.deadline);
+  }
+  const updatedRow = activeOwnedApplication(row.id, req.user.userId);
+  return ok(res, presentApplication(updatedRow), '申请详情已更新');
 });
 
 router.post('/:id/match', authMiddleware, (req, res) => {
@@ -298,6 +448,7 @@ router.post('/:id/tasks', authMiddleware, (req, res) => {
     INSERT INTO application_tasks (application_id, user_id, title, due_at, priority)
     VALUES (?, ?, ?, ?, ?)
   `).run(row.id, req.user.userId, title, cleanText(body.dueAt, 40), priority);
+  reminderSync.syncApplicationTask(req.user.userId, Number(result.lastInsertRowid), cleanText(body.dueAt, 40), false);
   return ok(res, { id: result.lastInsertRowid, title, priority }, '下一步任务已添加');
 });
 
@@ -313,7 +464,38 @@ router.patch('/:id/tasks/:taskId', authMiddleware, (req, res) => {
   if (!title) return fail(res,'任务标题不能为空',400);
   const dueAt = body.dueAt === undefined ? task.due_at : cleanText(body.dueAt,40);
   db.prepare('UPDATE application_tasks SET title=?,due_at=?,completed=?, updated_at=datetime(\'now\') WHERE id=?').run(title,dueAt,completed, task.id);
+  if (dueAt !== (task.due_at || '') || Boolean(completed) !== Boolean(task.completed)) {
+    reminderSync.syncApplicationTask(req.user.userId, task.id, dueAt, completed);
+  }
   return ok(res, { id: task.id, title, dueAt, completed: Boolean(completed) }, '任务已更新');
+});
+
+router.get('/:id/interview-reports', authMiddleware, (req, res) => {
+  const applicationId = Number(req.params.id);
+  if (!Number.isSafeInteger(applicationId) || applicationId <= 0) return fail(res, '申请记录不存在', 404);
+  try { return ok(res, interviewReports.list(req.user.userId, applicationId)); }
+  catch (error) { return fail(res, error.message || '面试摘要读取失败', error.status || 500); }
+});
+
+router.post('/:id/interview-reports', authMiddleware, (req, res) => {
+  const applicationId = Number(req.params.id);
+  if (!Number.isSafeInteger(applicationId) || applicationId <= 0) return fail(res, '申请记录不存在', 404);
+  try {
+    const result = interviewReports.save(req.user.userId, applicationId, bodyOf(req));
+    return ok(res, result, result.changed ? '面试摘要已关联申请' : '面试摘要已保存');
+  } catch (error) { return fail(res, error.message || '面试摘要保存失败', error.status || 500); }
+});
+
+router.post('/:id/interview-reports/:reportId/convert-to-task', authMiddleware, (req, res) => {
+  const applicationId = Number(req.params.id);
+  const reportId = Number(req.params.reportId);
+  if (!Number.isSafeInteger(applicationId) || applicationId <= 0 || !Number.isSafeInteger(reportId) || reportId <= 0) {
+    return fail(res, '申请或面试摘要不存在', 404);
+  }
+  try {
+    const result = interviewReports.convertToTask(req.user.userId, applicationId, reportId, bodyOf(req));
+    return ok(res, result, result.changed ? '已根据面试摘要创建申请任务' : '任务已存在');
+  } catch (error) { return fail(res, error.message || '任务创建失败', error.status || 500, error.details); }
 });
 
 router.patch('/:id/status', authMiddleware, (req, res) => {
@@ -327,13 +509,22 @@ router.patch('/:id/status', authMiddleware, (req, res) => {
 router.get('/:id/history', authMiddleware, (req, res) => {
   const application = readableOwnedApplication(req.params.id, req.user.userId);
   if (!application) return fail(res, '申请记录不存在', 404);
-  const list = db.prepare(`
+  const rawLimit = Number(req.query.limit || 50);
+  const beforeId = req.query.beforeId === undefined ? null : Number(req.query.beforeId);
+  if (!Number.isSafeInteger(rawLimit) || rawLimit < 1 || rawLimit > 50
+    || (beforeId !== null && (!Number.isSafeInteger(beforeId) || beforeId <= 0))) {
+    return fail(res, '状态历史分页参数无效', 400);
+  }
+  const listRows = db.prepare(`
     SELECT id, from_status AS fromStatus, to_status AS toStatus, note,
            actor_type AS actorType, created_at AS createdAt
-    FROM application_history WHERE application_id=? AND user_id=?
-    ORDER BY id DESC
-  `).all(application.id, req.user.userId);
-  return ok(res, { list, total: list.length });
+    FROM application_history WHERE application_id=? AND user_id=? AND (? IS NULL OR id<?)
+    ORDER BY id DESC LIMIT ?
+  `).all(application.id, req.user.userId, beforeId, beforeId, rawLimit + 1);
+  const hasMore = listRows.length > rawLimit;
+  const list = listRows.slice(0, rawLimit);
+  const total = db.prepare('SELECT COUNT(*) AS count FROM application_history WHERE application_id=? AND user_id=?').get(application.id, req.user.userId).count;
+  return ok(res, { list, total, hasMore, nextCursor: hasMore ? list[list.length - 1].id : null });
 });
 
 module.exports = router;

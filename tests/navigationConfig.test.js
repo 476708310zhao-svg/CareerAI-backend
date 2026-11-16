@@ -523,8 +523,9 @@ test('application detail and AI report keep the next action explicit', () => {
   assert.match(detailJs, /handlePrimaryAction/);
   assert.match(detailWxml, /建议下一步/);
   assert.match(reportJs, /saveToApplication/);
-  assert.match(reportJs, /addApplicationTask/);
-  assert.match(reportWxml, /加入当前申请/);
+  assert.match(reportJs, /saveApplicationInterviewReport/);
+  assert.match(reportJs, /不会上传问答逐字稿或音频/);
+  assert.match(reportWxml, /关联摘要到当前申请/);
   assert.match(reportWxml, /保存图片/);
   assert.doesNotMatch(reportWxml, /保存报告<\/view>/);
 });

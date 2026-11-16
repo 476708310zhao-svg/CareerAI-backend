@@ -18,6 +18,24 @@ const { parseId }        = require('../db/utils');
 
 const MAX_FREE = 1;
 const MAX_VIP  = 999; // VIP 无限份（实际上限 999）
+const MAX_RESUME_JSON = 80 * 1024;
+
+function validateResumeBody(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return '请求内容无效';
+  for (const [field, max] of [['name', 80], ['language', 16], ['targetRole', 120], ['targetJobId', 120]]) {
+    if (body[field] !== undefined && (typeof body[field] !== 'string' || body[field].length > max)) {
+      return `${field} 格式无效或过长`;
+    }
+  }
+  if (body.data !== undefined && (body.data === null || typeof body.data !== 'object' || Array.isArray(body.data) ||
+    Buffer.byteLength(JSON.stringify(body.data), 'utf8') > MAX_RESUME_JSON)) return 'data 须为不超过 80 KB 的简历对象';
+  if (body.optimizationHistory != null && (!Array.isArray(body.optimizationHistory) ||
+    body.optimizationHistory.length > 50 || Buffer.byteLength(JSON.stringify(body.optimizationHistory), 'utf8') > MAX_RESUME_JSON)) {
+    return 'optimizationHistory 格式无效或过长';
+  }
+  if (body.isDefault !== undefined && ![true, false, 0, 1].includes(body.isDefault)) return 'isDefault 格式无效';
+  return null;
+}
 
 function safeJsonParse(value, fallback) {
   if (value === undefined || value === null || value === '') return fallback;
@@ -47,11 +65,12 @@ router.get('/', authMiddleware, (req, res) => {
   try {
     const rows = db.prepare(`
       SELECT id, name, language, is_default, target_role, target_job_id, updated_at, created_at
-      FROM resumes WHERE user_id = ? ORDER BY is_default DESC, updated_at DESC
+      FROM resumes WHERE user_id = ? AND COALESCE(archived_at, '') = ''
+      ORDER BY is_default DESC, updated_at DESC
     `).all(req.user.userId);
     res.json({ code: 0, data: rows.map(resumeListRow) });
   } catch (e) {
-    res.status(500).json({ code: -1, message: e.message });
+    res.status(500).json({ code: -1, message: '简历列表暂不可用' });
   }
 });
 
@@ -60,24 +79,26 @@ router.get('/:id', authMiddleware, (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ code: -1, message: '参数错误' });
   try {
-    const row = db.prepare('SELECT * FROM resumes WHERE id = ? AND user_id = ?').get(id, req.user.userId);
+    const row = db.prepare("SELECT * FROM resumes WHERE id = ? AND user_id = ? AND COALESCE(archived_at, '') = ''").get(id, req.user.userId);
     if (!row) return res.status(404).json({ code: -1, message: '简历不存在' });
     res.json({
       code: 0,
       data: resumeDetailRow(row)
     });
   } catch (e) {
-    res.status(500).json({ code: -1, message: e.message });
+    res.status(500).json({ code: -1, message: '简历详情暂不可用' });
   }
 });
 
 // ── 新建 ─────────────────────────────────────────────────────────────────────
 router.post('/', authMiddleware, (req, res) => {
+  const invalid = validateResumeBody(req.body);
+  if (invalid) return res.status(400).json({ code: -1, message: invalid });
   try {
     const userId = req.user.userId;
     const user   = db.prepare('SELECT vip_level FROM users WHERE id = ?').get(userId);
     const maxCount = (user && user.vip_level > 0) ? MAX_VIP : MAX_FREE;
-    const count    = db.prepare('SELECT COUNT(*) as c FROM resumes WHERE user_id = ?').get(userId).c;
+    const count    = db.prepare("SELECT COUNT(*) as c FROM resumes WHERE user_id = ? AND COALESCE(archived_at, '') = ''").get(userId).c;
 
     if (count >= maxCount) {
       const msg = (user && user.vip_level > 0)
@@ -107,7 +128,7 @@ router.post('/', authMiddleware, (req, res) => {
 
     res.json({ code: 0, data: { id: result.lastInsertRowid } });
   } catch (e) {
-    res.status(500).json({ code: -1, message: e.message });
+    res.status(500).json({ code: -1, message: '简历创建失败' });
   }
 });
 
@@ -115,8 +136,10 @@ router.post('/', authMiddleware, (req, res) => {
 router.put('/:id', authMiddleware, (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ code: -1, message: '参数错误' });
+  const invalid = validateResumeBody(req.body);
+  if (invalid) return res.status(400).json({ code: -1, message: invalid });
   try {
-    const row = db.prepare('SELECT id FROM resumes WHERE id = ? AND user_id = ?').get(id, req.user.userId);
+    const row = db.prepare("SELECT id FROM resumes WHERE id = ? AND user_id = ? AND COALESCE(archived_at, '') = ''").get(id, req.user.userId);
     if (!row) return res.status(404).json({ code: -1, message: '简历不存在' });
 
     const { name, language, data, targetRole, targetJobId, optimizationHistory } = req.body;
@@ -141,7 +164,7 @@ router.put('/:id', authMiddleware, (req, res) => {
     );
     res.json({ code: 0, message: '已保存' });
   } catch (e) {
-    res.status(500).json({ code: -1, message: e.message });
+    res.status(500).json({ code: -1, message: '简历保存失败' });
   }
 });
 
@@ -150,7 +173,7 @@ router.put('/:id/default', authMiddleware, (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ code: -1, message: '参数错误' });
   try {
-    const row = db.prepare('SELECT id FROM resumes WHERE id = ? AND user_id = ?').get(id, req.user.userId);
+    const row = db.prepare("SELECT id FROM resumes WHERE id = ? AND user_id = ? AND COALESCE(archived_at, '') = ''").get(id, req.user.userId);
     if (!row) return res.status(404).json({ code: -1, message: '简历不存在' });
     const tx = db.transaction(() => {
       db.prepare('UPDATE resumes SET is_default = 0 WHERE user_id = ?').run(req.user.userId);
@@ -160,18 +183,23 @@ router.put('/:id/default', authMiddleware, (req, res) => {
     tx();
     res.json({ code: 0, message: '已设为默认简历' });
   } catch (e) {
-    res.status(500).json({ code: -1, message: e.message });
+    res.status(500).json({ code: -1, message: '设置默认简历失败' });
   }
 });
 
 router.post('/:id/optimization-history', authMiddleware, (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ code: -1, message: '参数错误' });
+  const body = req.body;
+  if (!body || typeof body !== 'object' || Array.isArray(body) ||
+    [['type', 40], ['targetRole', 120], ['before', 10000], ['after', 10000], ['content', 10000], ['source', 40]]
+      .some(([field, max]) => body[field] !== undefined && (typeof body[field] !== 'string' || body[field].length > max))) {
+    return res.status(400).json({ code: -1, message: '优化记录格式无效或过长' });
+  }
   try {
-    const row = db.prepare('SELECT optimization_history FROM resumes WHERE id = ? AND user_id = ?')
+    const row = db.prepare("SELECT optimization_history FROM resumes WHERE id = ? AND user_id = ? AND COALESCE(archived_at, '') = ''")
       .get(id, req.user.userId);
     if (!row) return res.status(404).json({ code: -1, message: '简历不存在' });
-    const body = req.body || {};
     const history = safeJsonParse(row.optimization_history, []);
     const entry = {
       id: 'opt_' + Date.now(),
@@ -190,7 +218,7 @@ router.post('/:id/optimization-history', authMiddleware, (req, res) => {
     `).run(JSON.stringify(next), id, req.user.userId);
     res.json({ code: 0, data: entry, message: '已保存优化记录' });
   } catch (e) {
-    res.status(500).json({ code: -1, message: e.message });
+    res.status(500).json({ code: -1, message: '优化记录保存失败' });
   }
 });
 
@@ -198,12 +226,13 @@ router.delete('/:id', authMiddleware, (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ code: -1, message: '参数错误' });
   try {
-    const changes = db.prepare('DELETE FROM resumes WHERE id = ? AND user_id = ?')
+    // Keep V4 versions, links and application history intact for old clients.
+    const changes = db.prepare("UPDATE resumes SET archived_at = datetime('now'), is_default = 0, updated_at = datetime('now') WHERE id = ? AND user_id = ? AND COALESCE(archived_at, '') = ''")
       .run(id, req.user.userId).changes;
     if (!changes) return res.status(404).json({ code: -1, message: '简历不存在' });
     res.json({ code: 0, message: '已删除' });
   } catch (e) {
-    res.status(500).json({ code: -1, message: e.message });
+    res.status(500).json({ code: -1, message: '简历删除失败' });
   }
 });
 

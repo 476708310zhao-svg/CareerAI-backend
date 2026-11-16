@@ -688,6 +688,35 @@ test('legacy users resumes endpoint is marked deprecated', async () => {
   assert.match(res.headers.get('link') || '', /\/api\/resumes/);
 });
 
+test('legacy and admin resume deletion archive without losing V4 versions', async () => {
+  const userId = db.prepare('SELECT id FROM users WHERE email=?').get(testAccount.email).id;
+  const create = name => {
+    const resumeId = Number(db.prepare('INSERT INTO resumes (user_id,name) VALUES (?,?)').run(userId, name).lastInsertRowid);
+    const versionId = Number(db.prepare('INSERT INTO resume_versions_v4 (resume_id,user_id,version_no,name,content) VALUES (?,?,1,?,?)')
+      .run(resumeId, userId, name, '{}').lastInsertRowid);
+    return { resumeId, versionId };
+  };
+  const owned = create('legacy-delete-archive');
+  const admin = create('admin-delete-archive');
+  try {
+    const deleted = await fetch(`${BASE_URL}/api/resumes/${owned.resumeId}`, { method: 'DELETE', headers: authHeaders() });
+    assert.equal(deleted.status, 200);
+    assert.equal((await fetch(`${BASE_URL}/api/resumes/${owned.resumeId}`, { headers: authHeaders() })).status, 404);
+    assert.equal((await fetch(`${BASE_URL}/api/users/resumes/${owned.resumeId}`, { headers: authHeaders() })).status, 404);
+    assert.ok(db.prepare('SELECT id FROM resume_versions_v4 WHERE id=?').get(owned.versionId));
+
+    await ensureAdminToken();
+    const adminDeleted = await fetch(`${BASE_URL}/admin/api/resumes/${admin.resumeId}`, { method: 'DELETE', headers: adminHeaders() });
+    assert.equal(adminDeleted.status, 200);
+    assert.equal((await fetch(`${BASE_URL}/admin/api/resumes/${admin.resumeId}`, { headers: adminHeaders() })).status, 404);
+    assert.ok(db.prepare('SELECT id FROM resume_versions_v4 WHERE id=?').get(admin.versionId));
+    const list = await readJson(await fetch(`${BASE_URL}/api/resumes`, { headers: authHeaders() }));
+    assert.equal(list.data.some(item => [owned.resumeId, admin.resumeId].includes(item.id)), false);
+  } finally {
+    db.prepare('DELETE FROM resumes WHERE id IN (?,?)').run(owned.resumeId, admin.resumeId);
+  }
+});
+
 test('user profile stores standardized education and job preference fields', async () => {
   assert.ok(authToken);
   const schemaRes = await fetch(`${BASE_URL}/api/users/profile-schema`);
@@ -1006,19 +1035,22 @@ test('v4 application status machine writes an auditable history', async () => {
   assert.ok(detail.data.match);
   assert.ok(detail.data.allowedTransitions.some(item => item.value === 'preparing'));
 
+  let expectedState = { status: detail.data.application.status, historyId: detail.data.application.historyId };
   for (const status of ['preparing', 'applied']) {
     const updateRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ status, note: `move to ${status}` })
+      body: JSON.stringify({ status, note: `move to ${status}`, expectedState })
     });
     assert.equal(updateRes.status, 200);
+    const updatedState = await readJson(updateRes);
+    expectedState = { status: updatedState.data.status, historyId: updatedState.data.historyId };
   }
 
   const invalidRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ status: 'offer' })
+    body: JSON.stringify({ status: 'offer', expectedState })
   });
   assert.equal(invalidRes.status, 409);
   const invalid = await readJson(invalidRes);
@@ -1033,9 +1065,13 @@ test('v4 application status machine writes an auditable history', async () => {
 
 test('v4 interview loop explicitly ensures a job space, scores practice and creates Today tasks', async () => {
   for (const status of ['phone_screen', 'interview_1']) {
+    const currentRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/detail`, { headers: authHeaders() });
+    const current = await readJson(currentRes);
     const statusRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/status`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ status, note: 'Sprint 4 interview smoke' })
+      body: JSON.stringify({ status, note: 'Sprint 4 interview smoke', expectedState: {
+        status: current.data.application.status, historyId: current.data.application.historyId
+      } })
     });
     assert.equal(statusRes.status, 200);
     await readJson(statusRes);
@@ -1386,6 +1422,11 @@ test('v4 resume center keeps immutable versions and confirms AI suggestions expl
   const versionsBefore = await readJson(versionsBeforeRes);
   assert.equal(versionsBefore.data.length, 1);
   const originalVersion = versionsBefore.data[0];
+  const selectRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/resume-selection`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ resumeVersionId: originalVersion.id, expectedResumeSelectionVersion: 0 })
+  });
+  assert.equal(selectRes.status, 200);
 
   const proposalRes = await fetch(`${BASE_URL}/api/v4/resumes/${resumeId}/ai-change-sets`, {
     method: 'POST',
@@ -1424,7 +1465,7 @@ test('v4 resume center keeps immutable versions and confirms AI suggestions expl
   assert.equal(confirmed.data.version.content.summary, 'Improved pipeline latency by 20%');
   const linkedApplication = db.prepare('SELECT resume_id AS resumeId, resume_version_id AS resumeVersionId FROM applications WHERE id=?').get(v4ApplicationId);
   assert.equal(linkedApplication.resumeId, resumeId);
-  assert.equal(String(linkedApplication.resumeVersionId), String(confirmed.data.version.id));
+  assert.equal(String(linkedApplication.resumeVersionId), String(originalVersion.id));
 
   const compareRes = await fetch(`${BASE_URL}/api/v4/resumes/${resumeId}/versions/compare?from=${originalVersion.id}&to=${confirmed.data.version.id}`, { headers: authHeaders() });
   const compared = await readJson(compareRes);
@@ -1800,10 +1841,14 @@ test('Sprint 6 OA, evidence project and Job Trust APIs enforce confirmation gate
 
 test('canonical job funnel is complete and smoke analytics stay outside production', async () => {
   for (const status of ['interview_2', 'final', 'offer']) {
+    const currentRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/detail`, { headers: authHeaders() });
+    const current = await readJson(currentRes);
     const statusRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ status, note: `funnel smoke to ${status}` })
+      body: JSON.stringify({ status, note: `funnel smoke to ${status}`, expectedState: {
+        status: current.data.application.status, historyId: current.data.application.historyId
+      } })
     });
     assert.equal(statusRes.status, 200);
   }
@@ -2627,11 +2672,29 @@ test('admin account permissions are enforced by module', async () => {
   });
   assert.equal(deniedRes.status, 403);
 
+  db.prepare('UPDATE admin_accounts SET permissions=? WHERE id=?').run('[]', created.data.id);
+  const revokedRes = await fetch(`${BASE_URL}/admin/api/jobs?page=1&pageSize=1`, {
+    headers: { Authorization: `Bearer ${operatorToken}` }
+  });
+  assert.equal(revokedRes.status, 403, 'revoking a permission invalidates the old token immediately');
+
+  db.prepare('UPDATE admin_accounts SET permissions=?, is_active=0 WHERE id=?')
+    .run(JSON.stringify(['jobs']), created.data.id);
+  const inactiveRes = await fetch(`${BASE_URL}/admin/api/jobs?page=1&pageSize=1`, {
+    headers: { Authorization: `Bearer ${operatorToken}` }
+  });
+  assert.equal(inactiveRes.status, 403, 'disabling the account invalidates the old token immediately');
+  db.prepare('UPDATE admin_accounts SET is_active=1 WHERE id=?').run(created.data.id);
+
   const deleteRes = await fetch(`${BASE_URL}/admin/api/admin-accounts/${created.data.id}`, {
     method: 'DELETE',
     headers: adminHeaders()
   });
   assert.equal(deleteRes.status, 200);
+  const deletedRes = await fetch(`${BASE_URL}/admin/api/jobs?page=1&pageSize=1`, {
+    headers: { Authorization: `Bearer ${operatorToken}` }
+  });
+  assert.equal(deletedRes.status, 403, 'deleted administrators cannot reuse old tokens');
 });
 
 test('payment mock create-order, confirm and verify flow works', async () => {
@@ -2829,6 +2892,35 @@ test('avatar upload accepts a valid png image', async () => {
   const body = await readJson(res);
   assert.equal(body.code, 0);
   assert.match(body.data.url, /^\/uploads\/\d{4}-\d{2}-\d{2}\//);
+});
+
+test('ASR recordings stay private and the old public temp path is denied', async () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const { DATA_DIR, UPLOAD_DIR } = require('../utils/paths');
+  const oldDir = path.join(UPLOAD_DIR, 'asr_tmp');
+  fs.mkdirSync(oldDir, { recursive: true });
+  const oldFile = path.join(oldDir, 'old-recording.mp3');
+  fs.writeFileSync(oldFile, 'private-audio');
+  const keys = ['TENCENT_SECRET_ID', 'TENCENT_SECRET_KEY', 'TENCENT_ASR_APPID'];
+  const previous = keys.map(key => process.env[key]);
+  try {
+    const exposed = await fetch(`${BASE_URL}/uploads/asr_tmp/old-recording.mp3`);
+    assert.equal(exposed.status, 404);
+    keys.forEach(key => { delete process.env[key]; });
+    const form = new FormData();
+    form.append('audio', new Blob(['audio-bytes'], { type: 'audio/mpeg' }), 'speech.mp3');
+    const response = await fetch(`${BASE_URL}/api/asr/transcribe`, { method: 'POST', headers: authHeaders(), body: form });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).mock, true);
+    assert.deepEqual(fs.readdirSync(path.join(DATA_DIR, 'private-asr')), []);
+  } finally {
+    keys.forEach((key, index) => {
+      if (previous[index] === undefined) delete process.env[key];
+      else process.env[key] = previous[index];
+    });
+    fs.unlinkSync(oldFile);
+  }
 });
 
 test('resume pdf upload accepts valid pdf and preserves original name', async () => {

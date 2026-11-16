@@ -15,9 +15,23 @@
     if (token !== state.token) throw new Error('登录状态已变化，请重新打开页面');
     if (response.status === 401 && token) logout();
     if (!response.ok || payload.code === -1) {
-      throw Object.assign(new Error(payload.message || '请求失败，请稍后重试'), {status:response.status, data:payload.data});
+      throw Object.assign(new Error(payload.message || '请求失败，请稍后重试'), {status:response.status, code:payload.code, data:payload.data});
     }
     return payload.data ?? payload;
+  }
+  async function requestCompleteBoard() {
+    const groups = { preparing: [], applied: [], interview: [], offer: [], closed: [] };
+    let board;
+    let cursor;
+    do {
+      const page = await request('/api/v4/applications/board?pageSize=50' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''));
+      if (!board) board = page;
+      Object.keys(groups).forEach(key => groups[key].push(...(page.groups[key] || [])));
+      cursor = page.hasMore ? page.nextCursor : null;
+      if (page.hasMore && !cursor) throw new Error('申请分页游标缺失');
+    } while (cursor);
+    board.groups = groups;
+    return board;
   }
   function setAuthView() { $('auth-view').classList.remove('hidden'); $('app-view').classList.add('hidden'); }
   function showApp() {
@@ -25,20 +39,22 @@
     document.querySelectorAll('.page-view').forEach(view => view.classList.toggle('hidden', view.id !== 'dashboard-view'));
     document.querySelectorAll('.nav-item[data-view]').forEach(view => view.classList.toggle('active', view.dataset.view === 'dashboard'));
     $('page-title').textContent = '今天，先处理最重要的一项';
+    if (window.location.hash === '#practice') showView('practice');
   }
   function showMessage(id, message) { $(id).textContent = message || ''; }
   function toast(message) { const el = $('toast'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2400); }
   function saveSession(data) { state.token = data.token; state.user = data.user || {}; localStorage.setItem(TOKEN_KEY, state.token); $('user-name').textContent = state.user.nickname || state.user.email || '求职者'; }
   function renderDashboard(data) {
-    const stats = data?.today || {}; const tasks = stats.tasks || []; const groups = state.board?.groups || {};
-    $('dashboard-view').innerHTML = `<div class="hero-grid"><div class="card hero-card"><p class="eyebrow">TODAY WORKBENCH</p><h3>把下一步做完，申请就会继续向前。</h3><p class="muted">工作台聚合申请、截止日期、面试和今日任务。</p><button class="primary-button" data-action="open-applications">查看申请管线</button></div><div class="card"><p class="eyebrow">AI EXPERT</p><h3>遇到卡点，直接问职引导师</h3><p class="muted">AI 会结合你的求职上下文给出可执行建议。</p><button class="mini-button primary" data-action="open-ai">开始问询</button></div></div><div class="section-head"><h3>申请概览</h3><button class="link-button" data-action="open-applications">查看全部</button></div><div class="stat-grid"><div class="stat"><strong>${groups.preparing?.length || 0}</strong><span>准备中</span></div><div class="stat"><strong>${groups.applied?.length || 0}</strong><span>已投递</span></div><div class="stat"><strong>${groups.interview?.length || 0}</strong><span>面试中</span></div><div class="stat"><strong>${groups.offer?.length || 0}</strong><span>Offer</span></div></div><div class="section-head"><h3>今日任务</h3><span class="muted">${tasks.length} 项</span></div><div class="card task-list">${tasks.length ? tasks.slice(0,6).map(task => `<div class="task"><div><div class="task-title">${escapeHtml(task.title || '待处理任务')}</div><div class="task-meta">${escapeHtml(task.dueAt || task.taskDate || '今天')}</div></div><button class="mini-button" data-task-id="${escapeHtml(task.id)}">完成</button></div>`).join('') : '<p class="muted">今天还没有待办，去申请管线看看下一步。</p>'}</div>`;
+    const stats = data?.today || {}; const tasks = stats.tasks || []; const groups = state.board?.statistics || {};
+    $('dashboard-view').innerHTML = `<div class="hero-grid"><div class="card hero-card"><p class="eyebrow">TODAY WORKBENCH</p><h3>把下一步做完，申请就会继续向前。</h3><p class="muted">工作台聚合申请、截止日期、面试和今日任务。</p><button class="primary-button" data-action="open-applications">查看申请管线</button></div><div class="card"><p class="eyebrow">AI EXPERT</p><h3>遇到卡点，直接问职引导师</h3><p class="muted">AI 会结合你的求职上下文给出可执行建议。</p><button class="mini-button primary" data-action="open-ai">开始问询</button></div></div><div class="section-head"><h3>申请概览</h3><button class="link-button" data-action="open-applications">查看全部</button></div><div class="stat-grid"><div class="stat"><strong>${groups.preparing || 0}</strong><span>准备中</span></div><div class="stat"><strong>${groups.applied || 0}</strong><span>已投递</span></div><div class="stat"><strong>${groups.interview || 0}</strong><span>面试中</span></div><div class="stat"><strong>${groups.offer || 0}</strong><span>Offer</span></div></div><div class="section-head"><h3>今日任务</h3><span class="muted">${tasks.length} 项</span></div><div class="card task-list">${tasks.length ? tasks.slice(0,6).map(task => `<div class="task"><div><div class="task-title">${escapeHtml(task.title || '待处理任务')}</div><div class="task-meta">${escapeHtml(task.dueAt || task.taskDate || '今天')}</div></div><button class="mini-button" data-task-id="${escapeHtml(task.id)}">完成</button></div>`).join('') : '<p class="muted">今天还没有待办，去申请管线看看下一步。</p>'}</div>`;
   }
-  async function loadDashboard() { try { const [dashboard, board] = await Promise.all([request('/api/v4/career/dashboard'), request('/api/v4/applications/board')]); state.board = board; renderDashboard(dashboard); } catch (error) { toast(error.message); if (/登录|Token/.test(error.message)) logout(); } }
+  async function loadDashboard() { try { const [dashboard, board] = await Promise.all([request('/api/v4/career/dashboard'), request('/api/v4/applications/board?pageSize=1')]); state.board = board; renderDashboard(dashboard); } catch (error) { toast(error.message); if (/登录|Token/.test(error.message)) logout(); } }
   const workbench = window.createApplicationWorkbench({ request, toast, openAI, setDetail: detail => { state.activeApplication = detail; } });
   function loadApplications() { return workbench.load(); }
   function openApplication(id) { return workbench.open(id); }
   const expert = window.createAIExpert({request,offerSave:offerAISave});
   const p0 = window.createP0Workspace({request,toast,openApplication,showView});
+  const practice = window.createQuestionPractice({request,toast,getIdentity:() => state.token});
   function openAI(applicationId) { return expert.open(applicationId); }
   function nextAISaveOpenVersion() {
     state.aiSaveOpenVersion = window.AISaveModel.nextOpenVersion(state.aiSaveOpenVersion);
@@ -110,7 +126,7 @@
       $('ai-save-dialog').showModal();
       button.disabled = true;
       try {
-        const board = await request('/api/v4/applications/board');
+        const board = await requestCompleteBoard();
         if (!currentAISaveOpen(openVersion)) return;
         state.board = board;
         renderAISaveApplications(window.ApplicationModel.rows(board), application?.id);
@@ -128,7 +144,7 @@
     });
     actions.appendChild(button); $('ai-messages').appendChild(actions);
   }
-  function showView(view) { document.querySelectorAll('.page-view').forEach(el => el.classList.add('hidden')); $(`${view}-view`).classList.remove('hidden'); document.querySelectorAll('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === view)); const titles = {dashboard:'今天，先处理最重要的一项',applications:'申请管线',jobs:'职位',resources:'资源中心'}; $('page-title').textContent = titles[view] || '求职工作台'; if (view === 'applications') loadApplications(); if (view === 'dashboard') loadDashboard(); if (view === 'jobs') renderJobs(); if (view === 'resources') p0.resources(); }
+  function showView(view) { if (view !== 'practice') practice.reset(); document.querySelectorAll('.page-view').forEach(el => el.classList.add('hidden')); $(`${view}-view`).classList.remove('hidden'); document.querySelectorAll('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === view)); const titles = {dashboard:'今天，先处理最重要的一项',applications:'申请管线',jobs:'职位',resources:'资源中心',practice:'在线刷题'}; $('page-title').textContent = titles[view] || '求职工作台'; window.location.hash = view === 'practice' ? 'practice' : ''; if (view === 'applications') loadApplications(); if (view === 'dashboard') loadDashboard(); if (view === 'jobs') renderJobs(); if (view === 'resources') { p0.resources(); practice.addResourceEntry(); } if (view === 'practice') practice.open(); }
   async function renderJobs() {
     const view = $('jobs-view');
     view.innerHTML = '<div class="card"><p class="eyebrow">JOBS</p><h3>找一个值得推进的岗位</h3><form id="web-job-search" class="job-search"><input name="keyword" placeholder="搜索公司或岗位"><button class="mini-button primary" type="submit">搜索</button></form><div id="web-job-results"><p class="muted">正在读取岗位…</p></div></div>';
@@ -150,7 +166,7 @@
     load('');
   }
   function logout() {
-    expert.reset(); p0.reset();
+    expert.reset(); p0.reset(); practice.reset();
     state.token = null; state.user = null; state.board = null; state.activeApplication = null; state.aiContext = null; state.aiConversation = null; state.aiMessages = []; state.aiRetry = null; state.aiOpenVersion += 1;
     closeAISaveDialog(); state.aiSaveActionId = null; state.aiSaveApplicationId = null; state.aiSaveApplication = null; state.aiSaveApplications = []; $('ai-save-form').reset(); $('ai-save-message').textContent=''; $('user-name').textContent='求职者';
     workbench.reset(); localStorage.removeItem(TOKEN_KEY);

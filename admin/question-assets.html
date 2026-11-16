@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PDF 制作刷题题集 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/question-assets.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="admin-shell question-assets-admin">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer"><div class="admin-name" id="adminUsername"></div><button class="nav-item" onclick="logout()"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i><span>退出登录</span></button></div>
+  </aside>
+  <main class="main">
+    <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
+    <div class="content">
+      <div class="page-header"><div><h1>PDF 制作刷题题集</h1><p class="sub">从 PDF 导入开始，按页面提示识题、核对答案、组卷并开放小程序练习。</p></div></div>
+      <ol class="qa-steps" aria-label="PDF 制题进度"><li aria-current="step"><strong>1 导入 PDF</strong><span>上传并安全校验</span></li><li><a href="question-parsing.html"><strong>2 OCR 识题 →</strong><span>打开任务并核对草稿</span></a></li><li><strong>3 核对并上线</strong><span>确认题目和答案后开放练习</span></li></ol>
+      <div class="qa-guardrail" role="note"><strong>当前仅供内部隔离导入</strong><span>上传成功表示原件已隔离保存；PDF 深度校验、病毒扫描和使用权审核仍待完成。这里不提供原件下载、预览或发布。</span></div>
+      <p id="environmentNotice" class="qa-error" role="alert" hidden></p>
+      <div class="qa-layout">
+        <section class="qa-panel" aria-labelledby="batchHeading">
+          <div class="qa-heading"><div><h2 id="batchHeading">导入批次</h2><p>按资料来源或整理任务建立批次。</p></div><button class="btn btn-outline btn-sm" id="reloadBatches" type="button">刷新</button></div>
+          <form id="batchForm" class="qa-inline-form">
+            <label for="batchLabel">批次名称</label>
+            <div class="qa-form-row"><input id="batchLabel" maxlength="120" required placeholder="例如：2026 秋招笔试原件"><button class="btn btn-primary" id="createBatch" type="submit">新建批次</button></div>
+            <p id="batchError" class="qa-error" role="alert" hidden></p>
+          </form>
+          <div id="currentBatch" class="qa-current-batch" hidden></div>
+          <div id="batchList" class="qa-batch-list" aria-live="polite"></div>
+          <p id="batchListError" class="qa-error" role="alert" hidden></p>
+          <div class="qa-pagination"><span id="batchCount"></span><button class="btn btn-outline btn-sm" id="moreBatches" type="button" hidden>加载更多批次</button></div>
+        </section>
+        <section class="qa-panel qa-detail" aria-labelledby="detailHeading">
+          <div class="qa-heading"><div><h2 id="detailHeading">选择批次</h2><p id="detailMeta">选中左侧批次后登记 PDF 来源。</p></div><button class="btn btn-outline btn-sm" id="reloadSources" type="button" hidden>刷新来源</button></div>
+          <div id="detailBody" hidden>
+            <form id="sourceForm" class="qa-source-form">
+              <h3>登记并上传 PDF</h3>
+              <p class="qa-help">登记来源仅供内部追溯，不代表已取得处理或展示授权。单文件最大 256 MiB；大于 25 MiB 自动分片上传，中断后重新选择同一文件可续传。</p>
+              <div class="qa-fields">
+                <div class="form-group"><label for="sourceType">来源类型</label><select id="sourceType" required><option value="internal">内部持有</option><option value="licensed">授权来源，待核验</option><option value="other">其他，待核验</option></select></div>
+                <div class="form-group"><label for="sourceReference">来源说明 / 编号</label><input id="sourceReference" maxlength="500" required placeholder="例如：资料清单编号、提供者与取得日期"></div>
+                <div class="form-group qa-file-field"><label for="sourceFile">PDF 原件</label><input id="sourceFile" type="file" accept=".pdf,application/pdf" required><small id="sourceFileHelp">文件名将作为来源记录保存；上传后无法通过本页读取原件。</small></div>
+              </div>
+              <p id="sourceError" class="qa-error" role="alert" hidden></p>
+              <p id="uploadProgress" class="qa-help" aria-live="polite" hidden></p>
+              <div class="qa-actions"><button class="btn btn-primary" id="createSource" type="submit">登记并上传</button></div>
+            </form>
+            <div class="qa-sources-heading"><h3>来源记录</h3><span id="sourceCount"></span></div>
+            <div id="sourceList" class="qa-source-list" aria-live="polite"></div>
+            <p id="sourceListError" class="qa-error" role="alert" hidden></p>
+            <div class="qa-pagination"><button class="btn btn-outline btn-sm" id="moreSources" type="button" hidden>加载更多来源</button></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="js/config.js"></script><script src="js/common.js"></script><script src="js/question-assets.js"></script>
+</body>
+</html>

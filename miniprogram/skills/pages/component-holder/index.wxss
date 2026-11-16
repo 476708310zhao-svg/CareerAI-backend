@@ -1,0 +1,5 @@
+.holder-message {
+  padding: 48rpx 32rpx;
+  color: #64748b;
+  text-align: center;
+}

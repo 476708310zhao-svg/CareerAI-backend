@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>职引填表助手</title><link rel="stylesheet" href="popup.css"></head>
+<body>
+  <main>
+    <h1>职引填表助手</h1>
+    <p class="notice">仅支持 Greenhouse / Lever / Ashby。先在职引官网选择字段并生成 5 分钟一次性授权码。这里只预览和填表，不会替你提交。</p>
+    <label>职引 API 地址<input id="apiBase" type="url" placeholder="https://你的官网/backend" autocomplete="off"></label>
+    <button id="saveApi" type="button" class="secondary">保存 API 地址并授权此来源</button>
+    <label>一次性授权码<input id="token" type="password" autocomplete="off" spellcheck="false"></label>
+    <button id="inspect" type="button">识别当前招聘表单</button>
+    <button id="loadValues" type="button" class="secondary" disabled>消费授权并载入已选字段</button>
+    <div id="status" role="status" aria-live="polite"></div>
+    <div id="compatibility" class="compatibility" role="status" aria-live="polite" hidden></div>
+    <div id="compatibilityAlert" class="compatibility-alert" role="status" aria-live="polite" hidden></div>
+    <details class="history"><summary>本机兼容统计（只存匿名计数）</summary><ul id="compatibilityLog"></ul></details>
+    <section id="preview" hidden><h2>逐项核对后填入</h2><div id="fields"></div><button id="fill" type="button">填入已勾选字段</button></section>
+    <section id="returnSection" class="return" hidden>
+      <p>插件不会判断你是否已提交。若你已在企业招聘网站提交，请回官网打开这条申请，并再次确认“我已提交”。</p>
+      <button id="returnToApplication" type="button" class="secondary">打开官网申请并确认状态</button>
+    </section>
+    <footer>检查已填内容后，请在招聘网站自行提交。授权码只在本次弹窗内存中使用。</footer>
+  </main>
+  <script src="compatibilityMetrics.js"></script><script src="popup.js"></script>
+</body></html>

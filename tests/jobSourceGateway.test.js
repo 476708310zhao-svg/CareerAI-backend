@@ -78,3 +78,15 @@ test('a configurable daily request budget caps unique upstream calls and resets 
   time += 86_400_000;
   assert.equal(await gateway.request('jsearch', 'de', fetcher, policy), 3);
 });
+
+test('JSearch multi-page credits count against the daily budget before the request', async () => {
+  let calls = 0;
+  const gateway = createJobSourceGateway({ now: () => 10_000, sleep: async () => {} });
+  const fetcher = async () => ++calls;
+  const policy = { ttlMs: 0, minIntervalMs: 0, dailyBudget: 3 };
+  assert.equal(await gateway.request('jsearch', 'two-pages', fetcher, { ...policy, requestCost: 2 }), 1);
+  await assert.rejects(gateway.request('jsearch', 'another-two-pages', fetcher, { ...policy, requestCost: 2 }),
+    error => error.reason === 'budget_exhausted');
+  assert.equal(await gateway.request('jsearch', 'one-page', fetcher, { ...policy, requestCost: 1 }), 2);
+  assert.equal(calls, 2);
+});

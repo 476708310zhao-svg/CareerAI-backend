@@ -1,0 +1,11 @@
+{
+  "navigationBarTitleText": "AI 卡片",
+  "usingComponents": {
+    "campus-list": "/skills/campus-calendar-skill/components/campus-list/index",
+    "deadline-list": "/skills/campus-calendar-skill/components/deadline-list/index",
+    "interview-detail-card": "/skills/interview-prep-skill/components/interview-detail-card/index",
+    "interview-list": "/skills/interview-prep-skill/components/interview-list/index",
+    "job-detail-card": "/skills/job-search-skill/components/job-detail-card/index",
+    "job-list": "/skills/job-search-skill/components/job-list/index"
+  }
+}

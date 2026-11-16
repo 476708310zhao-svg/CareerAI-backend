@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "职引申请表助手（本地 V1）",
+  "version": "1.0.0",
+  "description": "在 Greenhouse、Lever 或 Ashby 页面预览并逐项填入你明确授权的申请字段。",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "optional_host_permissions": ["https://tatawangshen.com/*", "https://*.tatawangshen.com/*", "http://localhost/*", "http://127.0.0.1/*"],
+  "host_permissions": [
+    "https://boards.greenhouse.io/*",
+    "https://job-boards.greenhouse.io/*",
+    "https://jobs.lever.co/*",
+    "https://jobs.ashbyhq.com/*"
+  ],
+  "action": { "default_title": "职引填表助手", "default_popup": "popup.html" },
+  "content_scripts": [{
+    "matches": [
+      "https://boards.greenhouse.io/*",
+      "https://job-boards.greenhouse.io/*",
+      "https://jobs.lever.co/*",
+      "https://jobs.ashbyhq.com/*"
+    ],
+    "js": ["content.js"],
+    "run_at": "document_idle"
+  }],
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'self'" }
+}

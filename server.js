@@ -9,6 +9,8 @@ const { optionalAuth } = require('./middleware/auth');
 const { requireFeature } = require('./utils/featureFlags');
 const { buildRuntimeReadiness } = require('./utils/runtimeReadiness');
 const db = require('./db/database');
+const apiPerformance = require('./utils/apiPerformance');
+const { isAllowedBrowserExtensionOrigin } = require('./utils/browserExtensionOrigin');
 
 const app = express();
 const PORT = process.env.PORT || 4400;
@@ -26,14 +28,20 @@ const allowedOrigins = rawOrigins.split(',').map(s => s.trim()).filter(Boolean);
 if (allowedOrigins.length === 0) {
   console.warn('[CORS] ALLOWED_ORIGIN 未配置，跨域请求将被拒绝。');
 }
-app.use(cors({
-  origin: (origin, callback) => {
-    // 小程序/服务端请求无 origin，直接放行
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error(`CORS: origin ${origin} not allowed`));
-  },
-  credentials: true
+app.use(cors((req, callback) => {
+  const origin = req.get('Origin');
+  const requestOrigin = `${req.protocol}://${req.get('host')}`;
+  // The extension can call only the one-time grant consumer. Bearer grants are
+  // short-lived and single-use; no cookies or credentials are exposed to it.
+  if (req.path === '/api/v4/browser-extension/consume'
+    && isAllowedBrowserExtensionOrigin(origin, process.env.BROWSER_EXTENSION_ORIGIN)) {
+    return callback(null, { origin, credentials: false });
+  }
+  // 浏览器访问当前服务自身时属于同源请求，不依赖跨域白名单。
+  if (!origin || origin === requestOrigin || allowedOrigins.includes(origin)) {
+    return callback(null, { origin: origin || false, credentials: true });
+  }
+  callback(new Error(`CORS: origin ${origin} not allowed`));
 }));
 // 安全响应头
 app.use((req, res, next) => {
@@ -60,8 +68,8 @@ app.use((req, res, next) => {
   res.on('finish', () => {
     const duration = Date.now() - started;
     try {
-      db.prepare('INSERT INTO api_performance_v4 (route,method,duration_ms,status_code,slow) VALUES (?,?,?,?,?)')
-        .run(String(req.route && req.route.path || req.path).slice(0, 200), req.method, duration, res.statusCode, duration >= 800 ? 1 : 0);
+      apiPerformance.record(db, { route: req.route && req.route.path || req.path,
+        method: req.method, durationMs: duration, statusCode: res.statusCode });
     } catch (e) {}
   });
   next();
@@ -70,6 +78,10 @@ app.use((req, res, next) => {
 // 静态文件服务（头像、Banner、Logo 等上传文件）。文件名带时间戳/随机串，适合长期缓存。
 const path = require('path');
 const { UPLOAD_DIR } = require('./utils/paths');
+// Apply private-upload denials before either static mount, including custom
+// deployments that place UPLOAD_DIR beneath public/.
+app.use('/uploads/resumes', (req, res) => res.status(404).end());
+app.use('/uploads/asr_tmp', (req, res) => res.status(404).end());
 app.use(express.static(path.join(__dirname, 'public'), {
   maxAge: '5m'
 }));
@@ -128,6 +140,7 @@ app.use('/api/share',        shareRoutes);
 app.use('/api/career-assets', careerAssetRoutes);
 app.use('/api/analytics',    analyticsRoutes);
 app.use('/api/v4',           v4Routes);
+app.use('/api/v4/question-practice', require('./routes/question-practice'));
 app.use('/api/v4',           require('./routes/assessment'));
 app.use('/api/jobs',         requireRecruitment, jobRoutes);
 app.use('/api/applications', applicationRoutes);
@@ -160,6 +173,12 @@ app.use('/api/aggregate',    requireRecruitment, aggregateRoutes);
 app.use('/api/oa',           oaRoutes);
 app.use('/api/apply',        requireRecruitment, applyRoutes);
 app.use('/admin/api/v4',    v4AdminRoutes);
+app.use('/admin/api/v4/manual-services', require('./routes/admin-manual-services'));
+app.use('/admin/api/v4/question-assets', require('./routes/admin-question-assets'));
+app.use('/admin/api/v4/question-asset-governance', require('./routes/admin-question-asset-governance'));
+app.use('/admin/api/v4/question-bank', require('./routes/admin-question-bank'));
+app.use('/admin/api/v4/question-parsing', require('./routes/admin-question-parsing'));
+app.use('/admin/api/v4/question-practice', require('./routes/admin-question-practice'));
 app.use('/admin/api/v4',    require('./routes/admin-assessment'));
 app.use('/admin',           adminRoutes);
 
@@ -220,6 +239,14 @@ function startServer(port = PORT) {
     console.log('Server running at http://localhost:' + listenPort);
   };
   const server = listenHost ? app.listen(listenPort, listenHost, onListen) : app.listen(listenPort, onListen);
+  const pruneMetrics = () => {
+    try { apiPerformance.prune(db); }
+    catch (error) { console.warn('[metrics] retention cleanup failed:', error.code || error.name || 'unknown'); }
+  };
+  server.once('listening', pruneMetrics);
+  const retentionTimer = setInterval(pruneMetrics, 60 * 60 * 1000);
+  retentionTimer.unref();
+  server.once('close', () => clearInterval(retentionTimer));
   return configureServer(server);
 }
 
