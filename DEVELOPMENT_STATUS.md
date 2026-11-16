@@ -1,10 +1,11 @@
 # DEVELOPMENT_STATUS
 
-## 2026-11-16 线上部署与 Git 发布（进行中）
+## 2026-11-16 线上部署与 Git 发布（已完成，文件占用已释放）
 
-- 负责人：Codex。占用范围：发布候选代码清单、`DEVELOPMENT_STATUS.md`、必要的部署/迁移核对文件和 Git 暂存区；不并行修改业务源文件。
-- 高风险项：登录、支付、上传、鉴权和数据库迁移在当前工作区均有未提交改动。先审查候选范围与敏感文件，运行完整发布门禁；生产迁移必须先核对实际版本、备份和隔离演练，再按发布手册执行。发布后核对公网接口、PM2 版本和回滚目标。
-- 生产库备份副本先演练应用 `0023–0030` 成功，Human 单独批准后线上应用，完整性 `ok`、版本数 33；旧版恢复健康。首次候选 `87b2f06` 在切流前的 Linux 隔离 smoke 测试中因生产 `.env` 的 `MEMBERSHIP_PAYMENT_ENABLED=false` 导致模拟支付返回 503，未切换流量。现将 smoke 测试显式设为模拟支付开启，并在同样外部配置下定向复验通过；更新提交后重跑完整发布流程。
+- 负责人：Codex。发布分支 `codex/release-20261116` 已推送 GitHub，业务代码提交为 `86b2f0ca497673a384f9e3375491ba30cdc2cd92`。合入远端维护分支，排除 `tmp/` 和旧候选哈希清单，敏感文件扫描和 `git diff --check` 通过。
+- Human 单独批准生产迁移。先备份并在生产库副本演练 `0023–0030`，再停旧服务、对停止写入后的线上库生成一致性备份并应用八个迁移；生产库 `integrity_check=ok`、迁移版本数 33、`pending=0`。迁移前备份位于 `/www/backups/zhiyincareer/jobapp-server_migration_20261116_qviFNd/`。
+- 首次发布候选在切流前发现模拟支付 smoke 测试继承生产关闭开关；修复后第二次发现 Windows 归档将迁移 SQL 改成 CRLF，触发校验和门禁。两次均未切换流量。最终按 Git 树原始 LF 字节重新打包同一提交，只读迁移预检通过；完整发布脚本退出 0，服务器测试 827/827、验收 29 通过/1 提醒，严格预检与隔离候选就绪均通过。
+- 线上 `current` 与 PM2 均指向 `/www/wwwroot/zhiyincareer-main/releases/manual-20261116-86b2f0ca4976-lf`，发布前备份位于 `/www/backups/zhiyincareer/jobapp-server_20261116_140138.A3Nfqe/`。公网 `/api/health/ready`、`/api/payment/config`、`/api/jobs` 返回 200 JSON；需鉴权的新路由返回预期 401 JSON。旧版本目录和备份保留作回滚。按 Human 本轮选择，仅发布后端；小程序客户端代码在 Git，未上传微信体验版或提交审核。
 
 ## 2026-11-16 P2 剩余代码项收口（已完成，文件占用已释放）
 
