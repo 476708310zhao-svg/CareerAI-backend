@@ -33,6 +33,7 @@ function startServer() {
     ALLOWED_ORIGIN: `http://${HOST}`,
     WEBHOOK_SECRET: 'test_webhook_secret',
     PAYMENT_ENABLED: 'true',
+    MEMBERSHIP_PAYMENT_ENABLED: 'true',
     PAYMENT_PROVIDER: 'wxpay',
     ENABLE_MOCK_PAYMENT: 'true',
     NOTIFY_EXTERNAL_DISABLED: '1',
