@@ -20,6 +20,15 @@ const LATEST_FEED_TTL = 5 * 60000;
 const CAMPUS_FEED_TTL = 10 * 60000;
 const FEED_MAX_STALE = 6 * 60 * 60000;
 const shanghaiDay = now => new Date(now + 8 * 60 * 60000).toISOString().slice(0, 10);
+function sameVisibleTodayTasks(left, right) {
+  if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+  return left.every((item, index) => {
+    const next = right[index];
+    return next && item.id === next.id && item.type === next.type
+      && item.title === next.title && item.desc === next.desc
+      && item.url === next.url && item.done === next.done;
+  });
+}
 function isFeedRequestCurrent(page, owner, requestId, field) {
   return !page._unloaded && ownerStorage.isCurrent(owner) && requestId === page[field];
 }
@@ -200,6 +209,7 @@ Page({
     const ownerChanged = owner !== this._ownerScope;
     if (ownerChanged) {
       this._ownerScope = owner;
+      this._todayTaskDay = '';
       this._todayTaskRequestId = (this._todayTaskRequestId || 0) + 1;
       this._workbenchReportRequestId = (this._workbenchReportRequestId || 0) + 1;
       this._recommendRequestId = (this._recommendRequestId || 0) + 1;
@@ -1164,14 +1174,18 @@ Page({
 
   loadTodayTasks() {
     const tasks = dailyTasks.buildTasks();
-    const visibleTasks = this.data.showAllTodayTasks ? tasks : tasks.slice(0, 4);
-    this.setData({
-      todayTasks: tasks,
-      visibleTodayTasks: visibleTasks,
-      hasMoreTodayTasks: tasks.length > 4,
-      todayTaskStats: dailyTasks.getStats(tasks),
-      todayTasksError: false
-    });
+    const day = typeof dailyTasks.todayKey === 'function' ? dailyTasks.todayKey() : shanghaiDay(Date.now());
+    const retainVisibleTasks = this._todayTaskDay === day && (this.data.todayTasks || []).length > 0;
+    if (!retainVisibleTasks) {
+      this._todayTaskDay = day;
+      this.setData({
+        todayTasks: tasks,
+        visibleTodayTasks: this.data.showAllTodayTasks ? tasks : tasks.slice(0, 4),
+        hasMoreTodayTasks: tasks.length > 4,
+        todayTaskStats: dailyTasks.getStats(tasks),
+        todayTasksError: false
+      });
+    }
     let token = '';
     try { token = wx.getStorageSync('token') || ''; } catch (e) {}
     if (!token) {
@@ -1204,7 +1218,11 @@ Page({
       if (!this.isHomeRequestCurrent(owner, requestId, '_todayTaskRequestId')) return this.data.todayTasks;
       const rows = response && Array.isArray(response.data) ? response.data : [];
       if (!rows.length) {
-        this.setData({ todayTasksLoading: false, todayTasksError: false });
+        const visibleTasks = this.data.showAllTodayTasks ? tasks : tasks.slice(0, 4);
+        this.setData({ todayTasks: tasks,
+          ...(!sameVisibleTodayTasks(this.data.visibleTodayTasks, visibleTasks) ? { visibleTodayTasks: visibleTasks } : {}),
+          hasMoreTodayTasks: tasks.length > 4, todayTaskStats: dailyTasks.getStats(tasks),
+          todayTasksLoading: false, todayTasksError: false });
         return tasks;
       }
       const priorityRank = { high: 0, medium: 1, low: 2 };
@@ -1231,9 +1249,11 @@ Page({
       }).sort((left, right) => (left.done - right.done)
         || ((priorityRank[left.priority] === undefined ? 9 : priorityRank[left.priority])
           - (priorityRank[right.priority] === undefined ? 9 : priorityRank[right.priority])));
+      const visibleTasks = this.data.showAllTodayTasks ? merged : merged.slice(0, 4);
+      const visibleChanged = !sameVisibleTodayTasks(this.data.visibleTodayTasks, visibleTasks);
       this.setData({
         todayTasks: merged,
-        visibleTodayTasks: this.data.showAllTodayTasks ? merged : merged.slice(0, 4),
+        ...(visibleChanged ? { visibleTodayTasks: visibleTasks } : {}),
         hasMoreTodayTasks: merged.length > 4,
         todayTaskStats: dailyTasks.getStats(merged),
         todayTasksLoading: false,
@@ -1245,7 +1265,11 @@ Page({
     }).catch(error => {
       if (ownerStorage.isCurrent(owner)) console.warn('[index] Today 任务同步失败，继续使用本地任务:', error && error.message || error);
       if (this.isHomeRequestCurrent(owner, requestId, '_todayTaskRequestId')) {
-        this.setData({ todayTasksLoading: false, todayTasksError: !tasks.length });
+        const visibleTasks = this.data.showAllTodayTasks ? tasks : tasks.slice(0, 4);
+        this.setData({ todayTasks: tasks,
+          ...(!sameVisibleTodayTasks(this.data.visibleTodayTasks, visibleTasks) ? { visibleTodayTasks: visibleTasks } : {}),
+          hasMoreTodayTasks: tasks.length > 4, todayTaskStats: dailyTasks.getStats(tasks),
+          todayTasksLoading: false, todayTasksError: !tasks.length });
       }
       return tasks;
     });

@@ -125,6 +125,51 @@ test('home keeps every Today task returned by account sync', async () => {
   assert.equal(page.data.todayTaskStats.pending, 5);
 });
 
+test('returning home keeps synced Today rows in place while refreshing', async () => {
+  const localTasks = [
+    { id: 'progress_update', type: 'progress', title: '更新进度', done: false },
+    { id: 'resume_polish', type: 'resume', title: '优化简历', done: false }
+  ];
+  const remoteTasks = [
+    { id: 2, localKey: 'resume_polish', type: 'resume', title: '优化简历', status: 'pending' },
+    { id: 1, localKey: 'progress_update', type: 'progress', title: '更新进度', status: 'pending' }
+  ];
+  let resolveRefresh;
+  let calls = 0;
+  const page = loadPage('pages/index/index.js', {
+    '../../utils/daily-tasks.js': {
+      todayKey: () => '2026-11-16',
+      buildTasks: () => localTasks,
+      getStats: rows => ({ total: rows.length, pending: rows.length, done: 0 }),
+      readTaskState: () => ({ done: false, pending: false, updatedAt: '' }),
+      reconcileServerTask: () => ({ done: false, pending: false })
+    },
+    '../../utils/api-v4.js': { syncTodayTasks: () => {
+      calls++;
+      if (calls === 1) return Promise.resolve({ data: remoteTasks });
+      if (calls === 2) return new Promise(resolve => { resolveRefresh = resolve; });
+      return Promise.reject(new Error('offline'));
+    } },
+    '../../utils/owner-storage.js': { capture: () => 'owner', isCurrent: () => true }
+  }, { getStorageSync: key => key === 'token' ? 'test-token' : '' });
+  page.isHomeRequestCurrent = () => true;
+  page.loadWorkbenchSummary = () => {};
+  page.flushPendingTodayTaskUpdates = () => {};
+  await page.loadTodayTasks();
+  assert.deepEqual(Array.from(page.data.visibleTodayTasks, item => item.id), ['resume_polish', 'progress_update']);
+  const patches = [];
+  const setData = page.setData;
+  page.setData = function (patch) { patches.push(patch); setData.call(this, patch); };
+  const refresh = page.loadTodayTasks();
+  assert.deepEqual(Array.from(page.data.visibleTodayTasks, item => item.id), ['resume_polish', 'progress_update']);
+  assert.equal(patches.some(patch => Object.prototype.hasOwnProperty.call(patch, 'visibleTodayTasks')), false);
+  resolveRefresh({ data: remoteTasks });
+  await refresh;
+  assert.equal(patches.some(patch => Object.prototype.hasOwnProperty.call(patch, 'visibleTodayTasks')), false);
+  await page.loadTodayTasks();
+  assert.deepEqual(Array.from(page.data.visibleTodayTasks, item => item.id), ['progress_update', 'resume_polish']);
+});
+
 test('home distinguishes a failed Today read from a genuine empty day and retries', async () => {
   let fail = true;
   const page = loadPage('pages/index/index.js', {
