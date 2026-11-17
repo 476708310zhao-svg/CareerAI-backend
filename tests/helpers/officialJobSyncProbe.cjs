@@ -55,10 +55,12 @@ async function main() {
     const secondPosting = { ...posting, job_id: 'official_landor_912346', job_title: 'Design Intern II',
       job_apply_link: 'https://job-boards.greenhouse.io/landor/jobs/912346',
       job_source_url: 'https://job-boards.greenhouse.io/landor/jobs/912346',
-      job_source_reference: 'greenhouse:landor:912346' };
+      job_source_reference: 'greenhouse:landor:912346',
+      job_posted_at_datetime_utc: '2025-01-01T00:00:00.000Z' };
     await sync.syncBoard(db, pilot.LIVE_BOARDS.find(board => board.id === 'landor'), {
       fetchSnapshot: async () => ({ rawCount: 2, jobs: [posting, secondPosting] })
     });
+    const oldOpenWebJob = await (await fetch(`${base}/api/jobs?source=local&country=cn&keyword=Design%20Intern%20II`)).json();
     const snapshotQuery = 'pagination=snapshot&country=cn&pageSize=1&keyword=Design%20Intern';
     const snapshot = await (await fetch(`${base}/api/jobs?${snapshotQuery}`)).json();
     db.prepare("UPDATE official_job_postings SET status='closed' WHERE id=?").run(posting.job_id);
@@ -71,6 +73,7 @@ async function main() {
       webFastJob: webFast.data?.list?.find(job => job.id === posting.job_id),
       webListJob: webList.data?.list?.find(job => job.id === posting.job_id),
       webOtherCountryHasJob: webOtherCountry.data?.list?.some(job => job.id === posting.job_id),
+      webOldOpenJobId: oldOpenWebJob.data?.list?.find(job => job.id === secondPosting.job_id)?.id,
       webSnapshotHasCursor: Boolean(snapshot.data?.nextCursor),
       webClosedCursorStatus: closedCursorStatus.status,
       v4Id: v4.data?.list?.find(job => job.id === posting.job_id)?.id,

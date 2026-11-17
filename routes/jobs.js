@@ -367,7 +367,7 @@ function _publicLocalWebJobs() {
 function _publicOfficialWebJobs(country) {
   if (!officialJobSync.readyToServe(db)) return [];
   return officialJobSync.listActiveRaw(db, '', country)
-    .map(officialJobWithMeta).map(_toWebJob).filter(_isCurrentWebJob);
+    .map(officialJobWithMeta).map(_toWebJob);
 }
 
 function _mergeWebJobs(priority, other) {
