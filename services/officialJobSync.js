@@ -166,7 +166,7 @@ function toRawJob(row) {
 }
 
 function listActiveRaw(db, query = '', country = 'cn') {
-  return activeRows(db).filter(row => row.country === country)
+  return activeRows(db).filter(row => country === 'global' || row.country === country)
     .map(toRawJob).filter(job => pilot.matchesQuery(job, query));
 }
 

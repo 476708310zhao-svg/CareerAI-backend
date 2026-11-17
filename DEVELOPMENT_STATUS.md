@@ -1,10 +1,17 @@
 # DEVELOPMENT_STATUS
 
-## 2026-11-17 企业官网岗位同步器上线核验（待审查与生产发布）
+## 2026-11-17 企业官网岗位同步器正式发布与网页补齐
+
+- Human 审查 PR #3 并批准生产迁移及部署；该 PR 已合并至 `codex/release-20261116`。服务器按合并提交 `f13b863` 建立不可变发布目录，正式备份经 `integrity_check=ok` 核验后应用 `0034`，发布脚本检查和切流成功。内网及公网健康接口返回 200。
+- 首次生产同步 10 家企业板：9 板 `ok`、1 板 `empty`，18 条岗位开放，0 条非空正文，18 条 HTTPS 官网链接，数据库完整性 `ok`。生产 cron 已在备份旧 crontab 后配置为每天北京时间 06:40，使用单实例锁和日志文件。
+- 公开网页 `zhiyincareer.com/jobs` 实际读取 `/backend/api/jobs`（映射本仓库 `/api/jobs`），不是本轮已接入的 `/api/jobs/aggregate` 或 `/api/v4/jobs`；浏览器现场核对发现该网页尚未显示新官网快照。`fix/official-web-list` 正补充这条读路径，正式网页验收需在修复发布后完成。
+- 网页读路径修复在隔离库验证了 `/api/jobs` 首屏、普通列表、国家过滤和旧翻页游标失效；官网正文保持为空。专项 9/9；`npm test` 850 项中 848 通过、0 失败、2 项既有跳过；`npm run check:release` 在最终游标校验改动前退出 0，该改动随后通过专项及完整 `npm test`。修复尚未合并或部署。
+
+## 2026-11-17 企业官网岗位同步器上线核验（已审查并发布）
 
 - 对 10 家企业板的隔离库复测得到 18 条开放岗位；逐条核对 Greenhouse 页面与 Ashby/Lever 浏览器申请表后，排除官网明示为全职的误判实习岗位，临时连接错误只有限重试。Human 确认尚无第三方展示授权，官网岗位只保留必要元数据及官网 HTTPS 链接，不保存或返回完整岗位正文；Web 列表及申请详情已提供官网入口。
 - `node --test tests/cnOfficialPilot.test.js tests/officialJobSync.test.js` 22/22 通过；`npm run check:release` 退出 0；独立 Edge 浏览器官网入口验收通过。原有完整 Web 浏览器测试在既有并发更新提示步骤超时，不能作为本次专项通过证据。
-- 生产读检确认数据库停在 `0033`。在服务器隔离副本预演 `0034` 后，前后完整性检查均为 `ok`、两个新表已建立、迁移 SQL SHA-256 与本地一致；隔离副本已清理，未对生产库应用迁移、部署或配置定时任务。上线仍需维护者 PR 审查、发布负责人对生产迁移的单独决定及发布后验收。
+- 发布前读检确认数据库停在 `0033`。在服务器隔离副本预演 `0034` 后，前后完整性检查均为 `ok`、两个新表已建立、迁移 SQL SHA-256 与本地一致；隔离副本已清理。后续审批、迁移及发布结果见本文件顶部。
 
 ## 2026-11-17 企业官网岗位同步器首批实现（功能分支完成，文件占用已释放）
 
@@ -716,6 +723,8 @@ Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成
 - 验证：隔离提醒专项 3/3、迁移 0026 专项 1/1；最终 `npm test` 831 项中 829 通过、0 失败、2 项既有 Windows 跳过；官网 66/66、类型检查、生产构建通过；小程序流程 65/65、`check:miniprogram`、JS 语法检查通过；OpenAPI YAML parse 与 `git diff --check` 通过。模拟 WeChat sender 证明 `in_app` 和未授权 `both` 不触发微信网关，双账号回执隔离通过。未触发真实发送、未迁移生产库、未部署或配置正式定时作业。
 
 ## 当前文件占用
+
+- 已完成并释放：Codex `official_public_web_list`（2026-11-17）。范围：`routes/jobs.js`、`services/officialJobSync.js`、`tests/officialJobSync.test.js`、`tests/helpers/officialJobSyncProbe.cjs`、`docs/OFFICIAL_JOB_SYNC_PLAN_20261117.md` 与本记录。目标是将已发布的官网快照接入公开网页实际使用的 `/api/jobs` 列表，保留按国家与筛选条件的现有契约，不外显岗位正文。风险：旧网页列表排序、分页和来源标记变化；验证：隔离库接口专项、`npm test`、发布检查及线上网页复核。
 
 - 已完成并释放：Codex `official_job_sync_release_readiness`（2026-11-17）。范围：`services/cnOfficialPilot.js`、`services/officialJobSync.js`、`tests/cnOfficialPilot.test.js`、`tests/officialJobSync.test.js`、`scripts/run-official-job-sync.sh`、`public/web/app.js`、`public/web/applications.js`、`public/web/styles.css`、相关 Web 专项测试、`docs/OFFICIAL_JOB_SYNC_PLAN_20261117.md` 与本记录；根据真实企业申请页核验修正岗位类型冲突、临时网络错误重试及定时运行入口。Human 明确选择无第三方授权时只展示官网链接和必要岗位信息，因此不保存或展示完整 JD。风险：错误分类会隐藏或误展示岗位；外部请求重试会增加访问量；迁移与正式调度仍须隔离演练及生产审查。验证：专项、`npm test`、发布检查、真实只读抽样和隔离库复测，不提交申请或连接生产数据库。
 
