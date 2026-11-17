@@ -1,33 +1,32 @@
 # AGENTS.md
 
-本文件用于约束多个 AI 同时维护项目时的分工、文件归属和交付流程。本仓库是后端、管理后台和微信小程序共用的唯一主项目。
+本文件约束人和 AI 共同维护项目时的文件归属与交付流程。本仓库同时包含后端、Web 工作台、管理后台和微信小程序。
 
-- 唯一项目根目录：`D:\ChatGPT-Projects\求职小程序\jobapp-server`
-- 后端/API/后台目录：`D:\ChatGPT-Projects\求职小程序\jobapp-server`
-- 微信开发者工具小程序目录：`D:\ChatGPT-Projects\求职小程序\jobapp-server\miniprogram`
-- 已弃用副本：`C:\Users\admin\Documents\GitHub\-\留学生求职小程序_v2`，禁止在该目录开发、预览、部署或提交。
+- 项目根目录：当前 Git 工作树中 `git rev-parse --show-toplevel` 返回的目录；不要使用个人机器上的旧副本。
+- 后端/API/后台：项目根目录下的 `server.js`、`routes/`、`services/`、`admin/` 等。
+- 微信开发者工具小程序目录：项目根目录下的 `miniprogram/`。
+- 新成员先读 [`docs/onboarding/README.md`](docs/onboarding/README.md)，确认开发基线、环境和发布边界。
 
 ## 基本规则
 
-- 开发前先读取 `AI功能清单开发.md` 和 `DEVELOPMENT_STATUS.md`，确认当前批次、负责人和文件范围。
-- 所有开发、测试、微信预览、Git 提交和部署都必须从唯一项目根目录执行。
+- 开发前先读 `docs/onboarding/README.md`、`README.md`，并核对 `DEVELOPMENT_STATUS.md` 顶部最新记录与“当前文件占用”；具体模块需要时再查 `AI功能清单开发.md`。
+- 开发、测试和 Git 提交从当前授权工作树的项目根目录执行；微信开发者工具打开该工作树下的 `miniprogram/`。
 - 不要在未沟通的情况下扫描或修改其它项目目录。
-- 改后端路由、测试、README、协作文档时使用 `jobapp-server`。
-- 改小程序页面、WXML/WXSS/JS、`miniprogram/utils` 时使用 `jobapp-server\miniprogram`。
+- 后端路由、测试、README、协作文档在项目根目录定位；小程序页面、WXML/WXSS/JS 和工具在 `miniprogram/` 定位。
 - 不要并发修改同一个文件。确需交叉修改时，先在 `DEVELOPMENT_STATUS.md` 标记占用范围。
 - 不要在同一批提交里混入无关重构、格式化或 UI 大改。
 - 高风险链路包括登录、支付、Webhook、上传、鉴权和数据库迁移。改动前必须单独列出风险和验证方式。
 - 不提交 `.env`、数据库运行文件、`uploads/`、`node_modules/`、微信私有配置和真实密钥。
 - 默认不运行微信开发者工具真实 E2E；除非 Human 明确要求，否则使用专项单测、`npm run check:release`、静态检查和人工微信预览记录。
 
-## 推荐分工
+## 分工
 
-| 角色 | 主要职责 | 默认文件范围 |
+| 角色 | 主要职责 | 文件范围 |
 |---|---|---|
-| Codex | 提交推送、测试、协作文档、低风险后端工具抽取 | `tests/`、`README.md`、`AGENTS.md`、`DEVELOPMENT_STATUS.md`、低风险 `utils/` |
-| AI1 Builder | 小程序页面迁移、样式整理、低风险功能实现 | `miniprogram/pages/`、`miniprogram/utils/`、`miniprogram/components/` |
-| AI2 Reviewer | 方案设计、接口规范、README/DX、Review 高风险改动 | `docs/`、`README.md`、设计类 Markdown |
-| Human | 产品和上线决策、支付/登录/职位数据源主线确认 | 需求、验收和风险决策 |
+| 仓库维护者 | 分配任务、审查 PR、维护基线和 CI | 按任务确定 |
+| 新成员或其他开发者 | 在独立分支实现已分配任务并提供验证证据 | 任务书列出的文件 |
+| AI 助手 | 在明确占用范围内实现、测试和整理文档 | 当前任务授权的文件 |
+| 产品与发布负责人 | 需求验收、高风险变更和生产发布决策 | 需求、验收和发布门禁 |
 
 ## 文件占用流程
 
@@ -43,9 +42,10 @@
 3. 提交信息使用动词开头，说明用户可感知的变化，例如 `Expand backend smoke tests`。
 4. 推送前再次确认没有密钥、数据库文件或无关产物。
 
-## 当前第二批边界
+协作 PR 目标分支和审查要求见 `docs/onboarding/03_COLLABORATION.md`。
 
-- 先做统一接口、补测试、降低维护成本。
-- 暂不主动改支付和登录核心链路。
-- 小程序直接请求迁移优先处理 `messages`、`feedback`、`news`。
-- `job-detail` 和 `profile-edit` 涉及订阅消息、上传和复杂状态，暂缓。
+## 当前协作边界
+
+- 当前开发基线与生产已部署版本不是同一个概念，先核对 `docs/onboarding/01_CURRENT_STATE.md`。
+- `main` 与当前发布分支保持分开；新任务从任务书指定的基线建分支，不自行合并历史快照。
+- 登录、支付、Webhook、上传、鉴权、数据库迁移和发布需单独审查风险与验证方式。

@@ -1,5 +1,10 @@
 # DEVELOPMENT_STATUS
 
+## 2026-11-17 新成员交接包（文档完成，文件占用已释放）
+
+- 在 `docs/onboarding/` 整理入项导航、当前分支与生产版本边界、本地环境、协作约定、可执行的首日任务和维护者清单；另备 PR 描述模板。`README.md` 增加入项入口并对齐 CI 命令，`AGENTS.md` 改用仓库相对路径、移除已过期的第二批边界。
+- 交接包 ZIP 位于仓库外 `outputs/CareerAI-new-member-handoff-20261117-final.zip`，包含入项文档、README、AGENTS、PR 模板和不含真实凭据的 `.env.example`；未包含生产配置、数据库或用户资料。文档链接、ZIP 条目与 `git diff --check` 已核对。本次仅改文档，不涉及业务代码、微信上传或生产部署。文件占用已释放：Codex。
+
 ## 2026-11-16 微信 AI 开发模式评测材料准备（本地完成，待平台自测）
 
 - 用户确认 AppID 已开通 AI 能力并提供微信官方评测指南。核对官方 2026-11-16 文档：Nightly 开发者工具中选择「小程序 AI 编译」、基础库至少 3.16.2；开发者自测支持已上传的开发版本，微信团队评测仅支持最新体验版且默认全选 Skill。团队评测文件需 50–100 条 Intent，正例至少 40 条、负例 8–10 条，平台所有检测项通过后才能继续。
@@ -695,6 +700,8 @@ Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成
 - 验证：隔离提醒专项 3/3、迁移 0026 专项 1/1；最终 `npm test` 831 项中 829 通过、0 失败、2 项既有 Windows 跳过；官网 66/66、类型检查、生产构建通过；小程序流程 65/65、`check:miniprogram`、JS 语法检查通过；OpenAPI YAML parse 与 `git diff --check` 通过。模拟 WeChat sender 证明 `in_app` 和未授权 `both` 不触发微信网关，双账号回执隔离通过。未触发真实发送、未迁移生产库、未部署或配置正式定时作业。
 
 ## 当前文件占用
+
+- 已完成并释放：Codex（2026-11-17）新成员交接包，范围为 `AGENTS.md`、`README.md`、`.github/pull_request_template.md`、`docs/onboarding/` 与本记录；验证见文件顶部。
 
 - 已完成并释放：Codex `stage5_manual_recovery`，范围为当前文件顶部登记的人工服务授权工单实现；只在本地隔离库开发测试，不触发真实支付或生产数据。
 

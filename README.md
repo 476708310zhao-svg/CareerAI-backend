@@ -2,6 +2,8 @@
 
 CareerAI 留学生求职助手全栈代码仓库，包含 Node.js 后端、管理后台静态页和微信小程序端。
 
+新成员请从 [`docs/onboarding/README.md`](docs/onboarding/README.md) 开始，先确认当前开发分支、已部署版本与本地环境。
+
 ## 当前项目目录
 
 本仓库是后端、Web 工作台、管理后台和微信小程序共用的唯一项目。执行命令前使用
@@ -25,6 +27,8 @@ CareerAI 留学生求职助手全栈代码仓库，包含 Node.js 后端、管�
 
 ## 当前产品结构（2026-10-10）
 
+以下是当时的设计记录；当前代码基线、已部署内容和待验收项以[新成员当前状态](docs/onboarding/01_CURRENT_STATE.md)为准。
+
 - 小程序保留五个一级 Tab：`首页`、`找岗位`、`进度`、`资源中心`、`我的`。
 - 一条 `application` 是求职推进的主对象；申请工作台关联简历版本、申请材料、面试空间、任务和时间线。
 - 用户侧只提供统一的上下文 AI 入口；岗位顾问、申请助手、面试教练和职业规划属于内部能力路由。
@@ -39,7 +43,7 @@ CareerAI 留学生求职助手全栈代码仓库，包含 Node.js 后端、管�
 ## 本地开发
 
 ```bash
-npm install
+npm ci
 cp .env.example .env
 npm run dev
 ```
@@ -68,11 +72,12 @@ npm run check:acceptance
 
 当前测试使用 Node.js 内置 test runner，测试文件位于 `tests/*.test.js`。发布候选必须在不包含本地预制改动的干净快照中运行上述三项；微信开发者工具和真机回归是独立人工门禁，不能由静态检查代替。
 
-GitHub Actions 已新增 `.github/workflows/test.yml`，在 push/PR 到 `main` 时运行：
+GitHub Actions 的 `.github/workflows/test.yml` 在 push 和 PR 时运行发布及验收检查；本地至少执行与改动相关的专项检查：
 
 ```bash
 npm ci
-npm test
+npm run check:release
+npm run check:acceptance -- --no-report
 ```
 
 ## 环境变量
@@ -133,13 +138,11 @@ RECRUITMENT_FEATURE_ENABLED=false
 
 小程序代码位于 `miniprogram/`。API 工具已拆到 `miniprogram/utils/api-*.js`，新页面请求优先走统一 API 工具，避免直接新增 `wx.request`。
 
-## 多 AI 协作
+## 协作开发
 
-- 开发前阅读 `AI功能清单开发.md`、`AGENTS.md` 和 `DEVELOPMENT_STATUS.md`。
-- 重要修改同步记录到 `CHANGELOG_AI.md`。
-- 修改前在 `DEVELOPMENT_STATUS.md` 标记文件占用。
-- 不要多个 AI 同时修改同一个文件。
-- 第二批优化优先做统一接口、补测试、降低维护成本，暂不主动改支付和登录核心链路。
+- 开发前阅读 `docs/onboarding/README.md`、`AGENTS.md` 和 `DEVELOPMENT_STATUS.md`。
+- 从任务书指定的基线创建独立分支；记录文件占用，避免多人同时修改同一文件。
+- 每个 PR 写明范围、验证结果、风险和人工验收；生产发布由发布负责人单独决定。
 
 ## 数据库变更
 
