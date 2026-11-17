@@ -13,6 +13,7 @@ test('20 distinct employers have fixed official HTTPS entrances with honest sync
 
 test('Greenhouse posting keeps source evidence without inventing a publication date or salary', () => {
   const board = pilot.LIVE_BOARDS.find(item => item.id === 'landor');
+  assert.equal(pilot.feedUrl(board), 'https://boards-api.greenhouse.io/v1/boards/landor/jobs');
   const job = pilot.normalizeRow(board, {
     id: 123, title: 'Design Intern', location: { name: 'Shanghai' },
     content: '<p>Design portfolio required</p>', updated_at: '2026-10-29T00:00:00Z',
@@ -21,7 +22,7 @@ test('Greenhouse posting keeps source evidence without inventing a publication d
   assert.equal(job.job_id, 'official_landor_123');
   assert.equal(job.job_country, 'CN');
   assert.equal(job.job_posted_at_datetime_utc, '');
-  assert.equal(job.job_description, 'Design portfolio required');
+  assert.equal(job.job_description, '');
   assert.equal(job.job_min_salary, undefined);
   assert.equal(job.job_source_reference, 'greenhouse:landor:123');
   assert.equal(pilot.normalizeRow(board, { id: 124, title: 'Design Intern',
@@ -70,6 +71,20 @@ test('China secondary location is shown as the job city instead of a foreign pri
     jobUrl: 'https://jobs.ashbyhq.com/meshy/multi' });
   assert.equal(job.job_city, 'Shanghai');
   assert.equal(job.job_country, 'CN');
+  const multiMainland = pilot.normalizeRow(ashby, { id: 'mainland', isListed: true,
+    title: 'Research Intern', location: 'Shanghai',
+    secondaryLocations: [{ location: 'Beijing' }, { location: 'Shenzhen' }],
+    jobUrl: 'https://jobs.ashbyhq.com/meshy/mainland' });
+  assert.equal(multiMainland.job_city, 'Shanghai; Beijing; Shenzhen');
+});
+
+test('intern title conflicting with explicit full-time source type is not published as internship', () => {
+  const board = pilot.LIVE_BOARDS.find(item => item.id === 'meshy');
+  const row = { id: 'full-time-intern', title: 'Applied Researcher Intern',
+    location: 'Shanghai', employmentType: 'FullTime',
+    jobUrl: 'https://jobs.ashbyhq.com/meshy/full-time-intern' };
+  assert.equal(pilot.normalizeRow(board, row), null);
+  assert.equal(pilot.normalizeRow(board, { ...row, employmentType: 'Intern' }).job_employment_type, 'Intern');
 });
 
 test('one transient upstream 502 is retried, while a subscription 403 is not', async () => {
@@ -88,6 +103,26 @@ test('one transient upstream 502 is retried, while a subscription 403 is not', a
   await assert.rejects(() => pilot.fetchBoard(board, { httpGet: async () => {
     calls += 1;
     throw { response: { status: 403 } };
+  } }));
+  assert.equal(calls, 1);
+});
+
+test('temporary connection resets are retried but rate limits are not', async () => {
+  const board = pilot.LIVE_BOARDS.find(item => item.id === 'landor');
+  let calls = 0;
+  const httpGet = async () => {
+    calls++;
+    if (calls < 3) throw { code: 'ECONNRESET' };
+    return { data: { jobs: [{ id: 1, title: 'Design Intern',
+      location: { name: 'Shanghai' },
+      absolute_url: 'https://job-boards.greenhouse.io/landor/jobs/1' }] } };
+  };
+  assert.equal((await pilot.fetchBoard(board, { httpGet })).length, 1);
+  assert.equal(calls, 3);
+  calls = 0;
+  await assert.rejects(() => pilot.fetchBoard(board, { httpGet: async () => {
+    calls++;
+    throw { response: { status: 429 } };
   } }));
   assert.equal(calls, 1);
 });

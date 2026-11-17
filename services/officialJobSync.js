@@ -30,7 +30,7 @@ function postingRow(board, job, seenAt) {
     id, board_id: board.id, provider: board.adapter,
     company: String(job.employer_name || board.name).trim().slice(0, 160), country,
     title: title.slice(0, 240), location: String(job.job_city || '').trim().slice(0, 240),
-    description: String(job.job_description || '').slice(0, 12000),
+    description: '',
     job_type: String(job.job_employment_type || '').slice(0, 80),
     apply_url: applyUrl, source_url: sourceUrl,
     source_reference: String(job.job_source_reference).slice(0, 240),
@@ -154,7 +154,7 @@ function toRawJob(row) {
   return {
     job_id: row.id, job_title: row.title, employer_name: row.company,
     job_city: row.location, job_country: row.country.toUpperCase(),
-    job_description: row.description, job_employment_type: row.job_type,
+    job_description: '', job_employment_type: row.job_type,
     job_posted_at_datetime_utc: row.published_at,
     job_updated_at_datetime_utc: row.source_updated_at,
     updatedAt: row.source_updated_at, fetchedAt: row.last_seen_at,
@@ -188,7 +188,7 @@ function toV4Job(row) {
   return {
     id: row.id, title: row.title, company: row.company,
     location: row.location, region, country: row.country.toUpperCase(),
-    description: row.description, requirements: [], jobType: row.job_type,
+    description: '', requirements: [], jobType: row.job_type,
     applyUrl: row.apply_url, sourceUrl: row.source_url,
     source: row.country === 'cn' ? 'cn_official' : 'official_board',
     postedAt: row.published_at, updatedAt: row.source_updated_at,

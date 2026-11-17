@@ -34,6 +34,8 @@ const MARKET_LOCATION = {
   us: /\b(?:united states(?: of america)?|usa|u\.s\.a\.|us)\b/i
 };
 const EARLY_CAREER = /实习|校招|应届|管培|毕业生|暑期|\bintern(?:ship)?\b|\bgraduate\b|\bnew grad\b|\bstudent\b|\bcampus\b|\btrainee\b/i;
+const INTERN_TITLE = /实习|\bintern(?:ship)?\b/i;
+const EXPLICIT_FULL_TIME = /^(?:full[\s-]?time|permanent|regular)$/i;
 const QUERY_SYNONYMS = [
   [/软件工程|软件开发|开发工程师/, ['software', 'engineer', 'developer']],
   [/数据分析/, ['data', 'analyst', 'analytics']],
@@ -53,7 +55,7 @@ function boardUrl(board) {
 }
 
 function feedUrl(board, page = 0) {
-  if (board.adapter === 'greenhouse') return `https://boards-api.greenhouse.io/v1/boards/${board.token}/jobs?content=true`;
+  if (board.adapter === 'greenhouse') return `https://boards-api.greenhouse.io/v1/boards/${board.token}/jobs`;
   if (board.adapter === 'ashby') return `https://api.ashbyhq.com/posting-api/job-board/${board.token}`;
   return `https://api${board.region === 'eu' ? '.eu' : ''}.lever.co/v0/postings/${board.token}?mode=json&skip=${page * 100}&limit=100`;
 }
@@ -63,12 +65,6 @@ function directory() {
     mode: board.adapter ? 'auto_sync' : 'official_link',
     modeLabel: board.adapter ? '官网职位同步' : '仅官网入口',
     url: boardUrl(board) }));
-}
-
-function plainText(value) {
-  return String(value || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&').replace(/&#39;/gi, "'").replace(/&quot;/gi, '"')
-    .replace(/\s+/g, ' ').trim().slice(0, 12000);
 }
 
 function safeUrl(value, fallback = '') {
@@ -96,9 +92,9 @@ function rowsFromFeed(board, data) {
 
 function targetLocation(board, row, locations) {
   const country = board.countryCode || 'cn';
-  if (country === 'cn') return locations.filter(Boolean).find(candidate =>
+  if (country === 'cn') return [...new Set(locations.filter(Boolean).filter(candidate =>
     CN_LOCATION.test(candidate) &&
-    (!/香港|澳门|台湾|hong kong|hongkong|macau|macao|taiwan/i.test(candidate) || MAINLAND_CITY.test(candidate)));
+    (!/香港|澳门|台湾|hong kong|hongkong|macau|macao|taiwan/i.test(candidate) || MAINLAND_CITY.test(candidate))))].join('; ') || null;
   if (!MARKET_LOCATION[country]) return null;
   const structured = [row.country, row.address?.postalAddress?.addressCountry,
     row.location?.country, row.location?.address?.addressCountry]
@@ -125,8 +121,10 @@ function normalizeRow(board, row) {
   const selectedLocation = targetLocation(board, row, allLocations);
   const department = isGreenhouse ? row.departments?.map(x => x.name).join(' ') :
     isLever ? row.categories?.team : row.department;
+  const sourceEmployment = String(row.employmentType || row.categories?.commitment || '').trim();
   if (!title || !selectedLocation ||
-      !EARLY_CAREER.test([title, department, row.employmentType, row.categories?.commitment].filter(Boolean).join(' '))) return null;
+      !EARLY_CAREER.test([title, department, sourceEmployment].filter(Boolean).join(' ')) ||
+      (INTERN_TITLE.test(title) && EXPLICIT_FULL_TIME.test(sourceEmployment))) return null;
   const publicUrl = safeUrl(isGreenhouse ? row.absolute_url : isLever ? row.hostedUrl : row.jobUrl);
   const ashbyId = !isGreenhouse && !isLever && publicUrl
     ? `url_${createHash('sha256').update(new URL(publicUrl).origin + new URL(publicUrl).pathname).digest('hex').slice(0, 20)}` : '';
@@ -135,7 +133,6 @@ function normalizeRow(board, row) {
   const officialUrl = publicUrl;
   if (!officialUrl || !isExpectedOfficialUrl(board, officialUrl)) return null;
   const applyUrl = safeUrl(isGreenhouse ? row.absolute_url : isLever ? row.applyUrl : row.applyUrl, officialUrl);
-  const description = plainText(isGreenhouse ? row.content : isLever ? row.descriptionPlain || row.description : row.descriptionPlain || row.descriptionHtml);
   // Lever createdAt and Greenhouse updated_at are not publication timestamps.
   const published = isGreenhouse || isLever ? '' : row.publishedAt;
   const date = published && Number.isFinite(Date.parse(published)) ? new Date(published).toISOString() : '';
@@ -143,7 +140,7 @@ function normalizeRow(board, row) {
     job_id: `official_${board.id}_${sourceId}`, job_title: title,
     employer_name: board.name, job_city: String(selectedLocation).trim(),
     job_country: String(board.countryCode || 'cn').toUpperCase(),
-    job_description: description, job_employment_type: EARLY_CAREER.test(title) && /实习|\bintern/i.test(title) ? 'INTERN' : String(row.employmentType || row.categories?.commitment || ''),
+    job_description: '', job_employment_type: sourceEmployment || (INTERN_TITLE.test(title) ? 'INTERN' : ''),
     job_posted_at_datetime_utc: date, job_apply_link: applyUrl,
     job_updated_at_datetime_utc: isGreenhouse && Number.isFinite(Date.parse(row.updated_at || ''))
       ? new Date(row.updated_at).toISOString() : '',
@@ -201,14 +198,16 @@ async function fetchBoardSnapshot(board, options = {}) {
     const allRows = [];
     for (let page = 0; page < (board.adapter === 'lever' ? 20 : 1); page++) {
       let rows;
-      for (let attempt = 0; attempt < 2; attempt++) {
+      for (let attempt = 0; attempt < 3; attempt++) {
         try {
           const response = await httpGet(feedUrl(board, page), { timeout: 10000, maxContentLength: 4 * 1024 * 1024 });
           rows = rowsFromFeed(board, response.data);
           break;
         } catch (error) {
-          if (attempt > 0 || ![502, 503, 504].includes(Number(error.response?.status))) throw error;
-          await wait(350);
+          const transient = [502, 503, 504].includes(Number(error.response?.status)) ||
+            ['ECONNRESET', 'ETIMEDOUT', 'ECONNABORTED'].includes(error.code);
+          if (attempt >= 2 || !transient) throw error;
+          await wait(350 * (attempt + 1));
         }
       }
       allRows.push(...rows);

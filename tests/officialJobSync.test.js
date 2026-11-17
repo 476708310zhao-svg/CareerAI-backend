@@ -47,7 +47,10 @@ test('official sync requires migration and keeps published date distinct from so
     assert.equal(first.inserted_count, 1);
     assert.equal(second.updated_count, 1);
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM official_job_postings').get().n, 1);
+    assert.equal(db.prepare('SELECT description FROM official_job_postings WHERE id=?').get('official_sample_1').description, '');
     assert.equal(sync.findActiveRaw(db, 'official_sample_1').job_posted_at_datetime_utc, '');
+    assert.equal(sync.findActiveRaw(db, 'official_sample_1').job_description, '');
+    assert.equal(sync.findActiveV4(db, 'official_sample_1').description, '');
     assert.equal(sync.findActiveV4(db, 'official_sample_1').updatedAt, '2026-11-17T00:00:00.000Z');
     assert.equal(sync.listActiveRaw(db, 'Software').length, 1);
   } finally { db.close(); }
