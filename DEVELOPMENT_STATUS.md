@@ -1,5 +1,15 @@
 # DEVELOPMENT_STATUS
 
+## 2026-11-16 微信 AI 开发模式评测材料准备（本地完成，待平台自测）
+
+- 用户确认 AppID 已开通 AI 能力并提供微信官方评测指南。核对官方 2026-11-16 文档：Nightly 开发者工具中选择「小程序 AI 编译」、基础库至少 3.16.2；开发者自测支持已上传的开发版本，微信团队评测仅支持最新体验版且默认全选 Skill。团队评测文件需 50–100 条 Intent，正例至少 40 条、负例 8–10 条，平台所有检测项通过后才能继续。
+- 在 `docs/ai-evaluation/` 新增 20 条自测文件、50 条团队评测候选文件及操作说明；团队文件为 42 条正例、8 条负例，覆盖现有岗位、校招、面经 3 个只读 Skill 的 6 个原子接口，含 11 条时间标签和 1 条未注册场景。JSON 格式、数量、标签、去重本地核对通过；`npm run check:miniprogram` 通过。平台复杂度、多样性、时间/未注册标签判定及实际轨迹尚未运行，不能声称已通过微信评测。当前未安装/运行 Nightly，未上传体验版、登录评测插件或提交微信团队评测。文件占用已释放：Codex。
+
+## 2026-11-16 首页今日待办返回闪动修复（本地完成，文件占用已释放）
+
+- 根据用户 3.37 秒真机录屏，返回首页时待办先呈本地顺序、随后恢复服务端顺序，同一组任务短时交替换位，造成图标跳动。现在同一账号、同一天已有待办时保留当前显示列表，刷新后只在可见内容实际变化时更新；跨日或账号切换仍重建，接口空结果或失败时回退本地任务。只修改 `miniprogram/pages/index/index.js` 与 `tests/frontendVisualCheckpoint.test.js`。
+- 首页视觉与导航专项 50/50、`npm run check:miniprogram`、定向 `git diff --check` 通过。微信 CLI 从唯一项目预览成功（总包 2,649,099 字节），二维码为 `tmp/home-task-flicker-preview-20261116.png`，待用户真机复测。未上传测试版或正式发布；其余工作区改动保持原状。文件占用已释放：Codex。
+
 ## 2026-11-16 线上部署与 Git 发布（已完成，文件占用已释放）
 
 - 负责人：Codex。发布分支 `codex/release-20261116` 已推送 GitHub，业务代码提交为 `86b2f0ca497673a384f9e3375491ba30cdc2cd92`。合入远端维护分支，排除 `tmp/` 和旧候选哈希清单，敏感文件扫描和 `git diff --check` 通过。
@@ -692,7 +702,7 @@ Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成
 
 - 本地完成并释放：Codex `stage4_extension_ashby`；新增 Ashby adapter 和隐私最小化的本机 7 日兼容计数，样本至少 5 且失败率不少于 60% 才提示。兼容回归已由现有 CI 的 `npm run check:release` 自动执行。插件专项 4/4、授权/适配合并专项 7/7；后端全量 `npm test` 839 项，837 通过、0 失败、2 项既有跳过；相关 JS 语法、Manifest JSON、定向 diff check 通过。没有记录/上传用户、申请、URL、DOM、字段标签或值。未连接真实 ATS、未运行 Chrome 手动预览，当前提示不是运营告警。
 
-- 当前文件占用：Codex `practice_renderer_fix_20261116`，仅 `miniprogram/package-content/pages/practice-session/practice-session.{js,wxml}`、`tests/questionPracticeMiniProgram.test.js` 与本文件；排查在线刷题 `unknown removedNode`、减少页面切换时的节点销毁及正常进度中的 409 探测。`stage2_application_reminders` 已本地完成并释放；相关文档见官网 `docs/stage2-application-reminders.md`。后续正式迁移、微信真机授权及线上调度仍待环境验收。
+- 当前文件占用：无。上一轮 `practice_renderer_fix_20261116` 已完成代码与专项检查，微信开发者工具复测被用户停止。`stage2_application_reminders` 已本地完成并释放；相关文档见官网 `docs/stage2-application-reminders.md`。后续正式迁移、微信真机授权及线上调度仍待环境验收。
 
 - Codex `stage1_feedback_audit_impl`（2026-10-30，本地完成并释放）：仅修改 `routes/admin.js` 反馈管理窄范围、`admin/feedback.html`、`tests/databaseMigrations.test.js`、`tests/all.test.js`、`docs/JOB_MANUAL_VERIFICATION.md` 与本记录，新增 `db/migrations/0023_feedback_handling_audit.sql`、`tests/jobFeedbackAudit.test.js`。反馈处理改为要求版本的 SQLite 立即事务，同时追加状态/备注前后值、实时管理员和时间；旧 token/撤权拒绝，冲突 409，缺迁移 503。岗位纠错关闭/忽略须写有界说明，后台可看审计与“距提交”或可追溯结案耗时；迁移前已完成且仅补备注仍显示历史处理时间未知。保留反馈硬删除及审计级联删除并在 UI 警告，不自动修改岗位核验或 `jobs.json`。只在隔离 `DB_PATH` 验证 0023 幂等/迁移回滚、旧记录、故障 trigger 强制事件写失败时反馈三字段及事件数回滚、泛化错误响应、版本冲突、权限、说明边界与删除级联；专项 24/24，后端全量 `npm test` 808 项中 806 通过、0 失败、2 项既有 Windows 跳过。JS 语法、HTML 内联脚本解析与定向差异格式检查通过；真实 `data/jobs.json` SHA-256 仍为 `240B0921B5025078738171457A38E067CC1ABBA932F85A088BF20E4295428EB6`。现有大量无关未提交改动保留。未迁移真实/生产数据库、未部署、提交或推送；正式上线前须备份并审批迁移，既有 `deploy.sh` 待迁移门禁仍会阻断直接发布。
 
