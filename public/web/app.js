@@ -5,6 +5,11 @@
   const state = { token: localStorage.getItem(TOKEN_KEY), user: null, board: null, activeApplication: null, aiContext: null, aiConversation: null, aiMessages: [], aiRetry: null, aiOpenVersion: 0, aiSaveOpenVersion: 0, aiSaveActionId: null, aiSaveApplicationId: null, aiSaveApplication: null, aiSaveApplications: [], aiSaveTriggerButton: null };
   const $ = (id) => document.getElementById(id);
   const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const officialJobUrl = job => {
+    if (!['cn_official', 'official_board'].includes(job.source)) return '';
+    try { const url = new URL(job.applyUrl || job.sourceUrl); return url.protocol === 'https:' && !url.username && !url.password ? url.href : ''; }
+    catch (_) { return ''; }
+  };
   const statusText = {preparing:'准备中',applied:'已投递',oa:'笔试中',interview:'面试中',offer:'Offer',closed:'已结束',saved:'已收藏',interested:'已收藏'};
   async function request(path, options = {}) {
     const token = state.token;
@@ -153,7 +158,10 @@
       try {
         const data = await request(`/api/v4/jobs?keyword=${encodeURIComponent(keyword || '')}&pageSize=20`);
         const list = data.list || [];
-        target.innerHTML = list.length ? list.map(job => `<article class="web-job-row"><div><strong>${escapeHtml(job.company || '目标公司')} · ${escapeHtml(job.title || '目标岗位')}</strong><p class="task-meta">${escapeHtml(job.location || '地点待补充')} · 匹配 ${escapeHtml(job.match?.score ?? '—')} 分</p></div><button class="mini-button" data-add-job="${escapeHtml(job.id)}">加入申请</button></article>`).join('') : '<p class="muted">没有找到匹配岗位。</p>';
+        target.innerHTML = list.length ? list.map(job => {
+          const url = officialJobUrl(job);
+          return `<article class="web-job-row"><div><strong>${escapeHtml(job.company || '目标公司')} · ${escapeHtml(job.title || '目标岗位')}</strong><p class="task-meta">${escapeHtml(job.location || '地点待补充')} · 匹配 ${escapeHtml(job.match?.score ?? '—')} 分</p></div><div class="web-job-actions">${url ? `<a class="mini-button" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">企业官网申请</a>` : ''}<button class="mini-button" data-add-job="${escapeHtml(job.id)}">加入申请</button></div></article>`;
+        }).join('') : '<p class="muted">没有找到匹配岗位。</p>';
         target.querySelectorAll('[data-add-job]').forEach(button => button.addEventListener('click', async () => {
           const job = list.find(item => String(item.id) === String(button.dataset.addJob)); if (!job) return;
           button.disabled = true;

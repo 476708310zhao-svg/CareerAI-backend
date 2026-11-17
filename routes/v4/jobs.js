@@ -74,10 +74,13 @@ function jobDataMeta(job) {
     sourceLabel: job.sourceLabel,
     publishedAt: job.postedAt,
     updatedAt: job.updatedAt,
+    fetchedAt: job.fetchedAt,
     isExpired: isLocalArchive ? isExpiredLocalJob(job)
       : job.deadline ? new Date(`${String(job.deadline).slice(0, 10)}T23:59:59+08:00`).getTime() < Date.now() : false,
-    isFallback: isLocalArchive,
-    fallbackReason: isLocalArchive ? '当前精准匹配基于历史职位库' : ''
+    isFallback: isLocalArchive || job._sourceSyncStatus === 'error' || job._sourceSyncStatus === 'anomalous',
+    fallbackReason: isLocalArchive ? '当前精准匹配基于历史职位库'
+      : job._sourceSyncStatus === 'error' ? '企业官网最近一次同步失败'
+        : job._sourceSyncStatus === 'anomalous' ? '企业官网岗位变化待复核' : ''
   });
 }
 

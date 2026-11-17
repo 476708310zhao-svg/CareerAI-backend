@@ -4,6 +4,11 @@ window.createApplicationWorkbench = function ({ request, toast, openAI, setDetai
   const model = window.ApplicationModel;
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch]));
+  const officialJobUrl = snapshot => {
+    if (!['cn_official', 'official_board'].includes(snapshot.source)) return '';
+    try { const url = new URL(snapshot.applyUrl || snapshot.sourceUrl); return url.protocol === 'https:' && !url.username && !url.password ? url.href : ''; }
+    catch (_) { return ''; }
+  };
   const state = { items: [], statuses: [], selected: new Set(), keyword: '', status: '', sort: 'deadline', view: 'table', page: 1, detail: null, generation: 0, detailGeneration: 0, busy: false, undo: null };
   const label = status => state.statuses.find(item => item.value === status)?.label || status;
   const selected = () => state.items.filter(item => state.selected.has(item.id));
@@ -141,9 +146,10 @@ window.createApplicationWorkbench = function ({ request, toast, openAI, setDetai
     const data = state.detail; const app = data.application;
     const transitions = data.allowedTransitions || [];
     const version = data.resume?.version;
+    const officialUrl = officialJobUrl(app.jobSnapshot || {});
     const materialLabel = item => item.label || item.type || '申请材料';
     $('detail-content').innerHTML = `<div class="detail-header"><p class="eyebrow">APPLICATION WORKSPACE</p><h2>${esc(app.company)}</h2><p>${esc(app.jobTitle)} · ${esc(app.city || '地点待补充')}</p><div class="detail-actions"><select id="detail-status" aria-label="申请状态"><option value="${esc(app.status)}">${esc(app.statusText)}</option>${transitions.map(item => `<option value="${esc(item.value)}">${esc(item.label)}</option>`).join('')}</select><button class="mini-button primary" id="workspace-status">保存状态</button><button class="mini-button" id="workspace-ai">问 AI 专家</button></div><p id="workspace-message" role="status"></p></div>
-      ${section('岗位与 JD', `<p class="readable-content">${esc(app.jobSnapshot.description || app.jobSnapshot.jd || '尚未保存岗位描述')}</p>`)}
+      ${section('岗位与 JD', `${officialUrl ? `<p><a href="${esc(officialUrl)}" target="_blank" rel="noopener noreferrer">前往企业官网查看岗位并申请</a></p>` : ''}<p class="readable-content">${esc(app.jobSnapshot.description || app.jobSnapshot.jd || (officialUrl ? '岗位详情以企业官网为准' : '尚未保存岗位描述'))}</p>`)}
       ${section('申请资料（只读）', `<div class="detail-grid"><div class="detail-block"><h4>关联简历版本</h4><p>${esc(data.resume?.name || '未关联简历')}${version ? ` · 版本 #${esc(version.id)}` : ''}</p></div><div class="detail-block"><h4>岗位匹配</h4><p>${data.match ? `${esc(data.match.score)} 分` : '尚未匹配'}</p><p>${esc((data.match?.gaps || []).join('；'))}</p></div><div class="detail-block"><h4>ATS 检查</h4><p>${esc(data.jdReport?.atsRisk || '暂无当前简历版本的检查记录')}</p><p class="task-meta">${data.jdReport ? `得分 ${esc(data.jdReport.score)}` : '请在小程序中运行或更新检查'}</p></div><div class="detail-block"><h4>申请材料</h4><p>${data.materials.length} 份已保存，${data.drafts.filter(item => item.status === 'pending').length} 份待确认</p><p class="task-meta">编辑、生成和确认请在小程序中完成</p></div></div>
       ${data.materials.map(item => `<article class="material-card"><h4>${esc(materialLabel(item))}</h4><span class="task-meta">${item.association === 'legacy' ? '按岗位关联的历史材料' : '已关联本申请'} · ${esc(item.resumeName || '未记录简历名称')}</span><p class="readable-content">${esc(item.content)}</p></article>`).join('')}`)}
       ${section('下一步与备注', `<form id="workspace-fields" class="stack-form"><label>截止日期<input type="date" name="deadline" value="${esc(app.deadline.slice(0,10))}"></label><label>面试时间（当地时间）<input type="datetime-local" name="interviewTime" value="${esc((app.interviewTime || '').replace(' ','T').slice(0,16))}"></label><label>下一步行动<input name="nextAction" maxlength="300" value="${esc(app.nextAction)}"></label><label>备注<textarea name="notes" maxlength="2000" rows="3">${esc(app.notes)}</textarea></label><button class="mini-button primary" type="submit">保存安排</button></form>`)}

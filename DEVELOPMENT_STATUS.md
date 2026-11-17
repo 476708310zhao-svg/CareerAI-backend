@@ -1,5 +1,16 @@
 # DEVELOPMENT_STATUS
 
+## 2026-11-17 企业官网岗位同步器上线核验（待审查与生产发布）
+
+- 对 10 家企业板的隔离库复测得到 18 条开放岗位；逐条核对 Greenhouse 页面与 Ashby/Lever 浏览器申请表后，排除官网明示为全职的误判实习岗位，临时连接错误只有限重试。Human 确认尚无第三方展示授权，官网岗位只保留必要元数据及官网 HTTPS 链接，不保存或返回完整岗位正文；Web 列表及申请详情已提供官网入口。
+- `node --test tests/cnOfficialPilot.test.js tests/officialJobSync.test.js` 22/22 通过；`npm run check:release` 退出 0；独立 Edge 浏览器官网入口验收通过。原有完整 Web 浏览器测试在既有并发更新提示步骤超时，不能作为本次专项通过证据。
+- 生产读检确认数据库停在 `0033`。在服务器隔离副本预演 `0034` 后，前后完整性检查均为 `ok`、两个新表已建立、迁移 SQL SHA-256 与本地一致；隔离副本已清理，未对生产库应用迁移、部署或配置定时任务。上线仍需维护者 PR 审查、发布负责人对生产迁移的单独决定及发布后验收。
+
+## 2026-11-17 企业官网岗位同步器首批实现（功能分支完成，文件占用已释放）
+
+- 从 `codex/release-20261116` 建立 `feat/official-job-sync`。首批复用现有 10 家中国内地 Greenhouse、Lever、Ashby 招聘板，增加完整快照、版本化迁移 `0034`、幂等同步命令、连续两次缺失后关闭、上游错误与异常大幅下架保护；小程序岗位接口、Web V4 岗位和申请流程共用稳定官网岗位 ID。中国内地、英国和美国均纳入国家字段和适配器验证；英美企业板名单尚未核准，当前未声称已上线覆盖。
+- 风险与验证：迁移仅在隔离 SQLite 中演练，未连接生产库、运行真实官网同步、配置定时器或部署。新增 `.gitattributes` 固定迁移 SQL 的 LF 行尾，避免 Windows 检出改变迁移校验和。数据库迁移、外部招聘源条款及异常下架处理需在生产发布前单独审查。`npm test` 848 项中 846 通过、0 失败、2 项既有跳过；官网适配器与同步专项 20/20；`npm run check:release` 退出 0；`git diff --check` 通过。实现与后续步骤见 `docs/OFFICIAL_JOB_SYNC_PLAN_20261117.md`。文件占用已释放：Codex。
+
 ## 2026-11-17 学生求职流程与机构服务差距规划（文档完成，文件占用已释放）
 
 - 新增 `docs/学生求职流程与机构服务差距规划_20261117.md`，依据学生求职八步和机构服务截图，对照小程序、Web、后端与当前发布边界，列出差距、P0/P1/P2 阶段、API 复用、验收和防误导约束。只做源码与文档核查，未修改业务代码、线上配置、数据库或微信版本。
@@ -705,6 +716,10 @@ Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成
 - 验证：隔离提醒专项 3/3、迁移 0026 专项 1/1；最终 `npm test` 831 项中 829 通过、0 失败、2 项既有 Windows 跳过；官网 66/66、类型检查、生产构建通过；小程序流程 65/65、`check:miniprogram`、JS 语法检查通过；OpenAPI YAML parse 与 `git diff --check` 通过。模拟 WeChat sender 证明 `in_app` 和未授权 `both` 不触发微信网关，双账号回执隔离通过。未触发真实发送、未迁移生产库、未部署或配置正式定时作业。
 
 ## 当前文件占用
+
+- 已完成并释放：Codex `official_job_sync_release_readiness`（2026-11-17）。范围：`services/cnOfficialPilot.js`、`services/officialJobSync.js`、`tests/cnOfficialPilot.test.js`、`tests/officialJobSync.test.js`、`scripts/run-official-job-sync.sh`、`public/web/app.js`、`public/web/applications.js`、`public/web/styles.css`、相关 Web 专项测试、`docs/OFFICIAL_JOB_SYNC_PLAN_20261117.md` 与本记录；根据真实企业申请页核验修正岗位类型冲突、临时网络错误重试及定时运行入口。Human 明确选择无第三方授权时只展示官网链接和必要岗位信息，因此不保存或展示完整 JD。风险：错误分类会隐藏或误展示岗位；外部请求重试会增加访问量；迁移与正式调度仍须隔离演练及生产审查。验证：专项、`npm test`、发布检查、真实只读抽样和隔离库复测，不提交申请或连接生产数据库。
+
+- 已完成并释放：Codex `official_job_sync_mvp`（2026-11-17）。文件范围、风险和验证见本文件顶部；正式迁移、英美企业板核准与定时运行另行安排。
 
 - 已完成并释放：Codex（2026-11-17）学生求职流程与机构服务差距规划；范围为 `docs/学生求职流程与机构服务差距规划_20261117.md` 和本记录。验证见文件顶部。
 

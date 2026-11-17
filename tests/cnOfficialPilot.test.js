@@ -13,6 +13,7 @@ test('20 distinct employers have fixed official HTTPS entrances with honest sync
 
 test('Greenhouse posting keeps source evidence without inventing a publication date or salary', () => {
   const board = pilot.LIVE_BOARDS.find(item => item.id === 'landor');
+  assert.equal(pilot.feedUrl(board), 'https://boards-api.greenhouse.io/v1/boards/landor/jobs');
   const job = pilot.normalizeRow(board, {
     id: 123, title: 'Design Intern', location: { name: 'Shanghai' },
     content: '<p>Design portfolio required</p>', updated_at: '2026-10-29T00:00:00Z',
@@ -21,7 +22,7 @@ test('Greenhouse posting keeps source evidence without inventing a publication d
   assert.equal(job.job_id, 'official_landor_123');
   assert.equal(job.job_country, 'CN');
   assert.equal(job.job_posted_at_datetime_utc, '');
-  assert.equal(job.job_description, 'Design portfolio required');
+  assert.equal(job.job_description, '');
   assert.equal(job.job_min_salary, undefined);
   assert.equal(job.job_source_reference, 'greenhouse:landor:123');
   assert.equal(pilot.normalizeRow(board, { id: 124, title: 'Design Intern',
@@ -70,6 +71,20 @@ test('China secondary location is shown as the job city instead of a foreign pri
     jobUrl: 'https://jobs.ashbyhq.com/meshy/multi' });
   assert.equal(job.job_city, 'Shanghai');
   assert.equal(job.job_country, 'CN');
+  const multiMainland = pilot.normalizeRow(ashby, { id: 'mainland', isListed: true,
+    title: 'Research Intern', location: 'Shanghai',
+    secondaryLocations: [{ location: 'Beijing' }, { location: 'Shenzhen' }],
+    jobUrl: 'https://jobs.ashbyhq.com/meshy/mainland' });
+  assert.equal(multiMainland.job_city, 'Shanghai; Beijing; Shenzhen');
+});
+
+test('intern title conflicting with explicit full-time source type is not published as internship', () => {
+  const board = pilot.LIVE_BOARDS.find(item => item.id === 'meshy');
+  const row = { id: 'full-time-intern', title: 'Applied Researcher Intern',
+    location: 'Shanghai', employmentType: 'FullTime',
+    jobUrl: 'https://jobs.ashbyhq.com/meshy/full-time-intern' };
+  assert.equal(pilot.normalizeRow(board, row), null);
+  assert.equal(pilot.normalizeRow(board, { ...row, employmentType: 'Intern' }).job_employment_type, 'Intern');
 });
 
 test('one transient upstream 502 is retried, while a subscription 403 is not', async () => {
@@ -92,6 +107,26 @@ test('one transient upstream 502 is retried, while a subscription 403 is not', a
   assert.equal(calls, 1);
 });
 
+test('temporary connection resets are retried but rate limits are not', async () => {
+  const board = pilot.LIVE_BOARDS.find(item => item.id === 'landor');
+  let calls = 0;
+  const httpGet = async () => {
+    calls++;
+    if (calls < 3) throw { code: 'ECONNRESET' };
+    return { data: { jobs: [{ id: 1, title: 'Design Intern',
+      location: { name: 'Shanghai' },
+      absolute_url: 'https://job-boards.greenhouse.io/landor/jobs/1' }] } };
+  };
+  assert.equal((await pilot.fetchBoard(board, { httpGet })).length, 1);
+  assert.equal(calls, 3);
+  calls = 0;
+  await assert.rejects(() => pilot.fetchBoard(board, { httpGet: async () => {
+    calls++;
+    throw { response: { status: 429 } };
+  } }));
+  assert.equal(calls, 1);
+});
+
 test('one failed board does not turn genuine empty sources into fabricated openings', async () => {
   const httpGet = async url => {
     if (url.includes('/landor/')) throw new Error('temporary failure');
@@ -106,4 +141,50 @@ test('one failed board does not turn genuine empty sources into fabricated openi
   assert.equal(result.boardStatus.find(item => item.id === 'landor').status, 'unavailable');
   assert.equal(result.boardStatus.find(item => item.id === 'enhesa').status, 'empty');
   assert.equal(result.boardStatus.find(item => item.id === 'meshy').count, 1);
+});
+
+test('Ashby public posting without id keeps a stable key from its official URL', () => {
+  const board = pilot.LIVE_BOARDS.find(item => item.id === 'meshy');
+  const row = { title: 'Software Intern', location: 'Shanghai',
+    jobUrl: 'https://jobs.ashbyhq.com/meshy/a1?utm_source=test',
+    applyUrl: 'https://jobs.ashbyhq.com/meshy/a1/application' };
+  const first = pilot.normalizeRow(board, row);
+  const second = pilot.normalizeRow(board, { ...row, jobUrl: 'https://jobs.ashbyhq.com/meshy/a1?utm_source=other' });
+  assert.match(first.job_id, /^official_meshy_url_[a-f0-9]{20}$/);
+  assert.equal(first.job_id, second.job_id);
+});
+
+test('Greenhouse custom careers host needs explicit allowlist', () => {
+  const original = pilot.LIVE_BOARDS.find(item => item.id === 'landor');
+  const row = { id: 123, title: 'Design Intern', location: { name: 'Shanghai' },
+    absolute_url: 'https://careers.example.com/jobs/123' };
+  assert.equal(pilot.normalizeRow(original, row), null);
+  assert.ok(pilot.normalizeRow({ ...original, allowedHosts: ['careers.example.com'] }, row));
+});
+
+test('Lever board reads all complete pages and supports the EU instance', async () => {
+  const board = { id: 'eu-example', name: 'EU Example', adapter: 'lever', token: 'eu-example', region: 'eu' };
+  const urls = [];
+  const posting = id => ({ id: `p${id}`, text: 'Marketing Intern',
+    categories: { location: 'Shanghai' },
+    hostedUrl: `https://jobs.eu.lever.co/eu-example/p${id}` });
+  const result = await pilot.fetchBoardSnapshot(board, { httpGet: async url => {
+    urls.push(url);
+    return { data: urls.length === 1 ? Array.from({ length: 100 }, (_, index) => posting(index)) : [posting(100)] };
+  } });
+  assert.equal(result.rawCount, 101);
+  assert.equal(result.jobs.length, 101);
+  assert.match(urls[1], /api\.eu\.lever\.co\/.*skip=100/);
+});
+
+test('UK and US boards require explicit market evidence before accepting a posting', () => {
+  const gb = { id: 'uk-example', name: 'UK Example', adapter: 'lever', token: 'uk-example', countryCode: 'gb' };
+  const us = { id: 'us-example', name: 'US Example', adapter: 'lever', token: 'us-example', countryCode: 'us' };
+  const row = (board, location, country) => ({ id: 'p1', text: 'Software Intern',
+    categories: { location }, country, hostedUrl: `https://jobs.lever.co/${board.token}/p1` });
+  assert.equal(pilot.normalizeRow(gb, row(gb, 'London', null)), null);
+  assert.equal(pilot.normalizeRow(gb, row(gb, 'London', 'US')), null);
+  assert.equal(pilot.normalizeRow(gb, row(gb, 'London', 'GB')).job_country, 'GB');
+  assert.equal(pilot.normalizeRow(us, row(us, 'New York, United States', null)).job_country, 'US');
+  assert.equal(pilot.normalizeRow(us, row(us, 'London, United Kingdom', null)), null);
 });

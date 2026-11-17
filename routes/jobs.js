@@ -14,6 +14,17 @@ const { createJobListSnapshotStore } = require('../utils/jobListSnapshot');
 const { ADZUNA_COUNTRIES, normalizeCountry, globalSampleCountries, marketSources, isRemoteJobEligible } = require('../utils/jobGeography');
 const hkGovJobs = require('../services/hkGovJobs');
 const cnOfficialPilot = require('../services/cnOfficialPilot');
+const officialJobSync = require('../services/officialJobSync');
+const db = require('../db/database');
+
+function officialJobWithMeta(job) {
+  return _withRawJobMeta(job, job._source || 'cn_official', {
+    fetchedAt: job.fetchedAt,
+    isFallback: job._sourceSyncStatus === 'error' || job._sourceSyncStatus === 'anomalous',
+    fallbackReason: job._sourceSyncStatus === 'error' ? '企业官网最近一次同步失败' :
+      job._sourceSyncStatus === 'anomalous' ? '企业官网岗位变化待复核' : ''
+  });
+}
 
 function allLocalJobs() {
   return readJobsData().jobs || [];
@@ -996,13 +1007,24 @@ router.get('/aggregate', jobsLimiter, async (req, res) => {
   }
 
   async function _fetchCnOfficialFresh() {
-    const result = await cnOfficialPilot.search(query, { gateway: sourceGateway });
+    const snapshotReady = officialJobSync.readyToServe(db);
+    const savedJobs = snapshotReady ? officialJobSync.listActiveRaw(db, query) : [];
+    const result = snapshotReady
+      ? { jobs: savedJobs, boardStatus: cnOfficialPilot.LIVE_BOARDS.map(board => {
+        const latest = officialJobSync.latestBoardStatus(db, board.id);
+        const count = savedJobs.filter(job => job.job_id.startsWith(`official_${board.id}_`)).length;
+        return { id: board.id, name: board.name,
+          status: latest?.status === 'error' ? 'unavailable' : latest?.status === 'anomalous' ? 'review_needed' : count ? 'ok' : 'empty',
+          count, ...(latest?.error_code ? { reason: latest.error_code } : {}) };
+      }) }
+      : await cnOfficialPilot.search(query, { gateway: sourceGateway });
     const failures = result.boardStatus.filter(item => item.status === 'unavailable');
+    const reviews = result.boardStatus.filter(item => item.status === 'review_needed');
     sourceStatus.push({ source: 'cn_official', country: 'cn',
       status: failures.length === result.boardStatus.length ? 'unavailable' : result.jobs.length ? 'ok' : 'empty',
-      count: result.jobs.length, ...(failures.length ? { partialFailures: failures.length } : {}),
+      count: result.jobs.length, ...(failures.length || reviews.length ? { partialFailures: failures.length + reviews.length } : {}),
       boardStatus: result.boardStatus });
-    return result.jobs.map(job => _withRawJobMeta(job, 'cn_official'));
+    return result.jobs.map(job => snapshotReady ? officialJobWithMeta(job) : _withRawJobMeta(job, 'cn_official'));
   }
 
   async function _fetchMarketFresh(code) {
@@ -1381,9 +1403,11 @@ router.get('/detail', optionalAuth, jobsLimiter, async (req, res) => {
   }
   if (String(req.query.job_id).startsWith('official_')) {
     try {
-      const job = await cnOfficialPilot.findById(String(req.query.job_id), { gateway: sourceGateway });
+      const job = officialJobSync.readyToServe(db)
+        ? officialJobSync.findActiveRaw(db, String(req.query.job_id))
+        : await cnOfficialPilot.findById(String(req.query.job_id), { gateway: sourceGateway });
       if (!job) return res.status(404).json({ error: '职位不存在或已下线', data: [] });
-      const data = [_withRawJobMeta(job, 'cn_official')];
+      const data = [officialJobWithMeta(job)];
       _trackJobView(req, req.query.job_id);
       return res.json({ data, status: 'OK', _source: 'cn_official', dataMeta: _collectionMeta(data) });
     } catch (_) { return res.status(503).json({ error: '企业官网职位源暂不可用', data: [] }); }
@@ -1724,8 +1748,10 @@ router.get('/:id', jobsLimiter, async (req, res) => {
 
     if (rawId.startsWith('official_')) {
       try {
-        const job = await cnOfficialPilot.findById(rawId, { gateway: sourceGateway });
-        if (job) return res.json({ code: 0, message: 'success', data: _toWebJob(_withRawJobMeta(job, 'cn_official')) });
+        const job = officialJobSync.readyToServe(db)
+          ? officialJobSync.findActiveRaw(db, rawId)
+          : await cnOfficialPilot.findById(rawId, { gateway: sourceGateway });
+        if (job) return res.json({ code: 0, message: 'success', data: _toWebJob(officialJobWithMeta(job)) });
       } catch (_) { return res.status(503).json({ code: -1, message: '企业官网职位源暂不可用' }); }
       return res.status(404).json({ code: -1, message: '职位不存在或已下线' });
     }

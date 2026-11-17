@@ -69,7 +69,7 @@ test('database migration baseline is recorded once and exposes status', () => wi
     assert.equal(status.applied.length, readMigrations().length);
     assert.equal(status.pending.length, 0);
     assert.match(status.applied[0].checksum, /^[a-f0-9]{64}$/);
-    assert.equal(status.applied.at(-1).version, '0033');
+    assert.equal(status.applied.at(-1).version, '0034');
     assert.equal(
       db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('ai_conversations','ai_conversation_turns')").pluck().get(),
       2
@@ -132,10 +132,10 @@ test('database migration upgrades an existing 0001-0006 database through 0027 ex
     ]);
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0007', '0008', '0009', '0010', '0011', '0012', '0013', '0014', '0015', '0016', '0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0007', '0008', '0009', '0010', '0011', '0012', '0013', '0014', '0015', '0016', '0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033','0034']);
     assert.equal(
       db.prepare('SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1').pluck().get(),
-      '0033'
+      '0034'
     );
     assert.equal(
       db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('ai_conversations','ai_conversation_turns')").pluck().get(),
@@ -159,7 +159,7 @@ test('database migration upgrades an existing 0001-0007 database with nullable b
     db.prepare('INSERT INTO application_history (id, application_id, user_id) VALUES (?, ?, ?)').run('1', '11', '21');
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0008', '0009', '0010', '0011', '0012', '0013', '0014', '0015', '0016', '0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0008', '0009', '0010', '0011', '0012', '0013', '0014', '0015', '0016', '0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033','0034']);
     assert.deepEqual(
       db.prepare('SELECT batch_id AS batchId, batch_size AS batchSize FROM application_history WHERE id=?').get('1'),
       { batchId: null, batchSize: null }
@@ -197,7 +197,7 @@ test('database migration upgrades an existing 0001-0008 AI conversation schema t
     `).run(conversationId, 'legacy-request', 'Legacy question', 'Legacy answer', 'completed').lastInsertRowid;
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0009', '0010', '0011', '0012', '0013', '0014', '0015', '0016', '0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0009', '0010', '0011', '0012', '0013', '0014', '0015', '0016', '0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033','0034']);
     assert.deepEqual(
       db.prepare(`
         SELECT request_fingerprint AS requestFingerprint,
@@ -248,7 +248,7 @@ test('database migration upgrades an existing 0001-0009 database with an idempot
     assert.throws(() => assertAssistantConfirmationSchema(db), /migration 0010 is required/);
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0010', '0011', '0012', '0013', '0014', '0015', '0016', '0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0010', '0011', '0012', '0013', '0014', '0015', '0016', '0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033','0034']);
     assert.doesNotThrow(() => assertAssistantConfirmationSchema(db));
     assert.deepEqual(
       db.prepare('PRAGMA foreign_key_list(ai_assistant_confirmations)').all()
@@ -322,7 +322,7 @@ test('database migration 0011 preserves material drafts and expands only the sup
     db.prepare("INSERT INTO sqlite_sequence(name,seq) VALUES ('interview_notebook',900),('ai_application_material_drafts',800)").run();
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0011', '0012', '0013', '0014', '0015', '0016', '0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0011', '0012', '0013', '0014', '0015', '0016', '0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033','0034']);
     assert.deepEqual(
       db.prepare("SELECT name,seq FROM sqlite_sequence WHERE name IN ('interview_notebook','ai_application_material_drafts') ORDER BY name").all(),
       [{ name:'ai_application_material_drafts', seq:800 }, { name:'interview_notebook', seq:900 }]
@@ -380,7 +380,7 @@ test('database migration 0012 preserves existing orders and creates no fake prod
     db.prepare('INSERT INTO users(id,openid) VALUES (1,?)').run('assessment-migration-owner');
     db.prepare('INSERT INTO orders(id,order_no,user_id,provider) VALUES (1,?,1,?)').run('EXISTING-ORDER','wxpay');
     const before=db.prepare('SELECT * FROM orders WHERE id=1').get();
-    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(m=>m.version),['0012','0013','0014','0015','0016','0017','0018','0019','0020','0021','0022','0023','0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033']);
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(m=>m.version),['0012','0013','0014','0015','0016','0017','0018','0019','0020','0021','0022','0023','0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033','0034']);
     assert.deepEqual(db.prepare('SELECT * FROM orders WHERE id=1').get(),before);
     for(const name of ['assessment_products','assessment_product_companies','assessment_home_config','assessment_order_details','assessment_deliveries','assessment_product_audit']) assert.equal(db.prepare(`SELECT COUNT(*) FROM ${name}`).pluck().get(),0);
     assert.equal(applyPendingMigrations(db).appliedNow.length,0);
@@ -433,7 +433,7 @@ test('database migration 0014 starts shared copy empty, closes only assessment p
       if(index<2) db.prepare('INSERT INTO assessment_order_details(order_no,product_id,user_id,snapshot,idempotency_key) VALUES (?,1,1,?,?)').run(number,JSON.stringify({usageInstructions:'购买时说明',priceCents:900}),'shared-'+index);
     }
     const before=db.prepare("SELECT * FROM assessment_order_details WHERE order_no='SHARED-PAID'").get();
-    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item=>item.version),['0014','0015','0016','0017','0018','0019','0020','0021','0022','0023','0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033']);
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item=>item.version),['0014','0015','0016','0017','0018','0019','0020','0021','0022','0023','0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033','0034']);
     const shared=db.prepare('SELECT * FROM assessment_shared_instructions WHERE id=1').get();
     assert.equal(shared.version,0);
     for(const key of ['usage_instructions','claim_instructions','update_instructions','after_sales_instructions'])assert.equal(shared[key],'');
@@ -454,7 +454,7 @@ test('database migration 0015 creates private unique source ownership without al
     createRequiredBaselineTables(db);applyPendingMigrations(db,{migrationsDir:previousDir});
     db.prepare('INSERT INTO assessment_products(id,title,cover_url,summary,price_cents) VALUES (1,?,?,?,900),(2,?,?,?,900)').run('旧商品','https://example.test/old.png','旧摘要','第二商品','https://example.test/two.png','第二摘要');
     const products=db.prepare('SELECT * FROM assessment_products ORDER BY id').all();
-    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item=>item.version),['0015','0016','0017','0018','0019','0020','0021','0022','0023','0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033']);
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item=>item.version),['0015','0016','0017','0018','0019','0020','0021','0022','0023','0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033','0034']);
     assert.equal(db.prepare('SELECT COUNT(*) FROM assessment_import_sources').pluck().get(),0);
     assert.deepEqual(db.prepare('SELECT * FROM assessment_products ORDER BY id').all(),products);
     const insert=db.prepare('INSERT INTO assessment_import_sources(source_namespace,source_record_id,product_id,source_fingerprint,managed_fingerprint,imported_by) VALUES (?,?,?,?,?,?)');
@@ -486,7 +486,7 @@ test('database migration 0016 adds private PDF provenance with deny-by-default s
     assert.deepEqual([asset.validation_status, asset.scan_status, asset.processing_right, asset.display_right, asset.publish_status], ['pending', 'pending', 0, 0, 'blocked']);
     assert.throws(() => db.prepare("UPDATE question_pdf_assets SET publish_status='published' WHERE id=?").run(asset.id), /CHECK constraint/);
     assert.throws(() => db.prepare("INSERT INTO question_pdf_assets(sha256,byte_size,storage_key) VALUES (?,?,?)").run('a'.repeat(64), 25, 'different-key'), /UNIQUE constraint/);
-    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033']);
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033','0034']);
     assert.deepEqual(db.pragma('foreign_key_check'), []);
   } finally { db.close(); }
 }));
@@ -505,7 +505,7 @@ test('database migration 0017 adds separate rights and content review ledgers wi
       .run(assetId).lastInsertRowid;
     const migration = readMigrations().find(item => item.version === '0017');
     assert.match(migration.checksum, /^[a-f0-9]{64}$/);
-    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033']);
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033','0034']);
     assert.equal(getMigrationStatus(db).applied.find(item => item.version === '0017').checksum, migration.checksum);
     assert.equal(db.prepare('SELECT COUNT(*) FROM question_asset_right_claims').pluck().get(), 0);
     assert.equal(db.prepare('SELECT COUNT(*) FROM question_asset_content_reviews').pluck().get(), 0);
@@ -528,7 +528,7 @@ test('database migration 0018 adds immutable question revisions and ready set or
     applyPendingMigrations(db, { migrationsDir: previousDir });
     const migration = readMigrations().find(item => item.version === '0018');
     assert.match(migration.checksum, /^[a-f0-9]{64}$/);
-    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033']);
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033','0034']);
     db.prepare("INSERT INTO qb_questions(client_key,created_by) VALUES ('q1','editor')").run();
     db.prepare(`INSERT INTO qb_revisions(question_id,revision_no,client_key,content_json,provenance_json,media_json,created_by)
       VALUES (1,1,'r1','{}','{}','[]','editor')`).run();
@@ -560,7 +560,7 @@ test('database migration 0019 keeps web publication closed and practice snapshot
     db.pragma('foreign_keys = ON');
     createRequiredBaselineTables(db);
     applyPendingMigrations(db, { migrationsDir: previousDir });
-    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033']);
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033','0034']);
     db.prepare('INSERT INTO users(id) VALUES (1)').run();
     db.prepare('INSERT INTO users(id) VALUES (2)').run();
     db.prepare("INSERT INTO qb_questions(client_key,created_by) VALUES ('q','editor')").run();
@@ -591,7 +591,7 @@ test('database migration 0020 adds only private parse jobs, page checkpoints and
     applyPendingMigrations(db, { migrationsDir: previousDir });
     const migration = readMigrations().find(item => item.version === '0020');
     assert.match(migration.checksum, /^[a-f0-9]{64}$/);
-    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033']);
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033','0034']);
     assert.deepEqual(['qp_jobs','qp_pages','qp_drafts','qp_draft_edits'].map(name =>
       db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?").pluck().get(name)), [1,1,1,1]);
     assert.equal(db.prepare('SELECT COUNT(*) FROM qb_questions').pluck().get(), 0);
@@ -608,7 +608,7 @@ test('database migration 0021 adds resumable private PDF upload checkpoints with
     db.pragma('foreign_keys = ON');
     createRequiredBaselineTables(db);
     applyPendingMigrations(db, { migrationsDir: previousDir });
-    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033']);
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033','0034']);
     const columns = db.prepare('PRAGMA table_info(question_pdf_upload_sessions)').all().map(row => row.name);
     assert.ok(['id', 'source_id', 'byte_size', 'received_bytes', 'fingerprint', 'state'].every(name => columns.includes(name)));
     assert.equal(db.prepare('SELECT COUNT(*) FROM question_pdf_upload_sessions').pluck().get(), 0);
@@ -645,7 +645,7 @@ test('database migration 0023 adds feedback versions and cascading handling even
     createRequiredBaselineTables(db);
     applyPendingMigrations(db, { migrationsDir: previousDir });
     db.prepare("INSERT INTO feedbacks(id,type,content,status,admin_note,created_at,updated_at) VALUES(1,'岗位信息纠错','示例反馈','open','','2026-10-01 00:00:00','')").run();
-    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033']);
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0023', '0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033','0034']);
     assert.equal(db.prepare('SELECT review_version FROM feedbacks WHERE id=1').pluck().get(), 0);
     db.prepare(`INSERT INTO feedback_handling_events
       (feedback_id,version,from_status,to_status,from_note,to_note,actor_id,actor_name,acted_at)
@@ -668,7 +668,7 @@ test('database migration 0024 adds owned submission events with idempotency and 
     applyPendingMigrations(db, { migrationsDir: previousDir });
     db.prepare('INSERT INTO users(id) VALUES (1)').run();
     db.prepare("INSERT INTO applications(id,user_id,v4_status) VALUES (1,1,'preparing')").run();
-    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033']);
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0024', '0025','0026','0027','0028','0029','0030','0031','0032','0033','0034']);
     const insert = db.prepare(`INSERT INTO application_submission_events
       (application_id,user_id,action,supersedes_id,client_key,channel,created_at)
       VALUES (1,1,?,?,?,?,?)`);
@@ -693,7 +693,7 @@ test('database migrations 0025-0030 add application readiness, consent, reports,
     applyPendingMigrations(db, { migrationsDir: previousDir });
     db.prepare('INSERT INTO users(id) VALUES (1),(2)').run();
     db.prepare("INSERT INTO applications(id,user_id,v4_status) VALUES (1,1,'preparing')").run();
-    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0025','0026','0027','0028','0029','0030','0031','0032','0033']);
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0025','0026','0027','0028','0029','0030','0031','0032','0033','0034']);
     const columns = new Set(db.prepare('PRAGMA table_info(application_answer_drafts)').all().map(item => item.name));
     for (const column of ['user_id','application_id','resume_version_id','question','content','evidence_refs_json','evidence_json','unsupported_claims_json','max_chars','version','status']) {
       assert.ok(columns.has(column), `missing ${column}`);
@@ -724,7 +724,7 @@ test('database migrations 0025-0030 add application readiness, consent, reports,
   } finally { db.close(); }
 }));
 
-test('database migrations 0031-0033 add empty append-only OCR review and promotion ledgers', () => withTempDir(directory => {
+test('database migrations 0031-0034 preserve OCR ledgers and add empty official job snapshots', () => withTempDir(directory => {
   const previousDir = path.join(directory, 'through-0030');
   copyMigrationsThrough(previousDir, '0030');
   const db = new Database(path.join(directory, 'draft-reviews.db'));
@@ -733,11 +733,13 @@ test('database migrations 0031-0033 add empty append-only OCR review and promoti
     createRequiredBaselineTables(db);
     applyPendingMigrations(db, { migrationsDir: previousDir });
     const before = db.prepare('SELECT COUNT(*) FROM qp_drafts').pluck().get();
-    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0031','0032','0033']);
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0031','0032','0033','0034']);
     assert.equal(db.prepare('SELECT COUNT(*) FROM qp_draft_reviews').pluck().get(), 0);
     assert.equal(db.prepare('SELECT COUNT(*) FROM qp_draft_promotions').pluck().get(), 0);
     assert.equal(db.prepare('SELECT COUNT(*) FROM qp_draft_promotion_batches').pluck().get(), 0);
     assert.equal(db.prepare('SELECT COUNT(*) FROM qp_draft_review_batches').pluck().get(), 0);
+    assert.equal(db.prepare('SELECT COUNT(*) FROM official_job_postings').pluck().get(), 0);
+    assert.equal(db.prepare('SELECT COUNT(*) FROM official_job_sync_runs').pluck().get(), 0);
     assert.equal(db.prepare('SELECT COUNT(*) FROM qp_drafts').pluck().get(), before);
     assert.ok(db.prepare("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='qp_draft_reviews_no_update'").get());
     assert.ok(db.prepare("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='qp_draft_reviews_no_delete'").get());
