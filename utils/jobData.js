@@ -1,5 +1,7 @@
 const fs = require('fs');
 const { JOBS_FILE, ensureJobsFile } = require('./jobsFile');
+const db = require('../db/database');
+const officialJobSync = require('../services/officialJobSync');
 
 function readJobsData() {
   try {
@@ -65,11 +67,13 @@ function isHeldLocalJobId(id) {
 
 function listBrowsableJobs() {
   const data = readJobsData();
-  return (data.jobs || []).filter(job => !isUnavailableLocalJob(job, data.jobVerification?.[String(job.id)]));
+  const local = (data.jobs || []).filter(job => !isUnavailableLocalJob(job, data.jobVerification?.[String(job.id)]));
+  return officialJobSync.readyToServe(db) ? [...local, ...officialJobSync.listActiveV4(db)] : local;
 }
 
 function findJobById(id) {
-  return listJobs().find(job => String(job.id) === String(id)) || null;
+  return listJobs().find(job => String(job.id) === String(id)) ||
+    (officialJobSync.readyToServe(db) ? officialJobSync.findActiveV4(db, id) : null);
 }
 
 function findJobsByIds(ids) {
@@ -78,6 +82,11 @@ function findJobsByIds(ids) {
   listJobs().forEach(job => {
     if (wanted.has(String(job.id))) map[String(job.id)] = job;
   });
+  if (officialJobSync.readyToServe(db)) {
+    officialJobSync.listActiveV4(db).forEach(job => {
+      if (wanted.has(String(job.id))) map[String(job.id)] = job;
+    });
+  }
   return map;
 }
 

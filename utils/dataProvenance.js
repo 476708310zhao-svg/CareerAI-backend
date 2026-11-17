@@ -5,6 +5,7 @@ const SOURCE_CATALOG = Object.freeze({
   adzuna: { label: 'Adzuna', type: 'aggregator' },
   hk_csb: { label: '香港政府公开职位', type: 'official_board' },
   cn_official: { label: '企业官网公开职位', type: 'official_board' },
+  official_board: { label: '企业官网公开职位', type: 'official_board' },
   remoteok: { label: 'RemoteOK', type: 'job_board' },
   themuse: { label: 'The Muse', type: 'job_board' },
   linkedin: { label: 'LinkedIn', type: 'job_board' },
