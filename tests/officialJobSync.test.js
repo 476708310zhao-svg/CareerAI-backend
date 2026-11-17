@@ -167,6 +167,7 @@ test('synced posting is shared by mobile aggregate, detail and V4 web jobs', () 
   assert.equal(result.webListJob.id, 'official_landor_912345');
   assert.equal(result.webListJob.description, '');
   assert.equal(result.webOtherCountryHasJob, false);
+  assert.equal(result.webOldOpenJobId, 'official_landor_912346');
   assert.equal(result.webSnapshotHasCursor, true);
   assert.equal(result.webClosedCursorStatus, 410);
   assert.equal(result.v4Id, 'official_landor_912345');
