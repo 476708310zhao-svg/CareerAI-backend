@@ -145,6 +145,7 @@ test('storage keeps UK and China postings in separate market results', async () 
     await sync.syncBoard(db, ukBoard, options([ukJob]));
     assert.equal(sync.listActiveRaw(db, 'Software', 'cn').length, 1);
     assert.equal(sync.listActiveRaw(db, 'Software', 'gb').length, 1);
+    assert.equal(sync.listActiveRaw(db, 'Software', 'global').length, 2);
     assert.equal(sync.findActiveV4(db, ukJob.job_id).region, '英国');
   } finally { db.close(); }
 });
@@ -160,6 +161,14 @@ test('synced posting is shared by mobile aggregate, detail and V4 web jobs', () 
   assert.equal(result.aggregateId, 'official_landor_912345');
   assert.equal(result.aggregateSource.count, 1);
   assert.equal(result.detailId, 'official_landor_912345');
+  assert.equal(result.webFastJob.id, 'official_landor_912345');
+  assert.equal(result.webFastJob.description, '');
+  assert.match(result.webFastJob.applyUrl, /^https:\/\//);
+  assert.equal(result.webListJob.id, 'official_landor_912345');
+  assert.equal(result.webListJob.description, '');
+  assert.equal(result.webOtherCountryHasJob, false);
+  assert.equal(result.webSnapshotHasCursor, true);
+  assert.equal(result.webClosedCursorStatus, 410);
   assert.equal(result.v4Id, 'official_landor_912345');
   assert.equal(result.applicationStatus, 200);
   assert.equal(result.applicationJobId, 'official_landor_912345');

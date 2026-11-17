@@ -41,6 +41,9 @@ async function main() {
     const token = jwt.sign({ userId: 1, openid: 'isolated_seed_owner' }, process.env.JWT_SECRET);
     const aggregate = await (await fetch(`${base}/api/jobs/aggregate?country=cn&query=Design%20Intern`)).json();
     const detail = await (await fetch(`${base}/api/jobs/detail?job_id=official_landor_912345`)).json();
+    const webFast = await (await fetch(`${base}/api/jobs?source=local&country=cn&keyword=Design%20Intern`)).json();
+    const webList = await (await fetch(`${base}/api/jobs?country=cn&keyword=Design%20Intern`)).json();
+    const webOtherCountry = await (await fetch(`${base}/api/jobs?source=local&country=us&keyword=Design%20Intern`)).json();
     const v4 = await (await fetch(`${base}/api/v4/jobs?keyword=Design&pageSize=50`, {
       headers: { Authorization: `Bearer ${token}` }
     })).json();
@@ -49,11 +52,27 @@ async function main() {
       body: JSON.stringify({ jobId: posting.job_id })
     });
     const application = await applicationResponse.json();
+    const secondPosting = { ...posting, job_id: 'official_landor_912346', job_title: 'Design Intern II',
+      job_apply_link: 'https://job-boards.greenhouse.io/landor/jobs/912346',
+      job_source_url: 'https://job-boards.greenhouse.io/landor/jobs/912346',
+      job_source_reference: 'greenhouse:landor:912346' };
+    await sync.syncBoard(db, pilot.LIVE_BOARDS.find(board => board.id === 'landor'), {
+      fetchSnapshot: async () => ({ rawCount: 2, jobs: [posting, secondPosting] })
+    });
+    const snapshotQuery = 'pagination=snapshot&country=cn&pageSize=1&keyword=Design%20Intern';
+    const snapshot = await (await fetch(`${base}/api/jobs?${snapshotQuery}`)).json();
+    db.prepare("UPDATE official_job_postings SET status='closed' WHERE id=?").run(posting.job_id);
+    const closedCursorStatus = await fetch(`${base}/api/jobs?${snapshotQuery}&cursor=${encodeURIComponent(snapshot.data.nextCursor)}`);
     console.log(`PROBE_RESULT:${JSON.stringify({
       ready: sync.readyToServe(db),
       aggregateId: aggregate.data?.find(job => job.job_id === posting.job_id)?.job_id,
       aggregateSource: aggregate.sourceStatus?.find(row => row.source === 'cn_official'),
       detailId: detail.data?.[0]?.job_id,
+      webFastJob: webFast.data?.list?.find(job => job.id === posting.job_id),
+      webListJob: webList.data?.list?.find(job => job.id === posting.job_id),
+      webOtherCountryHasJob: webOtherCountry.data?.list?.some(job => job.id === posting.job_id),
+      webSnapshotHasCursor: Boolean(snapshot.data?.nextCursor),
+      webClosedCursorStatus: closedCursorStatus.status,
       v4Id: v4.data?.list?.find(job => job.id === posting.job_id)?.id,
       applicationStatus: applicationResponse.status,
       applicationJobId: application.data?.jobId || application.data?.application?.jobId ||

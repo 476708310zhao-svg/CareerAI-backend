@@ -364,6 +364,28 @@ function _publicLocalWebJobs() {
     .filter(job => ['fresh', 'aging'].includes(job.dataMeta?.freshness));
 }
 
+function _publicOfficialWebJobs(country) {
+  if (!officialJobSync.readyToServe(db)) return [];
+  return officialJobSync.listActiveRaw(db, '', country)
+    .map(officialJobWithMeta).map(_toWebJob).filter(_isCurrentWebJob);
+}
+
+function _mergeWebJobs(priority, other) {
+  const seen = new Set();
+  return [...priority, ...other].filter(job => {
+    const key = `${job.company}|${job.title}|${job.location}`.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function _webListSource(jobs) {
+  const official = jobs.some(job => ['cn_official', 'official_board'].includes(job.source));
+  const live = jobs.some(job => job.source !== 'local' && !['cn_official', 'official_board'].includes(job.source));
+  return official ? (live ? 'official_and_live' : 'official_snapshot') : live ? 'live' : 'local_fallback';
+}
+
 function _applyWebFilters(list, query) {
   const { keyword, region, industry, jobType, visaSponsored } = query;
   let filtered = [...list];
@@ -1587,11 +1609,13 @@ router.get('/', jobsLimiter, async (req, res) => {
     const ps = Math.min(Math.max(parseInt(pageSize) || 10, 1), 50);
 
     // Web clients use this fast path for the first render, then refresh from
-    // live sources in the background. This keeps external API latency from
-    // leaving the job list in an indefinite loading state.
+    // live sources in the background. Persisted official postings are already
+    // available without waiting for external APIs.
     if (req.query.source === 'local') {
-      const filteredJobs = _applyWebFilters(_publicLocalWebJobs()
-        .filter(job => country === 'global' || job.countryCode === country), req.query);
+      const filteredJobs = _applyWebFilters(_mergeWebJobs(
+        _publicOfficialWebJobs(country), _publicLocalWebJobs()
+          .filter(job => country === 'global' || job.countryCode === country)), req.query);
+      const source = _webListSource(filteredJobs);
       const startIndex = (pg - 1) * ps;
       const list = filteredJobs.slice(startIndex, startIndex + ps);
       return res.json({
@@ -1603,16 +1627,16 @@ router.get('/', jobsLimiter, async (req, res) => {
           page: pg,
           pageSize: ps,
           totalPages: Math.ceil(filteredJobs.length / ps) || 1,
-          source: 'local_fallback',
-          sources: ['local'],
+          source,
+          sources: [...new Set(filteredJobs.map(job => job.source).filter(Boolean))],
           dataMeta: _collectionMeta(list, {
-            degraded: true,
-            fallbackReason: '实时职位正在后台更新'
+            degraded: source === 'local_fallback',
+            fallbackReason: source === 'local_fallback' ? '实时职位正在后台更新' : ''
           })
         },
         meta: {
           liveJobsEnabled: LIVE_JOBS_ENABLED,
-          source: 'local_fallback',
+          source,
           keyword: keyword || '',
           generatedAt: new Date().toISOString()
         }
@@ -1640,6 +1664,8 @@ router.get('/', jobsLimiter, async (req, res) => {
           return res.status(410).json({ code: 'JOB_SNAPSHOT_EXPIRED', message: '本次检索已失效，请重新搜索' });
         }
         const result = webJobSnapshots.read(cursor, fingerprint, items => {
+          if (items.some(job => ['cn_official', 'official_board'].includes(job.source) &&
+            !officialJobSync.findActiveV4(db, job.id))) return false;
           if (!items.some(job => job.source === 'local')) return true;
           const currentData = readJobsData();
           return !items.some(job => {
@@ -1659,10 +1685,11 @@ router.get('/', jobsLimiter, async (req, res) => {
           meta: { source: data.source, country, coverage, totalScope: 'retrieved_snapshot', generatedAt: new Date().toISOString() } });
       }
 
+      const officialJobs = _publicOfficialWebJobs(country);
       const liveJobs = await _fetchLiveWebJobs({ keyword, region, country, page: 1 });
       const localFallbackJobs = _publicLocalWebJobs().filter(job => country === 'global' || job.countryCode === country);
-      let filteredJobs = _applyWebFilters(liveJobs, req.query);
-      let source = liveJobs.length ? 'live' : 'local_fallback';
+      let filteredJobs = _applyWebFilters(_mergeWebJobs(officialJobs, liveJobs), req.query);
+      let source = _webListSource(filteredJobs);
       if (!filteredJobs.length) {
         filteredJobs = _applyWebFilters(localFallbackJobs, req.query);
         source = 'local_fallback';
@@ -1690,10 +1717,11 @@ router.get('/', jobsLimiter, async (req, res) => {
           totalScope: 'retrieved_snapshot', generatedAt: new Date().toISOString() } });
     }
 
+    const officialJobs = _publicOfficialWebJobs(country);
     const liveJobs = await _fetchLiveWebJobs({ keyword, region, country, industry, jobType, visaSponsored, page: pg });
     const localFallbackJobs = _publicLocalWebJobs().filter(job => country === 'global' || job.countryCode === country);
-    let filteredJobs = _applyWebFilters(liveJobs, req.query);
-    let source = liveJobs.length ? 'live' : 'local_fallback';
+    let filteredJobs = _applyWebFilters(_mergeWebJobs(officialJobs, liveJobs), req.query);
+    let source = _webListSource(filteredJobs);
 
     if (!filteredJobs.length) {
       filteredJobs = _applyWebFilters(localFallbackJobs, req.query);
