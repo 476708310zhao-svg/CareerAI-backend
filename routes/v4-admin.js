@@ -6,8 +6,23 @@ const { listJobs, findJobById } = require('../utils/jobData');
 const { getSponsorProfile, saveSponsorProfile } = require('../services/v4Sponsor');
 const { FUNNEL_STAGES, normalizeDataClass } = require('../utils/funnelAnalytics');
 const commerce = require('../services/v4Commerce');
+const commerceAudit = require('../services/v4CommerceAudit');
+const { getAccount } = require('../utils/adminAccounts');
+const { hasPermission } = require('../utils/adminPermissions');
+const submissionAnalytics = require('../services/v4SubmissionAnalyticsReconciliation');
+const jobQualityAnalytics = require('../services/v4JobQualityAnalytics');
 
 const router = express.Router();
+
+function liveCommerceAdmin(req, res, next) {
+  const id = Number(req.admin && req.admin.id);
+  const account = Number.isSafeInteger(id) && id > 0 ? getAccount(id) : null;
+  if (!account || !account.is_active || account.username !== req.admin.sub || !hasPermission(account, 'memberships')) {
+    return res.status(403).json({ code: -1, message: '没有该模块的管理权限' });
+  }
+  req.admin = { ...req.admin, permissions: account.permissions, adminRole: account.role };
+  next();
+}
 
 function boolValue(value, fallback) {
   if (value === undefined) return fallback;
@@ -145,25 +160,38 @@ router.get('/operations/dashboard', adminAuth, (req, res) => {
   };
   return ok(res, { analyticsDataClass: selectedAnalyticsClass(req), activeUsers7d: active7d,
     retention7d: { cohort, retained, rate: cohort ? Math.round(retained * 1000 / cohort) / 10 : 0 },
-    funnel, analyticsQuality: { dataClasses, missingRefs }, aiQuality7d,
+    funnel, submissionConfirmation: submissionAnalytics.report(selectedAnalyticsClass(req)),
+    analyticsQuality: { dataClasses, missingRefs }, aiQuality7d,
     aiUsageRate: active7d ? Math.round(aiUsers * 1000 / active7d) / 10 : 0, topEvents: events, slowQueries: slow,
     errors, membership, commerce: commerce.overview() });
 });
 
-router.get('/commerce/overview', adminAuth, (_req, res) => {
+router.get('/operations/jobs/quality', adminAuth, (req, res) => {
+  const dataClass = selectedAnalyticsClass(req);
+  return ok(res, jobQualityAnalytics.build({ dataClass }));
+});
+
+router.get('/commerce/overview', adminAuth, liveCommerceAdmin, (_req, res) => {
   return ok(res, commerce.overview());
 });
 
-router.post('/commerce/alerts/evaluate', adminAuth, (_req, res) => {
+router.get('/commerce/audit', adminAuth, liveCommerceAdmin, (req, res) => {
+  try {
+    const input = { dataClass: req.query.dataClass, limit: req.query.limit, beforeId: req.query.beforeId, since: req.query.since };
+    return ok(res, req.query.kind === 'refunds' ? commerceAudit.listRefunds(input) : commerceAudit.listOrders(input));
+  } catch (error) { return fail(res, error.message, error.status || 500); }
+});
+
+router.post('/commerce/alerts/evaluate', adminAuth, liveCommerceAdmin, (_req, res) => {
   return ok(res, commerce.evaluateAlerts(), '商业化运行告警已评估；未执行外部操作');
 });
 
-router.patch('/commerce/alerts/:id', adminAuth, (req, res) => {
+router.patch('/commerce/alerts/:id', adminAuth, liveCommerceAdmin, (req, res) => {
   try { return ok(res, commerce.updateAlert(req.params.id, cleanText(req.body.status, 30), cleanText(req.admin && req.admin.sub, 120)), '告警状态已更新'); }
   catch (error) { return fail(res, error.message, error.status || 400, error.data); }
 });
 
-router.patch('/commerce/refunds/:refundNo', adminAuth, (req, res) => {
+router.patch('/commerce/refunds/:refundNo', adminAuth, liveCommerceAdmin, (req, res) => {
   try {
     return ok(res, commerce.decideRefund(req.params.refundNo, req.body, cleanText(req.admin && req.admin.sub, 120)),
       req.body.status === 'completed' ? '外部退款凭据已记录并撤销对应权益' : '退款审核状态已更新');

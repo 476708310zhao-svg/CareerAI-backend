@@ -27,12 +27,6 @@
     },
     {
       "action": "allow",
-      "page": "package-content/pages/question-detail/question-detail",
-      "params": ["id"],
-      "matching": "inclusive"
-    },
-    {
-      "action": "allow",
       "page": "package-content/pages/star-library/star-library"
     },
     {
@@ -57,19 +51,7 @@
     },
     {
       "action": "allow",
-      "page": "package-agency/pages/agency-compare/agency-compare",
-      "params": ["ids"],
-      "matching": "inclusive"
-    },
-    {
-      "action": "allow",
       "page": "package-content/pages/news/news"
-    },
-    {
-      "action": "allow",
-      "page": "package-content/pages/news-detail/news-detail",
-      "params": ["id"],
-      "matching": "inclusive"
     },
     {
       "action": "allow",
@@ -82,12 +64,8 @@
     {
       "action": "allow",
       "page": "package-user/pages/company-detail/company-detail",
-      "params": ["id", "name"],
+      "params": ["id"],
       "matching": "inclusive"
-    },
-    {
-      "action": "allow",
-      "page": "package-user/pages/search/search"
     },
     {
       "action": "allow",

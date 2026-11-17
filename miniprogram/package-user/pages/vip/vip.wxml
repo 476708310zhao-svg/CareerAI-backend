@@ -26,7 +26,7 @@
       </view>
     </view>
 
-    <view class="pricing-panel">
+    <view class="pricing-panel" wx:if="{{paymentAvailable &amp;&amp; plans.length}}">
       <view class="section-head">
         <view class="section-icon price-icon">¥</view>
         <view class="section-copy">
@@ -57,6 +57,7 @@
         </view>
       </view>
     </view>
+    <view class="pricing-panel" wx:else><text class="section-title">会员权益介绍</text><text class="section-subtitle">{{paymentReason || '当前暂不开放购买'}}</text></view>
 
     <view class="usage-panel">
       <view class="section-head compact">
@@ -176,7 +177,7 @@
 
   <view class="bottom-safe-space"></view>
 
-  <view class="member-footer">
+  <view class="member-footer" wx:if="{{paymentAvailable &amp;&amp; plans.length}}">
     <view class="footer-main" bindtap="handlePay" hover-class="footer-press">
       <view class="vip-mark">
         <text>{{selectedPlanKind === 'scenario' ? '包' : 'VIP'}}</text>

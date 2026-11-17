@@ -1,17 +1,179 @@
 # DEVELOPMENT_STATUS
 
-更新时间：2026-10-19
+## 2026-11-03 小程序岗位列表分享入口（本地完成并释放）
+
+- 已完成并释放：Codex `search_visibility_20261103`，仅 `miniprogram/pages/jobs/jobs.js` 与本节。公开岗位列表可分享到微信会话及朋友圈；分享固定公开路径，不携带用户搜索词或个人资料。`npm run check:miniprogram`、`node --check miniprogram/pages/jobs/jobs.js` 及定向 `git diff --check` 通过。未做微信开发者工具或真机验收，未上传或发布小程序。
+
+## 2026-11-03 阶段 5 会员页价格来源收口（本地完成并释放）
+
+- 已完成并释放：Codex `stage5_commerce_local_audit`；仅修改 `miniprogram/package-user/pages/vip/vip.js`、`vip.wxml`、`tests/mobileWorkflow.test.js` 的会员价格来源专项与本节。小程序只有在服务端支付配置明确开放、计划 ID 在允许列表且提供有效分价时才显示相应价格和购买入口；配置失败、关闭或缺价格时清除价格卡并展示权益说明，本人订单/退款状态继续可见。当前 `/api/payment/config` 尚无权威价格字段，所以购买入口保持关闭，后续须确定正式价格和服务端价格契约。小程序流程 `node --test tests/mobileWorkflow.test.js` 67/67、`npm run check:miniprogram`、JS 语法及定向 `git diff --check` 通过；未改支付、订单、生产数据或真实收款配置。
+
+## 2026-11-02 阶段 5 订单退款只读运营审计（本地完成并释放）
+
+- 本地完成并释放：Codex `stage5_operations_impl`；`utils/adminPermissions.js` 对 commerce 路由精确映射 `memberships`，`routes/v4-admin.js` 在现有概览、告警及退款决策路由加管理员账号实时启用/用户名/权限复核，并新增只读 `/commerce/audit`。新服务与后台页面按日期、游标和最多 50 条分页展示最小订单退款审计字段及权益状态，不返回用户 ID、联系方式或支付交易标识。订单表无可靠数据类列，Mock 为测试，其他仅为非 Mock 待核验，不认作真实生产转化。高风险权限通过匿名、低权限、旧 JWT 撤权、账号禁用的隔离 HTTP 专项覆盖。后端全量 `npm test` 775 项中 773 通过、0 失败、2 项平台跳过；专项 1/1，后台/服务 JS 语法、OpenAPI YAML 55 paths、定向 `git diff --check` 通过。没有执行真实退款、生产迁移或部署。
+
+## 2026-11-02 测试运行时职位来源隔离（本地完成并释放）
+
+- 已完成并释放：Codex `stage5_manual_recovery`，仅 `tests/all.test.js`、新增 `tests/smokeIsolated.test.js` 与本小节。smoke 在子进程加载服务端前关闭实时职位源；主套件在加载模块前明确启用招聘测试开关，避免模块缓存和测试顺序污染。不修改生产职位路由或配置。定向 smoke 子套件 74/74、wrapper 1/1、sprint8 14/14；整仓主套件 `npm test` 774 项中 772 通过、0 失败、2 项平台跳过。原 74 个 smoke 子用例被一个聚合测试表示，少 73 个计数并非跳过。此前阶段4/5的 3 个 RemoteOK 失败已消除。
+
+## 2026-11-02 阶段 5 人工服务授权工单（本地完成并释放）
+
+- 已完成并释放：Codex `stage5_manual_recovery`；新增 `db/migrations/0030_manual_service_requests.sql`、`services/manualServiceRequests.js`、V4 用户/管理员工单路由、精确 `manualServices` 管理权限、后台工单页和小程序用户页面/API、隔离测试、OpenAPI、人工服务说明和官网开发清单。本地安全闭环包含简历优化/人工筛岗/申请协助三种类型，授权文本版本固定且创建前可见，用户设置最长 90 天/默认 30 天授权期限；撤销后清理申请payload、隐藏敏感字段并禁止管理员继续处理或交付，保留非敏感审计墓碑。交付仅保存摘要和用户现有文件引用，不复制文件。不定义价格、不自动下单/支付、不改现有支付链路。高风险为简历隐私、撤权竞争、管理员鉴权和状态审计，隔离 DB 覆盖双账号/撤销/归档/权限/事务失败，再运行后端全量测试。仅改上述范围，未触达生产数据。
+
+- 验证：迁移与工单隔离专项 26/26，撤销后同键重试专项 1/1，单独禁用实时源的 smoke 74/74；小程序 `check:miniprogram`、后台及小程序 JS 语法、OpenAPI YAML 54 paths 通过。全量 `npm test` 847 项中 842 通过、3 项既有职位 smoke 因合并运行时 RemoteOK 模块缓存污染失败、2 项平台跳过；尚未取得整仓通过。未执行生产迁移、真实支付、部署或真机验收。
+
+## 2026-11-02 阶段 4 岗位数据质量与运营趋势（本地功能完成，全量门禁有既有 smoke 失败）
+
+- 新增只读内部聚合 `services/v4JobQualityAnalytics.js` 和 `/admin/api/v4/operations/jobs/quality`；固定 `dashboard` 权限。数据只来源本机 jobs.json，资格要求官方已知 source、非 fallback、人工 open+verified、官网申请 URL 一致、近 30 日 reachable、未来明确 deadline、fresh/aging；unknown/stale/fallback/unverified等剔除数独立呈现。按 source/region/jobType 只聚合样本量。申请转化以 application confirmation facts 对应唯一 analysis event、owner/application/action/channel 和 trusted job ref 核验；全量对账/覆盖不全返回 null。后台 dashboard 增加质量视图，无公开热度/录用率。
+- 验证：质量/权限专项 2/2；人工核验专项 2/2；单独 smoke 74/74；inline dashboard JS 解析、OpenAPI 46 paths、定向 git diff check 通过。整库 `npm test` 846 项中 841 通过、3 失败、2 跳过；三个失败均是已有 `smoke.test.js` 在 all.test 合并运行时，之前加载的 routes/jobs 缓存使该文件设置的 `DISABLE_FREE_JOB_SOURCES=true` 未影响已加载模块，访问了 RemoteOK 实时数据而非本地 fixture；单独运行 smoke 通过。阶段功能已完成，整库绿灯待 smoke 测试隔离修复后重跑。未访问生产数据、未部署。
+
+## 2026-11-02 阶段 4 AI 网申问答草稿（本地完成并释放）
+
+- 已完成：新增 `0029_application_answer_drafts.sql`、`services/v4ApplicationAnswers.js` 和 `/api/v4/materials/answers/draft(s)` 生成、读取、CAS 编辑接口；本人申请需显式绑定本人简历版本，证据只取该版本与已保存材料，服务端生成 evidenceRefs 白名单并过滤个人联系方式。问题作为不可信输入处理，模型不能自造证据引用；缺少证据时拒绝 AI 生成，未配置模型时提供可编辑的降级框架。草稿独立存储为 pending，不写入正式申请材料或已确认事实；客户端始终可编辑，用户手动复制/保存，不会自动提交。
+- 双端接入：官网申请助手和小程序申请材料页都可选择本人申请、生成/编辑/保存问答草稿、查看证据/未支持主张和按 Unicode code points 统计字符（emoji 按 1 个码点）。保存使用 expectedVersion CAS；切换申请/账号会丢弃过期请求。
+- 验证：新增服务、鉴权隔离、无绑定拒绝、CAS、迁移及小程序 owner/stale response workflow 测试。后端定向 105/105；全量 `npm test` 844 项中 842 通过、0 失败、2 项平台跳过。官网 `npm test` 66/66、`npm run typecheck` 通过；`npm run build` 在 `NODE_OPTIONS=--max-old-space-size=4096` 下通过（60/60 静态页，既有 lint warnings）；默认堆限制首次构建在静态页面阶段 OOM。小程序 `npm run check:miniprogram` 通过（编译媒体 197.1 KB）。OpenAPI YAML 可解析。
+- 未做微信开发者工具/真机 UI 自动化验收；没有连接生产数据库、执行生产迁移、部署或发布。`stage4_ai_application_answers` 当前文件占用已释放。
+
+## 2026-11-02 阶段 3 浏览器插件 V1（本地完成并释放，真实 ATS 验收待做）
+
+- 本地完成并释放：新增 `0028_browser_extension_grants.sql`、服务端短时一次性授权签发／撤销／消费、官网申请详情显式字段选择和签发面板、Manifest V3 插件原型。授权绑定本人申请、指定 ATS host 与字段白名单，五分钟过期、可撤销、数据库只存 token hash、插件不持久化 token；CORS 只允许精确配置的扩展 origin 消费授权。插件只在三种 Greenhouse/Lever 主机识别表单；用户逐项预览并确认后填入，检测 tab sender/origin、候选字段仍存在及 host 一致性；不上传 DOM、不填未授权字段、不自动提交。新增本地安装说明；未连接真实 ATS、未发布商店、未部署。验证：后端 `npm test` 835 项中 833 通过、0 失败、2 项既有跳过；插件授权/静态专项 3/3、content/popup JS 语法通过；官网 `npm test` 66/66、typecheck/build 通过。迁移完整断言已包括 0027 和 0028，`git diff --check` 通过。未执行生产迁移或发布。
+- 本地完成并释放：Greenhouse/Lever 使用独立合成表单字段适配；扩展最多在本机保存 10 条兼容记录，每条严格只含允许的 host、兼容状态码、原因码和时间，不包含申请 ID、URL、DOM、字段名/标签或值。填表后“打开官网申请并确认状态”只打开已有本人申请详情；如果用户已在企业网站自行提交，必须在官网明确确认，扩展不自动判断、不调用提交确认 API。验证：最终后端 `npm test` 838 项中 836 通过、0 失败、2 项既有跳过；扩展授权/合成表单/返回流程专项 6/6，Manifest JSON、content/popup JS 语法、`git diff --check` 通过。官网 66/66、typecheck/build 曾在本批此前通过；小程序本批无源码变更。未连接真实 ATS、未运行 Chrome 手动预览、未发布扩展商店、未部署。
+
+## 2026-11-02 阶段 2 面试摘要关联申请与确认转任务（本地完成并释放）
+
+- 已完成并释放 `stage2_interview_summary`。新增 `0027_application_interview_reports.sql`、V4 报告服务/路由、练习报告页显式摘要关联、官网/小程序申请详情查看及二次确认转任务。服务端只接受 score、summary、strengths、weaknesses、actions 等白名单字段，丢弃 QA/音频内容；跨账号 404，归档禁写。转换事务检查 `expectedState` 和申请/报告归属；同一 `clientKey` 并发或重试仅生成/返回一个任务，不同键不能为同一报告重建任务。任务继续接入现有提醒同步。
+- 验证：隔离 API 专项 1/1、数据库迁移专项 25/25；后端全量 `npm test` 832 项，830 通过、0 失败、2 项既有平台跳过；官网 `npm test` 66/66、typecheck/build 通过；小程序 `mobileWorkflow` 65/65、`check:miniprogram` 和 JS 语法检查通过；OpenAPI YAML 可解析，定向 diff check 通过。仅本地验证，生产库未迁移、未部署或真机验收。
+
+更新时间：2026-11-02
 
 主项目目录：以 `git rev-parse --show-toplevel` 的结果为准。
 
 小程序源码目录：仓库根目录下的 `miniprogram/`。
 
-## 2026-10-28 JSearch v5 独立发布候选
+## 2026-11-02 阶段 2 申请状态历史、CAS 与跨端跳转（本地完成并释放）
 
-- 文件归属：Codex；本隔离 Git worktree 从线上已部署提交 `a02a82d` 建立，仅占用 `routes/jobs.js`、`services/jobSourceGateway.js`、两个对应专项测试及模拟上游、`.github/workflows/deploy.yml` 与本节；主工作区未提交改动不纳入。
-- 变更：适配 `/search-v2`、`data.jobs`、游标分页、上游等待时间与免费套餐按页数计入预算。部署工作流先只读验证线上基线和生产 JSearch Key；若旧 Key 返回 403，先备份共享生产配置，再用 `production` 环境中的 `JSEARCH_RAPID_API_KEY` 验证新 Key 为 200，原子替换共享 `.env` 中唯一的 `RAPID_API_KEY`，任何失败均在切流前停止且不在日志打印 Key。
-- 验证：专项 10/10；真实本地候选接口返回 19 条美国 JSearch 岗位且未降级；`npm run check:release` 507 项中 505 通过、0 失败、2 项既有 Windows 跳过，AI 质量和小程序检查通过，内容 0 错误/5 项既有提示。生产 Key 与上线结果待工作流核验。
-- 生产凭据更新增量验证：密钥轮换脚本使用合成值覆盖成功原子更新与上游响应无效时保持原文件，2/2 通过；加入测试总入口后的 `check:release` 509 项中 507 通过、0 失败、2 项既有跳过。旧生产 Key 在只读工作流中返回 403，未上传或切流；等待在 GitHub `production` 环境配置新密钥后再发布。
+- 完成并释放 `stage2_application_status_history`：V4 状态写入要求 `expectedState`，缺少时返回 428；旧进度接口保留描述字段编辑并拒绝状态变更，活跃小程序状态入口迁至 V4。申请历史 GET 复用本人授权校验，支持最多 50 条的游标分页，官网和小程序展示同一申请时间线；跨账号读取为 404。后端全量 `npm test` 828 项中 826 通过、0 失败、2 项既有跳过；官网 66/66、类型检查与生产构建通过；小程序流程 65/65、静态检查通过。仅本地验证，未部署、未迁移生产库或真机验收。
+
+## 2026-11-02 阶段 2 提交确认事实与分析事件对账（本地完成并释放）
+
+- 本地完成并释放：新增幂等对账服务与显式隔离 DB CLI，确认事实可分批补写为分析事件；后台指标卡显示 30 天内曾确认、当前仍确认和对账状态。对账按事实 ID、账号、申请、动作和渠道核对；重复或漏报会使完整指标显示不可用，未迁移时也不报零。旧 `application_submitted` 漏斗含义不变。验证：隔离专项 1/1，后端全量 `npm test` 827 项中 825 通过、0 失败、2 项既有跳过；修正重复事件完整性后重跑隔离专项通过；`git diff --check` 通过。未在生产 DB 执行 CLI、未部署，仍需线上迁移与报表验收。
+
+## 2026-10-30 阶段 2 申请简历绑定与自定义材料清单（本地完成并释放）
+
+- 后端已完成并释放：Codex stage2_material_backend；新增 `0025` 迁移、申请简历绑定与自定义材料清单服务、V4 专用读写接口、隔离专项。旧 V4 PATCH 明确拒绝简历绑定变更；旧进度更新保留现绑定，旧进度新建仅接受本人且匹配的简历版本；简历 link 与 AI 新版本确认不再暗改申请绑定；旧申请简历读写加本人归属校验。仅修改上述后端路径及配套迁移、工作流、smoke 断言；没有修改生产数据库。清单作为用户自报准备备注，确认提交后仍可更正，只有申请简历绑定在确认提交后冻结。
+- 后端验证：隔离申请清单专项 7/7、迁移与工作流专项通过；最终 `npm test` 826 项、通过 824、失败 0、跳过 2（Windows 上既有 Linux 发布脚本用例）。首次全量发现 smoke 仍预期 link/AI 自动绑定，已调整为显式 PUT 选版并复跑全量通过。`git diff --check` 与相关 JS 语法检查通过。双账号回归覆盖旧 `GET /api/applications/:id` 对外人简历正文返回 `null`、外人申请 404、旧创建/进度写入的归属校验。
+- 同轮 UI 已完成并释放：Codex stage2_material_ui；官网申请详情可显式保存申请级简历版本、按企业公告自建材料清单并编辑名称／准备状态／软删除；确认后仍可更正清单，仅改申请绑定版本需先撤回确认。AI 材料草稿选版默认申请已绑定版本，明确不改变绑定或既有材料；跨申请、跨账号及 A→B→A 迟到响应不会覆盖当前草稿选版。小程序 V4 申请详情读 workspace 并提供同一绑定与清单操作，未迁移／归档禁写、409／404 刷新核对、请求失败不误报成功；已保存材料独立展示。官网范围：`components/applications-workbench-live.tsx`、`components/application-materials-live.tsx`、新增 `components/application-readiness-panel.tsx` 与 CSS module、`lib/application-materials-guard.ts`、`tests/application-materials-guard.test.mjs`；小程序范围：`miniprogram/package-user/pages/application-detail/*`、`miniprogram/utils/api-v4.js`、`tests/mobileWorkflow.test.js`。官网 `npm test` 66/66、`npm run typecheck`、`npm run build` 通过；小程序 mobileWorkflow 64/64、视觉专项 17/17、`npm run check:miniprogram`、相关 JS 语法及定向 `git diff --check` 通过。仅本地验证，尚未在微信开发者工具／真机及线上双账号验收，未部署、未迁移生产库、未发送真实申请。
+
+## 2026-10-30 20 家官网试点数据修复与验收（本地完成并释放）
+
+- 已完成并释放：Codex；范围仅 `services/cnOfficialPilot.js` 的 Ashby 公开列表筛选、Greenhouse prospect post 排除、多地点归一化、错峰与一次短时 502/503/504 重试，`tests/cnOfficialPilot.test.js`、`tests/helpers/jobSourcesProbe.cjs` / `tests/jobSourcesIntegration.test.js` 验收断言、只读验收记录 `docs/CN_OFFICIAL_20_ACCEPTANCE_2026-10-30.md` 与本节。其他任务工作区改动保留，未修改部署、支付、登录及数据迁移文件。
+- 验收口径：20 家官网入口，10 家公开 ATS 实时读取；Ashby `isListed=false` 不进入搜索；岗位保留可访问的官方详情、来源与原始 ID；来源空结果与故障可区分；用真实接口检查当前职位分布与返回状态，再跑后端及小程序门禁。
+- 数据验收：10 家国内企业官网入口 10/10 HTTP 200；生产节奏读取 10 家自动来源，查询“实习”得到 19 条中国内地岗位，9 家有匹配、1 家真空、无重复 ID，19/19 有描述、地点、官方详情及申请链接，19/19 详情页 HTTP 200；申请链接首次 18/19 返回 200，1 条短时 502 随后复测 200。5 条有明确发布日期，其他留空；无推测薪资。详细记录见验收文档。
+- 验证：来源专项 20/20、AI 质量与小程序检查通过，数据内容检查 0 错误、7 条既有非试点文件警告；JS 语法与定向差异检查通过。整仓发布门禁受并行新增 0025 迁移及测试文件影响出现迁移断言不一致，反馈审计失败项单独复跑通过；本轮不把整仓测试记为通过。未在微信开发者工具或真机验收，未提交、推送或部署。
+
+## 2026-10-30 阶段 2 用户确认已提交（本地完成并释放）
+
+- 已完成并释放：Codex stage2_backend_audit；实际范围为新增 `db/migrations/0024_application_submission_events.sql`、`services/v4ApplicationSubmission.js`、`tests/applicationSubmission.test.js`、`tests/helpers/applicationSubmissionFixture.cjs`，以及 `routes/v4/applications.js` 本功能窄范围、`tests/databaseMigrations.test.js` 的 0024 断言、`tests/all.test.js` 注册行和本小节；未改 `services/v4ApplicationWorkspace.js`。追加事实表记录用户确认／撤回，带归属 FK、幂等键、前序事件和时间；准备中确认原子推进已申请，已申请旧记录不会被伪造确认，撤回不倒退招聘状态。旧 `application_submitted` 继续表示状态进入，新 `application_submission_confirmed` 单独记录；分析写入失败不抹去确认事实。未迁移时详情只读、确认写 503；归档确认历史可读但不可再写。高风险迁移、鉴权、跨端并发与重试由隔离双账号、CAS/同键并发、旧键重放、回滚、迁移和归档专项覆盖；迁移 24/24、确认隔离子场景 7/7、稳定版全量 `npm test` 821 项中 819 通过、0 失败、2 项既有 Windows 跳过；JS 语法和定向差异检查通过。仅本地隔离验证，未对正式库迁移、部署或发送真实申请。
+- 同轮 UI 已完成并释放：Codex stage2_ui_audit；官网申请详情新增独立的本人最终提交确认／误确认撤回与二次核对，普通“已投递”状态明确不冒充确认事实；确认失败沿用同一 clientKey 重试，409 刷新并重新核对，跨标签 A→B→A 迟到响应由会话版本拦截。小程序 V4 申请详情同样接入确认／撤回，归档时仍展示真实确认历史，未迁移或归档则禁用写入；申请列表区分进度状态与确认事实。官网 `npm test` 64/64、`npm run typecheck`、`npm run build` 通过，构建仅有既有非本轮文件 lint 提示；小程序 `mobileWorkflow` 61/61、视觉专项 17/17、`npm run check:miniprogram` 通过，JS 语法与定向 diff check 通过。范围为官网 `components/applications-workbench-live.tsx`、`app/brand-system.css`、`lib/api-client.ts`、`tests/feedback-session.test.mjs`；小程序 `miniprogram/package-user/pages/application-detail/{application-detail.js,application-detail.wxml,application-detail.wxss}`、`miniprogram/pages/applications/{applications.js,applications.wxml,applications.wxss}`、`miniprogram/utils/api-v4.js`、`tests/mobileWorkflow.test.js`。仅本地验证，未部署、未写生产数据或发送真实申请。
+
+## 2026-10-30 用户反馈历史与跨端状态（本地完成并释放）
+
+- 已完成并释放：Codex feedback_api；范围仅 `routes/feedback.js`、新增 `tests/userFeedbackHistory.test.js`、`tests/all.test.js` 中的测试注册行与本小节。新增需登录的 `GET /api/feedback/mine`，只按 JWT 用户 ID 查询，按 ID 倒序游标分页（默认 20、最大 50），返回公开状态与 UTC 时间戳，不返回联系方式、运营备注、处理审计或其他账号记录。高风险点鉴权与反馈隐私已由匿名/管理员令牌拒绝、两账号交叉、分页/新插入、畸形旧记录、字段白名单的隔离测试覆盖，专项 1/1 通过；UI 并行编辑稳定后重跑全量 `npm test` 812 项中 810 通过、0 失败、2 项既有 Windows 跳过；JS 语法和差异检查通过。仅本地隔离验证，未对正式库迁移或部署。
+- 同轮 UI 已完成并释放：Codex feedback_ui；官网新增 `/my-feedback` 私有历史页、导航与岗位纠错成功入口，小程序反馈页新增同账号历史、分页、空态、失败重试和本地时间展示；仅显示后端公开状态，账号切换时清除旧记录。官网请求对迟到的旧账号 401 增加会话版本守卫，跨标签 `storage` 事件同步登录态。官网测试 63/63、`npm run typecheck` 通过，生产构建通过（既有非本轮文件 lint 提示）；小程序反馈专项 6/6、`npm run check:miniprogram` 通过。文件范围：官网 `app/my-feedback/`、`components/{my-feedback-live.tsx,my-feedback-live.module.css,site-header.tsx,job-detail-live.tsx,auth-provider.tsx}`、`lib/api-client.ts`、`tests/feedback-session.test.mjs`；小程序 `miniprogram/package-user/pages/feedback/{feedback.js,feedback.wxml,feedback.wxss}`、`miniprogram/utils/api-feedback.js`、`tests/profileDetailPages.test.js`。未部署、未写生产数据。
+
+## 2026-10-29 国内校招与实习 20 家官网试点（本地完成并释放）
+
+- 当前占用：Codex；新增官方企业来源清单与 ATS 适配服务、`routes/jobs.js` 的中国内地搜索/聚合/详情窄范围、`utils/jobGeography.js` 的中国内地来源、`utils/dataProvenance.js`、新增专项测试与 `tests/jobSourcesIntegration.test.js`、`tests/helpers/jobSourcesProbe.cjs` 的来源测试更新、`miniprogram/pages/jobs/` 的官网入口展示、`miniprogram/utils/api-jobs.js`、`miniprogram/skills/job-search-skill/` 的来源说明、`docs/CN_OFFICIAL_20_PILOT.md` 及本节。其他任务已有工作区改动不纳入本试点；不修改 `tests/all.test.js`。
+- 目标：20 家企业官网形成可核验清单；公开招聘 API 的企业返回真实校招/实习职位，其余企业只提供官网入口并标记待接入，绝不伪造职位或把官网首页当岗位。每条岗位保留原始链接、来源、职位 ID、类型及发布日期证据。
+- 结果：10 家 Greenhouse/Ashby/Lever 公开招聘板自动同步、10 家国内大型企业展示官网入口。选择“中国内地”可在岗位页查看并复制 20 家官网；聚合接口把公开官网岗位与 JSearch 合并，详情可回源，来源故障与真空结果分开呈现。Greenhouse 的更新时间及 Lever 的创建时间不会冒充发布日期，薪资、签证无证据时不填。试点明细见 `docs/CN_OFFICIAL_20_PILOT.md`。
+- 实测：2026-10-29 对“实习”查询，10 家公开招聘板返回中国内地匹配岗位 19 条；9 家有匹配，1 家为空，0 家故障。数量随企业招聘变动，不代表 20 家都有公开岗位。
+- 验证：新增服务专项 4/4、来源集成 13/13、移动与视觉专项 71/71、小程序静态与包体检查、AI 质量门禁通过；后端全量 `npm test` 806 项中 804 通过、0 失败、2 项既有 Windows 跳过；内容检查 0 错误、7 条既有非试点文件警告；JS 语法及定向 diff 检查通过。未在微信开发者工具或真机验收，未上传小程序、提交、推送或部署。
+
+## 2026-10-29 多地区岗位来源与状态（本地完成并释放）
+
+- 范围：`utils/jobGeography.js`、`utils/dataProvenance.js`、`routes/jobs.js` 的聚合与香港详情、`services/jobSourceGateway.js`、新增 `services/hkGovJobs.js`、`tests/jobGeography.test.js`、`tests/helpers/jobSourcesProbe.cjs`、`tests/jobSourcesIntegration.test.js`、`tests/jobSearchSkill.test.js`、`tests/mobileWorkflow.test.js`、`miniprogram/skills/job-search-skill/{apis,components,SKILL.md,mcp.json}`、`miniprogram/pages/jobs/jobs.js`、`miniprogram/package-user/pages/job-detail/job-detail.{js,wxml}` 与本节；文件占用已释放，其他任务已有改动保留，未修改 `tests/all.test.js`。
+- 结果：美国、英国、中国内地、香港、加拿大都可作为明确地区检索，AI 入口也识别香港和中国内地的中文城市；全球检索每天轮换两个地区，并显示本次覆盖范围，避免误称一次搜索覆盖所有国家。聚合接口逐来源记录成功条数、真实空结果、未配置、故障和超时；AI 岗位卡片显示来源统计。香港政府公开职位源提供职位编号、职责与要求，并保留官网列表入口；城市与实习类型关键词可命中，只有来源明确给出申请链接和薪资时才显示。香港职位详情沿用官方来源及编号，不消耗 JSearch 详情请求；香港岗位不会误标美国 OPT 友好。
+- 验证：香港政府公开职位源当天返回 HTTP 200、62 条当前职位，其中 6 条匹配“data”、仅 4 条有直接申请链接；职位源专项 12/12、Skill 专项 14/14、移动端流程 54/54、小程序静态与包体检查通过。后端全量 `npm test` 805 项中 803 通过、0 失败、2 项既有 Windows 跳过；定向 `git diff --check` 与 JS 语法检查通过。
+- 范围说明：香港公开源目前只含政府职位；中国内地仍依赖 JSearch，英国和加拿大依赖 JSearch 或已配置的 Adzuna，其他雇主官网 ATS 聚合尚未接入。未在微信开发者工具或真机验收，未上传小程序、提交、推送或部署。
+
+## 2026-10-28 AI 岗位结果与证据匹配（本地完成并释放）
+
+- 范围：`miniprogram/skills/job-search-skill/{apis,components,utils,SKILL.md,mcp.json}`、`miniprogram/pages/jobs/jobs.{js,wxml}`、`miniprogram/utils/job-match-evidence.js`、`miniprogram/package-user/pages/job-detail/job-detail.{js,wxml,wxss}`、`tests/jobSearchSkill.test.js` 与本节；文件占用已释放，保留各文件既有未提交改动。
+- 结果：AI 搜索明确显示本次检索条数和卡片展示条数，提供带关键词、国家、岗位类型和时间条件的完整岗位列表入口；区分岗位来源故障与真实空结果；按标题、地点、发布时间排序。薪资与签证仅显示来源明确提供的信息，并将 E-Verify 与签证担保分开。用户点击卡片的简历匹配入口后，使用当前账号在线简历和真实岗位描述列出匹配点、简历未体现的要求及下一步建议，每项标出岗位原文或简历证据；外部岗位不展示缺乏依据的数值匹配分。
+- 验证：Skill 专项 12/12、移动端流程 53/53、小程序静态与包体检查通过；全量 `npm run check:release` 788 项中 786 通过、0 失败、2 项既有 Windows 跳过。未做微信开发者工具或真机验收，未上传小程序、提交、推送或部署。
+
+## 2026-10-28 JSearch v5 接口适配（本地完成并释放）
+
+- 范围：仅 `routes/jobs.js`、`services/jobSourceGateway.js`、`tests/helpers/jobSourcesProbe.cjs`、`tests/jobSourcesIntegration.test.js`、`tests/jobSourceGateway.test.js`、`tests/helpers/jobSnapshotProbe.cjs`、`tests/jobSnapshotPagination.test.js` 与本节；文件占用已释放，既有改动保留。
+- 结果：更新后的本地 RapidAPI Key 已不再返回 403；旧 `/search` 返回 404，实测 `/search-v2` 返回 200 和岗位。后端已适配新路径与 `data.jobs`、游标分页，并延长岗位查询的合理等待时间；多页请求按页数计入每日预算。真实本地美国岗位聚合接口返回 20 条 JSearch 职位，`degraded=false`。
+- 验证：职位源专项 8/8、快照专项 5/5、来源网关专项 5/5；后端全量 `npm test` 778 项中 776 通过、0 失败、2 项既有 Windows 跳过；JS 语法与定向差异格式检查通过。未提交、推送或部署；线上接口仍需发布后复验，生产环境 Key 尚未核对。
+
+## 2026-10-28 微信 AI 岗位搜索修复（本地完成并释放）
+
+- 范围：仅 `miniprogram/skills/job-search-skill/apis/searchJobs.js`、`miniprogram/skills/job-search-skill/mcp.json`、新增 `tests/jobSearchSkill.test.js`、`tests/all.test.js` 的测试注册行和本记录此节；占用已释放。
+- 结果：未指定国家时搜索全球；明确国家保持国家限制，常见中文城市和岗位词转换为英文检索词；无可验证实时结果时说明“暂无匹配或来源不可用”而不宣称没有岗位；AI 岗位卡片优先排列标题匹配的岗位。现有本地/线上公开数据、后端岗位聚合逻辑和其他工作区改动未变。
+- 验证：专项 5/5、小程序静态检查、JS 语法与定向差异格式检查通过；排序调整前后端全量 `npm test` 775 项中 773 通过、0 失败、2 项既有跳过，排序调整由新增专项覆盖。未在微信开发者工具或真机复测，未上传小程序、提交、推送或部署。
+- 当时的外部阻断：本地 `.env` 中 RapidAPI 密钥直连 JSearch 返回 403 `You are not subscribed to this API.`，本地无 Adzuna 凭据；线上美国聚合搜索返回 0 且来源为空。用户随后更新本地密钥，后续诊断与本地修复见上节；生产环境仍需核对密钥并发布后验收。
+
+## 2026-10-27 官网岗位截止日期透传（本地完成并释放）
+
+- 文件占用已释放：Codex `stage1_backend_discovery`；仅 `routes/jobs.js`、`tests/helpers/jobSourcesProbe.cjs`、`tests/jobSourcesIntegration.test.js` 与本记录此节。以上三个代码/测试文件在开始时均无未提交改动；既有私有 PDF/题库、支付及其他工作区改动保持原状。
+- 范围：仅将来源明确给出的岗位截止日期透传到官网岗位列表和详情，未知保持空值；复用现有过期判断与来源元数据。不修改生产数据、数据库迁移或职位源调用策略。
+- 验证：合成实时/历史岗位覆盖已知截止、未知截止、已过期岗位，Web 列表继续过滤过期项，历史详情继续标记 `dataMeta.isFallback=true`；职位源专项 5/5，后端 `npm test` 751 项中 749 通过、0 失败、2 项既有 Windows 跳过；`node --check` 和定向 `git diff --check` 通过。原始搜索/聚合接口仍按原有策略返回并标记过期记录，不将其当成“可投”列表。未运行微信真机、生产数据或部署；未提交推送。
+
+## 2026-10-26 支付回调生产部署（完成）
+
+- 以已核验的线上购买版本 `43a312e` 为父提交构造精确候选 `a02a82d291d21e850f45fd27604e2483e6a547c6`：仅 `routes/payment.js`、`tests/assessmentCommerce.test.js` 和仅此发布分支中的 `.github/workflows/deploy.yml` 基线保护。工作区其他未提交改动未纳入，当前工作分支未切换；临时工作流改动已从本地工作文件恢复。
+- [Deploy Backend 工作流 40289255405](https://github.com/476708310zhao-svg/CareerAI-backend/actions/runs/40289255405) 成功。切流前核对原 `current` 为 2026-10-19 资料购买版本；备份 `/www/backups/zhiyincareer/jobapp-server_20261026_161032.Kmm0Zs` 创建成功。服务器精确候选 `check:release` 505/505、0 失败，Acceptance 29 通过、0 失败、1 项既有提示；严格预检、候选与正式 PM2 健康和公网 readiness 均通过。新发布目录为 `/www/wwwroot/zhiyincareer-main/releases/40289255405-a02a82d291d21e850f45fd27604e2483e6a547c6`。
+- 部署后公网 `/api/health/ready` 返回 `ready=true`；资料首页三项均 900 分且 `purchaseEnabled=true`；`/api/payment/config` 显示会员销售仍关闭、provider=virtual、mock=false。未修改生产支付开关或数据库订单，未上传小程序。用户 2026-10-26 的已扣款旧订单仍需核对微信真实交易、服务端订单和回调记录后处理；不能以部署成功代替该订单权益到账。
+
+## 2026-10-26 虚拟支付发货通知修复（本地完成）
+
+- 用户真实 9 元订单在微信账单显示成功，但小程序仍为待确认。`routes/payment.js` 修复 XML 根节点解析，读取虚拟支付发货通知的 `GoodsInfo.ActualPrice` 与 `WeChatPayInfo.MchOrderNo`，并按请求格式返回 JSON/XML 应答。保留签名、渠道、SKU、数量、实付金额、交易号及幂等校验；没有仅凭客户端支付成功发放权益。
+- 风险与验证：支付回调属于高风险链路。`tests/assessmentCommerce.test.js` 覆盖微信格式通知、错误金额、XML 应答及重复通知；支付专项 42/42、全量 `npm test` 750 项中 748 通过、0 失败、2 项既有跳过；JS 语法与 `git diff --check` 通过。未改生产库、部署后端或上传小程序。线上旧订单须另行核对微信交易记录和服务端订单后处理，本地修复不会自动补发旧通知。文件占用已释放。
+
+## 2026-10-26 待审草稿入口可见性（已完成）
+
+- 已在 `admin/question-assets.html` 的“2 OCR 识题”步骤和来源记录中加入草稿核对入口；进入来源专属链接时自动选中该来源最新识题任务，并补充 OCR 提示文案。没有改动来源权限、发布条件或草稿内容。
+- 验证：`node --test tests/questionAssetsAdmin.test.js tests/questionParsingAdmin.test.js` 34/34 通过；两个前端脚本 `node --check` 通过；静态页面 HTTP 返回 200。已在用户原有的登录 Chrome 标签中打开来源 #1 的任务 #6，选中首道待审题并显示原页与编辑区。
+
+## 2026-10-23 PDF 到刷题题集衔接（本地安全校验接口完成）
+
+- 2026-10-26 OCR 识别率优化（完成并释放）：Codex；`services/questionPdfOcr.js`、`scripts/question_pdf_ocr_worker.js`、`services/questionPdfLayout.js`、`services/questionPdfParser.js`、`services/questionParseJobs.js`、`tests/questionParsing.test.js`、OCR 操作说明、本记录及隔离预览库任务。v5 按内容切换 OCR：题目页 2600 像素灰度及单块阅读，参考答案附录 2100 像素彩色及默认分段；题目页超时可在单页时限内回退。仅当前后题号相邻且字形相符时推断误读题号，显式标记并不自动填答案。真实页 45/46 的答案模式输出与旧答案 OCR 完全一致。v4 曾完整重识别 71 页，任务 #5 为 235 题、159 道自动匹配；隔离任务 #6 使用同一原件此前两次完整 OCR 的页级结果组合（1—44 页取 v4、45—71 页取 v3）验证 v5 解析策略，得到 238 道待审题、186 道自动匹配答案、16 道多选、3 道推断题号，全部 `UNVERIFIED`。旧 v3 为 231/163/0；未覆盖旧任务。备份 `preview-before-ocr-v4-20261026.db` 和 `preview-before-ocr-v5-20261026.db` 均 integrity=ok，预览库 integrity=ok；专项 27/27，全量 `npm test` 747 项中 745 通过、0 失败、2 项既有 Windows 跳过；JS 语法、`git diff --check`、后台 4401 及 readiness HTTP 200。预览服务 PID 60180、Worker PID 66036；入口 `http://127.0.0.1:4401/admin/question-parsing.html?job=6`。题库问题 0、题集 0；不触及主库、生产环境或发布。
+
+- 2026-10-23 OCR 答案自动核对（完成并释放）：Codex；`services/questionPdfParser.js`、`services/questionParseJobs.js`、`admin/js/question-parsing.js`、`tests/questionParsing.test.js`、OCR 操作说明、本记录及隔离预览库任务。修复答案附录在同页中途切换章节时的误归属，并避免把解析正文中的 `B4、B5` 当作新答案；逐题比较“【答案】”与“故本题选 X”的结论。v3 只把唯一、题号/章节匹配、选项/题型相容且无解析矛盾的 OCR 答案自动勾选，继续标为 `UNVERIFIED`；冲突、缺项、截断仍不勾选。备份 `preview-before-answer-autocheck-v3-20261023.db` integrity=ok；隔离任务 #4 复用已完成的 71 页 OCR 检查点，状态 `WAIT_REVIEW`，231 草稿中 163 道自动勾选、68 道留待重点检查；102 道的解析结论与答案一致、3 道有矛盾。旧任务 #1/#2 保留，用户另建的 v2 任务 #3 因 OCR 中途暂停保持 `WAIT_OCR`、未覆盖。专项 23/23；全量 `npm test` 743 项中 741 通过、0 失败、2 项既有 Windows 跳过；语法、`git diff --check`、隔离库 integrity=ok，后台 4401/识题脚本 HTTP 200。4401 与 Worker 已按 v3 重启，PID 47432/20052。题库问题 0、题集 0；未开启公开题集、未写生产库、未提交/部署。入口：`http://127.0.0.1:4401/admin/question-parsing.html?job=4`。
+
+- 2026-10-23 内部 OCR 识题结果（完成并释放）：Codex；只操作隔离预览库，未写主运行库或生产库。用户确认内部机器处理与 2026-10-23—2030-10-23 期限；以“用户声明”标记的来源权利记录 #2 仅批准 `machineProcessing`，其他用途均 false，原含展示用途的 #1 仍为 pending。原件 71 页 `valid/clean`；旧解析任务 #1 误把答案附录当题，保留 453 条 v1 草稿并标为 `NEEDS_MANUAL/SUPERSEDED_BY_OCR_V2`。v2 对同源同 SHA 的 71 页 OCR 检查点复用后，任务 #2 为 `WAIT_REVIEW`，生成 231 条内部待审草稿，193 条带答案候选、38 条无答案候选、4 条 OCR 超长候选显式截断；全部 `answer_status=UNVERIFIED`，未创建题库修订或开放题集。修复 parser 的附录识别、主章节继承与截断标记，解析版本升为 `hybrid-pdf-ocr-v2`；专项 39/39、全量 `npm test` 740 项中 738 通过、0 失败、2 项既有 Windows 跳过；隔离库 integrity=ok，`git diff --check` 和 JS 语法检查通过。后台 4401 已用同一隔离库重启（PID 53476），OCR Worker v2 PID 30172；识题页和脚本 HTTP 200，匿名报告接口 401。备份 `preview-before-internal-ocr-20261023.db` 与 `preview-before-ocr-v2-20261023.db` 均 integrity=ok。原件 `publish_status=blocked`、`display_right=0`，公开题集 0；未提交、部署生产或上传小程序。入口：`http://127.0.0.1:4401/admin/question-parsing.html?job=2`。
+
+- 2026-10-23 本地内部 OCR 过程记录（已释放）：Codex 曾占用本记录、`services/questionPdfParser.js`、`services/questionParseJobs.js`、`admin/js/question-parsing.js`、`tests/questionParsing.test.js`、本地 OCR 操作说明及隔离预览库 `preview-from-local.db` 的来源 #1 权利声明与解析任务；不改主运行库/生产库。Human 在会话中确认取得内部使用授权、允许 OCR，并确认后台填写的 2026-10-23 至 2030-10-23 期限；本轮仅在本地用明确标为“用户声明”的机器处理权记录创建非商业 OCR 待审任务，原有含展示权的待审声明保持原状，不启用公开题集。隔离库备份 `preview-before-internal-ocr-20261023.db` integrity=ok；机器处理声明 #2 已审批，其他权益均 false。初次 OCR 71 页保留检查点后解析出 453 条，进一步发现答案解析附录被误当题目。现修正附录识别、分节匹配及超长 OCR 候选的显式截断，并升级解析器版本；只在隔离预览库建立新任务、复用同源同校验值的 71 页私有 OCR 检查点，旧任务保留供审计。风险与验证：绝不能把截断文本或 OCR 候选答案标为已核对，不写公开发布状态；服务层原有审核约束及审计保留，专项与全量测试后再供人工校对。
+
+- 2026-10-23 PDF 工作入口与练习报告（完成并释放）：Codex；`admin/js/common.js`、`admin/question-assets.html`、`admin/js/question-assets.js`、`services/questionPractice.js`、`routes/question-practice.js`、`miniprogram/utils/api-question-bank.js`、`miniprogram/package-content/pages/practice-session/*`、对应专项测试及本记录。拥有 PDF 导入权限的管理员侧栏只显示“PDF 制作刷题题集”，原审批、OCR、题库页面仍通过当前步骤的按钮访问，单独角色保留对应入口，页面权限未扩张。小程序已答题后显示正确答案及解析；答完或结束后展示服务端统计的正确率、错题/跳过、题型分布和复习方向，账号切换时清除旧报告。报告接口只按登录用户读取，未提交答案和题目文本不出现在报告中；题集撤销后只保留个人汇总成绩。风险验证：专项 43/43；全量 `npm test` 738 项中 736 通过、0 失败、2 项既有 Windows 跳过；`check:miniprogram`、JS 语法及 `git diff --check` 通过。4401 静态后台页面/导航均 HTTP 200 并包含新标题；4401 现有 Node 进程未重启，新报告后端仍须按隔离预览配置重启后才生效。现有无授权 PDF 未 OCR 或发布；无生产部署、小程序上传或提审。
+
+- 2026-10-23 识题校对流程简化（完成并释放）：Codex；`admin/question-parsing.html`、`admin/js/question-parsing.js`、`admin/question-bank.html`、`admin/js/question-bank.js`、对应后台 UI 专项测试、OCR 操作说明及本记录。草稿页新增“保存并看下一题”和“用已保存草稿填入题库”；题库页通过现有管理员 API 实时读取草稿及来源，预填题目和 PDF 页码，不通过 URL 传题目内容、不标为原创；题集页支持一次粘贴多个修订 ID，仍由现有服务端逐题检查审核与权利。未改数据库、后台权限接口、发布门禁或生产开关。专项 UI 29/29；全量 `npm test` 735 项中 733 通过、0 失败、2 项既有 Windows 跳过；4401 两个更新的 JS 均 HTTP 200，`git diff --check` 无差异错误（仅工作区换行提示）。预览库原 PDF 仍无处理权声明，未运行其 OCR、未发布题目；未提交或部署。
+
+- 2026-10-23 本地单人识题确认文件归属（本轮完成并释放）：Codex；`services/questionAssetGovernance.js`、`admin/js/question-governance.js`、`.env.example`、`tests/questionAssetGovernance.test.js`、`tests/questionGovernanceAdmin.test.js`、OCR 操作说明和本记录。用户明确选择本地单人确认。来源权利审核例外只在 `NODE_ENV=development/test` 且本地私有导入与专用开关均开启、资产 `valid/clean`、声明仅含 `machineProcessing` 时允许；审计记录标 `localSingleReview=true`。未放开内容审核、展示/商业权利或生产环境。专项覆盖开关关闭、生产环境、混合权利、未扫描、开启后的机器处理授权及审计；全量 `npm test` 731 项中 729 通过、0 失败、2 项既有 Windows 跳过。4401 本地预览以显式隔离路径和本地单人确认开关重启为 PID 27504，Worker PID 56884 继续运行；三个后台页面 HTTP 200。预览库仍 0 权利声明、0 任务、0 草稿；未代用户确认这份真实 PDF 的权利，也未运行其 OCR。未写主运行/生产库，未提交或部署。
+
+- 2026-10-23 识题流程简化文件归属（本轮完成并释放）：Codex；`admin/question-assets.html`、`admin/js/question-assets.js`、`admin/css/question-assets.css`、`admin/question-governance.html`、`admin/js/question-governance.js`、`admin/css/question-governance.css`、`admin/question-parsing.html`、`admin/js/question-parsing.js`、`admin/css/question-parsing.css`、对应专项 UI 测试、OCR 操作说明和本记录。导入来源卡片接续授权页并带来源 ID；授权页按安全/权利状态只提示当前下一步，审批通过后直达识题页；识题页自动填来源和卷名，已有阻塞任务在明确“开始识题”操作后复核重排，运行中 5 秒自动更新。高级处理范围和其他权利用途折叠显示。保留独立权利审核和人工审题门禁。专项 UI 测试 45/45，通过 HTTP 验证三个后台页面均 200 且包含步骤提示；`git diff --check` 无差异错误（仅旧工作区换行提示）。预览库仍 0 权利声明、0 解析任务、0 草稿；未识别用户真实 PDF。
+
+- 2026-10-23 OCR 文件归属（本轮完成并释放）：Codex；`services/questionPdfLayout.js`、`services/questionPdfParser.js`、`services/questionParseJobs.js`、新增 OCR 子进程脚本/服务、`admin/js/question-parsing.js`、相关专项测试、`package.json`/锁文件、本文档及 OCR 操作说明。风险：扫描页需本地语言模型与私有原页渲染，不能把 OCR 字符串当成可信答案；保持 `machineProcessing` 来源授权、已扫描原件校验、逐页时间/内存/输出限制及页级 checkpoint。验收以合成 PDF OCR、拒绝缺模型/未授权、答案待核对、全量 `npm test` 为准；不自动公开原件或发布题集。
+- OCR 本地实现：增加 `tesseract.js@7.0.0`、离线简体中文/英文模型加载、Poppler 单页渲染和受限 OCR 子进程。数字文本空页进入 OCR，结果按原页生成待审草稿；OCR 题页或答案页的答案一律 `UNVERIFIED`，保留候选证据和原页预览。OCR 解析器另用 `hybrid-pdf-ocr-v1`，旧数字解析检查点不可跨版本复用。配置/操作见 `docs/assessment-question-bank/10_SCANNED_PDF_OCR_LOCAL.md`。
+- 验证：合成扫描题 PDF 实际跑通渲染、OCR、规则切题，产出 1 道待审草稿；OCR 曾把“乙”读成“G”，证明人工复核必要。专项测试 18/18；全量 `npm test` 727 项中 725 通过、0 失败、2 项既有 Windows 跳过；`git diff --check` 无差异错误（仅旧工作区换行提示）。
+- 本地预览：4401 服务已以 OCR 配置重启为 PID 18228，解析队列 Worker PID 56884；后台识题页和更新后的 JS 均 HTTP 200。离线模型仅放在隔离预览目录，不在仓库。预览库目前 1 个资产、0 个来源权利声明、0 个解析任务；对用户导入的 71 页真实 PDF **尚未运行 OCR**，必须先在后台完成其机器处理来源授权。仅操作隔离预览库，未写入主运行或生产数据库。OCR 新增文件仍处于项目现有未提交工作树中，本次未提交/部署。
+
+- 当前文件占用：Codex；私有 PDF 安全校验服务、后台 API/UI、迁移、专项测试与本记录。已有导入、来源授权、辅助识题、人工题库和刷题代码保持原权限与数据边界。
+- 风险与验证：安全扫描结果必须来自可核验的扫描器，不以文件扩展名、PDF 能打开或人工点击代替；扫描器不可用时保持待扫描。PDF 结构检查在受限子进程运行，限定内存、时长和输出；处理前后核对 SHA-256。校验状态更新要记录审计，出错或感染不得把资产标为可用。隔离测试覆盖正常、异常、超时、缺扫描器、越权和多来源共享资产；后端运行 `npm test`。
+- 已完成：新增迁移 0022、私有资产检查记录、ClamAV 扫描接口、逐页 PDF 结构校验子进程、管理员查询与重检接口，以及“PDF 素材导入”中的操作按钮。无扫描器时仅结构状态可变为有效，扫描保持待扫描，来源权益和发布门禁不放行。操作说明见 `docs/assessment-question-bank/09_PDF_CHECKS_LOCAL.md`。
+- 2026-10-23 补充：Human 退出腾讯电脑管家后，Windows Defender 恢复启用；增加本地 Defender 自定义文件扫描适配，要求实时防护启用、病毒库不超过 7 天且命令明确报告扫描完成和无威胁。实机病毒库年龄 143 天，PowerShell 与 MpCmdRun 更新均失败，因此仍保持待扫描；没有宣称原件已扫描安全。全量 `npm test` 724 项中 722 通过、0 失败、2 项既有 Windows 跳过；`git diff --check` 通过（仅有已有换行提示）。
+- 2026-10-23 预览恢复计划：Windows Defender 病毒库已由系统更新到当天版本（年龄 0 天）。已核对 4401 为 9:00 启动的旧 Node 进程，临时预览目录 `jobapp-question-preview-dd29f38eb8ac4a218d2fb5e4df1ee768` 的 `preview-from-local.db` 是 schema 0021，含 1 个隔离 PDF 资产（65,832,482 字节），原件存在于同目录私有数据区。短暂停止 4401 后先备份该隔离 DB，再只对它执行 0022 迁移，以显式 DB_PATH/DATA_DIR/UPLOAD_DIR/PORT/本地导入环境重启并验证；失败则用备份恢复预览库。主运行库和生产环境不得写入。
+- 预览实际结果：已停止旧 PID 69640；备份 `preview-before-0022.db` 完成且 integrity=ok、schema=0021、资产数=1；仅将 `preview-from-local.db` 应用 0022，integrity=ok、FK=0、资产数仍为 1。4401 以显式隔离路径及关闭支付的本地配置重启为 PID 8616，后台 HTTP 200，新检查 GET 200。对唯一已导入 PDF 的第一次检查遇到 Defender 短暂不可用，仅结构检查完成；同一来源重检后 Defender 明确完成无威胁扫描，检查记录 #2 `scan=clean`、`validation=valid`、71 页、可抽取文字页数 0。资产仍 `publish=blocked` 且处理/展示权益均为 0；后续刷题题集需要来源授权、内容审核和 OCR/人工录入，不得把无文字页当成已成功识题。
+- 验证：迁移、服务、路由、后台界面专项通过；全量 `npm test` 724 项中 722 通过、0 失败、2 项既有 Windows 跳过。`git diff --check` 通过（仅提示 Windows 工作区换行转换）。未在主运行数据库或生产数据库执行迁移，未开启生产私有导入。
+
+## 2026-10-23 私有 PDF 大文件导入（本地开发）
+
+- 文件归属（本轮完成并释放）：Codex；`services/questionAssetStore.js`、`services/questionPdfUploads.js`、`routes/admin-question-assets.js`、`db/migrations/0021_question_pdf_upload_sessions.sql`、`admin/question-assets.html`、`admin/js/question-assets.js`、对应测试及本文档。本轮不修改支付、登录和正式环境开关。
+- 风险与验证：上传/鉴权/迁移属于高风险链路。分片接口沿用后台实时账号和 `questionAssets` 权限；每片最大 8 MiB、原件最大 256 MiB，私有临时目录总量 1 GiB；断点续传须检查登记文件名、大小和首尾样本指纹，服务端最终对完整 PDF 做头尾检查和 SHA-256。以隔离数据库覆盖越权、断点续传、重复/错位分片、超限、文件内容改变、失败清理和禁止公开原件；执行 `npm test`。
+- 当前实现：25 MiB 内保留原 multipart 上传；25–256 MiB 使用 8 MiB 分片与数据库进度记录，中断后选择同一原件继续，成功后保存完整原件到私有隔离区。导入仍只在显式开启的本地开发环境可用，扫描和授权状态仍默认为待审，不能因此发布题目。
+- 验证：隔离专项 58/58；全量 `npm test` 715 项中 713 通过、0 失败、2 项既有 Windows 跳过。全量首次遇到过期的练习授权测试日期，已将该测试夹具改为稳定的未来日期并重跑通过。隔离预览数据库已备份并应用 0021，4401 管理页面返回 200 且显示 256 MiB 上限，管理员登录接口返回 200；未迁移主运行库或生产库。
 
 禁止在个人机器旧副本、Junction 别名或仓库外复制目录中开发、预览、部署或提交。
 
@@ -333,7 +495,75 @@ Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成
 | P2 | 超长 WXSS 初步整理 | Codex | 小程序 `app.wxss`、`pages/salary/salary.wxss`、`pages/jobs/jobs.wxss`、`pages/applications/applications.wxss` | 已完成 |
 | P2 | 超长 WXSS 精简清理 | Codex | 小程序 `pages/salary/salary.wxss`、`pages/applications/applications.wxss`、`pages/jobs/jobs.wxss`、`pages/index/index.wxss`、`pages/experiences/experiences.wxss`、`pages/resume/resume.wxss`、`pages/agencies/agencies.wxss`、`pages/project-builder/project-builder.wxss`、`pages/ai-assistant/ai-assistant.wxss`、`pages/profile/profile.wxss`、`pages/career-planner/career-planner.wxss` | 已完成首批 |
 
+## 2026-11-02 阶段 2 授权提醒与投递回执（本地完成并释放）
+
+- 本地完成并释放：新增 0026 一次性模板授权台账和显式提醒渠道；微信授权按 user+exact template ID 存储，拒绝/撤销清零剩余额度，dispatch 在消费额度和实际调用发送组件前二次查授权。站内提醒默认独立运行，旧提醒不推定微信授权。申请 deadline 和申请 task due 日期由服务端按 owner 读取；更新日期时同步提醒，清空/任务完成时停用并失效 pending 投递。本人回执 API 只返回所属账号记录，申请详情包含其任务回执；官网和小程序提供授权/回执查看，小程序可主动发起授权并撤销剩余额度。
+- 验证：隔离提醒专项 3/3、迁移 0026 专项 1/1；最终 `npm test` 831 项中 829 通过、0 失败、2 项既有 Windows 跳过；官网 66/66、类型检查、生产构建通过；小程序流程 65/65、`check:miniprogram`、JS 语法检查通过；OpenAPI YAML parse 与 `git diff --check` 通过。模拟 WeChat sender 证明 `in_app` 和未授权 `both` 不触发微信网关，双账号回执隔离通过。未触发真实发送、未迁移生产库、未部署或配置正式定时作业。
+
 ## 当前文件占用
+
+- 已完成并释放：Codex `stage5_manual_recovery`，范围为当前文件顶部登记的人工服务授权工单实现；只在本地隔离库开发测试，不触发真实支付或生产数据。
+
+- 本地完成并释放：Codex `stage4_job_quality_analytics`；修改范围仅新增 `services/v4JobQualityAnalytics.js`、`routes/v4-admin.js` 新只读聚合端点、`admin/dashboard.html` 岗位数据质量卡片、`utils/adminPermissions.js` 精确 operations 路由 dashboard 映射、新隔离专项和 `tests/all.test.js` 注册、OpenAPI 与阶段文档。只使用本机 jobs.json 与隔离 analytics 数据，不查阅/输出用户身份，不读写生产库或部署。质量/权限专项 2/2、管理核验相关专项 2/2、单独 smoke 74/74；`npm test` 整体 846 项中 841 通过、3 个既有合并运行 smoke 外部源假设失败、2 跳过（详见上方阶段4记录）；OpenAPI 46 paths、dashboard inline JS parse、定向 diff check 通过。
+
+- 本地完成并释放：Codex `stage4_extension_ashby`；新增 Ashby adapter 和隐私最小化的本机 7 日兼容计数，样本至少 5 且失败率不少于 60% 才提示。兼容回归已由现有 CI 的 `npm run check:release` 自动执行。插件专项 4/4、授权/适配合并专项 7/7；后端全量 `npm test` 839 项，837 通过、0 失败、2 项既有跳过；相关 JS 语法、Manifest JSON、定向 diff check 通过。没有记录/上传用户、申请、URL、DOM、字段标签或值。未连接真实 ATS、未运行 Chrome 手动预览，当前提示不是运营告警。
+
+- 当前文件占用：无。`stage2_application_reminders` 已本地完成并释放；相关文档见官网 `docs/stage2-application-reminders.md`。后续正式迁移、微信真机授权及线上调度仍待环境验收。
+
+- Codex `stage1_feedback_audit_impl`（2026-10-30，本地完成并释放）：仅修改 `routes/admin.js` 反馈管理窄范围、`admin/feedback.html`、`tests/databaseMigrations.test.js`、`tests/all.test.js`、`docs/JOB_MANUAL_VERIFICATION.md` 与本记录，新增 `db/migrations/0023_feedback_handling_audit.sql`、`tests/jobFeedbackAudit.test.js`。反馈处理改为要求版本的 SQLite 立即事务，同时追加状态/备注前后值、实时管理员和时间；旧 token/撤权拒绝，冲突 409，缺迁移 503。岗位纠错关闭/忽略须写有界说明，后台可看审计与“距提交”或可追溯结案耗时；迁移前已完成且仅补备注仍显示历史处理时间未知。保留反馈硬删除及审计级联删除并在 UI 警告，不自动修改岗位核验或 `jobs.json`。只在隔离 `DB_PATH` 验证 0023 幂等/迁移回滚、旧记录、故障 trigger 强制事件写失败时反馈三字段及事件数回滚、泛化错误响应、版本冲突、权限、说明边界与删除级联；专项 24/24，后端全量 `npm test` 808 项中 806 通过、0 失败、2 项既有 Windows 跳过。JS 语法、HTML 内联脚本解析与定向差异格式检查通过；真实 `data/jobs.json` SHA-256 仍为 `240B0921B5025078738171457A38E067CC1ABBA932F85A088BF20E4295428EB6`。现有大量无关未提交改动保留。未迁移真实/生产数据库、未部署、提交或推送；正式上线前须备份并审批迁移，既有 `deploy.sh` 待迁移门禁仍会阻断直接发布。
+
+- Codex `stage1_feedback_triage_impl`（2026-10-29，本地完成并释放）：修改 `routes/admin.js` 反馈列表窄范围、`admin/feedback.html`、`admin/jobs.html` 深链、`utils/adminJobsStore.js` 批量只读目标查询、`tests/all.test.js`、`docs/JOB_MANUAL_VERIFICATION.md` 与本记录，新增 `utils/jobFeedbackContext.js`、`tests/jobFeedbackTriage.test.js`。后台增加“岗位信息纠错”筛选，把官网既有文本严格派生为只读用户线索；只有服务端找到本地岗位或删除墓碑且管理员令牌与实时账号都具岗位权限时显示核验/删除审计入口，外部纯数字 ID 撞号仍须核对标题、来源、公告。坏岗位 JSON 仅降级候选入口，不阻断反馈列表；用户文本转义、深链 ID 限制正整数。隔离 HTTP/渲染专项 3/3，JS 语法、定向差异格式检查通过，项目 `data/jobs.json` SHA-256 未变化。最终后端全量 798 项中 795 通过、1 项其他进行中任务的地理采样旧断言失败、2 项既有 Windows 跳过；该任务正修改 `utils/jobGeography.js`，其 day1 已变 `cn/hk`，未改的 `tests/jobGeography.test.js` 仍期望 `sg/de`，单跑稳定复现，不归本轮反馈分流所有。本轮未改 `POST /api/feedback` 契约、数据库迁移、岗位公开状态、真实岗位文件或生产数据，未部署/提交/推送；待地理任务同步测试后重跑全量门禁。
+
+- Codex `stage1_link_schedule_impl`（2026-10-29，本地完成并释放）：修改 `utils/adminJobsStore.js`、`services/jobApplyLinkHealth.js`、`scripts/check_job_apply_links.js`、`tests/all.test.js`、`docs/JOB_MANUAL_VERIFICATION.md` 与本记录，新增 `services/jobApplyLinkSchedule.js`、`tests/jobApplyLinkSchedule.test.js`、`tests/helpers/jobLinkScheduleClaimProbe.cjs`。增加默认关闭的 cron-ready `--scheduled` 入口；只在 `JOB_LINK_CHECK_SCHEDULE_ENABLED=1` 时执行。共享 SQLite 写锁内领取和完成 5 分钟租约，同一上海时区小时最多成功一批；失败可重试、过期租约可重新领取、旧 owner 不可完成新租约。定时模式按 URL 最近检查时间冷却 24 小时，人工 `--run` 保持立即复查。隔离调度专项 6/6，合并旧链接专项 10/10；最终后端 `npm test` 795 项中 793 通过、0 失败、2 项既有 Windows 跳过。CLI 帮助、默认关闭门禁、6 个 JS 语法与定向差异格式检查通过，项目 `data/jobs.json` SHA-256 未变化。未安装定时器、未探测真实公网、未部署/提交/推送；正式环境同主机/同 `DB_PATH`、`DATA_DIR`、运营日志告警及真实来源频率仍待验收。现有大量无关未提交改动保留。
+
+- Codex `stage1_link_probe_impl`（2026-10-28，本地完成并释放）：修改 `utils/adminJobsStore.js`、`admin/jobs.html`、`tests/all.test.js`、`docs/JOB_MANUAL_VERIFICATION.md` 与本记录，新增 `services/jobApplyLinkHealth.js`、`scripts/check_job_apply_links.js`、`tests/jobApplyLinkHealth.test.js`。手动批次只检查人工核验 `open` 且与公开 URL 一致的本地企业申请链接；逐跳验证全部 DNS 地址并固定连接 IP，禁私网/保留地址、代理和非标准端口，限制重定向、单 URL 10 秒及整批约 60 秒。结果在共享写锁内二次比对 URL 后记录，仅供后台人工复核，不自动关闭或改变公开申请状态；删除岗位清理健康结果。真实本地 HTTP server 验证固定 lookup 与代理环境边界，隔离专项 4/4；最终 `npm test` 782 项中 780 通过、0 失败、2 项既有 Windows 跳过；CLI 帮助、5 个 JS 语法与定向差异格式检查通过。项目 `data/jobs.json` SHA-256 保持 `240B0921B5025078738171457A38E067CC1ABBA932F85A088BF20E4295428EB6`。未实际探测公网、未设置定时任务、未部署/提交/推送；真实来源与运营处理验收仍待完成。
+
+- Codex `stage1_jobs_mutex_impl`（2026-10-28，本地完成并释放）：修改 `utils/adminJobsStore.js`、`utils/jobData.js`、`routes/admin.js`、`tests/adminJobVerification.test.js`、`tests/all.test.js`，新增 `utils/jobsFile.js`、`tests/adminJobsStoreConcurrency.test.js`。四种后台岗位写入均在共享 SQLite `DB_PATH` 的 `BEGIN IMMEDIATE` 跨进程锁内读取并原子替换 JSON；读者和写者首次创建共用同目录 fsync 临时文件与 hard link 原子占位。锁忙返回 503/Retry-After，版本冲突保留 409，输入校验 400，坏 JSON 等故障泛化 500。受控双进程锁/半写入、旧版本和缺失/非法输入不写文件、四接口锁忙及坏 JSON 回归通过；专项 4/4，后端全量 `npm test` 771 项中 769 通过、0 失败、2 项既有 Windows 跳过，JS 语法和定向差异格式检查通过。项目 `data/jobs.json` SHA-256 未变化。上线前须确认所有写实例在同一主机/可靠本地文件系统、使用相同 `DB_PATH` 和 `DATA_DIR`，并全部运行本版写入工具；跨主机部署需将岗位写入迁移到共享事务数据库。未部署、提交或推送，工作区其余既有未提交改动保留。
+
+- Codex parent `stage1_expiry_miniprogram`（2026-10-28，本地完成并释放）：仅修改 `miniprogram/package-user/pages/job-detail/job-detail.js`、`tests/mobileWorkflow.test.js`。本地岗位有效日期按上海日期、带明确时区时间戳按截止瞬间在详情页拦截旧链接；即使迟到的旧响应声称可申请也继续拦截。保留原人工核验状态，显示“截止已过”；缓存链接清除，后续进度刷新不改回“待人工复核”。小程序专项 53/53、`node scripts/check-miniprogram.js`、JS 语法和差异格式检查通过。后端全量 768 项的执行早于最后新增的小程序时间戳断言；该断言已由小程序专项覆盖。仅用隔离测试数据，不上传、发布、提交或推送；其余既有未提交改动保留。
+
+- Codex `stage1_expiry_impl`（2026-10-28，本地完成并释放）：仅修改 `utils/jobData.js`、`routes/jobs.js`、`routes/v4/jobs.js`、`tests/adminJobVerification.test.js` 与本记录。有效 `YYYY-MM-DD` 截止日按上海日期次日零点起在读取时自动暂停；旧本地岗位带明确时区的 ISO 时间按实际时刻判断，缺失、无时区或无效日期不自动暂停。公开人工核验状态保持原值，到期单独提示；本地岗位列表、旧详情、Trust、V4/旧版申请链接及官网跳转依当前状态受限，快照续页遇过期岗位返回 410。修改截止日期后自动重新计算，不写运行或生产 `jobs.json`。专项 `adminJobVerification` 2/2、`jobSourcesIntegration` 7/7；后端全量 `npm test` 768 项中 766 通过、0 失败、2 项既有 Windows 跳过；JS 语法及定向差异格式检查通过。未部署、提交或推送；工作区其余既有未提交改动保留。
+
+- Codex `stage1_jobverify_miniprogram_ui`（2026-10-27，本地完成并释放）：再次修改 `miniprogram/package-user/pages/job-detail/job-detail.js` 与 `tests/mobileWorkflow.test.js`，旧版详情成功响应晚于 V4 较新核验结果时直接丢弃，旧版显式可申请也不能覆盖已关闭状态。专项 50/50、小程序静态检查、JS 语法及定向差异格式检查通过；未做微信真机 E2E、上传或发布。
+
+- Codex `stage1_manual_job_verification_impl`（2026-10-27，本地完成并释放）：修改 `routes/applications.js`、`routes/v4/applications.js`、`utils/jobData.js`、新增 `utils/applicationLinkVisibility.js`、更新 `tests/adminJobVerification.test.js`、`docs/JOB_MANUAL_VERIFICATION.md` 与本记录本条。已删除的本地岗位由 `job_deleted` 审计墓碑继续识别，历史申请保留但申请链接持续清空、V4 官网跳转返回 409；未曾是本地岗位的数字 ID 不因墓碑规则受限。旧版/V4 申请响应共用九种链接别名脱敏，包含 `job_apply_link`。专项 1/1；后端全量 `npm test` 765 项中 763 通过、0 失败、2 项既有 Windows 跳过；JS 语法与定向差异格式检查通过。仅用隔离测试数据，不动项目/生产 `data/jobs.json`，未部署、提交或推送；JSON 多实例并发写入仍需发布前核对 PM2 拓扑和互斥方案。
+
+- Codex `stage1_manual_job_verification_impl` 首轮实现（2026-10-27）：岗位核验元数据及追加审计保存在 jobs.json 顶层，专用接口要求实时管理员岗位权限，并由服务端写核验时间、操作者。首轮专项 1/1；全量 `npm test` 759 项中 757 通过、0 失败、2 项既有 Windows 跳过。后续审查发现公开关闭态与字段边界仍需加固，见本轮“审查修复”条；首轮结果不代表最终门禁。
+
+- Codex `stage1_country_fix`（2026-10-27，已完成并释放）：仅修改 `routes/jobs.js` 的 JSearch 国家识别与 Web 列表来源过滤、`tests/helpers/jobSourcesProbe.cjs`、`tests/jobSourcesIntegration.test.js` 及本记录此行。来源明确国家优先于请求国家；国家缺失时回退请求国家；JSearch 返回明确异国或无法识别的国家时，不计入所请求国家的官网列表、快照、地图与聚合。合成反例覆盖 `US`、`United States`、`Japan`、国家缺失及 `UK`/`United Kingdom`/`英国` 的 GB 规范化；职位源专项 7/7、快照专项 5/5，后端全量 `npm test` 758 项中 756 通过、0 失败、2 项既有 Windows 跳过；JS 语法和定向 `git diff --check` 通过。保留其他既有未提交改动；未部署、提交或接触运行/生产数据。
+
+- 阶段 1 官网岗位样本分页验证（2026-10-27）：显式 `pagination=snapshot` 保留旧页码客户端；本次检索样本以 5 分钟游标稳定续页，来源失败固定回退，未知或过期游标 410，结果上限及截断标记见 `docs/JOB_LIST_SNAPSHOT_PAGINATION.md`。合成专项 5/5，后端全量 `npm test` 756 项中 754 通过、0 失败、2 项既有 Windows 跳过；JS 语法与定向差异格式检查通过。仓库 PM2 配置为单 fork，但线上实际实例未独立核实，未部署或启用官网新控件，未修改运行/生产数据库、环境或其它未提交工作。
+
+- Codex `stage1_pagination_backend_design`（2026-10-27，本地完成并释放）：仅占用 `routes/jobs.js` 的 `/api/jobs` opt-in 分支、新增 `utils/jobListSnapshot.js`、新增 `tests/jobSnapshotPagination.test.js`、`tests/helpers/jobSnapshotProbe.cjs`、`docs/JOB_LIST_SNAPSHOT_PAGINATION.md`，更新 `tests/all.test.js` 的专项注册与本记录此节。保留 `routes/jobs.js` 已有岗位截止日期透传等未提交改动及其他工作区文件。风险：进程内快照需单 PM2 实例；生产实际实例尚未独立核实，不部署或开启官网翻页。验证计划：合成来源跨页、失效、筛选绑定、降级、旧接口兼容专项及后端全量测试。
+
+- Codex 阶段 7 本地发布前验证（2026-10-22，完成并释放）：新增 `docs/assessment-question-bank/08_PHASE7_RELEASE_READINESS.md`，修复 `routes/admin-question-assets.js` 仅信 JWT 旧权限的问题，`tests/questionAssets.test.js` 新增实时撤权/停用测试并使用独立管理员 ID。公开 DTO、免费发布/实时授权、私有目录和客户端判分审计未发现其他本轮可复现的发布前代码阻断。专项 23/23；最终 `check:release` 711 项中 709 通过/0 失败/2 项既有 Windows 跳过，AI 质量、小程序检查通过，数据 0 错误/7 项既有提示；隔离 `check:acceptance -- --no-report` 29 通过/0 失败/1 项既有职位详情提示；迁移与备份恢复隔离测试通过。首轮全量曾因新增测试管理员 ID 与治理专项冲突失败，改独立 ID 后重跑通过。`git diff --check` 通过。真实授权题集、生产私有存储/扫描、预发布迁移与文件备份恢复、网页/小程序真实账号及 Android/iOS 真机仍待验收，因此未批准公开发布；未触碰生产库、真实 PDF、支付/会员开关、微信发布，未提交/推送/部署。文件占用已释放。
+
+- Codex 阶段 6 小程序免费刷题（2026-10-21，完成并释放）：新增 `miniprogram/utils/api-question-bank.js`、`miniprogram/package-content/pages/practice-home/*`、`miniprogram/package-content/pages/practice-session/*`、`tests/questionPracticeMiniProgram.test.js`、`docs/assessment-question-bank/07_PHASE6_MINIPROGRAM.md`，并在 `miniprogram/app.json` 局部注册两页、资源中心新增独立入口、`tests/all.test.js` 接入专项。原生免费题集、服务端判分与同账号网页进度、续答、错题/收藏/历史已接通；弱网同 requestId/原答案重试、退出重进对账、快照竞态、切号/撤权/迟到响应清屏和敏感列表逐页重取均有回归。小程序专项 18/18、视觉专项 17/17；独立 `check:miniprogram` 通过（package-content 0.31 MB），独立 `check:release` 退出 0：710 项中 708 通过/0 失败/2 项既有 Windows 跳过，AI 质量通过、数据 0 错误/7 项既有提示；`git diff --check` 通过。`app.json` 既有 skills/agent 未提交改动保留。未用真实账号/授权题集做网页与小程序联动或 Android/iOS 真机验收，未改生产库、未微信上传、提交、推送或部署。
+- Codex 阶段 6 会员权益评估（2026-10-21，完成）：Human 选择“会员题集暂不开通，9 元资料独立”。当前会员套餐无刷题权益码，现有 question-practice API 仅列显式开放的免费题集，9 元订单只交付测评资料；本批未新增会员题集发布或购买入口、未修改支付/会员后端。
+
+- Codex 阶段 5 后端（2026-10-21，完成并释放）：新增 `db/migrations/0020_question_parse.sql`、`services/questionPdfLayout.js`、`services/questionPdfParser.js`、`services/questionParseJobs.js`、`routes/admin-question-parsing.js`、`scripts/dispatch_question_parse.js`、`scripts/question_pdf_page_worker.js`、`tests/questionParsing.test.js`、`tests/fixtures/question-parse-cases.json`、`docs/assessment-question-bank/06_PHASE5_DIGITAL_PDF.md`，并接入迁移、路由、权限和全量测试。私有数字 PDF 页级提取、来源授权/资产扫描闸门、持久任务/逐页 checkpoint、冲突答案候选证据、可终止子进程硬超时与输出容量上限、待审草稿编辑审计及受权单页预览均已实现；解析不写可发布题库。高风险迁移、私有原件、动态鉴权、撤权竞态与中断恢复用隔离测试核验。最后独立门禁：联合专项 31/31、迁移 20/20、全量 `npm test` 692 项中 690 通过/0 失败/2 项既有 Windows 跳过，`git diff --check` 通过。原开发包合成 JSON 与项目 fixture SHA-256 一致。真实授权样本的质量、成本及工时未测；现有资产深验/扫描 pending 仍默认阻断。未改真实 DB 或生产配置，未提交/推送/部署。
+- Codex 阶段 5 审题工作台（2026-10-21，完成并释放）：新增 `admin/question-parsing.html`、`admin/js/question-parsing.js`、`admin/css/question-parsing.css`、`tests/questionParsingAdmin.test.js`，在 `admin/js/common.js` 增加入口。支持任务状态、来源页及文末/冲突候选答案页核对、受权 PNG 原页、审题修订和审计；来源/管理员撤权后清除敏感内容及 Blob，跨页与迟到请求有回归。仅 PDF 素材权限可读，另有题库编辑权限才可改。管理端专项 17/17；真实管理员账号浏览器视觉联调未做，文件占用已释放。
+
+- Codex 阶段 4 后端（2026-10-21，完成并释放）：新增 `db/migrations/0019_question_practice.sql`、`services/questionPractice.js`、`routes/question-practice.js`、`routes/admin-question-practice.js`、`tests/questionPractice.test.js`、`docs/assessment-question-bank/05_PHASE4_WEB_PRACTICE.md`，接入 `server.js`、`tests/all.test.js`、`tests/databaseMigrations.test.js` 并更新本记录。新增默认关闭的免费网页发布开关及审计/CAS；公开商业+全球单份完整授权、JWT 实时本人核验、冻结会话、顺序取题、服务端正式判分与幂等、错题/收藏/历史分页和失权脱敏。高风险迁移、鉴权、公开答案、并发与撤权均用隔离专项验证；联合迁移/后端/网页/管理专项 45/45，通过；全量 `npm test` 660 项中 658 通过、0 失败、2 项既有 Windows 跳过；`git diff --check` 与 JS 语法检查通过。未接生产库、真实 PDF 或生产配置，未提交/推送/部署；保留原有未提交文件。
+- Codex 阶段 4 网页（2026-10-21，完成并释放）：phase4_web 新增 `public/web/practice.js`、`public/web/practice.css`、`tests/questionPracticeWeb.test.js`，接入 `public/web/index.html`、`public/web/app.js` 并修正 `p0-workspace.js` 资源文案。支持登录后公开目录、开始/续答、顺序作答、弱网同键重试、结果、错题/收藏/历史与撤权后清理敏感 DOM；Web+现有工作台专项 21/21，通过合成浏览器 smoke（空目录、三题型、键盘、刷新续答、结束历史），无真实账号或生产 DB。
+- Codex 阶段 4 管理发布开关（2026-10-21，完成并释放）：phase4_admin 修改 `admin/question-bank.html`、`admin/js/question-bank.js`、`admin/css/question-bank.css` 并新增 `tests/questionPracticeAdmin.test.js`；内部 ready 题集须有 `questionBankPublish` 实时权限的管理员确认后才可免费网页启用，界面展示实时可用状态、版本冲突和撤权。新旧管理页专项 14/14 与联合专项通过，JS 语法与差异检查通过。
+
+- Codex 阶段 3 后端（2026-10-21，完成并释放）：新增 `db/migrations/0018_question_bank.sql`、`services/questionBank.js`、`services/questionBankRights.js`、`routes/admin-question-bank.js`、`tests/questionBank.test.js`、`docs/assessment-question-bank/04_PHASE3_QUESTION_BANK.md`，接入 `db/migrate.js`、`server.js`、`utils/adminPermissions.js`、`tests/all.test.js`、`tests/databaseMigrations.test.js`，并更新本记录。实现严格单选/多选/判断 DTO、逻辑题与不可变修订、原创/PDF 来源及媒体元数据、内容/权益独立审核和幂等 CAS、固定修订顺序内部题集及逐题发布闸门。DB 触发器保护修订与 ready 题集不变性，动态 ready/use 复查撤权、到期与来源权利；PDF 相同 SHA 不跨来源授权，图片尚无安全交付能力时整题阻断。迁移/后端/UI 联合专项最终 33/33、0 失败；最终全量 `npm test` 为 633 项、631 通过/0 失败/2 项既有 Windows 跳过；`git diff --check` 通过。保留现有微信与阶段 1/2 未提交文件；未接生产库/真实 PDF、未提交推送部署、不开放学生 API。
+- Codex 阶段 3 管理页（2026-10-21，完成并释放）：phase3_admin 新增 `admin/question-bank.html`、`admin/js/question-bank.js`、`admin/css/question-bank.css`、`tests/questionBankAdmin.test.js`，接入 `admin/js/common.js`；提供人工录题、修订、两类审核、题集编排的内部页面。其专属 7/7 与联合专项通过，`node --check`、`git diff --check` 通过。双方未交叉覆盖文件。
+
+- Codex 阶段 2 后端（2026-10-21，已完成并释放）：新增 `db/migrations/0017_question_asset_governance.sql`、`services/questionAssetRights.js`、`services/questionAssetGovernance.js`、`routes/admin-question-asset-governance.js`、`tests/questionAssetGovernance.test.js`、`docs/assessment-question-bank/03_PHASE2_GOVERNANCE.md`，并接入 `server.js`、`utils/adminPermissions.js`、`tests/all.test.js`、`tests/databaseMigrations.test.js`。来源级操作授权、独立权利/内容审核、分页审计、实时账号权限与撤权/到期/未来生效日检查均按默认拒绝实现；内容审核以稳定请求键及所见最新审核 ID 防止旧重试覆盖后续驳回；阶段 1 校验/扫描 pending 仍拦截内容通过与发布。治理后端专项 9/9、迁移 16/16、联合后台专项 23/23、全量 `npm test` 616 项中 614 通过/0 失败/2 项既有 Windows 跳过；`git diff --check` 通过。未改微信既有脏文件、真实数据库或生产配置；未提交推送，文件占用已释放。
+
+- Codex 阶段 2 后台审核页（2026-10-21，已完成并释放）：phase2_admin 新增 `admin/question-governance.html`、`admin/js/question-governance.js`、`admin/css/question-governance.css`、`tests/questionGovernanceAdmin.test.js`，并接入 `admin/js/common.js`。提供来源列表/详情、权利声明、独立审核和历史分页；按同一声明展示免费/商业组合覆盖，修复旧历史分页请求覆盖新状态；内容审核网络失败重试复用请求键，409 旧版本刷新后要求重新提交。专属 14/14、联合 23/23、全量回归通过；未提交推送，文件占用已释放。
+
+- Codex 阶段 1A 收尾（2026-10-21，已完成并释放）：调整 `services/questionAssets.js`、`services/questionAssetStore.js`、`routes/admin-question-assets.js`、`utils/adminPermissions.js`、`tests/questionAssets.test.js`、`tests/all.test.js`、`docs/assessment-question-bank/02_PHASE1A_BACKEND.md` 与本记录。修复同一来源并发上传覆盖资产，HTTP 内仅做有界 PDF 头尾预检与异步流式 SHA-256，深验/扫描继续待处理；修复管理员权限路径查询串和大小写绕过、非法 ID 上传临时文件泄漏、中文文件名编码、关闭批次后的失败事件。阶段 1A 与 1B 专项合计 26/26，迁移检查 15/15，全量 588 项中 586 通过、0 失败、2 项既有跳过；JS 语法及 `git diff --check` 通过。未提交推送，文件占用已释放。
+
+- Codex 阶段 1B 后台导入页（2026-10-21，已完成并释放）：占用并调整 `admin/js/common.js`，新增 `admin/question-assets.html`、`admin/js/question-assets.js`、`admin/css/question-assets.css`、`tests/questionAssetsAdmin.test.js`；管理员专属页面只接阶段 1A 的批次、来源、隔离上传与状态接口。独立复核后修复跨批次异步上传/重试覆盖当前提示的问题，并让不在首批分页中的新建或深链接批次持续显示在侧栏。专属测试 10/10、JS 语法与 `git diff --check` 通过；未提交推送，文件占用已释放。
+
+- Codex 阶段 1A 加固（2026-10-20，已完成并释放）：调整 `.gitignore`、`.env.example`、`db/migrations/0016_private_pdf_assets.sql`、`services/questionAssetStore.js`、`services/questionAssets.js`、`routes/admin-question-assets.js`、`server.js`、`tests/questionAssets.test.js`、新增合成的 `tests/fixtures/question-valid.pdf`、`tests/databaseMigrations.test.js`、`docs/assessment-question-bank/02_PHASE1A_BACKEND.md` 与本记录。修复新 router 拦截原测评管理接口的问题；增加目录双向交叠与 junction 拒绝、真实 PDF 解析、旧文件完整性校验、分页和批次幂等、临时区配额与残留清理。专项 16/16、迁移 15/15、全量 576 项中 574 通过、0 失败、2 项既有跳过；JS 语法与 `git diff --check` 通过。生产导入仍关闭，未接入 COS、扫描或真实 PDF；未提交推送，文件占用已释放。
+
+- Codex 阶段 1A（2026-10-20，已完成并释放）：调整 `.gitignore`、`.env.example`、`db/migrations/0016_private_pdf_assets.sql`、`services/questionAssetStore.js`、`services/questionAssets.js`、`routes/admin-question-assets.js`、`server.js`、`utils/adminPermissions.js`、`tests/questionAssets.test.js`、`tests/databaseMigrations.test.js`、`tests/all.test.js`、`docs/assessment-question-bank/02_PHASE1A_BACKEND.md` 与本记录。完成私有 PDF 批次、来源、SHA-256 去重、失败重试和独立管理员权限。上传与迁移风险已用隔离测试验证：专项 7/7、`npm run check:db-migrations` 15/15、`npm test` 567 项中 565 通过、0 失败、2 项既有跳过，`git diff --check` 通过。私有本地导入需显式开关，生产始终关闭；未动支付、会员、真实库、生产配置或真实 PDF。文件占用已释放。
+
+- Codex（2026-10-20，微信 AI 与搜一搜收录优化，已完成并释放）：在 `miniprogram/app.json` 声明现有岗位、校招、面经三套只读 Skill 的独立分包及页面元数据；`miniprogram/sitemap.json` 的公司详情仅要求真实入口使用的 `id`，同时移出依赖本机缓存或缺少独立内容的资讯详情、题目详情、机构对比、空搜索页；`miniprogram/page-meta.json` 同步调整可推荐页面及参数；更新 `docs/WECHAT_PAGE_CONTENT_ACCESS_CN.md`。`node scripts/check-miniprogram.js` 通过（媒体197.1KB、主包1.11MB、skills 0.09MB），`git diff --check` 通过；`npm run check:miniprogram` 首次受 Windows 内存不足影响未启动 Node，随后用同一检查脚本直接执行成功。未运行微信 AI 平台评测、真机或正式版本的实际收录检查；未操作微信后台、上传或发布。
 
 - Codex（2026-10-20，消息通知页视觉与分类优化，已完成并释放）：调整 `miniprogram/package-user/pages/messages/messages.{js,wxml,wxss}`、`tests/profileDetailPages.test.js` 与本记录。顶部改为未读摘要与“全部已读”，四分类保持完整点击区域；白色消息卡分层展示类别、日期、标题、完整正文和可跳转状态，空状态与页面背景统一。支付消息计入系统分类，仅展示层清理已知接口错误前缀，原始消息与已读/跳转行为不变。页面与导航专项 31/31、`check:miniprogram`、JS 语法及差异格式检查通过；未在微信开发者工具或真机预览，未上传或发布，未改支付、后端通知或生产数据。
 

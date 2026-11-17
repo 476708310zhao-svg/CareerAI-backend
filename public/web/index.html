@@ -7,8 +7,10 @@
   <title>职引 · 求职工作台</title>
   <link rel="stylesheet" href="/web/styles.css">
   <link rel="stylesheet" href="/web/applications.css">
+  <link rel="stylesheet" href="/web/practice.css">
 </head>
 <body>
+  <a class="skip-link" href="#main-content">跳转到主要内容</a>
   <div id="auth-view" class="auth-view">
     <div class="auth-card">
       <div class="brand-mark">职引</div>
@@ -29,13 +31,14 @@
         <button class="nav-item" data-view="applications">申请管线</button>
         <button class="nav-item" data-view="jobs">职位</button>
         <button class="nav-item" data-view="resources">资源中心</button>
+        <button class="nav-item" data-view="practice">在线刷题</button>
       </nav>
       <div class="sidebar-bottom">
         <button id="global-ai" class="ai-entry">✦ 问 AI 专家</button>
         <button id="logout-button" class="nav-item">退出登录</button>
       </div>
     </aside>
-    <main class="main-content">
+    <main id="main-content" class="main-content">
       <header class="topbar">
         <div><p class="eyebrow">CAREERAI</p><h2 id="page-title">今天，先处理最重要的一项</h2></div>
         <div class="user-chip"><span id="user-name">求职者</span><span class="status-dot"></span></div>
@@ -45,6 +48,7 @@
       <section id="applications-view" class="page-view hidden"></section>
       <section id="jobs-view" class="page-view hidden"></section>
       <section id="resources-view" class="page-view hidden"></section>
+      <section id="practice-view" class="page-view hidden" aria-label="在线刷题"></section>
     </main>
   </div>
 
@@ -101,6 +105,7 @@
     <p id="manual-message" role="alert"></p><div class="dialog-actions"><button id="manual-cancel" type="button" class="mini-button">取消</button><button type="submit" class="primary-button">加入准备中</button></div></form></dialog>
   <script src="/web/ai-expert.js" defer></script>
   <script src="/web/p0-workspace.js" defer></script>
+  <script src="/web/practice.js" defer></script>
   <script src="/web/app.js" defer></script>
 </body>
 </html>

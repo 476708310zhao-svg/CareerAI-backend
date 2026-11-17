@@ -1,0 +1,60 @@
+<view class="practice-page">
+  <view class="summary" wx:if="{{session}}">
+    <text class="summary-title">{{session.setTitle}}</text>
+    <text class="summary-meta">已答 {{session.answered}} / {{session.total}} 题 · 正确 {{session.correctCount}} 题</text>
+  </view>
+  <view class="state" wx:if="{{loading}}">正在核对练习进度…</view>
+  <view class="state error" wx:elif="{{error || unavailable}}" aria-role="alert">
+    <text>{{error || '题集当前不可用，请返回刷新。'}}</text>
+    <button class="secondary-button" wx:if="{{!unavailable && loggedIn}}" bindtap="load">重新加载</button>
+    <button class="secondary-button" wx:if="{{!loggedIn}}" bindtap="openLogin">前往登录</button>
+    <button class="secondary-button" bindtap="openHome">返回题集</button>
+  </view>
+  <view class="state" wx:elif="{{!loggedIn}}"><text>请先登录，再继续练习。</text><button class="primary-button" bindtap="openLogin">前往登录</button></view>
+  <block wx:else>
+    <view class="question-card" wx:if="{{question}}">
+      <view class="question-head"><text class="progress">第 {{position}} / {{session.total}} 题</text><text class="type">{{question.type === 'single' ? '单选' : question.type === 'multiple' ? '多选' : '判断'}}</text></view>
+      <text class="stem">{{question.stem}}</text>
+      <view class="choices">
+        <button class="choice {{item.selected ? 'selected' : ''}}" wx:for="{{choices}}" wx:key="id" data-id="{{item.id}}" bindtap="selectChoice" disabled="{{!!submission || submitting || pendingSubmission}}" aria-label="{{item.id}}，{{item.text}}{{item.selected ? '，已选择' : ''}}">
+          <text class="choice-mark">{{question.type === 'boolean' ? '' : item.id}}</text><text class="choice-text">{{item.text}}</text><text class="choice-check" wx:if="{{item.selected}}">已选</text>
+        </button>
+      </view>
+      <view class="result" wx:if="{{submission}}" aria-role="status">
+        <text class="result-title">{{submission.isCorrect ? '回答正确' : '本题未答对'}}</text>
+        <text class="result-line">你的答案：{{selectedAnswerText}}</text>
+        <text class="result-line">正确答案：{{resultAnswerText}}</text>
+        <text class="result-line" wx:if="{{submission.explanation}}">解析：{{submission.explanation}}</text>
+      </view>
+      <text class="submit-error" wx:if="{{submitError}}" aria-role="alert">{{submitError}}</text>
+      <view class="actions" wx:if="{{!submission}}">
+        <button class="primary-button" bindtap="submitAnswer" loading="{{submitting}}" disabled="{{submitting}}">{{pendingSubmission ? '重试提交' : '正式提交答案'}}</button>
+        <button class="secondary-button" data-skip="1" bindtap="submitAnswer" disabled="{{submitting || pendingSubmission}}">跳过并计错</button>
+      </view>
+      <view class="actions" wx:else>
+        <button class="primary-button" wx:if="{{session.status === 'active' && hasNext}}" bindtap="nextQuestion">下一题</button>
+        <button class="secondary-button" bindtap="toggleFavorite">{{favorite ? '取消收藏' : '收藏本题'}}</button>
+      </view>
+    </view>
+    <view class="complete" wx:if="{{session && !question}}">
+      <text class="complete-title">{{session.status === 'finished' ? '练习已结束' : '题目已全部作答'}}</text>
+      <text class="complete-note">本次已答 {{session.answered}} 题，正确 {{session.correctCount}} 题。历史与错题可在题集页查看。</text>
+    </view>
+    <view class="report" wx:if="{{report}}" aria-role="region" aria-label="练习分析报告">
+      <text class="report-title">练习分析报告</text>
+      <text class="report-score">{{report.accuracyPercent}}% <text class="report-score-label">已答题正确率</text></text>
+      <text class="report-meta">共 {{report.total}} 题 · 已答 {{report.answered}} 题 · 答对 {{report.correct}} 题 · 答错 {{report.incorrect}} 题</text>
+      <text class="report-meta" wx:if="{{report.skipped}}">其中跳过 {{report.skipped}} 题，已计入答错</text>
+      <text class="report-meta" wx:if="{{report.unanswered}}">未作答 {{report.unanswered}} 题</text>
+      <view class="report-types" wx:if="{{report.byType.length}}">
+        <view class="report-type" wx:for="{{report.byType}}" wx:key="type"><text>{{item.label}}</text><text>答对 {{item.correct}} / 已答 {{item.answered}}</text></view>
+      </view>
+      <text class="report-tip" wx:if="{{report.focusType}}">建议先复习{{report.focusType}}错题，再回到题集练习。</text>
+      <text class="report-tip" wx:else>已答题全部正确，可以继续练习其他题集。</text>
+    </view>
+    <view class="report-error" wx:if="{{reportError && session && (session.status === 'finished' || session.answered === session.total)}}">报告暂时无法加载：{{reportError}}<button class="secondary-button" bindtap="retryReport">重试加载报告</button></view>
+    <button class="secondary-button finish" wx:if="{{session && session.status === 'active'}}" bindtap="finish" loading="{{finishing}}" disabled="{{finishing}}">结束本次练习</button>
+    <button class="text-button" bindtap="openHome">返回在线刷题</button>
+  </block>
+  <view class="bottom-space"></view>
+</view>

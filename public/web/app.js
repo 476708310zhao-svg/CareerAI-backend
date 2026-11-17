@@ -15,7 +15,7 @@
     if (token !== state.token) throw new Error('登录状态已变化，请重新打开页面');
     if (response.status === 401 && token) logout();
     if (!response.ok || payload.code === -1) {
-      throw Object.assign(new Error(payload.message || '请求失败，请稍后重试'), {status:response.status, data:payload.data});
+      throw Object.assign(new Error(payload.message || '请求失败，请稍后重试'), {status:response.status, code:payload.code, data:payload.data});
     }
     return payload.data ?? payload;
   }
@@ -25,6 +25,7 @@
     document.querySelectorAll('.page-view').forEach(view => view.classList.toggle('hidden', view.id !== 'dashboard-view'));
     document.querySelectorAll('.nav-item[data-view]').forEach(view => view.classList.toggle('active', view.dataset.view === 'dashboard'));
     $('page-title').textContent = '今天，先处理最重要的一项';
+    if (window.location.hash === '#practice') showView('practice');
   }
   function showMessage(id, message) { $(id).textContent = message || ''; }
   function toast(message) { const el = $('toast'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2400); }
@@ -39,6 +40,7 @@
   function openApplication(id) { return workbench.open(id); }
   const expert = window.createAIExpert({request,offerSave:offerAISave});
   const p0 = window.createP0Workspace({request,toast,openApplication,showView});
+  const practice = window.createQuestionPractice({request,toast,getIdentity:() => state.token});
   function openAI(applicationId) { return expert.open(applicationId); }
   function nextAISaveOpenVersion() {
     state.aiSaveOpenVersion = window.AISaveModel.nextOpenVersion(state.aiSaveOpenVersion);
@@ -128,7 +130,7 @@
     });
     actions.appendChild(button); $('ai-messages').appendChild(actions);
   }
-  function showView(view) { document.querySelectorAll('.page-view').forEach(el => el.classList.add('hidden')); $(`${view}-view`).classList.remove('hidden'); document.querySelectorAll('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === view)); const titles = {dashboard:'今天，先处理最重要的一项',applications:'申请管线',jobs:'职位',resources:'资源中心'}; $('page-title').textContent = titles[view] || '求职工作台'; if (view === 'applications') loadApplications(); if (view === 'dashboard') loadDashboard(); if (view === 'jobs') renderJobs(); if (view === 'resources') p0.resources(); }
+  function showView(view) { if (view !== 'practice') practice.reset(); document.querySelectorAll('.page-view').forEach(el => el.classList.add('hidden')); $(`${view}-view`).classList.remove('hidden'); document.querySelectorAll('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === view)); const titles = {dashboard:'今天，先处理最重要的一项',applications:'申请管线',jobs:'职位',resources:'资源中心',practice:'在线刷题'}; $('page-title').textContent = titles[view] || '求职工作台'; window.location.hash = view === 'practice' ? 'practice' : ''; if (view === 'applications') loadApplications(); if (view === 'dashboard') loadDashboard(); if (view === 'jobs') renderJobs(); if (view === 'resources') { p0.resources(); practice.addResourceEntry(); } if (view === 'practice') practice.open(); }
   async function renderJobs() {
     const view = $('jobs-view');
     view.innerHTML = '<div class="card"><p class="eyebrow">JOBS</p><h3>找一个值得推进的岗位</h3><form id="web-job-search" class="job-search"><input name="keyword" placeholder="搜索公司或岗位"><button class="mini-button primary" type="submit">搜索</button></form><div id="web-job-results"><p class="muted">正在读取岗位…</p></div></div>';
@@ -150,7 +152,7 @@
     load('');
   }
   function logout() {
-    expert.reset(); p0.reset();
+    expert.reset(); p0.reset(); practice.reset();
     state.token = null; state.user = null; state.board = null; state.activeApplication = null; state.aiContext = null; state.aiConversation = null; state.aiMessages = []; state.aiRetry = null; state.aiOpenVersion += 1;
     closeAISaveDialog(); state.aiSaveActionId = null; state.aiSaveApplicationId = null; state.aiSaveApplication = null; state.aiSaveApplications = []; $('ai-save-form').reset(); $('ai-save-message').textContent=''; $('user-name').textContent='求职者';
     workbench.reset(); localStorage.removeItem(TOKEN_KEY);

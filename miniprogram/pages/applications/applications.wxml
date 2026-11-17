@@ -10,6 +10,7 @@
 
     <view class="summary-card">
       <view class="summary-head"><view><text class="summary-title">申请概览</text><text class="summary-label">{{activeCount}} 条正在推进</text></view><text class="summary-state">共 {{total}} 条</text></view>
+      <text class="submission-guidance">这里显示手动维护的申请状态；是否完成企业官网最终提交，请进入申请详情查看本人确认记录。</text>
       <view class="funnel" aria-label="申请阶段概览">
         <view wx:for="{{funnel}}" wx:key="key" wx:if="{{index < 3}}" class="funnel-item tone-{{index}}"><text class="funnel-label"><text class="funnel-icon">{{index===0?'▤':(index===1?'◷':'♙')}}</text>{{item.label}}</text><text class="funnel-count">{{item.count}}</text></view>
       </view>

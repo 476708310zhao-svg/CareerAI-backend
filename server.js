@@ -9,6 +9,7 @@ const { optionalAuth } = require('./middleware/auth');
 const { requireFeature } = require('./utils/featureFlags');
 const { buildRuntimeReadiness } = require('./utils/runtimeReadiness');
 const db = require('./db/database');
+const { isAllowedBrowserExtensionOrigin } = require('./utils/browserExtensionOrigin');
 
 const app = express();
 const PORT = process.env.PORT || 4400;
@@ -26,14 +27,20 @@ const allowedOrigins = rawOrigins.split(',').map(s => s.trim()).filter(Boolean);
 if (allowedOrigins.length === 0) {
   console.warn('[CORS] ALLOWED_ORIGIN 未配置，跨域请求将被拒绝。');
 }
-app.use(cors({
-  origin: (origin, callback) => {
-    // 小程序/服务端请求无 origin，直接放行
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error(`CORS: origin ${origin} not allowed`));
-  },
-  credentials: true
+app.use(cors((req, callback) => {
+  const origin = req.get('Origin');
+  const requestOrigin = `${req.protocol}://${req.get('host')}`;
+  // The extension can call only the one-time grant consumer. Bearer grants are
+  // short-lived and single-use; no cookies or credentials are exposed to it.
+  if (req.path === '/api/v4/browser-extension/consume'
+    && isAllowedBrowserExtensionOrigin(origin, process.env.BROWSER_EXTENSION_ORIGIN)) {
+    return callback(null, { origin, credentials: false });
+  }
+  // 浏览器访问当前服务自身时属于同源请求，不依赖跨域白名单。
+  if (!origin || origin === requestOrigin || allowedOrigins.includes(origin)) {
+    return callback(null, { origin: origin || false, credentials: true });
+  }
+  callback(new Error(`CORS: origin ${origin} not allowed`));
 }));
 // 安全响应头
 app.use((req, res, next) => {
@@ -128,6 +135,7 @@ app.use('/api/share',        shareRoutes);
 app.use('/api/career-assets', careerAssetRoutes);
 app.use('/api/analytics',    analyticsRoutes);
 app.use('/api/v4',           v4Routes);
+app.use('/api/v4/question-practice', require('./routes/question-practice'));
 app.use('/api/v4',           require('./routes/assessment'));
 app.use('/api/jobs',         requireRecruitment, jobRoutes);
 app.use('/api/applications', applicationRoutes);
@@ -160,6 +168,12 @@ app.use('/api/aggregate',    requireRecruitment, aggregateRoutes);
 app.use('/api/oa',           oaRoutes);
 app.use('/api/apply',        requireRecruitment, applyRoutes);
 app.use('/admin/api/v4',    v4AdminRoutes);
+app.use('/admin/api/v4/manual-services', require('./routes/admin-manual-services'));
+app.use('/admin/api/v4/question-assets', require('./routes/admin-question-assets'));
+app.use('/admin/api/v4/question-asset-governance', require('./routes/admin-question-asset-governance'));
+app.use('/admin/api/v4/question-bank', require('./routes/admin-question-bank'));
+app.use('/admin/api/v4/question-parsing', require('./routes/admin-question-parsing'));
+app.use('/admin/api/v4/question-practice', require('./routes/admin-question-practice'));
 app.use('/admin/api/v4',    require('./routes/admin-assessment'));
 app.use('/admin',           adminRoutes);
 

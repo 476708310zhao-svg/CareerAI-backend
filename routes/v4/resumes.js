@@ -3,6 +3,7 @@ const db = require('../../db/database');
 const { authMiddleware } = require('../../middleware/auth');
 const { consumeDailyLimit, getQuotaStatus } = require('../../utils/aiQuota');
 const center = require('../../services/v4ResumeCenter');
+const readiness = require('../../services/v4ApplicationReadiness');
 const analytics = require('../../services/v4Analytics');
 const { applicationRefs, canonicalJobId, mergeCoreRefs, withCoreRefs } = require('../../utils/coreEntityRefs');
 
@@ -270,7 +271,10 @@ router.post('/:id/links', (req, res) => {
   if (!jobId && !applicationId) return res.status(400).json({ code: -1, message: '目标岗位或申请记录至少填写一项' });
   db.prepare('INSERT OR IGNORE INTO resume_job_links (resume_id, user_id, job_id, application_id) VALUES (?, ?, ?, ?)')
     .run(resume.id, req.user.userId, jobId, applicationId);
-  if (applicationId) db.prepare('UPDATE applications SET resume_id=?, resume_version_id=? WHERE id=? AND user_id=?')
+  // A link expresses relevance, not the user's choice of a version for this application.
+  // Before migration 0025 keep the prior behavior for existing clients; afterward
+  // only the CAS-protected /applications/:id/resume-selection endpoint may bind it.
+  if (applicationId && !readiness.schemaAvailable()) db.prepare('UPDATE applications SET resume_id=?, resume_version_id=? WHERE id=? AND user_id=?')
     .run(resume.id, center.ensureCurrentVersion(req.user.userId, resume.id).version.id, applicationId, req.user.userId);
   const links = db.prepare('SELECT id, job_id AS jobId, application_id AS applicationId, created_at AS createdAt FROM resume_job_links WHERE resume_id=? AND user_id=?').all(resume.id, req.user.userId)
     .map(link => {

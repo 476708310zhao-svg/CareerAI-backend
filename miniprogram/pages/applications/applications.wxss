@@ -26,6 +26,7 @@ page{background:#f4f8ff;color:#11182c}
 .summary-card{margin-top:20rpx;padding:25rpx 28rpx 22rpx;border:1rpx solid #e1eaf7;border-radius:28rpx;background:rgba(255,255,255,.96);box-shadow:0 14rpx 38rpx rgba(64,102,170,.045)}
 .summary-head{display:flex;align-items:center;justify-content:space-between}
 .summary-title{font-size:29rpx;font-weight:850}
+.submission-guidance{display:block;margin-top:12rpx;color:#667085;font-size:24rpx;line-height:1.5}
 .summary-label,.summary-state{display:none}
 .funnel{display:flex;margin-top:25rpx}
 .funnel-item{display:flex;align-items:center;flex:1;flex-direction:column;min-width:0;border-right:1rpx solid #dfe7f4}

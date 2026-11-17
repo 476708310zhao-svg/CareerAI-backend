@@ -12,6 +12,77 @@ function probe(scenario) {
   return JSON.parse(line.slice('PROBE_RESULT:'.length));
 }
 
+test('global sampling eventually includes every core student market and explicit market plans stay distinct', () => {
+  const geography = require('../utils/jobGeography');
+  const markets = new Set();
+  for (let day = 0; day < 7; day++) {
+    geography.globalSampleCountries(Date.UTC(2026, 9, 1) + day * 86400000)
+      .forEach(country => markets.add(country));
+  }
+  for (const country of ['us', 'gb', 'cn', 'hk', 'ca']) assert.ok(markets.has(country), country);
+  assert.deepEqual(geography.marketSources('hk'), ['jsearch', 'hk_csb']);
+  assert.deepEqual(geography.marketSources('cn'), ['jsearch', 'cn_official']);
+  assert.deepEqual(geography.marketSources('gb'), ['jsearch', 'adzuna']);
+});
+
+test('China official pilot exposes 20 entrances, live jobs, source status and both detail APIs', () => {
+  const result = probe('cn-official');
+  assert.equal(result.directory.total, 20);
+  assert.equal(result.directory.auto, 10);
+  assert.ok(result.aggregate.ids.includes('official_landor_912345'));
+  assert.equal(result.aggregate.official.status, 'ok');
+  assert.equal(result.aggregate.official.count, 1);
+  assert.equal(result.detail.id, 'official_landor_912345');
+  assert.equal(result.detail.sourceUrl, 'https://job-boards.greenhouse.io/landor/jobs/912345');
+  assert.equal(result.detail.publishedAt, '');
+  assert.equal(result.webDetail.id, 'official_landor_912345');
+  assert.equal(result.webDetail.source, 'cn_official');
+  assert.equal(result.hiddenDetailStatus, 404);
+});
+
+test('Hong Kong public vacancies keep official evidence, source counts, country and detail identity', () => {
+  const result = probe('hong-kong');
+  assert.deepEqual(result.hongKong.countries, ['hk']);
+  assert.deepEqual(result.hongKong.jobs.map(job => job.id), ['hkcsb_7001', 'hkcsb_7002']);
+  assert.match(result.hongKong.jobs[0].description, /Entry requirements: Bachelor degree and SQL experience/);
+  assert.equal(result.hongKong.jobs[0].salary, 'HK$30,000 per month');
+  assert.equal(result.hongKong.jobs[0].apply, 'https://www.csb.gov.hk/apply/7001');
+  assert.equal(result.hongKong.jobs[1].apply, '');
+  assert.equal(result.hongKong.jobs[1].salary, '');
+  assert.equal(result.hongKong.degraded, false);
+  assert.ok(result.hongKong.sourceStatus.some(item => item.source === 'hk_csb' && item.country === 'hk'
+    && item.status === 'ok' && item.count === 2));
+  assert.deepEqual(result.empty.jobs, []);
+  assert.equal(result.empty.degraded, false);
+  assert.ok(result.empty.sourceStatus.some(item => item.source === 'hk_csb' && item.status === 'empty'));
+  assert.deepEqual(result.china.countries, ['cn']);
+  assert.equal(result.china.sourceStatus.some(item => item.source === 'hk_csb'), false);
+  assert.deepEqual(result.global.countries, ['cn', 'hk']);
+  assert.ok(result.global.jobs.includes('hkcsb_7001'));
+  assert.equal(result.detail.id, 'hkcsb_7001');
+  assert.equal(result.detail.sourceReference, '7001');
+  assert.equal(result.skillDetail.source, 'hk_csb');
+  assert.equal(result.skillDetail.id, 'hkcsb_7001');
+});
+
+test('Hong Kong source matches city words and internship type as well as role text', () => {
+  const adapter = require('../services/hkGovJobs');
+  const feed = { common: [{ vacancies: [
+    { jobid: '7004', jobname: 'Data Analyst', jobnature: 'Internship',
+      duties: 'Analyse data', entreq: 'SQL', enddate: '2099-12-31 23:59' }
+  ] }] };
+  assert.deepEqual(adapter.searchVacancies(feed, 'data analyst internship in Hong Kong')
+    .map(job => job.job_id), ['hkcsb_7004']);
+});
+
+test('Hong Kong source failure is reported separately from a genuine empty search', () => {
+  const result = probe('hong-kong-outage');
+  assert.deepEqual(result.hongKong.jobs, []);
+  assert.equal(result.hongKong.degraded, true);
+  assert.ok(result.hongKong.sourceStatus.some(item => item.source === 'hk_csb'
+    && item.status === 'unavailable' && item.reason === 'upstream_error'));
+});
+
 for (const fixture of [
   { scenario: 'normal', countries: ['us', 'gb'], listCountries: ['us', 'gb'], total: 9 },
   { scenario: 'normal-with-japan', countries: ['jp', 'ae'], listCountries: ['ae'], total: 8 }
@@ -77,4 +148,54 @@ test('a slow country provider does not hold the map beyond its soft deadline', (
   assert.equal(result.map.source, 'live');
   assert.deepEqual(result.map.coverage.countriesWithResults, []);
   assert.ok(result.map.jobs.some(job => job.source === 'remoteok'));
+});
+
+test('JSearch country conflicts are excluded while missing countries inherit the requested market', () => {
+  const result = probe('country-mismatch');
+  const expected = [
+    { id: 'js_japan_name', countryCode: 'jp' },
+    { id: 'js_missing_country', countryCode: 'jp' }
+  ];
+  for (const stage of ['map', 'list', 'snapshot']) {
+    assert.deepEqual(result[stage], expected, `${stage} must use actual source country`);
+  }
+  assert.deepEqual(result.aggregate, expected.map(job => job.id));
+  assert.ok(result.calls.filter(call => call.source === 'jsearch').every(call => call.country === 'jp'));
+});
+
+test('JSearch UK country codes and display names resolve to canonical GB', () => {
+  const result = probe('country-alias');
+  const expected = ['js_uk_code', 'js_uk_english', 'js_uk_chinese'];
+  for (const stage of ['map', 'list', 'snapshot']) {
+    assert.deepEqual(result[stage].map(job => job.id), expected);
+    assert.ok(result[stage].every(job => job.countryCode === 'gb'));
+  }
+  assert.deepEqual(result.aggregate, expected);
+  assert.ok(result.calls.filter(call => call.source === 'jsearch').every(call => call.country === 'gb'));
+});
+
+test('explicit job deadlines survive Web list, detail, search and aggregate normalization', () => {
+  const result = probe('deadline');
+  const future = result.list.find(job => job.id === 'js_future');
+  const unknown = result.list.find(job => job.id === 'js_unknown');
+  assert.equal(future.deadline, result.futureDeadline);
+  assert.equal(future.freshness, 'fresh');
+  assert.equal(unknown.deadline, '');
+  assert.equal(unknown.freshness, 'fresh');
+  assert.equal(result.list.some(job => job.id === 'js_expired'), false);
+  assert.deepEqual(result.detail, { deadline: result.futureDeadline, freshness: 'fresh' });
+  assert.deepEqual(result.unknownDetail, { deadline: '', freshness: 'fresh' });
+  for (const collection of [result.search, result.aggregate]) {
+    assert.equal(collection.find(job => job.id === 'js_future').deadline, result.futureDeadline);
+    assert.equal(collection.find(job => job.id === 'js_unknown').deadline, '');
+    assert.equal(collection.find(job => job.id === 'js_expired').deadline, result.expiredDeadline);
+    assert.equal(collection.find(job => job.id === 'js_expired').freshness, 'expired');
+  }
+  assert.equal(result.localList.find(job => job.id === '900001').deadline, result.futureDeadline);
+  assert.equal(result.localList.find(job => job.id === '900002').deadline, '');
+  assert.equal(result.localList.some(job => job.id === '900003'), false);
+  assert.deepEqual(result.localDetail, { deadline: result.futureDeadline, fallback: true });
+  assert.equal(result.localSearch.find(job => job.id === '900001').deadline, result.futureDeadline);
+  assert.equal(result.localSearch.find(job => job.id === '900002').deadline, '');
+  assert.deepEqual(result.legacyLocalDetail, { deadline: result.futureDeadline, fallback: true });
 });

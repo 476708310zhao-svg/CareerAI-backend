@@ -1,25 +1,8 @@
 const { request } = require('../utils/request.js');
 const { hasRecentJobId } = require('../utils/auth.js');
+const { visaFromDescription, salaryFromSource } = require('../utils/job-evidence.js');
 
 const DETAIL_PAGE = '/package-user/pages/job-detail/job-detail';
-
-function formatSalary(min, max, currency) {
-  if (!min && !max) return '';
-  const cur = currency || 'USD';
-  const toText = value => Math.round(Number(value)).toLocaleString();
-  if (min && max) return cur + ' ' + toText(min) + '-' + toText(max);
-  return cur + ' ' + toText(min || max) + '+';
-}
-
-function inferVisaTags(text) {
-  const value = String(text || '');
-  const tags = [];
-  if (/\bOPT\b/i.test(value)) tags.push('OPT');
-  if (/\bCPT\b/i.test(value)) tags.push('CPT');
-  if (/\bH[- ]?1B\b|sponsor(ship)?/i.test(value)) tags.push('H-1B');
-  if (/E-?Verify/i.test(value)) tags.push('E-Verify');
-  return tags;
-}
 
 function companyInitial(company) {
   const name = String(company || 'C').trim();
@@ -33,25 +16,27 @@ function shortDescription(text) {
 }
 
 function normalizeJSearchJob(job, jobId) {
-  const desc = [
-    job.job_description,
-    job.job_highlights && JSON.stringify(job.job_highlights)
-  ].filter(Boolean).join(' ');
-
+  const visaEvidence = visaFromDescription(job.job_description);
+  const salary = salaryFromSource(job);
   const id = String(job.job_id || jobId || '');
-  const company = job.employer_name || 'Company';
+  const company = job.employer_name || '公司未披露';
   return {
     jobId: id,
     title: job.job_title || '',
     company,
     companyInitial: companyInitial(company),
-    location: [job.job_city, job.job_state, job.job_country].filter(Boolean).join(', ') || 'Remote',
-    jobType: job.job_employment_type || 'Full-time',
-    visaTags: inferVisaTags(desc),
+    location: [job.job_city, job.job_state, job.job_country].filter(Boolean).join(', ')
+      || (job.job_is_remote === true ? 'Remote' : '地点未披露'),
+    jobType: job.job_employment_type || '类型未披露',
+    visaTags: visaEvidence.map(item => item.tag),
+    visaEvidence,
     updatedAt: job.job_posted_at_datetime_utc || '',
     description: shortDescription(job.job_description || ''),
-    salaryRange: formatSalary(job.job_min_salary, job.job_max_salary, job.job_salary_currency),
+    salaryRange: salary.text,
+    salaryEvidence: salary.source,
     applyUrl: job.job_apply_link || '',
+    sourceUrl: job.job_source_url || '',
+    sourceReference: job.job_source_reference || '',
     companyLogo: job.employer_logo || '',
     source: job._source || (job._local ? 'local' : ''),
     detailPage: DETAIL_PAGE + '?id=' + encodeURIComponent(id)
@@ -60,20 +45,25 @@ function normalizeJSearchJob(job, jobId) {
 
 function normalizeWebJob(job, jobId) {
   const desc = job.description || '';
+  const visaEvidence = visaFromDescription(desc);
   const id = String(job.id || job.jobId || jobId || '');
-  const company = job.company || 'Company';
+  const company = job.company || '公司未披露';
   return {
     jobId: id,
     title: job.title || '',
     company,
     companyInitial: companyInitial(company),
-    location: job.location || job.city || 'Remote',
-    jobType: job.jobType || job.type || 'Full-time',
-    visaTags: Array.isArray(job.tags) && job.tags.length ? job.tags.filter(tag => /OPT|CPT|H-1B|E-Verify/i.test(tag)) : inferVisaTags(desc),
+    location: job.location || job.city || '地点未披露',
+    jobType: job.jobType || job.type || '类型未披露',
+    visaTags: visaEvidence.map(item => item.tag),
+    visaEvidence,
     updatedAt: job.postedAt || job.updatedAt || '',
     description: shortDescription(desc),
     salaryRange: job.salary || job.salaryRange || '',
+    salaryEvidence: job.salary || job.salaryRange ? '岗位来源薪资字段' : '',
     applyUrl: job.applyUrl || '',
+    sourceUrl: job.sourceUrl || '',
+    sourceReference: job.sourceReference || '',
     companyLogo: job.companyLogo || job.logo || '',
     source: job.source || '',
     detailPage: DETAIL_PAGE + '?id=' + encodeURIComponent(id)
@@ -130,12 +120,25 @@ function successResult(job) {
   };
 }
 
+function recentSearchSnapshot(jobId) {
+  if (typeof wx === 'undefined' || !wx || !wx.getStorageSync) return null;
+  try {
+    const item = wx.getStorageSync('jobDetailSnapshot_' + jobId);
+    if (!item || String(item.id) !== jobId || !item.skillSnapshotAt
+      || Date.now() - Number(item.skillSnapshotAt) > 30 * 60 * 1000
+      || !item.description) return null;
+    return normalizeWebJob(item, jobId);
+  } catch (error) { return null; }
+}
+
 function getJobDetail(input) {
   const jobId = String((input && input.jobId) || '').trim();
   if (!jobId) return Promise.resolve(errorResult('缺少 jobId，请先从岗位列表中选择一个真实岗位。'));
   if (!hasRecentJobId(jobId)) {
     return Promise.resolve(errorResult('这个 jobId 不在最近一次 searchJobs 返回结果中，请先重新搜索并从列表中选择岗位。'));
   }
+  const snapshot = recentSearchSnapshot(jobId);
+  if (snapshot) return Promise.resolve(successResult(snapshot));
 
   return request({
     path: '/api/jobs/detail',

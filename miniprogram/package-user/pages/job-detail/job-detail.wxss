@@ -935,6 +935,39 @@ page {
   font-weight: 850;
 }
 
+.match-evidence-item {
+  margin-top: 14rpx;
+  padding: 16rpx;
+  border-radius: 14rpx;
+  background: #f5f8ff;
+}
+
+.match-evidence-label,
+.match-evidence-quote,
+.match-evidence-note {
+  display: block;
+  line-height: 1.55;
+}
+
+.match-evidence-label {
+  color: #2458d3;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.match-evidence-quote {
+  margin-top: 8rpx;
+  color: var(--detail-body);
+  font-size: 22rpx;
+  word-break: break-word;
+}
+
+.match-evidence-note {
+  margin-top: 8rpx;
+  color: #64748b;
+  font-size: 21rpx;
+}
+
 .match-chip-row {
   display: flex;
   flex-wrap: wrap;
@@ -1178,3 +1211,7 @@ page {
 .trust-risks{margin-top:14rpx}.trust-risk{display:block;margin-top:6rpx;color:#b42318;font-size:21rpx;line-height:1.5}
 .trust-recommendation{display:block;margin-top:16rpx;color:#344054;font-size:23rpx;font-weight:750;line-height:1.5}.trust-notice{display:block;margin-top:10rpx;color:#667085;font-size:20rpx;line-height:1.5}
 .trust-actions{margin-top:18rpx}.trust-button{flex:1;padding:18rpx 12rpx;border-radius:16rpx;background:#315ff4;color:#fff;text-align:center;font-size:23rpx;font-weight:750}.trust-button.secondary{background:#e9edfa;color:#354fc4}
+
+.application-hold-card{display:flex;flex-direction:column;gap:10rpx;margin:20rpx 24rpx;padding:22rpx;border:1rpx solid #f2c9bb;border-radius:18rpx;background:#fff7f2}
+.application-hold-title{color:#9a3412;font-size:27rpx;font-weight:800}
+.application-hold-notice{color:#7c3b27;font-size:23rpx;line-height:1.55}

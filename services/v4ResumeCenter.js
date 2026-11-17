@@ -1,6 +1,7 @@
 const db = require('../db/database');
 const membership = require('./v4Membership');
 const aiRuntime = require('./v4AiRuntime');
+const readiness = require('./v4ApplicationReadiness');
 
 const RESUME_TYPES = ['sde', 'ai_engineer', 'data', 'quant', 'general'];
 const EXPERIENCE_TYPES = ['education', 'experience', 'project', 'skill', 'award'];
@@ -406,7 +407,9 @@ function confirmChangeSet({ userId, changeSetId, decisions = {}, manualContent }
       db.prepare("UPDATE resumes SET target_job_id=?, updated_at=datetime('now') WHERE id=? AND user_id=?")
         .run(row.job_id || '', row.resume_id, userId);
     }
-    if (row.application_id) {
+    // AI confirmation creates a new immutable resume version. It must not silently
+    // replace the version the user selected for an application after migration 0025.
+    if (row.application_id && !readiness.schemaAvailable()) {
       db.prepare("UPDATE applications SET resume_id=?, resume_version_id=?, updated_at=datetime('now') WHERE id=? AND user_id=?")
         .run(row.resume_id, String(version.id), row.application_id, userId);
     }

@@ -69,7 +69,7 @@ test('database migration baseline is recorded once and exposes status', () => wi
     assert.equal(status.applied.length, readMigrations().length);
     assert.equal(status.pending.length, 0);
     assert.match(status.applied[0].checksum, /^[a-f0-9]{64}$/);
-    assert.equal(status.applied.at(-1).version, '0015');
+    assert.equal(status.applied.at(-1).version, '0030');
     assert.equal(
       db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('ai_conversations','ai_conversation_turns')").pluck().get(),
       2
@@ -119,7 +119,7 @@ test('database migration baseline is recorded once and exposes status', () => wi
   }
 }));
 
-test('database migration upgrades an existing 0001-0006 database through 0015 exactly once', () => withTempDir(directory => {
+test('database migration upgrades an existing 0001-0006 database through 0027 exactly once', () => withTempDir(directory => {
   const legacyMigrationsDir = path.join(directory, 'migrations-through-0006');
   copyMigrationsThrough(legacyMigrationsDir, '0006');
 
@@ -132,10 +132,10 @@ test('database migration upgrades an existing 0001-0006 database through 0015 ex
     ]);
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0007', '0008', '0009', '0010', '0011', '0012', '0013', '0014', '0015']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0007', '0008', '0009', '0010', '0011', '0012', '0013', '0014', '0015', '0016', '0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030']);
     assert.equal(
       db.prepare('SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1').pluck().get(),
-      '0015'
+      '0030'
     );
     assert.equal(
       db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('ai_conversations','ai_conversation_turns')").pluck().get(),
@@ -159,7 +159,7 @@ test('database migration upgrades an existing 0001-0007 database with nullable b
     db.prepare('INSERT INTO application_history (id, application_id, user_id) VALUES (?, ?, ?)').run('1', '11', '21');
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0008', '0009', '0010', '0011', '0012', '0013', '0014', '0015']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0008', '0009', '0010', '0011', '0012', '0013', '0014', '0015', '0016', '0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030']);
     assert.deepEqual(
       db.prepare('SELECT batch_id AS batchId, batch_size AS batchSize FROM application_history WHERE id=?').get('1'),
       { batchId: null, batchSize: null }
@@ -197,7 +197,7 @@ test('database migration upgrades an existing 0001-0008 AI conversation schema t
     `).run(conversationId, 'legacy-request', 'Legacy question', 'Legacy answer', 'completed').lastInsertRowid;
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0009', '0010', '0011', '0012', '0013', '0014', '0015']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0009', '0010', '0011', '0012', '0013', '0014', '0015', '0016', '0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030']);
     assert.deepEqual(
       db.prepare(`
         SELECT request_fingerprint AS requestFingerprint,
@@ -248,7 +248,7 @@ test('database migration upgrades an existing 0001-0009 database with an idempot
     assert.throws(() => assertAssistantConfirmationSchema(db), /migration 0010 is required/);
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0010', '0011', '0012', '0013', '0014', '0015']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0010', '0011', '0012', '0013', '0014', '0015', '0016', '0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030']);
     assert.doesNotThrow(() => assertAssistantConfirmationSchema(db));
     assert.deepEqual(
       db.prepare('PRAGMA foreign_key_list(ai_assistant_confirmations)').all()
@@ -322,7 +322,7 @@ test('database migration 0011 preserves material drafts and expands only the sup
     db.prepare("INSERT INTO sqlite_sequence(name,seq) VALUES ('interview_notebook',900),('ai_application_material_drafts',800)").run();
 
     const upgrade = applyPendingMigrations(db);
-    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0011', '0012', '0013', '0014', '0015']);
+    assert.deepEqual(upgrade.appliedNow.map(migration => migration.version), ['0011', '0012', '0013', '0014', '0015', '0016', '0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030']);
     assert.deepEqual(
       db.prepare("SELECT name,seq FROM sqlite_sequence WHERE name IN ('interview_notebook','ai_application_material_drafts') ORDER BY name").all(),
       [{ name:'ai_application_material_drafts', seq:800 }, { name:'interview_notebook', seq:900 }]
@@ -380,7 +380,7 @@ test('database migration 0012 preserves existing orders and creates no fake prod
     db.prepare('INSERT INTO users(id,openid) VALUES (1,?)').run('assessment-migration-owner');
     db.prepare('INSERT INTO orders(id,order_no,user_id,provider) VALUES (1,?,1,?)').run('EXISTING-ORDER','wxpay');
     const before=db.prepare('SELECT * FROM orders WHERE id=1').get();
-    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(m=>m.version),['0012','0013','0014','0015']);
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(m=>m.version),['0012','0013','0014','0015','0016','0017','0018','0019','0020','0021','0022','0023','0024', '0025','0026','0027','0028','0029','0030']);
     assert.deepEqual(db.prepare('SELECT * FROM orders WHERE id=1').get(),before);
     for(const name of ['assessment_products','assessment_product_companies','assessment_home_config','assessment_order_details','assessment_deliveries','assessment_product_audit']) assert.equal(db.prepare(`SELECT COUNT(*) FROM ${name}`).pluck().get(),0);
     assert.equal(applyPendingMigrations(db).appliedNow.length,0);
@@ -433,7 +433,7 @@ test('database migration 0014 starts shared copy empty, closes only assessment p
       if(index<2) db.prepare('INSERT INTO assessment_order_details(order_no,product_id,user_id,snapshot,idempotency_key) VALUES (?,1,1,?,?)').run(number,JSON.stringify({usageInstructions:'购买时说明',priceCents:900}),'shared-'+index);
     }
     const before=db.prepare("SELECT * FROM assessment_order_details WHERE order_no='SHARED-PAID'").get();
-    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item=>item.version),['0014','0015']);
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item=>item.version),['0014','0015','0016','0017','0018','0019','0020','0021','0022','0023','0024', '0025','0026','0027','0028','0029','0030']);
     const shared=db.prepare('SELECT * FROM assessment_shared_instructions WHERE id=1').get();
     assert.equal(shared.version,0);
     for(const key of ['usage_instructions','claim_instructions','update_instructions','after_sales_instructions'])assert.equal(shared[key],'');
@@ -454,7 +454,7 @@ test('database migration 0015 creates private unique source ownership without al
     createRequiredBaselineTables(db);applyPendingMigrations(db,{migrationsDir:previousDir});
     db.prepare('INSERT INTO assessment_products(id,title,cover_url,summary,price_cents) VALUES (1,?,?,?,900),(2,?,?,?,900)').run('旧商品','https://example.test/old.png','旧摘要','第二商品','https://example.test/two.png','第二摘要');
     const products=db.prepare('SELECT * FROM assessment_products ORDER BY id').all();
-    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item=>item.version),['0015']);
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item=>item.version),['0015','0016','0017','0018','0019','0020','0021','0022','0023','0024', '0025','0026','0027','0028','0029','0030']);
     assert.equal(db.prepare('SELECT COUNT(*) FROM assessment_import_sources').pluck().get(),0);
     assert.deepEqual(db.prepare('SELECT * FROM assessment_products ORDER BY id').all(),products);
     const insert=db.prepare('INSERT INTO assessment_import_sources(source_namespace,source_record_id,product_id,source_fingerprint,managed_fingerprint,imported_by) VALUES (?,?,?,?,?,?)');
@@ -465,6 +465,263 @@ test('database migration 0015 creates private unique source ownership without al
     assert.equal(applyPendingMigrations(db).appliedNow.length,0);
     assert.equal(db.pragma('integrity_check',{simple:true}),'ok');assert.deepEqual(db.pragma('foreign_key_check'),[]);
   } finally {db.close();}
+}));
+
+test('database migration 0016 adds private PDF provenance with deny-by-default state and stable checksum', () => withTempDir(directory => {
+  const previousDir = path.join(directory, 'through-0015');
+  copyMigrationsThrough(previousDir, '0015');
+  const db = new Database(path.join(directory, 'private-pdf-assets.db'));
+  try {
+    createRequiredBaselineTables(db);
+    applyPendingMigrations(db, { migrationsDir: previousDir });
+    const migration = readMigrations().find(item => item.version === '0016');
+    assert.match(migration.checksum, /^[a-f0-9]{64}$/);
+    const through0016 = path.join(directory, 'through-0016');
+    copyMigrationsThrough(through0016, '0016');
+    assert.deepEqual(applyPendingMigrations(db, { migrationsDir: through0016 }).appliedNow.map(item => item.version), ['0016']);
+    assert.equal(getMigrationStatus(db).applied.find(item => item.version === '0016').checksum, migration.checksum);
+    db.prepare("INSERT INTO question_asset_batches(label,client_key,created_by) VALUES ('test','test-key','admin')").run();
+    db.prepare("INSERT INTO question_pdf_assets(sha256,byte_size,storage_key) VALUES (?,?,?)").run('a'.repeat(64), 25, 'aa/' + 'a'.repeat(64) + '.pdf');
+    const asset = db.prepare('SELECT * FROM question_pdf_assets').get();
+    assert.deepEqual([asset.validation_status, asset.scan_status, asset.processing_right, asset.display_right, asset.publish_status], ['pending', 'pending', 0, 0, 'blocked']);
+    assert.throws(() => db.prepare("UPDATE question_pdf_assets SET publish_status='published' WHERE id=?").run(asset.id), /CHECK constraint/);
+    assert.throws(() => db.prepare("INSERT INTO question_pdf_assets(sha256,byte_size,storage_key) VALUES (?,?,?)").run('a'.repeat(64), 25, 'different-key'), /UNIQUE constraint/);
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030']);
+    assert.deepEqual(db.pragma('foreign_key_check'), []);
+  } finally { db.close(); }
+}));
+
+test('database migration 0017 adds separate rights and content review ledgers without granting anything', () => withTempDir(directory => {
+  const previousDir = path.join(directory, 'through-0016');
+  copyMigrationsThrough(previousDir, '0016');
+  const db = new Database(path.join(directory, 'governance.db'));
+  try {
+    createRequiredBaselineTables(db);
+    applyPendingMigrations(db, { migrationsDir: previousDir });
+    db.prepare("INSERT INTO question_asset_batches(label,client_key,created_by) VALUES ('test','governance','admin')").run();
+    const assetId = db.prepare('INSERT INTO question_pdf_assets(sha256,byte_size,storage_key) VALUES (?,?,?)')
+      .run('b'.repeat(64), 100, `bb/${'b'.repeat(64)}.pdf`).lastInsertRowid;
+    const sourceId = db.prepare("INSERT INTO question_asset_sources(batch_id,client_key,source_type,source_reference,original_filename,asset_id,status,created_by) VALUES (1,'source','internal','purchase-only','paper.pdf',?,'quarantined','admin')")
+      .run(assetId).lastInsertRowid;
+    const migration = readMigrations().find(item => item.version === '0017');
+    assert.match(migration.checksum, /^[a-f0-9]{64}$/);
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0017', '0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030']);
+    assert.equal(getMigrationStatus(db).applied.find(item => item.version === '0017').checksum, migration.checksum);
+    assert.equal(db.prepare('SELECT COUNT(*) FROM question_asset_right_claims').pluck().get(), 0);
+    assert.equal(db.prepare('SELECT COUNT(*) FROM question_asset_content_reviews').pluck().get(), 0);
+    assert.ok(db.prepare('PRAGMA table_info(question_asset_content_reviews)').all().some(column => column.name === 'client_key' && column.notnull === 1));
+    assert.ok(db.prepare('PRAGMA table_info(question_asset_content_reviews)').all().some(column => column.name === 'expected_latest_review_id'));
+    assert.equal(db.prepare('SELECT status FROM question_asset_sources WHERE id=?').pluck().get(sourceId), 'quarantined');
+    assert.deepEqual(db.prepare('SELECT processing_right,display_right,publish_status FROM question_pdf_assets WHERE id=?').get(assetId),
+      { processing_right: 0, display_right: 0, publish_status: 'blocked' });
+    assert.equal(applyPendingMigrations(db).appliedNow.length, 0);
+    assert.deepEqual(db.pragma('foreign_key_check'), []);
+  } finally { db.close(); }
+}));
+
+test('database migration 0018 adds immutable question revisions and ready set ordering', () => withTempDir(directory => {
+  const previousDir = path.join(directory, 'through-0017');
+  copyMigrationsThrough(previousDir, '0017');
+  const db = new Database(path.join(directory, 'question-bank.db'));
+  try {
+    createRequiredBaselineTables(db);
+    applyPendingMigrations(db, { migrationsDir: previousDir });
+    const migration = readMigrations().find(item => item.version === '0018');
+    assert.match(migration.checksum, /^[a-f0-9]{64}$/);
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0018', '0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030']);
+    db.prepare("INSERT INTO qb_questions(client_key,created_by) VALUES ('q1','editor')").run();
+    db.prepare(`INSERT INTO qb_revisions(question_id,revision_no,client_key,content_json,provenance_json,media_json,created_by)
+      VALUES (1,1,'r1','{}','{}','[]','editor')`).run();
+    assert.throws(() => db.prepare("UPDATE qb_revisions SET media_json='[]' WHERE id=1").run(), /QUESTION_REVISION_IMMUTABLE/);
+    assert.throws(() => db.prepare('DELETE FROM qb_revisions WHERE id=1').run(), /QUESTION_REVISION_IMMUTABLE/);
+    db.prepare("INSERT INTO qb_sets(client_key,title,created_by) VALUES ('s1','Test','editor')").run();
+    db.prepare('INSERT INTO qb_set_items(set_id,position,revision_id) VALUES (1,1,1)').run();
+    assert.throws(() => db.prepare("UPDATE qb_sets SET status='ready' WHERE id=1").run(), /SET_PUBLISH_SERVICE_REQUIRED/);
+    db.prepare("INSERT INTO qb_set_publication_checks(set_id,expected_version,territory,commercial) VALUES (1,1,'CN',0)").run();
+    db.prepare("UPDATE qb_sets SET status='ready',publish_territory='CN',publish_commercial=0 WHERE id=1").run();
+    assert.throws(() => db.prepare('DELETE FROM qb_set_items WHERE set_id=1').run(), /READY_SET_ITEMS_IMMUTABLE/);
+    assert.throws(() => db.prepare('UPDATE qb_set_items SET position=2 WHERE set_id=1').run(), /READY_SET_ITEMS_IMMUTABLE/);
+    assert.throws(() => db.prepare("UPDATE qb_sets SET status='draft' WHERE id=1").run(), /READY_SET_IMMUTABLE/);
+    db.prepare(`INSERT INTO qb_right_claims(revision_id,client_key,evidence_reference,rights_json,territories_json,
+      valid_from,valid_until,submitted_by) VALUES (1,'c1','evidence','{"stemDisplay":true}','["CN"]','2020-01-01','2099-12-31','author')`).run();
+    assert.throws(() => db.prepare("UPDATE qb_right_claims SET rights_json='{}' WHERE id=1").run(), /QUESTION_CLAIM_IMMUTABLE/);
+    db.prepare("UPDATE qb_right_claims SET status='approved',decided_by='reviewer',decision_reason='yes' WHERE id=1").run();
+    assert.throws(() => db.prepare("UPDATE qb_right_claims SET status='pending' WHERE id=1").run(), /QUESTION_CLAIM_IMMUTABLE/);
+    assert.deepEqual(db.pragma('foreign_key_check'), []);
+    assert.equal(applyPendingMigrations(db).appliedNow.length, 0);
+  } finally { db.close(); }
+}));
+
+test('database migration 0019 keeps web publication closed and practice snapshots immutable', () => withTempDir(directory => {
+  const previousDir = path.join(directory, 'through-0018');
+  copyMigrationsThrough(previousDir, '0018');
+  const db = new Database(path.join(directory, 'practice.db'));
+  try {
+    db.pragma('foreign_keys = ON');
+    createRequiredBaselineTables(db);
+    applyPendingMigrations(db, { migrationsDir: previousDir });
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0019', '0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030']);
+    db.prepare('INSERT INTO users(id) VALUES (1)').run();
+    db.prepare('INSERT INTO users(id) VALUES (2)').run();
+    db.prepare("INSERT INTO qb_questions(client_key,created_by) VALUES ('q','editor')").run();
+    db.prepare(`INSERT INTO qb_revisions(question_id,revision_no,client_key,content_json,provenance_json,media_json,created_by)
+      VALUES (1,1,'r','{}','{}','[]','editor')`).run();
+    db.prepare("INSERT INTO qb_sets(client_key,title,created_by) VALUES ('s','Set','editor')").run();
+    assert.equal(db.prepare('SELECT COUNT(*) FROM qb_free_web_publications').pluck().get(), 0);
+    db.prepare("INSERT INTO qb_practice_sessions(user_id,set_id,client_key,set_title) VALUES (1,1,'start','Set')").run();
+    assert.throws(() => db.prepare('INSERT INTO qb_practice_items(session_id,position,revision_id) VALUES (1,1,1)').run(), /PRACTICE_SNAPSHOT_SEALED/);
+    db.prepare('INSERT INTO qb_practice_snapshot_permits(session_id) VALUES (1)').run();
+    db.prepare('INSERT INTO qb_practice_items(session_id,position,revision_id) VALUES (1,1,1)').run();
+    db.prepare('DELETE FROM qb_practice_snapshot_permits WHERE session_id=1').run();
+    assert.throws(() => db.prepare('UPDATE qb_practice_items SET position=2 WHERE session_id=1').run(), /PRACTICE_SNAPSHOT_IMMUTABLE/);
+    assert.throws(() => db.prepare('DELETE FROM qb_practice_items WHERE session_id=1').run(), /PRACTICE_SNAPSHOT_IMMUTABLE/);
+    assert.throws(() => db.prepare('INSERT INTO qb_practice_favorites(user_id,session_id,position) VALUES (2,1,1)').run(), /FOREIGN KEY constraint failed/);
+    db.prepare('INSERT INTO qb_practice_favorites(user_id,session_id,position) VALUES (1,1,1)').run();
+    assert.deepEqual(db.pragma('foreign_key_check'), []);
+  } finally { db.close(); }
+}));
+
+test('database migration 0020 adds only private parse jobs, page checkpoints and audited drafts', () => withTempDir(directory => {
+  const previousDir = path.join(directory, 'through-0019');
+  copyMigrationsThrough(previousDir, '0019');
+  const db = new Database(path.join(directory, 'parse.db'));
+  try {
+    db.pragma('foreign_keys = ON');
+    createRequiredBaselineTables(db);
+    applyPendingMigrations(db, { migrationsDir: previousDir });
+    const migration = readMigrations().find(item => item.version === '0020');
+    assert.match(migration.checksum, /^[a-f0-9]{64}$/);
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0020', '0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030']);
+    assert.deepEqual(['qp_jobs','qp_pages','qp_drafts','qp_draft_edits'].map(name =>
+      db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?").pluck().get(name)), [1,1,1,1]);
+    assert.equal(db.prepare('SELECT COUNT(*) FROM qb_questions').pluck().get(), 0);
+    assert.equal(db.prepare('SELECT COUNT(*) FROM qb_free_web_publications').pluck().get(), 0);
+    assert.deepEqual(db.pragma('foreign_key_check'), []);
+  } finally { db.close(); }
+}));
+
+test('database migration 0021 adds resumable private PDF upload checkpoints without publishing assets', () => withTempDir(directory => {
+  const previousDir = path.join(directory, 'through-0020');
+  copyMigrationsThrough(previousDir, '0020');
+  const db = new Database(path.join(directory, 'uploads.db'));
+  try {
+    db.pragma('foreign_keys = ON');
+    createRequiredBaselineTables(db);
+    applyPendingMigrations(db, { migrationsDir: previousDir });
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0021', '0022', '0023', '0024', '0025','0026','0027','0028','0029','0030']);
+    const columns = db.prepare('PRAGMA table_info(question_pdf_upload_sessions)').all().map(row => row.name);
+    assert.ok(['id', 'source_id', 'byte_size', 'received_bytes', 'fingerprint', 'state'].every(name => columns.includes(name)));
+    assert.equal(db.prepare('SELECT COUNT(*) FROM question_pdf_upload_sessions').pluck().get(), 0);
+    assert.equal(db.prepare('SELECT COUNT(*) FROM question_pdf_assets').pluck().get(), 0);
+    assert.deepEqual(db.pragma('foreign_key_check'), []);
+  } finally { db.close(); }
+}));
+
+test('database migration 0022 records private PDF checks without changing existing assets', () => withTempDir(directory => {
+  const previousDir = path.join(directory, 'through-0021');
+  copyMigrationsThrough(previousDir, '0021');
+  const checksDir = path.join(directory, 'through-0022');
+  copyMigrationsThrough(checksDir, '0022');
+  const db = new Database(path.join(directory, 'checks.db'));
+  try {
+    db.pragma('foreign_keys = ON');
+    createRequiredBaselineTables(db);
+    applyPendingMigrations(db, { migrationsDir: previousDir });
+    assert.deepEqual(applyPendingMigrations(db, { migrationsDir: checksDir }).appliedNow.map(item => item.version), ['0022']);
+    const columns = db.prepare('PRAGMA table_info(question_pdf_asset_checks)').all().map(row => row.name);
+    assert.ok(['asset_id', 'source_id', 'state', 'scan_status', 'validation_status', 'page_count', 'error_code'].every(name => columns.includes(name)));
+    assert.equal(db.prepare('SELECT COUNT(*) FROM question_pdf_asset_checks').pluck().get(), 0);
+    assert.equal(db.prepare('SELECT COUNT(*) FROM question_pdf_assets').pluck().get(), 0);
+    assert.deepEqual(db.pragma('foreign_key_check'), []);
+  } finally { db.close(); }
+}));
+
+test('database migration 0023 adds feedback versions and cascading handling events', () => withTempDir(directory => {
+  const previousDir = path.join(directory, 'through-0022');
+  copyMigrationsThrough(previousDir, '0022');
+  const db = new Database(path.join(directory, 'feedback-audit.db'));
+  try {
+    db.pragma('foreign_keys = ON');
+    createRequiredBaselineTables(db);
+    applyPendingMigrations(db, { migrationsDir: previousDir });
+    db.prepare("INSERT INTO feedbacks(id,type,content,status,admin_note,created_at,updated_at) VALUES(1,'岗位信息纠错','示例反馈','open','','2026-10-01 00:00:00','')").run();
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0023', '0024', '0025','0026','0027','0028','0029','0030']);
+    assert.equal(db.prepare('SELECT review_version FROM feedbacks WHERE id=1').pluck().get(), 0);
+    db.prepare(`INSERT INTO feedback_handling_events
+      (feedback_id,version,from_status,to_status,from_note,to_note,actor_id,actor_name,acted_at)
+      VALUES (1,1,'open','processing','','正在核查',7,'tester','2026-10-30T00:00:00.000Z')`).run();
+    assert.equal(db.prepare('SELECT COUNT(*) FROM feedback_handling_events WHERE feedback_id=1').pluck().get(), 1);
+    assert.equal(applyPendingMigrations(db).appliedNow.length, 0);
+    assert.deepEqual(db.pragma('foreign_key_check'), []);
+    db.prepare('DELETE FROM feedbacks WHERE id=1').run();
+    assert.equal(db.prepare('SELECT COUNT(*) FROM feedback_handling_events WHERE feedback_id=1').pluck().get(), 0);
+  } finally { db.close(); }
+}));
+
+test('database migration 0024 adds owned submission events with idempotency and cascade', () => withTempDir(directory => {
+  const previousDir = path.join(directory, 'through-0023');
+  copyMigrationsThrough(previousDir, '0023');
+  const db = new Database(path.join(directory, 'submission-events.db'));
+  try {
+    db.pragma('foreign_keys = ON');
+    createRequiredBaselineTables(db);
+    applyPendingMigrations(db, { migrationsDir: previousDir });
+    db.prepare('INSERT INTO users(id) VALUES (1)').run();
+    db.prepare("INSERT INTO applications(id,user_id,v4_status) VALUES (1,1,'preparing')").run();
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0024', '0025','0026','0027','0028','0029','0030']);
+    const insert = db.prepare(`INSERT INTO application_submission_events
+      (application_id,user_id,action,supersedes_id,client_key,channel,created_at)
+      VALUES (1,1,?,?,?,?,?)`);
+    const confirmed = insert.run('confirmed', null, 'confirm-1', 'web', '2026-10-30T00:00:00.000Z');
+    assert.throws(() => insert.run('confirmed', null, 'confirm-1', 'web', '2026-10-30T00:00:01.000Z'), /UNIQUE/);
+    assert.throws(() => insert.run('unknown', null, 'bad-action', 'web', '2026-10-30T00:00:01.000Z'), /CHECK/);
+    insert.run('revoked', Number(confirmed.lastInsertRowid), 'revoke-1', 'miniprogram', '2026-10-30T00:00:02.000Z');
+    assert.deepEqual(db.pragma('foreign_key_check'), []);
+    db.prepare('DELETE FROM applications WHERE id=1').run();
+    assert.equal(db.prepare('SELECT COUNT(*) FROM application_submission_events').pluck().get(), 0);
+    assert.equal(applyPendingMigrations(db).appliedNow.length, 0);
+  } finally { db.close(); }
+}));
+
+test('database migrations 0025-0030 add application readiness, consent, reports, grants, answer drafts, and manual services', () => withTempDir(directory => {
+  const previousDir = path.join(directory, 'through-0024');
+  copyMigrationsThrough(previousDir, '0024');
+  const db = new Database(path.join(directory, 'application-checklist.db'));
+  try {
+    db.pragma('foreign_keys = ON');
+    createRequiredBaselineTables(db);
+    applyPendingMigrations(db, { migrationsDir: previousDir });
+    db.prepare('INSERT INTO users(id) VALUES (1),(2)').run();
+    db.prepare("INSERT INTO applications(id,user_id,v4_status) VALUES (1,1,'preparing')").run();
+    assert.deepEqual(applyPendingMigrations(db).appliedNow.map(item => item.version), ['0025','0026','0027','0028','0029','0030']);
+    const columns = new Set(db.prepare('PRAGMA table_info(application_answer_drafts)').all().map(item => item.name));
+    for (const column of ['user_id','application_id','resume_version_id','question','content','evidence_refs_json','evidence_json','unsupported_claims_json','max_chars','version','status']) {
+      assert.ok(columns.has(column), `missing ${column}`);
+    }
+    assert.ok(db.prepare("SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_application_answer_drafts_owner_app'").get());
+    assert.equal(db.prepare('SELECT resume_selection_version FROM applications WHERE id=1').pluck().get(), 0);
+    assert.equal(db.prepare("SELECT delivery_channel FROM job_reminders WHERE 0").columns()[0].name, 'delivery_channel');
+    assert.equal(db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('notify_template_authorizations','notify_template_authorization_events')").pluck().get(), 2);
+    assert.equal(db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='application_interview_reports'").pluck().get(), 1);
+    assert.equal(db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('manual_service_requests_v4','manual_service_request_events_v4','manual_service_deliveries_v4')").pluck().get(), 3);
+    assert.ok(db.prepare("SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_manual_service_user'").get());
+    assert.throws(() => db.prepare(`INSERT INTO application_interview_reports
+      (user_id,application_id,client_key,total_score,summary,convert_client_key)
+      VALUES (1,1,'report-one',80,'summary','task-one')`).run() && db.prepare(`INSERT INTO application_interview_reports
+      (user_id,application_id,client_key,total_score,summary,convert_client_key)
+      VALUES (1,1,'report-two',80,'summary','task-one')`).run(), /UNIQUE/);
+    const insert = db.prepare(`INSERT INTO application_material_checklist_items
+      (application_id,user_id,label,state,client_key,created_at,updated_at)
+      VALUES (?,?,?,?,?,?,?)`);
+    insert.run(1, 1, '成绩单', 'needed', 'item-one', '2026-10-30T00:00:00.000Z', '2026-10-30T00:00:00.000Z');
+    assert.throws(() => insert.run(1, 1, '作品集', 'needed', 'item-one', '2026-10-30T00:00:00.000Z', '2026-10-30T00:00:00.000Z'), /UNIQUE/);
+    assert.throws(() => insert.run(1, 2, '跨账号', 'needed', 'item-two', '2026-10-30T00:00:00.000Z', '2026-10-30T00:00:00.000Z'), /FOREIGN KEY/);
+    assert.throws(() => insert.run(1, 1, '材料', 'done', 'item-three', '2026-10-30T00:00:00.000Z', '2026-10-30T00:00:00.000Z'), /CHECK/);
+    assert.deepEqual(db.pragma('foreign_key_check'), []);
+    db.prepare('DELETE FROM applications WHERE id=1').run();
+    assert.equal(db.prepare('SELECT COUNT(*) FROM application_material_checklist_items').pluck().get(), 0);
+    assert.equal(applyPendingMigrations(db).appliedNow.length, 0);
+  } finally { db.close(); }
 }));
 
 test('database migration baseline refuses an incomplete schema', () => withTempDir(directory => {
@@ -492,6 +749,23 @@ test('failed migration transaction leaves no partial table or applied record', (
   } finally {
     db.close();
   }
+}));
+
+test('migration reader accepts simple SQLite triggers but rejects transaction statements outside them', () => withTempDir(directory => {
+  const migrationPath = path.join(directory, '0001_simple_trigger.sql');
+  const trigger = `CREATE TABLE item (id INTEGER PRIMARY KEY);\nCREATE TRIGGER item_guard BEFORE DELETE ON item BEGIN\n SELECT RAISE(ABORT,'immutable');\nEND;\n`;
+  fs.writeFileSync(migrationPath, trigger);
+  assert.equal(readMigrations(directory).length, 1);
+  const db = new Database(path.join(directory, 'trigger.db'));
+  try {
+    applyPendingMigrations(db, { migrationsDir: directory });
+    db.prepare('INSERT INTO item(id) VALUES (1)').run();
+    assert.throws(() => db.prepare('DELETE FROM item').run(), /immutable/);
+  } finally { db.close(); }
+  fs.writeFileSync(migrationPath, `${trigger}BEGIN;\nCOMMIT;\n`);
+  assert.throws(() => readMigrations(directory), /must not manage transactions directly/);
+  fs.writeFileSync(migrationPath, `${trigger.replace('END;', '')}COMMIT;\n`);
+  assert.throws(() => readMigrations(directory), /must not manage transactions directly/);
 }));
 
 test('applied migration checksum drift is rejected', () => withTempDir(directory => {

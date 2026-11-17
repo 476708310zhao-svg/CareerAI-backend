@@ -24,9 +24,10 @@ function validate(row, nextStatus, expected, userId) {
   if (!row) throw error(404, '申请不存在或不可操作');
   if (!owns(STATUS_TEXT, nextStatus)) throw error(400, '无效的申请状态');
   const currentStatus = toV4Status(row);
-  // Always read the revision inside the caller's IMMEDIATE transaction. Legacy
-  // clients may omit expectedState, while newer clients get strict ABA safety.
+  // Always require the revision inside the caller's IMMEDIATE transaction so
+  // stale clients cannot silently overwrite a newer status.
   const currentHistoryId = revision(userId, row.id);
+  if (expected === undefined) throw error(428, '请先刷新申请状态，再提交变更', { applicationId: row.id, currentStatus, historyId: currentHistoryId });
   if (expected !== undefined && (!expected || typeof expected !== 'object' || Array.isArray(expected)
     || !owns(expected, 'status') || !owns(expected, 'historyId')
     || !owns(STATUS_TEXT, expected.status)

@@ -36,7 +36,21 @@ Component({
   },
 
   methods: {
+    copySourceUrl() {
+      const job = this.data.job || this.properties.job || {};
+      if (!job.sourceUrl || typeof wx === 'undefined' || !wx.setClipboardData) return;
+      wx.setClipboardData({ data: job.sourceUrl });
+    },
+
     openJobDetail() {
+      this._openJobDetail(false);
+    },
+
+    openMatch() {
+      this._openJobDetail(true);
+    },
+
+    _openJobDetail(matchRequested) {
       const job = this.data.job || this.properties.job || {};
       if (!job.jobId) {
         if (typeof wx !== 'undefined' && wx.showToast) {
@@ -45,7 +59,8 @@ Component({
         return;
       }
 
-      const url = '/package-user/pages/job-detail/job-detail?id=' + encodeURIComponent(job.jobId);
+      const url = '/package-user/pages/job-detail/job-detail?id=' + encodeURIComponent(job.jobId)
+        + (matchRequested ? '&match=1' : '');
       if (this._viewCtx && typeof this._viewCtx.openDetailPage === 'function') {
         this._viewCtx.openDetailPage({ url });
       } else if (typeof wx !== 'undefined' && wx.navigateTo) {

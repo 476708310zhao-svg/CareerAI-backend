@@ -4,6 +4,7 @@ const v4Api = require('../../../utils/api-v4.js');
 const favUtil = require('../../../utils/favorites.js');
 const progress = require('../../../utils/job-progress.js');
 const jdMatch = require('../../utils/jd-match.js');
+const { buildEvidence } = require('../../../utils/job-match-evidence.js');
 const { fromNow, formatSalaryRange } = require('../../../utils/util.js');
 const demoData = require('../../../utils/demo-data.js');
 const { extractSkillTags } = require('../../utils/skill-icons.js');
@@ -14,11 +15,21 @@ const reminders = require('../../../utils/reminders.js');
 const analytics = require('../../../utils/analytics.js');
 const ownerStorage = require('../../../utils/owner-storage.js');
 const { presentJob, clean } = require('../../../utils/job-presenter.js');
+const { calendarDayParts, shanghaiDayDistance } = require('../../../utils/date-time.js');
 const { markCachedDataMeta } = require('../../../utils/data-provenance.js');
 const loginGate = require('../../../behaviors/login-gate.js');
 const { applicationState } = require('../../../utils/application-state.js');
 const { queueJob } = require('../../../utils/application-queue.js');
 const ALLOW_DEMO_FALLBACK = demoData.enabled();
+
+function isPastLocalDeadline(value, now = Date.now()) {
+  if (typeof value !== 'string') return false;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return shanghaiDayDistance(value, now) < 0;
+  const timestamp = /^(\d{4}-\d{2}-\d{2})T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(Z|[+-](?:0\d|1[0-4]):[0-5]\d)$/.exec(value);
+  if (!timestamp || !calendarDayParts(timestamp[1]) || /^[+-]14:(?!00$)/.test(timestamp[2])) return false;
+  const instant = Date.parse(value);
+  return Number.isFinite(instant) && instant <= now;
+}
 
 Page({
   behaviors: [loginGate],
@@ -45,6 +56,9 @@ Page({
     v4Application: null,
     jobTrust: null,
     trustObserving: false,
+    applicationHeld: false,
+    applicationPending: false,
+    applicationNotice: '',
     // 一键投递弹窗
     showApplyModal: false
   },
@@ -52,6 +66,7 @@ Page({
   onLoad: function(options) {
     if (!featureFlags.guardRecruitmentPage()) return;
     const jobId = options.id;
+    this._autoMatchRequested = options.match === '1';
     this._ownerToken = String(wx.getStorageSync('token') || '');
     const ownerScope = progress.currentOwnerScope ? progress.currentOwnerScope() : '';
     this._ownerScope = ownerScope;
@@ -89,12 +104,14 @@ Page({
     if (this._hasShown && this.data.jobId) {
       this.refreshProgressState(this.data.jobId);
       this.loadV4Detail(this.data.jobId);
+      if (this.isLocalJobDetail(this.data.jobId, this.data.job)) this.fetchJobDetail(this.data.jobId);
     }
     this._hasShown = true;
   },
 
   onUnload() {
     this._unloaded = true;
+    this._legacyDetailSeq = (this._legacyDetailSeq || 0) + 1;
     this._v4DetailSeq = (this._v4DetailSeq || 0) + 1;
     this._matchRequestSeq = (this._matchRequestSeq || 0) + 1;
   },
@@ -155,14 +172,73 @@ Page({
 
   getJobSnapshot: function(id) {
     const stored = wx.getStorageSync('jobDetailSnapshot_' + String(id));
-    if (stored && String(stored.id) === String(id)) return stored;
+    const skillFresh = !stored || !stored.skillSnapshotAt
+      || Date.now() - Number(stored.skillSnapshotAt) < 30 * 60 * 1000;
+    if (stored && skillFresh && String(stored.id) === String(id)) return this.withApplicationHold(stored);
     const temp = wx.getStorageSync('tempJobDetail');
-    return temp && String(temp.id) === String(id) ? temp : null;
+    return temp && String(temp.id) === String(id) ? this.withApplicationHold(temp) : null;
+  },
+
+  getApplicationHold: function(id) {
+    const hold = wx.getStorageSync('jobApplicationHold_' + String(id));
+    return hold && (hold.isApplyAvailable === false
+      || hold.applicationStatus === 'closed' || hold.applicationStatus === 'review_needed')
+      ? hold : null;
+  },
+
+  isLocalJobDetail: function(id, snapshot) {
+    const source = String(snapshot && (snapshot.source || snapshot._source) || '').toLowerCase();
+    if (snapshot && snapshot._local) return true;
+    if (source === 'local' || source === 'local_fallback') return true;
+    if (source && source !== 'cache') return false;
+    return /^\d+$/.test(String(id || ''));
+  },
+
+  withApplicationHold: function(job) {
+    const hold = job && this.getApplicationHold(job.id);
+    if (!hold) return job;
+    return Object.assign({}, job, {
+      applyLink: '', applyUrl: '', officialApplyUrl: '', sourceUrl: '',
+      isApplyAvailable: false,
+      applicationStatus: hold.applicationStatus,
+      applicationNotice: hold.applicationNotice
+    });
+  },
+
+  persistApplicationHold: function(job) {
+    const id = String(job.id);
+    const hold = {
+      isApplyAvailable: false,
+      applicationStatus: job.applicationStatus,
+      applicationNotice: job.applicationNotice || (job.applicationStatus === 'closed'
+        ? '该岗位经人工核验已关闭，当前不能申请。'
+        : (job.applicationStatus === 'review_needed'
+          ? '该岗位正等待人工复核，当前不能申请。' : '该岗位当前不能申请，请核对最新公告。'))
+    };
+    wx.setStorageSync('jobApplicationHold_' + id, hold);
+    const scrub = item => item && String(item.id) === id ? Object.assign({}, item, {
+      applyLink: '', applyUrl: '', officialApplyUrl: '', sourceUrl: '',
+      isApplyAvailable: false, applicationStatus: hold.applicationStatus,
+      applicationNotice: hold.applicationNotice
+    }) : item;
+    const snapshotKey = 'jobDetailSnapshot_' + id;
+    const snapshot = wx.getStorageSync(snapshotKey);
+    if (snapshot && String(snapshot.id) === id) wx.setStorageSync(snapshotKey, scrub(snapshot));
+    const temp = wx.getStorageSync('tempJobDetail');
+    if (temp && String(temp.id) === id) wx.setStorageSync('tempJobDetail', scrub(temp));
+    const cached = wx.getStorageSync('cachedJobsList');
+    if (Array.isArray(cached)) wx.setStorageSync('cachedJobsList', cached.map(scrub));
+    else if (cached && Array.isArray(cached.items)) {
+      wx.setStorageSync('cachedJobsList', Object.assign({}, cached, { items: cached.items.map(scrub) }));
+    }
+    return hold;
   },
 
   buildSnapshotDetail: function(snapshot) {
     if (!snapshot) return null;
     const desc = snapshot.description || '';
+    const applicationVerificationPending = this.isLocalJobDetail(snapshot.id, snapshot)
+      && snapshot.isApplyAvailable !== false;
     return {
       id: snapshot.id,
       title: snapshot.title,
@@ -173,11 +249,18 @@ Page({
       city: snapshot.city || '',
       state: snapshot.state,
       type: snapshot.type || '',
-      postedAt: snapshot.postedAt || 'Recently posted',
+      postedAt: snapshot.postedAt || '发布时间未披露',
       deadline: snapshot.deadline || '',
-      applyLink: snapshot.applyLink || '',
+      applyLink: snapshot.isApplyAvailable === false || applicationVerificationPending
+        ? '' : (snapshot.applyLink || ''),
+      sourceUrl: snapshot.sourceUrl || '',
+      sourceReference: snapshot.sourceReference || '',
+      isApplyAvailable: snapshot.isApplyAvailable,
+      applicationVerificationPending,
+      applicationStatus: snapshot.applicationStatus,
+      applicationNotice: snapshot.applicationNotice,
       description: this.formatDescription(desc) || '暂无职位详情，请通过原始招聘链接查看完整 JD。',
-      salary: snapshot.salary || 'Negotiable',
+      salary: snapshot.salary || '薪资未披露',
       visaSponsored: !!snapshot.optFriendly,
       optFriendly: !!snapshot.optFriendly,
       stemFriendly: !!snapshot.stemFriendly,
@@ -199,6 +282,7 @@ Page({
       matchReason: '',
       postedAtRaw: snapshot.postedAtRaw || '',
       source: 'cache',
+      fromSkillSearch: !!snapshot.skillSnapshotAt,
       dataMeta: markCachedDataMeta(snapshot.dataMeta, {
         domain: 'job', source: snapshot.source || snapshot._source,
         publishedAt: snapshot.postedAtRaw || snapshot.postedAt
@@ -267,13 +351,37 @@ Page({
 
   commitJob: function(job, patch) {
     if (!job) return;
-    const record = progress.getByJobId(job.id);
+    const sameJob = this.data.job && String(this.data.job.id) === String(job.id);
+    if (job.isApplyAvailable === true) wx.setStorageSync('jobApplicationHold_' + String(job.id), null);
+    const inheritedHold = sameJob && this.data.job.isApplyAvailable === false
+      && typeof job.isApplyAvailable !== 'boolean' ? this.data.job : null;
+    const incomingJob = inheritedHold
+      ? Object.assign({}, job, {
+        isApplyAvailable: false,
+        applicationStatus: inheritedHold.applicationStatus,
+        applicationNotice: inheritedHold.applicationNotice
+      }) : job;
+    let safeJob = job.isApplyAvailable === false ? incomingJob : this.withApplicationHold(incomingJob);
+    const localDeadlineExpired = this.isLocalJobDetail(safeJob.id, safeJob)
+      && isPastLocalDeadline(safeJob.deadline);
+    if (localDeadlineExpired && safeJob.isApplyAvailable !== false) {
+      safeJob = Object.assign({}, safeJob, {
+        applyLink: '', applyUrl: '', officialApplyUrl: '', sourceUrl: '',
+        isApplyAvailable: false,
+        applicationNotice: '该岗位截止日期已过，暂不可申请，请以企业公告为准'
+      });
+    }
+    if (safeJob.isApplyAvailable === false) {
+      this.persistApplicationHold(safeJob);
+      safeJob = this.withApplicationHold(safeJob);
+    }
+    const record = progress.getByJobId(safeJob.id);
     const application = patch && Object.prototype.hasOwnProperty.call(patch, 'v4Application')
       ? patch.v4Application
       : this.data.v4Application;
-    const state = applicationState(application || record || job);
+    const state = applicationState(application || record || safeJob);
     const isApplied = state.isApplied;
-    const displaySource = Object.assign({}, job, {
+    const displaySource = Object.assign({}, safeJob, {
       isSaved: this.data.isSaved,
       isApplied,
       applicationStatus: state.applicationStatus,
@@ -282,22 +390,49 @@ Page({
     const companyProfile = patch && Object.prototype.hasOwnProperty.call(patch, 'companyProfile')
       ? patch.companyProfile
       : this.data.companyProfile;
-    const sameJob = this.data.job && String(this.data.job.id) === String(job.id);
+    const jobView = presentJob(displaySource);
+    if (localDeadlineExpired) {
+      jobView.deadlineClosed = true;
+      jobView.deadlineText = '已截止';
+      jobView.deadlineTone = 'closed';
+    }
+    const applicationHeld = safeJob.isApplyAvailable === false;
+    const applicationPending = !applicationHeld && safeJob.applicationVerificationPending === true;
+    if (applicationHeld) {
+      jobView.hasApplyLink = false;
+      jobView.applyButtonText = safeJob.applicationStatus === 'closed' ? '申请已关闭'
+        : (jobView.deadlineClosed ? '截止已过' : (safeJob.applicationStatus === 'review_needed' ? '待人工复核' : '暂不可申请'));
+    } else if (applicationPending) {
+      jobView.hasApplyLink = false;
+      jobView.applyButtonText = '核对中';
+    }
     this.setData(Object.assign({
-      job,
-      jobView: presentJob(displaySource),
+      job: safeJob,
+      jobView,
+      applicationHeld,
+      applicationPending,
+      applicationNotice: applicationHeld ? safeJob.applicationNotice
+        : (applicationPending ? '正在核对岗位最新申请状态，核对完成前暂不提供投递入口。' : ''),
+      showApplyModal: applicationHeld || applicationPending ? false : this.data.showApplyModal,
       descriptionExpanded: sameJob ? this.data.descriptionExpanded : false,
-      companyView: this.buildCompanyView(companyProfile, job),
-      similarJobs: this.buildSimilarJobs(job),
+      companyView: this.buildCompanyView(companyProfile, safeJob),
+      similarJobs: this.buildSimilarJobs(safeJob),
       isApplied,
       inProgress: !!record || !!application,
       progressStatusText: state.progressStatusText,
       loading: false,
       loadError: false
     }, patch || {}));
+    if (this._autoMatchRequested && (safeJob.descriptionText || safeJob.description)) {
+      this._autoMatchRequested = false;
+      setTimeout(() => {
+        if (!this._unloaded && this.data.job && String(this.data.job.id) === String(safeJob.id)) this.runJdMatch();
+      }, 0);
+    }
   },
 
-  useFallbackDetail: function(id, snapshotDetail) {
+  useFallbackDetail: function(id, snapshotDetail, freshStatusSeq) {
+    if (this._freshStatusSeq > (freshStatusSeq || 0)) return;
     if (snapshotDetail) {
       this.commitJob(snapshotDetail);
       this._saveBrowseHistory(snapshotDetail);
@@ -312,9 +447,12 @@ Page({
   },
 
   fetchJobDetail: function(id) {
+    const seq = this._legacyDetailSeq = (this._legacyDetailSeq || 0) + 1;
     this.setData({ loading: true, loadError: false });
     const snapshot = this.getJobSnapshot(id);
-    const snapshotDetail = this.buildSnapshotDetail(snapshot);
+    const current = this.data.job && String(this.data.job.id) === String(id) ? this.data.job : null;
+    const snapshotDetail = this.buildSnapshotDetail(current || snapshot);
+    const freshStatusSeq = this._freshStatusSeq || 0;
 
     // 模拟数据判断
     if (String(id).startsWith('mock') || String(id).startsWith('default')) {
@@ -332,14 +470,24 @@ Page({
     }
 
     getJobDetail(id).then(res => {
+      if (this._unloaded || seq !== this._legacyDetailSeq) return;
+      // The V4 verification is newer than this in-flight legacy request.
+      // Never let an older "open" result restore a held apply link.
+      if (this._freshStatusSeq > freshStatusSeq) return;
       const rawData = Array.isArray(res.data) ? res.data[0] : (res.data && res.data.job_id ? res.data : null);
       if (!rawData) {
-        this.useFallbackDetail(id, snapshotDetail);
+        this.useFallbackDetail(id, snapshotDetail, freshStatusSeq);
         return;
       }
 
       const desc = (rawData.job_description || '') + ' ' + (rawData.job_highlights ? JSON.stringify(rawData.job_highlights) : '');
-      const visaSponsored = /\b(opt|cpt|h[- ]?1b|visa\s+sponsor|will\s+sponsor|work\s+authori)/i.test(desc);
+      // A mention of OPT, CPT or sponsorship can be a refusal. Only an
+      // explicit affirmative sentence can support a sponsorship claim.
+      const visaSponsored = desc.split(/[.!?\n]+/).some(sentence =>
+        /\b(?:will|can|may|does|do)\s+sponsor\b[^.!?\n]{0,60}\b(?:H[- ]?1B|work\s+visa|visa)\b/i.test(sentence)
+        && !/\b(?:no|not|never|without|unable|cannot|can't|won't|will\s+not|does\s+not|do\s+not)\b[^.!?\n]{0,70}\bsponsor\b/i.test(sentence));
+      const applicationVerificationPending = this.isLocalJobDetail(id, rawData)
+        && typeof rawData.is_apply_available !== 'boolean';
 
       const jobDetail = {
         id: rawData.job_id,
@@ -351,11 +499,18 @@ Page({
         city: rawData.job_city || '',
         state: rawData.job_state,
         type: rawData.job_employment_type || '',
-        postedAt: rawData.job_posted_at_datetime_utc ? fromNow(rawData.job_posted_at_datetime_utc) : 'Recently posted',
-        deadline: rawData.job_offer_expiration_datetime_utc || rawData.job_offer_expiration_date || rawData.valid_through || '',
-        applyLink: rawData.job_apply_link,
+        postedAt: rawData.job_posted_at_datetime_utc ? fromNow(rawData.job_posted_at_datetime_utc) : '发布时间未披露',
+        deadline: rawData.deadline || rawData.job_offer_expiration_datetime_utc || rawData.job_offer_expiration_date || rawData.valid_through || '',
+        applyLink: rawData.is_apply_available === false || applicationVerificationPending
+          ? '' : (rawData.job_apply_link || ''),
+        sourceUrl: rawData.job_source_url || '',
+        sourceReference: rawData.job_source_reference || '',
+        isApplyAvailable: rawData.is_apply_available,
+        applicationVerificationPending,
+        applicationStatus: rawData.application_status || '',
+        applicationNotice: rawData.application_notice || '',
         description: rawData.job_description || '',
-        salary: formatSalaryRange(rawData.job_min_salary, rawData.job_max_salary) || (snapshot && snapshot.salary) || 'Negotiable',
+        salary: formatSalaryRange(rawData.job_min_salary, rawData.job_max_salary) || (snapshot && snapshot.salary) || '薪资未披露',
         visaSponsored,
         remoteType: rawData.job_is_remote ? '支持远程' : '',
         education: rawData.job_required_education && (rawData.job_required_education.postgraduate_degree
@@ -374,10 +529,12 @@ Page({
       };
 
       this.commitJob(jobDetail);
+      if (typeof rawData.is_apply_available === 'boolean') this._freshStatusSeq = (this._freshStatusSeq || 0) + 1;
       this._saveBrowseHistory(jobDetail);
     }).catch(err => {
+      if (this._unloaded || seq !== this._legacyDetailSeq) return;
       console.warn('[job-detail] detail request failed, using fallback:', err && (err.message || err.errMsg || err));
-      this.useFallbackDetail(id, snapshotDetail);
+      this.useFallbackDetail(id, snapshotDetail, freshStatusSeq);
     });
   },
 
@@ -469,9 +626,15 @@ Requirements:
         company: raw.company || current.company,
         city: raw.location || raw.city || current.city || '',
         type: raw.employmentType || raw.type || current.type || '',
-        salary: raw.salary || current.salary || 'Negotiable',
+        salary: raw.salary || current.salary || '薪资未披露',
         deadline: raw.deadline || current.deadline || '',
-        applyLink: raw.officialApplyUrl || raw.applyUrl || raw.sourceUrl || current.applyLink || '',
+        applyLink: raw.isApplyAvailable === false ? ''
+          : (raw.officialApplyUrl || raw.applyUrl || raw.sourceUrl || current.applyLink || ''),
+        isApplyAvailable: raw.isApplyAvailable,
+        applicationVerificationPending: this.isLocalJobDetail(id, raw)
+          && typeof raw.isApplyAvailable !== 'boolean',
+        applicationStatus: raw.applicationStatus || '',
+        applicationNotice: raw.applicationNotice || '',
         description: description || current.description,
         logo: current.logo || this.buildCompanyLogo(raw.company),
         companyInitial: current.companyInitial || this.getCompanyInitial(raw.company),
@@ -503,6 +666,7 @@ Requirements:
         v4Application: data.application || null,
         jobTrust: data.trust || null
       });
+      if (typeof raw.isApplyAvailable === 'boolean') this._freshStatusSeq = (this._freshStatusSeq || 0) + 1;
       this._saveBrowseHistory(job);
     }).catch(() => {
       const currentToken = String(wx.getStorageSync('token') || '');
@@ -514,6 +678,10 @@ Requirements:
   },
 
   openOfficialForTrust: function() {
+    if (this.data.applicationHeld || this.data.applicationPending) {
+      wx.showToast({ title: this.data.applicationNotice || '该岗位当前不能申请', icon: 'none' });
+      return;
+    }
     const trust = this.data.jobTrust || {};
     const verification = trust.officialVerification || {};
     const url = verification.url || (this.data.job && this.data.job.applyLink) || '';
@@ -533,6 +701,10 @@ Requirements:
 
   recordTrustObservation: function() {
     if (this.data.trustObserving) return;
+    if (this.data.applicationHeld || this.data.applicationPending) {
+      wx.showToast({ title: this.data.applicationNotice || '该岗位当前不能申请', icon: 'none' });
+      return;
+    }
     const trust = this.data.jobTrust || {};
     const verification = trust.officialVerification || {};
     const url = verification.url || (this.data.job && this.data.job.applyLink) || '';
@@ -625,7 +797,11 @@ Requirements:
       patch['jobView.applicationStatus'] = state.applicationStatus;
       patch['jobView.progressStatusText'] = state.progressStatusText;
       patch['jobView.appliedText'] = state.progressStatusText;
-      if (state.inProgress) patch['jobView.applyButtonText'] = '查看进度';
+      if (this.data.applicationHeld) patch['jobView.applyButtonText'] = this.data.job.applicationStatus === 'closed'
+        ? '申请已关闭' : (this.data.jobView.deadlineClosed ? '截止已过'
+          : (this.data.job.applicationStatus === 'review_needed' ? '待人工复核' : '暂不可申请'));
+      else if (this.data.applicationPending) patch['jobView.applyButtonText'] = '核对中';
+      else if (state.inProgress) patch['jobView.applyButtonText'] = '查看进度';
       else patch['jobView.applyButtonText'] = this.data.jobView.deadlineClosed
         ? '已截止' : (this.data.jobView.hasApplyLink ? '前往投递' : '保存投递');
     }
@@ -676,12 +852,16 @@ Requirements:
   addToProgress: async function() {
     const job = this.data.job;
     if (!job || this.data.isApplying) return;
-    if (!wx.getStorageSync('token')) {
-      this.ensureAuthenticated('登录后将岗位加入待投递', () => this.addToProgress());
-      return;
-    }
     if (this.data.inProgress && this.data.progressStatusText !== '已收藏') {
       navigation.safeNavigateTo('/pages/applications/applications');
+      return;
+    }
+    if (this.data.applicationHeld || this.data.applicationPending) {
+      wx.showToast({ title: this.data.applicationNotice || '该岗位申请状态正在核对', icon: 'none' });
+      return;
+    }
+    if (!wx.getStorageSync('token')) {
+      this.ensureAuthenticated('登录后将岗位加入待投递', () => this.addToProgress());
       return;
     }
     this.setData({ isApplying: true });
@@ -696,12 +876,16 @@ Requirements:
   runJdMatch: async function() {
     const job = this.data.job;
     if (!job) return;
+    const source = String(job.source || job._source || '').toLowerCase();
+    const knownExternal = !!job.fromSkillSearch
+      || ['jsearch', 'adzuna', 'remoteok', 'themuse', 'linkedin', 'indeed'].includes(source);
+    const localJob = !knownExternal && this.isLocalJobDetail(job.id, job);
     const token = String(wx.getStorageSync('token') || '');
     const ownerScope = progress.currentOwnerScope ? progress.currentOwnerScope() : '';
     const requestSeq = this._matchRequestSeq = (this._matchRequestSeq || 0) + 1;
     const isCurrent = () => !this._unloaded && requestSeq === this._matchRequestSeq
       && token === String(wx.getStorageSync('token') || '');
-    if (token) {
+    if (token && !knownExternal) {
       wx.showLoading({ title: '计算匹配度...', mask: true });
       try {
         const res = await v4Api.calculateJobMatch(job.id);
@@ -714,6 +898,7 @@ Requirements:
         if (!isCurrent()) return;
         const match = res && res.code === 0 ? res.data : null;
         if (match) {
+          const resume = ownerStorage.get('onlineResume', '', {});
           const report = {
             score: match.score,
             company: job.company,
@@ -729,6 +914,7 @@ Requirements:
             tierNote: match.tierNote || '',
             decision: match.decision || null,
             sponsorAssessment: match.sponsorAssessment || null,
+            evidence: buildEvidence(resume, job),
           };
           this.setData({
             matchReport: report,
@@ -764,8 +950,7 @@ Requirements:
     }
     if (!isCurrent()) return;
     const resume = ownerStorage.get('onlineResume', '', {});
-    const hasResume = !!(resume.basicInfo && (resume.basicInfo.name || resume.basicInfo.email)) ||
-      (resume.skills && resume.skills.length) ||
+    const hasResume = (resume.skills && resume.skills.length) ||
       (resume.projects && resume.projects.length) ||
       (resume.workExp && resume.workExp.length);
     if (!hasResume) {
@@ -780,14 +965,30 @@ Requirements:
       });
       return;
     }
+    const evidence = buildEvidence(resume, job);
+    if (evidence.status === 'insufficient_jd') {
+      wx.showModal({ title: '岗位描述不足', content: '当前岗位缺少可核对的原文要求，暂不能生成可靠的个人匹配。', showCancel: false });
+      return;
+    }
+    if (!localJob) {
+      const report = {
+        company: job.company, jobTitle: job.title, score: null,
+        missingKeywords: evidence.gaps.map(item => item.label),
+        projectSuggestion: evidence.nextActions[0] || '',
+        suggestions: evidence.nextActions, evidence
+      };
+      if (isCurrent()) this.setData({ matchReport: report, showMatchPanel: true });
+      return;
+    }
     const report = jdMatch.saveReport(jdMatch.buildReport(resume, job));
+    const displayReport = { ...report, evidence };
     analytics.track('jd_match_generate', {
       jobId: job.id,
       company: job.company,
       title: job.title,
       score: report.score
     });
-    if (isCurrent()) this.setData({ matchReport: report, showMatchPanel: true });
+    if (isCurrent()) this.setData({ matchReport: displayReport, showMatchPanel: true });
   },
 
   closeMatchPanel: function() {
@@ -822,9 +1023,20 @@ Requirements:
   },
 
   // 打开一键投递弹窗
+  copyOfficialSource: function() {
+    const job = this.data.job || {};
+    if (!job.sourceUrl) return;
+    wx.setClipboardData({ data: job.sourceUrl,
+      success: () => wx.showToast({ title: '官方来源地址已复制', icon: 'none' }) });
+  },
+
   applyJob: function() {
     const job = this.data.job;
     if (!job) return;
+    if (this.data.applicationHeld || this.data.applicationPending || job.isApplyAvailable === false) {
+      wx.showToast({ title: this.data.applicationNotice || '该岗位当前不能申请', icon: 'none' });
+      return;
+    }
     if (this.data.inProgress) {
       navigation.safeNavigateTo('/pages/applications/applications');
       return;
@@ -845,6 +1057,11 @@ Requirements:
   doOneClickApply: async function() {
     const job  = this.data.job;
     if (!job || this.data.isApplying) return;
+    if (this.data.applicationHeld || this.data.applicationPending || job.isApplyAvailable === false) {
+      this.hideApplyModal();
+      wx.showToast({ title: this.data.applicationNotice || '该岗位当前不能申请', icon: 'none' });
+      return;
+    }
     if (!wx.getStorageSync('token')) {
       this.ensureAuthenticated('登录后保存待投递并继续申请', () => this.doOneClickApply());
       return;
@@ -852,6 +1069,11 @@ Requirements:
     this.setData({ isApplying: true });
     try {
       await this.addToBoard();
+      if (this.data.applicationHeld || this.data.applicationPending || this.data.job.isApplyAvailable === false) {
+        this.hideApplyModal();
+        wx.showToast({ title: this.data.applicationNotice || '该岗位当前不能申请', icon: 'none' });
+        return;
+      }
       if (job.applyLink) {
         await new Promise((resolve, reject) => wx.setClipboardData({ data: job.applyLink, success: resolve,
           fail: () => reject(new Error('申请已保存，链接复制失败，请重试')) }));

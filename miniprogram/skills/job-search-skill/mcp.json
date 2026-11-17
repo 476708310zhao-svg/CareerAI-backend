@@ -5,7 +5,7 @@
   "apis": [
     {
       "name": "searchJobs",
-      "description": "搜索真实岗位，返回最多 5 个可展示岗位卡片。",
+      "description": "搜索真实岗位，返回本次已检索与筛选数量、最多 5 个岗位卡片，并提供完整列表入口；来源不可用与无匹配结果分别说明。",
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -16,7 +16,7 @@
           },
           "region": {
             "type": "string",
-            "description": "地区或国家，例如 United States、North America、Canada。"
+            "description": "国家，例如美国、加拿大、英国；不指定时搜索全球。跨国地区如北美请先指定国家。"
           },
           "city": {
             "type": "string",
@@ -54,7 +54,12 @@
             "properties": {
               "jobs": { "type": "array" },
               "total": { "type": "number" },
-              "hasMore": { "type": "boolean" }
+              "retrievedTotal": { "type": "number" },
+              "coverage": { "type": "object" },
+              "sourceStatus": { "type": "array" },
+              "hasMore": { "type": "boolean" },
+              "sourceUnavailable": { "type": "boolean" },
+              "emptyMessage": { "type": "string" }
             }
           },
           "_meta": { "type": "object" }

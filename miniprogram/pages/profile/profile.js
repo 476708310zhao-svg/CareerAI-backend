@@ -210,6 +210,7 @@ Page({
   goToMessages()  { wx.navigateTo({ url: '/package-user/pages/messages/messages' }); },
   goToSettings()  { wx.navigateTo({ url: '/package-user/pages/settings/settings' }); },
   goToFeedback()  { wx.navigateTo({ url: '/package-user/pages/feedback/feedback' }); },
+  goToManualServices() { wx.navigateTo({ url: '/package-user/pages/manual-services/manual-services' }); },
   goToAbout()     { wx.navigateTo({ url: '/package-user/pages/about/about' }); },
 
   onLogout() {

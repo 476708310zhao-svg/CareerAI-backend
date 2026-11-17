@@ -1,12 +1,15 @@
 <view class="skill-job-list">
   <view class="skill-summary" wx:if="{{total > 0}}">
     <text class="summary-title">相关岗位</text>
-    <text class="summary-count">{{total}} 个结果</text>
+    <text class="summary-count">本次 {{total}} 条 · 展示 {{jobs.length}} 条</text>
   </view>
+  <text class="coverage-note" wx:if="{{coverageLabel}}">{{coverageLabel}}</text>
+  <text class="coverage-note" wx:if="{{sourceSummary}}">{{sourceSummary}}</text>
+  <text class="coverage-note partial" wx:if="{{partialLabel}}">{{partialLabel}}</text>
 
   <view class="empty" wx:if="{{!jobs || jobs.length === 0}}">
-    <text class="empty-title">暂时没有匹配岗位</text>
-    <text class="empty-desc">可以调整关键词、城市、岗位类型、签证标签或更新时间。</text>
+    <text class="empty-title">{{sourceUnavailable ? '岗位来源暂不可用' : '暂时没有匹配岗位'}}</text>
+    <text class="empty-desc">{{emptyMessage || '可以调整关键词、城市、岗位类型、签证标签或更新时间。'}}</text>
   </view>
 
   <view
@@ -35,13 +38,14 @@
     </view>
 
     <view class="tag-row" wx:if="{{item.visaTags && item.visaTags.length}}">
-      <text wx:for="{{item.visaTags}}" wx:key="*this" class="visa-tag">{{item}}</text>
+        <text wx:for="{{item.visaTags}}" wx:key="*this" class="visa-tag">{{item === 'E-Verify' ? 'E-Verify（非签证担保）' : item}}</text>
     </view>
 
     <view class="foot-row">
-      <text class="updated">{{item.updatedAt || 'Recently posted'}}</text>
+      <text class="updated">{{item.updatedAt || '发布时间未披露'}}</text>
       <text class="salary" wx:if="{{item.salaryRange}}">{{item.salaryRange}}</text>
       <text class="detail-link">查看详情</text>
     </view>
   </view>
+  <button class="view-all" wx:if="{{jobs && jobs.length}}" bindtap="onViewAll">查看全部岗位</button>
 </view>

@@ -12,6 +12,11 @@ function write(method, path, body, timeout = 20000) {
 }
 
 function getProfile() { return get('/api/v4/profile'); }
+function getManualServiceConsent() { return get('/api/v4/manual-services/consent'); }
+function getManualServiceRequests() { return get('/api/v4/manual-services'); }
+function getManualServiceRequest(id) { return get('/api/v4/manual-services/' + encodeURIComponent(id)); }
+function createManualServiceRequest(payload) { return write('POST', '/api/v4/manual-services', payload); }
+function revokeManualServiceRequest(id, expectedVersion) { return write('POST', '/api/v4/manual-services/' + encodeURIComponent(id) + '/revoke', { expectedVersion }); }
 function getProfileCompletion() { return get('/api/v4/profile/completion'); }
 function updateProfile(profile) { return write('PUT', '/api/v4/profile', profile); }
 
@@ -23,12 +28,25 @@ function getJobMatch(jobId) { return get('/api/v4/jobs/' + encodeURIComponent(jo
 function getApplicationBoard(params) { return get('/api/v4/applications/board', params); }
 function createApplication(payload) { return write('POST', '/api/v4/applications', payload); }
 function getApplicationDetail(id) { return get('/api/v4/applications/' + encodeURIComponent(id) + '/detail'); }
+function getApplicationWorkspace(id) { return get('/api/v4/applications/' + encodeURIComponent(id) + '/workspace'); }
+function getApplicationHistory(id, params) { return get('/api/v4/applications/' + encodeURIComponent(id) + '/history', params); }
 function updateApplication(id, payload) { return write('PATCH', '/api/v4/applications/' + encodeURIComponent(id), payload); }
+function saveApplicationResumeSelection(id, payload) { return write('PUT', '/api/v4/applications/' + encodeURIComponent(id) + '/resume-selection', payload); }
+function addApplicationChecklistItem(id, payload) { return write('POST', '/api/v4/applications/' + encodeURIComponent(id) + '/material-checklist', payload); }
+function updateApplicationChecklistItem(id, itemId, payload) { return write('PATCH', '/api/v4/applications/' + encodeURIComponent(id) + '/material-checklist/' + encodeURIComponent(itemId), payload); }
+function deleteApplicationChecklistItem(id, itemId, payload) { return write('DELETE', '/api/v4/applications/' + encodeURIComponent(id) + '/material-checklist/' + encodeURIComponent(itemId), payload); }
 function updateApplicationStatus(id, payload) { return write('PATCH', '/api/v4/applications/' + encodeURIComponent(id) + '/status', payload); }
+function confirmApplicationSubmission(id, payload) { return write('POST', '/api/v4/applications/' + encodeURIComponent(id) + '/submission-confirmation', payload); }
+function revokeApplicationSubmission(id, payload) { return write('POST', '/api/v4/applications/' + encodeURIComponent(id) + '/submission-confirmation/revoke', payload); }
 function addApplicationContact(id, payload) { return write('POST', '/api/v4/applications/' + encodeURIComponent(id) + '/contacts', payload); }
 function addApplicationTask(id, payload) { return write('POST', '/api/v4/applications/' + encodeURIComponent(id) + '/tasks', payload); }
 function updateApplicationTask(id, taskId, payload) {
   return write('PATCH', '/api/v4/applications/' + encodeURIComponent(id) + '/tasks/' + encodeURIComponent(taskId), payload);
+}
+function getApplicationInterviewReports(id) { return get('/api/v4/applications/' + encodeURIComponent(id) + '/interview-reports'); }
+function saveApplicationInterviewReport(id, payload) { return write('POST', '/api/v4/applications/' + encodeURIComponent(id) + '/interview-reports', payload); }
+function convertApplicationInterviewReportToTask(id, reportId, payload) {
+  return write('POST', '/api/v4/applications/' + encodeURIComponent(id) + '/interview-reports/' + encodeURIComponent(reportId) + '/convert-to-task', payload);
 }
 
 function getResumeTemplates() { return get('/api/v4/resumes/templates'); }
@@ -77,6 +95,9 @@ function rejectResumeChangeSet(id, payload) { return write('POST', '/api/v4/resu
 function getMaterialQuota() { return get('/api/v4/materials/quota'); }
 function getMaterialDrafts(params) { return get('/api/v4/materials/drafts', params); }
 function createMaterialDraft(payload) { return write('POST', '/api/v4/materials/drafts', payload); }
+function generateApplicationAnswer(payload) { return write('POST', '/api/v4/materials/answers/draft', payload); }
+function getApplicationAnswerDrafts(applicationId) { return get('/api/v4/materials/answers/drafts', { applicationId }); }
+function updateApplicationAnswerDraft(id, payload) { return write('PATCH', '/api/v4/materials/answers/drafts/' + encodeURIComponent(id), payload); }
 function confirmMaterialDraft(id, payload) { return write('POST', '/api/v4/materials/drafts/' + encodeURIComponent(id) + '/confirm', payload); }
 function rejectMaterialDraft(id) { return write('POST', '/api/v4/materials/drafts/' + encodeURIComponent(id) + '/reject'); }
 function trackOfficialApply(id) { return write('POST', '/api/v4/applications/' + encodeURIComponent(id) + '/official-apply'); }
@@ -140,6 +161,11 @@ function recordJobTrustObservation(jobId, payload) {
 
 module.exports = {
   getProfile,
+  getManualServiceConsent,
+  getManualServiceRequests,
+  getManualServiceRequest,
+  createManualServiceRequest,
+  revokeManualServiceRequest,
   getProfileCompletion,
   updateProfile,
   getJobs,
@@ -149,11 +175,22 @@ module.exports = {
   getApplicationBoard,
   createApplication,
   getApplicationDetail,
+  getApplicationWorkspace,
+  getApplicationHistory,
   updateApplication,
+  saveApplicationResumeSelection,
+  addApplicationChecklistItem,
+  updateApplicationChecklistItem,
+  deleteApplicationChecklistItem,
   updateApplicationStatus,
+  confirmApplicationSubmission,
+  revokeApplicationSubmission,
   addApplicationContact,
   addApplicationTask,
   updateApplicationTask,
+  getApplicationInterviewReports,
+  saveApplicationInterviewReport,
+  convertApplicationInterviewReportToTask,
   getResumeTemplates,
   getResumePdfs,
   extractResumePdf,
@@ -179,6 +216,9 @@ module.exports = {
   getMaterialQuota,
   getMaterialDrafts,
   createMaterialDraft,
+  generateApplicationAnswer,
+  getApplicationAnswerDrafts,
+  updateApplicationAnswerDraft,
   confirmMaterialDraft,
   rejectMaterialDraft,
   trackOfficialApply,

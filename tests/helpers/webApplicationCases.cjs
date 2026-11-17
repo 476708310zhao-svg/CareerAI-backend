@@ -101,8 +101,10 @@ test('bulk status atomically rejects illegal transitions, conflicts and malforme
   assert.equal(f.db.prepare('SELECT COUNT(*) n FROM application_history').get().n,before);
   assert.equal((await f.call(`/${a.id}/detail`)).body.data.application.status,'preparing');
   for(const body of [{items:[],status:'applied'},{items:[snapshot(a),snapshot(a)],status:'applied'}, {items:[snapshot(a)],status:'toString'},{items:Array(51).fill(snapshot(a)),status:'applied'},{items:[{...snapshot(a),historyId:'1'}],status:'applied'}]) assert.equal((await f.call('/bulk-status','POST',body)).status,400);
-  await f.call(`/${a.id}/status`,'PATCH',{status:'interested'});
-  await f.call(`/${a.id}/status`,'PATCH',{status:'preparing'});
+  let state=(await f.call(`/${a.id}/detail`)).body.data.application;
+  await f.call(`/${a.id}/status`,'PATCH',{status:'interested',expectedState:snapshot(state)});
+  state=(await f.call(`/${a.id}/detail`)).body.data.application;
+  await f.call(`/${a.id}/status`,'PATCH',{status:'preparing',expectedState:snapshot(state)});
   assert.equal((await f.call('/bulk-status','POST',{items:[snapshot(a)],status:'applied'})).status,409,'ABA state changes must conflict');
 });
 test('bulk writes are visible through mini-program APIs and support protected one-time undo',async()=>{
@@ -129,14 +131,15 @@ test('a database failure during the second write rolls back the first write and 
 test('undo cannot overwrite later state changes or restore an expired batch',async()=>{
   const a=await f.create(); const b=await f.create();
   const batch=(await f.call('/bulk-status','POST',{items:[snapshot(a),snapshot(b)],status:'applied'})).body.data;
-  await f.call(`/${b.id}/status`,'PATCH',{status:'oa'});
+  const bState=(await f.call(`/${b.id}/detail`)).body.data.application;
+  await f.call(`/${b.id}/status`,'PATCH',{status:'oa',expectedState:snapshot(bState)});
   assert.equal((await f.call('/bulk-status/undo','POST',{historyIds:batch.undo.historyIds})).status,409);
   assert.equal((await f.call(`/${a.id}/detail`)).body.data.application.status,'applied','no partial undo');
   f.db.prepare("UPDATE application_history SET created_at=datetime('now','-11 minutes') WHERE id=?").run(batch.undo.historyIds[0]);
   assert.equal((await f.call('/bulk-status/undo','POST',{historyIds:[batch.undo.historyIds[0]]})).status,409);
 });
 test('bulk interview transitions create the same interview space and audit events as single updates',async()=>{
-  const a=await f.create();await f.call(`/${a.id}/status`,'PATCH',{status:'applied'});
+  const a=await f.create();await f.call(`/${a.id}/status`,'PATCH',{status:'applied',expectedState:snapshot(a)});
   const current=(await f.call(`/${a.id}/detail`)).body.data.application;
   const result=await f.call('/bulk-status','POST',{items:[snapshot(current)],status:'interview_1'});
   assert.equal(result.status,200);assert.ok(result.body.data.results[0].interviewSpaceId);

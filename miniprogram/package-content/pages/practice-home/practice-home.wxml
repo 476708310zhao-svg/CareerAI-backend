@@ -1,0 +1,67 @@
+<view class="practice-page">
+  <view class="hero">
+    <text class="eyebrow">服务端练习记录</text>
+    <text class="title">在线刷题</text>
+    <text class="subtitle">仅展示已审核并开放的免费题集。答题进度、错题和收藏与网页版同步。</text>
+  </view>
+  <view class="notice" wx:if="{{!loggedIn}}">
+    <text>登录后查看免费题集和你的练习记录。</text>
+    <button class="primary-button" bindtap="openLogin">前往登录</button>
+  </view>
+  <block wx:else>
+    <view class="tabs" aria-label="刷题内容">
+      <button class="tab {{view === 'sets' ? 'selected' : ''}}" data-view="sets" bindtap="changeView" aria-label="免费题集">题集</button>
+      <button class="tab {{view === 'history' ? 'selected' : ''}}" data-view="history" bindtap="changeView" aria-label="练习历史">历史</button>
+      <button class="tab {{view === 'mistakes' ? 'selected' : ''}}" data-view="mistakes" bindtap="changeView" aria-label="我的错题">错题</button>
+      <button class="tab {{view === 'favorites' ? 'selected' : ''}}" data-view="favorites" bindtap="changeView" aria-label="我的收藏">收藏</button>
+    </view>
+    <view class="state" wx:if="{{loading}}">正在加载…</view>
+    <view class="state error" wx:elif="{{error}}" aria-role="alert"><text>{{error}}</text><button class="secondary-button" bindtap="load">重新加载</button></view>
+    <block wx:else>
+      <block wx:if="{{view === 'sets'}}">
+        <view class="section" wx:if="{{active.length}}">
+          <text class="section-title">继续练习</text>
+          <button class="row" wx:for="{{active}}" wx:key="id" data-id="{{item.id}}" bindtap="openSession" aria-label="继续{{item.setTitle}}，已答{{item.answered}}题">
+            <text class="row-title">{{item.setTitle}}</text><text class="row-meta">已答 {{item.answered}} / {{item.total}} 题</text>
+          </button>
+        </view>
+        <view class="section">
+          <text class="section-title">免费题集</text>
+          <view class="empty" wx:if="{{!sets.length}}">暂时没有已开放的免费题集，稍后再来看看。</view>
+          <view class="set-card" wx:for="{{sets}}" wx:key="id">
+            <view class="set-copy"><text class="row-title">{{item.title}}</text><text class="row-meta">{{item.questionCount}} 题 · 服务端记录</text></view>
+            <button class="small-button" data-id="{{item.id}}" bindtap="startSet" loading="{{busySetId === item.id}}" disabled="{{!!busySetId}}" aria-label="开始或继续{{item.title}}">开始</button>
+          </view>
+        </view>
+      </block>
+      <view class="section" wx:if="{{view === 'history'}}"><text class="section-title">练习历史</text>
+        <view class="empty" wx:if="{{!history.length}}">还没有完成的练习。</view>
+        <button class="row" wx:for="{{history}}" wx:key="id" data-id="{{item.id}}" bindtap="openSession" aria-label="查看{{item.setTitle}}的练习记录">
+          <text class="row-title">{{item.setTitle}}</text><text class="row-meta">已答 {{item.answered}} / {{item.total}} 题 · 正确 {{item.correctCount}} 题</text>
+        </button>
+      </view>
+      <view class="section" wx:if="{{view === 'mistakes'}}"><text class="section-title">我的错题</text>
+        <view class="empty" wx:if="{{!mistakes.length && !loadingMore}}">本页没有可显示的错题，下拉刷新可返回第一页。</view>
+        <button class="row" wx:for="{{mistakes}}" wx:key="rowKey" data-id="{{item.sessionId}}" data-position="{{item.position}}" bindtap="openSession" disabled="{{!item.available}}" aria-label="查看第{{item.position}}题错题记录">
+          <text class="row-title">第 {{item.position}} 题{{item.available && item.question ? ' · ' + item.question.stem : ''}}</text>
+          <text class="row-meta">{{item.available ? '查看练习记录' : '题目目前不可查看'}}</text>
+        </button>
+      </view>
+      <view class="section" wx:if="{{view === 'favorites'}}"><text class="section-title">我的收藏</text>
+        <view class="empty" wx:if="{{!favorites.length && !loadingMore}}">本页没有可显示的收藏，下拉刷新可返回第一页。</view>
+        <button class="row" wx:for="{{favorites}}" wx:key="rowKey" data-id="{{item.sessionId}}" data-position="{{item.position}}" bindtap="openSession" disabled="{{!item.available}}" aria-label="查看第{{item.position}}题收藏">
+          <text class="row-title">第 {{item.position}} 题{{item.available && item.question ? ' · ' + item.question.stem : ''}}</text>
+          <text class="row-meta">{{item.available ? '查看练习记录' : '题目目前不可查看'}}</text>
+        </button>
+      </view>
+      <text class="more-error" wx:if="{{moreError}}" aria-role="alert">{{moreError}}</text>
+      <view class="page-nav" wx:if="{{view === 'mistakes' || view === 'favorites'}}">
+        <button class="secondary-button page-button" wx:if="{{hasPrevious}}" disabled="{{loadingMore}}" bindtap="loadPrevious">上一页</button>
+        <text class="page-number">第 {{currentPage}} 页</text>
+        <button class="secondary-button page-button" wx:if="{{nextCursor != null}}" loading="{{loadingMore}}" disabled="{{loadingMore}}" bindtap="loadMore">下一页</button>
+      </view>
+      <button class="secondary-button load-more" wx:elif="{{nextCursor != null}}" loading="{{loadingMore}}" disabled="{{loadingMore}}" bindtap="loadMore">加载更多</button>
+    </block>
+  </block>
+  <view class="bottom-space"></view>
+</view>

@@ -16,7 +16,7 @@ const {
 const GROUPS = [
   { key: 'all', label: '全部' },
   { key: 'preparing', label: '待投递' },
-  { key: 'applied', label: '已投递' },
+  { key: 'applied', label: '已投递状态' },
   { key: 'oa', label: 'OA' },
   { key: 'interview', label: '面试中' },
   { key: 'offer', label: 'Offer' },
@@ -242,7 +242,7 @@ Page({
         return;
       }
       const picked = await new Promise(resolve => wx.showActionSheet({
-        itemList: choices.map(item => LABELS[item.value] || item.label),
+        itemList: choices.map(item => item.value === 'applied' ? '已投递（仅更新状态）' : (LABELS[item.value] || item.label)),
         success: result => resolve(choices[result.tapIndex]), fail: () => resolve(null)
       }));
       if (!picked || wx.getStorageSync('token') !== token) return;
@@ -259,7 +259,7 @@ Page({
       wx.showToast({ title: '状态已更新', icon: 'success' });
     } catch (error) {
       if (wx.getStorageSync('token') !== token) return;
-      wx.showToast({ title: error.statusCode === 409 ? '状态已变化，请刷新后重试' : (error.message || '更新失败，请重试'), icon: 'none' });
+      wx.showToast({ title: (error.statusCode === 409 || error.statusCode === 428) ? '状态已变化，请刷新后重试' : (error.message || '更新失败，请重试'), icon: 'none' });
     } finally {
       this.setData({ updatingId: '' });
     }

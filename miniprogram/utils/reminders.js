@@ -228,12 +228,12 @@ function getTemplateId(reminderType) {
   return pickTemplateId(readTemplateCache(), reminderType);
 }
 
-function registerSubscribe(templateIds) {
+function registerSubscribe(templateIds, decision) {
   const ids = (templateIds || []).filter(Boolean);
   if (!ids.length || !hasToken()) return Promise.resolve(false);
   return apiClient.post({
     path: '/api/notify/subscribe',
-    body: { templateIds: ids },
+    body: { templateIds: ids.map(templateId => ({ templateId, decision: decision || 'accepted' })) },
     timeout: 12000
   }).then(() => true).catch(() => false);
 }
@@ -253,11 +253,14 @@ function requestSubscribe(reminderType, operation) {
       tmplIds: [tmplId],
       success: (res) => {
         if (operation && !isOperationCurrent(operation)) return resolve(false);
-        if (res && res[tmplId] === 'accept') {
-          registerSubscribe([tmplId]).then(value => resolve(!operation || isOperationCurrent(operation) ? value : false));
+        const result = res && res[tmplId];
+        if (result === 'accept' || result === 'reject' || result === 'ban') {
+          const decision = result === 'accept' ? 'accepted' : result === 'reject' ? 'rejected' : 'revoked';
+          registerSubscribe([tmplId], decision).then(value => resolve(!operation || isOperationCurrent(operation)
+            ? { accepted: decision === 'accepted' && value, templateId: tmplId, decision } : false));
           return;
         }
-        resolve(false);
+        resolve({ accepted: false, templateId: tmplId, decision: 'unknown' });
       },
       fail: () => resolve(false)
     });
@@ -274,13 +277,15 @@ function upsertReminder(payload, options) {
     body.leadDays || body.reminderLeadDays,
     reminderType === 'interview' ? [1, 0] : [3, 1, 0]
   );
-  const write = () => {
+  const requestedChannel = String(options && options.deliveryChannel || body.deliveryChannel || 'in_app');
+  const write = deliveryChannel => {
     if (operation && !isOperationCurrent(operation)) return Promise.reject(staleOperationError());
     return apiClient.put({
       path: '/api/notify/reminders',
       body: Object.assign({}, body, {
         reminderType,
         leadDays,
+        deliveryChannel: deliveryChannel || requestedChannel,
         enabled: body.enabled !== false
       }),
       timeout: 15000
@@ -291,9 +296,12 @@ function upsertReminder(payload, options) {
   };
 
   if (options && options.withSubscribe) {
-    return requestSubscribe(reminderType, operation).then(write);
+    return requestSubscribe(reminderType, operation).then(result => {
+      if (!result || result.accepted !== true) return { authorizationDenied: true, result };
+      return write('both');
+    });
   }
-  return write();
+  return write(requestedChannel);
 }
 
 function upsertCampusDeadlineReminder(item, options) {
@@ -351,6 +359,29 @@ function fetchReminders(filters) {
     .catch(() => []);
 }
 
+function fetchReminderReceipts(applicationId) {
+  if (!hasToken()) return Promise.resolve([]);
+  return apiClient.request({ path: '/api/notify/reminder-receipts',
+    params: applicationId ? { applicationId } : {}, noCache: true, timeout: 12000 })
+    .then(res => res && res.code === 0 && Array.isArray(res.data) ? res.data : [])
+    .catch(() => []);
+}
+
+function fetchSubscriptions() {
+  if (!hasToken()) return Promise.resolve([]);
+  return apiClient.request({ path: '/api/notify/subscriptions', noCache: true, timeout: 12000 })
+    .then(res => res && res.code === 0 && Array.isArray(res.data) ? res.data : [])
+    .catch(() => []);
+}
+
+function revokeSubscription(templateId) {
+  if (!hasToken() || !templateId) return Promise.resolve(null);
+  return apiClient._write({ method: 'DELETE',
+    path: '/api/notify/subscriptions/' + encodeURIComponent(templateId), timeout: 12000 })
+    .then(res => res && res.code === 0 ? res : null)
+    .catch(() => null);
+}
+
 module.exports = {
   CAMPUS_SOURCE_TYPE,
   CAMPUS_DEADLINE_TYPE,
@@ -358,6 +389,9 @@ module.exports = {
   upsertReminder,
   disableReminder,
   fetchReminders,
+  fetchReminderReceipts,
+  fetchSubscriptions,
+  revokeSubscription,
   requestSubscribe,
   registerSubscribe,
   fetchTemplates,

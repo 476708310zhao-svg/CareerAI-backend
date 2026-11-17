@@ -83,6 +83,7 @@ test('failed feedback submission leaves the draft visible for retry', async () =
   const toasts = [];
   const page = loadPage('package-user/pages/feedback/feedback.js', {
     '../../../utils/api-feedback.js': { submitFeedback: () => Promise.reject(new Error('offline')) },
+    '../../../utils/auth-session.js': { capture: () => ({ token: 'session', revision: 0 }), isCurrent: () => true },
   }, {
     showToast: value => toasts.push(value),
     navigateBack: () => { throw new Error('must stay on feedback page'); },
@@ -95,4 +96,99 @@ test('failed feedback submission leaves the draft visible for retry', async () =
   assert.match(page.data.submitError, /尚未提交/);
   assert.equal(page.data.content, '职位页面提交后没有提示，希望增加反馈。');
   assert.equal(toasts.length, 0);
+});
+
+test('feedback history handles paging, failures and account switching without showing old rows', async () => {
+  let token = 'account-a';
+  let revision = 0;
+  let resolveFirst;
+  const requests = [];
+  const auth = {
+    capture: () => ({ token, revision }),
+    isCurrent: snapshot => snapshot.token === token && snapshot.revision === revision,
+  };
+  const page = loadPage('package-user/pages/feedback/feedback.js', {
+    '../../../utils/api-feedback.js': {
+      submitFeedback: () => Promise.resolve({ code: 0 }),
+      getMyFeedback: cursor => {
+        requests.push(cursor);
+        if (requests.length === 1) return new Promise(resolve => { resolveFirst = resolve; });
+        if (requests.length === 2) return Promise.resolve({ code: 0, data: { items: [{ id: 9, type: '岗位信息纠错', content: '账号 B 的岗位反馈', status: 'processing', createdAt: '2026-10-30T09:00:00', jobFeedback: { jobId: 'rok_9' } }], nextCursor: 9 } });
+        if (requests.length === 3) return Promise.resolve({ _source: 'networkError', data: [] });
+        return Promise.resolve({ code: 0, data: { items: [{ id: 8, type: '其他', content: '第二页', status: 'resolved' }], nextCursor: null } });
+      }
+    },
+    '../../../utils/auth-session.js': auth,
+  }, { getStorageSync: () => token, showToast() {} });
+  page.onLoad();
+  token = 'account-b'; revision++;
+  page.onShow();
+  await settle();
+  assert.equal(page.data.history.length, 1);
+  assert.equal(page.data.history[0].content, '账号 B 的岗位反馈');
+  resolveFirst({ code: 0, data: { items: [{ id: 50, content: '账号 A 的私有反馈' }], nextCursor: null } });
+  await settle();
+  assert.equal(page.data.history.length, 1);
+  page.loadMoreHistory();
+  await settle();
+  assert.match(page.data.historyError, /重试/);
+  assert.equal(page.data.history.length, 1);
+  page.retryHistory();
+  await settle();
+  assert.equal(page.data.history.length, 2);
+  assert.equal(page.data.nextCursor, null);
+  assert.deepEqual(requests, [null, null, 9, 9]);
+});
+
+test('feedback refresh failure retries the first page and unknown status is not called open', async () => {
+  let count = 0;
+  const cursors = [];
+  const page = loadPage('package-user/pages/feedback/feedback.js', {
+    '../../../utils/api-feedback.js': {
+      submitFeedback: () => Promise.resolve({ code: 0 }),
+      getMyFeedback: cursor => {
+        cursors.push(cursor);
+        count++;
+        if (count === 2) return Promise.resolve({ _source: 'networkError', data: [] });
+        return Promise.resolve({ code: 0, data: { items: [{ id: count, type: '其他', content: '旧反馈', status: 'unknown' }], nextCursor: count } });
+      }
+    },
+    '../../../utils/auth-session.js': { capture: () => ({ token: 'a', revision: 1 }), isCurrent: () => true },
+  }, { getStorageSync: () => 'a' });
+  page.onLoad();
+  await settle();
+  assert.equal(page.data.history[0].statusLabel, '状态待核实');
+  page.refreshHistory();
+  await settle();
+  assert.match(page.data.historyError, /重试/);
+  assert.equal(page.data.history.length, 1);
+  page.retryHistory();
+  await settle();
+  assert.deepEqual(cursors, [null, null, null]);
+  assert.equal(page.data.history[0].statusLabel, '状态待核实');
+});
+
+test('feedback requires login and keeps a draft when the session expires', async () => {
+  let token = '';
+  let submissions = 0;
+  const page = loadPage('package-user/pages/feedback/feedback.js', {
+    '../../../utils/api-feedback.js': {
+      submitFeedback: () => { submissions++; return Promise.reject(new Error('unauthorized')); },
+      getMyFeedback: () => Promise.resolve({ _source: 'unauthorized', data: [] }),
+    },
+    '../../../utils/auth-session.js': {
+      capture: () => ({ token, revision: 0 }),
+      isCurrent: () => !!token,
+    },
+  }, { getStorageSync: () => token, showToast() {} });
+  page.setData({ content: '反馈内容至少十个字，请协助查看岗位信息。' });
+  page.submitFeedback();
+  assert.equal(submissions, 0);
+  assert.match(page.data.submitError, /登录/);
+  token = 'active-session';
+  page.submitFeedback();
+  await settle();
+  assert.equal(submissions, 1);
+  assert.match(page.data.submitError, /登录已失效/);
+  assert.match(page.data.content, /反馈内容/);
 });

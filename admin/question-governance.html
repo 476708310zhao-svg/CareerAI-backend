@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>素材权利审核 · 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/question-governance.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="admin-shell governance-admin">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="brand-title">求职助手</div><div class="brand-sub">管理后台</div></div>
+    <nav class="sidebar-nav"><div class="nav-section-title">功能模块</div><div id="sidebarNav"></div></nav>
+    <div class="sidebar-footer"><div class="admin-name" id="adminUsername"></div><button class="nav-item" onclick="logout()"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i><span>退出登录</span></button></div>
+  </aside>
+  <main class="main">
+    <div class="topbar"><span class="topbar-title" id="pageTitle"></span><div class="topbar-right"><span id="adminUsername2"></span><button class="btn-logout" onclick="logout()">退出</button></div></div>
+    <div class="content">
+      <div class="page-header"><div><h1>素材权利审核</h1><p class="sub">分别核查来源权利与内容状态，保留审批记录</p></div></div>
+      <ol class="gov-steps" aria-label="PDF 识题进度"><li><strong>1 导入 PDF</strong></li><li aria-current="step"><strong>2 核对处理授权</strong></li><li><strong>3 自动识题</strong></li></ol>
+      <div class="gov-guardrail" role="note"><strong>默认不可使用或发布</strong><span>来源说明、采购凭证和权利声明都不是授权通过。批准权利后仍需 PDF 深度校验、病毒扫描与后续题目审核；本页不开放原件读取或学生访问。</span></div>
+      <div class="gov-layout">
+        <section class="gov-panel gov-list-panel" aria-labelledby="sourceHeading">
+          <div class="gov-heading"><div><h2 id="sourceHeading">来源记录</h2><p>按记录 ID 查看审核详情。</p></div><button type="button" class="btn btn-outline btn-sm" id="refreshSources">刷新</button></div>
+          <form id="lookupForm" class="gov-lookup"><label for="lookupId">来源记录 ID</label><div><input id="lookupId" type="number" min="1" step="1" inputmode="numeric" required><button class="btn btn-primary" type="submit">查看</button></div></form>
+          <p id="listError" class="gov-error" role="alert" hidden></p>
+          <div id="sourceList" class="gov-source-list" aria-live="polite"></div>
+          <div class="gov-paging"><span id="sourceCount"></span><button type="button" class="btn btn-outline btn-sm" id="moreSources" hidden>加载更多</button></div>
+        </section>
+        <section class="gov-panel gov-detail-panel" aria-labelledby="detailHeading">
+          <div class="gov-heading"><div><h2 id="detailHeading">选择来源</h2><p id="detailMeta">选中左侧记录后查看权利与审核状态。</p></div><button type="button" class="btn btn-outline btn-sm" id="refreshDetail" hidden>刷新详情</button></div>
+          <p id="detailError" class="gov-error" role="alert" hidden></p>
+          <p id="actionNotice" class="gov-notice" role="status" hidden></p>
+          <div id="detailBody" hidden>
+            <div id="nextStep" class="gov-next" role="status" aria-live="polite"></div>
+            <div id="statusSummary" class="gov-summary" aria-live="polite"></div>
+            <section class="gov-section" aria-labelledby="rightsHeading">
+              <div class="gov-section-heading"><h3 id="rightsHeading">权利声明与审核</h3><p>仅已批准、未过期且未撤销的具体用途可进入后续检查。</p></div>
+              <div id="claimList" class="gov-card-list"></div>
+              <button type="button" class="btn btn-outline btn-sm gov-more" id="moreClaims" hidden>加载更多权利记录</button>
+              <form id="claimForm" class="gov-form" hidden>
+                <h4>提交权利声明</h4>
+                <p class="gov-help">请填写可追溯的授权证据。提交后仍待独立权利审核，所有用途默认不勾选。</p>
+                <div class="form-group"><label for="evidenceReference">证据编号或存放位置 *</label><input id="evidenceReference" maxlength="500" required placeholder="合同编号、授权函编号等（不要填写公开链接或密钥）"></div>
+                <fieldset class="gov-rights"><legend>识题所需用途（仅按证据勾选）</legend>
+                  <label><input type="checkbox" name="right" value="machineProcessing"> 机器处理 PDF，生成内部待审题目</label>
+                  <details class="gov-other-rights"><summary>其他用途：制作题集或展示时再核对</summary><div>
+                    <label><input type="checkbox" name="right" value="internalStorage"> 内部存储</label>
+                    <label><input type="checkbox" name="right" value="thirdPartyProcessing"> 第三方处理</label>
+                    <label><input type="checkbox" name="right" value="stemDisplay"> 题干展示</label>
+                    <label><input type="checkbox" name="right" value="imageDisplay"> 图片展示</label>
+                    <label><input type="checkbox" name="right" value="answerDisplay"> 答案解析展示</label>
+                    <label><input type="checkbox" name="right" value="commercialUse"> 商业访问</label>
+                    <label><input type="checkbox" name="right" value="adaptation"> 改编</label>
+                  </div></details>
+                </fieldset>
+                <div class="gov-form-grid"><div class="form-group"><label for="territory">适用地域 *</label><select id="territory" required><option value="CN">中国</option><option value="*">全球</option></select></div><div class="form-group"><label for="validFrom">开始日期 *</label><input id="validFrom" type="date" required></div><div class="form-group"><label for="validUntil">截止日期 *</label><input id="validUntil" type="date" required></div></div>
+                <p id="claimError" class="gov-error" role="alert" hidden></p><button class="btn btn-primary" id="submitClaim" type="submit">提交待审声明</button>
+              </form>
+            </section>
+            <section class="gov-section" aria-labelledby="contentHeading"><div class="gov-section-heading"><h3 id="contentHeading">内容审核</h3><p>内容审核与权利审核分别记录；这里只审核来源素材，不代表未来题目已审核。</p></div>
+              <div id="contentReviewList" class="gov-card-list"></div>
+              <button type="button" class="btn btn-outline btn-sm gov-more" id="moreContent" hidden>加载更多内容审核</button>
+              <form id="contentForm" class="gov-form" hidden><h4>记录内容审核</h4><p id="contentGate" class="gov-help" hidden></p><div class="gov-form-grid"><div class="form-group"><label for="contentDecision">审核结论 *</label><select id="contentDecision"><option id="contentApproveOption" value="approved">通过</option><option value="rejected">驳回</option></select></div><div class="form-group gov-wide"><label for="contentReason">审核说明 *</label><textarea id="contentReason" maxlength="500" rows="3" required></textarea></div></div><p id="contentError" class="gov-error" role="alert" hidden></p><button class="btn btn-primary" id="submitContent" type="submit">保存内容审核</button></form>
+            </section>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="js/config.js"></script><script src="js/common.js"></script><script src="js/question-governance.js"></script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+page { min-height: 100%; background: #f5f8ff; color: #111827; }
+.practice-page { min-height: 100vh; box-sizing: border-box; padding: 28rpx 28rpx 0; font-family: -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; }
+.summary,.question-card,.complete { margin-bottom: 20rpx; padding: 24rpx; border: 1rpx solid #e2e8f3; border-radius: 24rpx; background: #fff; }
+.summary-title,.summary-meta,.stem,.progress,.type,.result-title,.result-line,.complete-title,.complete-note { display: block; }
+.summary-title { color: #111827; font-size: 32rpx; font-weight: 700; line-height: 46rpx; }
+.summary-meta { margin-top: 8rpx; color: #526079; font-size: 26rpx; line-height: 38rpx; }
+.question-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18rpx; }
+.progress { color: #315ee8; font-size: 25rpx; font-weight: 650; }
+.type { padding: 6rpx 16rpx; border-radius: 12rpx; color: #315ee8; background: #edf2ff; font-size: 23rpx; }
+.stem { color: #111827; font-size: 32rpx; font-weight: 650; line-height: 49rpx; white-space: pre-wrap; overflow-wrap: break-word; }
+.choices { margin-top: 24rpx; }
+.choice { display: flex; align-items: center; width: 100%; min-height: 96rpx; box-sizing: border-box; margin-top: 12rpx; padding: 16rpx 20rpx; border: 1rpx solid #dfe7f5; border-radius: 18rpx; color: #26334f; background: #fff; text-align: left; }
+.choice::after { border: 0; }
+.choice.selected { border-color: #315ee8; background: #edf2ff; }
+.choice-mark { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 42rpx; min-height: 42rpx; margin-right: 14rpx; border-radius: 12rpx; color: #315ee8; background: #e8efff; font-size: 25rpx; font-weight: 650; }
+.choice-mark:empty { display: none; }
+.choice-text { flex: 1; min-width: 0; font-size: 28rpx; line-height: 40rpx; white-space: normal; overflow-wrap: break-word; }
+.choice-check { margin-left: 12rpx; color: #315ee8; font-size: 24rpx; font-weight: 650; }
+.result { margin-top: 28rpx; padding: 22rpx; border-radius: 18rpx; background: #edf6f0; }
+.result-title { color: #17613a; font-size: 29rpx; font-weight: 700; line-height: 42rpx; }
+.result-line { margin-top: 8rpx; color: #26334f; font-size: 26rpx; line-height: 40rpx; white-space: pre-wrap; overflow-wrap: break-word; }
+.submit-error { display: block; margin-top: 20rpx; color: #b42318; font-size: 25rpx; line-height: 38rpx; }
+.actions { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 26rpx; }
+.primary-button,.secondary-button,.text-button { display: flex; align-items: center; justify-content: center; min-height: 88rpx; box-sizing: border-box; margin: 0; padding: 0 26rpx; border-radius: 18rpx; font-size: 27rpx; font-weight: 650; }
+.primary-button { flex: 1; color: #fff; background: #315ee8; }
+.secondary-button { flex: 1; color: #315ee8; background: #eaf0ff; }
+.text-button { width: 100%; margin-top: 16rpx; color: #526079; background: transparent; }
+.state,.complete { padding: 44rpx 24rpx; color: #526079; font-size: 27rpx; line-height: 42rpx; text-align: center; }
+.state.error { color: #b42318; }
+.state button { margin-top: 18rpx; }
+.complete-title { color: #111827; font-size: 31rpx; font-weight: 700; }
+.complete-note { margin-top: 10rpx; }
+.report { margin-bottom: 20rpx; padding: 28rpx; border: 1rpx solid #dce6fa; border-radius: 24rpx; background: #fff; }
+.report-title,.report-score,.report-meta,.report-tip { display: block; }
+.report-title { color: #111827; font-size: 31rpx; font-weight: 700; }
+.report-score { margin-top: 20rpx; color: #315ee8; font-size: 62rpx; font-weight: 750; line-height: 1.2; }
+.report-score-label { color: #526079; font-size: 25rpx; font-weight: 500; }
+.report-meta { margin-top: 10rpx; color: #526079; font-size: 25rpx; line-height: 38rpx; }
+.report-types { margin-top: 20rpx; border-top: 1rpx solid #e2e8f3; }
+.report-type { display: flex; justify-content: space-between; gap: 20rpx; padding: 16rpx 0; border-bottom: 1rpx solid #eef2f8; color: #26334f; font-size: 25rpx; }
+.report-tip { margin-top: 20rpx; color: #315ee8; font-size: 25rpx; line-height: 38rpx; }
+.report-error { margin-bottom: 20rpx; color: #b42318; font-size: 25rpx; }
+.finish { width: 100%; margin-top: 16rpx; }
+.bottom-space { height: calc(64rpx + env(safe-area-inset-bottom)); }
+button[disabled] { opacity: .52; }

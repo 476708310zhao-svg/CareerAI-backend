@@ -41,7 +41,11 @@ function readMigrations(migrationsDir = DEFAULT_MIGRATIONS_DIR) {
         throw new Error(`Invalid migration filename: ${fileName}`);
       }
       const sql = fs.readFileSync(path.join(migrationsDir, fileName), 'utf8');
-      if (/\b(?:BEGIN|COMMIT|ROLLBACK)\b/i.test(sql.replace(/^\s*--.*$/gm, ''))) {
+      // SQLite trigger bodies use BEGIN ... END, but migrations must not own
+      // the surrounding transaction. Ignore complete trigger definitions only.
+      const withoutComments = sql.replace(/^\s*--.*$/gm, '');
+      const withoutTriggers = withoutComments.replace(/CREATE\s+(?:TEMP(?:ORARY)?\s+)?TRIGGER\b[\s\S]*?\bEND\s*;/gi, '');
+      if (/\b(?:BEGIN|COMMIT|ROLLBACK)\b/i.test(withoutTriggers)) {
         throw new Error(`Migration ${fileName} must not manage transactions directly`);
       }
       return {

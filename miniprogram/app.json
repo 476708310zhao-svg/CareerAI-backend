@@ -18,6 +18,11 @@
   },
   "subPackages": [
     {
+      "root": "skills",
+      "pages": [],
+      "independent": true
+    },
+    {
       "root": "package-ai",
       "pages": [
         "pages/ai-assistant/ai-assistant",
@@ -55,6 +60,8 @@
     {
       "root": "package-content",
       "pages": [
+        "pages/practice-home/practice-home",
+        "pages/practice-session/practice-session",
         "pages/assessment-list/assessment-list",
         "pages/assessment-detail/assessment-detail",
         "pages/assessment-purchases/assessment-purchases",
@@ -89,6 +96,7 @@
         "pages/my-experiences/my-experiences",
         "pages/settings/settings",
         "pages/feedback/feedback",
+        "pages/manual-services/manual-services",
         "pages/about/about",
         "pages/usage-guide/usage-guide",
         "pages/vip/vip",
@@ -148,5 +156,25 @@
     ]
   },
   "darkmode": false,
+  "agent": {
+    "skills": [
+      {
+        "name": "job-search",
+        "description": "查询真实岗位并查看岗位详情，不自动投递或修改用户资料",
+        "path": "skills/job-search-skill"
+      },
+      {
+        "name": "campus-calendar",
+        "description": "查询真实校招机会和近期截止时间，不自动设置提醒",
+        "path": "skills/campus-calendar-skill"
+      },
+      {
+        "name": "interview-prep",
+        "description": "查询真实公司与岗位面经，不把生成内容称为真实面经",
+        "path": "skills/interview-prep-skill"
+      }
+    ],
+    "pageMetadata": "page-meta.json"
+  },
   "sitemapLocation": "sitemap.json"
 }

@@ -5,6 +5,7 @@ const { applicationRefs, mergeCoreRefs } = require('../utils/coreEntityRefs');
 const { STATUS_TEXT, toV4Status, allowedStatusViews } = require('../utils/applicationStatus');
 const { revision } = require('./v4ApplicationWorkflow');
 const { versionView } = require('./v4ResumeCenter');
+const STATUS_HISTORY_PAGE_SIZE = 50;
 
 function json(value, fallback) { try { return JSON.parse(value) ?? fallback; } catch { return fallback; } }
 function applicationView(row) {
@@ -24,8 +25,10 @@ function applicationView(row) {
 
 function buildDetail(userId, row) {
   const app = applicationView(row);
-  const history = db.prepare(`SELECT id,from_status AS fromStatus,to_status AS toStatus,note,actor_type AS actorType,created_at AS createdAt
-    FROM application_history WHERE application_id=? AND user_id=? ORDER BY id DESC`).all(row.id, userId);
+  const historyRows = db.prepare(`SELECT id,from_status AS fromStatus,to_status AS toStatus,note,actor_type AS actorType,created_at AS createdAt
+    FROM application_history WHERE application_id=? AND user_id=? ORDER BY id DESC LIMIT ?`).all(row.id, userId, STATUS_HISTORY_PAGE_SIZE + 1);
+  const historyHasMore = historyRows.length > STATUS_HISTORY_PAGE_SIZE;
+  const history = historyRows.slice(0, STATUS_HISTORY_PAGE_SIZE);
   const contacts = db.prepare(`SELECT id,name,role,email,linkedin,notes,created_at AS createdAt,updated_at AS updatedAt
     FROM application_contacts WHERE application_id=? AND user_id=? ORDER BY id DESC`).all(row.id, userId);
   const tasks = db.prepare(`SELECT id,title,due_at AS dueAt,priority,completed,created_at AS createdAt,updated_at AS updatedAt
@@ -40,7 +43,7 @@ function buildDetail(userId, row) {
     .map(item => ({ ...item, association: item.applicationId ? 'application' : 'legacy', refs: mergeCoreRefs({ resumeVersionId: item.resumeVersionId }, app.refs) }));
   const match = app.jobId ? db.prepare(`SELECT score,qualification_status AS qualificationStatus,recommendation,strengths,gaps,actions,updated_at AS updatedAt
     FROM job_matches WHERE user_id=? AND job_id=? ORDER BY id DESC LIMIT 1`).get(userId, app.jobId) : null;
-  return { application: app, history, contacts, tasks, materials, allowedTransitions: app.allowedTransitions,
+  return { application: app, history, historyHasMore, historyNextCursor: historyHasMore ? history[history.length - 1].id : null, contacts, tasks, materials, allowedTransitions: app.allowedTransitions,
     match: match ? { ...match, strengths: json(match.strengths, []), gaps: json(match.gaps, []), actions: json(match.actions, []) } : null };
 }
 

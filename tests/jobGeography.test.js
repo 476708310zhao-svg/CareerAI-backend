@@ -20,7 +20,11 @@ test('global map samples distinct country pairs over successive days', () => {
   assert.equal(first.length, 2);
   assert.equal(second.length, 2);
   assert.deepEqual(first, ['us', 'gb']);
-  assert.deepEqual(second, ['sg', 'de']);
+  assert.deepEqual(second, ['cn', 'hk']);
+  const week = Array.from({ length: 7 }, (_, day) => globalSampleCountries(day * 86_400_000)).flat();
+  for (const country of ['us', 'gb', 'cn', 'hk', 'ca']) {
+    assert.ok(week.includes(country), `${country} is included in the global rotation`);
+  }
 });
 
 test('country search only admits remote jobs with confirmed country or worldwide eligibility', () => {

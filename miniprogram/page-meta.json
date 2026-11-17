@@ -1,6 +1,6 @@
 {
   "appName": "职引",
-  "updatedAt": "2026-06-25",
+  "updatedAt": "2026-10-20",
   "description": "职引是面向留学生和新职人的求职助手，提供岗位搜索、校招日历、面试题库、公司资料、薪资参考和求职资讯。",
   "pages": [
     {
@@ -36,13 +36,6 @@
       "description": "展示真实面经的公司、岗位、面试类型、轮次、正文摘要、标签和互动信息。"
     },
     {
-      "path": "package-content/pages/question-detail/question-detail",
-      "name": "题目详情",
-      "category": "面试",
-      "params": ["id"],
-      "description": "展示面试题目、考察方向、参考思路和练习入口。"
-    },
-    {
       "path": "package-content/pages/star-library/star-library",
       "name": "STAR 模板库",
       "category": "面试",
@@ -75,24 +68,10 @@
       "description": "展示求职机构介绍、服务标签、评价、AI 测评摘要和用户反馈。"
     },
     {
-      "path": "package-agency/pages/agency-compare/agency-compare",
-      "name": "机构对比",
-      "category": "机构",
-      "params": ["ids"],
-      "description": "按服务方向、城市、评分、优势和风险点对比多个求职机构。"
-    },
-    {
       "path": "package-content/pages/news/news",
       "name": "求职快讯",
       "category": "资讯",
       "description": "展示求职新闻、行业动态、招聘提示和职业发展内容。"
-    },
-    {
-      "path": "package-content/pages/news-detail/news-detail",
-      "name": "资讯详情",
-      "category": "资讯",
-      "params": ["id"],
-      "description": "展示单篇求职资讯、来源、发布时间、正文摘要和相关阅读。"
     },
     {
       "path": "package-content/pages/bigtech-jobs/bigtech-jobs",
@@ -110,14 +89,8 @@
       "path": "package-user/pages/company-detail/company-detail",
       "name": "公司详情",
       "category": "企业",
-      "params": ["id", "name"],
+      "params": ["id"],
       "description": "展示公司介绍、行业标签、岗位列表、面经、官网和求职参考信息。"
-    },
-    {
-      "path": "package-user/pages/search/search",
-      "name": "全站搜索",
-      "category": "搜索",
-      "description": "支持搜索岗位、公司、面经、校招机会和求职内容。"
     },
     {
       "path": "package-career/pages/salary/salary",
@@ -145,6 +118,10 @@
     }
   ],
   "excludedPages": [
+    "package-content/pages/news-detail/news-detail",
+    "package-content/pages/question-detail/question-detail",
+    "package-agency/pages/agency-compare/agency-compare",
+    "package-user/pages/search/search",
     "pages/profile/profile",
     "pages/privacy/privacy",
     "package-user/pages/applications/applications",

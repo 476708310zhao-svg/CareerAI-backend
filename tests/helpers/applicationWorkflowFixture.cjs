@@ -273,7 +273,27 @@ test('applications require authentication, isolate ownership and keep archived w
   assert.equal(db.prepare('SELECT completed FROM application_tasks WHERE id=?').get(archivedTaskId).completed, 0);
 });
 
-test('board exposes revisions while single writes preserve legacy compatibility and reject stale ABA snapshots', async () => {
+test('status history is owner-scoped, bounded and cursor-paginated', async () => {
+  const row = await create('preparing');
+  const owner = ownerId;
+  for (let index = 0; index < 55; index += 1) {
+    db.prepare(`INSERT INTO application_history(application_id,user_id,from_status,to_status,note,actor_type)
+      VALUES(?,?,?,'preparing',?,'user')`).run(row.id, owner, 'preparing', `history-${index}`);
+  }
+  const first = await call(`/${row.id}/history`);
+  assert.equal(first.status, 200);
+  assert.equal(first.body.data.list.length, 50);
+  assert.equal(first.body.data.total, 56);
+  assert.equal(first.body.data.hasMore, true);
+  const second = await call(`/${row.id}/history?limit=50&beforeId=${first.body.data.nextCursor}`);
+  assert.equal(second.status, 200);
+  assert.equal(second.body.data.list.length, 6);
+  assert.equal(second.body.data.hasMore, false);
+  assert.equal((await call(`/${row.id}/history?limit=51`)).status, 400);
+  assert.equal((await call(`/${row.id}/history`, 'GET', undefined, otherId)).status, 404);
+});
+
+test('board exposes revisions, single writes require a CAS token, and stale ABA snapshots conflict', async () => {
   const row = await create('preparing');
   const board = await call('/board');
   assert.equal(board.status, 200);
@@ -281,13 +301,19 @@ test('board exposes revisions while single writes preserve legacy compatibility 
   const boardRow = board.body.data.groups.preparing.find(item => item.id === row.id);
   assert.equal(boardRow.historyId, row.historyId);
 
-  for (const body of [undefined, {}, { status: 'applied', expectedState: {} },
+  for (const body of [undefined, {}]) {
+    assert.equal((await call(`/${row.id}/status`, 'PATCH', body)).status, 400);
+  }
+  for (const body of [{ status: 'applied' }]) {
+    assert.equal((await call(`/${row.id}/status`, 'PATCH', body)).status, 428);
+  }
+  for (const body of [{ status: 'applied', expectedState: {} },
     { status: 'applied', expectedState: { status: 'preparing' } },
     { status: 'applied', expectedState: { historyId: row.historyId } }]) {
     assert.equal((await call(`/${row.id}/status`, 'PATCH', body)).status, 400);
   }
 
-  const toInterested = await call(`/${row.id}/status`, 'PATCH', { status: 'interested' });
+  const toInterested = await call(`/${row.id}/status`, 'PATCH', { status: 'interested', expectedState: snapshot(row) });
   assert.equal(toInterested.status, 200);
   assert.equal(toInterested.body.data.previousStatus, 'preparing');
   assert.ok(toInterested.body.data.historyId > row.historyId);
@@ -487,8 +513,11 @@ test('single and bulk interview transitions create equivalent spaces and distinc
 
 test('workspace is read-only and isolates resume options, materials and version-bound ATS reports', async () => {
   const row = await create('preparing', ownerId, { jobId: 'workspace-job' });
-  assert.equal((await call(`/${row.id}`, 'PATCH', { resumeVersionId: String(otherResume.versionId) })).status, 404);
-  assert.equal((await call(`/${row.id}`, 'PATCH', { resumeVersionId: String(ownerResume.versionId) })).status, 200);
+  assert.equal((await call(`/${row.id}`, 'PATCH', { resumeVersionId: String(ownerResume.versionId) })).status, 400);
+  assert.equal((await call(`/${row.id}/resume-selection`, 'PUT',
+    { resumeVersionId: otherResume.versionId, expectedResumeSelectionVersion: 0 })).status, 404);
+  assert.equal((await call(`/${row.id}/resume-selection`, 'PUT',
+    { resumeVersionId: ownerResume.versionId, expectedResumeSelectionVersion: 0 })).status, 200);
   const another = await create('preparing', ownerId, { jobId: 'other-workspace-job' });
   const insertMaterial = (userId, clientId, applicationId, jobId, content) => db.prepare(`INSERT INTO application_materials
     (user_id,client_id,application_id,job_id,content,status) VALUES (?,?,?,?,?,'saved')`).run(userId, clientId, applicationId, jobId, content);
@@ -691,7 +720,7 @@ test('legacy single-status writes roll back status and revision together on unkn
     WHEN NEW.application_id=${row.id} AND NEW.actor_type='user'
     BEGIN SELECT RAISE(ABORT,'cp2 unknown workflow failure'); END`);
   try {
-    const response = await call(`/${row.id}/status`, 'PATCH', { status: 'applied' });
+    const response = await call(`/${row.id}/status`, 'PATCH', { status: 'applied', expectedState: snapshot(row) });
     assert.equal(response.status, 500);
     assert.match(response.body.message, /cp2 unknown workflow failure/);
     assert.equal((await current(row.id)).status, 'preparing');

@@ -628,18 +628,35 @@ Page({
   saveToApplication() {
     const report = this.data.report;
     if (!report || !report.applicationId || this.data.savingToApplication || this.data.savedToApplication) return;
-    const title = `复盘 AI 面试报告${report.role ? `：${report.role}` : ''}（${report.totalScore || 0}分）`;
-    this.setData({ savingToApplication: true });
-    v4Api.addApplicationTask(report.applicationId, {
-      title: title.slice(0, 200),
-      priority: Number(report.totalScore || 0) < 70 ? 'high' : 'medium'
-    }).then(res => {
+    wx.showModal({
+      title: '关联面试摘要',
+      content: '只会把评分、摘要和改进要点保存到这条申请，不会上传问答逐字稿或音频。继续吗？',
+      success: choice => {
+        if (!choice.confirm || this._unloaded || !ownerStorage.isCurrent(this._ownerScope)) return;
+        this.setData({ savingToApplication: true });
+        const payload = {
+          clientKey: `interview-${report.id}`,
+          applicationId: report.applicationId,
+          company: report.company || '',
+          jobTitle: report.role || '',
+          interviewType: report.type || '',
+          totalScore: Number(report.totalScore || 0),
+          summary: report.summary || '',
+          strengths: report.strengths || [],
+          weaknesses: report.weaknesses || [],
+          actions: (report.actionPlan || []).slice(0, 5).map(item => ({ title: item.title, summary: item.summary || item.description || '' })),
+          sourceCreatedAt: new Date().toISOString()
+        };
+        // Deliberately whitelist summary fields; qaList/transcripts and audio never leave local storage.
+        v4Api.saveApplicationInterviewReport(report.applicationId, payload).then(res => {
       if (!res || res.code !== 0) throw new Error((res && res.message) || '保存失败');
       this.setData({ savingToApplication: false, savedToApplication: true });
-      wx.showToast({ title: '已加入当前申请', icon: 'success' });
-    }).catch(err => {
+          wx.showToast({ title: '摘要已关联申请', icon: 'success' });
+        }).catch(err => {
       this.setData({ savingToApplication: false });
       wx.showToast({ title: (err && err.message) || '保存失败', icon: 'none' });
+        });
+      }
     });
   },
 

@@ -12,8 +12,16 @@ const REGION_COUNTRIES = Object.freeze({
 });
 
 const GLOBAL_SAMPLE_COUNTRIES = Object.freeze([
-  'us', 'gb', 'sg', 'de', 'in', 'br', 'jp', 'ae', 'za', 'mx', 'ca', 'au'
+  // Two markets are sampled per day. Keep all five core student markets in
+  // the rotation without implying a single global request searches all five.
+  'us', 'gb', 'cn', 'hk', 'ca', 'au', 'sg', 'jp',
+  'de', 'fr', 'in', 'br', 'ae', 'za'
 ]);
+const MARKET_SOURCES = Object.freeze({
+  us: ['jsearch', 'adzuna'], gb: ['jsearch', 'adzuna'],
+  cn: ['jsearch', 'cn_official'], hk: ['jsearch', 'hk_csb'],
+  ca: ['jsearch', 'adzuna']
+});
 const ENGLISH_REGIONS = new Intl.DisplayNames(['en'], { type: 'region' });
 
 function normalizeCountry(value, region = '') {
@@ -32,6 +40,11 @@ function globalSampleCountries(time = Date.now()) {
   const day = Math.floor(time / 86_400_000);
   const start = (day % (GLOBAL_SAMPLE_COUNTRIES.length / 2)) * 2;
   return GLOBAL_SAMPLE_COUNTRIES.slice(start, start + 2);
+}
+
+function marketSources(country) {
+  return [...(MARKET_SOURCES[country] ||
+    (ADZUNA_COUNTRIES.has(country) ? ['jsearch', 'adzuna'] : ['jsearch']))];
 }
 
 function isRemoteJobEligible(job, country) {
@@ -55,4 +68,4 @@ function isRemoteJobEligible(job, country) {
   return (aliases[country] || []).some(includesWholeTerm) || location === country;
 }
 
-module.exports = { ADZUNA_COUNTRIES, normalizeCountry, globalSampleCountries, isRemoteJobEligible };
+module.exports = { ADZUNA_COUNTRIES, normalizeCountry, globalSampleCountries, marketSources, isRemoteJobEligible };

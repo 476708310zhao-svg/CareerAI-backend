@@ -5,6 +5,7 @@ const { consumeDailyLimit, getQuotaStatus } = require('../../utils/aiQuota');
 const center = require('../../services/v4ResumeCenter');
 const analytics = require('../../services/v4Analytics');
 const aiRuntime = require('../../services/v4AiRuntime');
+const applicationAnswers = require('../../services/v4ApplicationAnswers');
 const { applicationRefs, mergeCoreRefs, withCoreRefs } = require('../../utils/coreEntityRefs');
 
 const router = express.Router();
@@ -47,6 +48,24 @@ const LABELS = {
 function positiveId(value) {
   const id = Number(value);
   return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+function answerDraftsAvailable() {
+  return Boolean(db.prepare("SELECT 1 FROM schema_migrations WHERE version='0029'").get()
+    && db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='application_answer_drafts'").get());
+}
+
+function answerDraftView(row) {
+  return {
+    id: row.id, applicationId: row.application_id, resumeVersionId: row.resume_version_id,
+    question: row.question, draft: row.content,
+    evidenceRefs: center.parseJson(row.evidence_refs_json, []),
+    evidence: center.parseJson(row.evidence_json, []),
+    unsupportedClaims: center.parseJson(row.unsupported_claims_json, []),
+    charCount: applicationAnswers.codepoints(row.content), maxChars: row.max_chars,
+    characterCountUnit: 'Unicode code points', version: row.version, status: row.status,
+    createdAt: row.created_at, updatedAt: row.updated_at
+  };
 }
 
 function sendError(res, error, fallback) {
@@ -224,6 +243,90 @@ router.get('/drafts', (req, res) => {
   if (req.query.status) { where += ' AND status=?'; params.push(center.cleanText(req.query.status, 30)); }
   const rows = db.prepare(`SELECT * FROM ai_application_material_drafts WHERE ${where} ORDER BY created_at DESC, id DESC`).all(...params);
   res.json({ code: 0, data: rows.map(draftView) });
+});
+
+// 网申问答草稿仅使用申请明确绑定的简历版本和用户确认保存的材料；不自动挑选简历。
+router.get('/answers/drafts', (req, res) => {
+  if (!answerDraftsAvailable()) return res.status(503).json({ code: 'MIGRATION_PENDING', message: '问答草稿功能尚未迁移' });
+  const applicationId = positiveId(req.query.applicationId);
+  if (!applicationId) return res.status(400).json({ code: -1, message: '申请记录 ID 无效' });
+  const application = db.prepare('SELECT id FROM applications WHERE id=? AND user_id=?').get(applicationId, req.user.userId);
+  if (!application) return res.status(404).json({ code: -1, message: '申请记录不存在' });
+  const rows = db.prepare(`SELECT * FROM application_answer_drafts WHERE user_id=? AND application_id=?
+    AND status='pending' ORDER BY updated_at DESC,id DESC LIMIT 50`).all(req.user.userId, applicationId);
+  res.json({ code: 0, data: rows.map(answerDraftView) });
+});
+
+router.post('/answers/draft', async (req, res) => { try {
+  if (!answerDraftsAvailable()) return res.status(503).json({ code: 'MIGRATION_PENDING', message: '问答草稿功能尚未迁移' });
+  const body = req.body || {};
+  const applicationId = positiveId(body.applicationId);
+  if (!applicationId) return res.status(400).json({ code: -1, message: '申请记录 ID 无效' });
+  const application = db.prepare('SELECT * FROM applications WHERE id=? AND user_id=?').get(applicationId, req.user.userId);
+  if (!application) return res.status(404).json({ code: -1, message: '申请记录不存在' });
+  const resumeVersionId = positiveId(application.resume_version_id);
+  const resumeId = positiveId(application.resume_id);
+  if (!resumeId || !resumeVersionId) return res.status(409).json({ code: 'BOUND_RESUME_REQUIRED', message: '请先在申请详情绑定一份已确认的简历版本' });
+  const version = db.prepare(`SELECT rv.* FROM resume_versions_v4 rv JOIN resumes r ON r.id=rv.resume_id
+    WHERE rv.id=? AND rv.resume_id=? AND rv.user_id=? AND r.user_id=? AND COALESCE(r.archived_at,'')=''`)
+    .get(resumeVersionId, resumeId, req.user.userId, req.user.userId);
+  if (!version) return res.status(409).json({ code: 'BOUND_RESUME_UNAVAILABLE', message: '申请绑定的简历版本不可用，请先检查申请详情' });
+  const resumeContent = applicationAnswers.parseObject(version.content);
+  const resumeEvidence = applicationAnswers.collectResumeEvidence(resumeContent);
+  const savedRows = db.prepare(`SELECT id,question_type,question_label,content FROM application_materials
+    WHERE user_id=? AND application_id=? AND COALESCE(status,'saved')='saved' ORDER BY updated_at DESC,id DESC LIMIT 8`)
+    .all(req.user.userId, applicationId);
+  const savedEvidence = applicationAnswers.collectSavedMaterialEvidence(savedRows, resumeEvidence.length);
+  const evidence = [...resumeEvidence, ...savedEvidence].slice(0, 18);
+  if (!evidence.length) return res.status(422).json({ code: 'CONFIRMED_EVIDENCE_REQUIRED', message: '绑定的简历和已确认材料中没有可用事实，请先补充真实经历' });
+  if (!consumeDailyLimit(req, res, 'application_assistant')) return;
+  const snapshot = center.parseJson(application.job_snapshot, {});
+  const result = await applicationAnswers.generate({
+    question: body.question, maxChars: body.maxChars, evidence,
+    job: { company: application.company || snapshot.company, jobTitle: application.job_title || snapshot.title },
+    runtime: aiRuntime
+  });
+  const stored = db.prepare(`INSERT INTO application_answer_drafts
+    (user_id,application_id,resume_version_id,question,content,evidence_refs_json,evidence_json,unsupported_claims_json,max_chars)
+    VALUES (?,?,?,?,?,?,?,?,?)`).run(req.user.userId, applicationId, resumeVersionId,
+    applicationAnswers.bounded(body.question, applicationAnswers.QUESTION_MAX_CODEPOINTS), result.draft,
+    JSON.stringify(result.evidenceRefs), JSON.stringify(evidence.filter(item => result.evidenceRefs.includes(item.id))),
+    JSON.stringify(result.unsupportedClaims), result.maxChars);
+  analytics.track(req.user.userId, 'application_answer_draft_generated', withCoreRefs({
+    applicationId, evidenceCount: evidence.length, charCount: result.charCount, maxChars: result.maxChars,
+    generation: result.generation
+  }, applicationRefs(application), { resumeId, resumeVersionId }));
+  res.status(200).json({ code: 0, data: {
+    id: stored.lastInsertRowid, version: 1, applicationId, draft: result.draft, evidenceRefs: result.evidenceRefs,
+    evidence: evidence.filter(item => result.evidenceRefs.includes(item.id)).map(({ id, source, label, text }) => ({ id, source, label, text })),
+    unsupportedClaims: result.unsupportedClaims, charCount: result.charCount,
+    maxChars: result.maxChars, characterCountUnit: 'Unicode code points', generation: result.generation
+  }, message: '草稿已生成，可编辑；保存或提交前请逐条核对事实' });
+} catch (error) {
+  sendError(res, error, '网申问答草稿生成失败');
+}
+});
+
+router.patch('/answers/drafts/:id', (req, res) => {
+  if (!answerDraftsAvailable()) return res.status(503).json({ code: 'MIGRATION_PENDING', message: '问答草稿功能尚未迁移' });
+  const id = positiveId(req.params.id);
+  const expectedVersion = Number(req.body && req.body.expectedVersion);
+  const content = typeof (req.body && req.body.content) === 'string' ? req.body.content.trim() : '';
+  if (!id || !Number.isSafeInteger(expectedVersion) || expectedVersion < 1) return res.status(400).json({ code: -1, message: '草稿或版本参数无效' });
+  const draft = db.prepare(`SELECT d.*,a.resume_version_id AS bound_resume_version_id,a.archived_at
+    FROM application_answer_drafts d JOIN applications a ON a.id=d.application_id AND a.user_id=d.user_id
+    WHERE d.id=? AND d.user_id=? AND a.user_id=?`).get(id, req.user.userId, req.user.userId);
+  if (!draft) return res.status(404).json({ code: -1, message: '草稿不存在' });
+  if (draft.status !== 'pending' || draft.archived_at || Number(draft.bound_resume_version_id) !== Number(draft.resume_version_id)) {
+    return res.status(409).json({ code: 'ANSWER_DRAFT_STALE', message: '申请或简历版本已变化，请刷新后核对原草稿' });
+  }
+  if (!content) return res.status(400).json({ code: -1, message: '草稿内容不能为空' });
+  if (applicationAnswers.codepoints(content) > draft.max_chars) return res.status(422).json({ code: 'ANSWER_TOO_LONG', message: `答案超过 ${draft.max_chars} 个 Unicode 字符` });
+  const updated = db.prepare(`UPDATE application_answer_drafts SET content=?,version=version+1,updated_at=datetime('now')
+    WHERE id=? AND user_id=? AND status='pending' AND version=?`).run(content, id, req.user.userId, expectedVersion);
+  if (!updated.changes) return res.status(409).json({ code: 'ANSWER_DRAFT_CONFLICT', message: '草稿已在另一端修改，请刷新后核对' });
+  const row = db.prepare('SELECT * FROM application_answer_drafts WHERE id=? AND user_id=?').get(id, req.user.userId);
+  res.json({ code: 0, data: answerDraftView(row), message: '已保存到问答草稿区；此内容仍不是已确认经历或正式申请材料' });
 });
 
 router.post('/drafts', async (req, res) => { try {

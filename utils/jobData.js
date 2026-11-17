@@ -1,18 +1,5 @@
 const fs = require('fs');
-const path = require('path');
-const { DATA_DIR, ensureDir } = require('./paths');
-
-const DEFAULT_JOBS_FILE = path.join(__dirname, '../data/jobs.json');
-const JOBS_FILE = path.join(ensureDir(DATA_DIR), 'jobs.json');
-
-function ensureJobsFile() {
-  if (fs.existsSync(JOBS_FILE)) return;
-  if (fs.existsSync(DEFAULT_JOBS_FILE)) {
-    fs.copyFileSync(DEFAULT_JOBS_FILE, JOBS_FILE);
-  } else {
-    fs.writeFileSync(JOBS_FILE, JSON.stringify({ jobs: [], companies: [] }, null, 2));
-  }
-}
+const { JOBS_FILE, ensureJobsFile } = require('./jobsFile');
 
 function readJobsData() {
   try {
@@ -25,6 +12,60 @@ function readJobsData() {
 
 function listJobs() {
   return readJobsData().jobs || [];
+}
+
+function isHeldVerification(record) {
+  return !!record && (record.status === 'closed' || record.status === 'review_needed' || record.availabilityHold === true);
+}
+
+const shanghaiDayFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'
+});
+
+function isExpiredLocalJob(job, now = new Date()) {
+  const deadline = job && job.deadline;
+  if (typeof deadline !== 'string') return false;
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(deadline);
+  const timestamp = dateOnly ? null
+    : /^(\d{4}-\d{2}-\d{2})T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(Z|[+-](?:0\d|1[0-4]):[0-5]\d)$/.exec(deadline);
+  if (!dateOnly && !timestamp) return false;
+  const datePart = dateOnly ? deadline : timestamp[1];
+  const [year, month, day] = datePart.split('-').map(Number);
+  const parsed = new Date(0);
+  parsed.setUTCFullYear(year, month - 1, day);
+  if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() + 1 !== month || parsed.getUTCDate() !== day) return false;
+  if (timestamp) {
+    if (/^[+-]14:(?!00$)/.test(timestamp[2])) return false;
+    const instant = Date.parse(deadline);
+    return Number.isFinite(instant) && instant <= now.getTime();
+  }
+  const parts = Object.fromEntries(shanghaiDayFormatter.formatToParts(now).map(part => [part.type, part.value]));
+  return deadline < `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function isUnavailableLocalJob(job, verification, now = new Date()) {
+  return isHeldVerification(verification) || isExpiredLocalJob(job, now);
+}
+
+function getJobVerification(id) {
+  return readJobsData().jobVerification?.[String(id)] || null;
+}
+
+function isHeldLocalJobId(id) {
+  const text = String(id ?? '').trim();
+  if (!/^[1-9]\d*$/.test(text)) return false;
+  const numericId = Number(text);
+  if (!Number.isSafeInteger(numericId)) return false;
+  const data = readJobsData();
+  const job = (data.jobs || []).find(item => String(item.id) === String(numericId));
+  if (job) return isUnavailableLocalJob(job, data.jobVerification?.[String(numericId)]);
+  return (data.jobVerificationAudit || []).some(item =>
+    item.action === 'job_deleted' && String(item.jobId) === String(numericId));
+}
+
+function listBrowsableJobs() {
+  const data = readJobsData();
+  return (data.jobs || []).filter(job => !isUnavailableLocalJob(job, data.jobVerification?.[String(job.id)]));
 }
 
 function findJobById(id) {
@@ -48,7 +89,7 @@ function companyNamesMatch(job, names) {
 function listJobsByCompanyNames(names, limit) {
   const cleanNames = (names || []).filter(Boolean);
   if (!cleanNames.length) return [];
-  return listJobs()
+  return listBrowsableJobs()
     .filter(job => companyNamesMatch(job, cleanNames))
     .slice(0, limit || 12);
 }
@@ -85,6 +126,12 @@ function toCompanyJob(job) {
 module.exports = {
   readJobsData,
   listJobs,
+  listBrowsableJobs,
+  getJobVerification,
+  isHeldVerification,
+  isExpiredLocalJob,
+  isUnavailableLocalJob,
+  isHeldLocalJobId,
   findJobById,
   findJobsByIds,
   listJobsByCompanyNames,

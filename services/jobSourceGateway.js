@@ -9,6 +9,7 @@ const SOURCE_POLICIES = Object.freeze({
     dailyBudget: positiveInteger(process.env.JSEARCH_DAILY_REQUEST_BUDGET, 6)
   },
   adzuna: { ttlMs: 15 * 60_000, minIntervalMs: 500 },
+  hk_csb: { ttlMs: 60 * 60_000, minIntervalMs: 1_000 },
   themuse: { ttlMs: 15 * 60_000, minIntervalMs: 500 },
   remoteok: { ttlMs: 5 * 60_000, minIntervalMs: 1_000 },
   linkedin: { ttlMs: 15 * 60_000, minIntervalMs: 1_000 },

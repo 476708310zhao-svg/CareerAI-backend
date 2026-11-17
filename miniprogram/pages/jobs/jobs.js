@@ -1,6 +1,6 @@
 // pages/jobs/jobs.js
 const featureFlags = require('../../utils/feature-flags.js');
-const { getJobs, getAggregatedJobs, normalizeCompanyLogo } = require('../../utils/api.js');
+const { getJobs, getAggregatedJobs, getOfficialBoards, normalizeCompanyLogo } = require('../../utils/api.js');
 const v4Api = require('../../utils/api-v4.js');
 const { getCountries } = require('../../utils/api-news.js');
 const favUtil = require('../../utils/favorites.js');
@@ -125,6 +125,7 @@ Page({
     hasMore: true,
     loading: false,
     loadError: '',
+    sourceHealthNotice: '',
     queueingJobId: '',
     isRefreshing: false,
 
@@ -144,12 +145,15 @@ Page({
     // 筛选面板
     filterVisible: false,
     filterType: '',      // '' | 'FULLTIME' | 'PARTTIME' | 'CONTRACTOR' | 'INTERN'
-    filterDate: '',      // '' | 'today' | 'week' | 'month'
+    filterDate: '',      // '' | 'today' | 'week' (3 days) | 'week7' | 'month'
     filterCountry: 'global', // global | ISO alpha2 小写
     countryCodeInput: '',
     filterSponsor: '',   // opt | stem | h1b | international | excludeCitizen
     filterActive: false,
     countryList: [],     // 从 /api/countries 加载
+    officialBoardsVisible: false,
+    officialBoards: [],
+    officialBoardsError: '',
 
     // 地图视图
     viewMode: 'list',   // 'list' | 'map'
@@ -202,7 +206,7 @@ Page({
   _lastJobRequestKey: '',
 
   _jobsCacheKey: function() {
-    const dateMap = { today: 'today', week: '3days', month: 'month' };
+    const dateMap = { today: 'today', week: '3days', week7: 'week', month: 'month' };
     return [
       this.data.searchKeyword || 'Software Engineer jobs',
       this.data.filterCountry || 'global',
@@ -211,6 +215,33 @@ Page({
       , this.data.filterSponsor || 'any-sponsor'
       , this.data.matchMode ? 'v4-match' : 'normal'
     ].join('|');
+  },
+
+  _takeSkillPendingSearch: function() {
+    let pending;
+    try {
+      pending = wx.getStorageSync('jobSearchSkillPendingQuery');
+      wx.removeStorageSync('jobSearchSkillPendingQuery');
+    } catch (error) { return null; }
+    const createdAt = Number(pending && pending.createdAt);
+    if (!pending || !Number.isFinite(createdAt) || createdAt <= 0
+      || Math.abs(Date.now() - createdAt) > 5 * 60 * 1000) return null;
+    const country = String(pending.country || 'global').toLowerCase();
+    if (country !== 'global' && !/^[a-z]{2}$/.test(country)) return null;
+    const type = String(pending.jobType || '').toLowerCase();
+    const days = Number(pending.updatedWithinDays) || 0;
+    const keyword = String(pending.keyword || '').slice(0, 120);
+    return {
+      searchKeyword: keyword,
+      activeTag: keyword,
+      filterCountry: country,
+      filterType: /intern|实习/.test(type) ? 'INTERN'
+        : /part/.test(type) ? 'PARTTIME' : /contract/.test(type) ? 'CONTRACTOR'
+          : /full|全职/.test(type) ? 'FULLTIME' : '',
+      filterDate: days > 0 && days <= 1 ? 'today'
+        : days > 0 && days <= 3 ? 'week' : days > 0 && days <= 7 ? 'week7'
+          : days > 0 && days <= 31 ? 'month' : ''
+    };
   },
 
   onShow: function() {
@@ -236,6 +267,14 @@ Page({
     this._syncFavoriteOwner(ownerScope, token);
     if (!recruitmentEnabled) {
       this._disableRecruitmentContent();
+      return;
+    }
+    const pendingSearch = this._takeSkillPendingSearch();
+    if (pendingSearch) {
+      clearTimeout(this._initialLoadTimer);
+      this._initialLoadNeedsJobs = false;
+      this.setData(pendingSearch);
+      this.loadJobs(true);
       return;
     }
     if (this._needsReload) {
@@ -283,11 +322,15 @@ Page({
       return;
     }
 
-    if (options.keyword) {
+    const pendingSearch = this._takeSkillPendingSearch();
+    if (pendingSearch) {
+      this.setData(pendingSearch);
+    } else if (options.keyword) {
       this.setData({ searchKeyword: options.keyword, activeTag: options.keyword });
     }
+    if (this.data.filterCountry === 'cn') this._loadOfficialBoards();
     const hasFreshCache = this.loadCachedOrMock();
-    this._initialLoadNeedsJobs = !hasFreshCache || !!options.keyword;
+    this._initialLoadNeedsJobs = !hasFreshCache || !!options.keyword || !!pendingSearch;
     clearTimeout(this._initialLoadTimer);
     this._initialLoadTimer = setTimeout(() => {
       this._initialLoadTimer = null;
@@ -607,7 +650,30 @@ Page({
   applyFilter: function() {
     const active = !!(this.data.filterType || this.data.filterDate || this.data.filterCountry !== 'global' || this.data.filterSponsor);
     this.setData({ filterActive: active, filterVisible: false });
+    if (this.data.filterCountry === 'cn') this._loadOfficialBoards();
     this.loadJobs(true);
+  },
+
+  toggleOfficialBoards: function() {
+    const visible = !this.data.officialBoardsVisible;
+    this.setData({ officialBoardsVisible: visible });
+    if (visible && !this.data.officialBoards.length) this._loadOfficialBoards();
+  },
+
+  _loadOfficialBoards: function() {
+    getOfficialBoards().then(result => {
+      if (!this._visible) return;
+      if (!Array.isArray(result.boards)) throw new Error('官网入口格式异常');
+      this.setData({ officialBoards: result.boards, officialBoardsError: '' });
+    }).catch(() => {
+      if (this._visible) this.setData({ officialBoardsError: '官网入口暂时无法加载，请稍后重试' });
+    });
+  },
+
+  copyOfficialBoardUrl: function(e) {
+    const board = (this.data.officialBoards || []).find(item => item.id === e.currentTarget.dataset.id);
+    if (!board || !/^https:\/\//.test(board.url || '')) return;
+    wx.setClipboardData({ data: board.url, success: () => wx.showToast({ title: '官网地址已复制', icon: 'none' }) });
   },
 
   // 核心：加载职位
@@ -618,7 +684,7 @@ Page({
     const ownerToken = String(wx.getStorageSync('token') || '');
     const ownerScope = progress.currentOwnerScope ? progress.currentOwnerScope() : '';
     const query = this.data.searchKeyword || 'Software Engineer jobs';
-    const dateMap = { today: 'today', week: '3days', month: 'month' };
+    const dateMap = { today: 'today', week: '3days', week7: 'week', month: 'month' };
     const datePosted = dateMap[this.data.filterDate] || '';
     const page = reset ? 1 : this.data.currentPage + 1;
     const requestKey = [
@@ -635,7 +701,7 @@ Page({
     this._lastJobRequestKey = requestKey;
     const seq = ++this._jobRequestSeq;
     const cacheKey = this._jobsCacheKey();
-    const patch = { loading: true, loadError: '' };
+    const patch = { loading: true, loadError: '', sourceHealthNotice: '' };
     if (reset) {
       if (!preserveRows) patch.jobs = [];
       patch.currentPage = 1;
@@ -667,6 +733,11 @@ Page({
       }
 
       processedJobs = this.enrichJobLogos(processedJobs);
+      const failedSources = (Array.isArray(res.sourceStatus) ? res.sourceStatus : [])
+        .filter(source => source.status === 'unavailable' || source.partialFailures);
+      const sourceHealthNotice = failedSources.length
+        ? (processedJobs.length ? '部分岗位来源暂不可用，结果可能不完整' : '岗位来源暂不可用，暂无法确认是否有匹配职位')
+        : '';
 
       this.setData({
         jobs: reset ? processedJobs : [...this.data.jobs, ...processedJobs],
@@ -675,7 +746,8 @@ Page({
         hasMore: typeof res.hasMore === 'boolean' ? res.hasMore : res.data.length >= this.data.pageSize,
         loading: false,
         isRefreshing: false,
-        isMockData: false
+        isMockData: false,
+        sourceHealthNotice
       });
       if (this.data.viewMode === 'map') {
         this._buildMapMarkers();
@@ -718,7 +790,7 @@ Page({
       pageSize: this.data.pageSize,
       country: this.data.filterCountry === 'global' ? '' : (this.data.filterCountry || ''),
       employmentType: this.data.filterType || '',
-      datePosted: ({ today: 'today', week: '3days', month: 'month' })[this.data.filterDate] || '',
+      datePosted: ({ today: 'today', week: '3days', week7: 'week', month: 'month' })[this.data.filterDate] || '',
       ...(sponsorParams[this.data.filterSponsor] || {}),
     };
     v4Api.getJobs(params).then(res => {
@@ -813,19 +885,25 @@ Page({
       const company = job.employer_name || 'Company';
 
       const desc = (job.job_description || '') + ' ' + (job.job_highlights ? JSON.stringify(job.job_highlights) : '');
-      const optFriendly = /\b(opt|cpt|h[- ]?1b|visa\s+sponsor|will\s+sponsor|work\s+authori)/i.test(desc);
+      const usJob = /^(?:US|USA|United States(?: of America)?)$/i.test(String(job.job_country || '').trim());
+      const optFriendly = usJob && desc.split(/[.!?\n]+/).some(sentence =>
+        /\b(?:accept|welcome|support)\b[^.!?\n]{0,45}\b(?:OPT|CPT)\b/i.test(sentence)
+        && !/\b(?:no|not|cannot|unable|won't|will\s+not)\b[^.!?\n]{0,60}\b(?:OPT|CPT)\b/i.test(sentence));
 
       return {
         id: job.job_id,
         title: job.job_title,
         company,
-        salary: salaryDisplay,
+        salary: job._source === 'hk_csb' && /(?:HK\$|HKD)\s*[\d,]+/i.test(String(job.job_salary_string || ''))
+          ? String(job.job_salary_string).slice(0, 120) : salaryDisplay,
         city: job.job_city || 'Remote',
         state: job.job_state,
         type: job.job_employment_type || '',
         description: job.job_description ? job.job_description.substring(0, 80).replace(/\n/g, ' ') + '...' : '',
         rawDescription: job.job_description || '',
         applyLink: job.job_apply_link || '',
+        sourceUrl: job.job_source_url || '',
+        sourceReference: job.job_source_reference || '',
         logo: this.buildCompanyLogo(company) || job.employer_logo || '',
         logoFailed: false,
         companyInitial: this.getCompanyInitial(company),
@@ -1131,5 +1209,16 @@ Page({
     if (idx !== undefined) {
       this.setData({ [`jobs[${idx}].logoFailed`]: true });
     }
+  },
+
+  onShareAppMessage() {
+    return {
+      title: '职引｜查找校招、实习与应届岗位',
+      path: '/pages/jobs/jobs'
+    };
+  },
+
+  onShareTimeline() {
+    return { title: '职引｜查找校招、实习与应届岗位' };
   }
 });

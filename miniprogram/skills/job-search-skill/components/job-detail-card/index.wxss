@@ -109,6 +109,14 @@
   line-height: 1.6;
 }
 
+.evidence-line {
+  display: block;
+  margin-top: 10rpx;
+  color: #475569;
+  font-size: 22rpx;
+  line-height: 1.5;
+}
+
 .primary-btn {
   margin-top: 26rpx;
   height: 76rpx;
@@ -117,6 +125,16 @@
   background: #2b5ce6;
   color: #ffffff;
   font-size: 27rpx;
+  font-weight: 700;
+}
+
+.secondary-btn {
+  margin-top: 12rpx;
+  border: 1rpx solid #bfd2ff;
+  border-radius: 8rpx;
+  background: #eef4ff;
+  color: #2458d3;
+  font-size: 26rpx;
   font-weight: 700;
 }
 
@@ -138,7 +156,8 @@
   }
 
   .company-name,
-  .description {
+  .description,
+  .evidence-line {
     color: #cbd5e1;
   }
 

@@ -24,6 +24,23 @@
       </view>
     </view>
 
+    <view class="section-card submission-card" aria-label="企业官网最终提交确认">
+      <view class="section-head"><text class="card-title">企业官网投递确认</text></view>
+      <text class="submission-help">申请状态由你手动管理；只有独立确认才表示你本人完成了企业官网最后一步提交。此记录不是企业回执。</text>
+      <text wx:if="{{application.submissionConfirmation && application.submissionConfirmation.confirmed}}" class="submission-done">你已确认完成最终提交{{submissionConfirmedAt ? ' · ' + submissionConfirmedAt : ''}}{{!application.submissionConfirmation.available ? '。当前不可操作。' : ''}}</text>
+      <text wx:elif="{{!application.submissionConfirmation || !application.submissionConfirmation.available}}" class="submission-note">{{submissionUnavailableText}}现有“已投递”状态不视为本人确认记录。</text>
+      <text wx:else class="submission-note">尚无本人最终提交确认记录{{application.status === 'applied' ? '；当前“已投递”只是申请状态。' : '。'}}</text>
+      <button wx:if="{{application.submissionConfirmation && application.submissionConfirmation.available && !application.submissionConfirmation.confirmed && (application.status === 'preparing' || application.status === 'applied')}}" class="submission-action" data-action="confirm" bindtap="chooseSubmissionIntent" disabled="{{submittingSubmission}}">我已在企业官网完成最终提交</button>
+      <button wx:if="{{application.submissionConfirmation && application.submissionConfirmation.available && application.submissionConfirmation.confirmed}}" class="submission-secondary" data-action="revoke" bindtap="chooseSubmissionIntent" disabled="{{submittingSubmission}}">撤回误确认</button>
+      <view wx:if="{{submissionIntent}}" class="submission-review">
+        <text>{{submissionIntent === 'confirm' ? '请确认你已在企业官网完成最后一步提交，而不只是打开链接或准备材料。' : '撤回只更正本人确认记录，不会自动修改申请状态。'}}</text>
+        <checkbox-group bindchange="setSubmissionAcknowledged"><label class="submission-check"><checkbox value="yes" checked="{{submissionAcknowledged}}" />{{submissionIntent === 'confirm' ? '我已核对并完成企业官网最终提交' : '我确认此前记录是误确认'}}</label></checkbox-group>
+        <text wx:if="{{!submissionReady}}" class="submission-error">申请版本暂不可用，请刷新详情后重试。</text>
+        <view class="submission-buttons"><button class="submission-action" bindtap="submitSubmissionIntent" loading="{{submittingSubmission}}" disabled="{{!submissionAcknowledged || !submissionReady || submittingSubmission}}">{{submittingSubmission ? '处理中…' : (submissionIntent === 'confirm' ? '确认已提交' : '确认撤回')}}</button><button class="submission-secondary" bindtap="cancelSubmissionIntent" disabled="{{submittingSubmission}}">取消</button></view>
+      </view>
+      <text wx:if="{{submissionError}}" class="submission-error" aria-role="alert">{{submissionError}}</text>
+    </view>
+
     <view class="match-card" wx:if="{{match}}">
       <view class="match-score"><text class="match-num">{{match.score}}</text><text>分</text></view>
       <view class="match-copy">
@@ -56,6 +73,16 @@
     </view>
 
     <view class="section-card" id="application-tasks">
+      <view class="section-head"><text class="card-title">面试练习摘要</text><text class="section-note">精选摘要，不含逐字稿</text></view>
+      <view wx:if="{{!interviewReportsAvailable}}" class="muted">面试摘要暂不可读取，请稍后重试。</view>
+      <view wx:elif="{{!interviewReports.length}}" class="muted">关联到此申请的面试摘要会显示在这里。</view>
+      <view wx:for="{{interviewReports}}" wx:key="id" class="report-summary-card">
+        <view class="inline-row"><text class="card-title">{{item.jobTitle || '模拟面试'}} · {{item.totalScore}}分</text><text class="muted">{{item.createdAt}}</text></view>
+        <text class="muted">{{item.summary}}</text>
+        <view wx:if="{{item.actions.length}}" class="report-actions">
+          <button wx:for="{{item.actions}}" wx:key="title" size="mini" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="convertInterviewReportToTask" disabled="{{item.converted || !!convertingReportId}}">{{item.converted ? '已加入任务' : '确认加入任务：' + item.title}}</button>
+        </view>
+      </view>
       <view class="section-head"><text class="card-title">任务清单</text><text class="section-note">{{tasks.length}} 项</text></view>
       <view class="task-item {{item.completed ? 'completed' : ''}}" wx:for="{{tasks}}" wx:key="id" bindtap="toggleTask" data-id="{{item.id}}" data-completed="{{item.completed}}">
         <view class="task-check">{{item.completed ? '✓' : ''}}</view>
@@ -67,6 +94,28 @@
         <view class="priority-row"><text wx:for="{{priorityOptions}}" wx:key="value" class="priority {{taskForm.priority === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="selectPriority">{{item.label}}</text></view>
       </view>
       <button class="secondary-btn" bindtap="addTask" loading="{{addingTask}}" disabled="{{addingTask || !!updatingTaskId}}">{{addingTask ? '添加中' : '添加任务'}}</button>
+    </view>
+
+    <view class="section-card reminder-card">
+      <view class="section-head"><text class="card-title">截止与任务提醒</text><text class="section-note">只按你选择的渠道发送</text></view>
+      <view wx:if="{{application.deadline}}" class="reminder-row">
+        <text>申请截止 · {{application.deadline}}</text>
+        <view class="inline-row"><button size="mini" data-source="application" data-id="{{id}}" data-date="{{application.deadline}}" data-channel="in_app" bindtap="setApplicationReminder" disabled="{{!!reminderBusyKey}}">站内提醒</button><button size="mini" data-source="application" data-id="{{id}}" data-date="{{application.deadline}}" data-channel="wechat" bindtap="setApplicationReminder" disabled="{{!!reminderBusyKey}}">授权微信提醒</button></view>
+      </view>
+      <view wx:for="{{tasks}}" wx:key="id" wx:if="{{item.dueAt && !item.completed}}" class="reminder-row">
+        <text>{{item.title}} · {{item.dueAt}}</text>
+        <view class="inline-row"><button size="mini" data-source="application_task" data-id="{{item.id}}" data-date="{{item.dueAt}}" data-title="{{item.title}}" data-channel="in_app" catchtap="setApplicationReminder" disabled="{{!!reminderBusyKey}}">站内提醒</button><button size="mini" data-source="application_task" data-id="{{item.id}}" data-date="{{item.dueAt}}" data-title="{{item.title}}" data-channel="wechat" catchtap="setApplicationReminder" disabled="{{!!reminderBusyKey}}">授权微信提醒</button></view>
+      </view>
+      <text class="muted">微信提醒会在点击授权后按模板额度发送一次；拒绝授权不会影响单独设置的站内提醒。</text>
+      <view wx:if="{{reminderSubscriptions.length}}" class="reminder-receipts">
+        <text class="section-note">微信模板授权状态</text>
+        <view wx:for="{{reminderSubscriptions}}" wx:key="templateId" class="reminder-receipt"><text>{{item.templateId}}</text><text class="muted">{{item.decision}} · 剩余授权 {{item.remaining}} 次</text><button wx:if="{{item.decision === 'accepted' && item.remaining > 0}}" size="mini" data-template="{{item.templateId}}" catchtap="revokeReminderSubscription" disabled="{{!!reminderBusyKey}}">撤销授权</button></view>
+      </view>
+      <view wx:if="{{reminderReceipts.length}}" class="reminder-receipts">
+        <text class="section-note">最近投递回执</text>
+        <view wx:for="{{reminderReceipts}}" wx:key="id" class="reminder-receipt"><text>{{item.title || item.reminderType}} · {{item.reminderDate}}</text><text class="muted">站内：{{item.hasInAppMessage ? '已写入' : '未发送'}}；微信：{{item.wechatStatus || '未发送'}}；状态：{{item.status}}</text></view>
+      </view>
+      <view wx:else class="empty">暂无投递记录。</view>
     </view>
 
     <view class="section-card">
@@ -91,6 +140,45 @@
         <view class="timeline-copy"><text>{{item.fromStatus ? item.fromStatus + ' → ' : ''}}{{item.toStatus}}</text><text class="muted">{{item.note || '状态更新'}} · {{item.createdAt}}</text></view>
       </view>
       <view wx:if="{{!history.length}}" class="empty">暂无状态历史</view>
+      <button wx:if="{{historyHasMore}}" class="secondary-btn" bindtap="loadMoreHistory" loading="{{historyLoadingMore}}" disabled="{{historyLoadingMore}}">{{historyLoadingMore ? '正在加载…' : '加载更早状态'}}</button>
+    </view>
+
+    <view class="section-card readiness-card" aria-label="申请准备清单">
+      <view class="section-head"><text class="card-title">申请准备清单</text></view>
+      <text class="readiness-help">请按企业招聘公告填写所需材料；“已准备”只记录你的准备情况，不代表已经投递。</text>
+      <view class="readiness-resume">
+        <text class="readiness-label">这条申请使用的简历版本</text>
+        <picker range="{{resumeChoices}}" range-key="displayName" value="{{resumeChoiceIndex}}" bindchange="onResumeChoiceChange" disabled="{{!resumeCanEdit || savingResumeSelection}}"><view class="readiness-picker">{{resumeChoices[resumeChoiceIndex].displayName || '未绑定简历版本'}}</view></picker>
+        <button class="readiness-button" bindtap="saveResumeSelection" disabled="{{!resumeCanEdit || !resumeSelectionDirty || savingResumeSelection}}" loading="{{savingResumeSelection}}">保存申请简历版本</button>
+        <text wx:if="{{resumeChoices.length <= 1}}" class="readiness-help">暂无可用版本，先到简历中心创建。</text>
+        <button wx:if="{{resumeChoices.length <= 1}}" class="readiness-secondary" bindtap="openResumeCenter">打开简历中心</button>
+        <text wx:if="{{application.submissionConfirmation && application.submissionConfirmation.confirmed}}" class="readiness-help">已确认最终提交；如需改简历版本，请先撤回误确认。材料清单仍可更正，不会改变确认事实。</text>
+        <text wx:if="{{!application.resumeSelectionAvailable}}" class="readiness-help">当前无法修改绑定版本，已有选择仍可查看。</text>
+        <text wx:if="{{resumeSelectionError}}" class="readiness-error" aria-role="alert">{{resumeSelectionError}}</text>
+      </view>
+      <view class="readiness-checklist">
+        <text class="readiness-label">企业要求的材料</text>
+        <text wx:if="{{!materialChecklist.available}}" class="readiness-help">{{checklistUnavailableText}}</text>
+        <text wx:if="{{!checklistItems.length}}" class="readiness-empty">还没有清单项。请按企业公告自行添加，不预设每家企业都需要相同材料。</text>
+        <view class="readiness-item" wx:for="{{checklistItems}}" wx:key="id">
+          <view wx:if="{{checklistEditId === item.id}}" class="readiness-edit">
+            <input value="{{checklistEditLabel}}" maxlength="120" bindinput="onChecklistEditInput" aria-label="修改材料名称" disabled="{{checklistBusy}}" />
+            <button bindtap="saveChecklistEdit" disabled="{{checklistBusy || !checklistEditLabel}}">保存</button><button bindtap="cancelChecklistEdit" disabled="{{checklistBusy}}">取消</button>
+          </view>
+          <text wx:else class="readiness-item-label">{{item.label}}</text>
+          <view class="readiness-item-actions">
+            <picker range="{{materialStates}}" range-key="label" value="{{item.stateIndex}}" data-id="{{item.id}}" bindchange="onChecklistStateChange" disabled="{{!checklistCanEdit || checklistBusy}}"><view class="readiness-state">{{item.stateLabel}} ›</view></picker>
+            <button wx:if="{{checklistCanEdit && checklistEditId !== item.id}}" data-id="{{item.id}}" bindtap="startChecklistEdit" disabled="{{checklistBusy}}">编辑</button>
+            <button wx:if="{{checklistCanEdit}}" data-id="{{item.id}}" bindtap="deleteChecklistItem" disabled="{{checklistBusy}}">删除</button>
+          </view>
+        </view>
+        <view wx:if="{{checklistCanEdit}}" class="readiness-add">
+          <input value="{{checklistLabel}}" maxlength="120" placeholder="例如：成绩单、作品集或求职信" bindinput="onChecklistLabelInput" disabled="{{checklistBusy || checklistItems.length >= 30}}" aria-label="新增企业要求材料" />
+          <button bindtap="addChecklistItem" disabled="{{checklistBusy || !checklistLabel || checklistItems.length >= 30}}" loading="{{checklistBusy}}">添加材料</button>
+          <text wx:if="{{checklistItems.length >= 30}}" class="readiness-help">每条申请最多 30 项。</text>
+        </view>
+        <text wx:if="{{checklistError}}" class="readiness-error" aria-role="alert">{{checklistError}}</text>
+      </view>
     </view>
 
     <view class="section-card application-pack-card">

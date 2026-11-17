@@ -16,8 +16,13 @@ Object.assign(process.env,{WEB_TEST_ISOLATED:'1',DB_PATH:path.join(directory,'te
     fixture=await require('../helpers/webApplicationFixture.cjs').start();
     const a=await fixture.create('preparing',fixture.userId,{jobSnapshot:{company:'腾讯',title:'数据分析师',description:'分析职责 <img src=x onerror="window.injected=true">'},deadline:'2026-10-01'});
     const b=await fixture.create('preparing',fixture.userId,{jobSnapshot:{company:'字节跳动',title:'产品经理'},deadline:'2026-10-03'});
-    const oa=await fixture.create();await fixture.call(`/${oa.id}/status`,'PATCH',{status:'applied'});await fixture.call(`/${oa.id}/status`,'PATCH',{status:'oa'});
-    const closed=await fixture.create();await fixture.call(`/${closed.id}/status`,'PATCH',{status:'withdrawn'});
+    const oa=await fixture.create();
+    let oaState=(await fixture.call(`/${oa.id}/detail`)).body.data.application;
+    await fixture.call(`/${oa.id}/status`,'PATCH',{status:'applied',expectedState:{status:oaState.status,historyId:oaState.historyId}});
+    oaState=(await fixture.call(`/${oa.id}/detail`)).body.data.application;
+    await fixture.call(`/${oa.id}/status`,'PATCH',{status:'oa',expectedState:{status:oaState.status,historyId:oaState.historyId}});
+    const closed=await fixture.create();const closedState=(await fixture.call(`/${closed.id}/detail`)).body.data.application;
+    await fixture.call(`/${closed.id}/status`,'PATCH',{status:'withdrawn',expectedState:{status:closedState.status,historyId:closedState.historyId}});
     browser=await chromium.launch({channel:'msedge',headless:true});
     const page=await browser.newPage({viewport:{width:1440,height:960}});
     const errors=[];page.on('pageerror',error=>errors.push(error.message));

@@ -182,6 +182,70 @@ test('application materials validate application, resume and selected version ow
   })).response.status, 404);
 });
 
+test('application answer drafts require the application-bound resume and return only server-owned evidence references', async () => {
+  const originalGenerate = aiRuntime.generate;
+  const originalVersion = db.prepare('SELECT resume_version_id FROM applications WHERE id=?').pluck().get(ownerApplicationId);
+  let seenPrompt = '';
+  aiRuntime.generate = async options => {
+    seenPrompt = options.userPrompt;
+    return { value: {
+      draft: '我的项目经历让我积累了真实交付经验。🧭',
+      evidenceRefs: ['resume.summary.0', 'attacker.invented'],
+      unsupportedClaims: [{ claim: '我管理过20人团队', reason: '简历证据未提及' }]
+    }, source: 'live', degraded: false, provider: 'fixture', model: 'fixture', attempts: 1, elapsedMs: 1 };
+  };
+  try {
+    const wrongOwner = await request('materials', '/answers/draft', { method: 'POST', body: {
+      applicationId: otherApplicationId, question: 'Describe your experience', maxChars: 300
+    } });
+    assert.equal(wrongOwner.response.status, 404);
+
+    db.prepare('UPDATE applications SET resume_version_id=NULL WHERE id=?').run(ownerApplicationId);
+    const noBinding = await request('materials', '/answers/draft', { method: 'POST', body: {
+      applicationId: ownerApplicationId, question: 'Describe your experience', maxChars: 300
+    } });
+    assert.equal(noBinding.response.status, 409);
+    assert.equal(seenPrompt, '', 'must not call the model when no resume is explicitly bound');
+    db.prepare('UPDATE applications SET resume_version_id=? WHERE id=?').run(originalVersion, ownerApplicationId);
+
+    const countBefore = db.prepare('SELECT COUNT(*) FROM application_materials WHERE user_id=? AND application_id=?').pluck().get(OWNER_ID, ownerApplicationId);
+    const generated = await request('materials', '/answers/draft', { method: 'POST', body: {
+      applicationId: ownerApplicationId, question: 'Describe a project', maxChars: 300
+    } });
+    assert.equal(generated.response.status, 200);
+    assert.equal(generated.payload.data.characterCountUnit, 'Unicode code points');
+    assert.equal(generated.payload.data.charCount, Array.from(generated.payload.data.draft).length);
+    assert.deepEqual(generated.payload.data.evidenceRefs, ['resume.summary.0']);
+    assert.match(seenPrompt, /Describe a project/);
+    assert.match(seenPrompt, /真实的/);
+    assert.equal(db.prepare('SELECT COUNT(*) FROM application_materials WHERE user_id=? AND application_id=?').pluck().get(OWNER_ID, ownerApplicationId), countBefore,
+      'generation is only an editable draft and must not save application material');
+    assert.ok(generated.payload.data.id);
+    const savedAnswerDraft = await request('materials', `/answers/drafts/${generated.payload.data.id}`, {
+      method: 'PATCH', body: { expectedVersion: 1, content: '我参与了真实项目，并从中学习。🧭' }
+    });
+    assert.equal(savedAnswerDraft.response.status, 200);
+    assert.equal(savedAnswerDraft.payload.data.version, 2);
+    assert.equal(savedAnswerDraft.payload.data.status, 'pending');
+    assert.equal(savedAnswerDraft.payload.data.charCount, Array.from('我参与了真实项目，并从中学习。🧭').length);
+    assert.equal((await request('materials', `/answers/drafts/${generated.payload.data.id}`, {
+      method: 'PATCH', userId: OTHER_ID, body: { expectedVersion: 2, content: '越权' }
+    })).response.status, 404);
+    assert.equal((await request('materials', `/answers/drafts/${generated.payload.data.id}`, {
+      method: 'PATCH', body: { expectedVersion: 1, content: '旧版本写入' }
+    })).response.status, 409);
+    const answerList = await request('materials', `/answers/drafts?applicationId=${ownerApplicationId}`);
+    assert.equal(answerList.response.status, 200);
+    assert.equal(answerList.payload.data.length, 1);
+    assert.equal((await request('materials', `/answers/drafts?applicationId=${ownerApplicationId}`, { userId: OTHER_ID })).response.status, 404);
+    assert.equal(db.prepare('SELECT COUNT(*) FROM application_materials WHERE user_id=? AND application_id=?').pluck().get(OWNER_ID, ownerApplicationId), countBefore,
+      'editing an answer draft must not mark it as a confirmed application material');
+  } finally {
+    aiRuntime.generate = originalGenerate;
+    db.prepare('UPDATE applications SET resume_version_id=? WHERE id=?').run(originalVersion, ownerApplicationId);
+  }
+});
+
 test('application materials stay pending until confirmation and saved materials archive only for their owner', async () => {
   const originalGenerate = aiRuntime.generate;
   aiRuntime.generate = async options => ({

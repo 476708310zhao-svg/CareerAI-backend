@@ -1006,19 +1006,22 @@ test('v4 application status machine writes an auditable history', async () => {
   assert.ok(detail.data.match);
   assert.ok(detail.data.allowedTransitions.some(item => item.value === 'preparing'));
 
+  let expectedState = { status: detail.data.application.status, historyId: detail.data.application.historyId };
   for (const status of ['preparing', 'applied']) {
     const updateRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ status, note: `move to ${status}` })
+      body: JSON.stringify({ status, note: `move to ${status}`, expectedState })
     });
     assert.equal(updateRes.status, 200);
+    const updatedState = await readJson(updateRes);
+    expectedState = { status: updatedState.data.status, historyId: updatedState.data.historyId };
   }
 
   const invalidRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ status: 'offer' })
+    body: JSON.stringify({ status: 'offer', expectedState })
   });
   assert.equal(invalidRes.status, 409);
   const invalid = await readJson(invalidRes);
@@ -1033,9 +1036,13 @@ test('v4 application status machine writes an auditable history', async () => {
 
 test('v4 interview loop explicitly ensures a job space, scores practice and creates Today tasks', async () => {
   for (const status of ['phone_screen', 'interview_1']) {
+    const currentRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/detail`, { headers: authHeaders() });
+    const current = await readJson(currentRes);
     const statusRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/status`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ status, note: 'Sprint 4 interview smoke' })
+      body: JSON.stringify({ status, note: 'Sprint 4 interview smoke', expectedState: {
+        status: current.data.application.status, historyId: current.data.application.historyId
+      } })
     });
     assert.equal(statusRes.status, 200);
     await readJson(statusRes);
@@ -1386,6 +1393,11 @@ test('v4 resume center keeps immutable versions and confirms AI suggestions expl
   const versionsBefore = await readJson(versionsBeforeRes);
   assert.equal(versionsBefore.data.length, 1);
   const originalVersion = versionsBefore.data[0];
+  const selectRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/resume-selection`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ resumeVersionId: originalVersion.id, expectedResumeSelectionVersion: 0 })
+  });
+  assert.equal(selectRes.status, 200);
 
   const proposalRes = await fetch(`${BASE_URL}/api/v4/resumes/${resumeId}/ai-change-sets`, {
     method: 'POST',
@@ -1424,7 +1436,7 @@ test('v4 resume center keeps immutable versions and confirms AI suggestions expl
   assert.equal(confirmed.data.version.content.summary, 'Improved pipeline latency by 20%');
   const linkedApplication = db.prepare('SELECT resume_id AS resumeId, resume_version_id AS resumeVersionId FROM applications WHERE id=?').get(v4ApplicationId);
   assert.equal(linkedApplication.resumeId, resumeId);
-  assert.equal(String(linkedApplication.resumeVersionId), String(confirmed.data.version.id));
+  assert.equal(String(linkedApplication.resumeVersionId), String(originalVersion.id));
 
   const compareRes = await fetch(`${BASE_URL}/api/v4/resumes/${resumeId}/versions/compare?from=${originalVersion.id}&to=${confirmed.data.version.id}`, { headers: authHeaders() });
   const compared = await readJson(compareRes);
@@ -1800,10 +1812,14 @@ test('Sprint 6 OA, evidence project and Job Trust APIs enforce confirmation gate
 
 test('canonical job funnel is complete and smoke analytics stay outside production', async () => {
   for (const status of ['interview_2', 'final', 'offer']) {
+    const currentRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/detail`, { headers: authHeaders() });
+    const current = await readJson(currentRes);
     const statusRes = await fetch(`${BASE_URL}/api/v4/applications/${v4ApplicationId}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ status, note: `funnel smoke to ${status}` })
+      body: JSON.stringify({ status, note: `funnel smoke to ${status}`, expectedState: {
+        status: current.data.application.status, historyId: current.data.application.historyId
+      } })
     });
     assert.equal(statusRes.status, 200);
   }

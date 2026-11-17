@@ -108,7 +108,7 @@ function _getAuthHeader(context) {
 
 /**
  * 通用 GET 请求（含三层缓存）
- * @param {{ path: string, params?: object, cacheTTL?: number, timeout?: number, baseUrl?: string, skipAuth?: boolean }} options
+ * @param {{ path: string, params?: object, cacheTTL?: number, noCache?: boolean, noStale?: boolean, timeout?: number, baseUrl?: string, skipAuth?: boolean }} options
  */
 function request(options) {
   const now = Date.now();
@@ -140,7 +140,7 @@ function request(options) {
 
   // 层3：限流冷却期，返回过期缓存兜底
   if (now < (_rateLimitUntil[rateLimitKey] || 0)) {
-    const stale = _getStaleCache(key, auth.skipAuth);
+    const stale = options.noStale ? null : _getStaleCache(key, auth.skipAuth);
     if (stale) return Promise.resolve(stale);
     return Promise.resolve({ code: 429, data: [], _source: 'rateLimit' });
   }
@@ -162,7 +162,7 @@ function request(options) {
     };
 
     timer = setTimeout(() => {
-      const stale = _getStaleCache(key, auth.skipAuth);
+      const stale = options.noStale ? null : _getStaleCache(key, auth.skipAuth);
       finish(stale || { data: [], _source: 'timeout' });
       if (task && typeof task.abort === 'function') {
         try { task.abort(); } catch (e) {}
@@ -201,7 +201,7 @@ function request(options) {
           finish(res.data);
         } else if (res.statusCode === 429) {
           _rateLimitUntil[rateLimitKey] = Date.now() + 2 * 60 * 1000;
-          const stale = _getStaleCache(key, auth.skipAuth);
+          const stale = options.noStale ? null : _getStaleCache(key, auth.skipAuth);
           finish(stale || { code: 429, data: [], _source: 'rateLimit' });
         } else if (res.statusCode === 401) {
           _clearSessionIfCurrent(auth);
@@ -214,7 +214,7 @@ function request(options) {
       fail: (err) => {
         if (done) return;
         console.warn('[API] fail:', err.errMsg || err.message || err);
-        const stale = _getStaleCache(key, auth.skipAuth);
+        const stale = options.noStale ? null : _getStaleCache(key, auth.skipAuth);
         finish(stale || { data: [], _source: 'networkError' });
       }
     });
