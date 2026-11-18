@@ -126,15 +126,16 @@ test('snapshot serving starts after every registered board was attempted and one
   } finally { db.close(); }
 });
 
-test('new US board does not make an existing China snapshot unready', async () => {
+test('new scheduled boards do not make an existing China snapshot unready', async () => {
   const db = database();
   try {
-    for (const current of require('../services/cnOfficialPilot').LIVE_CN_BOARDS) {
+    for (const current of require('../services/cnOfficialPilot').REALTIME_CN_BOARDS) {
       await sync.syncBoard(db, current, options(current.id === 'landor'
         ? [{ ...job(1), job_id: 'official_landor_1' }] : []));
     }
     assert.equal(sync.readyToServe(db), true);
     assert.equal(sync.latestBoardStatus(db, 'shein-us'), null);
+    assert.equal(sync.latestBoardStatus(db, 'bosch-cn'), null);
   } finally { db.close(); }
 });
 
@@ -176,6 +177,9 @@ test('synced posting is shared by mobile aggregate, detail and V4 web jobs', () 
   assert.equal(result.usAggregateId, 'official_shein-us_912347');
   assert.equal(result.usAggregateSource.country, 'us');
   assert.equal(result.usAggregateSource.count, 1);
+  assert.equal(result.gbAggregateId, 'official_bosch-gb_912348');
+  assert.equal(result.gbWebId, 'official_bosch-gb_912348');
+  assert.equal(result.gbDetailSource, 'official_board');
   assert.equal(result.detailId, 'official_landor_912345');
   assert.equal(result.webFastJob.id, 'official_landor_912345');
   assert.match(result.webFastJob.description, /本站整理的岗位概览.*Design Intern/);

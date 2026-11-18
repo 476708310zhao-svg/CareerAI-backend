@@ -1,6 +1,15 @@
 const axios = require('axios');
 const { createHash } = require('node:crypto');
 
+const smartRecruitersCompanies = [
+  { id: 'bosch', name: '博世', token: 'BoschGroup', countryCodes: ['cn', 'gb', 'us'],
+    url: 'https://jobs.bosch.com/' },
+  { id: 'continental', name: '大陆集团', token: 'Continental', countryCodes: ['cn', 'us'],
+    url: 'https://jobs.continental.com/' },
+  { id: 'inter-ikea', name: '宜家（Inter IKEA Group）', token: 'InterIKEAGroup', countryCodes: ['cn'],
+    url: 'https://careers.smartrecruiters.com/InterIKEAGroup' }
+];
+
 // Only fixed, verified employer boards are requested. Never construct a fetch URL from user input.
 const BOARDS = Object.freeze([
   { id: 'enhesa', name: 'Enhesa', adapter: 'greenhouse', token: 'enhesa' },
@@ -15,6 +24,10 @@ const BOARDS = Object.freeze([
   { id: 'hypebeast', name: 'Hypebeast', adapter: 'lever', token: 'hypebeast' },
   { id: 'shein-us', name: 'SHEIN', adapter: 'greenhouse', token: 'shein',
     countryCode: 'us', verifiedSingleCountry: 'us', verifiedLocations: ['Los Angeles', 'San Diego'] },
+  ...smartRecruitersCompanies.flatMap(company => company.countryCodes.map(countryCode => ({
+    id: `${company.id}-${countryCode}`, name: company.name, token: company.token,
+    adapter: 'smartrecruiters', countryCode, url: company.url
+  }))),
   { id: 'alibaba', name: '阿里巴巴', url: 'https://campus-talent.alibaba.com/' },
   { id: 'bytedance', name: '字节跳动', url: 'https://jobs.bytedance.com/campus' },
   { id: 'tencent', name: '腾讯', url: 'https://join.qq.com/' },
@@ -28,11 +41,19 @@ const BOARDS = Object.freeze([
   { id: 'amazon', name: '亚马逊', countryCode: 'global', url: 'https://www.amazon.jobs/content/en/career-programs/university' },
   { id: 'microsoft', name: '微软', countryCode: 'global', url: 'https://careers.microsoft.com/v2/global/en/universityinternship' },
   { id: 'nvidia', name: '英伟达', countryCode: 'global', url: 'https://www.nvidia.com/en-us/about-nvidia/careers/university-recruiting/' },
-  { id: 'tesla', name: '特斯拉', countryCode: 'global', url: 'https://www.tesla.com/careers/internships' }
+  { id: 'tesla', name: '特斯拉', countryCode: 'global', url: 'https://www.tesla.com/careers/internships' },
+  { id: 'xiaohongshu', name: '小红书', url: 'https://job.xiaohongshu.com/campus/theme' },
+  { id: 'bilibili', name: '哔哩哔哩', url: 'https://jobs.bilibili.com/' },
+  { id: 'catl', name: '宁德时代', url: 'https://talent.catl.com/social-recruitment/catlhr/96144/' },
+  { id: 'nio', name: '蔚来', url: 'https://campus.nio.com/' },
+  { id: 'mihoyo', name: '米哈游', url: 'https://jobs.mihoyo.com/' }
 ]);
 
 const LIVE_BOARDS = BOARDS.filter(board => board.adapter);
 const LIVE_CN_BOARDS = LIVE_BOARDS.filter(board => !board.countryCode || board.countryCode === 'cn');
+const REALTIME_CN_BOARDS = LIVE_CN_BOARDS.filter(board => board.adapter !== 'smartrecruiters');
+const SMART_RECRUITERS_PAGE_SIZE = 100;
+const SMART_RECRUITERS_MAX_PAGES = 30;
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const CN_LOCATION = /中国|北京|上海|深圳|广州|杭州|成都|苏州|南京|武汉|西安|天津|重庆|厦门|宁波|合肥|长沙|郑州|青岛|无锡|珠海|东莞|\bchina\b|\bbeijing\b|\bshanghai\b|\bshenzhen\b|\bguangzhou\b|\bhangzhou\b|\bchengdu\b|\bsuzhou\b|\bnanjing\b|\bwuhan\b|\bxian\b/i;
 const MAINLAND_CITY = /北京|上海|深圳|广州|杭州|成都|苏州|南京|武汉|西安|天津|重庆|厦门|宁波|合肥|长沙|郑州|青岛|无锡|珠海|东莞|\bbeijing\b|\bshanghai\b|\bshenzhen\b|\bguangzhou\b|\bhangzhou\b|\bchengdu\b|\bsuzhou\b|\bnanjing\b|\bwuhan\b|\bxian\b/i;
@@ -62,16 +83,28 @@ function boardUrl(board) {
 }
 
 function feedUrl(board, page = 0) {
+  if (board.adapter === 'smartrecruiters') {
+    const query = new URLSearchParams({ country: board.countryCode,
+      limit: String(SMART_RECRUITERS_PAGE_SIZE), offset: String(page * SMART_RECRUITERS_PAGE_SIZE) });
+    return `https://api.smartrecruiters.com/v1/companies/${board.token}/postings?${query}`;
+  }
   if (board.adapter === 'greenhouse') return `https://boards-api.greenhouse.io/v1/boards/${board.token}/jobs`;
   if (board.adapter === 'ashby') return `https://api.ashbyhq.com/posting-api/job-board/${board.token}`;
   return `https://api${board.region === 'eu' ? '.eu' : ''}.lever.co/v0/postings/${board.token}?mode=json&skip=${page * 100}&limit=100`;
 }
 
-function directory() {
-  return BOARDS.map(board => ({ id: board.id, name: board.name, countryCode: board.countryCode || 'cn',
+function directory(country = 'global') {
+  const regularBoards = BOARDS.filter(board => board.adapter !== 'smartrecruiters').map(board => ({
+    id: board.id, name: board.name, countryCode: board.countryCode || 'cn',
     mode: board.adapter ? 'auto_sync' : 'official_link',
     modeLabel: board.adapter ? '官网职位同步' : '仅官网入口',
     url: boardUrl(board) }));
+  const groupedBoards = smartRecruitersCompanies.map(({ id, name, url, countryCodes }) => ({
+    id, name, url, countryCodes, countryCode: countryCodes.length === 1 ? countryCodes[0] : 'global',
+    mode: 'auto_sync', modeLabel: '官网职位同步'
+  }));
+  return [...regularBoards, ...groupedBoards].filter(board => country === 'global' ||
+    (board.countryCodes ? board.countryCodes.includes(country) : [country, 'global'].includes(board.countryCode)));
 }
 
 function safeUrl(value, fallback = '') {
@@ -118,6 +151,7 @@ function targetLocation(board, row, locations) {
 }
 
 function normalizeRow(board, row) {
+  if (board.adapter === 'smartrecruiters') return normalizeSmartRecruitersRow(board, row);
   const isGreenhouse = board.adapter === 'greenhouse';
   const isLever = board.adapter === 'lever';
   if ((!isGreenhouse && !isLever && row.isListed === false) ||
@@ -156,6 +190,33 @@ function normalizeRow(board, row) {
   };
 }
 
+function normalizeSmartRecruitersRow(board, row) {
+  const sourceId = String(row.id || '');
+  const title = String(row.name || '').trim();
+  const country = String(row.location?.country || '').toLowerCase();
+  const location = [row.location?.city, row.location?.region].filter(Boolean).join(', ');
+  if (!/^\d{1,30}$/.test(sourceId) || !title || !location || country !== board.countryCode ||
+      row.visibility !== 'PUBLIC' || row.company?.identifier !== board.token) return null;
+
+  const employment = row.typeOfEmployment?.label || '';
+  const confirmedIntern = row.typeOfEmployment?.id === 'intern' || row.experienceLevel?.id === 'internship';
+  const earlyCareerTitle = /实习|校招|应届|管培|毕业生|\bintern(?:ship)?\b|\b(?:new grad(?:uate)?|graduate (?:programme|program|trainee|scheme|engineer)|undergraduate placement|management trainee|co[- ]?op)\b/i;
+  if (!confirmedIntern && (!earlyCareerTitle.test(title) ||
+      (INTERN_TITLE.test(title) && EXPLICIT_FULL_TIME.test(employment)))) return null;
+
+  const officialUrl = `https://jobs.smartrecruiters.com/${board.token}/${sourceId}`;
+  return {
+    job_id: `official_${board.id}_${sourceId}`, job_title: title,
+    employer_name: board.name, job_city: location, job_country: country.toUpperCase(),
+    job_description: '', job_employment_type: confirmedIntern || INTERN_TITLE.test(title) ? '实习' : employment,
+    job_posted_at_datetime_utc: Number.isFinite(Date.parse(row.releasedDate))
+      ? new Date(row.releasedDate).toISOString() : '',
+    job_apply_link: officialUrl, job_source_url: officialUrl,
+    job_source_reference: `smartrecruiters:${board.token}:${sourceId}`,
+    _requestedCountry: country, _source: country === 'cn' ? 'cn_official' : 'official_board'
+  };
+}
+
 function queryTerms(query) {
   const normalized = String(query || '').toLowerCase();
   const terms = normalized.match(/[a-z][a-z0-9+#.-]{1,}|[\u4e00-\u9fff]{2,}/g) || [];
@@ -175,7 +236,8 @@ function matchesQuery(job, query) {
   for (const aliases of cities) {
     if (aliases.some(alias => raw.includes(alias)) && !aliases.some(alias => location.includes(alias))) return false;
   }
-  if (/实习|\bintern(?:ship)?\b/.test(raw) && !/实习|\bintern(?:ship)?\b/.test(title)) return false;
+  const employment = String(job.job_employment_type || '').toLowerCase();
+  if (INTERN_TITLE.test(raw) && !INTERN_TITLE.test(`${title} ${employment}`)) return false;
   const roleGroups = [
     [/数据分析|\bdata (?:analyst|analytics)\b/, ['data', 'analyst', 'analytics']],
     [/软件工程|软件开发|\bsoftware (?:engineer|developer)\b/, ['software', 'engineer', 'developer']],
@@ -188,7 +250,7 @@ function matchesQuery(job, query) {
   }
   const terms = queryTerms(query);
   if (!terms.length) return true;
-  const text = `${title} ${job.employer_name} ${job.job_city}`.toLowerCase();
+  const text = `${title} ${job.employer_name} ${job.job_city} ${employment}`.toLowerCase();
   return terms.some(term => text.includes(term));
 }
 
@@ -203,12 +265,20 @@ async function fetchBoardSnapshot(board, options = {}) {
   const fetcher = async () => {
     if (options.requestDelayMs) await wait(options.requestDelayMs);
     const allRows = [];
-    for (let page = 0; page < (board.adapter === 'lever' ? 20 : 1); page++) {
+    const smartRecruiters = board.adapter === 'smartrecruiters';
+    const maxPages = smartRecruiters ? SMART_RECRUITERS_MAX_PAGES : board.adapter === 'lever' ? 20 : 1;
+    const seenSmartIds = new Set();
+    let smartTotal;
+    for (let page = 0; page < maxPages; page++) {
       let rows;
+      let data;
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
-          const response = await httpGet(feedUrl(board, page), { timeout: 10000, maxContentLength: 4 * 1024 * 1024 });
-          rows = rowsFromFeed(board, response.data);
+          const requestOptions = { timeout: 10000, maxContentLength: 4 * 1024 * 1024 };
+          if (smartRecruiters) requestOptions.maxRedirects = 0;
+          const response = await httpGet(feedUrl(board, page), requestOptions);
+          data = response.data;
+          rows = smartRecruiters ? data?.content : rowsFromFeed(board, data);
           break;
         } catch (error) {
           const transient = [502, 503, 504].includes(Number(error.response?.status)) ||
@@ -217,7 +287,15 @@ async function fetchBoardSnapshot(board, options = {}) {
           await wait(350 * (attempt + 1));
         }
       }
+      if (smartRecruiters) {
+        smartTotal ??= data?.totalFound;
+        validateSmartRecruitersPage(board, data, smartTotal, allRows.length, seenSmartIds);
+      }
       allRows.push(...rows);
+      if (smartRecruiters) {
+        if (allRows.length === smartTotal) break;
+        continue;
+      }
       if (board.adapter !== 'lever' || rows.length < 100) break;
       if (page === 19) throw new Error('lever_pagination_limit');
     }
@@ -227,18 +305,36 @@ async function fetchBoardSnapshot(board, options = {}) {
     { ttlMs: 60 * 60_000, minIntervalMs: 1_000 }) : fetcher();
 }
 
+function validateSmartRecruitersPage(board, data, total, offset, seenIds) {
+  if (!Number.isSafeInteger(total) || total < 0 ||
+      total > SMART_RECRUITERS_PAGE_SIZE * SMART_RECRUITERS_MAX_PAGES ||
+      data?.totalFound !== total || data.offset !== offset || data.limit !== SMART_RECRUITERS_PAGE_SIZE ||
+      !Array.isArray(data.content) ||
+      data.content.length !== Math.min(SMART_RECRUITERS_PAGE_SIZE, total - offset)) {
+    throw new Error('incomplete_smartrecruiters_snapshot');
+  }
+  for (const row of data.content) {
+    const id = String(row?.id || '');
+    if (!/^\d{1,30}$/.test(id) || seenIds.has(id) || row.company?.identifier !== board.token ||
+        String(row.location?.country || '').toLowerCase() !== board.countryCode) {
+      throw new Error('invalid_smartrecruiters_posting');
+    }
+    seenIds.add(id);
+  }
+}
+
 async function fetchBoard(board, options = {}) {
   return (await fetchBoardSnapshot(board, options)).jobs;
 }
 
 async function search(query, options = {}) {
-  const results = await Promise.allSettled(LIVE_CN_BOARDS.map((board, index) => fetchBoard(board, {
+  const results = await Promise.allSettled(REALTIME_CN_BOARDS.map((board, index) => fetchBoard(board, {
     ...options, requestDelayMs: options.gateway ? index * 120 : 0
   })));
   const jobs = [];
   const boardStatus = [];
   for (let index = 0; index < results.length; index++) {
-    const board = LIVE_CN_BOARDS[index];
+    const board = REALTIME_CN_BOARDS[index];
     const result = results[index];
     if (result.status === 'rejected') {
       boardStatus.push({ id: board.id, name: board.name, status: 'unavailable', count: 0,
@@ -258,8 +354,8 @@ async function findById(id, options = {}) {
   const match = /^official_([\w-]+)_([\w-]+)$/.exec(String(id || ''));
   if (!match) return null;
   const board = LIVE_BOARDS.find(item => item.id === match[1]);
-  if (!board) return null;
+  if (!board || board.adapter === 'smartrecruiters') return null;
   return (await fetchBoard(board, options)).find(job => job.job_id === id) || null;
 }
 
-module.exports = { BOARDS, LIVE_BOARDS, LIVE_CN_BOARDS, directory, boardUrl, feedUrl, normalizeRow, fetchBoardSnapshot, fetchBoard, search, findById, matchesQuery };
+module.exports = { BOARDS, LIVE_BOARDS, LIVE_CN_BOARDS, REALTIME_CN_BOARDS, directory, boardUrl, feedUrl, normalizeRow, fetchBoardSnapshot, fetchBoard, search, findById, matchesQuery };

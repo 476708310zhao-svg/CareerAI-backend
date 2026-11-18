@@ -23,15 +23,18 @@ test('global sampling eventually includes every core student market and explicit
   assert.deepEqual(geography.marketSources('hk'), ['jsearch', 'hk_csb']);
   assert.deepEqual(geography.marketSources('cn'), ['jsearch', 'cn_official']);
   assert.deepEqual(geography.marketSources('us'), ['jsearch', 'adzuna', 'official_board']);
-  assert.deepEqual(geography.marketSources('gb'), ['jsearch', 'adzuna']);
+  assert.deepEqual(geography.marketSources('gb'), ['jsearch', 'adzuna', 'official_board']);
 });
 
 test('official directory expands without changing China live source and detail APIs', () => {
   const result = probe('cn-official');
-  assert.equal(result.directory.total, 25);
-  assert.equal(result.directory.auto, 11);
-  assert.equal(result.directory.china.length, 24);
-  assert.equal(result.directory.us.length, 5);
+  assert.equal(result.directory.total, 33);
+  assert.equal(result.directory.auto, 14);
+  assert.equal(result.directory.china.length, 32);
+  assert.equal(result.directory.us.length, 7);
+  assert.equal(result.directory.gb.length, 5);
+  assert.ok(result.directory.gb.includes('bosch'));
+  assert.ok(!result.directory.gb.includes('continental'));
   assert.equal(result.directory.china.includes('shein-us'), false);
   assert.equal(result.directory.us.includes('shein-us'), true);
   assert.ok(result.aggregate.ids.includes('official_landor_912345'));

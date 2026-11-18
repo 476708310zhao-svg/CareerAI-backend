@@ -8,7 +8,7 @@
     </view>
     <view class="campus-entry" bindtap="goCampusCalendar" hover-class="press" aria-role="button" aria-label="打开校招日历"><view class="campus-mark"><image src="/images/zhiyin-icons/calendar.svg" mode="aspectFit" aria-hidden="true"/></view><view class="campus-copy"><text class="campus-title">校招日历</text></view><text class="campus-action">查看</text><image class="campus-arrow" src="/images/zhiyin-icons/chevron.svg" mode="aspectFit" aria-hidden="true"/></view>
 
-    <view wx:if="{{filterCountry==='cn'||filterCountry==='us'||filterCountry==='global'}}" class="official-pilot">
+    <view wx:if="{{filterCountry==='cn'||filterCountry==='gb'||filterCountry==='us'||filterCountry==='global'}}" class="official-pilot">
       <view class="official-pilot-head" bindtap="toggleOfficialBoards" aria-role="button" aria-label="查看企业招聘官网">
         <view><text class="official-pilot-title">企业招聘官网</text><text class="official-pilot-desc">{{officialBoardSummary || '查看已核验的企业招聘入口'}}</text></view>
         <text class="official-pilot-action">{{officialBoardsVisible ? '收起' : '查看官网'}}</text>
