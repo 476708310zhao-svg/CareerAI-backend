@@ -802,9 +802,8 @@ function _localFallbackPool(query) {
 // ════════════════════════════════════════════════════════════════════════════════
 // GET /api/jobs/official-boards — verified entrances, not fabricated jobs.
 router.get('/official-boards', jobsLimiter, (req, res) => {
-  const country = ['cn', 'us', 'global'].includes(req.query.country) ? req.query.country : 'global';
-  const boards = cnOfficialPilot.directory().filter(board => country === 'global' ||
-    board.countryCode === country || board.countryCode === 'global');
+  const country = normalizeCountry(req.query.country) || 'global';
+  const boards = cnOfficialPilot.directory(country);
   res.json({ status: 'OK', country, total: boards.length, boards });
 });
 
@@ -1031,34 +1030,43 @@ router.get('/aggregate', jobsLimiter, async (req, res) => {
     } catch (error) { return recordSource('hk_csb', 'hk', [], reasonOf(error)); }
   }
 
-  async function _fetchCnOfficialFresh() {
-    const snapshotReady = officialJobSync.readyToServe(db);
-    const savedJobs = snapshotReady ? officialJobSync.listActiveRaw(db, query) : [];
-    const result = snapshotReady
-      ? { jobs: savedJobs, boardStatus: cnOfficialPilot.LIVE_CN_BOARDS.map(board => {
-        const latest = officialJobSync.latestBoardStatus(db, board.id);
-        const count = savedJobs.filter(job => job.job_id.startsWith(`official_${board.id}_`)).length;
-        return { id: board.id, name: board.name,
-          status: latest?.status === 'error' ? 'unavailable' : latest?.status === 'anomalous' ? 'review_needed' : count ? 'ok' : 'empty',
-          count, ...(latest?.error_code ? { reason: latest.error_code } : {}) };
-      }) }
-      : await cnOfficialPilot.search(query, { gateway: sourceGateway });
+  function readOfficialSnapshot(code, boards) {
+    const jobs = officialJobSync.listActiveRaw(db, query, code);
+    const boardStatus = boards.map(board => {
+      const latest = officialJobSync.latestBoardStatus(db, board.id);
+      const count = jobs.filter(job => job.job_id.startsWith(`official_${board.id}_`)).length;
+      let status = count ? 'ok' : 'empty';
+      if (!latest || latest.status === 'error') status = 'unavailable';
+      if (latest?.status === 'anomalous') status = 'review_needed';
+      const reason = latest ? latest.error_code : 'not_synced';
+      return { id: board.id, name: board.name, status, count, ...(reason ? { reason } : {}) };
+    });
+    return { jobs, boardStatus };
+  }
+
+  function recordOfficialSource(source, country, result) {
     const failures = result.boardStatus.filter(item => item.status === 'unavailable');
     const reviews = result.boardStatus.filter(item => item.status === 'review_needed');
-    sourceStatus.push({ source: 'cn_official', country: 'cn',
-      status: failures.length === result.boardStatus.length ? 'unavailable' : result.jobs.length ? 'ok' : 'empty',
+    sourceStatus.push({ source, country,
+      status: result.jobs.length ? 'ok' : failures.length === result.boardStatus.length ? 'unavailable' : 'empty',
       count: result.jobs.length, ...(failures.length || reviews.length ? { partialFailures: failures.length + reviews.length } : {}),
       boardStatus: result.boardStatus });
+  }
+
+  async function _fetchCnOfficialFresh() {
+    const snapshotReady = officialJobSync.readyToServe(db);
+    const result = snapshotReady
+      ? readOfficialSnapshot('cn', cnOfficialPilot.LIVE_CN_BOARDS)
+      : await cnOfficialPilot.search(query, { gateway: sourceGateway });
+    recordOfficialSource('cn_official', 'cn', result);
     return result.jobs.map(job => snapshotReady ? officialJobWithMeta(job) : _withRawJobMeta(job, 'cn_official'));
   }
 
   async function _fetchOfficialBoardFresh(code) {
     const boards = cnOfficialPilot.LIVE_BOARDS.filter(board => board.countryCode === code);
-    if (!officialJobSync.hasSchema(db) || !boards.some(board => officialJobSync.latestBoardStatus(db, board.id))) {
-      return recordSource('official_board', code, [], 'not_synced');
-    }
-    const jobs = officialJobSync.listActiveRaw(db, query, code).map(officialJobWithMeta);
-    return recordSource('official_board', code, jobs);
+    const result = readOfficialSnapshot(code, boards);
+    recordOfficialSource('official_board', code, result);
+    return result.jobs.map(officialJobWithMeta);
   }
 
   async function _fetchMarketFresh(code) {
@@ -1443,7 +1451,7 @@ router.get('/detail', optionalAuth, jobsLimiter, async (req, res) => {
       if (!job) return res.status(404).json({ error: '职位不存在或已下线', data: [] });
       const data = [officialJobWithMeta(job)];
       _trackJobView(req, req.query.job_id);
-      return res.json({ data, status: 'OK', _source: 'cn_official', dataMeta: _collectionMeta(data) });
+      return res.json({ data, status: 'OK', _source: job._source, dataMeta: _collectionMeta(data) });
     } catch (_) { return res.status(503).json({ error: '企业官网职位源暂不可用', data: [] }); }
   }
   if (String(req.query.job_id).startsWith('hkcsb_')) {

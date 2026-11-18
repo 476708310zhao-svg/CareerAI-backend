@@ -4,13 +4,38 @@ const pilot = require('../services/cnOfficialPilot');
 
 test('verified employers have fixed official HTTPS entrances with honest sync modes', () => {
   const boards = pilot.directory();
-  assert.equal(boards.length, 25);
-  assert.equal(new Set(boards.map(board => board.id)).size, 25);
-  assert.equal(boards.filter(board => board.mode === 'auto_sync').length, 11);
-  assert.equal(boards.filter(board => board.mode === 'official_link').length, 14);
-  assert.equal(pilot.LIVE_CN_BOARDS.length, 10);
+  assert.equal(boards.length, 33);
+  assert.equal(new Set(boards.map(board => board.id)).size, boards.length);
+  assert.equal(boards.filter(board => board.mode === 'auto_sync').length, 14);
+  assert.equal(boards.filter(board => board.mode === 'official_link').length, 19);
+  assert.equal(pilot.REALTIME_CN_BOARDS.length, 10);
   assert.equal(pilot.LIVE_BOARDS.find(board => board.id === 'shein-us').countryCode, 'us');
   for (const board of boards) assert.match(board.url, /^https:\/\//);
+});
+
+test('SmartRecruiters reads complete market snapshots and rejects overlapping pages', async () => {
+  const board = pilot.LIVE_BOARDS.find(item => item.id === 'bosch-gb');
+  const row = id => ({ id: String(id), name: 'Engineering Placement',
+    location: { city: 'Worcester', region: 'England', country: 'gb' },
+    company: { identifier: 'BoschGroup' }, visibility: 'PUBLIC',
+    typeOfEmployment: { id: 'permanent', label: 'Full-time' },
+    experienceLevel: { id: 'internship' }, releasedDate: '2026-11-18T00:00:00Z' });
+  const read = duplicate => async url => {
+    const query = new URL(url).searchParams;
+    assert.equal(query.get('country'), 'gb');
+    const offset = Number(query.get('offset'));
+    const content = offset === 0 ? Array.from({ length: 100 }, (_, index) => row(index + 1))
+      : [row(duplicate ? 1 : 101)];
+    return { data: { content, totalFound: 101, offset, limit: 100 } };
+  };
+  const result = await pilot.fetchBoardSnapshot(board, { httpGet: read(false) });
+  assert.equal(result.rawCount, 101);
+  assert.equal(result.jobs[100].job_apply_link, 'https://jobs.smartrecruiters.com/BoschGroup/101');
+  assert.equal(result.jobs[100].job_employment_type, '实习');
+  assert.equal(pilot.matchesQuery(result.jobs[100], '实习'), true);
+  assert.equal(pilot.normalizeRow(board, { ...row(1), visibility: 'INTERNAL' }), null);
+  assert.equal(pilot.normalizeRow(board, { ...row(1), location: { city: 'Dublin', country: 'ie' } }), null);
+  await assert.rejects(pilot.fetchBoardSnapshot(board, { httpGet: read(true) }), /invalid_smartrecruiters_posting/);
 });
 
 test('SHEIN US board requires a verified location and excludes unrelated campus marketing roles', () => {

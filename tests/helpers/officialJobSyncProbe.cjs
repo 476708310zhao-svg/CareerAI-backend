@@ -36,6 +36,13 @@ async function main() {
   await sync.syncBoard(db, pilot.LIVE_BOARDS.find(board => board.id === 'shein-us'), {
     fetchSnapshot: async () => ({ rawCount: 1, jobs: [usPosting] })
   });
+  await sync.syncBoard(db, pilot.LIVE_BOARDS.find(board => board.id === 'bosch-gb'), {
+    fetchOptions: { httpGet: async () => ({ data: { totalFound: 1, offset: 0, limit: 100,
+      content: [{ id: '912348', name: 'Engineering Placement', visibility: 'PUBLIC',
+        company: { identifier: 'BoschGroup' }, location: { country: 'gb', city: 'Worcester' },
+        experienceLevel: { id: 'internship' } }]
+    } }) }
+  });
 
   const app = express();
   app.use(express.json());
@@ -49,6 +56,9 @@ async function main() {
     const token = jwt.sign({ userId: 1, openid: 'isolated_seed_owner' }, process.env.JWT_SECRET);
     const aggregate = await (await fetch(`${base}/api/jobs/aggregate?country=cn&query=Design%20Intern`)).json();
     const usAggregate = await (await fetch(`${base}/api/jobs/aggregate?country=us&query=Marketing%20Intern`)).json();
+    const gbAggregate = await (await fetch(`${base}/api/jobs/aggregate?country=gb&query=Engineering%20Placement`)).json();
+    const gbWeb = await (await fetch(`${base}/api/jobs?source=local&country=gb&keyword=Engineering%20Placement`)).json();
+    const gbDetail = await (await fetch(`${base}/api/jobs/detail?job_id=official_bosch-gb_912348`)).json();
     const detail = await (await fetch(`${base}/api/jobs/detail?job_id=official_landor_912345`)).json();
     const webFast = await (await fetch(`${base}/api/jobs?source=local&country=cn&keyword=Design%20Intern`)).json();
     const webList = await (await fetch(`${base}/api/jobs?country=cn&keyword=Design%20Intern`)).json();
@@ -80,6 +90,9 @@ async function main() {
       aggregateSource: aggregate.sourceStatus?.find(row => row.source === 'cn_official'),
       usAggregateId: usAggregate.data?.find(job => job.job_id === usPosting.job_id)?.job_id,
       usAggregateSource: usAggregate.sourceStatus?.find(row => row.source === 'official_board'),
+      gbAggregateId: gbAggregate.data?.find(job => job.job_id === 'official_bosch-gb_912348')?.job_id,
+      gbWebId: gbWeb.data?.list?.find(job => job.id === 'official_bosch-gb_912348')?.id,
+      gbDetailSource: gbDetail._source,
       detailId: detail.data?.[0]?.job_id,
       webFastJob: webFast.data?.list?.find(job => job.id === posting.job_id),
       webListJob: webList.data?.list?.find(job => job.id === posting.job_id),

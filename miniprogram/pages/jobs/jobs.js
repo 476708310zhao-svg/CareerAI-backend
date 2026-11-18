@@ -330,7 +330,7 @@ Page({
     } else if (options.keyword) {
       this.setData({ searchKeyword: options.keyword, activeTag: options.keyword });
     }
-    if (['cn', 'us', 'global'].includes(this.data.filterCountry)) this._loadOfficialBoards();
+    if (['cn', 'gb', 'us', 'global'].includes(this.data.filterCountry)) this._loadOfficialBoards();
     const hasFreshCache = this.loadCachedOrMock();
     this._initialLoadNeedsJobs = !hasFreshCache || !!options.keyword || !!pendingSearch;
     clearTimeout(this._initialLoadTimer);
@@ -653,7 +653,7 @@ Page({
   applyFilter: function() {
     const active = !!(this.data.filterType || this.data.filterDate || this.data.filterCountry !== 'global' || this.data.filterSponsor);
     this.setData({ filterActive: active, filterVisible: false });
-    if (['cn', 'us', 'global'].includes(this.data.filterCountry)) this._loadOfficialBoards();
+    if (['cn', 'gb', 'us', 'global'].includes(this.data.filterCountry)) this._loadOfficialBoards();
     this.loadJobs(true);
   },
 

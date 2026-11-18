@@ -51,7 +51,7 @@ function insertRun(db, run) {
 
 async function syncBoard(db, board, options = {}) {
   assertSchema(db);
-  if (!board || !['greenhouse', 'lever', 'ashby'].includes(board.adapter)) throw new Error('unsupported_official_board');
+  if (!board || !['greenhouse', 'lever', 'ashby', 'smartrecruiters'].includes(board.adapter)) throw new Error('unsupported_official_board');
   const clock = options.clock || (() => new Date().toISOString());
   const startedAt = clock();
   let snapshot;
@@ -133,7 +133,7 @@ async function syncAll(db, options = {}) {
   return runs;
 }
 
-function readyToServe(db, boards = pilot.LIVE_CN_BOARDS) {
+function readyToServe(db, boards = pilot.REALTIME_CN_BOARDS) {
   if (!hasSchema(db)) return false;
   const rows = db.prepare(`SELECT board_id,
     MAX(CASE WHEN status='ok' AND accepted_count>0 THEN 1 ELSE 0 END) AS has_success
