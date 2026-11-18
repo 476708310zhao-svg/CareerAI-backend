@@ -133,7 +133,7 @@ async function syncAll(db, options = {}) {
   return runs;
 }
 
-function readyToServe(db, boards = pilot.LIVE_BOARDS) {
+function readyToServe(db, boards = pilot.LIVE_CN_BOARDS) {
   if (!hasSchema(db)) return false;
   const rows = db.prepare(`SELECT board_id,
     MAX(CASE WHEN status='ok' AND accepted_count>0 THEN 1 ELSE 0 END) AS has_success
@@ -150,11 +150,20 @@ function activeRows(db) {
     WHERE p.status='open' ORDER BY p.last_seen_at DESC`).all();
 }
 
+function overviewText(row) {
+  const plain = value => String(value || '').replace(/<[^>]*>/g, '').replace(/[<>\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim();
+  const company = plain(row.company);
+  const title = plain(row.title);
+  const location = plain(row.location);
+  const type = plain(row.job_type);
+  return `本站整理的岗位概览：${company}招聘「${title}」${location ? `，工作地点为${location}` : ''}。${type ? `官网标注的岗位类型为${type}。` : ''}具体工作内容、申请条件和岗位状态请以企业官网为准。`;
+}
+
 function toRawJob(row) {
   return {
     job_id: row.id, job_title: row.title, employer_name: row.company,
     job_city: row.location, job_country: row.country.toUpperCase(),
-    job_description: '', job_employment_type: row.job_type,
+    job_description: overviewText(row), job_employment_type: row.job_type,
     job_posted_at_datetime_utc: row.published_at,
     job_updated_at_datetime_utc: row.source_updated_at,
     updatedAt: row.source_updated_at, fetchedAt: row.last_seen_at,
@@ -188,7 +197,7 @@ function toV4Job(row) {
   return {
     id: row.id, title: row.title, company: row.company,
     location: row.location, region, country: row.country.toUpperCase(),
-    description: '', requirements: [], jobType: row.job_type,
+    description: overviewText(row), requirements: [], jobType: row.job_type,
     applyUrl: row.apply_url, sourceUrl: row.source_url,
     source: row.country === 'cn' ? 'cn_official' : 'official_board',
     postedAt: row.published_at, updatedAt: row.source_updated_at,

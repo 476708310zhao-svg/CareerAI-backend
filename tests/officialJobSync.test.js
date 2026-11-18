@@ -49,8 +49,9 @@ test('official sync requires migration and keeps published date distinct from so
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM official_job_postings').get().n, 1);
     assert.equal(db.prepare('SELECT description FROM official_job_postings WHERE id=?').get('official_sample_1').description, '');
     assert.equal(sync.findActiveRaw(db, 'official_sample_1').job_posted_at_datetime_utc, '');
-    assert.equal(sync.findActiveRaw(db, 'official_sample_1').job_description, '');
-    assert.equal(sync.findActiveV4(db, 'official_sample_1').description, '');
+    assert.match(sync.findActiveRaw(db, 'official_sample_1').job_description, /本站整理的岗位概览.*Software Intern 1/);
+    assert.match(sync.findActiveV4(db, 'official_sample_1').description, /工作地点为Shanghai/);
+    assert.doesNotMatch(sync.findActiveV4(db, 'official_sample_1').description, /Build software/);
     assert.equal(sync.findActiveV4(db, 'official_sample_1').updatedAt, '2026-11-17T00:00:00.000Z');
     assert.equal(sync.listActiveRaw(db, 'Software').length, 1);
   } finally { db.close(); }
@@ -125,6 +126,18 @@ test('snapshot serving starts after every registered board was attempted and one
   } finally { db.close(); }
 });
 
+test('new US board does not make an existing China snapshot unready', async () => {
+  const db = database();
+  try {
+    for (const current of require('../services/cnOfficialPilot').LIVE_CN_BOARDS) {
+      await sync.syncBoard(db, current, options(current.id === 'landor'
+        ? [{ ...job(1), job_id: 'official_landor_1' }] : []));
+    }
+    assert.equal(sync.readyToServe(db), true);
+    assert.equal(sync.latestBoardStatus(db, 'shein-us'), null);
+  } finally { db.close(); }
+});
+
 test('empty first snapshots do not replace the existing live job search', async () => {
   const db = database();
   try {
@@ -160,12 +173,15 @@ test('synced posting is shared by mobile aggregate, detail and V4 web jobs', () 
   assert.equal(result.ready, true);
   assert.equal(result.aggregateId, 'official_landor_912345');
   assert.equal(result.aggregateSource.count, 1);
+  assert.equal(result.usAggregateId, 'official_shein-us_912347');
+  assert.equal(result.usAggregateSource.country, 'us');
+  assert.equal(result.usAggregateSource.count, 1);
   assert.equal(result.detailId, 'official_landor_912345');
   assert.equal(result.webFastJob.id, 'official_landor_912345');
-  assert.equal(result.webFastJob.description, '');
+  assert.match(result.webFastJob.description, /本站整理的岗位概览.*Design Intern/);
   assert.match(result.webFastJob.applyUrl, /^https:\/\//);
   assert.equal(result.webListJob.id, 'official_landor_912345');
-  assert.equal(result.webListJob.description, '');
+  assert.match(result.webListJob.description, /本站整理的岗位概览.*Design Intern/);
   assert.equal(result.webOtherCountryHasJob, false);
   assert.equal(result.webOldOpenJobId, 'official_landor_912346');
   assert.equal(result.webSnapshotHasCursor, true);

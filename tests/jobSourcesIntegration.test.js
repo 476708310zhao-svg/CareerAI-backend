@@ -22,13 +22,18 @@ test('global sampling eventually includes every core student market and explicit
   for (const country of ['us', 'gb', 'cn', 'hk', 'ca']) assert.ok(markets.has(country), country);
   assert.deepEqual(geography.marketSources('hk'), ['jsearch', 'hk_csb']);
   assert.deepEqual(geography.marketSources('cn'), ['jsearch', 'cn_official']);
+  assert.deepEqual(geography.marketSources('us'), ['jsearch', 'adzuna', 'official_board']);
   assert.deepEqual(geography.marketSources('gb'), ['jsearch', 'adzuna']);
 });
 
-test('China official pilot exposes 20 entrances, live jobs, source status and both detail APIs', () => {
+test('official directory expands without changing China live source and detail APIs', () => {
   const result = probe('cn-official');
-  assert.equal(result.directory.total, 20);
-  assert.equal(result.directory.auto, 10);
+  assert.equal(result.directory.total, 25);
+  assert.equal(result.directory.auto, 11);
+  assert.equal(result.directory.china.length, 24);
+  assert.equal(result.directory.us.length, 5);
+  assert.equal(result.directory.china.includes('shein-us'), false);
+  assert.equal(result.directory.us.includes('shein-us'), true);
   assert.ok(result.aggregate.ids.includes('official_landor_912345'));
   assert.equal(result.aggregate.official.status, 'ok');
   assert.equal(result.aggregate.official.count, 1);

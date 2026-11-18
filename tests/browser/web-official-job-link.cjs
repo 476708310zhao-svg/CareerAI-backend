@@ -58,7 +58,9 @@ Object.assign(process.env, {
     const detailLink = page.locator('#detail-content').getByRole('link', { name: '前往企业官网查看岗位并申请' });
     await detailLink.waitFor();
     assert.equal(await detailLink.getAttribute('href'), officialUrl);
-    assert.equal((await page.locator('#detail-content').textContent()).includes('岗位详情以企业官网为准'), true);
+    const detailText = await page.locator('#detail-content').textContent();
+    assert.equal(detailText.includes('本站整理的岗位概览'), true);
+    assert.equal(detailText.includes('Do not republish this description'), false);
     assert.deepEqual(errors, []);
     console.log('Browser official job link acceptance passed.');
   } finally {

@@ -2,13 +2,26 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const pilot = require('../services/cnOfficialPilot');
 
-test('20 distinct employers have fixed official HTTPS entrances with honest sync modes', () => {
+test('verified employers have fixed official HTTPS entrances with honest sync modes', () => {
   const boards = pilot.directory();
-  assert.equal(boards.length, 20);
-  assert.equal(new Set(boards.map(board => board.id)).size, 20);
-  assert.equal(boards.filter(board => board.mode === 'auto_sync').length, 10);
-  assert.equal(boards.filter(board => board.mode === 'official_link').length, 10);
+  assert.equal(boards.length, 25);
+  assert.equal(new Set(boards.map(board => board.id)).size, 25);
+  assert.equal(boards.filter(board => board.mode === 'auto_sync').length, 11);
+  assert.equal(boards.filter(board => board.mode === 'official_link').length, 14);
+  assert.equal(pilot.LIVE_CN_BOARDS.length, 10);
+  assert.equal(pilot.LIVE_BOARDS.find(board => board.id === 'shein-us').countryCode, 'us');
   for (const board of boards) assert.match(board.url, /^https:\/\//);
+});
+
+test('SHEIN US board requires a verified location and excludes unrelated campus marketing roles', () => {
+  const board = pilot.LIVE_BOARDS.find(item => item.id === 'shein-us');
+  const row = (title, location) => ({ id: 5439003008, title,
+    location: { name: location },
+    absolute_url: 'https://job-boards.greenhouse.io/shein/jobs/5439003008',
+    departments: [{ name: 'Campus Marketing' }] });
+  assert.equal(pilot.normalizeRow(board, row('Campus Partnerships Specialist', 'Los Angeles')), null);
+  assert.equal(pilot.normalizeRow(board, row('Marketing Intern', 'London')), null);
+  assert.equal(pilot.normalizeRow(board, row('Marketing Intern', 'Los Angeles')).job_country, 'US');
 });
 
 test('Greenhouse posting keeps source evidence without inventing a publication date or salary', () => {

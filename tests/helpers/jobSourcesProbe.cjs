@@ -144,12 +144,15 @@ async function main() {
     }
     if (scenario === 'cn-official') {
       const directory = await requestStage('directory', '/api/jobs/official-boards');
+      const chinaDirectory = await requestStage('chinaDirectory', '/api/jobs/official-boards?country=cn');
+      const usDirectory = await requestStage('usDirectory', '/api/jobs/official-boards?country=us');
       const aggregate = await requestStage('aggregate', '/api/jobs/aggregate?country=cn&query=Design&pageSize=20');
       const detail = await requestStage('detail', '/api/jobs/detail?job_id=official_landor_912345');
       const webDetail = await requestStage('webDetail', '/api/jobs/official_landor_912345');
       const hiddenDetail = await fetch(`${base}/api/jobs/detail?job_id=official_meshy_hidden`);
       console.log(`PROBE_RESULT:${JSON.stringify({ directory: { total: directory.total,
-        auto: directory.boards.filter(board => board.mode === 'auto_sync').length },
+        auto: directory.boards.filter(board => board.mode === 'auto_sync').length,
+        china: chinaDirectory.boards.map(board => board.id), us: usDirectory.boards.map(board => board.id) },
         aggregate: { ids: aggregate.data.map(job => job.job_id),
           official: aggregate.sourceStatus.find(item => item.source === 'cn_official') },
         detail: { id: detail.data?.[0]?.job_id, sourceUrl: detail.data?.[0]?.job_source_url,

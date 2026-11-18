@@ -18,7 +18,7 @@ const GLOBAL_SAMPLE_COUNTRIES = Object.freeze([
   'de', 'fr', 'in', 'br', 'ae', 'za'
 ]);
 const MARKET_SOURCES = Object.freeze({
-  us: ['jsearch', 'adzuna'], gb: ['jsearch', 'adzuna'],
+  us: ['jsearch', 'adzuna', 'official_board'], gb: ['jsearch', 'adzuna'],
   cn: ['jsearch', 'cn_official'], hk: ['jsearch', 'hk_csb'],
   ca: ['jsearch', 'adzuna']
 });

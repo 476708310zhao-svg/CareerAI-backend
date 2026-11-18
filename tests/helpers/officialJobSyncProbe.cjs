@@ -28,6 +28,14 @@ async function main() {
   await sync.syncAll(db, { boards: pilot.LIVE_BOARDS,
     fetchSnapshot: async board => board.id === 'landor'
       ? { rawCount: 1, jobs: [posting] } : { rawCount: 0, jobs: [] } });
+  const usPosting = { ...posting, job_id: 'official_shein-us_912347',
+    job_title: 'Marketing Intern', employer_name: 'SHEIN', job_city: 'Los Angeles',
+    job_country: 'US', job_apply_link: 'https://job-boards.greenhouse.io/shein/jobs/912347',
+    job_source_url: 'https://job-boards.greenhouse.io/shein/jobs/912347',
+    job_source_reference: 'greenhouse:shein:912347' };
+  await sync.syncBoard(db, pilot.LIVE_BOARDS.find(board => board.id === 'shein-us'), {
+    fetchSnapshot: async () => ({ rawCount: 1, jobs: [usPosting] })
+  });
 
   const app = express();
   app.use(express.json());
@@ -40,6 +48,7 @@ async function main() {
     const base = `http://127.0.0.1:${server.address().port}`;
     const token = jwt.sign({ userId: 1, openid: 'isolated_seed_owner' }, process.env.JWT_SECRET);
     const aggregate = await (await fetch(`${base}/api/jobs/aggregate?country=cn&query=Design%20Intern`)).json();
+    const usAggregate = await (await fetch(`${base}/api/jobs/aggregate?country=us&query=Marketing%20Intern`)).json();
     const detail = await (await fetch(`${base}/api/jobs/detail?job_id=official_landor_912345`)).json();
     const webFast = await (await fetch(`${base}/api/jobs?source=local&country=cn&keyword=Design%20Intern`)).json();
     const webList = await (await fetch(`${base}/api/jobs?country=cn&keyword=Design%20Intern`)).json();
@@ -69,6 +78,8 @@ async function main() {
       ready: sync.readyToServe(db),
       aggregateId: aggregate.data?.find(job => job.job_id === posting.job_id)?.job_id,
       aggregateSource: aggregate.sourceStatus?.find(row => row.source === 'cn_official'),
+      usAggregateId: usAggregate.data?.find(job => job.job_id === usPosting.job_id)?.job_id,
+      usAggregateSource: usAggregate.sourceStatus?.find(row => row.source === 'official_board'),
       detailId: detail.data?.[0]?.job_id,
       webFastJob: webFast.data?.list?.find(job => job.id === posting.job_id),
       webListJob: webList.data?.list?.find(job => job.id === posting.job_id),

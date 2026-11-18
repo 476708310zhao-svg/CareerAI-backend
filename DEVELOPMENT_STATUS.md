@@ -1,5 +1,11 @@
 # DEVELOPMENT_STATUS
 
+## 2026-11-18 飞书企业清单首批扩展与官网职位概览（代码完成，待 PR 审查）
+
+- 从飞书「27届企业笔试测评资料库」企业测评总表读取 621 条企业名称候选；该清单用于发现企业，不作为岗位数据。新增 SHEIN 美国 Greenhouse 自动板及亚马逊、微软、英伟达、特斯拉 4 个官网入口，目录从 20 家增至 25 家。SHEIN 官方公开接口现场返回 16 条岗位，当前没有符合实习/应届规则的开放岗位；这次扩展不会凭空增加公开岗位数量。
+- 官网职位的 `description` 现在由已保存的公司、岗位、地点、类型组成本站简要概览，原始官网正文仍不保存或返回，既有 0034 快照无需数据库迁移或重新同步。小程序按当前国家显示官网目录及实际数量，美国官网快照也接入 `/api/jobs/aggregate?country=us`；中国内地快照就绪判定保持独立，避免新增美国板使旧岗位回退。
+- 验证：真实 SHEIN 板只读抓取 16 条、筛选接受 0 条；专项 37/37 通过；最终 `npm run check:release` 退出 0（852 项中 850 通过、0 失败、2 项既有跳过）；修改后 `npm run check:miniprogram`、JS 语法和 `git diff --check` 通过。可选 Web 浏览器专项因当前工作树没有安装 Playwright 而未执行；其断言已更新为核对简要概览且原文不外显。没有迁移、生产同步、微信真实 E2E 或部署。
+
 ## 2026-11-17 企业官网岗位同步器正式发布与网页补齐
 
 - Human 审查 PR #3 并批准生产迁移及部署；该 PR 已合并至 `codex/release-20261116`。服务器按合并提交 `f13b863` 建立不可变发布目录，正式备份经 `integrity_check=ok` 核验后应用 `0034`，发布脚本检查和切流成功。内网及公网健康接口返回 200。
@@ -725,6 +731,7 @@ Sprint 8“提醒可靠性、跨设备一致性与收藏请求统一”已完成
 
 ## 当前文件占用
 
+- 已完成并释放：Codex `expand-official-employers-20261118`。范围：官网同步器、岗位路由、市场来源、小程序岗位目录、专项测试、扩展记录与本文件；验证和发布边界见顶部 2026-11-18 记录。
 - 已完成并释放：Codex `official_open_web_jobs`（2026-11-17）。范围：`routes/jobs.js`、`tests/helpers/officialJobSyncProbe.cjs`、`tests/officialJobSync.test.js`、`docs/OFFICIAL_JOB_SYNC_PLAN_20261117.md` 与本记录。线上网页代理只返回 13/18 条开放官网岗位：旧的发布时间新鲜度过滤误删仍可申请岗位。风险：较早发布时间的开放岗位重新出现；验证：官网表单已核对，隔离专项、完整测试及公开网页复核。
 
 - 已完成并释放：Codex `official_public_web_list`（2026-11-17）。范围：`routes/jobs.js`、`services/officialJobSync.js`、`tests/officialJobSync.test.js`、`tests/helpers/officialJobSyncProbe.cjs`、`docs/OFFICIAL_JOB_SYNC_PLAN_20261117.md` 与本记录。目标是将已发布的官网快照接入公开网页实际使用的 `/api/jobs` 列表，保留按国家与筛选条件的现有契约，不外显岗位正文。风险：旧网页列表排序、分页和来源标记变化；验证：隔离库接口专项、`npm test`、发布检查及线上网页复核。
