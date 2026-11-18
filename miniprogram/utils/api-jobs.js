@@ -203,8 +203,8 @@ function getAggregatedJobs(data) {
       : Promise.reject(error));
 }
 
-function getOfficialBoards() {
-  return request({ path: '/api/jobs/official-boards', params: {}, timeout: 8000,
+function getOfficialBoards(country = 'global') {
+  return request({ path: '/api/jobs/official-boards', params: { country }, timeout: 8000,
     baseUrl: CONTENT_API_BASE_URL, skipAuth: true });
 }
 

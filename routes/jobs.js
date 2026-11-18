@@ -802,7 +802,10 @@ function _localFallbackPool(query) {
 // ════════════════════════════════════════════════════════════════════════════════
 // GET /api/jobs/official-boards — verified entrances, not fabricated jobs.
 router.get('/official-boards', jobsLimiter, (req, res) => {
-  res.json({ status: 'OK', country: 'cn', total: 20, boards: cnOfficialPilot.directory() });
+  const country = ['cn', 'us', 'global'].includes(req.query.country) ? req.query.country : 'global';
+  const boards = cnOfficialPilot.directory().filter(board => country === 'global' ||
+    board.countryCode === country || board.countryCode === 'global');
+  res.json({ status: 'OK', country, total: boards.length, boards });
 });
 
 // ════════════════════════════════════════════════════════════════════════════════
@@ -1032,7 +1035,7 @@ router.get('/aggregate', jobsLimiter, async (req, res) => {
     const snapshotReady = officialJobSync.readyToServe(db);
     const savedJobs = snapshotReady ? officialJobSync.listActiveRaw(db, query) : [];
     const result = snapshotReady
-      ? { jobs: savedJobs, boardStatus: cnOfficialPilot.LIVE_BOARDS.map(board => {
+      ? { jobs: savedJobs, boardStatus: cnOfficialPilot.LIVE_CN_BOARDS.map(board => {
         const latest = officialJobSync.latestBoardStatus(db, board.id);
         const count = savedJobs.filter(job => job.job_id.startsWith(`official_${board.id}_`)).length;
         return { id: board.id, name: board.name,
@@ -1049,10 +1052,19 @@ router.get('/aggregate', jobsLimiter, async (req, res) => {
     return result.jobs.map(job => snapshotReady ? officialJobWithMeta(job) : _withRawJobMeta(job, 'cn_official'));
   }
 
+  async function _fetchOfficialBoardFresh(code) {
+    const boards = cnOfficialPilot.LIVE_BOARDS.filter(board => board.countryCode === code);
+    if (!officialJobSync.hasSchema(db) || !boards.some(board => officialJobSync.latestBoardStatus(db, board.id))) {
+      return recordSource('official_board', code, [], 'not_synced');
+    }
+    const jobs = officialJobSync.listActiveRaw(db, query, code).map(officialJobWithMeta);
+    return recordSource('official_board', code, jobs);
+  }
+
   async function _fetchMarketFresh(code) {
     const handlers = { jsearch: () => _fetchJSearchFresh(code),
       adzuna: () => _fetchAdzunaFresh(code), hk_csb: _fetchHkCsbFresh,
-      cn_official: _fetchCnOfficialFresh };
+      cn_official: _fetchCnOfficialFresh, official_board: () => _fetchOfficialBoardFresh(code) };
     const batches = await Promise.all(marketSources(code).map(source => handlers[source]()));
     return batches.flat();
   }

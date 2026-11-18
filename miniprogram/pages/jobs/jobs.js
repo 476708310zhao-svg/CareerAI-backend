@@ -153,6 +153,8 @@ Page({
     countryList: [],     // 从 /api/countries 加载
     officialBoardsVisible: false,
     officialBoards: [],
+    officialBoardCountry: '',
+    officialBoardSummary: '',
     officialBoardsError: '',
 
     // 地图视图
@@ -328,7 +330,7 @@ Page({
     } else if (options.keyword) {
       this.setData({ searchKeyword: options.keyword, activeTag: options.keyword });
     }
-    if (this.data.filterCountry === 'cn') this._loadOfficialBoards();
+    if (['cn', 'us', 'global'].includes(this.data.filterCountry)) this._loadOfficialBoards();
     const hasFreshCache = this.loadCachedOrMock();
     this._initialLoadNeedsJobs = !hasFreshCache || !!options.keyword || !!pendingSearch;
     clearTimeout(this._initialLoadTimer);
@@ -644,29 +646,37 @@ Page({
 
   resetFilter: function() {
     this.setData({ filterType: '', filterDate: '', filterCountry: 'global', countryCodeInput: '', filterSponsor: '', filterActive: false, filterVisible: false });
+    this._loadOfficialBoards();
     this.loadJobs(true);
   },
 
   applyFilter: function() {
     const active = !!(this.data.filterType || this.data.filterDate || this.data.filterCountry !== 'global' || this.data.filterSponsor);
     this.setData({ filterActive: active, filterVisible: false });
-    if (this.data.filterCountry === 'cn') this._loadOfficialBoards();
+    if (['cn', 'us', 'global'].includes(this.data.filterCountry)) this._loadOfficialBoards();
     this.loadJobs(true);
   },
 
   toggleOfficialBoards: function() {
     const visible = !this.data.officialBoardsVisible;
     this.setData({ officialBoardsVisible: visible });
-    if (visible && !this.data.officialBoards.length) this._loadOfficialBoards();
+    if (visible && this.data.officialBoardCountry !== this.data.filterCountry) this._loadOfficialBoards();
   },
 
   _loadOfficialBoards: function() {
-    getOfficialBoards().then(result => {
-      if (!this._visible) return;
+    const country = this.data.filterCountry;
+    if (this.data.officialBoardCountry !== country) this.setData({
+      officialBoards: [], officialBoardCountry: '', officialBoardSummary: '', officialBoardsError: ''
+    });
+    getOfficialBoards(country).then(result => {
+      if (!this._visible || this.data.filterCountry !== country) return;
       if (!Array.isArray(result.boards)) throw new Error('官网入口格式异常');
-      this.setData({ officialBoards: result.boards, officialBoardsError: '' });
+      const autoCount = result.boards.filter(board => board.mode === 'auto_sync').length;
+      this.setData({ officialBoards: result.boards, officialBoardCountry: country,
+        officialBoardSummary: `${result.boards.length} 家已核验 · ${autoCount} 家同步职位 · ${result.boards.length - autoCount} 家提供官网入口`,
+        officialBoardsError: '' });
     }).catch(() => {
-      if (this._visible) this.setData({ officialBoardsError: '官网入口暂时无法加载，请稍后重试' });
+      if (this._visible && this.data.filterCountry === country) this.setData({ officialBoardsError: '官网入口暂时无法加载，请稍后重试' });
     });
   },
 

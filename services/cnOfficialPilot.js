@@ -13,6 +13,8 @@ const BOARDS = Object.freeze([
   { id: 'meshy', name: 'Meshy', adapter: 'ashby', token: 'meshy' },
   { id: 'scientech-research', name: 'Scientech Research', adapter: 'ashby', token: 'scientech-research' },
   { id: 'hypebeast', name: 'Hypebeast', adapter: 'lever', token: 'hypebeast' },
+  { id: 'shein-us', name: 'SHEIN', adapter: 'greenhouse', token: 'shein',
+    countryCode: 'us', verifiedSingleCountry: 'us', verifiedLocations: ['Los Angeles', 'San Diego'] },
   { id: 'alibaba', name: '阿里巴巴', url: 'https://campus-talent.alibaba.com/' },
   { id: 'bytedance', name: '字节跳动', url: 'https://jobs.bytedance.com/campus' },
   { id: 'tencent', name: '腾讯', url: 'https://join.qq.com/' },
@@ -22,10 +24,15 @@ const BOARDS = Object.freeze([
   { id: 'jd', name: '京东', url: 'https://zhaopin.jd.com/home' },
   { id: 'pdd', name: '拼多多', url: 'https://careers.pddglobalhr.com/' },
   { id: 'xiaomi', name: '小米', url: 'https://hr.xiaomi.com/website/campus.html' },
-  { id: 'china-mobile', name: '中国移动', url: 'https://job.10086.cn/' }
+  { id: 'china-mobile', name: '中国移动', url: 'https://job.10086.cn/' },
+  { id: 'amazon', name: '亚马逊', countryCode: 'global', url: 'https://www.amazon.jobs/content/en/career-programs/university' },
+  { id: 'microsoft', name: '微软', countryCode: 'global', url: 'https://careers.microsoft.com/v2/global/en/universityinternship' },
+  { id: 'nvidia', name: '英伟达', countryCode: 'global', url: 'https://www.nvidia.com/en-us/about-nvidia/careers/university-recruiting/' },
+  { id: 'tesla', name: '特斯拉', countryCode: 'global', url: 'https://www.tesla.com/careers/internships' }
 ]);
 
 const LIVE_BOARDS = BOARDS.filter(board => board.adapter);
+const LIVE_CN_BOARDS = LIVE_BOARDS.filter(board => !board.countryCode || board.countryCode === 'cn');
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const CN_LOCATION = /中国|北京|上海|深圳|广州|杭州|成都|苏州|南京|武汉|西安|天津|重庆|厦门|宁波|合肥|长沙|郑州|青岛|无锡|珠海|东莞|\bchina\b|\bbeijing\b|\bshanghai\b|\bshenzhen\b|\bguangzhou\b|\bhangzhou\b|\bchengdu\b|\bsuzhou\b|\bnanjing\b|\bwuhan\b|\bxian\b/i;
 const MAINLAND_CITY = /北京|上海|深圳|广州|杭州|成都|苏州|南京|武汉|西安|天津|重庆|厦门|宁波|合肥|长沙|郑州|青岛|无锡|珠海|东莞|\bbeijing\b|\bshanghai\b|\bshenzhen\b|\bguangzhou\b|\bhangzhou\b|\bchengdu\b|\bsuzhou\b|\bnanjing\b|\bwuhan\b|\bxian\b/i;
@@ -33,7 +40,7 @@ const MARKET_LOCATION = {
   gb: /\b(?:united kingdom|great britain|england|scotland|wales|northern ireland|uk)\b/i,
   us: /\b(?:united states(?: of america)?|usa|u\.s\.a\.|us)\b/i
 };
-const EARLY_CAREER = /实习|校招|应届|管培|毕业生|暑期|\bintern(?:ship)?\b|\bgraduate\b|\bnew grad\b|\bstudent\b|\bcampus\b|\btrainee\b/i;
+const EARLY_CAREER = /实习|校招|应届|管培|毕业生|暑期|\bintern(?:ship)?\b|\bgraduate\b|\bnew grad\b|\bstudent\b|\btrainee\b/i;
 const INTERN_TITLE = /实习|\bintern(?:ship)?\b/i;
 const EXPLICIT_FULL_TIME = /^(?:full[\s-]?time|permanent|regular)$/i;
 const QUERY_SYNONYMS = [
@@ -61,7 +68,7 @@ function feedUrl(board, page = 0) {
 }
 
 function directory() {
-  return BOARDS.map(board => ({ id: board.id, name: board.name,
+  return BOARDS.map(board => ({ id: board.id, name: board.name, countryCode: board.countryCode || 'cn',
     mode: board.adapter ? 'auto_sync' : 'official_link',
     modeLabel: board.adapter ? '官网职位同步' : '仅官网入口',
     url: boardUrl(board) }));
@@ -96,6 +103,8 @@ function targetLocation(board, row, locations) {
     CN_LOCATION.test(candidate) &&
     (!/香港|澳门|台湾|hong kong|hongkong|macau|macao|taiwan/i.test(candidate) || MAINLAND_CITY.test(candidate))))].join('; ') || null;
   if (!MARKET_LOCATION[country]) return null;
+  if (board.verifiedLocations && !locations.some(value =>
+    board.verifiedLocations.includes(String(value || '').trim()))) return null;
   const structured = [row.country, row.address?.postalAddress?.addressCountry,
     row.location?.country, row.location?.address?.addressCountry]
     .filter(Boolean).map(value => String(value).trim().toLowerCase());
@@ -119,11 +128,9 @@ function normalizeRow(board, row) {
     : isLever ? [location, ...(row.categories?.allLocations || [])] :
       [location, ...(row.secondaryLocations || []).map(x => typeof x === 'string' ? x : x.location || x.name)];
   const selectedLocation = targetLocation(board, row, allLocations);
-  const department = isGreenhouse ? row.departments?.map(x => x.name).join(' ') :
-    isLever ? row.categories?.team : row.department;
   const sourceEmployment = String(row.employmentType || row.categories?.commitment || '').trim();
   if (!title || !selectedLocation ||
-      !EARLY_CAREER.test([title, department, sourceEmployment].filter(Boolean).join(' ')) ||
+      !EARLY_CAREER.test([title, sourceEmployment].filter(Boolean).join(' ')) ||
       (INTERN_TITLE.test(title) && EXPLICIT_FULL_TIME.test(sourceEmployment))) return null;
   const publicUrl = safeUrl(isGreenhouse ? row.absolute_url : isLever ? row.hostedUrl : row.jobUrl);
   const ashbyId = !isGreenhouse && !isLever && publicUrl
@@ -225,13 +232,13 @@ async function fetchBoard(board, options = {}) {
 }
 
 async function search(query, options = {}) {
-  const results = await Promise.allSettled(LIVE_BOARDS.map((board, index) => fetchBoard(board, {
+  const results = await Promise.allSettled(LIVE_CN_BOARDS.map((board, index) => fetchBoard(board, {
     ...options, requestDelayMs: options.gateway ? index * 120 : 0
   })));
   const jobs = [];
   const boardStatus = [];
   for (let index = 0; index < results.length; index++) {
-    const board = LIVE_BOARDS[index];
+    const board = LIVE_CN_BOARDS[index];
     const result = results[index];
     if (result.status === 'rejected') {
       boardStatus.push({ id: board.id, name: board.name, status: 'unavailable', count: 0,
@@ -255,4 +262,4 @@ async function findById(id, options = {}) {
   return (await fetchBoard(board, options)).find(job => job.job_id === id) || null;
 }
 
-module.exports = { BOARDS, LIVE_BOARDS, directory, boardUrl, feedUrl, normalizeRow, fetchBoardSnapshot, fetchBoard, search, findById, matchesQuery };
+module.exports = { BOARDS, LIVE_BOARDS, LIVE_CN_BOARDS, directory, boardUrl, feedUrl, normalizeRow, fetchBoardSnapshot, fetchBoard, search, findById, matchesQuery };
